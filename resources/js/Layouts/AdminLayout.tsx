@@ -3,6 +3,7 @@ import { Head } from '@inertiajs/react';
 import {
     HomeIcon,
     UsersIcon,
+    Squares2X2Icon,
     Bars3Icon,
     MoonIcon,
     SunIcon,
@@ -41,6 +42,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     <SidebarSection title="Menu">
                         <SidebarItem href="/dashboard" icon={<HomeIcon />} label="Dashboard" />
                         <SidebarItem href="/admin/users" icon={<UsersIcon />} label="Users" />
+                        <SidebarItem href="/admin/components" icon={<Squares2X2Icon />} label="Komponen" />
                     </SidebarSection>
                 </Sidebar>
 
