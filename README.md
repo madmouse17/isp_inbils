@@ -67,6 +67,22 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 - [x] **Frontend** — Index (filter type/status/source/customer/search), Create, Show (detail + items table + payments timeline + lifecycle buttons: Send/Add Item/Record Payment/Cancel)
 - [x] **Factory** — InvoiceFactory
 
+### Phase 6 — Ticketing
+
+- [x] **Ticketing Module** (Modules/Ticketing) — `Ticket`, `TicketCategory`, `TicketComment`, `TicketAttachment` models
+- [x] **5-State Machine** — open → assigned → on_progress → resolved → closed
+- [x] **TicketService** — assign, startWork (FRT tracking), resolve, close, spawnSpk (cross-module → SPK maintenance)
+- [x] **SLA Tracking** — deadline per category (urgent = half SLA), breach detection (computed attribute), FRT (first_response_at)
+- [x] **3 Sources** — customer, noc, internal
+- [x] **ISP Categories** — no_internet, slow_connection, packet_loss, device_issue, fiber_issue (seeded in CompanySeeder)
+- [x] **Comments** — internal (staff-only) + public, with author
+- [x] **Attachments** — file upload (photo/document/screenshot), local storage
+- [x] **Spawn SPK** — TicketService::spawnSpk creates WorkOrder type=maintenance, source=ticket, pre-fill customer/subscription/asset/location, backlink spawned_spk_id
+- [x] **Code Generation** — TKT-{YEAR}-{NNNNN}, race-safe lockForUpdate
+- [x] **Policy** — technician self-limit (view assigned only), Kepala Unit assign/close/spawn-spk
+- [x] **Frontend** — Index (filter status/source/category/sla_breached/search), Create, Show (detail + lifecycle buttons + comments thread + attachments + spawn-SPK button)
+- [x] **Factory** — TicketFactory
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -211,10 +227,11 @@ modules/
   NetworkAsset/          # NetworkAsset, NetworkAssetInstallation, NetworkAssetService
   SPK/                   # WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence, SpkService
   Billing/               # Invoice, InvoiceItem, Payment, BillingService
+  Ticketing/             # Ticket, TicketCategory, TicketComment, TicketAttachment, TicketService
 resources/js/
   Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
   Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
-  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK, Billing
+  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK, Billing, Tickets
   Layouts/               # AdminLayout (sidebar + topbar + dark mode)
   hooks/                 # usePermission, useCompany, useToast
   types/                 # TypeScript interfaces (models, inventory, network-asset)
