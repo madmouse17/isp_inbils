@@ -1,0 +1,15 @@
+{
+    "name": "SPK",
+    "alias": "spk",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\SPK\\Providers\\SPKServiceProvider"
+    ],
+    "dependencies": [
+        "Inventory",
+        "NetworkAsset"
+    ],
+    "files": []
+}

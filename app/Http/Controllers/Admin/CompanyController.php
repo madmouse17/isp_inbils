@@ -1,0 +1,74 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateCompanyProfileRequest;
+use App\Http\Requests\Admin\UpdateCompanySettingsRequest;
+use App\Http\Resources\CompanyResource;
+use App\Services\Core\CompanyService;
+use App\Services\Core\SettingService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class CompanyController extends Controller
+{
+    public function editProfile(Request $request): Response
+    {
+        $company = CompanyService::current();
+        Gate::authorize('viewProfile', $company);
+
+        return Inertia::render('Admin/Company/Profile', [
+            'company' => new CompanyResource($company),
+            'can' => [
+                'update' => $request->user()?->can('company.manage') ?? false,
+            ],
+        ]);
+    }
+
+    public function updateProfile(UpdateCompanyProfileRequest $request): RedirectResponse
+    {
+        $company = CompanyService::current();
+        Gate::authorize('updateProfile', $company);
+
+        $data = $request->validated();
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $request->file('logo')->storeAs('companies/'.$company->id, 'logo.'.$request->file('logo')->extension(), 'public');
+        }
+
+        CompanyService::updateProfile($data);
+
+        return back()->with('success', 'Company profile updated.');
+    }
+
+    public function editSettings(Request $request): Response
+    {
+        $company = CompanyService::current();
+        Gate::authorize('viewSettings', $company);
+
+        return Inertia::render('Admin/Company/Settings', [
+            'settings' => $company->settings ?? [],
+            'defaults' => [
+                'app_name' => SettingService::get('default_app_name'),
+                'currency' => SettingService::get('default_currency'),
+                'timezone' => SettingService::get('default_timezone'),
+            ],
+            'can' => [
+                'update' => $request->user()?->can('company.manage') ?? false,
+            ],
+        ]);
+    }
+
+    public function updateSettings(UpdateCompanySettingsRequest $request): RedirectResponse
+    {
+        $company = CompanyService::current();
+        Gate::authorize('updateSettings', $company);
+
+        CompanyService::updateSettings($request->validated('settings'));
+
+        return back()->with('success', 'Company settings updated.');
+    }
+}

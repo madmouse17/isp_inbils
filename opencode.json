@@ -1,0 +1,28 @@
+{
+    "$schema": "https://opencode.ai/config.json",
+    "mcp": {
+        "laravel-boost": {
+            "type": "local",
+            "enabled": true,
+            "command": [
+                "php",
+                "artisan",
+                "boost:mcp"
+            ]
+        },
+        "context7": {
+            "type": "local",
+            "enabled": true,
+            "command": [
+                "C:\\Users\\MadMouse\\AppData\\Roaming\\npm\\context7-mcp.cmd"
+            ]
+        },
+        "sequential-thinking": {
+            "type": "local",
+            "enabled": true,
+            "command": [
+                "C:\\Users\\MadMouse\\AppData\\Roaming\\npm\\mcp-server-sequential-thinking.cmd"
+            ]
+        }
+    }
+}

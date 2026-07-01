@@ -1,0 +1,16 @@
+{
+    "name": "Billing",
+    "alias": "billing",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Billing\\Providers\\BillingServiceProvider"
+    ],
+    "dependencies": [
+        "Inventory",
+        "SPK",
+        "Service"
+    ],
+    "files": []
+}

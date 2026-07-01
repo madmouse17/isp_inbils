@@ -1,0 +1,12 @@
+{
+    "name": "NetworkAsset",
+    "alias": "networkasset",
+    "description": "",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\NetworkAsset\\Providers\\NetworkAssetServiceProvider"
+    ],
+    "dependencies": [],
+    "files": []
+}

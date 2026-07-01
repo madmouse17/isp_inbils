@@ -1,0 +1,10 @@
+{
+    "Customer": true,
+    "Service": true,
+    "NetworkAsset": true,
+    "Inventory": true,
+    "SPK": true,
+    "Billing": true,
+    "Ticketing": true,
+    "Reporting": true
+}

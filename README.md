@@ -1,59 +1,189 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# inbils — ISP Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v3.
 
-## About Laravel
+## Features
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### Phase 1 — Core Foundation
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+- [x] **Company System** — Multi-tenant ready via `BelongsToCompany` trait (global scope + auto-set `company_id`), `CompanyService` (current/setting/updateProfile/updateSettings), two-layer config (`companies.settings` JSON + `settings` table system defaults)
+- [x] **Setup Wizard** — First-login bootstrap flow: `php artisan inbils:setup` creates admin user → login → 4-step wizard (Company info → System config → Initial admin → Confirmation) → company created with roles + master defaults seeded
+- [x] **Authentication** — Laravel Breeze (React/Inertia), register disabled (users created via admin CRUD or bootstrap command), 3 middleware: `RedirectIfNoCompany`, `RequireNoCompany`, `RequireHasCompany`
+- [x] **User Management** — Full CRUD, role assignment, activate/deactivate, self-protection (cannot delete/deactivate self), `last_login_at` tracking via Login event listener
+- [x] **Role Management** — Full CRUD with permission sync, 5 default roles (admin, manager, staff, technician, customer), protected roles cannot be deleted
+- [x] **Permission System** — spatie/laravel-permission, ~80+ permissions across 8 modules, read-only index, role-permission matrix per `SECURITY.md`
+- [x] **Audit Log** — spatie/laravel-activitylog, `LogsActivity` trait on core models, `AuditService` wrapper for manual events
+- [x] **Location Topology** — Hierarchical topology (region → area → pop → rack → site), materialized path, cycle prevention, recurse on move/rename, type validation per FK use-case
+- [x] **System Settings** — Key-value `settings` table, `SettingService` with cache, `SystemSettingSeeder` defaults
+- [x] **Dashboard** — Real data widgets (company info, user/role counts, recent activity log, module placeholders)
+- [x] **Master Defaults Seed** — `CompanySeeder::runFor()` fires on `CompanyCreated` event: default units, ISP ticket categories, SLA tiers, sample locations
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### Phase 2 — Master Data
 
-## Learning Laravel
+- [x] **Service Catalog** (Modules/Service) — `ServicePackage`, `BandwidthProfile`, `SpeedProfile`, `SLATier` models with full CRUD backend
+- [x] **Customer Management** — `Customer` (Individual/Company), `CustomerAddress` (multi-address, installation point guard), `CustomerContact` (multi-contact, primary guard)
+- [x] **Service Subscription** — `ServiceSubscription` lifecycle: pending → active → suspended → reactivated → terminated, `SubscriptionService` with DB transactions + audit logging, MRC snapshot from package, code generation (SUB-{YEAR}-{NNNNN})
+- [x] **Customer Frontend** — Index (filter/search/paginate), Create, Edit, Show (tabbed: profile + addresses + contacts + subscriptions), Address management (modal CRUD), Contact management (modal CRUD), Subscription index + create (modal), Subscription detail with lifecycle action buttons
+- [x] **UI Design System** — 35+ `Components/ui/*` primitives + 6 `Components/composite/*` (DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter), dark mode (class strategy + localStorage), fully responsive
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Tech Stack
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+| Layer | Technology |
+|-------|-----------|
+| Backend | Laravel 12, PHP 8.2+ |
+| Frontend | React 18, TypeScript, Inertia.js |
+| Styling | Tailwind CSS v3 + @tailwindcss/forms |
+| Build | Vite |
+| Database | MySQL 8+ |
+| Auth | Laravel Breeze (Inertia/React) |
+| Roles/Permissions | spatie/laravel-permission |
+| Audit Log | spatie/laravel-activitylog |
+| Modules | nwidart/laravel-modules |
+| Icons | heroicons/react/24/outline |
 
-## Laravel Sponsors
+## Requirements
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- PHP 8.2+
+- MySQL 8+ (or MariaDB 10.6+)
+- Node.js 18+
+- Composer 2+
+- npm 9+
 
-### Premium Partners
+## Installation
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+### 1. Clone & install dependencies
 
-## Contributing
+```bash
+git clone https://github.com/madmouse17/isp_inbils.git
+cd isp_inbils
+composer install
+npm install
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 2. Configure environment
 
-## Code of Conduct
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Edit `.env`:
 
-## Security Vulnerabilities
+```env
+APP_NAME=inbils
+APP_ENV=local
+APP_URL=http://localhost:8000
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=inbils
+DB_USERNAME=root
+DB_PASSWORD=
+```
+
+### 3. Create databases
+
+```bash
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils;"
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils_testing;"
+```
+
+### 4. Migrate & seed
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+This seeds:
+- 5 system roles (admin, manager, staff, technician, customer)
+- ~80+ permissions across 8 modules
+- System setting defaults (app.name, default_currency, default_timezone, etc.)
+
+No company or user is seeded — use the bootstrap command.
+
+### 5. Build frontend
+
+```bash
+npm run build
+# or for development:
+npm run dev
+```
+
+### 6. Bootstrap admin user
+
+```bash
+php artisan inbils:setup
+```
+
+This interactively creates the first admin user (name, email, password). This user has no company yet.
+
+### 7. Start the server
+
+```bash
+php artisan serve
+```
+
+Visit `http://localhost:8000/login`, log in with the bootstrap credentials, and complete the Setup Wizard to create your company.
+
+## Development
+
+### Dev commands
+
+```bash
+php artisan serve          # Backend dev server (port 8000)
+npm run dev                # Vite HMR frontend
+php artisan test           # Run test suite
+npm run build              # Production build (tsc + vite)
+composer dump-autoload     # Regenerate classmap
+```
+
+### Testing
+
+```bash
+php artisan test
+```
+
+Note: 11 Breeze tests fail due to `RedirectIfNoCompany` middleware (expected — factory users have `company_id=null`). This is by design.
+
+### Project structure
+
+```
+app/
+  Console/Commands/     # SetupBootstrapCommand
+  Http/
+    Controllers/Admin/  # Dashboard, Company, User, Role, Permission, Location, Customer, Subscription
+    Middleware/          # RedirectIfNoCompany, RequireNoCompany, RequireHasCompany
+    Requests/Admin/      # Form requests (validation + authorization)
+    Resources/           # API resources (JSON response shape)
+  Models/Core/           # Company, User, Setting, Location, Customer, CustomerAddress, CustomerContact, ServiceSubscription
+  Services/Core/         # CompanyService, SettingService, SetupWizardService, AuditService, SubscriptionService
+  Policies/              # CustomerPolicy, SubscriptionPolicy, etc.
+  Traits/                # BelongsToCompany
+database/
+  migrations/            # All schema
+  seeders/               # RolePermissionSeeder, SystemSettingSeeder, CompanySeeder
+  factories/             # Model factories
+modules/
+  Service/               # ServicePackage, BandwidthProfile, SpeedProfile, SLATier
+resources/js/
+  Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
+  Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
+  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions
+  Layouts/               # AdminLayout (sidebar + topbar + dark mode)
+  hooks/                 # usePermission, useCompany, useToast
+  types/                 # TypeScript interfaces
+docs/                    # Architecture, database, security, workflow specs
+```
+
+## Architecture
+
+- **Thin controllers** → FormRequest (validation) → Policy (authorization) → Service (business logic) → Model (data + relations)
+- **Multi-tenant** via `BelongsToCompany` trait (global scope + auto-set `company_id`)
+- **Modular** domain logic in `Modules/` (nwidart/laravel-modules), shared cross-cutting in `app/`
+- **Inertia-as-Island** — Laravel routes drive pages, React renders per-route islands, no SPA/axios
+- **UI convention** — all pages compose `Components/ui/*` primitives, never inline raw HTML elements
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Proprietary. All rights reserved.
