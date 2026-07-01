@@ -61,6 +61,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         {can('roles.manage') && <SidebarItem href="/admin/roles" icon={<ShieldCheckIcon />} label="Roles" />}
                         {can('users.manage') && <SidebarItem href="/admin/permissions" icon={<KeyIcon />} label="Permissions" />}
                         {can('customer.view') && <SidebarItem href="/admin/customers" icon={<BriefcaseIcon />} label="Customers" />}
+                        {can('service.view') && <SidebarItem href="/admin/service-packages" icon={<TagIcon />} label="Service" />}
                         {can('inventory.view') && <SidebarItem href="/admin/inventory" icon={<TagIcon />} label="Inventory" />}
                         {can('spk.view') && <SidebarItem href="/admin/spk" icon={<ClipboardDocumentListIcon />} label="SPK" />}
                         {can('billing.view') && <SidebarItem href="/admin/billing" icon={<BanknotesIcon />} label="Billing" />}
