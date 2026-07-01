@@ -20,11 +20,24 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 
 ### Phase 2 — Master Data
 
-- [x] **Service Catalog** (Modules/Service) — `ServicePackage`, `BandwidthProfile`, `SpeedProfile`, `SLATier` models with full CRUD backend
+- [x] **Service Catalog** (Modules/Service) — `ServicePackage`, `BandwidthProfile`, `SpeedProfile`, `SLATier` models with full CRUD backend + frontend pages (Index/Create/Edit/Show)
 - [x] **Customer Management** — `Customer` (Individual/Company), `CustomerAddress` (multi-address, installation point guard), `CustomerContact` (multi-contact, primary guard)
 - [x] **Service Subscription** — `ServiceSubscription` lifecycle: pending → active → suspended → reactivated → terminated, `SubscriptionService` with DB transactions + audit logging, MRC snapshot from package, code generation (SUB-{YEAR}-{NNNNN})
 - [x] **Customer Frontend** — Index (filter/search/paginate), Create, Edit, Show (tabbed: profile + addresses + contacts + subscriptions), Address management (modal CRUD), Contact management (modal CRUD), Subscription index + create (modal), Subscription detail with lifecycle action buttons
+- [x] **Service Catalog Frontend** — Service Package (Index/Create/Edit/Show), Bandwidth Profile (Index/Create/Edit), Speed Profile (Index/Create/Edit), SLA Tier (Index/Create/Edit), sidebar link
+- [x] **Seeders** — CompanySeeder extended (5 bandwidth profiles, 5 speed profiles, 8 service packages, 3 SLA tiers, 5 categories, 10 products, 10 network assets), CustomerDemoSeeder (20 customers, 30 subscriptions)
 - [x] **UI Design System** — 35+ `Components/ui/*` primitives + 6 `Components/composite/*` (DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter), dark mode (class strategy + localStorage), fully responsive
+
+### Phase 3 — Inventory + NetworkAsset
+
+- [x] **Inventory Module** (Modules/Inventory) — `Product`, `Category`, `Unit`, `Stock`, `StockMovement` models
+- [x] **Stock Management** — `StockService` with 7 movement types (receive/issue/transfer/adjustment/reserve/release/return), DB transactions, `InsufficientStockException`, balance_after + reserved_after snapshots, multi-location support
+- [x] **Inventory Frontend** — Products (Index/Create/Edit/Show with stock-per-location + movement history), Categories (inline modal CRUD), Units (inline modal CRUD), Stocks (Index + receive/issue/transfer/adjust modals), Movements (history with filter), Item Finder (search → locations + qty)
+- [x] **NetworkAsset Module** (Modules/NetworkAsset) — `NetworkAsset`, `NetworkAssetInstallation` models
+- [x] **Asset Lifecycle** — `NetworkAssetService`: install → remove → maintenance → resume → damage → repair → retire, `NetworkAssetInstallation` append-only history (1 active per asset), code generation (AST-{YEAR}-{NNNNN})
+- [x] **NetworkAsset Frontend** — Index (filter type/status/location/search), Create, Edit, Show (detail + installation history timeline + lifecycle action buttons), Trace (search by serial/MAC/IP/customer)
+- [x] **Factories** — Category, Unit, Product, Stock, StockMovement, NetworkAsset factories
+- [x] **Sidebar** — Inventory + Network Assets links (permission-gated)
 
 ## Tech Stack
 
@@ -166,13 +179,15 @@ database/
   factories/             # Model factories
 modules/
   Service/               # ServicePackage, BandwidthProfile, SpeedProfile, SLATier
+  Inventory/             # Product, Category, Unit, Stock, StockMovement, StockService
+  NetworkAsset/          # NetworkAsset, NetworkAssetInstallation, NetworkAssetService
 resources/js/
   Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
   Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
-  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions
+  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets
   Layouts/               # AdminLayout (sidebar + topbar + dark mode)
   hooks/                 # usePermission, useCompany, useToast
-  types/                 # TypeScript interfaces
+  types/                 # TypeScript interfaces (models, inventory, network-asset)
 docs/                    # Architecture, database, security, workflow specs
 ```
 
