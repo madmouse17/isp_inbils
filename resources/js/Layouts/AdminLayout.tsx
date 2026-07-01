@@ -57,6 +57,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
                         <SidebarSection title="Menu">
                         <SidebarItem href="/admin/dashboard" icon={<HomeIcon />} label="Dashboard" />
+                        {can('organization.view') && <SidebarItem href="/admin/organizations" icon={<BuildingOfficeIcon />} label="Organization" />}
                         {can('company.manage') && <SidebarItem href="/admin/company/profile" icon={<BuildingOfficeIcon />} label="Company" />}
                         {canAny(['users.manage']) && <SidebarItem href="/admin/users" icon={<UsersIcon />} label="Users" />}
                         {can('roles.manage') && <SidebarItem href="/admin/roles" icon={<ShieldCheckIcon />} label="Roles" />}
