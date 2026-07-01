@@ -53,6 +53,20 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 - [x] **Frontend** — Index (filter type/status/technician/search), Create, Show (detail + lifecycle buttons + items table + evidence upload + assignment history)
 - [x] **Factory** — WorkOrderFactory
 
+### Phase 5 — Billing
+
+- [x] **Billing Module** (Modules/Billing) — `Invoice`, `InvoiceItem`, `Payment` models
+- [x] **Invoice State Machine** — draft → sent → partial → paid, overdue, cancelled
+- [x] **BillingService** — generateNumber, createRecurring, createFromSpk, send, recordPayment, cancel, recalculate, checkOverdue
+- [x] **Recurring MRC** — createRecurring generates invoice from subscription (billing_period dedup-ready)
+- [x] **OTC from SPK** — createFromSpk maps work_order_items + installation fee, unique per SPK
+- [x] **Payment** — immutable (no delete, cancel+reverse), overpay validation (amount <= sisa)
+- [x] **Tax Calculation** — per-line tax_rate, tax_amount = sum(line_total * tax_rate / 100)
+- [x] **Code Generation** — INV-{YEAR}-{NNNNN}, race-safe lockForUpdate
+- [x] **Policy** — billing.view/create/update/delete/send/payment.record/cancel
+- [x] **Frontend** — Index (filter type/status/source/customer/search), Create, Show (detail + items table + payments timeline + lifecycle buttons: Send/Add Item/Record Payment/Cancel)
+- [x] **Factory** — InvoiceFactory
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -196,10 +210,11 @@ modules/
   Inventory/             # Product, Category, Unit, Stock, StockMovement, StockService
   NetworkAsset/          # NetworkAsset, NetworkAssetInstallation, NetworkAssetService
   SPK/                   # WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence, SpkService
+  Billing/               # Invoice, InvoiceItem, Payment, BillingService
 resources/js/
   Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
   Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
-  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK
+  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK, Billing
   Layouts/               # AdminLayout (sidebar + topbar + dark mode)
   hooks/                 # usePermission, useCompany, useToast
   types/                 # TypeScript interfaces (models, inventory, network-asset)

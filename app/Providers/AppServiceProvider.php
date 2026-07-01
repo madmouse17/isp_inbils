@@ -26,6 +26,8 @@ use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Policies\WorkOrderPolicy;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Policies\InvoicePolicy;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -71,6 +73,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(NetworkAsset::class, NetworkAssetPolicy::class);
         Gate::policy(WorkOrder::class, WorkOrderPolicy::class);
+        Gate::policy(Invoice::class, InvoicePolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
