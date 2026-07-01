@@ -8,9 +8,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RequireHasCompany
 {
-    /**
-     * @param  Closure(Request): Response  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->user()?->company_id === null) {

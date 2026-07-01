@@ -7,7 +7,6 @@ use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
-use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -56,9 +55,9 @@ class CustomerController extends Controller
             ->with('success', 'Customer created.');
     }
 
-    public function show(Customer $customer): InertiaResponse
+    public function show(Request $request, int|string $customer): InertiaResponse
     {
-        $this->ensureSameCompany($customer);
+        $customer = $this->findForCompany($request, $customer);
         Gate::authorize('view', $customer);
 
         $customer->load(['addresses', 'contacts', 'subscriptions.servicePackage']);
@@ -68,9 +67,9 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function edit(Customer $customer): InertiaResponse
+    public function edit(Request $request, int|string $customer): InertiaResponse
     {
-        $this->ensureSameCompany($customer);
+        $customer = $this->findForCompany($request, $customer);
         Gate::authorize('edit', $customer);
 
         return Inertia::render('Admin/Customers/Edit', [
@@ -78,9 +77,9 @@ class CustomerController extends Controller
         ]);
     }
 
-    public function update(UpdateCustomerRequest $request, Customer $customer): RedirectResponse
+    public function update(UpdateCustomerRequest $request, int|string $customer): RedirectResponse
     {
-        $this->ensureSameCompany($customer);
+        $customer = $this->findForCompany($request, $customer);
         Gate::authorize('update', $customer);
 
         $customer->update($request->validated());
@@ -88,9 +87,9 @@ class CustomerController extends Controller
         return back()->with('success', 'Customer updated.');
     }
 
-    public function destroy(Customer $customer): RedirectResponse
+    public function destroy(Request $request, int|string $customer): RedirectResponse
     {
-        $this->ensureSameCompany($customer);
+        $customer = $this->findForCompany($request, $customer);
         Gate::authorize('delete', $customer);
 
         if ($customer->subscriptions()->whereNotIn('status', ['terminated'])->exists()) {
@@ -132,8 +131,10 @@ class CustomerController extends Controller
         return response($csv, 200, $headers);
     }
 
-    private function ensureSameCompany(Customer $customer): void
+    private function findForCompany(Request $request, int|string $customer): Customer
     {
-        abort_unless($customer->company_id === CompanyService::currentId(), 404);
+        return Customer::withoutCompany()
+            ->where('company_id', $request->user()?->company_id)
+            ->findOrFail($customer);
     }
 }

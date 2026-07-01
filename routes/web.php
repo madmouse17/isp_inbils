@@ -15,9 +15,10 @@ Route::get('/', function () {
     ]);
 });
 
-Route::get('/dashboard', function () {
-    return Inertia::render('Dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Fallback dashboard redirect to admin dashboard
+Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'))
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware(['auth', 'verified', 'require.no.company'])->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupWizardController::class, 'index'])->name('index');
@@ -29,10 +30,6 @@ Route::middleware('auth')->group(function () {
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     Route::get('/admin/components', fn () => Inertia::render('Admin/Components'));
-});
-
-Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
-    Route::get('/', fn () => redirect('/dashboard'))->name('index');
 });
 
 require __DIR__.'/auth.php';

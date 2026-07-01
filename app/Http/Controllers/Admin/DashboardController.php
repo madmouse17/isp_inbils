@@ -3,11 +3,18 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
+use Modules\Billing\Models\Invoice;
+use Modules\Inventory\Models\Product;
+use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\Service\Models\ServicePackage;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -36,14 +43,14 @@ class DashboardController extends Controller
                     'description' => $activity->description,
                     'created_at' => $activity->created_at?->toISOString(),
                 ]),
-            'modulePlaceholders' => [
-                ['name' => 'Customer', 'phase' => 'Phase 2', 'count' => 0],
-                ['name' => 'Service', 'phase' => 'Phase 2', 'count' => 0],
-                ['name' => 'Inventory', 'phase' => 'Phase 3', 'count' => 0],
-                ['name' => 'Network Asset', 'phase' => 'Phase 3', 'count' => 0],
-                ['name' => 'SPK', 'phase' => 'Phase 4', 'count' => 0],
-                ['name' => 'Billing', 'phase' => 'Phase 5', 'count' => 0],
-                ['name' => 'Ticketing', 'phase' => 'Phase 6', 'count' => 0],
+            'modules' => [
+                ['name' => 'Customer', 'href' => route('admin.customers.index'), 'count' => Customer::query()->where('company_id', $companyId)->count()],
+                ['name' => 'Service', 'href' => route('admin.service-packages.index'), 'count' => ServicePackage::query()->where('company_id', $companyId)->count()],
+                ['name' => 'Inventory', 'href' => route('admin.products.index'), 'count' => Product::query()->where('company_id', $companyId)->count()],
+                ['name' => 'Network Asset', 'href' => route('admin.network-assets.index'), 'count' => NetworkAsset::query()->where('company_id', $companyId)->count()],
+                ['name' => 'SPK', 'href' => route('admin.spk.index'), 'count' => WorkOrder::query()->where('company_id', $companyId)->count()],
+                ['name' => 'Billing', 'href' => route('admin.invoices.index'), 'count' => Invoice::query()->where('company_id', $companyId)->count()],
+                ['name' => 'Ticketing', 'href' => route('admin.tickets.index'), 'count' => Ticket::query()->where('company_id', $companyId)->count()],
             ],
         ]);
     }

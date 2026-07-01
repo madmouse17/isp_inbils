@@ -38,7 +38,7 @@ class SetupWizardTest extends TestCase
 
         $response = $this->actingAs($user)->post('/setup', $this->validPayload());
 
-        $response->assertRedirect('/dashboard');
+        $response->assertRedirect(route('admin.dashboard', absolute: false));
         $company = Company::query()->firstOrFail();
         $this->assertSame('INBILS', $company->code);
         $this->assertSame($company->id, $user->refresh()->company_id);

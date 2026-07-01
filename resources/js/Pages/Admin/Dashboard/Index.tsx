@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Card, CardContent, CardHeader, CardTitle, StatCard } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
@@ -11,9 +12,9 @@ interface ActivityItem {
     created_at: string | null;
 }
 
-interface ModulePlaceholder {
+interface DashboardModule {
     name: string;
-    phase: string;
+    href: string;
     count: number;
 }
 
@@ -24,7 +25,7 @@ interface DashboardProps {
     activeUserCount: number;
     permissionCount: number;
     recentActivity: ActivityItem[];
-    modulePlaceholders: ModulePlaceholder[];
+    modules: DashboardModule[];
 }
 
 export default function Index({
@@ -34,7 +35,7 @@ export default function Index({
     activeUserCount,
     permissionCount,
     recentActivity,
-    modulePlaceholders,
+    modules,
 }: DashboardProps) {
     return (
         <AdminLayout title="Dashboard">
@@ -88,14 +89,18 @@ export default function Index({
                         <CardTitle>Modules</CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        {modulePlaceholders.map((module) => (
-                            <div key={module.name} className="rounded-xl border border-surface-200 p-4 dark:border-surface-800">
+                        {modules.map((module) => (
+                            <Link
+                                key={module.name}
+                                href={module.href}
+                                className="rounded-xl border border-surface-200 p-4 transition hover:border-brand-300 hover:bg-brand-50/50 focus:outline-none focus:ring-2 focus:ring-brand-500/40 dark:border-surface-800 dark:hover:border-brand-700 dark:hover:bg-brand-950/30"
+                            >
                                 <div className="flex items-center justify-between gap-3">
                                     <h3 className="font-semibold text-surface-900 dark:text-surface-100">{module.name}</h3>
                                     <StatusBadge variant="muted">{module.count}</StatusBadge>
                                 </div>
-                                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">Coming {module.phase}</p>
-                            </div>
+                                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">Open module</p>
+                            </Link>
                         ))}
                     </CardContent>
                 </Card>

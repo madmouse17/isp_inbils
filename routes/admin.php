@@ -38,8 +38,8 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::get('components', fn () => Inertia::render('Admin/Components'))->name('components');
 
     // Customer management
-    Route::resource('customers', CustomerController::class);
     Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
+    Route::resource('customers', CustomerController::class)->parameters(['customers' => 'customer']);
 
     Route::get('customers/{customer}/addresses', [CustomerAddressController::class, 'index'])->name('customers.addresses.index');
     Route::post('customers/{customer}/addresses', [CustomerAddressController::class, 'store'])->name('customers.addresses.store');

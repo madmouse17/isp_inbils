@@ -7,8 +7,8 @@ use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\UnitController;
 
 Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('products', ProductController::class);
     Route::get('products/export', [ProductController::class, 'export'])->name('products.export');
+    Route::resource('products', ProductController::class);
 
     Route::resource('categories', CategoryController::class)->except(['create', 'edit', 'show']);
     Route::resource('units', UnitController::class)->except(['create', 'edit', 'show']);

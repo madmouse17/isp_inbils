@@ -9,9 +9,6 @@ use Symfony\Component\HttpFoundation\Response;
 
 class RedirectIfNoCompany
 {
-    /**
-     * @param  Closure(Request): Response  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
         if ($this->shouldSkip($request)) {
@@ -33,6 +30,8 @@ class RedirectIfNoCompany
             || $request->is('logout')
             || $request->is('api/*')
             || $request->is('verification*')
-            || $request->routeIs('verification.*');
+            || $request->routeIs('verification.*')
+            || $request->is('login')
+            || $request->is('password*');
     }
 }

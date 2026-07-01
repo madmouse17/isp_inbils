@@ -35,6 +35,6 @@ class SetupWizardController extends Controller
     {
         $service->create($request->validated());
 
-        return redirect('/dashboard')->with('success', 'Setup complete.');
+        return redirect()->route('admin.dashboard')->with('success', 'Setup complete.');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
@@ -10,7 +11,10 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Company extends Model
 {
+    use HasFactory;
     use LogsActivity;
+
+    protected static string $factory = \Database\Factories\CompanyFactory::class;
 
     protected static $recordEvents = ['created', 'updated'];
 

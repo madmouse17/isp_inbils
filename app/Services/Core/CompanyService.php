@@ -7,29 +7,13 @@ use Illuminate\Support\Facades\Auth;
 
 class CompanyService
 {
-    private static ?int $cachedAuthId = null;
-
-    private static bool $hasCachedCurrentId = false;
-
-    private static ?int $cachedCurrentId = null;
-
     private static ?int $cachedCompanyId = null;
 
     private static ?Company $cachedCompany = null;
 
     public static function currentId(): ?int
     {
-        $authId = Auth::id();
-
-        if (self::$hasCachedCurrentId && self::$cachedAuthId === $authId) {
-            return self::$cachedCurrentId;
-        }
-
-        self::$cachedAuthId = $authId;
-        self::$hasCachedCurrentId = true;
-        self::$cachedCurrentId = Auth::user()?->company_id;
-
-        return self::$cachedCurrentId;
+        return Auth::user()?->company_id;
     }
 
     public static function current(): ?Company
@@ -85,9 +69,6 @@ class CompanyService
 
     public static function resetCache(): void
     {
-        self::$cachedAuthId = null;
-        self::$hasCachedCurrentId = false;
-        self::$cachedCurrentId = null;
         self::$cachedCompanyId = null;
         self::$cachedCompany = null;
     }

@@ -86,9 +86,9 @@ class CompanySeeder extends Seeder
             return;
         }
 
-        $region = LocationService::create(['code' => 'REG-01', 'name' => 'Default Region', 'type' => 'region', 'is_active' => true]);
-        $area = LocationService::create(['parent_id' => $region->id, 'code' => 'AREA-01', 'name' => 'Default Area', 'type' => 'area', 'is_active' => true]);
-        LocationService::create(['parent_id' => $area->id, 'code' => 'POP-01', 'name' => 'Default POP', 'type' => 'pop', 'is_active' => true]);
+        $region = LocationService::create(['company_id' => $company->id, 'code' => 'REG-01', 'name' => 'Default Region', 'type' => 'region', 'is_active' => true]);
+        $area = LocationService::create(['company_id' => $company->id, 'parent_id' => $region->id, 'code' => 'AREA-01', 'name' => 'Default Area', 'type' => 'area', 'is_active' => true]);
+        LocationService::create(['company_id' => $company->id, 'parent_id' => $area->id, 'code' => 'POP-01', 'name' => 'Default POP', 'type' => 'pop', 'is_active' => true]);
     }
 
     private function seedBandwidthProfiles(Company $company): void
@@ -171,7 +171,7 @@ class CompanySeeder extends Seeder
             ['code' => 'PKG-BIZ-200', 'name' => 'Business 200Mbps', 'price_mrc' => 1500000, 'price_otc' => 750000, 'contract_min_months' => 24],
             ['code' => 'PKG-HOME-20-PROMO', 'name' => 'Home 20Mbps Promo', 'price_mrc' => 199000, 'price_otc' => 0, 'contract_min_months' => 6],
             ['code' => 'PKG-BIZ-100-GOLD', 'name' => 'Business 100Mbps Gold', 'price_mrc' => 950000, 'price_otc' => 500000, 'contract_min_months' => 24],
-            ['code' => 'PKG-TRIAL', 'name' => 'Trial 5Mbps', 'price_mrc' => 50000, 'price_otc' => 0, 'contract_min_months' => null],
+            ['code' => 'PKG-TRIAL', 'name' => 'Trial 5Mbps', 'price_mrc' => 50000, 'price_otc' => 0, 'contract_min_months' => 0],
         ];
 
         foreach ($packages as $i => $p) {

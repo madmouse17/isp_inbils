@@ -11,6 +11,13 @@ class RolePermissionSeeder extends Seeder
     public function run(): void
     {
         $permissions = [
+            // Core admin
+            'users.manage',
+            'roles.manage',
+            'company.manage',
+            'system.setting',
+
+            // Customer
             'customer.view',
             'customer.create',
             'customer.update',
@@ -112,8 +119,6 @@ class RolePermissionSeeder extends Seeder
 
             'report.view',
             'report.manage',
-
-            'system.setting',
         ];
 
         foreach ($permissions as $permission) {

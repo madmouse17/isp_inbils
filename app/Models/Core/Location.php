@@ -20,6 +20,7 @@ class Location extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'company_id',
         'parent_id',
         'code',
         'name',
