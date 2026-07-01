@@ -83,6 +83,14 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 - [x] **Frontend** — Index (filter status/source/category/sla_breached/search), Create, Show (detail + lifecycle buttons + comments thread + attachments + spawn-SPK button)
 - [x] **Factory** — TicketFactory
 
+### Phase 7 — Performance (Employee Evaluation)
+
+- [x] **EmployeeEvaluation** model (shared Core, app/Models/Core/) — polymorphic reference (WorkOrder/Ticket), score (1.0-5.0), customer_rating, FRT/resolution snapshot, unique per (reference, evaluator)
+- [x] **EvaluationController** — CRUD with snapshot auto-fill (FRT from ticket, resolution from ticket/SPK)
+- [x] **Policy** — technician own-view, Kepala Unit create for bawahan, admin delete
+- [x] **Frontend** — Index (filter employee/reference/search), Create, Show, Edit
+- [x] **Factory** — EmployeeEvaluationFactory
+
 ## Tech Stack
 
 | Layer | Technology |

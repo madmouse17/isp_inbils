@@ -7,11 +7,13 @@ use App\Listeners\SeedCompanyDefaults;
 use App\Listeners\UpdateLastLoginAt;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Policies\CompanyPolicy;
 use App\Policies\CustomerPolicy;
+use App\Policies\EmployeeEvaluationPolicy;
 use App\Policies\LocationPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SubscriptionPolicy;
@@ -77,6 +79,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WorkOrder::class, WorkOrderPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
+        Gate::policy(EmployeeEvaluation::class, EmployeeEvaluationPolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
