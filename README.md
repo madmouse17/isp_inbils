@@ -91,6 +91,18 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 - [x] **Frontend** — Index (filter employee/reference/search), Create, Show, Edit
 - [x] **Factory** — EmployeeEvaluationFactory
 
+### Phase 8 — Reporting (Read-Only)
+
+- [x] **Reporting Module** (Modules/Reporting) — read-only, NO models, 6 Query classes
+- [x] **BusinessMetricsQuery** — MRR, active/churn/new subscriptions, revenue, outstanding, SLA, asset distribution
+- [x] **TechnicianPerformanceQuery** — SPK/ticket counts, avg completion, SLA compliance, FRT, avg score/rating, workload, breakdown by type/category
+- [x] **AssetUtilizationQuery** — status distribution, per-location, installation count, customer-linked, retired
+- [x] **SlaComplianceQuery** — resolution rate, breach count, avg resolution/FRT, per-category breakdown
+- [x] **StockCardQuery** — movement history per product/location with balance_after
+- [x] **AuditLogQuery** — activity_log entries by user/module/date
+- [x] **Frontend** — 7 report pages (Index cards + Business + Technician + Asset + SLA + StockCard + AuditLog)
+- [x] **Real-time** — all reports computed from event history, NO static metrics tables
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -236,6 +248,7 @@ modules/
   SPK/                   # WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence, SpkService
   Billing/               # Invoice, InvoiceItem, Payment, BillingService
   Ticketing/             # Ticket, TicketCategory, TicketComment, TicketAttachment, TicketService
+  Reporting/             # 6 Query classes (BusinessMetrics, TechnicianPerformance, AssetUtilization, SlaCompliance, StockCard, AuditLog)
 resources/js/
   Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
   Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
