@@ -1,0 +1,35 @@
+<?php
+
+namespace Modules\Inventory\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateProductRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->can('inventory.update') ?? false;
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        $productId = $this->route('product')->id;
+        $companyId = \App\Services\Core\CompanyService::currentId();
+
+        return [
+            'sku' => ['required', 'string', 'max:100', Rule::unique('products')->where('company_id', $companyId)->ignore($productId)],
+            'name' => ['required', 'string', 'max:255'],
+            'category_id' => ['required', 'exists:categories,id'],
+            'unit_id' => ['required', 'exists:units,id'],
+            'description' => ['nullable', 'string'],
+            'type' => ['nullable', 'string', 'in:consumable'],
+            'track_stock' => ['boolean'],
+            'sell_price' => ['nullable', 'numeric', 'min:0'],
+            'cost_price' => ['nullable', 'numeric', 'min:0'],
+            'min_stock' => ['nullable', 'numeric', 'min:0'],
+            'is_active' => ['boolean'],
+        ];
+    }
+}

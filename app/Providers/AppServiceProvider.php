@@ -16,6 +16,14 @@ use App\Policies\LocationPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SubscriptionPolicy;
 use App\Policies\UserPolicy;
+use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\Unit;
+use Modules\Inventory\Policies\CategoryPolicy;
+use Modules\Inventory\Policies\ProductPolicy;
+use Modules\Inventory\Policies\UnitPolicy;
+use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -56,6 +64,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SpeedProfile::class, SpeedProfilePolicy::class);
         Gate::policy(SLATier::class, SLATierPolicy::class);
         Gate::policy(ServicePackage::class, ServicePackagePolicy::class);
+        Gate::policy(Category::class, CategoryPolicy::class);
+        Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(Unit::class, UnitPolicy::class);
+        Gate::policy(NetworkAsset::class, NetworkAssetPolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);

@@ -1,0 +1,28 @@
+<?php
+
+namespace Modules\Inventory\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreCategoryRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()?->can('inventory.create') ?? false;
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        $companyId = \App\Services\Core\CompanyService::currentId();
+
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'code' => ['required', 'string', 'max:100', Rule::unique('categories')->where('company_id', $companyId)],
+            'parent_id' => ['nullable', 'exists:categories,id'],
+            'description' => ['nullable', 'string'],
+            'is_active' => ['boolean'],
+        ];
+    }
+}

@@ -11,6 +11,7 @@ import {
     KeyIcon,
     ShieldCheckIcon,
     Squares2X2Icon,
+    ServerStackIcon,
     TagIcon,
     UsersIcon,
     Bars3Icon,
@@ -62,7 +63,8 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         {can('users.manage') && <SidebarItem href="/admin/permissions" icon={<KeyIcon />} label="Permissions" />}
                         {can('customer.view') && <SidebarItem href="/admin/customers" icon={<BriefcaseIcon />} label="Customers" />}
                         {can('service.view') && <SidebarItem href="/admin/service-packages" icon={<TagIcon />} label="Service" />}
-                        {can('inventory.view') && <SidebarItem href="/admin/inventory" icon={<TagIcon />} label="Inventory" />}
+                        {can('inventory.view') && <SidebarItem href="/admin/products" icon={<TagIcon />} label="Inventory" />}
+                        {can('network_asset.view') && <SidebarItem href="/admin/network-assets" icon={<ServerStackIcon />} label="Network Assets" />}
                         {can('spk.view') && <SidebarItem href="/admin/spk" icon={<ClipboardDocumentListIcon />} label="SPK" />}
                         {can('billing.view') && <SidebarItem href="/admin/billing" icon={<BanknotesIcon />} label="Billing" />}
                         {can('ticket.view') && <SidebarItem href="/admin/tickets" icon={<ChatBubbleLeftRightIcon />} label="Ticketing" />}

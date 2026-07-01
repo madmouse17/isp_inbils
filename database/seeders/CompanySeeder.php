@@ -20,6 +20,8 @@ class CompanySeeder extends Seeder
         $this->seedBandwidthProfiles($company);
         $this->seedSpeedProfiles($company);
         $this->seedServicePackages($company);
+        $this->seedInventoryCategories($company);
+        $this->seedNetworkAssets($company);
     }
 
     private function seedUnits(Company $company): void
@@ -181,6 +183,129 @@ class CompanySeeder extends Seeder
                 'sla_tier_id' => $slaIds[min(intdiv($i, 2), count($slaIds) - 1)] ?? null,
                 'description' => null,
                 'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function seedInventoryCategories(Company $company): void
+    {
+        if (! Schema::hasTable('categories')) {
+            return;
+        }
+
+        if (DB::table('categories')->where('company_id', $company->id)->exists()) {
+            return;
+        }
+
+        $categories = [
+            ['name' => 'Kabel', 'code' => 'KBL', 'description' => 'Kabel jaringan dan fiber'],
+            ['name' => 'Connector', 'code' => 'CON', 'description' => 'Connector dan adaptor'],
+            ['name' => 'Sparepart', 'code' => 'SPR', 'description' => 'Sparepart perangkat'],
+            ['name' => 'Tools', 'code' => 'TLS', 'description' => 'Alat kerja'],
+            ['name' => 'Patch Cord', 'code' => 'PTC', 'description' => 'Patch cord fiber'],
+        ];
+
+        foreach ($categories as $c) {
+            DB::table('categories')->insert([
+                ...$c,
+                'company_id' => $company->id,
+                'parent_id' => null,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        // Seed products
+        if (! Schema::hasTable('products') || ! Schema::hasTable('units')) {
+            return;
+        }
+
+        $catIds = DB::table('categories')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
+        $unitIds = DB::table('units')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
+
+        if (empty($unitIds)) {
+            return;
+        }
+
+        $products = [
+            ['sku' => 'KBL-UTP-CAT6', 'name' => 'Kabel UTP Cat6', 'category_idx' => 0, 'unit_idx' => 0, 'sell_price' => 5000, 'cost_price' => 3500],
+            ['sku' => 'KBL-FO-SINGLE', 'name' => 'Kabel Fiber Optic Single', 'category_idx' => 0, 'unit_idx' => 1, 'sell_price' => 15000, 'cost_price' => 10000],
+            ['sku' => 'CON-RJ45-CAT6', 'name' => 'Connector RJ45 Cat6', 'category_idx' => 1, 'unit_idx' => 0, 'sell_price' => 2000, 'cost_price' => 1000],
+            ['sku' => 'CON-SC-APC', 'name' => 'Connector SC/APC', 'category_idx' => 1, 'unit_idx' => 0, 'sell_price' => 5000, 'cost_price' => 3000],
+            ['sku' => 'SPR-PSU-12V', 'name' => 'Power Supply 12V 2A', 'category_idx' => 2, 'unit_idx' => 0, 'sell_price' => 50000, 'cost_price' => 35000],
+            ['sku' => 'SPR-SFP-LX', 'name' => 'SFP Module LX', 'category_idx' => 2, 'unit_idx' => 0, 'sell_price' => 250000, 'cost_price' => 180000],
+            ['sku' => 'TLS-CRIMP-RJ45', 'name' => 'Crimping Tool RJ45', 'category_idx' => 3, 'unit_idx' => 0, 'sell_price' => 75000, 'cost_price' => 50000],
+            ['sku' => 'TLS-STRIP-FO', 'name' => 'Fiber Stripper', 'category_idx' => 3, 'unit_idx' => 0, 'sell_price' => 120000, 'cost_price' => 80000],
+            ['sku' => 'PTC-LC-1M', 'name' => 'Patch Cord LC/UPC 1m', 'category_idx' => 4, 'unit_idx' => 1, 'sell_price' => 25000, 'cost_price' => 15000],
+            ['sku' => 'PTC-SC-3M', 'name' => 'Patch Cord SC/APC 3m', 'category_idx' => 4, 'unit_idx' => 1, 'sell_price' => 35000, 'cost_price' => 22000],
+        ];
+
+        foreach ($products as $p) {
+            DB::table('products')->insert([
+                'company_id' => $company->id,
+                'category_id' => $catIds[$p['category_idx']] ?? $catIds[0],
+                'unit_id' => $unitIds[$p['unit_idx']] ?? $unitIds[0],
+                'sku' => $p['sku'],
+                'name' => $p['name'],
+                'description' => null,
+                'type' => 'consumable',
+                'track_stock' => true,
+                'sell_price' => $p['sell_price'],
+                'cost_price' => $p['cost_price'],
+                'min_stock' => 10,
+                'is_active' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function seedNetworkAssets(Company $company): void
+    {
+        if (! Schema::hasTable('network_assets')) {
+            return;
+        }
+
+        if (DB::table('network_assets')->where('company_id', $company->id)->exists()) {
+            return;
+        }
+
+        $assets = [
+            ['name' => 'OLT Huawei MA5800', 'asset_type' => 'olt', 'serial_number' => 'HW-MA5800-001', 'vendor' => 'Huawei', 'model' => 'MA5800-X7'],
+            ['name' => 'OLT Huawei MA5800', 'asset_type' => 'olt', 'serial_number' => 'HW-MA5800-002', 'vendor' => 'Huawei', 'model' => 'MA5800-X7'],
+            ['name' => 'Switch Cisco SG350', 'asset_type' => 'switch', 'serial_number' => 'CSC-SG350-001', 'vendor' => 'Cisco', 'model' => 'SG350-28'],
+            ['name' => 'Router Mikrotik CCR', 'asset_type' => 'router', 'serial_number' => 'MKT-CCR-001', 'vendor' => 'Mikrotik', 'model' => 'CCR2004-1G-12S+XS'],
+            ['name' => 'ONT Huawei HG8245', 'asset_type' => 'onu_ont', 'serial_number' => 'HW-HG8245-001', 'vendor' => 'Huawei', 'model' => 'HG8245Q'],
+            ['name' => 'ONT Huawei HG8245', 'asset_type' => 'onu_ont', 'serial_number' => 'HW-HG8245-002', 'vendor' => 'Huawei', 'model' => 'HG8245Q'],
+            ['name' => 'ONT Huawei HG8245', 'asset_type' => 'onu_ont', 'serial_number' => 'HW-HG8245-003', 'vendor' => 'Huawei', 'model' => 'HG8245Q'],
+            ['name' => 'Antenna Sector 5GHz', 'asset_type' => 'antenna', 'serial_number' => 'UBQ-ANT-001', 'vendor' => 'Ubiquiti', 'model' => 'AM-5G17-90'],
+            ['name' => 'Radio AirMax AC', 'asset_type' => 'radio', 'serial_number' => 'UBQ-RAD-001', 'vendor' => 'Ubiquiti', 'model' => 'Rocket 5AC Lite'],
+            ['name' => 'Rack 42U Server', 'asset_type' => 'rack', 'serial_number' => 'RCK-42U-001', 'vendor' => null, 'model' => '42U Standard'],
+        ];
+
+        foreach ($assets as $a) {
+            DB::table('network_assets')->insert([
+                ...$a,
+                'company_id' => $company->id,
+                'product_id' => null,
+                'code' => 'AST-' . date('Y') . '-' . str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
+                'mac_address' => null,
+                'ip_address' => null,
+                'management_ip' => null,
+                'location_id' => null,
+                'customer_id' => null,
+                'subscription_id' => null,
+                'status' => 'available',
+                'ownership' => 'owned',
+                'purchase_date' => null,
+                'purchase_price' => null,
+                'warranty_expiry' => null,
+                'notes' => null,
+                'installed_at' => null,
+                'retired_at' => null,
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
