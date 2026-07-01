@@ -39,6 +39,20 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 - [x] **Factories** — Category, Unit, Product, Stock, StockMovement, NetworkAsset factories
 - [x] **Sidebar** — Inventory + Network Assets links (permission-gated)
 
+### Phase 4 — SPK (Surat Perintah Kerja)
+
+- [x] **SPK Module** (Modules/SPK) — `WorkOrder`, `WorkOrderItem`, `WorkOrderAssignment`, `WorkOrderEvidence` models
+- [x] **8-State Machine** — draft → generated → assigned → in_progress → waiting_review → completed, rejected, cancelled
+- [x] **SpkService** — generate, assign (with assignment history), start, submitForReview (evidence guard), approve, reject, cancel
+- [x] **4 SPK Types** — installation, maintenance, upgrade_service, relocation
+- [x] **Evidence Upload** — photo/document, file storage, required before submit (app guard)
+- [x] **Assignment History** — append-only WorkOrderAssignment (re-assign tracked)
+- [x] **Items** — consumable line items (product + quantity_reserved + quantity_used)
+- [x] **Code Generation** — SPK-{YEAR}-{NNNNN}, race-safe with lockForUpdate
+- [x] **Policy** — technician self-limit (view assigned only), Kepala Unit assign/approve/reject
+- [x] **Frontend** — Index (filter type/status/technician/search), Create, Show (detail + lifecycle buttons + items table + evidence upload + assignment history)
+- [x] **Factory** — WorkOrderFactory
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -181,10 +195,11 @@ modules/
   Service/               # ServicePackage, BandwidthProfile, SpeedProfile, SLATier
   Inventory/             # Product, Category, Unit, Stock, StockMovement, StockService
   NetworkAsset/          # NetworkAsset, NetworkAssetInstallation, NetworkAssetService
+  SPK/                   # WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence, SpkService
 resources/js/
   Components/ui/         # 35+ primitives (Button, Input, Table, Card, Modal, etc.)
   Components/composite/  # DataTable, PageHeader, FormField, StatusBadge, MoneyInput, DateRangeFilter
-  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets
+  Pages/Admin/           # Dashboard, Users, Roles, Permissions, Company, Locations, Customers, Subscriptions, Service, Inventory, NetworkAssets, SPK
   Layouts/               # AdminLayout (sidebar + topbar + dark mode)
   hooks/                 # usePermission, useCompany, useToast
   types/                 # TypeScript interfaces (models, inventory, network-asset)

@@ -24,6 +24,8 @@ use Modules\Inventory\Policies\ProductPolicy;
 use Modules\Inventory\Policies\UnitPolicy;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
+use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Policies\WorkOrderPolicy;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -68,6 +70,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(NetworkAsset::class, NetworkAssetPolicy::class);
+        Gate::policy(WorkOrder::class, WorkOrderPolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
