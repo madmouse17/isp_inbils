@@ -3,6 +3,7 @@
 namespace Modules\Billing\Services;
 
 use App\Services\Core\AuditService;
+use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
@@ -12,26 +13,10 @@ use Illuminate\Support\Facades\Auth;
 
 class BillingService
 {
-    public static function generateNumber(): string
-    {
-        $year = now()->year;
-        $prefix = "INV-{$year}-";
-
-        $last = Invoice::withoutCompany()
-            ->where('number', 'like', $prefix . '%')
-            ->orderByDesc('number')
-            ->lockForUpdate()
-            ->first();
-
-        $next = $last ? ((int) substr($last->number, strlen($prefix))) + 1 : 1;
-
-        return $prefix . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
-    }
-
     public static function createRecurring(array $data): Invoice
     {
         return DB::transaction(function () use ($data) {
-            $data['number'] = self::generateNumber();
+            $data['number'] = NumberSequenceService::generate('invoice', 'INV', $data['company_id'] ?? null);
             $data['type'] = 'recurring';
             $data['source'] = 'subscription';
             $data['status'] = $data['status'] ?? 'draft';
@@ -74,7 +59,7 @@ class BillingService
             $taxRate = (float) SettingService::get('default_tax_ppn_rate', 0);
 
             $invoice = Invoice::create([
-                'number' => self::generateNumber(),
+                'number' => NumberSequenceService::generate('invoice', 'INV', $wo->company_id),
                 'type' => 'one_time',
                 'source' => 'spk',
                 'customer_id' => $wo->customer_id,
