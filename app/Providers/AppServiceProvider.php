@@ -7,6 +7,7 @@ use App\Listeners\SeedCompanyDefaults;
 use App\Listeners\UpdateLastLoginAt;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\DocumentType;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
@@ -17,6 +18,7 @@ use App\Models\Core\Vehicle;
 use App\Models\User;
 use App\Policies\CompanyPolicy;
 use App\Policies\CustomerPolicy;
+use App\Policies\DocumentTypePolicy;
 use App\Policies\EmployeeEvaluationPolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\LocationPolicy;
@@ -92,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(EmployeeProfile::class, EmployeePolicy::class);
         Gate::policy(Vehicle::class, VehiclePolicy::class);
         Gate::policy(NumberSequence::class, NumberSequencePolicy::class);
+        Gate::policy(DocumentType::class, DocumentTypePolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);

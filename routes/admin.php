@@ -73,4 +73,9 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
 
     // Number Sequences
     Route::resource('number-sequences', \App\Http\Controllers\Admin\NumberSequenceController::class)->only(['index', 'update']);
+
+    // Documents (types + media)
+    Route::resource('documents', \App\Http\Controllers\Admin\DocumentController::class)->except(['create', 'edit', 'show']);
+    Route::post('documents/media', [\App\Http\Controllers\Admin\DocumentController::class, 'uploadMedia'])->name('documents.media.store');
+    Route::delete('documents/media/{media}', [\App\Http\Controllers\Admin\DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 });

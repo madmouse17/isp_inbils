@@ -24,6 +24,7 @@ trait CreatesCompanyUser
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $user->assignRole('admin');
         \App\Services\Core\CompanyService::resetCache();
         return $user;
     }

@@ -10,13 +10,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Customer extends Model
+class Customer extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
     use LogsActivity;
     use SoftDeletes;
+    use InteractsWithMedia;
+
+    protected static string $factory = \Database\Factories\CustomerFactory::class;
 
     protected $fillable = [
         'code',
