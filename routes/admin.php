@@ -70,4 +70,7 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::post('organizations/{organization_unit}/move', [OrganizationController::class, 'move'])->name('organizations.move');
     Route::resource('employees', EmployeeController::class)->except(['create', 'edit', 'show']);
     Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);
+
+    // Number Sequences
+    Route::resource('number-sequences', \App\Http\Controllers\Admin\NumberSequenceController::class)->only(['index', 'update']);
 });

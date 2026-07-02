@@ -10,6 +10,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
+use App\Models\Core\NumberSequence;
 use App\Models\Core\OrganizationUnit;
 use App\Models\Core\ServiceSubscription;
 use App\Models\Core\Vehicle;
@@ -19,6 +20,7 @@ use App\Policies\CustomerPolicy;
 use App\Policies\EmployeeEvaluationPolicy;
 use App\Policies\EmployeePolicy;
 use App\Policies\LocationPolicy;
+use App\Policies\NumberSequencePolicy;
 use App\Policies\OrganizationPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\SubscriptionPolicy;
@@ -89,6 +91,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(OrganizationUnit::class, OrganizationPolicy::class);
         Gate::policy(EmployeeProfile::class, EmployeePolicy::class);
         Gate::policy(Vehicle::class, VehiclePolicy::class);
+        Gate::policy(NumberSequence::class, NumberSequencePolicy::class);
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
