@@ -24,6 +24,8 @@ class InvoiceNumberingTest extends TestCase
             'customer_id' => $customer->id,
         ]);
 
+        $response->assertRedirect();
+
         $invoice = Invoice::latest('id')->first();
         $this->assertNotNull($invoice);
         $this->assertMatchesRegularExpression('/^INV-\d{4}-\d{5}$/', $invoice->number);
