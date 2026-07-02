@@ -66,7 +66,7 @@ class SetupWizardTest extends TestCase
     {
         $user = User::factory()->create(['company_id' => null]);
 
-        $this->actingAs($user)->get('/admin')->assertRedirect('/setup');
+        $this->actingAs($user)->get('/admin/dashboard')->assertRedirect('/setup');
     }
 
     /**
