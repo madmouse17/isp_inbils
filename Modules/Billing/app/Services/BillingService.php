@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Services;
 
+use App\Models\Core\Company;
 use App\Services\Core\AuditService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
@@ -13,6 +14,20 @@ use Illuminate\Support\Facades\Auth;
 
 class BillingService
 {
+    public static function taxRateFor(int $companyId): float
+    {
+        $settings = Company::find($companyId)?->settings ?? [];
+
+        return (float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
+    }
+
+    public static function dueDaysFor(int $companyId): int
+    {
+        $settings = Company::find($companyId)?->settings ?? [];
+
+        return (int) ($settings['invoice_due_days'] ?? 14);
+    }
+
     public static function createRecurring(array $data): Invoice
     {
         return DB::transaction(function () use ($data) {
@@ -56,7 +71,7 @@ class BillingService
 
         return DB::transaction(function () use ($wo) {
             $subscription = $wo->subscription;
-            $taxRate = (float) SettingService::get('default_tax_ppn_rate', 0);
+            $taxRate = self::taxRateFor($wo->company_id);
 
             $invoice = Invoice::create([
                 'number' => NumberSequenceService::generate('invoice', 'INV', $wo->company_id),
