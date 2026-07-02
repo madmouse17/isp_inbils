@@ -1,5 +1,20 @@
 {
     "$schema": "https://opencode.ai/config.json",
+    "plugin": [
+        "superpowers@git+https://github.com/obra/superpowers.git"
+    ],
+    "permission": {
+        "read": "allow",
+        "grep": "allow",
+        "glob": "allow",
+        "webfetch": "allow",
+        "websearch": "allow",
+        "todowrite": "allow",
+        "edit": "ask",
+        "bash": "ask"
+    },
+    "lsp": true,
+    "formatter": true,
     "mcp": {
         "laravel-boost": {
             "type": "local",
@@ -11,10 +26,27 @@
             ]
         },
         "context7": {
+            "type": "remote",
+            "url": "https://mcp.context7.com/mcp",
+            "enabled": true
+        },
+        "playwright": {
             "type": "local",
             "enabled": true,
             "command": [
-                "C:\\Users\\MadMouse\\AppData\\Roaming\\npm\\context7-mcp.cmd"
+                "npx",
+                "-y",
+                "@playwright/mcp@latest"
+            ]
+        },
+        "shadcn": {
+            "type": "local",
+            "enabled": true,
+            "command": [
+                "npx",
+                "-y",
+                "shadcn@latest",
+                "mcp"
             ]
         },
         "sequential-thinking": {
@@ -24,5 +56,11 @@
                 "C:\\Users\\MadMouse\\AppData\\Roaming\\npm\\mcp-server-sequential-thinking.cmd"
             ]
         }
-    }
+    },
+    "instructions": [
+        "AGENTS.md",
+        "docs/engineering-rules.md",
+        "docs/ui-ux-rules.md",
+        "docs/isp-business-rules.md"
+    ]
 }
