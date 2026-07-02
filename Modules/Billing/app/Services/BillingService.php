@@ -211,10 +211,10 @@ class BillingService
 
     public static function checkOverdue(): void
     {
-        Invoice::where('status', 'sent')
-            ->orWhere('status', 'partial')
-            ->where('due_date', '<', now()->toDateString())
-            ->whereRaw('paid_amount < total')
+        Invoice::withoutCompany()
+            ->whereIn('status', ['sent', 'partial'])
+            ->whereDate('due_date', '<', now())
+            ->whereColumn('paid_amount', '<', 'total')
             ->update(['status' => 'overdue']);
     }
 }
