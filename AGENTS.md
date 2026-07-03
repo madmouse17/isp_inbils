@@ -22,6 +22,14 @@ Dokumen acuan (baca semua sebelum mulai tugas):
 - `ROADMAP.md` — 7 Phase.
 - `TASKS.md` — task list OpenCode per Phase.
 
+## Model Selection Policy
+
+- Primary engineering model: `cx/gpt-5.5-high`.
+- Review model: `cx/gpt-5.5-review`.
+- Fallbacks: `cx/gpt-5.5`, `cx/gpt-5.5-medium`, `cx/gpt-5.4`, `cx/gpt-5.4-review`, `cx/gpt-5.4-mini`.
+- If OpenCode supports Codex as implementation model, prefer Codex for production code generation while Hermes remains on primary model.
+- If runtime cannot route models, use current model and do not attempt prompt-based model switching.
+
 ## Role & Batasan
 
 | Role | Tugas | Dilarang |
