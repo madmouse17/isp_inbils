@@ -23,7 +23,7 @@ class Invoice extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'number', 'type', 'source', 'customer_id', 'subscription_id', 'work_order_id',
+        'company_id', 'number', 'type', 'source', 'customer_id', 'subscription_id', 'work_order_id',
         'issue_date', 'due_date', 'billing_period_start', 'billing_period_end',
         'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount',
         'notes', 'created_by', 'sent_at', 'cancelled_at', 'cancel_reason',

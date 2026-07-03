@@ -114,6 +114,7 @@ class BillingService
                 }
 
                 InvoiceItem::create([
+                    'company_id' => $sub->company_id,
                     'invoice_id' => $invoice->id,
                     'description' => $label,
                     'quantity' => 1,

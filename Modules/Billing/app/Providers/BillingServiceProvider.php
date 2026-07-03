@@ -22,7 +22,10 @@ class BillingServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        \Modules\Billing\Console\GenerateRecurringInvoices::class,
+        \Modules\Billing\Console\CheckOverdueInvoices::class,
+    ];
 
     /**
      * Provider classes to register.

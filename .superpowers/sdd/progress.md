@@ -1,0 +1,6 @@
+# SDD Progress: recurring-billing (plan docs/superpowers/plans/2026-07-02-recurring-billing.md)
+Task 1: complete (commits eefad17..f466036, review clean. Minor noted: factory pattern deviation OK, missing today-boundary case)
+Task 2: complete (commits f466036..eea7f1e + chore, review clean after 1 fix round. Minor noted: test response-assert added)
+Task 3: complete (commit c99eb38, review clean. Minor noted: double Company::find if both helpers called; createFromSpk still addDays(14) hardcoded - fine per spec, note for final review)
+Task 4: complete (already implemented before Task 5 finalization. RecurringBillingTest passing in billing suite.)
+Task 5: complete (recurring invoice command implemented; overdue invoice command implemented; billing scheduler registered; company_id fillable added to Invoice and InvoiceItem; generateForPeriod() now sets company_id on invoice items; billing command tests passing.)
