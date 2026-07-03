@@ -5,8 +5,11 @@ use App\Http\Controllers\Admin\CustomerAddressController;
 use App\Http\Controllers\Admin\CustomerContactController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EvaluationController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\OrganizationController;
+use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SubscriptionController;
@@ -61,4 +64,18 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
 
     // Employee evaluations
     Route::resource('evaluations', EvaluationController::class);
+
+    // Organization & Employee
+    Route::resource('organizations', OrganizationController::class)->except(['create', 'edit', 'show']);
+    Route::post('organizations/{organization_unit}/move', [OrganizationController::class, 'move'])->name('organizations.move');
+    Route::resource('employees', EmployeeController::class)->except(['create', 'edit', 'show']);
+    Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);
+
+    // Number Sequences
+    Route::resource('number-sequences', \App\Http\Controllers\Admin\NumberSequenceController::class)->only(['index', 'update']);
+
+    // Documents (types + media)
+    Route::resource('documents', \App\Http\Controllers\Admin\DocumentController::class)->except(['create', 'edit', 'show']);
+    Route::post('documents/media', [\App\Http\Controllers\Admin\DocumentController::class, 'uploadMedia'])->name('documents.media.store');
+    Route::delete('documents/media/{media}', [\App\Http\Controllers\Admin\DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 });

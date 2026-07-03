@@ -16,6 +16,12 @@ class RolePermissionSeeder extends Seeder
             'roles.manage',
             'company.manage',
             'system.setting',
+            'organization.view',
+            'organization.manage',
+            'employee.view',
+            'employee.manage',
+            'vehicle.view',
+            'vehicle.manage',
 
             // Customer
             'customer.view',
