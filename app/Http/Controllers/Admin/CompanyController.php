@@ -50,7 +50,11 @@ class CompanyController extends Controller
         Gate::authorize('viewSettings', $company);
 
         return Inertia::render('Admin/Company/Settings', [
-            'settings' => $company->settings ?? [],
+            'settings' => array_merge([
+                'tax_ppn_rate' => 11,
+                'invoice_due_days' => 14,
+                'bank_account_info' => '',
+            ], $company->settings ?? []),
             'defaults' => [
                 'app_name' => SettingService::get('default_app_name'),
                 'currency' => SettingService::get('default_currency'),

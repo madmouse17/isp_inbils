@@ -1,0 +1,9 @@
+{
+    "preset": "laravel",
+    "rules": {
+        "new_with_parentheses": true,
+        "single_quote": true,
+        "trailing_comma_in_multiline": true,
+        "no_unused_imports": true
+    }
+}

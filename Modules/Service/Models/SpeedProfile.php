@@ -5,6 +5,7 @@ namespace Modules\Service\Models;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Modules\Service\Database\Factories\SpeedProfileFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
@@ -47,5 +48,10 @@ class SpeedProfile extends Model
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    protected static function newFactory(): SpeedProfileFactory
+    {
+        return SpeedProfileFactory::new();
     }
 }

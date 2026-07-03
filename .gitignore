@@ -80,3 +80,4 @@ docs/playbooks/*
 !docs/playbooks/bug-fixing.md
 !docs/playbooks/performance.md
 !docs/playbooks/testing.md
+.rtk/

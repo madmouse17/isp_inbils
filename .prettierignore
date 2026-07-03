@@ -1,0 +1,10 @@
+vendor/
+node_modules/
+public/
+storage/
+bootstrap/cache/
+*.md
+*.php
+*.blade.php
+ artisan
+composer.*

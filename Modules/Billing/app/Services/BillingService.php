@@ -2,8 +2,12 @@
 
 namespace Modules\Billing\Services;
 
+use App\Models\Core\Company;
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
+use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
+use Carbon\CarbonImmutable;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
@@ -12,52 +16,146 @@ use Illuminate\Support\Facades\Auth;
 
 class BillingService
 {
-    public static function generateNumber(): string
+    public static function taxRateFor(int $companyId): float
     {
-        $year = now()->year;
-        $prefix = "INV-{$year}-";
+        $settings = Company::find($companyId)?->settings ?? [];
 
-        $last = Invoice::withoutCompany()
-            ->where('number', 'like', $prefix . '%')
-            ->orderByDesc('number')
-            ->lockForUpdate()
-            ->first();
-
-        $next = $last ? ((int) substr($last->number, strlen($prefix))) + 1 : 1;
-
-        return $prefix . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        return (float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
     }
 
-    public static function createRecurring(array $data): Invoice
+    public static function dueDaysFor(int $companyId): int
     {
-        return DB::transaction(function () use ($data) {
-            $data['number'] = self::generateNumber();
-            $data['type'] = 'recurring';
-            $data['source'] = 'subscription';
-            $data['status'] = $data['status'] ?? 'draft';
-            $data['created_by'] = Auth::id();
+        $settings = Company::find($companyId)?->settings ?? [];
 
-            $invoice = Invoice::create($data);
+        return (int) ($settings['invoice_due_days'] ?? 14);
+    }
 
-            // Create MRC line item
-            $subscription = $invoice->subscription;
-            $taxRate = (float) SettingService::get('default_tax_ppn_rate', 0);
+    /**
+     * Generate postpaid recurring invoices for a period ('YYYY-MM').
+     * Idempotent; safe to re-run. $dryRun computes rows without writing.
+     */
+    public static function generateForPeriod(string $period, bool $dryRun = false): array
+    {
+        $periodStart = CarbonImmutable::createFromFormat('Y-m', $period)->startOfMonth()->startOfDay();
+        $periodEnd = $periodStart->endOfMonth()->startOfDay();
 
-            InvoiceItem::create([
-                'invoice_id' => $invoice->id,
-                'description' => 'MRC ' . ($subscription?->servicePackage?->name ?? 'Subscription') . ' ' . $data['billing_period_start'] . ' to ' . $data['billing_period_end'],
-                'quantity' => 1,
-                'unit_price' => $subscription?->mrc_amount ?? 0,
-                'tax_rate' => $taxRate,
-                'line_total' => $subscription?->mrc_amount ?? 0,
-            ]);
+        $subscriptions = ServiceSubscription::withoutCompany()
+            ->with(['customer', 'servicePackage'])
+            ->whereIn('status', ['active', 'terminated'])
+            ->whereDate('activation_date', '<=', $periodEnd)
+            ->where(fn ($q) => $q->whereNull('terminated_at')
+                ->orWhereDate('terminated_at', '>=', $periodStart))
+            ->get();
 
-            self::recalculate($invoice);
+        $rows = [];
+        $created = 0;
+        $skipped = 0;
 
-            AuditService::log('invoice', 'recurring_generated', ['number' => $invoice->number], $invoice);
+        foreach ($subscriptions as $sub) {
+            $exists = Invoice::withoutCompany()
+                ->where('subscription_id', $sub->id)
+                ->where('type', 'recurring')
+                ->where('status', '!=', 'cancelled')
+                ->whereDate('billing_period_start', $periodStart)
+                ->exists();
 
-            return $invoice->fresh();
-        });
+            if ($exists) {
+                $skipped++;
+                continue;
+            }
+
+            [$activeDays, $daysInPeriod, $amount] = self::prorationFor($sub, $periodStart, $periodEnd);
+
+            if ($amount <= 0) {
+                $skipped++;
+                continue;
+            }
+
+            $taxRate = self::taxRateFor($sub->company_id);
+            $tax = round($amount * $taxRate / 100, 2);
+
+            $rows[] = [
+                'subscription_id' => $sub->id,
+                'subscription_code' => $sub->code,
+                'customer' => $sub->customer?->name ?? '-',
+                'package' => $sub->servicePackage?->name ?? '-',
+                'active_days' => $activeDays,
+                'days_in_period' => $daysInPeriod,
+                'amount' => $amount,
+                'tax' => $tax,
+                'total' => round($amount + $tax, 2),
+            ];
+
+            if ($dryRun) {
+                continue;
+            }
+
+            DB::transaction(function () use ($sub, $periodStart, $periodEnd, $activeDays, $daysInPeriod, $amount, $taxRate) {
+                $invoice = Invoice::create([
+                    'company_id' => $sub->company_id,
+                    'number' => NumberSequenceService::generate('invoice', 'INV', $sub->company_id),
+                    'type' => 'recurring',
+                    'source' => 'subscription',
+                    'customer_id' => $sub->customer_id,
+                    'subscription_id' => $sub->id,
+                    'issue_date' => now()->toDateString(),
+                    'due_date' => now()->addDays(self::dueDaysFor($sub->company_id))->toDateString(),
+                    'billing_period_start' => $periodStart->toDateString(),
+                    'billing_period_end' => $periodEnd->toDateString(),
+                    'status' => 'sent',
+                    'sent_at' => now(),
+                    'created_by' => null, // ponytail: batch job, no human actor
+                ]);
+
+                $label = 'MRC ' . ($sub->servicePackage?->name ?? 'Subscription')
+                    . ' ' . $periodStart->toDateString() . ' s/d ' . $periodEnd->toDateString();
+                if ($activeDays < $daysInPeriod) {
+                    $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
+                }
+
+                InvoiceItem::create([
+                    'invoice_id' => $invoice->id,
+                    'description' => $label,
+                    'quantity' => 1,
+                    'unit_price' => $amount,
+                    'tax_rate' => $taxRate,
+                    'line_total' => $amount,
+                ]);
+
+                self::recalculate($invoice);
+
+                AuditService::log('invoice', 'recurring_generated', ['number' => $invoice->number], $invoice);
+            });
+
+            $created++;
+        }
+
+        return ['created' => $created, 'skipped' => $skipped, 'rows' => $rows];
+    }
+
+    /** @return array{0:int,1:int,2:float} [activeDays, daysInPeriod, amount] */
+    private static function prorationFor(ServiceSubscription $sub, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): array
+    {
+        $daysInPeriod = $periodStart->daysInMonth;
+
+        $activation = CarbonImmutable::parse($sub->activation_date)->startOfDay();
+        $from = $activation->gt($periodStart) ? $activation : $periodStart;
+
+        $termination = $sub->terminated_at
+            ? CarbonImmutable::parse($sub->terminated_at)->startOfDay()
+            : null;
+        $until = ($termination && $termination->lt($periodEnd)) ? $termination : $periodEnd;
+
+        if ($from->gt($until)) {
+            return [0, $daysInPeriod, 0.0];
+        }
+
+        $activeDays = (int) $from->diffInDays($until) + 1;
+        $amount = $activeDays >= $daysInPeriod
+            ? round((float) $sub->mrc_amount, 2)
+            : round(($activeDays / $daysInPeriod) * (float) $sub->mrc_amount, 2);
+
+        return [$activeDays, $daysInPeriod, $amount];
     }
 
     public static function createFromSpk(int $workOrderId): Invoice
@@ -71,10 +169,10 @@ class BillingService
 
         return DB::transaction(function () use ($wo) {
             $subscription = $wo->subscription;
-            $taxRate = (float) SettingService::get('default_tax_ppn_rate', 0);
+            $taxRate = self::taxRateFor($wo->company_id);
 
             $invoice = Invoice::create([
-                'number' => self::generateNumber(),
+                'number' => NumberSequenceService::generate('invoice', 'INV', $wo->company_id),
                 'type' => 'one_time',
                 'source' => 'spk',
                 'customer_id' => $wo->customer_id,
@@ -211,10 +309,10 @@ class BillingService
 
     public static function checkOverdue(): void
     {
-        Invoice::where('status', 'sent')
-            ->orWhere('status', 'partial')
-            ->where('due_date', '<', now()->toDateString())
-            ->whereRaw('paid_amount < total')
+        Invoice::withoutCompany()
+            ->whereIn('status', ['sent', 'partial'])
+            ->whereDate('due_date', '<', now())
+            ->whereColumn('paid_amount', '<', 'total')
             ->update(['status' => 'overdue']);
     }
 }
