@@ -236,13 +236,24 @@ class BillingService
 
     public static function recordPayment(Invoice $invoice, float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
+        abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
         $sisa = $invoice->sisa;
 
         abort_if($amount > $sisa, 422, 'Payment amount exceeds remaining balance.');
         abort_if($amount <= 0, 422, 'Payment amount must be positive.');
+        abort_if(
+            $reference && Payment::withoutCompany()
+                ->where('company_id', $invoice->company_id)
+                ->where('reference', $reference)
+                ->whereNull('cancelled_at')
+                ->exists(),
+            422,
+            'Payment reference already exists.'
+        );
 
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes, $sisa) {
             $payment = Payment::create([
+                'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
                 'amount' => $amount,
                 'method' => $method,
