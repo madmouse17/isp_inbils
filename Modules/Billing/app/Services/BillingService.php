@@ -327,4 +327,56 @@ class BillingService
             ->whereColumn('paid_amount', '<', 'total')
             ->update(['status' => 'overdue']);
     }
+
+    public static function receivables(): array
+    {
+        $invoices = Invoice::query()
+            ->with('customer:id,name')
+            ->whereIn('status', ['sent', 'partial', 'overdue'])
+            ->whereColumn('paid_amount', '<', 'total')
+            ->get();
+
+        $subsByCustomer = ServiceSubscription::query()
+            ->whereIn('customer_id', $invoices->pluck('customer_id')->unique())
+            ->where('status', 'active')
+            ->get(['id', 'code', 'status', 'customer_id'])
+            ->groupBy('customer_id');
+
+        return $invoices
+            ->groupBy('customer_id')
+            ->map(function ($group) use ($subsByCustomer) {
+                $buckets = ['current' => 0.0, 'b1_30' => 0.0, 'b31_60' => 0.0, 'b61_90' => 0.0, 'b90_plus' => 0.0];
+
+                foreach ($group as $invoice) {
+                    $outstanding = (float) $invoice->total - (float) $invoice->paid_amount;
+                    $daysPast = (int) $invoice->due_date->startOfDay()->diffInDays(now()->startOfDay(), false);
+
+                    $key = match (true) {
+                        $daysPast <= 0 => 'current',
+                        $daysPast <= 30 => 'b1_30',
+                        $daysPast <= 60 => 'b31_60',
+                        $daysPast <= 90 => 'b61_90',
+                        default => 'b90_plus',
+                    };
+
+                    $buckets[$key] += $outstanding;
+                }
+
+                $first = $group->first();
+
+                return [
+                    'customer_id' => $first->customer_id,
+                    'customer' => $first->customer?->name ?? '-',
+                    ...$buckets,
+                    'total' => array_sum($buckets),
+                    'invoice_count' => $group->count(),
+                    'subscriptions' => ($subsByCustomer[$first->customer_id] ?? collect())
+                        ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'status' => $s->status])
+                        ->values()->all(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->all();
+    }
 }

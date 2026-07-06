@@ -68,6 +68,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         {can('network_asset.view') && <SidebarItem href="/admin/network-assets" icon={<ServerStackIcon />} label="Network Assets" />}
                         {can('spk.view') && <SidebarItem href="/admin/spk" icon={<ClipboardDocumentListIcon />} label="SPK" />}
                         {can('billing.view') && <SidebarItem href="/admin/invoices" icon={<BanknotesIcon />} label="Billing" />}
+                        {can('billing.view') && <SidebarItem href="/admin/billing/receivables" icon={<BanknotesIcon />} label="Tunggakan" />}
                         {can('ticket.view') && <SidebarItem href="/admin/tickets" icon={<ChatBubbleLeftRightIcon />} label="Ticketing" />}
                         <SidebarItem href="/admin/components" icon={<Squares2X2Icon />} label="Komponen" />
                     </SidebarSection>

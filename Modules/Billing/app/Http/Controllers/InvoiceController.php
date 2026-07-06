@@ -122,6 +122,16 @@ class InvoiceController extends Controller
         ])->download($invoice->number . '.pdf');
     }
 
+    public function receivables(Request $request): InertiaResponse
+    {
+        Gate::authorize('viewAny', Invoice::class);
+
+        return Inertia::render('Admin/Billing/Receivables', [
+            'rows' => BillingService::receivables(),
+            'can' => ['suspend' => $request->user()?->can('customer.subscription.suspend') ?? false],
+        ]);
+    }
+
     public function edit(Invoice $invoice): InertiaResponse
     {
         $this->ensureSameCompany($invoice);
