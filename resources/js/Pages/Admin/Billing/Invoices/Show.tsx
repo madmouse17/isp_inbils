@@ -58,6 +58,7 @@ export default function Show({ invoice }: ShowProps) {
                         </p>
                     </div>
                     <div className="flex gap-2">
+                        <Button type="button" variant="secondary" onClick={() => window.open(route('admin.invoices.pdf', inv.id), '_blank')}>Download PDF</Button>
                         <Button type="button" variant="secondary" onClick={() => router.get(route('admin.invoices.index'))}>Back</Button>
                     </div>
                 </div>

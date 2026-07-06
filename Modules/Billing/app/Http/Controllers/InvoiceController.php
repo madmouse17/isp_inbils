@@ -5,6 +5,8 @@ namespace Modules\Billing\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
+use App\Services\Core\CompanyService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,6 +19,7 @@ use Modules\Billing\Http\Resources\InvoiceResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Services\BillingService;
+use Modules\Billing\Support\Terbilang;
 
 class InvoiceController extends Controller
 {
@@ -103,6 +106,21 @@ class InvoiceController extends Controller
         ]);
     }
 
+    public function pdf(Invoice $invoice)
+    {
+        $this->ensureSameCompany($invoice);
+        Gate::authorize('view', $invoice);
+
+        $invoice->load(['customer', 'subscription.servicePackage', 'items']);
+        $company = CompanyService::current();
+
+        return Pdf::loadView('pdf.invoice', [
+            'invoice' => $invoice,
+            'company' => $company,
+            'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
+            'terbilang' => Terbilang::make((float) $invoice->total),
+        ])->download($invoice->number . '.pdf');
+    }
 
     public function edit(Invoice $invoice): InertiaResponse
     {

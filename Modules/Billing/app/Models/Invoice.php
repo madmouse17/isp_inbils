@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -85,5 +86,10 @@ class Invoice extends Model
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    protected static function newFactory(): InvoiceFactory
+    {
+        return InvoiceFactory::new();
     }
 }

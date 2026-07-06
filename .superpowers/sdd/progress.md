@@ -5,3 +5,4 @@ Task 3: complete (commit c99eb38, review clean. Minor noted: double Company::fin
 Task 4: complete (already implemented before Task 5 finalization. RecurringBillingTest passing in billing suite.)
 Task 5: complete (recurring invoice command implemented; overdue invoice command implemented; billing scheduler registered; company_id fillable added to Invoice and InvoiceItem; generateForPeriod() now sets company_id on invoice items; billing command tests passing.)
 Task 6: complete (manual generate UI with dry-run preview implemented; GenerateEndpointTest passed 3 tests/6 assertions; npm build passed; billing suite passed 22 tests/69 assertions; local review clean.)
+Task 7: complete (invoice PDF download implemented with dompdf, Terbilang, company/bank info, Show button; InvoicePdfTest passed 2 tests/7 assertions; npm build passed; billing suite passed 24 tests/76 assertions; local review clean.)
