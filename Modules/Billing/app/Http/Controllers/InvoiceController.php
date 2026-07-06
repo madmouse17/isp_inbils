@@ -54,6 +54,24 @@ class InvoiceController extends Controller
         ]);
     }
 
+    public function generatePreview(Request $request): \Illuminate\Http\JsonResponse
+    {
+        Gate::authorize('billing.create');
+        $request->validate(['period' => ['required', 'date_format:Y-m']]);
+
+        return response()->json(BillingService::generateForPeriod($request->input('period'), dryRun: true));
+    }
+
+    public function generate(Request $request): RedirectResponse
+    {
+        Gate::authorize('billing.create');
+        $request->validate(['period' => ['required', 'date_format:Y-m']]);
+
+        $result = BillingService::generateForPeriod($request->input('period'));
+
+        return back()->with('success', "Tagihan {$request->input('period')}: {$result['created']} dibuat, {$result['skipped']} dilewati.");
+    }
+
     public function store(StoreInvoiceRequest $request): RedirectResponse
     {
         Gate::authorize('store', Invoice::class);
@@ -84,6 +102,7 @@ class InvoiceController extends Controller
             'invoice' => new InvoiceResource($invoice),
         ]);
     }
+
 
     public function edit(Invoice $invoice): InertiaResponse
     {

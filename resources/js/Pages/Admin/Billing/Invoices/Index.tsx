@@ -3,6 +3,7 @@ import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Select, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import { StatusBadge } from '@/Components/composite';
+import GenerateDialog from './GenerateDialog';
 
 interface InvRow {
     id: number; number: string; type: string; source: string; status: string;
@@ -27,6 +28,7 @@ export default function Index({ invoices, customers, filters, can }: IndexProps)
     const [type, setType] = useState(filters.type ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const [customerId, setCustomerId] = useState(filters.customer_id ?? '');
+    const [showGenerate, setShowGenerate] = useState(false);
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -41,7 +43,12 @@ export default function Index({ invoices, customers, filters, can }: IndexProps)
                         <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Invoices</h2>
                         <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage billing invoices.</p>
                     </div>
-                    {can.create && <Button type="button" onClick={() => router.get(route('admin.invoices.create'))}>Create Invoice</Button>}
+                    {can.create && (
+                        <div className="flex gap-2">
+                            <Button type="button" variant="secondary" onClick={() => setShowGenerate(true)}>Generate Tagihan</Button>
+                            <Button type="button" onClick={() => router.get(route('admin.invoices.create'))}>Create Invoice</Button>
+                        </div>
+                    )}
                 </div>
                 <Card>
                     <CardContent className="space-y-4">
@@ -89,6 +96,7 @@ export default function Index({ invoices, customers, filters, can }: IndexProps)
                         <Pagination currentPage={invoices.current_page} lastPage={invoices.last_page} onPageChange={(page) => router.get(route('admin.invoices.index'), { page })} />
                     </CardContent>
                 </Card>
+                <GenerateDialog open={showGenerate} onClose={() => setShowGenerate(false)} />
             </div>
         </AdminLayout>
     );
