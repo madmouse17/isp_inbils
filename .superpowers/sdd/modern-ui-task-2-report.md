@@ -31,3 +31,18 @@ DONE
 
 ## Concerns
 - None.
+
+---
+
+# Fix report: review findings
+
+## Files changed
+- `resources/js/Components/composite/DataTable.tsx`: restored sort indicator arrows to `↑` / `↓`.
+- `resources/js/Components/composite/PageHeader.tsx`: rewrote file without UTF-8 BOM.
+
+## Verification
+- `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run typecheck` passed.
+- `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run build` passed.
+
+## Commit
+- `47dedd2 fix(ui): restore shared primitive text encoding`
