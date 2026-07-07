@@ -31,3 +31,14 @@ Refreshed all listed remaining admin pages under `resources/js/Pages/Admin`.
 ## Concerns
 
 None.
+
+## Review Fixes
+
+Status: DONE
+
+- Converted Users, Roles, and Inventory Products create/edit pages to Task 5 form skeleton: `form.space-y-6`, `CardContent className="grid gap-4 md:grid-cols-2"`, and action buttons outside card.
+- Merged Audit Log and Stock Card filter/table sections into one card each.
+- Verification rerun:
+  - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run typecheck` passed.
+  - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run build` passed.
+- `.superpowers/sdd/progress.md` not staged.

@@ -36,11 +36,7 @@ export default function StockCard({ data, filters }: Props) {
                             <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             <div className="self-end"><Button type="submit">Run</Button></div>
                         </form>
-                    </CardContent>
-                </Card>
-                {data?.movements && (
-                    <Card>
-                        <CardContent className="space-y-4 pt-6">
+                        {data?.movements && (
                             <Table>
                                 <THead><TR><TH>Type</TH><TH>Qty</TH><TH>Balance</TH><TH>From</TH><TH>To</TH><TH>Note</TH><TH>Date</TH></TR></THead>
                                 <TBody>
@@ -55,9 +51,9 @@ export default function StockCard({ data, filters }: Props) {
                                     ))}
                                 </TBody>
                             </Table>
-                        </CardContent>
-                    </Card>
-                )}
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </AdminLayout>
     );

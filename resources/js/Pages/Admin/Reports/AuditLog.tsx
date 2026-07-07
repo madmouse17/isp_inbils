@@ -34,11 +34,7 @@ export default function AuditLog({ data, filters }: Props) {
                             <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             <div className="self-end"><Button type="submit">Run</Button></div>
                         </form>
-                    </CardContent>
-                </Card>
-                {data && (
-                    <Card>
-                        <CardContent className="space-y-4 pt-6">
+                        {data && (
                             <Table>
                                 <THead><TR><TH>Module</TH><TH>Event</TH><TH>Subject</TH><TH>Date</TH></TR></THead>
                                 <TBody>
@@ -53,9 +49,9 @@ export default function AuditLog({ data, filters }: Props) {
                                     ))}
                                 </TBody>
                             </Table>
-                        </CardContent>
-                    </Card>
-                )}
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </AdminLayout>
     );
