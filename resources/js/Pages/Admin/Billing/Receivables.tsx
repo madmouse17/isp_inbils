@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, Textarea, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface SubRef { id: number; code: string; status: string }
 interface Row {
@@ -33,9 +34,9 @@ export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend
     return (
         <AdminLayout title="Tunggakan">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Tunggakan</h2>
+                <PageHeader title="Tunggakan" subtitle="Pantau umur piutang pelanggan dan tindakan isolir." />
                 <Card>
-                    <CardContent className="overflow-x-auto">
+                    <CardContent className="space-y-4 overflow-x-auto pt-6">
                         <Table>
                             <THead>
                                 <TR>
@@ -50,30 +51,35 @@ export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend
                                 </TR>
                             </THead>
                             <TBody>
-                                {rows.map((r) => (
-                                    <TR key={r.customer_id}>
-                                        <TD>
-                                            <Link className="text-brand-600 hover:underline" href={route('admin.invoices.index', { customer_id: r.customer_id })}>
-                                                {r.customer}
-                                            </Link>
-                                            <span className="ml-1 text-surface-400">({r.invoice_count} invoice)</span>
-                                        </TD>
-                                        <TD className="text-right">{idr(r.current)}</TD>
-                                        <TD className="text-right">{idr(r.b1_30)}</TD>
-                                        <TD className="text-right">{idr(r.b31_60)}</TD>
-                                        <TD className="text-right">{idr(r.b61_90)}</TD>
-                                        <TD className="text-right font-semibold text-red-600">{idr(r.b90_plus)}</TD>
-                                        <TD className="text-right font-semibold">{idr(r.total)}</TD>
-                                        <TD className="text-right">
-                                            {can.suspend && r.subscriptions.map((s) => (
-                                                <Button key={s.id} type="button" variant="secondary" size="sm" onClick={() => setSuspending(s)}>
-                                                    Isolir {s.code}
-                                                </Button>
-                                            ))}
-                                        </TD>
+                                {rows.length === 0 ? (
+                                    <TR>
+                                        <TD colSpan={8} className="py-10 text-center text-muted-foreground">No data found.</TD>
                                     </TR>
-                                ))}
-                                {rows.length === 0 && <TR><TD colSpan={8} className="text-center text-surface-500">Tidak ada tunggakan.</TD></TR>}
+                                ) : (
+                                    rows.map((r) => (
+                                        <TR key={r.customer_id}>
+                                            <TD>
+                                                <Link className="text-brand-600 hover:underline" href={route('admin.invoices.index', { customer_id: r.customer_id })}>
+                                                    {r.customer}
+                                                </Link>
+                                                <span className="ml-1 text-surface-400">({r.invoice_count} invoice)</span>
+                                            </TD>
+                                            <TD className="text-right">{idr(r.current)}</TD>
+                                            <TD className="text-right">{idr(r.b1_30)}</TD>
+                                            <TD className="text-right">{idr(r.b31_60)}</TD>
+                                            <TD className="text-right">{idr(r.b61_90)}</TD>
+                                            <TD className="text-right font-semibold text-red-600">{idr(r.b90_plus)}</TD>
+                                            <TD className="text-right font-semibold">{idr(r.total)}</TD>
+                                            <TD className="text-right">
+                                                {can.suspend && r.subscriptions.map((s) => (
+                                                    <Button key={s.id} type="button" variant="secondary" size="sm" onClick={() => setSuspending(s)}>
+                                                        Isolir {s.code}
+                                                    </Button>
+                                                ))}
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                     </CardContent>
