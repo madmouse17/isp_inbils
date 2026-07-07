@@ -14,9 +14,9 @@ export function SidebarItem({ href, icon, label, active, badge }: SidebarItemPro
         <Link
             href={href}
             className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                 active
-                    ? 'border-l-2 border-primary bg-primary/10 text-primary'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )}
             aria-current={active ? 'page' : undefined}
@@ -24,7 +24,7 @@ export function SidebarItem({ href, icon, label, active, badge }: SidebarItemPro
             {icon && <span className="h-5 w-5 shrink-0">{icon}</span>}
             <span className="flex-1 truncate">{label}</span>
             {badge !== undefined && (
-                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">
+                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                     {badge}
                 </span>
             )}
@@ -66,13 +66,17 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-64 transform border-r border-border bg-card p-4 text-card-foreground transition-transform lg:static lg:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 flex w-72 transform flex-col border-r border-border bg-card p-4 text-card-foreground shadow-xl transition-transform dark:bg-card lg:static lg:translate-x-0 lg:shadow-none',
                     open === undefined ? 'hidden lg:block' : open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
                     className,
                 )}
             >
-                <div className="mb-6 flex items-center gap-2 px-3">
-                    <span className="text-lg font-bold text-foreground">inbils</span>
+                <div className="mb-6 flex items-center gap-3 px-2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">in</div>
+                    <div>
+                        <p className="text-sm font-semibold leading-none">inbils</p>
+                        <p className="text-xs text-muted-foreground">ISP ERP</p>
+                    </div>
                 </div>
                 {children}
             </aside>

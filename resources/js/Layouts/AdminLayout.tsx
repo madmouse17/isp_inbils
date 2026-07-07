@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     BanknotesIcon,
     BriefcaseIcon,
@@ -31,9 +31,12 @@ interface AdminLayoutProps {
 export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [darkMode, setDarkMode] = useState(false);
+    const { url } = usePage();
     const company = useCompany();
     const { can, canAny } = usePermission();
     useToast();
+
+    const isActive = (href: string) => url === href || url.startsWith(`${href}/`) || url.startsWith(`${href}?`);
 
     useEffect(() => {
         const stored = localStorage.getItem('darkMode') === 'true';
@@ -53,28 +56,28 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     return (
         <>
             <Head title={title} />
-            <div className="flex h-screen bg-surface-50 dark:bg-surface-950">
-                    <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
-                        <SidebarSection title="Menu">
-                        <SidebarItem href="/admin/dashboard" icon={<HomeIcon />} label="Dashboard" />
-                        {can('organization.view') && <SidebarItem href="/admin/organizations" icon={<BuildingOfficeIcon />} label="Organization" />}
-                        {can('company.manage') && <SidebarItem href="/admin/company/profile" icon={<BuildingOfficeIcon />} label="Company" />}
-                        {canAny(['users.manage']) && <SidebarItem href="/admin/users" icon={<UsersIcon />} label="Users" />}
-                        {can('roles.manage') && <SidebarItem href="/admin/roles" icon={<ShieldCheckIcon />} label="Roles" />}
-                        {can('users.manage') && <SidebarItem href="/admin/permissions" icon={<KeyIcon />} label="Permissions" />}
-                        {can('customer.view') && <SidebarItem href="/admin/customers" icon={<BriefcaseIcon />} label="Customers" />}
-                        {can('service.view') && <SidebarItem href="/admin/service-packages" icon={<TagIcon />} label="Service" />}
-                        {can('inventory.view') && <SidebarItem href="/admin/products" icon={<TagIcon />} label="Inventory" />}
-                        {can('network_asset.view') && <SidebarItem href="/admin/network-assets" icon={<ServerStackIcon />} label="Network Assets" />}
-                        {can('spk.view') && <SidebarItem href="/admin/spk" icon={<ClipboardDocumentListIcon />} label="SPK" />}
-                        {can('billing.view') && <SidebarItem href="/admin/invoices" icon={<BanknotesIcon />} label="Billing" />}
-                        {can('billing.view') && <SidebarItem href="/admin/billing/receivables" icon={<BanknotesIcon />} label="Tunggakan" />}
-                        {can('ticket.view') && <SidebarItem href="/admin/tickets" icon={<ChatBubbleLeftRightIcon />} label="Ticketing" />}
-                        <SidebarItem href="/admin/components" icon={<Squares2X2Icon />} label="Komponen" />
+            <div className="flex min-h-screen bg-muted/30 text-foreground dark:bg-background">
+                <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+                    <SidebarSection title="Menu">
+                        <SidebarItem href="/admin/dashboard" icon={<HomeIcon />} label="Dashboard" active={isActive('/admin/dashboard')} />
+                        {can('organization.view') && <SidebarItem href="/admin/organizations" icon={<BuildingOfficeIcon />} label="Organization" active={isActive('/admin/organizations')} />}
+                        {can('company.manage') && <SidebarItem href="/admin/company/profile" icon={<BuildingOfficeIcon />} label="Company" active={isActive('/admin/company/profile')} />}
+                        {canAny(['users.manage']) && <SidebarItem href="/admin/users" icon={<UsersIcon />} label="Users" active={isActive('/admin/users')} />}
+                        {can('roles.manage') && <SidebarItem href="/admin/roles" icon={<ShieldCheckIcon />} label="Roles" active={isActive('/admin/roles')} />}
+                        {can('users.manage') && <SidebarItem href="/admin/permissions" icon={<KeyIcon />} label="Permissions" active={isActive('/admin/permissions')} />}
+                        {can('customer.view') && <SidebarItem href="/admin/customers" icon={<BriefcaseIcon />} label="Customers" active={isActive('/admin/customers')} />}
+                        {can('service.view') && <SidebarItem href="/admin/service-packages" icon={<TagIcon />} label="Service" active={isActive('/admin/service-packages')} />}
+                        {can('inventory.view') && <SidebarItem href="/admin/products" icon={<TagIcon />} label="Inventory" active={isActive('/admin/products')} />}
+                        {can('network_asset.view') && <SidebarItem href="/admin/network-assets" icon={<ServerStackIcon />} label="Network Assets" active={isActive('/admin/network-assets')} />}
+                        {can('spk.view') && <SidebarItem href="/admin/spk" icon={<ClipboardDocumentListIcon />} label="SPK" active={isActive('/admin/spk')} />}
+                        {can('billing.view') && <SidebarItem href="/admin/invoices" icon={<BanknotesIcon />} label="Billing" active={isActive('/admin/invoices')} />}
+                        {can('billing.view') && <SidebarItem href="/admin/billing/receivables" icon={<BanknotesIcon />} label="Tunggakan" active={isActive('/admin/billing/receivables')} />}
+                        {can('ticket.view') && <SidebarItem href="/admin/tickets" icon={<ChatBubbleLeftRightIcon />} label="Ticketing" active={isActive('/admin/tickets')} />}
+                        <SidebarItem href="/admin/components" icon={<Squares2X2Icon />} label="Komponen" active={isActive('/admin/components')} />
                     </SidebarSection>
                 </Sidebar>
 
-                <div className="flex flex-1 flex-col overflow-hidden">
+                <div className="flex min-w-0 flex-1 flex-col">
                     <Topbar
                         title={title}
                         left={
@@ -94,7 +97,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                 {company && (
                                     <Link
                                         href="/admin/company/profile"
-                                        className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-surface-700 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800 sm:flex"
+                                        className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
                                     >
                                         <Cog6ToothIcon className="h-4 w-4" />
                                         <span>{company.name}</span>
@@ -106,7 +109,9 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                             </>
                         }
                     />
-                    <main className="flex-1 overflow-auto p-6">{children}</main>
+                    <main className="flex-1 overflow-auto p-4 md:p-6">
+                        <div className="mx-auto w-full max-w-[1600px] space-y-6">{children}</div>
+                    </main>
                 </div>
             </div>
         </>
