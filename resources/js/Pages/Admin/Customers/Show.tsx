@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Table, TBody, TD, TH, THead, TR, Tabs, TabList, Tab, TabPanel } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 import type { Customer, CustomerAddress, CustomerContact, ServiceSubscription } from '@/types/models';
 
 interface ShowProps extends Record<string, unknown> {
@@ -19,28 +19,40 @@ export default function Show({ customer }: ShowProps) {
     return (
         <AdminLayout title={c.name}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{c.name}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{c.code} · <Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>{c.type}</Badge></p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.edit', c.id))}>Edit</Button>
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.index'))}>Back</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title={c.name}
+                    subtitle={`${c.code} · ${c.type}`}
+                    actions={(
+                        <>
+                            <Button type="button" variant="outline" onClick={() => router.get(route('admin.customers.edit', c.id))}>Edit</Button>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.index'))}>Back</Button>
+                        </>
+                    )}
+                />
 
-                <Card>
-                    <CardHeader><CardTitle>Profile</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                        <p><span className="text-surface-500 dark:text-surface-400">Email: </span>{c.email ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Phone: </span>{c.phone ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Tax ID: </span>{c.tax_id ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Contact Person: </span>{c.contact_person ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Status: </span><StatusBadge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</StatusBadge></p>
-                        {c.notes && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Notes: </span>{c.notes}</p>}
-                    </CardContent>
-                </Card>
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Email: </span>{c.email ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Phone: </span>{c.phone ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Tax ID: </span>{c.tax_id ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Contact Person: </span>{c.contact_person ?? '-'}</p>
+                            {c.notes && <p><span className="text-muted-foreground">Notes: </span>{c.notes}</p>}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Type: </span><Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>{c.type}</Badge></p>
+                            <p><span className="text-muted-foreground">Status: </span><StatusBadge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</StatusBadge></p>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 <Tabs value={tab} onValueChange={setTab}>
                     <TabList>
@@ -56,7 +68,7 @@ export default function Show({ customer }: ShowProps) {
                             <Table>
                                 <THead><TR><TH>Label</TH><TH>Address</TH><TH>City</TH><TH>Installation</TH><TH>Primary</TH></TR></THead>
                                 <TBody>
-                                    {addresses.length === 0 ? <TR><TD colSpan={5} className="text-center text-surface-500">No addresses.</TD></TR> :
+                                    {addresses.length === 0 ? <TR><TD colSpan={5} className="text-center text-muted-foreground">No addresses.</TD></TR> :
                                     addresses.map((a) => (
                                         <TR key={a.id}>
                                             <TD>{a.label}</TD>
@@ -78,7 +90,7 @@ export default function Show({ customer }: ShowProps) {
                             <Table>
                                 <THead><TR><TH>Name</TH><TH>Position</TH><TH>Phone</TH><TH>Email</TH><TH>Primary</TH></TR></THead>
                                 <TBody>
-                                    {contacts.length === 0 ? <TR><TD colSpan={5} className="text-center text-surface-500">No contacts.</TD></TR> :
+                                    {contacts.length === 0 ? <TR><TD colSpan={5} className="text-center text-muted-foreground">No contacts.</TD></TR> :
                                     contacts.map((ct) => (
                                         <TR key={ct.id}>
                                             <TD>{ct.name}</TD>
@@ -100,7 +112,7 @@ export default function Show({ customer }: ShowProps) {
                             <Table>
                                 <THead><TR><TH>Code</TH><TH>Package</TH><TH>Status</TH><TH>MRC</TH><TH>Billing Day</TH></TR></THead>
                                 <TBody>
-                                    {subscriptions.length === 0 ? <TR><TD colSpan={5} className="text-center text-surface-500">No subscriptions.</TD></TR> :
+                                    {subscriptions.length === 0 ? <TR><TD colSpan={5} className="text-center text-muted-foreground">No subscriptions.</TD></TR> :
                                     subscriptions.map((s) => (
                                         <TR key={s.id}>
                                             <TD className="font-mono text-sm">{s.code}</TD>

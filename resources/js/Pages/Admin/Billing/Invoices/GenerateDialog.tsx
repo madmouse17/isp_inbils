@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { Button, Input, Modal, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { Button, Card, CardContent, Input, Modal, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface PreviewRow {
     subscription_id: number;
@@ -45,28 +45,32 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
     return (
         <Modal open={open} onClose={onClose} title="Generate Tagihan Bulanan" size="xl">
             <div className="space-y-4">
-                <Input label="Periode" type="month" value={period} onChange={(e) => { setPeriod(e.target.value); setRows(null); }} />
-                {rows && (
-                    <>
-                        <p className="text-sm text-surface-500 dark:text-surface-400">
-                            {rows.length} tagihan akan dibuat, {skipped} dilewati.
-                        </p>
-                        <Table>
-                            <THead><TR><TH>Pelanggan</TH><TH>Paket</TH><TH>Hari</TH><TH className="text-right">Total</TH></TR></THead>
-                            <TBody>
-                                {rows.map((r) => (
-                                    <TR key={r.subscription_id}>
-                                        <TD>{r.customer}</TD>
-                                        <TD>{r.package}</TD>
-                                        <TD>{r.active_days}/{r.days_in_period}</TD>
-                                        <TD className="text-right">{idr(r.total)}</TD>
-                                    </TR>
-                                ))}
-                                {rows.length === 0 && <TR><TD colSpan={4} className="text-center text-surface-500">Tidak ada tagihan baru.</TD></TR>}
-                            </TBody>
-                        </Table>
-                    </>
-                )}
+                <Card>
+                    <CardContent className="space-y-4 pt-6">
+                        <Input label="Periode" type="month" value={period} onChange={(e) => { setPeriod(e.target.value); setRows(null); }} />
+                        {rows && (
+                            <>
+                                <p className="text-sm text-muted-foreground">
+                                    {rows.length} tagihan akan dibuat, {skipped} dilewati.
+                                </p>
+                                <Table>
+                                    <THead><TR><TH>Pelanggan</TH><TH>Paket</TH><TH>Hari</TH><TH className="text-right">Total</TH></TR></THead>
+                                    <TBody>
+                                        {rows.map((r) => (
+                                            <TR key={r.subscription_id}>
+                                                <TD>{r.customer}</TD>
+                                                <TD>{r.package}</TD>
+                                                <TD>{r.active_days}/{r.days_in_period}</TD>
+                                                <TD className="text-right">{idr(r.total)}</TD>
+                                            </TR>
+                                        ))}
+                                        {rows.length === 0 && <TR><TD colSpan={4} className="text-center text-muted-foreground">Tidak ada tagihan baru.</TD></TR>}
+                                    </TBody>
+                                </Table>
+                            </>
+                        )}
+                    </CardContent>
+                </Card>
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
                     <Button type="button" onClick={preview} loading={loading}>Preview</Button>

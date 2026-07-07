@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Modal, Select, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface InvData {
     id: number; number: string; type: string; source: string; status: string;
@@ -50,39 +50,53 @@ export default function Show({ invoice }: ShowProps) {
     return (
         <AdminLayout title={`Invoice ${inv.number}`}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{inv.number}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                            <StatusBadge variant={statusVariant(inv.status)}>{inv.status}</StatusBadge> · {inv.type} · {inv.source}
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => window.open(route('admin.invoices.pdf', inv.id), '_blank')}>Download PDF</Button>
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.invoices.index'))}>Back</Button>
-                    </div>
+                <PageHeader
+                    title={`Invoice ${inv.number}`}
+                    subtitle="Record details and related activity."
+                    actions={(
+                        <>
+                            <Button type="button" variant="outline" onClick={() => window.open(route('admin.invoices.pdf', inv.id), '_blank')}>Download PDF</Button>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.invoices.index'))}>Back</Button>
+                        </>
+                    )}
+                />
+
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Customer: </span>{inv.customer?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Subscription: </span>{inv.subscription?.code ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Issue Date: </span>{inv.issue_date}</p>
+                            <p><span className="text-muted-foreground">Due Date: </span>{inv.due_date}</p>
+                            <p><span className="text-muted-foreground">Type: </span>{inv.type}</p>
+                            <p><span className="text-muted-foreground">Source: </span>{inv.source}</p>
+                            {inv.notes && <p><span className="text-muted-foreground">Notes: </span>{inv.notes}</p>}
+                            {inv.cancel_reason && <p className="text-destructive"><span className="text-muted-foreground">Cancel Reason: </span>{inv.cancel_reason}</p>}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Status: </span><StatusBadge variant={statusVariant(inv.status)}>{inv.status}</StatusBadge></p>
+                            <p><span className="text-muted-foreground">Subtotal: </span>{inv.subtotal}</p>
+                            <p><span className="text-muted-foreground">Tax: </span>{inv.tax_amount}</p>
+                            <p><span className="text-muted-foreground">Discount: </span>{inv.discount_amount}</p>
+                            <p className="text-lg font-bold"><span className="text-muted-foreground">Total: </span>{inv.total}</p>
+                            <p><span className="text-muted-foreground">Paid: </span>{inv.paid_amount}</p>
+                            <p className="font-medium"><span className="text-muted-foreground">Remaining: </span>{inv.sisa}</p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <Card>
-                    <CardHeader><CardTitle>Invoice Details</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                        <p><span className="text-surface-500 dark:text-surface-400">Customer: </span>{inv.customer?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Subscription: </span>{inv.subscription?.code ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Issue Date: </span>{inv.issue_date}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Due Date: </span>{inv.due_date}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Subtotal: </span>{inv.subtotal}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Tax: </span>{inv.tax_amount}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Discount: </span>{inv.discount_amount}</p>
-                        <p className="text-lg font-bold"><span className="text-surface-500 dark:text-surface-400">Total: </span>{inv.total}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Paid: </span>{inv.paid_amount}</p>
-                        <p className="font-medium"><span className="text-surface-500 dark:text-surface-400">Remaining: </span>{inv.sisa}</p>
-                        {inv.notes && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Notes: </span>{inv.notes}</p>}
-                        {inv.cancel_reason && <p className="md:col-span-2 text-danger"><span className="text-surface-500 dark:text-surface-400">Cancel Reason: </span>{inv.cancel_reason}</p>}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Actions</CardTitle>
+                    </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
                             {inv.status === 'draft' && <Button type="button" onClick={() => router.post(route('admin.invoices.send', inv.id))}>Send</Button>}
@@ -99,7 +113,7 @@ export default function Show({ invoice }: ShowProps) {
                         <Table>
                             <THead><TR><TH>Description</TH><TH>Qty</TH><TH>Unit Price</TH><TH>Discount</TH><TH>Tax%</TH><TH>Line Total</TH></TR></THead>
                             <TBody>
-                                {(inv.items ?? []).length === 0 ? <TR><TD colSpan={6} className="text-center text-surface-500">No items.</TD></TR> :
+                                {(inv.items ?? []).length === 0 ? <TR><TD colSpan={6} className="text-center text-muted-foreground">No items.</TD></TR> :
                                 (inv.items ?? []).map((i) => (
                                     <TR key={i.id}>
                                         <TD>{i.description}</TD>
@@ -121,7 +135,7 @@ export default function Show({ invoice }: ShowProps) {
                         <Table>
                             <THead><TR><TH>Amount</TH><TH>Method</TH><TH>Reference</TH><TH>Paid At</TH><TH>Status</TH></TR></THead>
                             <TBody>
-                                {(inv.payments ?? []).length === 0 ? <TR><TD colSpan={5} className="text-center text-surface-500">No payments.</TD></TR> :
+                                {(inv.payments ?? []).length === 0 ? <TR><TD colSpan={5} className="text-center text-muted-foreground">No payments.</TD></TR> :
                                 (inv.payments ?? []).map((p) => (
                                     <TR key={p.id}>
                                         <TD className="font-medium">{p.amount}</TD>
@@ -138,7 +152,7 @@ export default function Show({ invoice }: ShowProps) {
 
                 <Modal open={paymentModal} onClose={() => setPaymentModal(false)} title="Record Payment">
                     <form onSubmit={submitPayment} className="space-y-4">
-                        <div className="text-sm text-surface-500">Remaining: {inv.sisa}</div>
+                        <div className="text-sm text-muted-foreground">Remaining: {inv.sisa}</div>
                         <Input label="Amount" type="number" step="0.01" value={data.amount} onChange={(e) => setData('amount', e.target.value)} required />
                         <Select label="Method" value={data.method} onChange={(e) => setData('method', e.target.value)}>
                             <option value="cash">Cash</option>

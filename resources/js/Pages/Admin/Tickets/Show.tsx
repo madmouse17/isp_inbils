@@ -1,8 +1,8 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Modal, Select, Table, TBody, TD, TH, THead, TR, Textarea } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Modal, Select, Textarea } from '@/Components/ui';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface TData {
     id: number; code: string; title: string; description?: string | null;
@@ -54,39 +54,50 @@ export default function Show({ ticket }: ShowProps) {
     return (
         <AdminLayout title={t.title}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{t.title}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                            {t.code} · <StatusBadge variant={statusVariant(t.status)}>{t.status}</StatusBadge>
-                            {t.is_sla_breached && <Badge variant="danger" >SLA Breached</Badge>}
-                        </p>
-                    </div>
-                    <Button type="button" variant="secondary" onClick={() => router.get(route('admin.tickets.index'))}>Back</Button>
+                <PageHeader
+                    title={t.title}
+                    subtitle="Record details and related activity."
+                    actions={<Button type="button" variant="secondary" onClick={() => router.get(route('admin.tickets.index'))}>Back</Button>}
+                />
+
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Category: </span>{t.category?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Source: </span>{t.source}</p>
+                            <p><span className="text-muted-foreground">Customer: </span>{t.customer?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Subscription: </span>{t.subscription?.code ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Asset: </span>{t.network_asset?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Location: </span>{t.location?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Handler: </span>{t.assignee?.name ?? '-'}</p>
+                            {t.description && <p><span className="text-muted-foreground">Description: </span>{t.description}</p>}
+                            {t.resolution_note && <p><span className="text-muted-foreground">Resolution: </span>{t.resolution_note}</p>}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Code: </span>{t.code}</p>
+                            <p><span className="text-muted-foreground">Status: </span><StatusBadge variant={statusVariant(t.status)}>{t.status}</StatusBadge></p>
+                            <p><span className="text-muted-foreground">Priority: </span><Badge variant={t.priority === 'urgent' ? 'danger' : t.priority === 'high' ? 'brand' : 'neutral'}>{t.priority}</Badge></p>
+                            {t.is_sla_breached && <p><Badge variant="danger">SLA Breached</Badge></p>}
+                            <p><span className="text-muted-foreground">SLA Deadline: </span>{t.sla_deadline ?? '-'}</p>
+                            <p><span className="text-muted-foreground">First Response: </span>{t.first_response_at ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Resolved: </span>{t.resolved_at ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Closed: </span>{t.closed_at ?? '-'}</p>
+                        </CardContent>
+                    </Card>
                 </div>
 
                 <Card>
-                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                        <p><span className="text-surface-500 dark:text-surface-400">Category: </span>{t.category?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Source: </span>{t.source}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Priority: </span><Badge variant={t.priority === 'urgent' ? 'danger' : t.priority === 'high' ? 'brand' : 'neutral'}>{t.priority}</Badge></p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Customer: </span>{t.customer?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Subscription: </span>{t.subscription?.code ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Asset: </span>{t.network_asset?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Location: </span>{t.location?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Handler: </span>{t.assignee?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">SLA Deadline: </span>{t.sla_deadline ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">First Response: </span>{t.first_response_at ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Resolved: </span>{t.resolved_at ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Closed: </span>{t.closed_at ?? '-'}</p>
-                        {t.description && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Description: </span>{t.description}</p>}
-                        {t.resolution_note && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Resolution: </span>{t.resolution_note}</p>}
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Actions</CardTitle>
+                    </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
                             {t.status === 'open' && <Button type="button" onClick={() => setActionModal('assign')}>Assign</Button>}
@@ -102,15 +113,15 @@ export default function Show({ ticket }: ShowProps) {
                 <Card>
                     <CardHeader><CardTitle>Comments</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
-                        {(t.comments ?? []).length === 0 && <p className="text-sm text-surface-500">No comments.</p>}
+                        {(t.comments ?? []).length === 0 && <p className="text-sm text-muted-foreground">No comments.</p>}
                         {(t.comments ?? []).map((c) => (
-                            <div key={c.id} className="rounded-lg border border-surface-200 p-3 dark:border-surface-800">
+                            <div key={c.id} className="rounded-lg border border-border p-3">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-medium">{c.author?.name ?? 'Unknown'}</p>
                                     {c.is_internal && <Badge variant="brand">Internal</Badge>}
                                 </div>
-                                <p className="mt-1 text-sm text-surface-600 dark:text-surface-400">{c.body}</p>
-                                <p className="mt-1 text-xs text-surface-400">{c.created_at}</p>
+                                <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">{c.created_at}</p>
                             </div>
                         ))}
                     </CardContent>
@@ -120,14 +131,14 @@ export default function Show({ ticket }: ShowProps) {
                     <CardHeader><CardTitle>Attachments</CardTitle></CardHeader>
                     <CardContent className="space-y-3">
                         <form onSubmit={uploadAttachment} className="flex gap-2">
-                            <input type="file" name="file" accept="image/*,application/pdf,.txt" required className="text-sm" />
+                            <input type="file" name="file" accept="image/*,application/pdf,.txt" required className="text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium" />
                             <div className="self-end"><Button type="submit">Upload</Button></div>
                         </form>
                         <div className="grid gap-2 sm:grid-cols-2">
                             {(t.attachments ?? []).map((a) => (
-                                <div key={a.id} className="rounded-lg border border-surface-200 p-3 dark:border-surface-800">
+                                <div key={a.id} className="rounded-lg border border-border p-3">
                                     <p className="text-sm font-medium">{a.original_name ?? a.file_path}</p>
-                                    <p className="text-xs text-surface-400">{a.created_at}</p>
+                                    <p className="text-xs text-muted-foreground">{a.created_at}</p>
                                 </div>
                             ))}
                         </div>
