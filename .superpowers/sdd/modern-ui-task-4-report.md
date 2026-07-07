@@ -49,3 +49,8 @@ Updated six requested pages only:
 ## Concerns
 
 - None.
+
+## Review fix: receivables empty-state copy
+
+- Restored Receivables empty-state text from `No data found.` to `Tidak ada tunggakan.` to preserve Indonesian copy.
+- Verification passed: typecheck and build.

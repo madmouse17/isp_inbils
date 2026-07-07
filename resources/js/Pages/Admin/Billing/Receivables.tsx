@@ -53,7 +53,7 @@ export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend
                             <TBody>
                                 {rows.length === 0 ? (
                                     <TR>
-                                        <TD colSpan={8} className="py-10 text-center text-muted-foreground">No data found.</TD>
+                                        <TD colSpan={8} className="py-10 text-center text-muted-foreground">Tidak ada tunggakan.</TD>
                                     </TR>
                                 ) : (
                                     rows.map((r) => (
