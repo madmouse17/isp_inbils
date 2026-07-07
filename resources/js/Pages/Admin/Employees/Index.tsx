@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Select, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 
 interface EmpRow {
@@ -39,18 +40,14 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
     return (
         <AdminLayout title="Employees">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Employee Profiles</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage employee profiles linked to users.</p>
-                    </div>
-                    <Button type="button" onClick={openCreate}>Add Employee</Button>
-                </div>
-                <Card><CardContent>
+                <PageHeader title="Employee Profiles" subtitle="Manage employee profiles linked to users." actions={<Button type="button" onClick={openCreate}>Add Employee</Button>} />
+                <Card><CardContent className="space-y-4 pt-6">
                     <Table>
                         <THead><TR><TH>Emp No</TH><TH>Name</TH><TH>Organization</TH><TH>Vehicle</TH><TH>Status</TH><TH>Actions</TH></TR></THead>
                         <TBody>
-                            {employees.data.map((e) => (
+                            {employees.data.length === 0 ? (
+                                <TR><TD colSpan={6} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                            ) : employees.data.map((e) => (
                                 <TR key={e.id}>
                                     <TD className="font-mono text-sm">{e.employee_number}</TD>
                                     <TD>{e.user?.name ?? '-'}</TD>

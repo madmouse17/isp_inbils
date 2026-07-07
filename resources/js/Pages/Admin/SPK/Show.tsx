@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Modal, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface WoData {
     id: number; code: string; type: string; title: string; description?: string | null;
@@ -45,17 +45,14 @@ export default function Show({ workOrder }: ShowProps) {
     return (
         <AdminLayout title={w.title}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{w.title}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{w.code} · <StatusBadge variant={statusVariant(w.status)}>{w.status}</StatusBadge></p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.spk.index'))}>Back</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title={w.title}
+                    subtitle={`${w.code} · ${w.status}`}
+                    actions={<Button type="button" variant="secondary" onClick={() => router.get(route('admin.spk.index'))}>Back</Button>}
+                />
 
-                <Card>
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
                     <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                     <CardContent className="grid gap-4 text-sm md:grid-cols-2">
                         <p><span className="text-surface-500 dark:text-surface-400">Type: </span><Badge variant="neutral">{w.type}</Badge></p>
@@ -87,6 +84,8 @@ export default function Show({ workOrder }: ShowProps) {
                         </div>
                     </CardContent>
                 </Card>
+
+                </div>
 
                 <Card>
                     <CardHeader><CardTitle>Items</CardTitle></CardHeader>

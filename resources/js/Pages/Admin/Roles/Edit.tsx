@@ -1,6 +1,7 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Checkbox, Input } from '@/Components/ui';
 
 interface PermissionOption { id: number; name: string; group: string }
@@ -20,7 +21,10 @@ export default function Edit({ role, permissions }: EditProps) {
 
     return (
         <AdminLayout title="Edit Role">
-            <form onSubmit={submit}>
+            <div className="space-y-6">
+                <PageHeader title="Edit Role" subtitle="Update role permissions." />
+
+                <form onSubmit={submit}>
                 <Card>
                     <CardHeader>
                         <CardTitle>Edit {role.data.name} <Badge>{role.data.users_count ?? 0} users</Badge></CardTitle>
@@ -42,6 +46,7 @@ export default function Edit({ role, permissions }: EditProps) {
                     </CardFooter>
                 </Card>
             </form>
+            </div>
         </AdminLayout>
     );
 }

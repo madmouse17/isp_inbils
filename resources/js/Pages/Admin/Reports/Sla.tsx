@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface SlaData extends Record<string, unknown> {
@@ -26,9 +27,9 @@ export default function Sla({ data, filters }: Props) {
     return (
         <AdminLayout title="SLA Compliance">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">SLA Compliance</h2>
+                <PageHeader title="SLA Compliance" subtitle="Resolution rate, breach count, and per-category breakdown." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex gap-2">
                             <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                             <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
@@ -45,11 +46,13 @@ export default function Sla({ data, filters }: Props) {
                             <Card><CardContent><p className="text-sm text-surface-500">Avg Resolution</p><p className="text-2xl font-bold">{data.avg_resolution_minutes ?? '-'} min</p></CardContent></Card>
                         </div>
                         <Card>
-                            <CardContent>
+                            <CardContent className="space-y-4 pt-6">
                                 <Table>
                                     <THead><TR><TH>Category</TH><TH>Total</TH><TH>Compliant</TH><TH>Rate</TH></TR></THead>
                                     <TBody>
-                                        {(data.by_category ?? []).map((c, i) => <TR key={i}><TD>{c.name}</TD><TD>{c.total}</TD><TD>{c.compliant}</TD><TD>{c.rate}%</TD></TR>)}
+                                        {(data.by_category ?? []).length === 0 ? (
+                                            <TR><TD colSpan={4} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                        ) : (data.by_category ?? []).map((c, i) => <TR key={i}><TD>{c.name}</TD><TD>{c.total}</TD><TD>{c.compliant}</TD><TD>{c.rate}%</TD></TR>)}
                                     </TBody>
                                 </Table>
                             </CardContent>

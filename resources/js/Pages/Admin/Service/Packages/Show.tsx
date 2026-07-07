@@ -1,6 +1,7 @@
-import { router } from '@inertiajs/react';
+﻿import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface PkgData {
     id: number; code: string; name: string; price_mrc: string; price_otc: string;
@@ -20,29 +21,37 @@ export default function Show({ servicePackage }: ShowProps) {
     return (
         <AdminLayout title={p.name}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{p.name}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{p.code}</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.service-packages.edit', p.id))}>Edit</Button>
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.service-packages.index'))}>Back</Button>
-                    </div>
+                <PageHeader
+                    title={p.name}
+                    subtitle={p.code}
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.service-packages.edit', p.id))}>Edit</Button>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.service-packages.index'))}>Back</Button>
+                        </>
+                    )}
+                />
+
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
+                        <CardHeader><CardTitle>Package Details</CardTitle></CardHeader>
+                        <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+                            <p><span className="text-muted-foreground">Bandwidth: </span>{p.bandwidth_profile?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Speed: </span>{p.speed_profile?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">SLA: </span>{p.sla_tier?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Contract Min: </span>{p.contract_min_months ? `${p.contract_min_months} months` : '-'}</p>
+                            {p.description && <p className="md:col-span-2"><span className="text-muted-foreground">Description: </span>{p.description}</p>}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Pricing</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">MRC: </span>{p.price_mrc}</p>
+                            <p><span className="text-muted-foreground">OTC: </span>{p.price_otc}</p>
+                            <p><span className="text-muted-foreground">Status: </span><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></p>
+                        </CardContent>
+                    </Card>
                 </div>
-                <Card>
-                    <CardHeader><CardTitle>Package Details</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                        <p><span className="text-surface-500 dark:text-surface-400">Bandwidth: </span>{p.bandwidth_profile?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Speed: </span>{p.speed_profile?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">SLA: </span>{p.sla_tier?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">MRC: </span>{p.price_mrc}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">OTC: </span>{p.price_otc}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Contract Min: </span>{p.contract_min_months ? `${p.contract_min_months} months` : '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Status: </span><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></p>
-                        {p.description && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Description: </span>{p.description}</p>}
-                    </CardContent>
-                </Card>
             </div>
         </AdminLayout>
     );

@@ -1,6 +1,7 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Checkbox, Input } from '@/Components/ui';
 
 interface PermissionOption { id: number; name: string; group: string }
@@ -19,7 +20,10 @@ export default function Create({ permissions }: CreateProps) {
 
     return (
         <AdminLayout title="Create Role">
-            <form onSubmit={submit}>
+            <div className="space-y-6">
+                <PageHeader title="Create Role" subtitle="Fill required fields, then save." />
+
+                <form onSubmit={submit}>
                 <Card>
                     <CardHeader><CardTitle>Create Role</CardTitle></CardHeader>
                     <CardContent className="space-y-6">
@@ -39,6 +43,7 @@ export default function Create({ permissions }: CreateProps) {
                     </CardFooter>
                 </Card>
             </form>
+            </div>
         </AdminLayout>
     );
 }

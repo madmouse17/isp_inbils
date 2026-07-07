@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Switch, Textarea, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 import type { CustomerAddress } from '@/types/models';
 
@@ -57,23 +58,23 @@ export default function Index({ customer, addresses }: AddressProps) {
     return (
         <AdminLayout title="Customer Addresses">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Addresses</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{customer.code} — {customer.name}</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
-                        <Button type="button" onClick={openCreate}>Add Address</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Addresses"
+                    subtitle={`${customer.code} — ${customer.name}`}
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
+                            <Button type="button" onClick={openCreate}>Add Address</Button>
+                        </>
+                    )}
+                />
 
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <Table>
                             <THead><TR><TH>Label</TH><TH>Address</TH><TH>City</TH><TH>Postal</TH><TH>Install</TH><TH>Primary</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {addrList.length === 0 ? <TR><TD colSpan={7} className="text-center text-surface-500">No addresses.</TD></TR> :
+                                {addrList.length === 0 ? <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No addresses.</TD></TR> :
                                 addrList.map((a) => (
                                     <TR key={a.id}>
                                         <TD>{a.label}</TD>

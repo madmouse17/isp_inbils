@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '@/Components/ui';
 
 type LocationType = 'region' | 'area' | 'pop' | 'rack' | 'site';
@@ -97,10 +98,7 @@ export default function Index({ locations, can }: LocationsProps) {
     return (
         <AdminLayout title="Locations">
             <div className="space-y-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Locations</h2>
-                    <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Region, area, POP, rack, and site topology.</p>
-                </div>
+                <PageHeader title="Locations" subtitle="Region, area, POP, rack, and site topology." />
 
                 {can.create && (
                     <Card>

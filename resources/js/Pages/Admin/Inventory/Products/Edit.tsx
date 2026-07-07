@@ -1,6 +1,7 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Select, Switch, Textarea } from '@/Components/ui';
 import type { Category, Product, Unit } from '@/types/inventory';
 
@@ -32,7 +33,10 @@ export default function Edit({ product, categories, units }: EditProps) {
 
     return (
         <AdminLayout title={`Edit ${p.name}`}>
-            <form onSubmit={submit}>
+            <div className="space-y-6">
+                <PageHeader title="Edit Product" subtitle="Update product master data." />
+
+                <form onSubmit={submit}>
                 <Card>
                     <CardHeader><CardTitle>Edit Product</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -63,6 +67,7 @@ export default function Edit({ product, categories, units }: EditProps) {
                     </CardFooter>
                 </Card>
             </form>
+            </div>
         </AdminLayout>
     );
 }

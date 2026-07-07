@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface BusinessData extends Record<string, unknown> {
@@ -28,9 +29,9 @@ export default function Business({ data, filters }: Props) {
     return (
         <AdminLayout title="Business Metrics">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Business Metrics</h2>
+                <PageHeader title="Business Metrics" subtitle="MRR, revenue, churn, outstanding, and asset utilization." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex gap-2">
                             <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                             <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />

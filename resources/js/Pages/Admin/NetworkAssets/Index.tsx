@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Select, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface AssetRow {
     id: number; code: string; name: string; asset_type: string; serial_number?: string | null;
@@ -36,18 +36,18 @@ export default function Index({ assets, locations, filters, can }: IndexProps) {
     return (
         <AdminLayout title="Network Assets">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Network Assets</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Tracked network equipment.</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.network-assets.trace'))}>Trace</Button>
-                        {can.create && <Button type="button" onClick={() => router.get(route('admin.network-assets.create'))}>Create</Button>}
-                    </div>
-                </div>
+                <PageHeader
+                    title="Network Assets"
+                    subtitle="Tracked network equipment."
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.network-assets.trace'))}>Trace</Button>
+                            {can.create && <Button type="button" onClick={() => router.get(route('admin.network-assets.create'))}>Create</Button>}
+                        </>
+                    )}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Serial, MAC, IP, code" />
                             <Select label="Type" value={assetType} onChange={(e) => setAssetType(e.target.value)}>
@@ -82,7 +82,9 @@ export default function Index({ assets, locations, filters, can }: IndexProps) {
                         <Table>
                             <THead><TR><TH>Code</TH><TH>Name</TH><TH>Type</TH><TH>Serial</TH><TH>Status</TH><TH>Location</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {assets.data.map((a) => (
+                                {assets.data.length === 0 ? (
+                                    <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : assets.data.map((a) => (
                                     <TR key={a.id}>
                                         <TD className="font-mono text-sm">{a.code}</TD>
                                         <TD>{a.name}</TD>

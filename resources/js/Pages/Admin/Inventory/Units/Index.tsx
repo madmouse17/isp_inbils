@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Modal, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import type { Unit } from '@/types/inventory';
 
@@ -42,30 +43,32 @@ export default function Index({ units, can }: IndexProps) {
     return (
         <AdminLayout title="Units">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Units</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage measurement units.</p>
-                    </div>
-                    {can.create && <Button type="button" onClick={openCreate}>Create</Button>}
-                </div>
+                <PageHeader
+                    title="Units"
+                    subtitle="Manage measurement units."
+                    actions={can.create && <Button type="button" onClick={openCreate}>Create</Button>}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <Table>
                             <THead><TR><TH>Name</TH><TH>Symbol</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {units.data.map((u) => (
-                                    <TR key={u.id}>
-                                        <TD>{u.name}</TD>
-                                        <TD className="font-mono">{u.symbol}</TD>
-                                        <TD>
-                                            <div className="flex gap-2">
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(u)}>Edit</Button>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(u)}>Delete</Button>
-                                            </div>
-                                        </TD>
-                                    </TR>
-                                ))}
+                                {units.data.length === 0 ? (
+                                    <TR><TD colSpan={3} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : (
+                                    units.data.map((u) => (
+                                        <TR key={u.id}>
+                                            <TD>{u.name}</TD>
+                                            <TD className="font-mono">{u.symbol}</TD>
+                                            <TD>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(u)}>Edit</Button>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(u)}>Delete</Button>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                         <Pagination currentPage={units.current_page} lastPage={units.last_page} onPageChange={(page) => router.get(route('admin.units.index'), { page })} />

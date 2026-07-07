@@ -1,11 +1,10 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface LogEntry { id: number; log_name: string; description: string; causer_id: number; subject_type?: string | null; subject_id?: number | null; created_at: string }
-interface LogData extends Record<string, unknown> {}
-
 interface Props extends Record<string, unknown> {
     data?: LogEntry[];
     filters: { user_id?: string; log_name?: string; date_from?: string; date_to?: string };
@@ -25,9 +24,9 @@ export default function AuditLog({ data, filters }: Props) {
     return (
         <AdminLayout title="Audit Log">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Audit Log</h2>
+                <PageHeader title="Audit Log" subtitle="Activity trail by user/module/date." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="User ID" type="number" value={userId} onChange={(e) => setUserId(e.target.value)} />
                             <Input label="Module" value={logName} onChange={(e) => setLogName(e.target.value)} placeholder="work_order, ticket, invoice..." />
@@ -39,11 +38,13 @@ export default function AuditLog({ data, filters }: Props) {
                 </Card>
                 {data && (
                     <Card>
-                        <CardContent>
+                        <CardContent className="space-y-4 pt-6">
                             <Table>
                                 <THead><TR><TH>Module</TH><TH>Event</TH><TH>Subject</TH><TH>Date</TH></TR></THead>
                                 <TBody>
-                                    {data.map((l) => (
+                                    {data.length === 0 ? (
+                                        <TR><TD colSpan={4} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                    ) : data.map((l) => (
                                         <TR key={l.id}>
                                             <TD>{l.log_name}</TD><TD>{l.description}</TD>
                                             <TD className="text-sm">{l.subject_type}:{l.subject_id}</TD>

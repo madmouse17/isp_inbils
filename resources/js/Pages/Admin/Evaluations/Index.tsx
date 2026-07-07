@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Select, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface EvalRow {
     id: number; reference_type: string; reference_id: number; score: string;
@@ -32,15 +33,13 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
     return (
         <AdminLayout title="Evaluations">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Employee Evaluations</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Performance evaluations for SPK and tickets.</p>
-                    </div>
-                    {can.create && <Button type="button" onClick={() => router.get(route('admin.evaluations.create'))}>Create</Button>}
-                </div>
+                <PageHeader
+                    title="Employee Evaluations"
+                    subtitle="Performance evaluations for SPK and tickets."
+                    actions={can.create && <Button type="button" onClick={() => router.get(route('admin.evaluations.create'))}>Create</Button>}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Employee name" />
                             <Select label="Employee" value={employeeId} onChange={(e) => setEmployeeId(e.target.value)}>
@@ -57,7 +56,9 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                         <Table>
                             <THead><TR><TH>Employee</TH><TH>Reference</TH><TH>Score</TH><TH>Customer Rating</TH><TH>Evaluator</TH><TH>Date</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {evaluations.data.map((ev) => (
+                                {evaluations.data.length === 0 ? (
+                                    <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : evaluations.data.map((ev) => (
                                     <TR key={ev.id}>
                                         <TD>{ev.employee?.name ?? '-'}</TD>
                                         <TD><Badge variant="neutral">{ev.reference_type}:{ev.reference_id}</Badge></TD>

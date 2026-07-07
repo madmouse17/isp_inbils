@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface EvalData {
     id: number; reference_type: string; reference_id: number; score: string;
@@ -20,19 +21,18 @@ export default function Show({ evaluation }: ShowProps) {
     return (
         <AdminLayout title="Evaluation Detail">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Evaluation</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">
-                            <Badge variant="neutral">{ev.reference_type}:{ev.reference_id}</Badge> · {ev.evaluated_at}
-                        </p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.evaluations.edit', ev.id))}>Edit</Button>
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.evaluations.index'))}>Back</Button>
-                    </div>
-                </div>
-                <Card>
+                <PageHeader
+                    title="Evaluation"
+                    subtitle={`${ev.reference_type}:${ev.reference_id} · ${ev.evaluated_at}`}
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.evaluations.edit', ev.id))}>Edit</Button>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.evaluations.index'))}>Back</Button>
+                        </>
+                    )}
+                />
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
                     <CardHeader><CardTitle>Details</CardTitle></CardHeader>
                     <CardContent className="grid gap-4 text-sm md:grid-cols-2">
                         <p><span className="text-surface-500 dark:text-surface-400">Employee: </span>{ev.employee?.name ?? '-'}</p>
@@ -43,7 +43,15 @@ export default function Show({ evaluation }: ShowProps) {
                         <p><span className="text-surface-500 dark:text-surface-400">Resolution (min): </span>{ev.resolution_minutes ?? '-'}</p>
                         {ev.comment && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Comment: </span>{ev.comment}</p>}
                     </CardContent>
-                </Card>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Reference</CardTitle></CardHeader>
+                        <CardContent className="space-y-3 text-sm">
+                            <p><span className="text-muted-foreground">Reference: </span><Badge variant="neutral">{ev.reference_type}:{ev.reference_id}</Badge></p>
+                            <p><span className="text-muted-foreground">Evaluated At: </span>{ev.evaluated_at}</p>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </AdminLayout>
     );

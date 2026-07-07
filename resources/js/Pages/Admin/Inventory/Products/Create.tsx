@@ -1,6 +1,7 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Select, Switch, Textarea } from '@/Components/ui';
 import type { Category, Unit } from '@/types/inventory';
 
@@ -30,7 +31,10 @@ export default function Create({ categories, units }: CreateProps) {
 
     return (
         <AdminLayout title="Create Product">
-            <form onSubmit={submit}>
+            <div className="space-y-6">
+                <PageHeader title="Create Product" subtitle="Fill required fields, then save." />
+
+                <form onSubmit={submit}>
                 <Card>
                     <CardHeader><CardTitle>Create Product</CardTitle></CardHeader>
                     <CardContent className="space-y-4">
@@ -61,6 +65,7 @@ export default function Create({ categories, units }: CreateProps) {
                     </CardFooter>
                 </Card>
             </form>
+            </div>
         </AdminLayout>
     );
 }

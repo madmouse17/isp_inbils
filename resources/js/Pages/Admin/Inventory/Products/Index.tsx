@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Pagination, Select, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import type { Category, Product, Unit } from '@/types/inventory';
 
@@ -29,19 +30,19 @@ export default function Index({ products, categories, filters, can }: IndexProps
     return (
         <AdminLayout title="Products">
             <div className="space-y-6">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Products</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage product master data.</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.products.export'))}>Export</Button>
-                        {can.create && <Button type="button" onClick={() => router.get(route('admin.products.create'))}>Create Product</Button>}
-                    </div>
-                </div>
+                <PageHeader
+                    title="Products"
+                    subtitle="Manage product master data."
+                    actions={(
+                        <>
+                            <Button type="button" variant="outline" onClick={() => router.get(route('admin.products.export'))}>Export</Button>
+                            {can.create && <Button type="button" onClick={() => router.get(route('admin.products.create'))}>Create Product</Button>}
+                        </>
+                    )}
+                />
 
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="SKU or name" />
                             <Select label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
@@ -68,23 +69,27 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                 </TR>
                             </THead>
                             <TBody>
-                                {products.data.map((p) => (
-                                    <TR key={p.id}>
-                                        <TD className="font-mono text-sm">{p.sku}</TD>
-                                        <TD>{p.name}</TD>
-                                        <TD>{p.category?.name ?? '-'}</TD>
-                                        <TD>{p.unit?.symbol ?? '-'}</TD>
-                                        <TD>{p.sell_price ?? '-'}</TD>
-                                        <TD><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></TD>
-                                        <TD>
-                                            <div className="flex flex-wrap gap-2">
-                                                <Link href={route('admin.products.show', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
-                                                <Link href={route('admin.products.edit', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(p)}>Delete</Button>
-                                            </div>
-                                        </TD>
-                                    </TR>
-                                ))}
+                                {products.data.length === 0 ? (
+                                    <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : (
+                                    products.data.map((p) => (
+                                        <TR key={p.id}>
+                                            <TD className="font-mono text-sm">{p.sku}</TD>
+                                            <TD>{p.name}</TD>
+                                            <TD>{p.category?.name ?? '-'}</TD>
+                                            <TD>{p.unit?.symbol ?? '-'}</TD>
+                                            <TD>{p.sell_price ?? '-'}</TD>
+                                            <TD><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></TD>
+                                            <TD>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Link href={route('admin.products.show', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
+                                                    <Link href={route('admin.products.edit', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(p)}>Delete</Button>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                         <Pagination currentPage={products.current_page} lastPage={products.last_page} onPageChange={(page) => router.get(route('admin.products.index'), { page })} />

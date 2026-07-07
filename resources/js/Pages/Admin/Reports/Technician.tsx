@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '@/Components/ui';
 
 interface TechData extends Record<string, unknown> {
@@ -30,9 +31,9 @@ export default function Technician({ data, technicians, filters }: Props) {
     return (
         <AdminLayout title="Technician Performance">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Technician Performance</h2>
+                <PageHeader title="Technician Performance" subtitle="SPK/ticket counts, avg completion, SLA, rating, and FRT." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Select label="Technician" value={techId} onChange={(e) => setTechId(e.target.value)}>
                                 <option value="">Select...</option>

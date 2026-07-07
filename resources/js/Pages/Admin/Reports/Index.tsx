@@ -1,4 +1,5 @@
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
 import { router } from '@inertiajs/react';
 
@@ -15,10 +16,7 @@ export default function Index() {
     return (
         <AdminLayout title="Reports">
             <div className="space-y-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Reports</h2>
-                    <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Real-time read-only reports from workflow history.</p>
-                </div>
+                <PageHeader title="Reports" subtitle="Real-time read-only reports from workflow history." />
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {reports.map((r) => (
                         <Card key={r.key} className="cursor-pointer hover:ring-2 hover:ring-brand-500/40" >
