@@ -92,7 +92,7 @@ export default function Index({ tickets, categories, handlers, filters, can }: I
                                 )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={tickets.current_page} lastPage={tickets.last_page} onPageChange={(page) => router.get(route('admin.tickets.index'), { page })} />
+                        <Pagination currentPage={tickets.current_page} lastPage={tickets.last_page} onPageChange={(page) => router.get(route('admin.tickets.index'), { page, search, status, source, category_id: categoryId })} />
                     </CardContent>
                 </Card>
             </div>

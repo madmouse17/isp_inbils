@@ -30,7 +30,7 @@ Updated six requested pages only:
 - Customers filter payload unchanged: `{ search, type, is_active: isActive }`.
 - Tickets filter payload unchanged: `{ search, status, source, category_id: categoryId }`.
 - Invoices filter payload unchanged: `{ search, type, status, customer_id: customerId }`.
-- Pagination route calls preserved.
+- Pagination route calls preserve active filters on Customers, Invoices, and Tickets.
 - Delete behavior preserved for customers.
 - Create/show/edit/back navigation preserved.
 - Receivables suspend behavior preserved.
@@ -44,7 +44,7 @@ Updated six requested pages only:
 ## Self-review
 
 - Checked diff for route names, payload keys, pagination keys, actions, delete flow, and empty-state column counts.
-- No issues found.
+- Post-commit review found filtered pagination dropped active filters on Customers, Invoices, and Tickets; follow-up fix applied.
 
 ## Concerns
 

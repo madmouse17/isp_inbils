@@ -90,7 +90,7 @@ export default function Index({ customers, filters }: IndexProps) {
                                 )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={customers.current_page} lastPage={customers.last_page} onPageChange={(page) => router.get(route('admin.customers.index'), { page })} />
+                        <Pagination currentPage={customers.current_page} lastPage={customers.last_page} onPageChange={(page) => router.get(route('admin.customers.index'), { page, search, type, is_active: isActive })} />
                     </CardContent>
                 </Card>
             </div>

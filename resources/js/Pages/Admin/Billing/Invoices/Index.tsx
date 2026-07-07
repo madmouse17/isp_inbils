@@ -97,7 +97,7 @@ export default function Index({ invoices, customers, filters, can }: IndexProps)
                                 )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={invoices.current_page} lastPage={invoices.last_page} onPageChange={(page) => router.get(route('admin.invoices.index'), { page })} />
+                        <Pagination currentPage={invoices.current_page} lastPage={invoices.last_page} onPageChange={(page) => router.get(route('admin.invoices.index'), { page, search, type, status, customer_id: customerId })} />
                     </CardContent>
                 </Card>
                 <GenerateDialog open={showGenerate} onClose={() => setShowGenerate(false)} />
