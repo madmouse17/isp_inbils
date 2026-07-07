@@ -116,11 +116,11 @@ export default function Components() {
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="flex flex-wrap gap-3">
-                                        <Button variant="primary">Primary</Button>
+                                        <Button>Default</Button>
                                         <Button variant="secondary">Secondary</Button>
-                                        <Button variant="ghost">Ghost</Button>
-                                        <Button variant="danger">Danger</Button>
                                         <Button variant="outline">Outline</Button>
+                                        <Button variant="ghost">Ghost</Button>
+                                        <Button variant="destructive">Destructive</Button>
                                         <Button loading>Loading</Button>
                                         <Button disabled>Disabled</Button>
                                     </div>
