@@ -59,7 +59,7 @@ export function DataTable<T extends object>({
                                         className="inline-flex items-center gap-1 rounded text-left hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                     >
                                         {column.label}
-                                        {sortKey === column.key && <span aria-hidden="true">{sortDirection === 'asc' ? 'â†‘' : 'â†“'}</span>}
+                                        {sortKey === column.key && <span aria-hidden="true">{sortDirection === 'asc' ? '↑' : '↓'}</span>}
                                     </button>
                                 ) : (
                                     column.label
