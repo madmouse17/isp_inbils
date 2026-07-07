@@ -32,7 +32,7 @@ interface TabListProps {
 
 export function TabList({ children, className }: TabListProps) {
     return (
-        <div className={cn('flex border-b border-surface-200 dark:border-surface-800', className)} role="tablist">
+        <div className={cn('flex border-b border-border', className)} role="tablist">
             {children}
         </div>
     );
@@ -54,10 +54,10 @@ export function Tab({ value, children, disabled }: TabProps) {
             disabled={disabled}
             onClick={() => ctx?.onValueChange(value)}
             className={cn(
-                'px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500/50 disabled:opacity-40 disabled:cursor-not-allowed',
+                'px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40',
                 active
-                    ? 'border-b-2 border-brand-600 text-brand-600 dark:text-brand-400 dark:border-brand-400'
-                    : 'text-surface-500 hover:text-surface-700 dark:text-surface-400 dark:hover:text-surface-200',
+                    ? 'border-b-2 border-primary text-primary'
+                    : 'text-muted-foreground hover:text-foreground',
             )}
         >
             {children}

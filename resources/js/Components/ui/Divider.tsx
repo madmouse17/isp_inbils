@@ -11,8 +11,8 @@ export function Divider({ orientation = 'horizontal', className }: DividerProps)
             role="separator"
             className={cn(
                 orientation === 'horizontal'
-                    ? 'h-px w-full bg-surface-200 dark:bg-surface-800'
-                    : 'h-full w-px bg-surface-200 dark:bg-surface-800',
+                    ? 'h-px w-full bg-border'
+                    : 'h-full w-px bg-border',
                 className,
             )}
         />

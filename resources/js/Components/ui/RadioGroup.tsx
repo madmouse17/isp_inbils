@@ -23,7 +23,7 @@ export function RadioGroup({ name, value, onChange, label, children, className }
         <RadioContext.Provider value={{ name, value, onChange }}>
             <fieldset className={cn('space-y-2', className)} role="radiogroup" aria-label={label}>
                 {label && (
-                    <legend className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</legend>
+                    <legend className="text-sm font-medium text-foreground">{label}</legend>
                 )}
                 {children}
             </fieldset>
@@ -52,7 +52,7 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
                     checked={ctx?.value === value}
                     onChange={() => ctx?.onChange?.(value)}
                     className={cn(
-                        'mt-0.5 h-4 w-4 border-surface-300 text-brand-600 focus:ring-2 focus:ring-brand-500/30 dark:border-surface-700 dark:bg-surface-900',
+                        'mt-0.5 h-4 w-4 border-input text-primary focus-visible:ring-1 focus-visible:ring-ring',
                         className,
                     )}
                     {...props}
@@ -60,12 +60,12 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
                 {(label || description) && (
                     <div>
                         {label && (
-                            <label htmlFor={inputId} className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                            <label htmlFor={inputId} className="text-sm font-medium text-foreground">
                                 {label}
                             </label>
                         )}
                         {description && (
-                            <p className="text-sm text-surface-500 dark:text-surface-400">{description}</p>
+                            <p className="text-sm text-muted-foreground">{description}</p>
                         )}
                     </div>
                 )}

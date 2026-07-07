@@ -2,33 +2,36 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 const variants = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800',
-    secondary: 'bg-surface-100 text-surface-700 hover:bg-surface-200 active:bg-surface-300 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700 dark:active:bg-surface-600',
-    ghost: 'bg-transparent text-surface-700 hover:bg-surface-100 active:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-800 dark:active:bg-surface-700',
-    danger: 'bg-danger text-white hover:opacity-90 active:opacity-80',
-    outline: 'border border-surface-300 bg-transparent text-surface-700 hover:bg-surface-50 active:bg-surface-100 dark:border-surface-700 dark:text-surface-300 dark:hover:bg-surface-800 dark:active:bg-surface-700',
+    default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
+    primary: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+    destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
+    outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
 } as const;
 
 const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-5 py-2.5 text-base',
+    sm: 'h-8 rounded-md px-3 text-xs',
+    md: 'h-9 px-4 py-2 text-sm',
+    lg: 'h-10 rounded-md px-8 text-sm',
+    icon: 'h-9 w-9',
 } as const;
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: keyof typeof variants;
-    size?: keyof typeof sizes;
+    variant?: 'default' | 'primary' | 'secondary' | 'ghost' | 'danger' | 'destructive' | 'outline';
+    size?: 'sm' | 'md' | 'lg' | 'icon';
     loading?: boolean;
     leftIcon?: React.ReactNode;
     rightIcon?: React.ReactNode;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ variant = 'primary', size = 'md', loading = false, leftIcon, rightIcon, className, disabled, children, ...props }, ref) => (
+    ({ variant = 'default', size = 'md', loading = false, leftIcon, rightIcon, className, disabled, children, ...props }, ref) => (
         <button
             ref={ref}
             className={cn(
-                'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/50 disabled:opacity-60 disabled:cursor-not-allowed',
+                'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
                 variants[variant],
                 sizes[size],
                 className,

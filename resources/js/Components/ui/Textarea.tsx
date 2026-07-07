@@ -19,16 +19,16 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     id={inputId}
                     rows={rows}
                     className={cn(
-                        'mt-1 w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm placeholder:text-surface-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/30 dark:bg-surface-900 dark:border-surface-700 dark:text-surface-100 dark:placeholder:text-surface-500',
-                        error && 'border-danger focus:border-danger focus:ring-danger/30',
+                        'mt-1 min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+                        error && 'border-destructive focus-visible:ring-destructive',
                         className,
                     )}
                     aria-invalid={error ? 'true' : undefined}
                     aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
                     {...props}
                 />
-                {error && <p id={`${inputId}-error`} className="mt-1 text-sm text-danger">{error}</p>}
-                {!error && hint && <p id={`${inputId}-hint`} className="mt-1 text-sm text-surface-500 dark:text-surface-400">{hint}</p>}
+                {error && <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">{error}</p>}
+                {!error && hint && <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">{hint}</p>}
             </div>
         );
     },

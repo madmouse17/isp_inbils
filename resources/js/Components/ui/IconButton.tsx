@@ -2,10 +2,10 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 
 const variants = {
-    primary: 'bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800',
-    secondary: 'bg-surface-100 text-surface-700 hover:bg-surface-200 active:bg-surface-300 dark:bg-surface-800 dark:text-surface-200 dark:hover:bg-surface-700 dark:active:bg-surface-600',
-    ghost: 'bg-transparent text-surface-700 hover:bg-surface-100 active:bg-surface-200 dark:text-surface-300 dark:hover:bg-surface-800 dark:active:bg-surface-700',
-    danger: 'bg-danger text-white hover:opacity-90 active:opacity-80',
+    primary: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
+    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+    ghost: 'hover:bg-accent hover:text-accent-foreground',
+    danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
 } as const;
 
 const sizes = {
@@ -26,7 +26,7 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
             ref={ref}
             aria-label={label}
             className={cn(
-                'inline-flex items-center justify-center rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/50 disabled:opacity-60 disabled:cursor-not-allowed',
+                'inline-flex items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
                 variants[variant],
                 sizes[size],
                 className,

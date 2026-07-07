@@ -16,8 +16,8 @@ export function SidebarItem({ href, icon, label, active, badge }: SidebarItemPro
             className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 active
-                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 border-l-2 border-brand-600'
-                    : 'text-surface-600 hover:bg-surface-100 dark:text-surface-400 dark:hover:bg-surface-800',
+                    ? 'border-l-2 border-primary bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )}
             aria-current={active ? 'page' : undefined}
         >
@@ -42,7 +42,7 @@ export function SidebarSection({ title, children, className }: SidebarSectionPro
     return (
         <div className={cn(className)}>
             {title && (
-                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-surface-400 dark:text-surface-500">
+                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {title}
                 </p>
             )}
@@ -66,13 +66,13 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 w-64 transform border-r border-surface-200 bg-white p-4 transition-transform dark:border-surface-800 dark:bg-surface-900 lg:static lg:translate-x-0',
+                    'fixed inset-y-0 left-0 z-50 w-64 transform border-r border-border bg-card p-4 text-card-foreground transition-transform lg:static lg:translate-x-0',
                     open === undefined ? 'hidden lg:block' : open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
                     className,
                 )}
             >
                 <div className="mb-6 flex items-center gap-2 px-3">
-                    <span className="text-lg font-bold text-surface-900 dark:text-surface-100">inbils</span>
+                    <span className="text-lg font-bold text-foreground">inbils</span>
                 </div>
                 {children}
             </aside>

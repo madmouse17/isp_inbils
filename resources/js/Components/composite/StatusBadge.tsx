@@ -4,8 +4,8 @@ const variants = {
     success: 'success',
     warning: 'warning',
     danger: 'danger',
-    muted: 'neutral',
-    info: 'brand',
+    muted: 'muted',
+    info: 'info',
 } as const;
 
 interface StatusBadgeProps {

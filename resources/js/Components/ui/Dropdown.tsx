@@ -17,7 +17,7 @@ export function Dropdown({ trigger, align = 'right', children, className }: Drop
                 anchor={align === 'right' ? 'bottom end' : 'bottom start'}
                 transition
                 className={cn(
-                    'z-50 min-w-[12rem] rounded-lg border border-surface-200 bg-white p-1 shadow-lg dark:border-surface-800 dark:bg-surface-900',
+                    'z-50 min-w-[12rem] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg',
                     'transition data-[closed]:opacity-0 data-[enter]:duration-150 data-[leave]:duration-100',
                 )}
             >
@@ -47,8 +47,8 @@ export function DropdownItem({ onClick, href = '#', disabled, destructive, child
                 className={cn(
                     'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                     destructive
-                        ? 'text-danger hover:bg-red-50 dark:hover:bg-red-900/20'
-                        : 'text-surface-700 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800',
+                        ? 'text-destructive hover:bg-destructive/10'
+                        : 'text-foreground hover:bg-accent hover:text-accent-foreground',
                     disabled && 'opacity-40 cursor-not-allowed',
                     className,
                 )}
@@ -60,7 +60,7 @@ export function DropdownItem({ onClick, href = '#', disabled, destructive, child
 }
 
 export function DropdownSeparator() {
-    return <MenuSection className="my-1 h-px bg-surface-200 dark:bg-surface-800" />;
+    return <MenuSection className="my-1 h-px bg-border" />;
 }
 
 export function DropdownTrigger({ children }: { children: React.ReactNode }) {

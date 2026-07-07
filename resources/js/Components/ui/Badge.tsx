@@ -1,11 +1,13 @@
 import { cn } from '@/lib/utils';
 
 const variants = {
-    neutral: 'bg-surface-100 text-surface-600 dark:bg-surface-800 dark:text-surface-300',
+    neutral: 'bg-secondary text-secondary-foreground',
+    muted: 'bg-muted text-muted-foreground',
     brand: 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300',
+    info: 'bg-primary/10 text-primary',
     success: 'bg-green-50 text-success dark:bg-green-900/20 dark:text-green-400',
     warning: 'bg-amber-50 text-warning dark:bg-amber-900/20 dark:text-amber-400',
-    danger: 'bg-red-50 text-danger dark:bg-red-900/20 dark:text-red-400',
+    danger: 'bg-destructive/10 text-destructive',
 } as const;
 
 const sizes = {
