@@ -44,9 +44,8 @@ export default function Edit({ servicePackage, bandwidthProfiles, speedProfiles,
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <Input label="Code" value={data.code} onChange={(e) => setData('code', e.target.value)} error={errors.code} required />
+                        <CardContent className="grid gap-4 md:grid-cols-2">
+                            <Input label="Code" value={data.code} onChange={(e) => setData('code', e.target.value)} error={errors.code} required />
                                 <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
                                 <Select label="Bandwidth Profile" value={data.bandwidth_profile_id} onChange={(e) => setData('bandwidth_profile_id', e.target.value)} error={errors.bandwidth_profile_id}>
                                     <option value="">Select...</option>
@@ -64,8 +63,9 @@ export default function Edit({ servicePackage, bandwidthProfiles, speedProfiles,
                                 <Input label="Price OTC" value={data.price_otc} onChange={(e) => setData('price_otc', e.target.value)} error={errors.price_otc} />
                                 <Input label="Contract Min Months" type="number" value={data.contract_min_months} onChange={(e) => setData('contract_min_months', e.target.value)} error={errors.contract_min_months} />
                                 <div className="flex items-end"><Switch label="Active" checked={data.is_active} onCheckedChange={(c) => setData('is_active', c)} /></div>
+                            <div className="md:col-span-2">
+                                <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                             </div>
-                            <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

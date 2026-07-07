@@ -33,9 +33,8 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                     <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Select label="Type" value={data.type} onChange={(e) => setData('type', e.target.value)} error={errors.type} required>
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                        <Select label="Type" value={data.type} onChange={(e) => setData('type', e.target.value)} error={errors.type} required>
                                 <option value="installation">Installation</option>
                                 <option value="maintenance">Maintenance</option>
                                 <option value="upgrade_service">Upgrade Service</option>
@@ -61,8 +60,9 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 <option value="urgent">Urgent</option>
                             </Select>
                             <Input label="Scheduled Date" type="date" value={data.scheduled_date} onChange={(e) => setData('scheduled_date', e.target.value)} error={errors.scheduled_date} />
+                        <div className="md:col-span-2">
+                            <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                         </div>
-                        <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                     </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

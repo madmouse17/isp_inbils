@@ -38,9 +38,8 @@ export default function Edit({ asset, locations }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
+                        <CardContent className="grid gap-4 md:grid-cols-2">
+                            <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
                                 <Select label="Asset Type" value={data.asset_type} onChange={(e) => setData('asset_type', e.target.value)} error={errors.asset_type}>
                                     <option value="router">Router</option>
                                     <option value="switch">Switch</option>
@@ -73,8 +72,9 @@ export default function Edit({ asset, locations }: EditProps) {
                                 <Input label="Purchase Date" type="date" value={data.purchase_date} onChange={(e) => setData('purchase_date', e.target.value)} error={errors.purchase_date} />
                                 <Input label="Purchase Price" value={data.purchase_price} onChange={(e) => setData('purchase_price', e.target.value)} error={errors.purchase_price} />
                                 <Input label="Warranty Expiry" type="date" value={data.warranty_expiry} onChange={(e) => setData('warranty_expiry', e.target.value)} error={errors.warranty_expiry} />
+                            <div className="md:col-span-2">
+                                <Textarea label="Notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} error={errors.notes} rows={3} />
                             </div>
-                            <Textarea label="Notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} error={errors.notes} rows={3} />
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

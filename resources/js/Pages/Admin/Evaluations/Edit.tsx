@@ -31,13 +31,13 @@ export default function Edit({ evaluation }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                     <CardHeader><CardTitle>Details</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <p className="text-sm text-surface-500">Employee: {ev.employee?.name ?? '-'}</p>
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Input label="Score (1.0-5.0)" type="number" step="0.1" min="1" max="5" value={data.score} onChange={(e) => setData('score', e.target.value)} error={errors.score} required />
-                            <Input label="Customer Rating (optional)" type="number" step="0.1" min="1" max="5" value={data.customer_rating} onChange={(e) => setData('customer_rating', e.target.value)} error={errors.customer_rating} />
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                        <p className="text-sm text-surface-500 md:col-span-2">Employee: {ev.employee?.name ?? '-'}</p>
+                        <Input label="Score (1.0-5.0)" type="number" step="0.1" min="1" max="5" value={data.score} onChange={(e) => setData('score', e.target.value)} error={errors.score} required />
+                        <Input label="Customer Rating (optional)" type="number" step="0.1" min="1" max="5" value={data.customer_rating} onChange={(e) => setData('customer_rating', e.target.value)} error={errors.customer_rating} />
+                        <div className="md:col-span-2">
+                            <Textarea label="Comment" value={data.comment} onChange={(e) => setData('comment', e.target.value)} error={errors.comment} rows={3} />
                         </div>
-                        <Textarea label="Comment" value={data.comment} onChange={(e) => setData('comment', e.target.value)} error={errors.comment} rows={3} />
                     </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">

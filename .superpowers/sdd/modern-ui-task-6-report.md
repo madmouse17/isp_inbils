@@ -42,3 +42,14 @@ Status: DONE
   - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run typecheck` passed.
   - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run build` passed.
 - `.superpowers/sdd/progress.md` not staged.
+
+## Review Fixes 2
+
+Status: DONE
+
+- Converted remaining Packages, Network Assets, SPK, and Evaluations create/edit pages to Task 5 form skeleton: `CardContent className="grid gap-4 md:grid-cols-2"` with no nested grid wrapper.
+- Added `md:col-span-2` wrappers for full-width employee text and textarea sections where needed.
+- Verification rerun:
+  - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run typecheck` passed.
+  - `rtk npm --prefix "C:\Users\MadMouse\Documents\Web\inbils\.claude\worktrees\modern-simple-shadcn-ui" run build` passed.
+- `.superpowers/sdd/progress.md` not staged.
