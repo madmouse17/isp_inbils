@@ -90,6 +90,23 @@ class AdminRouteTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_admin_dashboard_uses_web_session_middleware(): void
+    {
+        $middleware = app('router')->getRoutes()->getByName('admin.dashboard')->gatherMiddleware();
+
+        $this->assertContains('web', $middleware);
+    }
+
+    public function test_logged_in_user_can_reach_admin_dashboard_after_login(): void
+    {
+        $this->post(route('login'), [
+            'email' => $this->admin->email,
+            'password' => 'password',
+        ])->assertRedirect(route('admin.dashboard', absolute: false));
+
+        $this->get(route('admin.dashboard'))->assertOk();
+    }
+
     public function test_unauthenticated_admin_route_redirects_to_login(): void
     {
         $response = $this->get(route('admin.dashboard'));
