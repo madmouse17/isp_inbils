@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Select, Textarea } from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface OptRow { id: number; name: string }
 interface SubRow { id: number; code: string }
@@ -26,12 +27,14 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
 
     return (
         <AdminLayout title="Create SPK">
-            <form onSubmit={submit}>
-                <Card>
-                    <CardHeader><CardTitle>Create SPK</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Select label="Type" value={data.type} onChange={(e) => setData('type', e.target.value)} error={errors.type} required>
+            <div className="space-y-6">
+                <PageHeader title="Create SPK" subtitle="Fill required fields, then save." />
+
+                <form onSubmit={submit} className="space-y-6">
+                    <Card>
+                    <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+                    <CardContent className="grid gap-4 md:grid-cols-2">
+                        <Select label="Type" value={data.type} onChange={(e) => setData('type', e.target.value)} error={errors.type} required>
                                 <option value="installation">Installation</option>
                                 <option value="maintenance">Maintenance</option>
                                 <option value="upgrade_service">Upgrade Service</option>
@@ -57,15 +60,17 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 <option value="urgent">Urgent</option>
                             </Select>
                             <Input label="Scheduled Date" type="date" value={data.scheduled_date} onChange={(e) => setData('scheduled_date', e.target.value)} error={errors.scheduled_date} />
+                        <div className="md:col-span-2">
+                            <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                         </div>
-                        <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
                     </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.spk.index'))}>Cancel</Button>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.spk.index'))}>Cancel</Button>
                         <Button type="submit" loading={processing}>Create</Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 }

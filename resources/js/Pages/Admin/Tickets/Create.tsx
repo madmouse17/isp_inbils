@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Select, Textarea } from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Textarea } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface CatRow { id: number; name: string }
 interface CustRow { id: number; name: string }
@@ -27,11 +28,14 @@ export default function Create({ categories, customers, subscriptions, assets, l
 
     return (
         <AdminLayout title="Create Ticket">
-            <form onSubmit={submit}>
-                <Card>
-                    <CardHeader><CardTitle>Create Ticket</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-6">
+                <PageHeader title="Create Ticket" subtitle="Fill required fields, then save." />
+                <form onSubmit={submit} className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Details</CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input label="Title" value={data.title} onChange={(e) => setData('title', e.target.value)} error={errors.title} required />
                             <Select label="Source" value={data.source} onChange={(e) => setData('source', e.target.value)} error={errors.source} required>
                                 <option value="customer">Customer</option>
@@ -42,7 +46,7 @@ export default function Create({ categories, customers, subscriptions, assets, l
                                 <option value="">Select...</option>
                                 {categories.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </Select>
-                            <Select label="Priority" value={data.priority} onChange={(e) => setData('priority', e.target.value)}>
+                            <Select label="Priority" value={data.priority} onChange={(e) => setData('priority', e.target.value)} error={errors.priority}>
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
@@ -64,15 +68,15 @@ export default function Create({ categories, customers, subscriptions, assets, l
                                 <option value="">None</option>
                                 {locations.data.map((l) => <option key={l.id} value={l.id}>{l.code} — {l.name}</option>)}
                             </Select>
-                        </div>
-                        <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.tickets.index'))}>Cancel</Button>
+                            <Textarea className="md:col-span-2" label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
+                        </CardContent>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.tickets.index'))}>Cancel</Button>
                         <Button type="submit" loading={processing}>Create</Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 }

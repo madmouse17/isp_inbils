@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Switch, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 
 interface VehRow {
@@ -33,18 +34,14 @@ export default function Index({ vehicles }: IndexProps) {
     return (
         <AdminLayout title="Vehicles">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Vehicles</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Technician transport.</p>
-                    </div>
-                    <Button type="button" onClick={openCreate}>Add Vehicle</Button>
-                </div>
-                <Card><CardContent>
+                <PageHeader title="Vehicles" subtitle="Technician transport." actions={<Button type="button" onClick={openCreate}>Add Vehicle</Button>} />
+                <Card><CardContent className="space-y-4 pt-6">
                     <Table>
                         <THead><TR><TH>Plate</TH><TH>Type</TH><TH>Brand</TH><TH>Model</TH><TH>Status</TH><TH>Actions</TH></TR></THead>
                         <TBody>
-                            {vehicles.data.map((v) => (
+                            {vehicles.data.length === 0 ? (
+                                <TR><TD colSpan={6} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                            ) : vehicles.data.map((v) => (
                                 <TR key={v.id}>
                                     <TD className="font-mono">{v.plate_number}</TD>
                                     <TD>{v.type ?? '-'}</TD>

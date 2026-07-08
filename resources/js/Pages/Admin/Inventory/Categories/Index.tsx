@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Modal, Pagination, Switch, Table, TBody, TD, TH, THead, TR, Textarea } from '@/Components/ui';
 import type { Category } from '@/types/inventory';
 
@@ -60,15 +61,13 @@ export default function Index({ categories, can }: IndexProps) {
     return (
         <AdminLayout title="Categories">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Categories</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage product categories.</p>
-                    </div>
-                    {can.create && <Button type="button" onClick={openCreate}>Create</Button>}
-                </div>
+                <PageHeader
+                    title="Categories"
+                    subtitle="Manage product categories."
+                    actions={can.create && <Button type="button" onClick={openCreate}>Create</Button>}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submitFilter} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name or code" />
                             <div className="self-end"><Button type="submit" variant="secondary">Filter</Button></div>
@@ -76,20 +75,24 @@ export default function Index({ categories, can }: IndexProps) {
                         <Table>
                             <THead><TR><TH>Code</TH><TH>Name</TH><TH>Children</TH><TH>Status</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {categories.data.map((c) => (
-                                    <TR key={c.id}>
-                                        <TD className="font-mono text-sm">{c.code}</TD>
-                                        <TD>{c.name}</TD>
-                                        <TD>{c.children_count ?? 0}</TD>
-                                        <TD><Badge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TD>
-                                        <TD>
-                                            <div className="flex gap-2">
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(c)}>Edit</Button>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(c)}>Delete</Button>
-                                            </div>
-                                        </TD>
-                                    </TR>
-                                ))}
+                                {categories.data.length === 0 ? (
+                                    <TR><TD colSpan={5} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : (
+                                    categories.data.map((c) => (
+                                        <TR key={c.id}>
+                                            <TD className="font-mono text-sm">{c.code}</TD>
+                                            <TD>{c.name}</TD>
+                                            <TD>{c.children_count ?? 0}</TD>
+                                            <TD><Badge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TD>
+                                            <TD>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(c)}>Edit</Button>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(c)}>Delete</Button>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                         <Pagination currentPage={categories.current_page} lastPage={categories.last_page} onPageChange={(page) => router.get(route('admin.categories.index'), { page })} />

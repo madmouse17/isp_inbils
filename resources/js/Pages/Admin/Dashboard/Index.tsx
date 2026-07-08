@@ -40,7 +40,7 @@ export default function Index({
     return (
         <AdminLayout title="Dashboard">
             <div className="space-y-6">
-                <PageHeader title="Dashboard" subtitle={company ? `${company.name} (${company.code})` : 'Core overview'} />
+                <PageHeader title="Dashboard" subtitle="Monitor users, modules, and recent activity." />
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard label="Users" value={userCount} />

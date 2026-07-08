@@ -33,7 +33,7 @@ export function Tooltip({ label, children, side = 'top' }: TooltipProps) {
                 id={id}
                 role="tooltip"
                 className={cn(
-                    'pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-md bg-surface-900 px-2.5 py-1 text-xs font-medium text-white shadow-sm dark:bg-surface-100 dark:text-surface-900',
+                    'pointer-events-none absolute left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-md bg-foreground px-2.5 py-1 text-xs font-medium text-background shadow-sm',
                     side === 'top' ? 'bottom-full mb-2' : 'top-full mt-2',
                     visible ? 'opacity-100' : 'opacity-0',
                     'transition-opacity duration-150',

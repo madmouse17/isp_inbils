@@ -2,6 +2,7 @@ import { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Textarea } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 import { Company } from '@/types';
 
 interface ProfileProps {
@@ -28,15 +29,11 @@ export default function Profile({ company, can }: ProfileProps) {
     return (
         <AdminLayout title="Company Profile">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Company Profile</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Identity and contact data.</p>
-                    </div>
-                    <Link href={route('admin.company.settings.edit')} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">
-                        Settings
-                    </Link>
-                </div>
+                <PageHeader
+                    title="Company Profile"
+                    subtitle="Identity and contact data."
+                    actions={<Link href={route('admin.company.settings.edit')} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Settings</Link>}
+                />
 
                 <form onSubmit={submit}>
                     <Card>

@@ -7,3 +7,12 @@ Task 5: complete (recurring invoice command implemented; overdue invoice command
 Task 6: complete (manual generate UI with dry-run preview implemented; GenerateEndpointTest passed 3 tests/6 assertions; npm build passed; billing suite passed 22 tests/69 assertions; local review clean.)
 Task 7: complete (invoice PDF download implemented with dompdf, Terbilang, company/bank info, Show button; InvoicePdfTest passed 2 tests/7 assertions; npm build passed; billing suite passed 24 tests/76 assertions; local review clean.)
 Task 8: complete (AR aging/Tunggakan service, route, page, nav, isolir shortcut implemented; ReceivablesTest passed 2 tests/19 assertions; npm build passed; billing suite passed 26 tests/95 assertions; full suite passed 115 tests/343 assertions; local review clean.)
+
+# SDD Progress: modern-simple-shadcn-ui (plan docs/superpowers/plans/2026-07-06-modern-simple-shadcn-ui.md)
+Task 1: complete (commits 941904e..565407f, review clean)
+Task 2: complete (commits 565407f..281001d, review clean after 1 fix round. Fix: restored DataTable arrows and removed PageHeader BOM.)
+Task 3: complete (commit 4cec380, review clean. Note: browser runtime check blocked by local auth redirect loop; typecheck/build passed.)
+Task 4: complete (commits 4cec380..948401c, review clean after 1 fix round. Fix: restored Receivables Indonesian empty-state copy.)
+Task 5: complete (commit e4cc601, review clean. Note: initial implementer blocked before commit by temporary classifier outage; controller wrote report and committed after typecheck/build passed.)
+Task 6: complete (commits e4cc601..a745e6d, review clean after 2 fix rounds. Fixes: remaining form skeletons and one-card report pages.)
+Task 7: complete (commit e1c38a4 + route middleware fix, review clean. AdminRouteTest/typecheck/build pass; browser smoke pass for dashboard, customers, invoices, tickets, customer create, components; dark toggle works.)

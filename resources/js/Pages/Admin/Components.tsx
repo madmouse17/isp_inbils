@@ -5,6 +5,7 @@ import {
     InboxIcon,
 } from '@heroicons/react/20/solid';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import {
     Button,
     IconButton,
@@ -101,19 +102,11 @@ export default function Components() {
                 </nav>
 
                 <div className="flex-1 space-y-10">
-                        <div className="space-y-4">
-                            <Breadcrumb
-                                items={[{ label: 'Admin' }, { label: 'Komponen' }]}
-                            />
-                            <div>
-                                <h1 className="text-2xl font-semibold text-surface-900 dark:text-surface-100">
-                                    Galeri Komponen
-                                </h1>
-                                <p className="text-sm text-surface-600 dark:text-surface-400">
-                                    Semua komponen UI sistem desain inbils.
-                                </p>
-                            </div>
-                        </div>
+                        <PageHeader
+                            title="Galeri Komponen"
+                            subtitle="Semua komponen UI sistem desain inbils."
+                            breadcrumbs={[{ label: 'Admin' }, { label: 'Komponen' }]}
+                        />
 
                         <section id="buttons" className="scroll-mt-8">
                             <Card>
@@ -123,11 +116,11 @@ export default function Components() {
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="flex flex-wrap gap-3">
-                                        <Button variant="primary">Primary</Button>
+                                        <Button>Default</Button>
                                         <Button variant="secondary">Secondary</Button>
-                                        <Button variant="ghost">Ghost</Button>
-                                        <Button variant="danger">Danger</Button>
                                         <Button variant="outline">Outline</Button>
+                                        <Button variant="ghost">Ghost</Button>
+                                        <Button variant="destructive">Destructive</Button>
                                         <Button loading>Loading</Button>
                                         <Button disabled>Disabled</Button>
                                     </div>

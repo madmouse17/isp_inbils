@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Modal, Select, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 import type { ServiceSubscription } from '@/types/models';
 
 interface SubIndexProps {
@@ -33,35 +33,40 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
     return (
         <AdminLayout title="Subscriptions">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Subscriptions</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{customer.code} — {customer.name}</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
-                        <Button type="button" onClick={() => setModalOpen(true)}>Create Subscription</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Subscriptions"
+                    subtitle={`${customer.code} — ${customer.name}`}
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
+                            <Button type="button" onClick={() => setModalOpen(true)}>Create Subscription</Button>
+                        </>
+                    )}
+                />
 
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <Table>
                             <THead><TR><TH>Code</TH><TH>Package</TH><TH>Status</TH><TH>MRC</TH><TH>Billing Day</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {list.length === 0 ? <TR><TD colSpan={6} className="text-center text-surface-500">No subscriptions.</TD></TR> :
-                                list.map((s) => (
-                                    <TR key={s.id}>
-                                        <TD className="font-mono text-sm">{s.code}</TD>
-                                        <TD>{s.package?.name ?? `#${s.service_package_id}`}</TD>
-                                        <TD><StatusBadge variant={s.status === 'active' ? 'success' : s.status === 'suspended' ? 'warning' : s.status === 'terminated' ? 'danger' : 'muted'}>{s.status}</StatusBadge></TD>
-                                        <TD>{s.mrc_amount}</TD>
-                                        <TD>{s.billing_day}</TD>
-                                        <TD>
-                                            <Link href={route('admin.subscriptions.show', s.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
-                                        </TD>
+                                {list.length === 0 ? (
+                                    <TR>
+                                        <TD colSpan={6} className="py-10 text-center text-muted-foreground">No data found.</TD>
                                     </TR>
-                                ))}
+                                ) : (
+                                    list.map((s) => (
+                                        <TR key={s.id}>
+                                            <TD className="font-mono text-sm">{s.code}</TD>
+                                            <TD>{s.package?.name ?? `#${s.service_package_id}`}</TD>
+                                            <TD><StatusBadge variant={s.status === 'active' ? 'success' : s.status === 'suspended' ? 'warning' : s.status === 'terminated' ? 'danger' : 'muted'}>{s.status}</StatusBadge></TD>
+                                            <TD>{s.mrc_amount}</TD>
+                                            <TD>{s.billing_day}</TD>
+                                            <TD>
+                                                <Link href={route('admin.subscriptions.show', s.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                     </CardContent>

@@ -1,8 +1,8 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, Input } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface TraceResult {
     id: number; code: string; name: string; asset_type: string; serial_number?: string | null;
@@ -17,7 +17,7 @@ interface TraceProps extends Record<string, unknown> {
     customer_id: string;
 }
 
-export default function Trace({ results, search, customer_id }: TraceProps) {
+export default function Trace({ results, search }: TraceProps) {
     const [query, setQuery] = useState(search);
 
     const submit = (e: FormEvent) => {
@@ -28,42 +28,35 @@ export default function Trace({ results, search, customer_id }: TraceProps) {
     return (
         <AdminLayout title="Asset Trace">
             <div className="space-y-6">
-                <div>
-                    <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Asset Trace</h2>
-                    <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Search by serial, MAC, IP, or code.</p>
-                </div>
+                <PageHeader title="Asset Trace" subtitle="Search by serial, MAC, IP, or code." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex gap-2">
                             <Input label="Search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Serial, MAC, IP, code" />
                             <div className="self-end"><Button type="submit">Trace</Button></div>
                         </form>
+                        <Table>
+                            <THead><TR><TH>Name</TH><TH>Code</TH><TH>Type</TH><TH>Serial</TH><TH>Status</TH><TH>Location</TH><TH>Path</TH><TH>Customer</TH><TH>Subscription</TH></TR></THead>
+                            <TBody>
+                                {results.length === 0 ? (
+                                    <TR><TD colSpan={9} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : results.map((r) => (
+                                    <TR key={r.id}>
+                                        <TD>{r.name}</TD>
+                                        <TD className="font-mono text-sm">{r.code}</TD>
+                                        <TD>{r.asset_type}</TD>
+                                        <TD className="font-mono text-sm">{r.serial_number ?? '-'}</TD>
+                                        <TD><StatusBadge variant={r.status === 'available' ? 'success' : r.status === 'installed' ? 'info' : r.status === 'maintenance' ? 'warning' : r.status === 'damaged' ? 'danger' : 'muted'}>{r.status}</StatusBadge></TD>
+                                        <TD>{r.location?.name ?? '-'}</TD>
+                                        <TD>{r.location?.path ?? '-'}</TD>
+                                        <TD>{r.customer?.name ?? '-'}</TD>
+                                        <TD>{r.subscription?.code ?? '-'}</TD>
+                                    </TR>
+                                ))}
+                            </TBody>
+                        </Table>
                     </CardContent>
                 </Card>
-                {results.length > 0 && (
-                    <div className="space-y-4">
-                        {results.map((r) => (
-                            <Card key={r.id}>
-                                <CardContent>
-                                    <div className="flex items-start justify-between">
-                                        <div>
-                                            <p className="text-lg font-semibold text-surface-900 dark:text-surface-100">{r.name}</p>
-                                            <p className="text-sm text-surface-500">{r.code} · {r.asset_type}</p>
-                                            <p className="text-sm text-surface-500">Serial: {r.serial_number ?? '-'}</p>
-                                        </div>
-                                        <StatusBadge variant={r.status === 'available' ? 'success' : r.status === 'installed' ? 'info' : r.status === 'maintenance' ? 'warning' : r.status === 'damaged' ? 'danger' : 'muted'}>{r.status}</StatusBadge>
-                                    </div>
-                                    <div className="mt-4 grid gap-2 text-sm md:grid-cols-2">
-                                        <p><span className="text-surface-500 dark:text-surface-400">Location: </span>{r.location?.name ?? '-'}</p>
-                                        <p><span className="text-surface-500 dark:text-surface-400">Path: </span>{r.location?.path ?? '-'}</p>
-                                        <p><span className="text-surface-500 dark:text-surface-400">Customer: </span>{r.customer?.name ?? '-'}</p>
-                                        <p><span className="text-surface-500 dark:text-surface-400">Subscription: </span>{r.subscription?.code ?? '-'}</p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                )}
             </div>
         </AdminLayout>
     );

@@ -28,16 +28,16 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
                 <DialogPanel
                     transition
                     className={cn(
-                        'w-full rounded-xl bg-white shadow-xl dark:bg-surface-900 transition-transform data-[closed]:scale-95 data-[enter]:duration-200 data-[leave]:duration-150',
+                        'w-full rounded-lg border bg-card text-card-foreground shadow-xl transition-transform data-[closed]:scale-95 data-[enter]:duration-200 data-[leave]:duration-150',
                         sizes[size],
                     )}
                 >
                     {title && (
-                        <div className="flex items-center justify-between border-b border-surface-200 px-5 py-4 dark:border-surface-800">
-                            <DialogTitle className="font-semibold text-surface-900 dark:text-surface-100">{title}</DialogTitle>
+                        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                            <DialogTitle className="font-semibold text-foreground">{title}</DialogTitle>
                             <button
                                 onClick={onClose}
-                                className="rounded-lg p-1 text-surface-400 hover:text-surface-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 dark:hover:text-surface-300"
+                                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                                 aria-label="Close"
                             >
                                 <XMarkIcon className="h-5 w-5" />

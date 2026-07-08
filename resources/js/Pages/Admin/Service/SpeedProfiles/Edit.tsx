@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface SpData {
     id: number; name: string; download_max_mbps: number; upload_max_mbps: number;
@@ -29,11 +30,12 @@ export default function Edit({ speedProfile }: EditProps) {
 
     return (
         <AdminLayout title="Edit Speed Profile">
-            <form onSubmit={submit}>
-                <Card>
-                    <CardHeader><CardTitle>Edit Speed Profile</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-6">
+                <PageHeader title="Edit Speed Profile" subtitle="Fill required fields, then save." />
+                <form onSubmit={submit} className="space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Details</CardTitle></CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
                             <Input label="Download Max (Mbps)" type="number" value={data.download_max_mbps} onChange={(e) => setData('download_max_mbps', e.target.value)} error={errors.download_max_mbps} required />
                             <Input label="Upload Max (Mbps)" type="number" value={data.upload_max_mbps} onChange={(e) => setData('upload_max_mbps', e.target.value)} error={errors.upload_max_mbps} required />
@@ -41,14 +43,14 @@ export default function Edit({ speedProfile }: EditProps) {
                             <Input label="Burst Upload (Mbps)" type="number" value={data.burst_upload_mbps} onChange={(e) => setData('burst_upload_mbps', e.target.value)} error={errors.burst_upload_mbps} />
                             <Input label="RADIUS Profile Name" value={data.radius_profile_name} onChange={(e) => setData('radius_profile_name', e.target.value)} error={errors.radius_profile_name} />
                             <div className="flex items-end"><Switch label="Active" checked={data.is_active} onCheckedChange={(c) => setData('is_active', c)} /></div>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.speed-profiles.index'))}>Cancel</Button>
+                        </CardContent>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.speed-profiles.index'))}>Cancel</Button>
                         <Button type="submit" loading={processing}>Save</Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 }

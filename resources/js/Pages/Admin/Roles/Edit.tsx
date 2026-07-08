@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Checkbox, Input } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Checkbox, Input } from '@/Components/ui';
 
 interface PermissionOption { id: number; name: string; group: string }
 interface RoleData { id: number; name: string; permissions: string[]; users_count?: number }
@@ -20,28 +21,32 @@ export default function Edit({ role, permissions }: EditProps) {
 
     return (
         <AdminLayout title="Edit Role">
-            <form onSubmit={submit}>
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Edit {role.data.name} <Badge>{role.data.users_count ?? 0} users</Badge></CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
-                        {Object.entries(grouped).map(([group, items]) => (
-                            <div key={group} className="space-y-2">
-                                <p className="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">{group}</p>
-                                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                                    {items.map((permission) => <Checkbox key={permission.id} label={permission.name} checked={data.permissions.includes(permission.name)} onChange={(e) => togglePermission(permission.name, e.target.checked)} />)}
+            <div className="space-y-6">
+                <PageHeader title="Edit Role" subtitle="Update role permissions." />
+
+                <form onSubmit={submit} className="space-y-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Edit {role.data.name} <Badge>{role.data.users_count ?? 0} users</Badge></CardTitle>
+                        </CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2">
+                            <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
+                            {Object.entries(grouped).map(([group, items]) => (
+                                <div key={group} className="space-y-2 md:col-span-2">
+                                    <p className="text-sm font-semibold capitalize text-surface-900 dark:text-surface-100">{group}</p>
+                                    <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
+                                        {items.map((permission) => <Checkbox key={permission.id} label={permission.name} checked={data.permissions.includes(permission.name)} onChange={(e) => togglePermission(permission.name, e.target.checked)} />)}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.roles.index'))}>Cancel</Button>
+                            ))}
+                        </CardContent>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.roles.index'))}>Cancel</Button>
                         <Button type="submit" loading={processing}>Save</Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 }

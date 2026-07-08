@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Modal, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface InstallRow {
     id: number; installed_at: string; removed_at?: string | null; removal_reason?: string | null;
@@ -39,54 +39,54 @@ export default function Show({ asset }: ShowProps) {
     return (
         <AdminLayout title={a.name}>
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">{a.name}</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{a.code} · <StatusBadge variant={a.status === 'available' ? 'success' : a.status === 'installed' ? 'info' : a.status === 'maintenance' ? 'warning' : a.status === 'damaged' ? 'danger' : 'muted'}>{a.status}</StatusBadge></p>
-                    </div>
-                    <Button type="button" variant="secondary" onClick={() => router.get(route('admin.network-assets.index'))}>Back</Button>
+                <PageHeader
+                    title={a.name}
+                    subtitle={`${a.code} · ${a.status}`}
+                    actions={<Button type="button" variant="secondary" onClick={() => router.get(route('admin.network-assets.index'))}>Back</Button>}
+                />
+                <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                    <Card>
+                        <CardHeader><CardTitle>Asset Details</CardTitle></CardHeader>
+                        <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+                            <p><span className="text-muted-foreground">Type: </span>{a.asset_type}</p>
+                            <p><span className="text-muted-foreground">Serial: </span>{a.serial_number ?? '-'}</p>
+                            <p><span className="text-muted-foreground">MAC: </span>{a.mac_address ?? '-'}</p>
+                            <p><span className="text-muted-foreground">IP: </span>{a.ip_address ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Mgmt IP: </span>{a.management_ip ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Ownership: </span>{a.ownership}</p>
+                            <p><span className="text-muted-foreground">Vendor: </span>{a.vendor ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Model: </span>{a.model ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Location: </span>{a.location?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Path: </span>{a.location?.path ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Customer: </span>{a.customer?.name ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Subscription: </span>{a.subscription?.code ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Installed: </span>{a.installed_at ?? '-'}</p>
+                            <p><span className="text-muted-foreground">Retired: </span>{a.retired_at ?? '-'}</p>
+                            {a.notes && <p className="md:col-span-2"><span className="text-muted-foreground">Notes: </span>{a.notes}</p>}
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardHeader><CardTitle>Lifecycle Actions</CardTitle></CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                                {a.status === 'available' && <Button type="button" onClick={() => setActionModal('install')}>Install</Button>}
+                                {a.status === 'installed' && <Button type="button" variant="outline" onClick={() => setActionModal('remove')}>Remove</Button>}
+                                {a.status === 'installed' && <Button type="button" variant="outline" onClick={() => setActionModal('maintenance')}>Maintenance</Button>}
+                                {a.status === 'maintenance' && <Button type="button" onClick={() => setActionModal('resume')}>Resume</Button>}
+                                {(a.status === 'installed' || a.status === 'maintenance') && <Button type="button" variant="danger" onClick={() => setActionModal('damage')}>Damage</Button>}
+                                {a.status === 'damaged' && <Button type="button" onClick={() => setActionModal('repair')}>Repair</Button>}
+                                {a.status !== 'retired' && <Button type="button" variant="danger" onClick={() => setActionModal('retire')}>Retire</Button>}
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
-                <Card>
-                    <CardHeader><CardTitle>Asset Details</CardTitle></CardHeader>
-                    <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                        <p><span className="text-surface-500 dark:text-surface-400">Type: </span>{a.asset_type}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Serial: </span>{a.serial_number ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">MAC: </span>{a.mac_address ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">IP: </span>{a.ip_address ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Mgmt IP: </span>{a.management_ip ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Ownership: </span>{a.ownership}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Vendor: </span>{a.vendor ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Model: </span>{a.model ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Location: </span>{a.location?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Path: </span>{a.location?.path ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Customer: </span>{a.customer?.name ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Subscription: </span>{a.subscription?.code ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Installed: </span>{a.installed_at ?? '-'}</p>
-                        <p><span className="text-surface-500 dark:text-surface-400">Retired: </span>{a.retired_at ?? '-'}</p>
-                        {a.notes && <p className="md:col-span-2"><span className="text-surface-500 dark:text-surface-400">Notes: </span>{a.notes}</p>}
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader><CardTitle>Lifecycle Actions</CardTitle></CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                            {a.status === 'available' && <Button type="button" onClick={() => setActionModal('install')}>Install</Button>}
-                            {a.status === 'installed' && <Button type="button" variant="outline" onClick={() => setActionModal('remove')}>Remove</Button>}
-                            {a.status === 'installed' && <Button type="button" variant="outline" onClick={() => setActionModal('maintenance')}>Maintenance</Button>}
-                            {a.status === 'maintenance' && <Button type="button" onClick={() => setActionModal('resume')}>Resume</Button>}
-                            {(a.status === 'installed' || a.status === 'maintenance') && <Button type="button" variant="danger" onClick={() => setActionModal('damage')}>Damage</Button>}
-                            {a.status === 'damaged' && <Button type="button" onClick={() => setActionModal('repair')}>Repair</Button>}
-                            {a.status !== 'retired' && <Button type="button" variant="danger" onClick={() => setActionModal('retire')}>Retire</Button>}
-                        </div>
-                    </CardContent>
-                </Card>
                 <Card>
                     <CardHeader><CardTitle>Installation History</CardTitle></CardHeader>
                     <CardContent>
                         <Table>
                             <THead><TR><TH>Location</TH><TH>Installed At</TH><TH>Removed At</TH><TH>Reason</TH></TR></THead>
                             <TBody>
-                                {(a.installations ?? []).length === 0 ? <TR><TD colSpan={4} className="text-center text-surface-500">No installations.</TD></TR> :
+                                {(a.installations ?? []).length === 0 ? <TR><TD colSpan={4} className="py-10 text-center text-muted-foreground">No installations.</TD></TR> :
                                 (a.installations ?? []).map((i) => (
                                     <TR key={i.id}>
                                         <TD>{i.location?.name ?? '-'}</TD>

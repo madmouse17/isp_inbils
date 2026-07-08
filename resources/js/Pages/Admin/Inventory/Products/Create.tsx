@@ -1,7 +1,8 @@
 import { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Select, Switch, Textarea } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select, Switch, Textarea } from '@/Components/ui';
 import type { Category, Unit } from '@/types/inventory';
 
 interface CreateProps extends Record<string, unknown> {
@@ -30,11 +31,13 @@ export default function Create({ categories, units }: CreateProps) {
 
     return (
         <AdminLayout title="Create Product">
-            <form onSubmit={submit}>
-                <Card>
-                    <CardHeader><CardTitle>Create Product</CardTitle></CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-6">
+                <PageHeader title="Create Product" subtitle="Fill required fields, then save." />
+
+                <form onSubmit={submit} className="space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Create Product</CardTitle></CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input label="SKU" value={data.sku} onChange={(e) => setData('sku', e.target.value)} error={errors.sku} required placeholder="PRD-001" />
                             <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
                             <Select label="Category" value={data.category_id} onChange={(e) => setData('category_id', e.target.value)} error={errors.category_id} required>
@@ -52,15 +55,17 @@ export default function Create({ categories, units }: CreateProps) {
                                 <Switch label="Track Stock" checked={data.track_stock} onCheckedChange={(checked) => setData('track_stock', checked)} />
                                 <Switch label="Active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked)} />
                             </div>
-                        </div>
-                        <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
-                    </CardContent>
-                    <CardFooter className="justify-end gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.products.index'))}>Cancel</Button>
+                            <div className="md:col-span-2">
+                                <Textarea label="Description" value={data.description} onChange={(e) => setData('description', e.target.value)} error={errors.description} rows={3} />
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.products.index'))}>Cancel</Button>
                         <Button type="submit" loading={processing}>Create</Button>
-                    </CardFooter>
-                </Card>
-            </form>
+                    </div>
+                </form>
+            </div>
         </AdminLayout>
     );
 }

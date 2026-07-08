@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Select, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface AssetData extends Record<string, unknown> {
@@ -29,9 +30,9 @@ export default function Asset({ data, filters }: Props) {
     return (
         <AdminLayout title="Asset Utilization">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Asset Utilization</h2>
+                <PageHeader title="Asset Utilization" subtitle="Status distribution, per-location, and installation history." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Select label="Asset Type" value={assetType} onChange={(e) => setAssetType(e.target.value)}>
                                 <option value="">All</option>
@@ -61,7 +62,11 @@ export default function Asset({ data, filters }: Props) {
                                 <Table>
                                     <THead><TR><TH>Status</TH><TH>Count</TH></TR></THead>
                                     <TBody>
-                                        {Object.entries(data.status_distribution ?? {}).map(([s, c]) => <TR key={s}><TD>{s}</TD><TD>{c}</TD></TR>)}
+                                        {Object.entries(data.status_distribution ?? {}).length === 0 ? (
+                                            <TR><TD colSpan={2} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                        ) : (
+                                            Object.entries(data.status_distribution ?? {}).map(([s, c]) => <TR key={s}><TD>{s}</TD><TD>{c}</TD></TR>)
+                                        )}
                                     </TBody>
                                 </Table>
                             </CardContent>

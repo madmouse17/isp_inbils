@@ -22,10 +22,10 @@ export function useToast() {
 }
 
 const variantStyles = {
-    info: 'border-blue-200 bg-white dark:border-blue-800 dark:bg-surface-900',
-    success: 'border-green-200 bg-white dark:border-green-800 dark:bg-surface-900',
-    warning: 'border-amber-200 bg-white dark:border-amber-800 dark:bg-surface-900',
-    danger: 'border-red-200 bg-white dark:border-red-800 dark:bg-surface-900',
+    info: 'border-border bg-card text-card-foreground',
+    success: 'border-green-200 bg-card text-card-foreground dark:border-green-800',
+    warning: 'border-amber-200 bg-card text-card-foreground dark:border-amber-800',
+    danger: 'border-destructive/30 bg-card text-card-foreground',
 } as const;
 
 interface ToastProps {
@@ -45,14 +45,14 @@ function Toast({ message, onDismiss }: ToastProps) {
             aria-live="polite"
         >
             <div className="flex-1">
-                <p className="text-sm font-semibold text-surface-900 dark:text-surface-100">{message.title}</p>
+                <p className="text-sm font-semibold text-foreground">{message.title}</p>
                 {message.description && (
-                    <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{message.description}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">{message.description}</p>
                 )}
             </div>
             <button
                 onClick={() => onDismiss(message.id)}
-                className="shrink-0 rounded-md p-1 text-surface-400 hover:text-surface-600 focus:outline-none focus:ring-2 focus:ring-brand-500/50 dark:hover:text-surface-300"
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 aria-label="Close notification"
             >
                 <XMarkIcon className="h-4 w-4" />

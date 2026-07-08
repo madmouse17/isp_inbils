@@ -18,14 +18,14 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
             <button
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage <= 1}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-surface-500 hover:bg-surface-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-surface-800"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Previous page"
             >
                 <ChevronLeftIcon className="h-4 w-4" />
             </button>
             {pages.map((p, i) =>
                 p === '...' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-sm text-surface-400">...</span>
+                    <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">...</span>
                 ) : (
                     <button
                         key={p}
@@ -34,8 +34,8 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
                         className={cn(
                             'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium',
                             p === currentPage
-                                ? 'bg-brand-600 text-white'
-                                : 'text-surface-700 hover:bg-surface-100 dark:text-surface-300 dark:hover:bg-surface-800',
+                                ? 'bg-primary text-primary-foreground'
+                                : 'text-foreground hover:bg-accent hover:text-accent-foreground',
                         )}
                     >
                         {p}
@@ -45,7 +45,7 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
             <button
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage >= lastPage}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-surface-500 hover:bg-surface-100 disabled:opacity-40 disabled:cursor-not-allowed dark:hover:bg-surface-800"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Next page"
             >
                 <ChevronRightIcon className="h-4 w-4" />

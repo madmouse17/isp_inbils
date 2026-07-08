@@ -1,7 +1,8 @@
-import { FormEvent, useState } from 'react';
+﻿import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface PkgRow {
     id: number; code: string; name: string; price_mrc: string; price_otc: string;
@@ -37,15 +38,14 @@ export default function Index({ servicePackages, slaTiers, filters, can }: Index
     return (
         <AdminLayout title="Service Packages">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Service Packages</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage internet service packages.</p>
-                    </div>
-                    {can.create && <Button type="button" onClick={() => router.get(route('admin.service-packages.create'))}>Create</Button>}
-                </div>
+                <PageHeader
+                    title="Service Packages"
+                    subtitle="Manage internet service packages."
+                    actions={can.create && <Button type="button" onClick={() => router.get(route('admin.service-packages.create'))}>Create</Button>}
+                />
+
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Code or name" />
                             <Input label="Active" value={isActive} onChange={(e) => setIsActive(e.target.value)} placeholder="true/false" />
@@ -55,25 +55,31 @@ export default function Index({ servicePackages, slaTiers, filters, can }: Index
                         <Table>
                             <THead><TR><TH>Code</TH><TH>Name</TH><TH>Bandwidth</TH><TH>Speed</TH><TH>SLA</TH><TH>MRC</TH><TH>OTC</TH><TH>Status</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {servicePackages.data.map((p) => (
-                                    <TR key={p.id}>
-                                        <TD className="font-mono text-sm">{p.code}</TD>
-                                        <TD>{p.name}</TD>
-                                        <TD>{p.bandwidth_profile?.name ?? '-'}</TD>
-                                        <TD>{p.speed_profile?.name ?? '-'}</TD>
-                                        <TD>{p.sla_tier?.name ?? '-'}</TD>
-                                        <TD>{p.price_mrc}</TD>
-                                        <TD>{p.price_otc}</TD>
-                                        <TD><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></TD>
-                                        <TD>
-                                            <div className="flex gap-2">
-                                                <Link href={route('admin.service-packages.show', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
-                                                <Link href={route('admin.service-packages.edit', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(p)}>Delete</Button>
-                                            </div>
-                                        </TD>
+                                {servicePackages.data.length === 0 ? (
+                                    <TR>
+                                        <TD colSpan={9} className="py-10 text-center text-muted-foreground">No data found.</TD>
                                     </TR>
-                                ))}
+                                ) : (
+                                    servicePackages.data.map((p) => (
+                                        <TR key={p.id}>
+                                            <TD className="font-mono text-sm">{p.code}</TD>
+                                            <TD>{p.name}</TD>
+                                            <TD>{p.bandwidth_profile?.name ?? '-'}</TD>
+                                            <TD>{p.speed_profile?.name ?? '-'}</TD>
+                                            <TD>{p.sla_tier?.name ?? '-'}</TD>
+                                            <TD>{p.price_mrc}</TD>
+                                            <TD>{p.price_otc}</TD>
+                                            <TD><Badge variant={p.is_active ? 'success' : 'danger'}>{p.is_active ? 'Active' : 'Inactive'}</Badge></TD>
+                                            <TD>
+                                                <div className="flex gap-2">
+                                                    <Link href={route('admin.service-packages.show', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
+                                                    <Link href={route('admin.service-packages.edit', p.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(p)}>Delete</Button>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                         <Pagination currentPage={servicePackages.current_page} lastPage={servicePackages.last_page} onPageChange={(page) => router.get(route('admin.service-packages.index'), { page })} />

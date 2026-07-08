@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Select, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 
 interface StockRow {
@@ -21,8 +22,8 @@ interface IndexProps extends Record<string, unknown> {
 
 export default function Index({ stocks, products, locations, filters }: IndexProps) {
     const [actionModal, setActionModal] = useState<'receive' | 'issue' | 'transfer' | 'adjust' | null>(null);
-    const [productId, setProductId] = useState('');
-    const [locationId, setLocationId] = useState('');
+    const [productId, setProductId] = useState(filters.product_id ?? '');
+    const [locationId, setLocationId] = useState(filters.location_id ?? '');
     const { data, setData, post, processing, errors } = useForm({
         product_id: '', location_id: '', quantity: '', from_location_id: '', to_location_id: '', new_quantity: '', note: '',
     });
@@ -48,20 +49,20 @@ export default function Index({ stocks, products, locations, filters }: IndexPro
     return (
         <AdminLayout title="Stocks">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Stocks</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Stock per location.</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => openAction('receive')}>Receive</Button>
-                        <Button type="button" variant="secondary" onClick={() => openAction('issue')}>Issue</Button>
-                        <Button type="button" variant="secondary" onClick={() => openAction('transfer')}>Transfer</Button>
-                        <Button type="button" variant="secondary" onClick={() => openAction('adjust')}>Adjust</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Stocks"
+                    subtitle="Stock per location."
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => openAction('receive')}>Receive</Button>
+                            <Button type="button" variant="secondary" onClick={() => openAction('issue')}>Issue</Button>
+                            <Button type="button" variant="secondary" onClick={() => openAction('transfer')}>Transfer</Button>
+                            <Button type="button" variant="secondary" onClick={() => openAction('adjust')}>Adjust</Button>
+                        </>
+                    )}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submitFilter} className="flex flex-wrap gap-2">
                             <Select label="Product" value={productId} onChange={(e) => setProductId(e.target.value)}>
                                 <option value="">All</option>
@@ -76,16 +77,20 @@ export default function Index({ stocks, products, locations, filters }: IndexPro
                         <Table>
                             <THead><TR><TH>Product</TH><TH>Location</TH><TH>Path</TH><TH>Quantity</TH><TH>Reserved</TH><TH>Available</TH></TR></THead>
                             <TBody>
-                                {stocks.data.map((s) => (
-                                    <TR key={s.id}>
-                                        <TD>{s.product?.name ?? '-'}</TD>
-                                        <TD>{s.location?.name ?? '-'}</TD>
-                                        <TD className="text-sm text-surface-500">{s.location?.path ?? '-'}</TD>
-                                        <TD>{s.quantity}</TD>
-                                        <TD>{s.reserved_quantity}</TD>
-                                        <TD className="font-medium">{s.available}</TD>
-                                    </TR>
-                                ))}
+                                {stocks.data.length === 0 ? (
+                                    <TR><TD colSpan={6} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : (
+                                    stocks.data.map((s) => (
+                                        <TR key={s.id}>
+                                            <TD>{s.product?.name ?? '-'}</TD>
+                                            <TD>{s.location?.name ?? '-'}</TD>
+                                            <TD className="text-sm text-muted-foreground">{s.location?.path ?? '-'}</TD>
+                                            <TD>{s.quantity}</TD>
+                                            <TD>{s.reserved_quantity}</TD>
+                                            <TD className="font-medium">{s.available}</TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
                     </CardContent>

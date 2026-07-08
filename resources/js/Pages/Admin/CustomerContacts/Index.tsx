@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Switch, Textarea, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 import type { CustomerContact } from '@/types/models';
 
@@ -51,23 +52,23 @@ export default function Index({ customer, contacts }: ContactProps) {
     return (
         <AdminLayout title="Customer Contacts">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Contacts</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">{customer.code} — {customer.name}</p>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
-                        <Button type="button" onClick={openCreate}>Add Contact</Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title="Contacts"
+                    subtitle={`${customer.code} — ${customer.name}`}
+                    actions={(
+                        <>
+                            <Button type="button" variant="secondary" onClick={() => router.get(route('admin.customers.show', customer.id))}>Back</Button>
+                            <Button type="button" onClick={openCreate}>Add Contact</Button>
+                        </>
+                    )}
+                />
 
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <Table>
                             <THead><TR><TH>Name</TH><TH>Position</TH><TH>Phone</TH><TH>Email</TH><TH>Primary</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {list.length === 0 ? <TR><TD colSpan={6} className="text-center text-surface-500">No contacts.</TD></TR> :
+                                {list.length === 0 ? <TR><TD colSpan={6} className="py-10 text-center text-muted-foreground">No contacts.</TD></TR> :
                                 list.map((c) => (
                                     <TR key={c.id}>
                                         <TD>{c.name}</TD>

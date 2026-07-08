@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, Input, Switch, Table, TBody, TD, TH, THead, TR, Modal } from '@/Components/ui';
 
 interface OrgRow {
@@ -35,18 +36,14 @@ export default function Index({ organizations }: IndexProps) {
     return (
         <AdminLayout title="Organization">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Organization Units</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Branch, area, unit, team hierarchy.</p>
-                    </div>
-                    <Button type="button" onClick={openCreate}>Add Unit</Button>
-                </div>
-                <Card><CardContent>
+                <PageHeader title="Organization Units" subtitle="Branch, area, unit, team hierarchy." actions={<Button type="button" onClick={openCreate}>Add Unit</Button>} />
+                <Card><CardContent className="space-y-4 pt-6">
                     <Table>
                         <THead><TR><TH>Code</TH><TH>Name</TH><TH>Type</TH><TH>Path</TH><TH>Children</TH><TH>Status</TH><TH>Actions</TH></TR></THead>
                         <TBody>
-                            {organizations.data.map((o) => (
+                            {organizations.data.length === 0 ? (
+                                <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                            ) : organizations.data.map((o) => (
                                 <TR key={o.id}>
                                     <TD className="font-mono text-sm">{o.code}</TD>
                                     <TD>{o.name}</TD>

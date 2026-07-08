@@ -2,7 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Select, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { StatusBadge } from '@/Components/composite';
+import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface WoRow {
     id: number; code: string; type: string; title: string; status: string; priority: string;
@@ -36,15 +36,13 @@ export default function Index({ workOrders, technicians, filters, can }: IndexPr
     return (
         <AdminLayout title="SPK">
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Surat Perintah Kerja</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Work orders for field technicians.</p>
-                    </div>
-                    {can.create && <Button type="button" onClick={() => router.get(route('admin.spk.create'))}>Create SPK</Button>}
-                </div>
+                <PageHeader
+                    title="Surat Perintah Kerja"
+                    subtitle="Work orders for field technicians."
+                    actions={can.create && <Button type="button" onClick={() => router.get(route('admin.spk.create'))}>Create SPK</Button>}
+                />
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Code or title" />
                             <Select label="Type" value={type} onChange={(e) => setType(e.target.value)}>
@@ -74,7 +72,9 @@ export default function Index({ workOrders, technicians, filters, can }: IndexPr
                         <Table>
                             <THead><TR><TH>Code</TH><TH>Title</TH><TH>Type</TH><TH>Status</TH><TH>Priority</TH><TH>Customer</TH><TH>Technician</TH><TH>Actions</TH></TR></THead>
                             <TBody>
-                                {workOrders.data.map((w) => (
+                                {workOrders.data.length === 0 ? (
+                                    <TR><TD colSpan={8} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                ) : workOrders.data.map((w) => (
                                     <TR key={w.id}>
                                         <TD className="font-mono text-sm">{w.code}</TD>
                                         <TD>{w.title}</TD>

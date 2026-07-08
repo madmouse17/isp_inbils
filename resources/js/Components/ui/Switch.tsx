@@ -24,8 +24,8 @@ export function Switch({ checked, onCheckedChange, label, disabled }: SwitchProp
                     }
                 }}
                 className={cn(
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500/50 disabled:cursor-not-allowed',
-                    checked ? 'bg-brand-600' : 'bg-surface-200 dark:bg-surface-700',
+                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed',
+                    checked ? 'bg-primary' : 'bg-muted',
                 )}
             >
                 <span
@@ -35,7 +35,7 @@ export function Switch({ checked, onCheckedChange, label, disabled }: SwitchProp
                     )}
                 />
             </button>
-            {label && <span className="text-sm font-medium text-surface-700 dark:text-surface-300">{label}</span>}
+            {label && <span className="text-sm font-medium text-foreground">{label}</span>}
         </label>
     );
 }

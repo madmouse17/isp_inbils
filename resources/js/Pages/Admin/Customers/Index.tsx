@@ -2,6 +2,7 @@ import { FormEvent, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, Input, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 
 interface CustomerRow {
     id: number;
@@ -37,16 +38,14 @@ export default function Index({ customers, filters }: IndexProps) {
     return (
         <AdminLayout title="Customers">
             <div className="space-y-6">
-                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                    <div>
-                        <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Customers</h2>
-                        <p className="mt-1 text-sm text-surface-500 dark:text-surface-400">Manage customer master data.</p>
-                    </div>
-                    <Button type="button" onClick={() => router.get(route('admin.customers.create'))}>Create Customer</Button>
-                </div>
+                <PageHeader
+                    title="Customers"
+                    subtitle="Manage customer master data."
+                    actions={<Button type="button" onClick={() => router.get(route('admin.customers.create'))}>Create Customer</Button>}
+                />
 
                 <Card>
-                    <CardContent className="space-y-4">
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, code, phone" />
                             <Input label="Type" value={type} onChange={(e) => setType(e.target.value)} placeholder="Individual / Company" />
@@ -66,26 +65,32 @@ export default function Index({ customers, filters }: IndexProps) {
                                 </TR>
                             </THead>
                             <TBody>
-                                {customers.data.map((c) => (
-                                    <TR key={c.id}>
-                                        <TD className="font-mono text-sm">{c.code}</TD>
-                                        <TD>{c.name}</TD>
-                                        <TD><Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>{c.type}</Badge></TD>
-                                        <TD>{c.phone ?? '-'}</TD>
-                                        <TD><Badge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TD>
-                                        <TD>{c.subscriptions_count ?? 0}</TD>
-                                        <TD>
-                                            <div className="flex flex-wrap gap-2">
-                                                <Link href={route('admin.customers.show', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
-                                                <Link href={route('admin.customers.edit', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
-                                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(c)}>Delete</Button>
-                                            </div>
-                                        </TD>
+                                {customers.data.length === 0 ? (
+                                    <TR>
+                                        <TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD>
                                     </TR>
-                                ))}
+                                ) : (
+                                    customers.data.map((c) => (
+                                        <TR key={c.id}>
+                                            <TD className="font-mono text-sm">{c.code}</TD>
+                                            <TD>{c.name}</TD>
+                                            <TD><Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>{c.type}</Badge></TD>
+                                            <TD>{c.phone ?? '-'}</TD>
+                                            <TD><Badge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TD>
+                                            <TD>{c.subscriptions_count ?? 0}</TD>
+                                            <TD>
+                                                <div className="flex flex-wrap gap-2">
+                                                    <Link href={route('admin.customers.show', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
+                                                    <Link href={route('admin.customers.edit', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
+                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(c)}>Delete</Button>
+                                                </div>
+                                            </TD>
+                                        </TR>
+                                    ))
+                                )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={customers.current_page} lastPage={customers.last_page} onPageChange={(page) => router.get(route('admin.customers.index'), { page })} />
+                        <Pagination currentPage={customers.current_page} lastPage={customers.last_page} onPageChange={(page) => router.get(route('admin.customers.index'), { page, search, type, is_active: isActive })} />
                     </CardContent>
                 </Card>
             </div>

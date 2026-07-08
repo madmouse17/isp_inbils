@@ -17,8 +17,8 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                     type="checkbox"
                     id={inputId}
                     className={cn(
-                        'mt-0.5 h-4 w-4 rounded border-surface-300 text-brand-600 focus:ring-2 focus:ring-brand-500/30 dark:border-surface-700 dark:bg-surface-900',
-                        error && 'border-danger',
+                        'mt-0.5 h-4 w-4 rounded border-input text-primary focus-visible:ring-1 focus-visible:ring-ring',
+                        error && 'border-destructive',
                         className,
                     )}
                     aria-invalid={error ? 'true' : undefined}
@@ -27,14 +27,14 @@ export const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                 {(label || description) && (
                     <div>
                         {label && (
-                            <label htmlFor={inputId} className="text-sm font-medium text-surface-700 dark:text-surface-300">
+                            <label htmlFor={inputId} className="text-sm font-medium text-foreground">
                                 {label}
                             </label>
                         )}
                         {description && (
-                            <p className="text-sm text-surface-500 dark:text-surface-400">{description}</p>
+                            <p className="text-sm text-muted-foreground">{description}</p>
                         )}
-                        {error && <p className="text-sm text-danger">{error}</p>}
+                        {error && <p className="text-sm text-destructive">{error}</p>}
                     </div>
                 )}
             </div>

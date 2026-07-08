@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 
 interface StockData extends Record<string, unknown> {
@@ -26,24 +27,22 @@ export default function StockCard({ data, filters }: Props) {
     return (
         <AdminLayout title="Stock Card">
             <div className="space-y-6">
-                <h2 className="text-2xl font-bold text-surface-900 dark:text-surface-100">Stock Card</h2>
+                <PageHeader title="Stock Card" subtitle="Movement history per product/location." />
                 <Card>
-                    <CardContent>
+                    <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
                             <Input label="Product ID" type="number" value={productId} onChange={(e) => setProductId(e.target.value)} required />
                             <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
                             <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
                             <div className="self-end"><Button type="submit">Run</Button></div>
                         </form>
-                    </CardContent>
-                </Card>
-                {data?.movements && (
-                    <Card>
-                        <CardContent>
+                        {data?.movements && (
                             <Table>
                                 <THead><TR><TH>Type</TH><TH>Qty</TH><TH>Balance</TH><TH>From</TH><TH>To</TH><TH>Note</TH><TH>Date</TH></TR></THead>
                                 <TBody>
-                                    {data.movements.map((m) => (
+                                    {data.movements.length === 0 ? (
+                                        <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
+                                    ) : data.movements.map((m) => (
                                         <TR key={m.id}>
                                             <TD>{m.movement_type}</TD><TD>{m.quantity}</TD><TD>{m.balance_after}</TD>
                                             <TD>{m.from_location ?? '-'}</TD><TD>{m.to_location ?? '-'}</TD>
@@ -52,9 +51,9 @@ export default function StockCard({ data, filters }: Props) {
                                     ))}
                                 </TBody>
                             </Table>
-                        </CardContent>
-                    </Card>
-                )}
+                        )}
+                    </CardContent>
+                </Card>
             </div>
         </AdminLayout>
     );
