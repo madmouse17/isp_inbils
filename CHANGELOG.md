@@ -6,6 +6,21 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — t_4e61368f: permissions paging and grouped role permissions (2026-07-09)
+
+- Paginated admin permissions server-side while keeping permission group metadata.
+- Added focused coverage for paginated permissions and grouped role edit permission payloads.
+
+### Changed — t_aa41ccea: admin sidebar and profile topbar UX (2026-07-09)
+
+- Grouped admin sidebar navigation into dashboard, admin, operations, service, inventory, work order, finance/report, and developer sections.
+- Added admin topbar profile link and logout action using existing Breeze `profile.edit` and `logout` routes.
+
+### Fixed — t_44af8fb7: admin menu permission alignment (2026-07-09)
+
+- Aligned inventory stock, stock movement, Item Finder, and report child pages to seeded read permissions.
+- Added Item Finder sidebar navigation and focused authorization coverage for admin menu destinations.
+
 ### Phase 1 — Core Complete (2026-06-30)
 
 - P1-00 — Installed `nwidart/laravel-modules` and generated 8 module stubs.

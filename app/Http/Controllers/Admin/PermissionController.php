@@ -17,7 +17,9 @@ class PermissionController extends Controller
         Gate::authorize('users.manage');
 
         return Inertia::render('Admin/Permissions/Index', [
-            'permissions' => PermissionResource::collection(Permission::query()->orderBy('name')->get()),
+            'permissions' => PermissionResource::collection(
+                Permission::query()->orderBy('name')->paginate(15)->withQueryString()
+            ),
         ]);
     }
 }

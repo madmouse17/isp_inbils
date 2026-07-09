@@ -24,7 +24,7 @@ class StockController extends Controller
 {
     public function index(Request $request): InertiaResponse
     {
-        Gate::authorize('inventory.stock.view');
+        Gate::authorize('inventory.view');
 
         $stocks = Stock::query()
             ->with(['product', 'location'])
@@ -45,7 +45,7 @@ class StockController extends Controller
 
     public function movements(Request $request): InertiaResponse
     {
-        Gate::authorize('inventory.movement.view');
+        Gate::authorize('inventory.view');
 
         $movements = StockMovement::query()
             ->with(['product', 'fromLocation', 'toLocation'])
@@ -118,7 +118,7 @@ class StockController extends Controller
 
     public function find(Request $request): InertiaResponse
     {
-        Gate::authorize('inventory.stock.view');
+        Gate::authorize('inventory.view');
 
         $results = collect();
         if ($request->filled('search')) {

@@ -25,7 +25,7 @@ class ReportController extends Controller
 
     public function business(Request $request): InertiaResponse
     {
-        Gate::authorize('report.business');
+        Gate::authorize('report.view');
         return Inertia::render('Admin/Reports/Business', [
             'data' => BusinessMetricsQuery::execute($request->input('date_from'), $request->input('date_to')),
             'filters' => $request->only(['date_from', 'date_to']),
@@ -34,7 +34,7 @@ class ReportController extends Controller
 
     public function technician(Request $request): InertiaResponse
     {
-        Gate::authorize('report.technician');
+        Gate::authorize('report.view');
         $technicianId = (int) $request->input('technician_id', 0);
         $data = $technicianId ? TechnicianPerformanceQuery::execute($technicianId, $request->input('date_from'), $request->input('date_to')) : null;
 
@@ -50,7 +50,7 @@ class ReportController extends Controller
 
     public function asset(Request $request): InertiaResponse
     {
-        Gate::authorize('report.asset');
+        Gate::authorize('report.view');
         return Inertia::render('Admin/Reports/Asset', [
             'data' => AssetUtilizationQuery::execute(
                 $request->integer('location_id') ?: null,
@@ -64,7 +64,7 @@ class ReportController extends Controller
 
     public function sla(Request $request): InertiaResponse
     {
-        Gate::authorize('report.sla');
+        Gate::authorize('report.view');
         return Inertia::render('Admin/Reports/Sla', [
             'data' => SlaComplianceQuery::execute($request->input('date_from'), $request->input('date_to'), $request->integer('category_id') ?: null),
             'filters' => $request->only(['date_from', 'date_to', 'category_id']),
@@ -73,7 +73,7 @@ class ReportController extends Controller
 
     public function stockCard(Request $request): InertiaResponse
     {
-        Gate::authorize('report.stock_card');
+        Gate::authorize('report.view');
         $productId = $request->integer('product_id') ?: 0;
         $data = $productId ? StockCardQuery::execute($productId, $request->integer('location_id') ?: null, $request->input('date_from'), $request->input('date_to')) : null;
 
@@ -85,7 +85,7 @@ class ReportController extends Controller
 
     public function auditLog(Request $request): InertiaResponse
     {
-        Gate::authorize('report.audit_log');
+        Gate::authorize('report.view');
         return Inertia::render('Admin/Reports/AuditLog', [
             'data' => AuditLogQuery::execute($request->integer('user_id') ?: null, $request->input('log_name'), $request->input('date_from'), $request->input('date_to')),
             'filters' => $request->only(['user_id', 'log_name', 'date_from', 'date_to']),

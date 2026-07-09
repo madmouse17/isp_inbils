@@ -179,6 +179,26 @@ This seeds:
 
 No company or user is seeded — use the bootstrap command.
 
+### Optional demo users
+
+For local manual testing or demos only, seed one user for every default role:
+
+```bash
+php artisan db:seed --class=DemoUserSeeder
+```
+
+This creates/updates `Inbils Demo Company` (`DEMO`), seeds company defaults, and creates these users with password `password`:
+
+| Role | Email | Manual test flow |
+|------|-------|------------------|
+| admin | admin@demo.inbils.test | Full admin shell, users, roles, company settings |
+| manager | manager@demo.inbils.test | Operational management pages |
+| staff | staff@demo.inbils.test | Staff CRUD and support flows |
+| technician | technician@demo.inbils.test | Technician SPK/ticket flows |
+| customer | customer@demo.inbils.test | Customer-facing permission checks |
+
+Run after `php artisan migrate:fresh --seed` when you want a clean demo dataset. Do not run this seeder in production; it uses stable public demo credentials.
+
 ### 5. Build frontend
 
 ```bash
