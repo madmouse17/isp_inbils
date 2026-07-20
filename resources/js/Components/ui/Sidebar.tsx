@@ -74,9 +74,18 @@ interface SidebarProps {
     open?: boolean;
     onClose?: () => void;
     className?: string;
+    brandName?: string;
+    brandLogo?: string | null;
 }
 
-export function Sidebar({ children, open, onClose, className }: SidebarProps) {
+export function Sidebar({ children, open, onClose, className, brandName = 'inbils', brandLogo }: SidebarProps) {
+    const initials = brandName
+        .split(/\s+/)
+        .map((word) => word[0])
+        .join('')
+        .slice(0, 2)
+        .toLowerCase();
+
     return (
         <>
             {open !== undefined && open && (
@@ -94,11 +103,26 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
                 )}
             >
                 <div className="flex shrink-0 items-center gap-3 px-6 py-4">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
-                        in
+                    <div
+                        className={cn(
+                            'flex h-9 w-9 items-center justify-center rounded-lg text-sm font-semibold',
+                            brandLogo
+                                ? 'overflow-hidden border border-border bg-background p-1'
+                                : 'bg-primary text-primary-foreground',
+                        )}
+                    >
+                        {brandLogo ? (
+                            <img
+                                src={brandLogo}
+                                alt={`${brandName} logo`}
+                                className="h-full w-full rounded-lg object-contain"
+                            />
+                        ) : (
+                            initials
+                        )}
                     </div>
-                    <div>
-                        <p className="text-sm font-semibold leading-none">inbils</p>
+                    <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold leading-none">{brandName}</p>
                         <p className="text-xs text-muted-foreground">ISP ERP</p>
                     </div>
                 </div>

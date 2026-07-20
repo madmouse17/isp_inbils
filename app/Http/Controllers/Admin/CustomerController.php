@@ -7,6 +7,7 @@ use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
+use App\Services\Core\CustomerService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -49,7 +50,7 @@ class CustomerController extends Controller
     {
         Gate::authorize('store', Customer::class);
 
-        $customer = Customer::create($request->validated());
+        $customer = CustomerService::createWithUser($request->validated());
 
         return redirect()->route('admin.customers.show', $customer)
             ->with('success', 'Customer created.');

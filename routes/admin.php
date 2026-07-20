@@ -72,7 +72,9 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     Route::resource('evaluations', EvaluationController::class);
 
     // Organization & Employee
-    Route::resource('organizations', OrganizationController::class)->except(['create', 'edit', 'show']);
+    Route::resource('organizations', OrganizationController::class)
+        ->parameters(['organizations' => 'organization_unit'])
+        ->except(['create', 'edit', 'show']);
     Route::post('organizations/{organization_unit}/move', [OrganizationController::class, 'move'])->name('organizations.move');
     Route::resource('employees', EmployeeController::class)->except(['create', 'edit', 'show']);
     Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);

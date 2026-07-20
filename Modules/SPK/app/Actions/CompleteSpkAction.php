@@ -19,11 +19,11 @@ class CompleteSpkAction
     public static function execute(WorkOrder $workOrder): WorkOrder
     {
         return DB::transaction(function () use ($workOrder) {
-            $workOrder = WorkOrder::with(['evidence', 'items.product', 'subscription.customer', 'customer'])
+            $workOrder = WorkOrder::with(['media', 'items.product', 'subscription.customer', 'customer'])
                 ->lockForUpdate()
                 ->findOrFail($workOrder->id);
 
-            abort_if($workOrder->evidence->isEmpty(), 422, 'Evidence required before completion.');
+            abort_if($workOrder->getMedia('evidence')->isEmpty(), 422, 'Evidence required before completion.');
 
             self::consumeStock($workOrder);
             self::installAsset($workOrder);

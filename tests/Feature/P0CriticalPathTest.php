@@ -19,7 +19,6 @@ use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\SPK\Models\WorkOrder;
-use Modules\SPK\Models\WorkOrderEvidence;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
@@ -82,6 +81,7 @@ class P0CriticalPathTest extends TestCase
                 'name' => 'P0 Customer',
                 'type' => 'Individual',
                 'email' => 'p0@example.test',
+                'password' => 'customer-password',
                 'phone' => '0800000000',
                 'is_active' => true,
             ])
@@ -123,17 +123,18 @@ class P0CriticalPathTest extends TestCase
             'company_id' => $company->id,
             'work_order_id' => $workOrder->id,
             'product_id' => $product->id,
+            'network_asset_id' => $asset->id,
             'quantity_reserved' => 2,
             'quantity_used' => 2,
         ]);
-        WorkOrderEvidence::create([
-            'company_id' => $company->id,
-            'work_order_id' => $workOrder->id,
-            'type' => 'photo',
-            'file_path' => 'spk/p0.jpg',
-            'uploaded_by' => $admin->id,
-            'uploaded_at' => now(),
-        ]);
+        $workOrder->addMediaFromString('test')
+            ->usingFileName('p0.jpg')
+            ->withCustomProperties([
+                'company_id' => $company->id,
+                'type' => 'photo',
+                'uploaded_by' => $admin->id,
+            ])
+            ->toMediaCollection('evidence', 'public');
         Stock::where('product_id', $product->id)->where('location_id', $location->id)->update(['reserved_quantity' => 2]);
 
         $technician = $this->user('technician', $company);

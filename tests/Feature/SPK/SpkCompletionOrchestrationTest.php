@@ -15,7 +15,6 @@ use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
-use Modules\SPK\Models\WorkOrderEvidence;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
 use Tests\TestCase;
@@ -63,14 +62,14 @@ class SpkCompletionOrchestrationTest extends TestCase
             'quantity_reserved' => 2,
             'quantity_used' => 2,
         ]);
-        WorkOrderEvidence::create([
-            'company_id' => $company->id,
-            'work_order_id' => $workOrder->id,
-            'type' => 'photo',
-            'file_path' => 'spk/test.jpg',
-            'uploaded_by' => $user->id,
-            'uploaded_at' => now(),
-        ]);
+        $workOrder->addMediaFromString('test')
+            ->usingFileName('test.jpg')
+            ->withCustomProperties([
+                'company_id' => $company->id,
+                'type' => 'photo',
+                'uploaded_by' => $user->id,
+            ])
+            ->toMediaCollection('evidence', 'public');
 
         SpkService::approve($workOrder);
 

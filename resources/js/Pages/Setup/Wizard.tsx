@@ -10,6 +10,7 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
+    FileUpload,
     Input,
     Select,
     Textarea,
@@ -156,13 +157,11 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                                     onChange={(event) => setData('website', event.target.value)}
                                     error={errors.website}
                                 />
-                                <Input
+                                <FileUpload
                                     label="Logo"
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/svg+xml"
-                                    onChange={(event) =>
-                                        setData('logo', event.target.files?.[0] ?? null)
-                                    }
+                                    value={data.logo}
+                                    onChange={(file) => setData('logo', file)}
+                                    acceptedFileTypes={['image/jpeg', 'image/png', 'image/svg+xml']}
                                     error={errors.logo}
                                 />
                                 <div className="sm:col-span-2">

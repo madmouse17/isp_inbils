@@ -74,7 +74,12 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
         <>
             <Head title={title} />
             <div className="flex h-screen overflow-hidden bg-muted/30 text-foreground dark:bg-background">
-                <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
+                <Sidebar
+                    open={sidebarOpen}
+                    onClose={() => setSidebarOpen(false)}
+                    brandName={company?.name ?? 'inbils'}
+                    brandLogo={company?.logo}
+                >
                     <SidebarSection title="Dashboard" defaultOpen={isActive('/admin/dashboard')}>
                         <SidebarItem
                             href="/admin/dashboard"
@@ -417,7 +422,15 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                         href="/admin/company/profile"
                                         className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
                                     >
-                                        <Cog6ToothIcon className="h-4 w-4" />
+                                        {company.logo ? (
+                                            <img
+                                                src={company.logo}
+                                                alt={`${company.name} logo`}
+                                                className="h-5 w-5 rounded object-contain"
+                                            />
+                                        ) : (
+                                            <Cog6ToothIcon className="h-4 w-4" />
+                                        )}
                                         <span>{company.name}</span>
                                     </Link>
                                 )}

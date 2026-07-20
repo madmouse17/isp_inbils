@@ -32,8 +32,7 @@ class SetupWizardService
             ]));
 
             if ($logo instanceof UploadedFile) {
-                $path = $logo->storeAs('companies/'.$company->id, 'logo.'.$logo->extension(), 'public');
-                $company->forceFill(['logo' => $path])->saveQuietly();
+                CompanyLogoService::store($company, $logo);
             }
 
             $user->assignRole('admin');

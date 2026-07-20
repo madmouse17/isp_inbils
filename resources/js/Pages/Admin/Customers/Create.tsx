@@ -74,18 +74,23 @@ export default function Create() {
                                 value={data.email}
                                 onChange={(e) => setData('email', e.target.value)}
                                 error={errors.email}
+                                required
                             />
                             <Input
                                 label="Phone"
                                 value={data.phone}
                                 onChange={(e) => setData('phone', e.target.value)}
                                 error={errors.phone}
+                                hint="Password user customer sama dengan nomor phone."
+                                required
                             />
                             <Input
                                 label="Tax ID (NPWP)"
                                 value={data.tax_id}
                                 onChange={(e) => setData('tax_id', e.target.value)}
                                 error={errors.tax_id}
+                                hint="Wajib untuk Company, opsional untuk Individual."
+                                required={data.type === 'Company'}
                             />
                             <Input
                                 label="Contact Person"

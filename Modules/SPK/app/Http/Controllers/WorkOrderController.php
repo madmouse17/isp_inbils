@@ -3,23 +3,27 @@
 namespace Modules\SPK\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationResource;
+use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\UserResource;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\SPK\Http\Requests\StoreWorkOrderRequest;
 use Modules\SPK\Http\Requests\UpdateWorkOrderRequest;
 use Modules\SPK\Http\Resources\WorkOrderResource;
 use Modules\SPK\Models\WorkOrder;
-use Modules\SPK\Models\WorkOrderEvidence;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WorkOrderController extends Controller
 {
@@ -45,7 +49,7 @@ class WorkOrderController extends Controller
 
         return Inertia::render('Admin/SPK/Index', [
             'workOrders' => WorkOrderResource::collection($workOrders),
-            'technicians' => \App\Http\Resources\UserResource::collection(
+            'technicians' => UserResource::collection(
                 User::query()->whereHas('roles', fn ($q) => $q->where('name', 'technician'))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
@@ -59,10 +63,10 @@ class WorkOrderController extends Controller
         Gate::authorize('create', WorkOrder::class);
 
         return Inertia::render('Admin/SPK/Create', [
-            'customers' => \App\Http\Resources\CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => \App\Http\Resources\SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'technicians' => \App\Http\Resources\UserResource::collection(
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'technicians' => UserResource::collection(
                 User::query()->whereHas('roles', fn ($q) => $q->where('name', 'technician'))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
@@ -89,7 +93,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('view', $wo);
 
-        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product', 'assignments.technician', 'evidence']);
+        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product', 'assignments.technician', 'media']);
 
         return Inertia::render('Admin/SPK/Show', [
             'workOrder' => new WorkOrderResource($wo),
@@ -106,9 +110,9 @@ class WorkOrderController extends Controller
 
         return Inertia::render('Admin/SPK/Edit', [
             'workOrder' => new WorkOrderResource($wo),
-            'customers' => \App\Http\Resources\CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => \App\Http\Resources\SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
         ]);
     }
 
@@ -139,6 +143,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.update');
         SpkService::generate($wo);
+
         return back()->with('success', 'SPK generated.');
     }
 
@@ -158,6 +163,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.start');
         SpkService::start($wo);
+
         return back()->with('success', 'SPK started.');
     }
 
@@ -166,6 +172,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.submit');
         SpkService::submitForReview($wo);
+
         return back()->with('success', 'SPK submitted for review.');
     }
 
@@ -174,6 +181,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.approve');
         SpkService::approve($wo);
+
         return back()->with('success', 'SPK approved.');
     }
 
@@ -236,35 +244,30 @@ class WorkOrderController extends Controller
         Gate::authorize('spk.evidence.upload');
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx'],
+            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'mimetypes:image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
             'caption' => ['nullable', 'string', 'max:255'],
         ]);
 
         $file = $request->file('file');
-        $path = $file->store("evidence/{$wo->id}", 'public');
-
-        WorkOrderEvidence::create([
-            'work_order_id' => $wo->id,
-            'type' => $file->getClientOriginalExtension() === 'pdf' ? 'document' : 'photo',
-            'file_path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
-            'size_bytes' => $file->getSize(),
-            'caption' => $request->input('caption'),
-            'uploaded_by' => $request->user()->id,
-            'uploaded_at' => now(),
-        ]);
+        $wo->addMedia($file)
+            ->withCustomProperties([
+                'company_id' => $wo->company_id,
+                'type' => str($file->getMimeType())->startsWith('image/') ? 'photo' : 'document',
+                'caption' => $request->input('caption'),
+                'uploaded_by' => $request->user()->id,
+            ])
+            ->toMediaCollection('evidence', 'public');
 
         return back()->with('success', 'Evidence uploaded.');
     }
 
-    public function removeEvidence(WorkOrder $wo, WorkOrderEvidence $evidence): RedirectResponse
+    public function removeEvidence(WorkOrder $wo, Media $evidence): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        abort_unless($evidence->work_order_id === $wo->id, 404);
+        abort_unless($evidence->model_type === $wo::class && (int) $evidence->model_id === $wo->id, 404);
+        abort_unless($evidence->collection_name === 'evidence', 404);
         Gate::authorize('spk.evidence.upload');
 
-        Storage::disk('public')->delete($evidence->file_path);
         $evidence->delete();
 
         return back()->with('success', 'Evidence removed.');
@@ -272,6 +275,6 @@ class WorkOrderController extends Controller
 
     private function ensureSameCompany(WorkOrder $wo): void
     {
-        abort_unless($wo->company_id === \App\Services\Core\CompanyService::currentId(), 404);
+        abort_unless($wo->company_id === CompanyService::currentId(), 404);
     }
 }

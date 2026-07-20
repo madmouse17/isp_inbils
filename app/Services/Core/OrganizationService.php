@@ -14,6 +14,7 @@ class OrganizationService
             $unit = OrganizationUnit::create($data);
             self::recomputePath($unit);
             AuditService::log('organization_unit', 'created', ['code' => $unit->code], $unit);
+
             return $unit->refresh();
         });
     }
@@ -31,6 +32,7 @@ class OrganizationService
                 self::recurseChildrenPath($unit);
             }
             AuditService::log('organization_unit', 'updated', ['code' => $unit->code], $unit);
+
             return $unit->refresh();
         });
     }
@@ -40,6 +42,7 @@ class OrganizationService
         if (self::hasCycle($unit, $newParentId)) {
             throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
         }
+
         return self::update($unit, ['parent_id' => $newParentId]);
     }
 
@@ -48,17 +51,21 @@ class OrganizationService
         if ($unit->children()->exists()) {
             throw ValidationException::withMessages(['organization' => 'Unit still has children.']);
         }
+
         return DB::transaction(function () use ($unit) {
             AuditService::log('organization_unit', 'deleted', ['code' => $unit->code]);
-            return $unit->delete();
+            $unit->delete();
+
+            return true;
         });
     }
 
     public static function recomputePath(OrganizationUnit $unit): string
     {
         $parentPath = $unit->parent_id ? OrganizationUnit::query()->find($unit->parent_id)?->path : null;
-        $unit->path = $parentPath ? $parentPath . ' > ' . $unit->code : $unit->code;
+        $unit->path = $parentPath ? $parentPath.' > '.$unit->code : $unit->code;
         $unit->save();
+
         return $unit->path;
     }
 
@@ -79,6 +86,7 @@ class OrganizationService
             }
             $parent = $parent->parent;
         }
+
         return false;
     }
 }

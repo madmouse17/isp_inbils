@@ -8,8 +8,10 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
+    FileUpload,
     Input,
     Textarea,
+    useToast,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 import type { Company } from '@/types';
@@ -20,7 +22,9 @@ interface ProfileProps {
 }
 
 export default function Profile({ company, can }: ProfileProps) {
-    const { data, setData, put, processing, errors } = useForm({
+    const { toast } = useToast();
+    const { data, setData, post, processing, errors, reset } = useForm({
+        _method: 'put',
         name: company.data.name ?? '',
         code: company.data.code ?? '',
         logo: null as File | null,
@@ -32,7 +36,21 @@ export default function Profile({ company, can }: ProfileProps) {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        put(route('admin.company.profile.update'), { forceFormData: true });
+        post(route('admin.company.profile.update'), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                reset('logo');
+                toast({ title: 'Company profile updated.', variant: 'success' });
+            },
+            onError: () => {
+                toast({
+                    title: 'Failed to update company profile.',
+                    description: 'Check required fields and allowed file type.',
+                    variant: 'danger',
+                });
+            },
+        });
     };
 
     return (
@@ -73,10 +91,17 @@ export default function Profile({ company, can }: ProfileProps) {
                                 required
                                 disabled={!can.update}
                             />
-                            <Input
+                            <FileUpload
                                 label="Logo"
-                                type="file"
-                                onChange={(e) => setData('logo', e.target.files?.[0] ?? null)}
+                                value={data.logo}
+                                onChange={(file) => setData('logo', file)}
+                                acceptedFileTypes={[
+                                    'image/jpeg',
+                                    'image/png',
+                                    'image/webp',
+                                    'image/svg+xml',
+                                ]}
+                                hint="Max 10 MB. JPG, PNG, atau WebP akan diperkecil menjadi WebP; SVG disimpan sebagai SVG."
                                 error={errors.logo}
                                 disabled={!can.update}
                             />

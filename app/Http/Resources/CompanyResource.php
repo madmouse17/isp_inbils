@@ -14,7 +14,7 @@ class CompanyResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'code' => $this->code,
-            'logo' => $this->logo,
+            'logo' => $this->getFirstMediaUrl('logo') ?: null,
             'address' => $this->address,
             'phone' => $this->phone,
             'email' => $this->email,

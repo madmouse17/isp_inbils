@@ -16,11 +16,14 @@ use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class Ticket extends Model
+class Ticket extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
 
@@ -83,14 +86,12 @@ class Ticket extends Model
         return $this->hasMany(TicketComment::class, 'ticket_id');
     }
 
-    public function attachments(): HasMany
-    {
-        return $this->hasMany(TicketAttachment::class, 'ticket_id');
-    }
-
     public function getIsSlaBreachedAttribute(): bool
     {
-        if (in_array($this->status, ['resolved', 'closed'])) return false;
+        if (in_array($this->status, ['resolved', 'closed'])) {
+            return false;
+        }
+
         return $this->sla_deadline !== null && $this->sla_deadline->isPast();
     }
 

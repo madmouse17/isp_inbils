@@ -2,6 +2,11 @@
 
 namespace Modules\SPK\Http\Resources;
 
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationResource;
+use App\Http\Resources\MediaResource;
+use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -31,13 +36,13 @@ class WorkOrderResource extends JsonResource
             'rejection_reason' => $this->rejection_reason,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
-            'customer' => new \App\Http\Resources\CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new \App\Http\Resources\SubscriptionResource($this->whenLoaded('subscription')),
-            'location' => new \App\Http\Resources\LocationResource($this->whenLoaded('location')),
-            'assignee' => new \App\Http\Resources\UserResource($this->whenLoaded('assignee')),
+            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
+            'location' => new LocationResource($this->whenLoaded('location')),
+            'assignee' => new UserResource($this->whenLoaded('assignee')),
             'items' => WorkOrderItemResource::collection($this->whenLoaded('items')),
             'assignments' => WorkOrderAssignmentResource::collection($this->whenLoaded('assignments')),
-            'evidence' => WorkOrderEvidenceResource::collection($this->whenLoaded('evidence')),
+            'evidence' => MediaResource::collection($this->getMedia('evidence')),
         ];
     }
 }

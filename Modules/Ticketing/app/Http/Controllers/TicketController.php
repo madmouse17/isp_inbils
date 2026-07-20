@@ -15,7 +15,6 @@ use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
@@ -25,10 +24,10 @@ use Modules\Ticketing\Http\Requests\UpdateTicketRequest;
 use Modules\Ticketing\Http\Resources\TicketCategoryResource;
 use Modules\Ticketing\Http\Resources\TicketResource;
 use Modules\Ticketing\Models\Ticket;
-use Modules\Ticketing\Models\TicketAttachment;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Services\TicketService;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class TicketController extends Controller
 {
@@ -102,7 +101,7 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('view', $ticket);
 
-        $ticket->load(['category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'comments.author', 'attachments']);
+        $ticket->load(['category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'comments.author', 'media']);
 
         return Inertia::render('Admin/Tickets/Show', [
             'ticket' => new TicketResource($ticket),
@@ -222,31 +221,27 @@ class TicketController extends Controller
         Gate::authorize('ticket.attachment.upload');
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx,txt'],
+            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx,txt', 'mimetypes:image/jpeg,image/png,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         ]);
 
         $file = $request->file('file');
-        $path = $file->store("tickets/{$ticket->id}", 'public');
-
-        TicketAttachment::create([
-            'ticket_id' => $ticket->id,
-            'file_path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
-            'size_bytes' => $file->getSize(),
-            'uploaded_by' => $request->user()->id,
-        ]);
+        $ticket->addMedia($file)
+            ->withCustomProperties([
+                'company_id' => $ticket->company_id,
+                'uploaded_by' => $request->user()->id,
+            ])
+            ->toMediaCollection('attachments', 'public');
 
         return back()->with('success', 'Attachment uploaded.');
     }
 
-    public function removeAttachment(Ticket $ticket, TicketAttachment $attachment): RedirectResponse
+    public function removeAttachment(Ticket $ticket, Media $attachment): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        abort_unless($attachment->ticket_id === $ticket->id, 404);
+        abort_unless($attachment->model_type === $ticket::class && (int) $attachment->model_id === $ticket->id, 404);
+        abort_unless($attachment->collection_name === 'attachments', 404);
         Gate::authorize('ticket.attachment.upload');
 
-        Storage::disk('public')->delete($attachment->file_path);
         $attachment->delete();
 
         return back()->with('success', 'Attachment removed.');

@@ -14,9 +14,9 @@ use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
-use Modules\SPK\Models\WorkOrderEvidence;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class DeterministicAssetProvisioningTest extends TestCase
@@ -55,7 +55,7 @@ class DeterministicAssetProvisioningTest extends TestCase
         WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id]);
         $this->evidence($workOrder, $user);
 
-        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectException(HttpException::class);
         SpkService::approve($workOrder);
     }
 
@@ -63,10 +63,10 @@ class DeterministicAssetProvisioningTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $foreignCompany = Company::factory()->create();
-        $foreignProduct = Product::withoutCompany()->create([
+        $foreignProduct = Product::withoutCompany()->forceCreate([
             'company_id' => $foreignCompany->id,
-            'category_id' => Category::withoutCompany()->create(['company_id' => $foreignCompany->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
-            'unit_id' => Unit::withoutCompany()->create(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs'])->id,
+            'category_id' => Category::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
+            'unit_id' => Unit::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs'])->id,
             'sku' => 'SPK-FPRD-'.fake()->unique()->numberBetween(1, 9999),
             'name' => 'SPK Foreign Product',
             'type' => 'asset',
@@ -86,7 +86,7 @@ class DeterministicAssetProvisioningTest extends TestCase
         try {
             SpkService::approve($workOrder);
             $this->fail('Foreign-company SPK item product was accepted.');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+        } catch (HttpException $exception) {
             $this->assertSame(422, $exception->getStatusCode());
         }
 
@@ -139,6 +139,13 @@ class DeterministicAssetProvisioningTest extends TestCase
 
     private function evidence($workOrder, User $user): void
     {
-        WorkOrderEvidence::create(['company_id' => $workOrder->company_id, 'work_order_id' => $workOrder->id, 'type' => 'photo', 'file_path' => 'spk/test.jpg', 'uploaded_by' => $user->id, 'uploaded_at' => now()]);
+        $workOrder->addMediaFromString('test')
+            ->usingFileName('test.jpg')
+            ->withCustomProperties([
+                'company_id' => $workOrder->company_id,
+                'type' => 'photo',
+                'uploaded_by' => $user->id,
+            ])
+            ->toMediaCollection('evidence', 'public');
     }
 }

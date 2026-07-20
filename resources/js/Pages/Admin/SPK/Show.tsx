@@ -9,6 +9,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    FileUpload,
     Input,
     Modal,
     Table,
@@ -17,6 +18,7 @@ import {
     TH,
     THead,
     TR,
+    useToast,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 
@@ -67,6 +69,7 @@ interface ShowProps extends Record<string, unknown> {
 
 export default function Show({ workOrder }: ShowProps) {
     const w = workOrder.data;
+    const { toast } = useToast();
     const [actionModal, setActionModal] = useState<
         | 'generate'
         | 'assign'
@@ -78,6 +81,8 @@ export default function Show({ workOrder }: ShowProps) {
         | 'addItem'
         | null
     >(null);
+    const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
+    const [evidenceCaption, setEvidenceCaption] = useState('');
     const { data, setData, post, processing } = useForm({
         technician_id: '',
         reason: '',
@@ -94,9 +99,25 @@ export default function Show({ workOrder }: ShowProps) {
 
     const uploadEvidence = (e: FormEvent) => {
         e.preventDefault();
-        const formData = new FormData(e.target as HTMLFormElement);
+        if (!evidenceFile) return;
+
+        const formData = new FormData();
+        formData.append('file', evidenceFile);
+        formData.append('caption', evidenceCaption);
+
         router.post(route('admin.spk.evidence.store', w.id), formData, {
-            onSuccess: () => (e.target as HTMLFormElement).reset(),
+            forceFormData: true,
+            onSuccess: () => {
+                setEvidenceFile(null);
+                setEvidenceCaption('');
+                toast({ title: 'Evidence uploaded.', variant: 'success' });
+            },
+            onError: () =>
+                toast({
+                    title: 'Failed to upload evidence.',
+                    description: 'Check allowed file type and max 10 MB size.',
+                    variant: 'danger',
+                }),
         });
     };
 
@@ -314,17 +335,33 @@ export default function Show({ workOrder }: ShowProps) {
                         <CardTitle>Evidence</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form onSubmit={uploadEvidence} className="flex gap-2">
-                            <input
-                                type="file"
-                                name="file"
-                                accept="image/*,application/pdf"
+                        <form
+                            onSubmit={uploadEvidence}
+                            className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-start"
+                        >
+                            <FileUpload
+                                label="Evidence file"
+                                value={evidenceFile}
+                                onChange={setEvidenceFile}
+                                acceptedFileTypes={[
+                                    'image/jpeg',
+                                    'image/png',
+                                    'application/pdf',
+                                    'application/msword',
+                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                ]}
                                 required
-                                className="text-sm"
                             />
-                            <Input label="Caption" name="caption" placeholder="Optional caption" />
+                            <Input
+                                label="Caption"
+                                value={evidenceCaption}
+                                onChange={(event) => setEvidenceCaption(event.target.value)}
+                                placeholder="Optional caption"
+                            />
                             <div className="self-end">
-                                <Button type="submit">Upload</Button>
+                                <Button type="submit" disabled={!evidenceFile}>
+                                    Upload
+                                </Button>
                             </div>
                         </form>
                         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">

@@ -2,8 +2,14 @@
 
 namespace Modules\Ticketing\Http\Resources;
 
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationResource;
+use App\Http\Resources\MediaResource;
+use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 
 class TicketResource extends JsonResource
 {
@@ -34,13 +40,13 @@ class TicketResource extends JsonResource
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
             'category' => new TicketCategoryResource($this->whenLoaded('category')),
-            'customer' => new \App\Http\Resources\CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new \App\Http\Resources\SubscriptionResource($this->whenLoaded('subscription')),
-            'network_asset' => new \Modules\NetworkAsset\Http\Resources\NetworkAssetResource($this->whenLoaded('networkAsset')),
-            'location' => new \App\Http\Resources\LocationResource($this->whenLoaded('location')),
-            'assignee' => new \App\Http\Resources\UserResource($this->whenLoaded('assignee')),
+            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
+            'network_asset' => new NetworkAssetResource($this->whenLoaded('networkAsset')),
+            'location' => new LocationResource($this->whenLoaded('location')),
+            'assignee' => new UserResource($this->whenLoaded('assignee')),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('attachments')),
+            'attachments' => MediaResource::collection($this->getMedia('attachments')),
         ];
     }
 }

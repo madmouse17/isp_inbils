@@ -88,7 +88,7 @@ class SpkService
     {
         abort_if($wo->status !== 'in_progress', 422, 'SPK must be in progress to submit.');
 
-        if ($wo->evidence()->count() === 0) {
+        if ($wo->getMedia('evidence')->count() === 0) {
             abort(422, 'Evidence required before submission.');
         }
 

@@ -14,11 +14,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\MediaLibrary\HasMedia;
+use Spatie\MediaLibrary\InteractsWithMedia;
 
-class WorkOrder extends Model
+class WorkOrder extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
 
@@ -68,11 +71,6 @@ class WorkOrder extends Model
     public function assignments(): HasMany
     {
         return $this->hasMany(WorkOrderAssignment::class, 'work_order_id');
-    }
-
-    public function evidence(): HasMany
-    {
-        return $this->hasMany(WorkOrderEvidence::class, 'work_order_id');
     }
 
     public function getActivitylogOptions(): LogOptions

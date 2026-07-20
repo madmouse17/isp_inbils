@@ -5,10 +5,12 @@ namespace Tests\Feature;
 use App\Models\Core\Company;
 use App\Models\Core\OrganizationUnit;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\OrganizationService;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class OrganizationTest extends TestCase
@@ -31,7 +33,7 @@ class OrganizationTest extends TestCase
             'is_active' => true,
         ]);
         $this->admin->assignRole('admin');
-        \App\Services\Core\CompanyService::resetCache();
+        CompanyService::resetCache();
     }
 
     public function test_create_organization_unit(): void
@@ -70,6 +72,31 @@ class OrganizationTest extends TestCase
         $this->assertEquals('BRANCH > AREA', $child->fresh()->path);
     }
 
+    public function test_update_organization_unit(): void
+    {
+        $unit = OrganizationUnit::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'code' => 'OLD',
+            'name' => 'Old Unit',
+            'type' => 'branch',
+        ]);
+
+        $response = $this->actingAs($this->admin)->put(route('admin.organizations.update', $unit), [
+            'code' => 'NEW',
+            'name' => 'New Unit',
+            'type' => 'area',
+            'is_active' => true,
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('organization_units', [
+            'id' => $unit->id,
+            'code' => 'NEW',
+            'name' => 'New Unit',
+            'type' => 'area',
+        ]);
+    }
+
     public function test_cycle_prevention(): void
     {
         $parent = OrganizationService::create([
@@ -87,7 +114,7 @@ class OrganizationTest extends TestCase
         try {
             OrganizationService::move($parent, $child->id);
             $this->fail('Should have thrown cycle exception');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->assertArrayHasKey('parent_id', $e->errors());
         }
     }
@@ -108,15 +135,30 @@ class OrganizationTest extends TestCase
         try {
             OrganizationService::delete($parent);
             $this->fail('Should have thrown validation exception');
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->assertArrayHasKey('organization', $e->errors());
         }
+    }
+
+    public function test_delete_organization_unit(): void
+    {
+        $unit = OrganizationUnit::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'code' => 'DEL',
+            'name' => 'Delete Unit',
+            'type' => 'branch',
+        ]);
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.organizations.destroy', $unit));
+
+        $response->assertRedirect();
+        $this->assertSoftDeleted($unit);
     }
 
     public function test_company_scope_isolation(): void
     {
         $this->actingAs($this->admin);
-        \App\Services\Core\CompanyService::resetCache();
+        CompanyService::resetCache();
 
         // Create org in other company directly (bypass scope)
         $otherCompany = Company::factory()->create();

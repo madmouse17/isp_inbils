@@ -9,10 +9,12 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    FileUpload,
     Input,
     Modal,
     Select,
     Textarea,
+    useToast,
 } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 
@@ -68,9 +70,11 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
 
 export default function Show({ ticket }: ShowProps) {
     const t = ticket.data;
+    const { toast } = useToast();
     const [actionModal, setActionModal] = useState<
         'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
     >(null);
+    const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const { data, setData, post, processing, reset } = useForm({
         handler_id: '',
         resolution_note: '',
@@ -98,9 +102,23 @@ export default function Show({ ticket }: ShowProps) {
 
     const uploadAttachment = (e: FormEvent) => {
         e.preventDefault();
-        const formData = new FormData(e.target as HTMLFormElement);
+        if (!attachmentFile) return;
+
+        const formData = new FormData();
+        formData.append('file', attachmentFile);
+
         router.post(route('admin.tickets.attachments.store', t.id), formData, {
-            onSuccess: () => (e.target as HTMLFormElement).reset(),
+            forceFormData: true,
+            onSuccess: () => {
+                setAttachmentFile(null);
+                toast({ title: 'Attachment uploaded.', variant: 'success' });
+            },
+            onError: () =>
+                toast({
+                    title: 'Failed to upload attachment.',
+                    description: 'Check allowed file type and max 10 MB size.',
+                    variant: 'danger',
+                }),
         });
     };
 
@@ -301,16 +319,25 @@ export default function Show({ ticket }: ShowProps) {
                         <CardTitle>Attachments</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <form onSubmit={uploadAttachment} className="flex gap-2">
-                            <input
-                                type="file"
-                                name="file"
-                                accept="image/*,application/pdf,.txt"
+                        <form onSubmit={uploadAttachment} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                            <FileUpload
+                                label="Attachment"
+                                value={attachmentFile}
+                                onChange={setAttachmentFile}
+                                acceptedFileTypes={[
+                                    'image/jpeg',
+                                    'image/png',
+                                    'application/pdf',
+                                    'text/plain',
+                                    'application/msword',
+                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                ]}
                                 required
-                                className="text-sm text-foreground file:mr-3 file:rounded-md file:border file:border-input file:bg-background file:px-3 file:py-1.5 file:text-sm file:font-medium"
                             />
                             <div className="self-end">
-                                <Button type="submit">Upload</Button>
+                                <Button type="submit" disabled={!attachmentFile}>
+                                    Upload
+                                </Button>
                             </div>
                         </form>
                         <div className="grid gap-2 sm:grid-cols-2">

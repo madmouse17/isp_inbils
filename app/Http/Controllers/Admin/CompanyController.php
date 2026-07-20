@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\UpdateCompanyProfileRequest;
 use App\Http\Requests\Admin\UpdateCompanySettingsRequest;
 use App\Http\Resources\CompanyResource;
+use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SettingService;
 use Illuminate\Http\RedirectResponse;
@@ -35,11 +36,13 @@ class CompanyController extends Controller
         Gate::authorize('updateProfile', $company);
 
         $data = $request->validated();
-        if ($request->hasFile('logo')) {
-            $data['logo'] = $request->file('logo')->storeAs('companies/'.$company->id, 'logo.'.$request->file('logo')->extension(), 'public');
-        }
+        unset($data['logo']);
 
         CompanyService::updateProfile($data);
+
+        if ($request->hasFile('logo')) {
+            CompanyLogoService::store($company, $request->file('logo'));
+        }
 
         return back()->with('success', 'Company profile updated.');
     }
