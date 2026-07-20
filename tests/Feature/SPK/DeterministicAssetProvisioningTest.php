@@ -62,7 +62,21 @@ class DeterministicAssetProvisioningTest extends TestCase
     public function test_installation_rejects_item_product_from_another_company(): void
     {
         [$company, $user, $location, $customer] = $this->scope();
-        $foreignProduct = $this->product(Company::factory()->create());
+        $foreignCompany = Company::factory()->create();
+        $foreignProduct = Product::withoutCompany()->create([
+            'company_id' => $foreignCompany->id,
+            'category_id' => Category::withoutCompany()->create(['company_id' => $foreignCompany->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
+            'unit_id' => Unit::withoutCompany()->create(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs'])->id,
+            'sku' => 'SPK-FPRD-'.fake()->unique()->numberBetween(1, 9999),
+            'name' => 'SPK Foreign Product',
+            'type' => 'asset',
+            'track_stock' => true,
+            'sell_price' => 100_000,
+            'cost_price' => 50_000,
+            'min_stock' => 0,
+            'is_active' => true,
+        ]);
+        $this->assertNotSame($company->id, $foreignProduct->company_id);
         $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id]);
         $asset = NetworkAssetFactory::new()->create(['company_id' => $company->id, 'product_id' => $foreignProduct->id, 'status' => 'available']);
         $workOrder = $this->workOrder($company, $user, $location, $customer, $subscription);

@@ -2,22 +2,25 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
 import { cn } from '@/lib/utils';
 
 interface PaginationProps {
-    currentPage: number;
-    lastPage: number;
+    currentPage: number | string;
+    lastPage: number | string;
     onPageChange: (page: number) => void;
     className?: string;
 }
 
 export function Pagination({ currentPage, lastPage, onPageChange, className }: PaginationProps) {
-    const pages = buildWindow(currentPage, lastPage);
+    const current = toPageNumber(currentPage);
+    const last = toPageNumber(lastPage);
 
-    if (lastPage <= 1) return null;
+    if (current === null || last === null || last <= 1) return null;
+
+    const pages = buildWindow(current, last);
 
     return (
         <nav aria-label="Pagination" className={cn('flex items-center gap-1', className)}>
             <button
-                onClick={() => onPageChange(currentPage - 1)}
-                disabled={currentPage <= 1}
+                onClick={() => onPageChange(current - 1)}
+                disabled={current <= 1}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Previous page"
             >
@@ -32,11 +35,11 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
                     <button
                         key={p}
                         onClick={() => onPageChange(p)}
-                        aria-current={p === currentPage ? 'page' : undefined}
+                        aria-current={p === current ? 'page' : undefined}
                         className={cn(
                             'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium',
-                            p === currentPage
-                                ? 'bg-primary text-primary-foreground'
+                            p === current
+                                ? 'bg-primary !text-white'
                                 : 'text-foreground hover:bg-accent hover:text-accent-foreground',
                         )}
                     >
@@ -45,8 +48,8 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
                 ),
             )}
             <button
-                onClick={() => onPageChange(currentPage + 1)}
-                disabled={currentPage >= lastPage}
+                onClick={() => onPageChange(current + 1)}
+                disabled={current >= last}
                 className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
                 aria-label="Next page"
             >
@@ -70,4 +73,14 @@ function buildWindow(current: number, last: number): (number | '...')[] {
         prev = p;
     }
     return pages;
+}
+
+function toPageNumber(page: number | string): number | null {
+    const parsedPage = Number(page);
+
+    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
+        return null;
+    }
+
+    return parsedPage;
 }

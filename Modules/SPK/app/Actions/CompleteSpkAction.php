@@ -7,6 +7,7 @@ use App\Services\Core\SettingService;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Services\BillingService;
+use Modules\Inventory\Models\Product;
 use Modules\Inventory\Services\StockService;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
@@ -126,6 +127,10 @@ class CompleteSpkAction
 
         abort_unless($asset, 422, 'Selected network asset is unavailable.');
         abort_unless($asset->company_id === $workOrder->company_id, 422, 'Selected network asset must belong to the SPK company.');
+
+        $product = Product::withoutCompany()->find($selectedItem->product_id);
+
+        abort_unless($product?->company_id === $workOrder->company_id, 422, 'Selected product must belong to the SPK company.');
         abort_unless($asset->product_id === $selectedItem->product_id, 422, 'Selected network asset must match the SPK item product.');
         abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
 

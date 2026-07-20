@@ -73,9 +73,9 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     return (
         <>
             <Head title={title} />
-            <div className="flex min-h-screen bg-muted/30 text-foreground dark:bg-background">
+            <div className="flex h-screen overflow-hidden bg-muted/30 text-foreground dark:bg-background">
                 <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)}>
-                    <SidebarSection title="Dashboard">
+                    <SidebarSection title="Dashboard" defaultOpen={isActive('/admin/dashboard')}>
                         <SidebarItem
                             href="/admin/dashboard"
                             icon={<HomeIcon />}
@@ -84,7 +84,17 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         />
                     </SidebarSection>
 
-                    <SidebarSection title="Company/Admin" className="mt-6">
+                    <SidebarSection
+                        title="Company/Admin"
+                        className="mt-6"
+                        defaultOpen={
+                            isActive('/admin/organizations') ||
+                            isActive('/admin/company/profile') ||
+                            isActive('/admin/users') ||
+                            isActive('/admin/roles') ||
+                            isActive('/admin/permissions')
+                        }
+                    >
                         {can('organization.view') && (
                             <SidebarItem
                                 href="/admin/organizations"
@@ -127,7 +137,17 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="CRM/Operations" className="mt-6">
+                    <SidebarSection
+                        title="CRM/Operations"
+                        className="mt-6"
+                        defaultOpen={
+                            isActive('/admin/customers') ||
+                            isActive('/admin/locations') ||
+                            isActive('/admin/employees') ||
+                            isActive('/admin/vehicles') ||
+                            isActive('/admin/documents')
+                        }
+                    >
                         {can('customer.view') && (
                             <SidebarItem
                                 href="/admin/customers"
@@ -170,7 +190,17 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="Service" className="mt-6">
+                    <SidebarSection
+                        title="Service"
+                        className="mt-6"
+                        defaultOpen={
+                            isActive('/admin/number-sequences') ||
+                            isActive('/admin/service-packages') ||
+                            isActive('/admin/bandwidth-profiles') ||
+                            isActive('/admin/speed-profiles') ||
+                            isActive('/admin/sla-tiers')
+                        }
+                    >
                         {can('system.setting') && (
                             <SidebarItem
                                 href="/admin/number-sequences"
@@ -213,7 +243,18 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="Inventory" className="mt-6">
+                    <SidebarSection
+                        title="Inventory"
+                        className="mt-6"
+                        defaultOpen={
+                            isActive('/admin/products') ||
+                            isActive('/admin/categories') ||
+                            isActive('/admin/units') ||
+                            isActive('/admin/stocks') ||
+                            isActive('/admin/inventory/find') ||
+                            isActive('/admin/stock-movements')
+                        }
+                    >
                         {can('inventory.view') && (
                             <SidebarItem
                                 href="/admin/products"
@@ -264,7 +305,11 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="Network/Work Orders" className="mt-6">
+                    <SidebarSection
+                        title="Network/Work Orders"
+                        className="mt-6"
+                        defaultOpen={isActive('/admin/network-assets') || isActive('/admin/spk')}
+                    >
                         {can('network_asset.view') && (
                             <SidebarItem
                                 href="/admin/network-assets"
@@ -283,7 +328,17 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="Finance/Reports" className="mt-6">
+                    <SidebarSection
+                        title="Finance/Reports"
+                        className="mt-6"
+                        defaultOpen={
+                            isActive('/admin/invoices') ||
+                            isActive('/admin/billing/receivables') ||
+                            isActive('/admin/tickets') ||
+                            isActive('/admin/evaluations') ||
+                            isActive('/admin/reports')
+                        }
+                    >
                         {can('billing.view') && (
                             <SidebarItem
                                 href="/admin/invoices"
@@ -326,7 +381,11 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         )}
                     </SidebarSection>
 
-                    <SidebarSection title="System/Developer" className="mt-6">
+                    <SidebarSection
+                        title="System/Developer"
+                        className="mt-6"
+                        defaultOpen={isActive('/admin/components')}
+                    >
                         <SidebarItem
                             href="/admin/components"
                             icon={<Squares2X2Icon />}
@@ -336,7 +395,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     </SidebarSection>
                 </Sidebar>
 
-                <div className="flex min-w-0 flex-1 flex-col">
+                <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                     <Topbar
                         title={title}
                         left={
@@ -396,7 +455,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                             </>
                         }
                     />
-                    <main className="flex-1 overflow-auto p-4 md:p-6">
+                    <main className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
                         <div className="mx-auto w-full max-w-[1600px] space-y-6">{children}</div>
                     </main>
                 </div>

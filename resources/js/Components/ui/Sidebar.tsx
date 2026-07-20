@@ -1,4 +1,6 @@
+import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Link } from '@inertiajs/react';
+import { useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SidebarItemProps {
@@ -36,18 +38,34 @@ interface SidebarSectionProps {
     title?: string;
     children: React.ReactNode;
     className?: string;
+    defaultOpen?: boolean;
 }
 
-export function SidebarSection({ title, children, className }: SidebarSectionProps) {
+export function SidebarSection({ title, children, className, defaultOpen = true }: SidebarSectionProps) {
+    const [expanded, setExpanded] = useState(defaultOpen);
+
+    if (!title) {
+        return (
+            <div className={cn(className)}>
+                <nav className="space-y-1">{children}</nav>
+            </div>
+        );
+    }
+
     return (
-        <div className={cn(className)}>
-            {title && (
-                <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <details
+            className={cn('group', className)}
+            open={expanded}
+            onToggle={(event) => setExpanded(event.currentTarget.open)}
+        >
+            <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                <span className="truncate">
                     {title}
-                </p>
-            )}
+                </span>
+                <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+            </summary>
             <nav className="space-y-1">{children}</nav>
-        </div>
+        </details>
     );
 }
 
@@ -66,7 +84,7 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex w-72 transform flex-col border-r border-border bg-card p-4 text-card-foreground shadow-xl transition-transform dark:bg-card lg:static lg:translate-x-0 lg:shadow-none',
+                    'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-xl transition-transform dark:bg-card lg:static lg:translate-x-0 lg:shadow-none',
                     open === undefined
                         ? 'hidden lg:block'
                         : open
@@ -75,7 +93,7 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
                     className,
                 )}
             >
-                <div className="mb-6 flex items-center gap-3 px-2">
+                <div className="flex shrink-0 items-center gap-3 px-6 py-4">
                     <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
                         in
                     </div>
@@ -84,7 +102,9 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
                         <p className="text-xs text-muted-foreground">ISP ERP</p>
                     </div>
                 </div>
-                {children}
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
+                    {children}
+                </div>
             </aside>
         </>
     );
