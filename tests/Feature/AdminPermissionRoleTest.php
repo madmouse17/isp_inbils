@@ -26,7 +26,7 @@ class AdminPermissionRoleTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Permissions/Index')
-                ->has('permissions.data', 15)
+                ->has('permissions.data', 10)
                 ->where('permissions.data.0.group', 'alpha')
                 ->where('permissions.meta.current_page', 1)
                 ->where('permissions.meta.last_page', 2));
@@ -37,7 +37,7 @@ class AdminPermissionRoleTest extends TestCase
                 ->component('Admin/Permissions/Index')
                 ->where('permissions.meta.current_page', 2)
                 ->where('permissions.meta.last_page', 2)
-                ->where('permissions.data.0.name', 'alpha.16')
+                ->where('permissions.data.0.name', 'alpha.11')
                 ->where('permissions.data.0.group', 'alpha'));
     }
 

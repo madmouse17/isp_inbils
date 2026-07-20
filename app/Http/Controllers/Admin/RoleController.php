@@ -25,7 +25,7 @@ class RoleController extends Controller
             ->with('permissions')
             ->withCount(['permissions', 'users'])
             ->orderBy('name')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Roles/Index', [
@@ -58,7 +58,7 @@ class RoleController extends Controller
         ]);
         $role->syncPermissions($permissions);
 
-        return back()->with('success', 'Role created.');
+        return redirect()->route('admin.roles.index')->with('success', 'Role created.');
     }
 
     public function edit(Role $role): Response
@@ -79,7 +79,7 @@ class RoleController extends Controller
         $role->update(['name' => $data['name']]);
         $role->syncPermissions($data['permissions'] ?? []);
 
-        return back()->with('success', 'Role updated.');
+        return redirect()->route('admin.roles.index')->with('success', 'Role updated.');
     }
 
     public function destroy(Role $role): RedirectResponse

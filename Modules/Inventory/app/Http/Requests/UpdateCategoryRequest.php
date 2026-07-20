@@ -22,6 +22,7 @@ class UpdateCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:100', Rule::unique('categories')->where('company_id', $companyId)->ignore($categoryId)],
             'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];

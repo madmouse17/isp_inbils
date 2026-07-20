@@ -4,19 +4,26 @@ namespace Modules\SPK\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
+use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\LocationResource;
 use App\Http\Resources\SubscriptionResource;
-use App\Http\Resources\UserResource;
 use App\Models\Core\Customer;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
-use App\Models\User;
 use App\Services\Core\CompanyService;
+use Closure;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Inventory\Http\Resources\ProductResource;
+use Modules\Inventory\Models\Product;
+use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Http\Requests\StoreWorkOrderRequest;
 use Modules\SPK\Http\Requests\UpdateWorkOrderRequest;
 use Modules\SPK\Http\Resources\WorkOrderResource;
@@ -45,14 +52,11 @@ class WorkOrderController extends Controller
             $query->where('assigned_to', $request->user()->id);
         }
 
-        $workOrders = $query->latest()->paginate(15)->withQueryString();
+        $workOrders = $query->latest()->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/SPK/Index', [
             'workOrders' => WorkOrderResource::collection($workOrders),
-            'technicians' => UserResource::collection(
-                User::query()->whereHas('roles', fn ($q) => $q->where('name', 'technician'))
-                    ->where('is_active', true)->orderBy('name')->get()
-            ),
+            'technicians' => EmployeeResource::collection($this->technicians()),
             'filters' => $request->only(['type', 'status', 'assigned_to', 'search']),
             'can' => ['create' => $request->user()?->can('spk.create') ?? false],
         ]);
@@ -66,10 +70,7 @@ class WorkOrderController extends Controller
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'technicians' => UserResource::collection(
-                User::query()->whereHas('roles', fn ($q) => $q->where('name', 'technician'))
-                    ->where('is_active', true)->orderBy('name')->get()
-            ),
+            'technicians' => EmployeeResource::collection($this->technicians()),
         ]);
     }
 
@@ -82,9 +83,9 @@ class WorkOrderController extends Controller
         $data['status'] = 'draft';
         $data['created_by'] = $request->user()->id;
 
-        $wo = WorkOrder::create($data);
+        WorkOrder::create($data);
 
-        return redirect()->route('admin.spk.show', $wo)
+        return redirect()->route('admin.spk.index')
             ->with('success', 'SPK created.');
     }
 
@@ -93,10 +94,12 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('view', $wo);
 
-        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product', 'assignments.technician', 'media']);
+        $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'assignments.technician', 'media']);
 
         return Inertia::render('Admin/SPK/Show', [
             'workOrder' => new WorkOrderResource($wo),
+            'technicians' => EmployeeResource::collection($this->technicians()),
+            'products' => ProductResource::collection($this->products()),
         ]);
     }
 
@@ -113,6 +116,7 @@ class WorkOrderController extends Controller
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'technicians' => EmployeeResource::collection($this->technicians()),
         ]);
     }
 
@@ -124,7 +128,7 @@ class WorkOrderController extends Controller
 
         $wo->update($request->validated());
 
-        return back()->with('success', 'SPK updated.');
+        return redirect()->route('admin.spk.index')->with('success', 'SPK updated.');
     }
 
     public function destroy(WorkOrder $wo): RedirectResponse
@@ -152,7 +156,23 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.assign');
 
-        $request->validate(['technician_id' => ['required', 'exists:users,id']]);
+        $request->validate([
+            'technician_id' => [
+                'required',
+                Rule::exists('users', 'id')->where('company_id', CompanyService::currentId()),
+                function (string $attribute, mixed $value, Closure $fail): void {
+                    $exists = EmployeeProfile::query()
+                        ->where('user_id', $value)
+                        ->where('status', 'active')
+                        ->whereHas('user.roles', fn ($query) => $query->where('name', 'technician'))
+                        ->exists();
+
+                    if (! $exists) {
+                        $fail('Selected technician must be an employee with technician role.');
+                    }
+                },
+            ],
+        ]);
         SpkService::assign($wo, $request->integer('technician_id'), $request->user()->id);
 
         return back()->with('success', 'SPK assigned.');
@@ -212,16 +232,29 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         Gate::authorize('spk.update');
 
-        $request->validate([
-            'product_id' => ['required', 'exists:products,id'],
+        $data = $request->validate([
+            'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', CompanyService::currentId())->where('is_active', true)],
+            'network_asset_id' => ['nullable', Rule::exists('network_assets', 'id')->where('company_id', CompanyService::currentId())->where('status', 'available')],
             'quantity_reserved' => ['nullable', 'numeric', 'min:0'],
             'quantity_used' => ['nullable', 'numeric', 'min:0'],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
+        if ($request->filled('network_asset_id')) {
+            $asset = NetworkAsset::query()->findOrFail($request->integer('network_asset_id'));
+            if ($asset->product_id !== (int) $data['product_id']) {
+                throw ValidationException::withMessages([
+                    'network_asset_id' => 'Selected network asset must match selected product.',
+                ]);
+            }
+        }
+
+        $data['quantity_reserved'] ??= 0;
+        $data['quantity_used'] ??= 0;
+
         WorkOrderItem::updateOrCreate(
             ['work_order_id' => $wo->id, 'product_id' => $request->integer('product_id')],
-            $request->only(['quantity_reserved', 'quantity_used', 'note'])
+            $data
         );
 
         return back()->with('success', 'Item added.');
@@ -276,5 +309,27 @@ class WorkOrderController extends Controller
     private function ensureSameCompany(WorkOrder $wo): void
     {
         abort_unless($wo->company_id === CompanyService::currentId(), 404);
+    }
+
+    /** @return Collection<int, EmployeeProfile> */
+    private function technicians(): Collection
+    {
+        return EmployeeProfile::query()
+            ->with(['user', 'organization'])
+            ->where('status', 'active')
+            ->whereHas('user', fn ($query) => $query->where('is_active', true))
+            ->whereHas('user.roles', fn ($query) => $query->where('name', 'technician'))
+            ->orderBy('employee_number')
+            ->get();
+    }
+
+    /** @return Collection<int, Product> */
+    private function products(): Collection
+    {
+        return Product::query()
+            ->with(['category', 'unit'])
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
     }
 }

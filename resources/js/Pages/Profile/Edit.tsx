@@ -1,6 +1,7 @@
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
+import { Card, CardContent } from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
+import AdminLayout from '@/Layouts/AdminLayout';
 import type { PageProps } from '@/types';
-import { Head } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
@@ -10,34 +11,33 @@ export default function Edit({
     status,
 }: PageProps<{ mustVerifyEmail: boolean; status?: string }>) {
     return (
-        <AuthenticatedLayout
-            header={
-                <h2 className="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
-                    Profile
-                </h2>
-            }
-        >
-            <Head title="Profile" />
+        <AdminLayout title="Profile">
+            <div className="space-y-6">
+                <PageHeader title="Profile" subtitle="Manage account information and security." />
 
-            <div className="py-12">
-                <div className="mx-auto max-w-7xl space-y-6 sm:px-6 lg:px-8">
-                    <div className="bg-white p-4 shadow dark:bg-gray-800 sm:rounded-lg sm:p-8">
+                <div className="grid gap-6 xl:grid-cols-2">
+                    <Card>
+                        <CardContent className="pt-6">
                         <UpdateProfileInformationForm
                             mustVerifyEmail={mustVerifyEmail}
                             status={status}
-                            className="max-w-xl"
                         />
-                    </div>
+                        </CardContent>
+                    </Card>
 
-                    <div className="bg-white p-4 shadow dark:bg-gray-800 sm:rounded-lg sm:p-8">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </div>
+                    <Card>
+                        <CardContent className="pt-6">
+                            <UpdatePasswordForm />
+                        </CardContent>
+                    </Card>
 
-                    <div className="bg-white p-4 shadow dark:bg-gray-800 sm:rounded-lg sm:p-8">
-                        <DeleteUserForm className="max-w-xl" />
-                    </div>
+                    <Card className="xl:col-span-2">
+                        <CardContent className="pt-6">
+                            <DeleteUserForm />
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
-        </AuthenticatedLayout>
+        </AdminLayout>
     );
 }

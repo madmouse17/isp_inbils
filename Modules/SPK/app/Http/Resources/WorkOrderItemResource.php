@@ -4,6 +4,7 @@ namespace Modules\SPK\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Inventory\Http\Resources\ProductResource;
 
 class WorkOrderItemResource extends JsonResource
 {
@@ -14,10 +15,11 @@ class WorkOrderItemResource extends JsonResource
             'id' => $this->id,
             'work_order_id' => $this->work_order_id,
             'product_id' => $this->product_id,
+            'network_asset_id' => $this->network_asset_id,
             'quantity_reserved' => $this->quantity_reserved,
             'quantity_used' => $this->quantity_used,
             'note' => $this->note,
-            'product' => new \Modules\Inventory\Http\Resources\ProductResource($this->whenLoaded('product')),
+            'product' => new ProductResource($this->whenLoaded('product')),
         ];
     }
 }

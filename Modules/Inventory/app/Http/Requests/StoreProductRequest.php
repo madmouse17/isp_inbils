@@ -4,12 +4,24 @@ namespace Modules\Inventory\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Models\Category;
 
 class StoreProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
         return $this->user()?->can('inventory.create') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $category = Category::query()
+            ->whereKey($this->input('category_id'))
+            ->first();
+
+        $this->merge([
+            'unit_id' => $category?->unit_id,
+        ]);
     }
 
     /** @return array<string, mixed> */

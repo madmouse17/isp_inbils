@@ -144,7 +144,11 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                             <TD className="font-mono text-sm">{p.sku}</TD>
                                             <TD>{p.name}</TD>
                                             <TD>{p.category?.name ?? '-'}</TD>
-                                            <TD>{p.unit?.symbol ?? '-'}</TD>
+                                            <TD>
+                                                {p.unit
+                                                    ? `${p.unit.name} (${p.unit.symbol})`
+                                                    : '-'}
+                                            </TD>
                                             <TD>{p.sell_price ?? '-'}</TD>
                                             <TD>
                                                 <Badge variant={p.is_active ? 'success' : 'danger'}>

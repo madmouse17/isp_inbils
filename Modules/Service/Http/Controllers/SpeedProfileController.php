@@ -20,7 +20,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('viewAny', SpeedProfile::class);
 
         return Inertia::render('Admin/Service/SpeedProfiles/Index', [
-            'speedProfiles' => SpeedProfileResource::collection(SpeedProfile::query()->orderBy('name')->paginate(15)->withQueryString()),
+            'speedProfiles' => SpeedProfileResource::collection(SpeedProfile::query()->orderBy('name')->paginate(10)->withQueryString()),
             'can' => ['create' => $request->user()?->can('service.create') || $request->user()?->can('service.manage')],
         ]);
     }
@@ -37,7 +37,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('store', SpeedProfile::class);
         SpeedProfile::query()->create($request->validated());
 
-        return back()->with('success', 'Speed profile created.');
+        return redirect()->route('admin.speed-profiles.index')->with('success', 'Speed profile created.');
     }
 
     public function edit(SpeedProfile $speedProfile): Response
@@ -52,7 +52,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('update', $speedProfile);
         $speedProfile->update($request->validated());
 
-        return back()->with('success', 'Speed profile updated.');
+        return redirect()->route('admin.speed-profiles.index')->with('success', 'Speed profile updated.');
     }
 
     public function destroy(SpeedProfile $speedProfile): RedirectResponse

@@ -35,7 +35,7 @@ class ServicePackageController extends Controller
                     ->orWhere('name', 'like', '%'.$request->string('search').'%');
             }))
             ->orderBy('name')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Service/Packages/Index', [
@@ -58,7 +58,7 @@ class ServicePackageController extends Controller
         Gate::authorize('store', ServicePackage::class);
         ServicePackage::query()->create($request->validated());
 
-        return back()->with('success', 'Service package created.');
+        return redirect()->route('admin.service-packages.index')->with('success', 'Service package created.');
     }
 
     public function show(ServicePackage $servicePackage): Response
@@ -85,7 +85,7 @@ class ServicePackageController extends Controller
         Gate::authorize('update', $servicePackage);
         $servicePackage->update($request->validated());
 
-        return back()->with('success', 'Service package updated.');
+        return redirect()->route('admin.service-packages.index')->with('success', 'Service package updated.');
     }
 
     public function destroy(ServicePackage $servicePackage): RedirectResponse

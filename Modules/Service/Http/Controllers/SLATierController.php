@@ -20,7 +20,7 @@ class SLATierController extends Controller
         Gate::authorize('viewAny', SLATier::class);
 
         return Inertia::render('Admin/Service/SLATiers/Index', [
-            'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->paginate(15)->withQueryString()),
+            'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->paginate(10)->withQueryString()),
             'can' => ['create' => $request->user()?->can('service.create') || $request->user()?->can('service.manage')],
         ]);
     }
@@ -37,7 +37,7 @@ class SLATierController extends Controller
         Gate::authorize('store', SLATier::class);
         SLATier::query()->create($request->validated());
 
-        return back()->with('success', 'SLA tier created.');
+        return redirect()->route('admin.sla-tiers.index')->with('success', 'SLA tier created.');
     }
 
     public function edit(SLATier $slaTier): Response
@@ -52,7 +52,7 @@ class SLATierController extends Controller
         Gate::authorize('update', $slaTier);
         $slaTier->update($request->validated());
 
-        return back()->with('success', 'SLA tier updated.');
+        return redirect()->route('admin.sla-tiers.index')->with('success', 'SLA tier updated.');
     }
 
     public function destroy(SLATier $slaTier): RedirectResponse

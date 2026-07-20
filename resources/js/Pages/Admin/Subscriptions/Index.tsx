@@ -8,6 +8,7 @@ import {
     CardContent,
     Input,
     Modal,
+    Pagination,
     Select,
     Table,
     TBody,
@@ -21,7 +22,7 @@ import type { ServiceSubscription } from '@/types/models';
 
 interface SubIndexProps {
     customer: { id: number; code: string; name: string };
-    subscriptions: { data: ServiceSubscription[] };
+    subscriptions: { data: ServiceSubscription[]; current_page: number; last_page: number };
     packages: { data: { id: number; code: string; name: string; price_mrc: string }[] };
     addresses: { data: { id: number; label: string; address: string }[] };
 }
@@ -128,6 +129,13 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
                                 )}
                             </TBody>
                         </Table>
+                        <Pagination
+                            currentPage={subscriptions.current_page}
+                            lastPage={subscriptions.last_page}
+                            onPageChange={(page) =>
+                                router.get(route('admin.customers.subscriptions.index', customer.id), { page })
+                            }
+                        />
                     </CardContent>
                 </Card>
 

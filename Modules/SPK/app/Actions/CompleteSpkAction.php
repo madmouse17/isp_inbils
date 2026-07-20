@@ -118,7 +118,11 @@ class CompleteSpkAction
         abort_unless($workOrder->subscription->customer_id === $workOrder->customer_id, 422, 'Subscription must belong to the SPK customer.');
 
         $selectedItems = $workOrder->items->filter(fn (WorkOrderItem $item) => $item->network_asset_id !== null);
-        abort_unless($selectedItems->count() === 1, 422, 'Installation SPK requires exactly one selected network asset.');
+        if ($selectedItems->isEmpty()) {
+            return;
+        }
+
+        abort_unless($selectedItems->count() === 1, 422, 'Installation SPK can only install one selected network asset.');
 
         $selectedItem = $selectedItems->first();
         $asset = NetworkAsset::withoutCompany()

@@ -20,7 +20,7 @@ import {
     THead,
     TR,
     Modal,
-    useToast,
+    Pagination,
 } from '@/Components/ui';
 
 interface OrgRow {
@@ -38,7 +38,8 @@ interface OrgRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    organizations: { data: OrgRow[] };
+    organizations: { data: OrgRow[]; current_page: number; last_page: number };
+    parentOptions: { data: OrgRow[] };
 }
 
 type OrgType = 'company' | 'branch' | 'area' | 'unit' | 'team';
@@ -80,23 +81,21 @@ const emptyForm: OrganizationForm = {
     is_active: true,
 };
 
-export default function Index({ organizations }: IndexProps) {
+export default function Index({ organizations, parentOptions }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const [parentSearch, setParentSearch] = useState('');
-    const { toast } = useToast();
     const { data, setData, post, put, processing, errors, reset } =
         useInertiaForm<OrganizationForm>(emptyForm);
 
-    const childMap = buildChildMap(organizations.data);
-    const rowMap = new Map(organizations.data.map((organization) => [organization.id, organization]));
-    const parentOptions = organizations.data.map((organization) => ({
+    const rowMap = new Map(parentOptions.data.map((organization) => [organization.id, organization]));
+    const parentSelectOptions = parentOptions.data.map((organization) => ({
         id: organization.id,
         value: String(organization.id),
         label: `${organization.code} - ${organization.name}`,
         description: organization.path ?? organization.type,
     }));
-    const availableParentOptions = parentOptions.filter((option) => option.id !== editId);
+    const availableParentOptions = parentSelectOptions.filter((option) => option.id !== editId);
 
     const openCreate = () => {
         reset();
@@ -113,7 +112,7 @@ export default function Index({ organizations }: IndexProps) {
         setData('phone', o.phone ?? '');
         setData('email', o.email ?? '');
         setData('is_active', o.is_active);
-        setParentSearch(parentOptions.find((option) => option.id === o.parent_id)?.value ?? '');
+        setParentSearch(parentSelectOptions.find((option) => option.id === o.parent_id)?.value ?? '');
         setEditId(o.id);
         setModalOpen(true);
     };
@@ -121,8 +120,6 @@ export default function Index({ organizations }: IndexProps) {
         e.preventDefault();
         if (editId) {
             put(route('admin.organizations.update', editId), {
-                successMessage: 'Organization unit updated.',
-                errorMessage: 'Failed to update organization unit.',
                 onSuccess: () => {
                     reset();
                     setParentSearch('');
@@ -131,8 +128,6 @@ export default function Index({ organizations }: IndexProps) {
             });
         } else {
             post(route('admin.organizations.store'), {
-                successMessage: 'Organization unit created.',
-                errorMessage: 'Failed to create organization unit.',
                 onSuccess: () => {
                     reset();
                     setParentSearch('');
@@ -144,9 +139,7 @@ export default function Index({ organizations }: IndexProps) {
     const remove = (o: OrgRow) => {
         if (window.confirm(`Delete ${o.name}?`))
             router.delete(route('admin.organizations.destroy', o.id), {
-                onSuccess: () => toast({ title: 'Organization unit deleted.', variant: 'success' }),
-                onError: () =>
-                    toast({ title: 'Failed to delete organization unit.', variant: 'danger' }),
+                preserveScroll: true,
             });
     };
 
@@ -212,7 +205,7 @@ export default function Index({ organizations }: IndexProps) {
                                                 {o.path ?? '-'}
                                             </TD>
                                             <TD>
-                                                <ChildrenSummary children={childMap.get(o.id) ?? []} />
+                                                <ChildrenSummary count={o.children_count ?? 0} />
                                             </TD>
                                             <TD>
                                                 <Badge variant={o.is_active ? 'success' : 'danger'}>
@@ -244,6 +237,11 @@ export default function Index({ organizations }: IndexProps) {
                                 )}
                             </TBody>
                         </Table>
+                        <Pagination
+                            currentPage={organizations.current_page}
+                            lastPage={organizations.last_page}
+                            onPageChange={(page) => router.get(route('admin.organizations.index'), { page })}
+                        />
                     </CardContent>
                 </Card>
                 <Modal
@@ -346,33 +344,14 @@ function ParentSearchInput({
     );
 }
 
-function ChildrenSummary({ children }: { children: OrgRow[] }) {
-    if (children.length === 0) {
+function ChildrenSummary({ count }: { count: number }) {
+    if (count === 0) {
         return <span className="text-sm text-muted-foreground">No children</span>;
     }
 
     return (
-        <div className="space-y-1">
-            <Badge variant="neutral">
-                {children.length} {children.length === 1 ? 'child' : 'children'}
-            </Badge>
-            <p className="max-w-xs truncate text-xs text-muted-foreground">
-                {children.map((child) => child.name).join(', ')}
-            </p>
-        </div>
+        <Badge variant="neutral">
+            {count} {count === 1 ? 'child' : 'children'}
+        </Badge>
     );
-}
-
-function buildChildMap(rows: OrgRow[]): Map<number, OrgRow[]> {
-    const map = new Map<number, OrgRow[]>();
-
-    rows.forEach((row) => {
-        if (row.parent_id === null) {
-            return;
-        }
-
-        map.set(row.parent_id, [...(map.get(row.parent_id) ?? []), row]);
-    });
-
-    return map;
 }

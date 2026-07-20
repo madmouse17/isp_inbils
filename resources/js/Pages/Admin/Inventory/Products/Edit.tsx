@@ -9,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
+    SearchSelect,
     Select,
     Switch,
     Textarea,
@@ -40,6 +41,10 @@ export default function Edit({ product, categories, units }: EditProps) {
         e.preventDefault();
         router.put(route('admin.products.update', p.id), data);
     };
+    const unitOptions = units.data.map((unit) => ({
+        value: String(unit.id),
+        label: `${unit.name} (${unit.symbol})`,
+    }));
 
     return (
         <AdminLayout title={`Edit ${p.name}`}>
@@ -80,20 +85,16 @@ export default function Edit({ product, categories, units }: EditProps) {
                                     </option>
                                 ))}
                             </Select>
-                            <Select
+                            <SearchSelect
                                 label="Unit"
                                 value={data.unit_id}
-                                onChange={(e) => setData('unit_id', e.target.value)}
+                                onChange={(value) => setData('unit_id', value)}
+                                options={unitOptions}
+                                placeholder="Search unit"
+                                emptyText="No units found."
                                 error={errors.unit_id}
                                 required
-                            >
-                                <option value="">Select unit</option>
-                                {units.data.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.name} ({u.symbol})
-                                    </option>
-                                ))}
-                            </Select>
+                            />
                             <Input
                                 label="Sell Price"
                                 type="number"

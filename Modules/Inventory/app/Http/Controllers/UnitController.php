@@ -19,7 +19,7 @@ class UnitController extends Controller
     {
         Gate::authorize('viewAny', Unit::class);
 
-        $units = Unit::query()->orderBy('name')->paginate(15)->withQueryString();
+        $units = Unit::query()->orderBy('name')->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/Inventory/Units/Index', [
             'units' => UnitResource::collection($units),
@@ -31,6 +31,7 @@ class UnitController extends Controller
     {
         Gate::authorize('store', Unit::class);
         Unit::create($request->validated());
+
         return back()->with('success', 'Unit created.');
     }
 
@@ -38,6 +39,7 @@ class UnitController extends Controller
     {
         Gate::authorize('update', $unit);
         $unit->update($request->validated());
+
         return back()->with('success', 'Unit updated.');
     }
 
@@ -50,6 +52,7 @@ class UnitController extends Controller
         }
 
         $unit->delete();
+
         return back()->with('success', 'Unit deleted.');
     }
 }

@@ -95,6 +95,8 @@ export default function Profile({ company, can }: ProfileProps) {
                                 label="Logo"
                                 value={data.logo}
                                 onChange={(file) => setData('logo', file)}
+                                previewUrl={company.data.logo}
+                                previewName={`${company.data.name} logo`}
                                 acceptedFileTypes={[
                                     'image/jpeg',
                                     'image/png',

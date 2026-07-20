@@ -10,6 +10,7 @@ import {
     CardTitle,
     Input,
     Modal,
+    SearchSelect,
     Table,
     TBody,
     TD,
@@ -29,6 +30,7 @@ interface InstallRow {
 
 interface AssetData {
     id: number;
+    product_id?: number | null;
     code: string;
     name: string;
     asset_type: string;
@@ -47,6 +49,7 @@ interface AssetData {
     installed_at?: string | null;
     retired_at?: string | null;
     location?: { name: string; path?: string } | null;
+    product?: { sku: string; name: string } | null;
     customer?: { id: number; name: string; code: string } | null;
     subscription?: { id: number; code: string } | null;
     installations?: InstallRow[];
@@ -54,9 +57,17 @@ interface AssetData {
 
 interface ShowProps extends Record<string, unknown> {
     asset: { data: AssetData };
+    locations: { data: LocRow[] };
 }
 
-export default function Show({ asset }: ShowProps) {
+interface LocRow {
+    id: number;
+    name: string;
+    code: string;
+    path?: string | null;
+}
+
+export default function Show({ asset, locations }: ShowProps) {
     const a = asset.data;
     const [actionModal, setActionModal] = useState<
         'install' | 'remove' | 'maintenance' | 'damage' | 'repair' | 'resume' | 'retire' | null
@@ -67,6 +78,11 @@ export default function Show({ asset }: ShowProps) {
         customer_id: '',
         subscription_id: '',
     });
+    const locationOptions = locations.data.map((location) => ({
+        value: String(location.id),
+        label: `${location.code} - ${location.name}`,
+        description: location.path ?? undefined,
+    }));
 
     const doAction = (e: FormEvent) => {
         e.preventDefault();
@@ -101,6 +117,10 @@ export default function Show({ asset }: ShowProps) {
                             <p>
                                 <span className="text-muted-foreground">Type: </span>
                                 {a.asset_type}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">Product: </span>
+                                {a.product ? `${a.product.sku} - ${a.product.name}` : '-'}
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Serial: </span>
@@ -290,10 +310,13 @@ export default function Show({ asset }: ShowProps) {
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         {actionModal === 'install' && (
-                            <Input
-                                label="Location ID"
+                            <SearchSelect
+                                label="Location"
                                 value={data.location_id}
-                                onChange={(e) => setData('location_id', e.target.value)}
+                                onChange={(value) => setData('location_id', value)}
+                                options={locationOptions}
+                                placeholder="Search location"
+                                emptyText="No active locations found."
                                 required
                             />
                         )}

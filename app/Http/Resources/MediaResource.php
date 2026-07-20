@@ -13,8 +13,8 @@ class MediaResource extends JsonResource
         return [
             'id' => $this->id,
             'type' => $this->getCustomProperty('type'),
-            'file_path' => $this->getUrl(),
-            'url' => $this->getUrl(),
+            'file_path' => '/storage/'.$this->getPathRelativeToRoot(),
+            'url' => '/storage/'.$this->getPathRelativeToRoot(),
             'original_name' => $this->name,
             'file_name' => $this->file_name,
             'mime_type' => $this->mime_type,

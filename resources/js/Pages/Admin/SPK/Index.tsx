@@ -9,6 +9,7 @@ import {
     CardContent,
     Input,
     Select,
+    SearchSelect,
     Pagination,
     Table,
     TBody,
@@ -32,7 +33,12 @@ interface WoRow {
 
 interface TechRow {
     id: number;
+    user_id: number;
+    employee_number: string;
+    phone?: string | null;
     name: string;
+    user?: { name: string; email: string } | null;
+    organization?: { name: string; code: string } | null;
 }
 
 interface IndexProps extends Record<string, unknown> {
@@ -58,6 +64,17 @@ export default function Index({ workOrders, technicians, filters, can }: IndexPr
     const [type, setType] = useState(filters.type ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const [assignedTo, setAssignedTo] = useState(filters.assigned_to ?? '');
+    const technicianOptions = technicians.data.map((technician) => ({
+        value: String(technician.user_id),
+        label: technician.user?.name ?? technician.name,
+        description: [
+            technician.employee_number,
+            technician.organization?.name,
+            technician.phone,
+        ]
+            .filter(Boolean)
+            .join(' - '),
+    }));
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -120,18 +137,14 @@ export default function Index({ workOrders, technicians, filters, can }: IndexPr
                                 <option value="rejected">Rejected</option>
                                 <option value="cancelled">Cancelled</option>
                             </Select>
-                            <Select
+                            <SearchSelect
                                 label="Technician"
                                 value={assignedTo}
-                                onChange={(e) => setAssignedTo(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {technicians.data.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.name}
-                                    </option>
-                                ))}
-                            </Select>
+                                onChange={setAssignedTo}
+                                options={technicianOptions}
+                                placeholder="Search technician"
+                                emptyText="No technician employees found."
+                            />
                             <div className="self-end">
                                 <Button type="submit" variant="secondary">
                                     Filter

@@ -16,7 +16,8 @@ class NumberSequenceController extends Controller
     public function index(): InertiaResponse
     {
         Gate::authorize('viewAny', NumberSequence::class);
-        $sequences = NumberSequence::query()->orderBy('entity_type')->get();
+        $sequences = NumberSequence::query()->orderBy('entity_type')->paginate(10)->withQueryString();
+
         return Inertia::render('Admin/NumberSequences/Index', [
             'sequences' => NumberSequenceResource::collection($sequences),
         ]);
@@ -32,6 +33,7 @@ class NumberSequenceController extends Controller
             'year_suffix' => ['boolean'],
         ]);
         $number_sequence->update($request->only(['prefix', 'next_number', 'padding', 'year_suffix']));
+
         return back()->with('success', 'Number sequence updated.');
     }
 }

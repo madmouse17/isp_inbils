@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
@@ -138,6 +139,11 @@ class P0CriticalPathTest extends TestCase
         Stock::where('product_id', $product->id)->where('location_id', $location->id)->update(['reserved_quantity' => 2]);
 
         $technician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
         $this->post(route('admin.spk.generate', $workOrder))->assertRedirect();
         $this->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])->assertRedirect();
         $this->post(route('admin.spk.start', $workOrder))->assertRedirect();
@@ -253,6 +259,186 @@ class P0CriticalPathTest extends TestCase
 
         $this->assertDatabaseMissing('service_subscriptions', [
             'customer_id' => $otherCustomer->id,
+        ]);
+    }
+
+    public function test_spk_assignment_requires_active_technician_employee_profile(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = WorkOrder::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'SPK-ASSIGN-TEST',
+            'type' => 'maintenance',
+            'title' => 'Assign test',
+            'created_by' => $admin->id,
+            'status' => 'generated',
+            'source' => 'manual',
+            'priority' => 'medium',
+        ]);
+        $technician = $this->user('technician', $company);
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])
+            ->assertSessionHasErrors('technician_id');
+
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
+
+        $this->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('work_order_assignments', [
+            'work_order_id' => $workOrder->id,
+            'technician_id' => $technician->id,
+        ]);
+    }
+
+    public function test_spk_item_uses_active_company_product(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = WorkOrder::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'SPK-ITEM-TEST',
+            'type' => 'maintenance',
+            'title' => 'Item test',
+            'created_by' => $admin->id,
+            'status' => 'generated',
+            'source' => 'manual',
+            'priority' => 'medium',
+        ]);
+        $product = $this->product($company);
+        $inactiveProduct = Product::forceCreate([
+            'company_id' => $company->id,
+            'category_id' => $product->category_id,
+            'unit_id' => $product->unit_id,
+            'sku' => 'P0-INACTIVE',
+            'name' => 'Inactive product',
+            'type' => 'asset',
+            'track_stock' => true,
+            'sell_price' => 0,
+            'cost_price' => 0,
+            'min_stock' => 0,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.items.store', $workOrder), [
+                'product_id' => $inactiveProduct->id,
+                'quantity_reserved' => 1,
+            ])
+            ->assertSessionHasErrors('product_id');
+
+        $this->post(route('admin.spk.items.store', $workOrder), [
+            'product_id' => $product->id,
+            'quantity_reserved' => 2,
+            'note' => 'Router installation',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('work_order_items', [
+            'work_order_id' => $workOrder->id,
+            'product_id' => $product->id,
+            'quantity_reserved' => 2,
+            'quantity_used' => 0,
+            'note' => 'Router installation',
+        ]);
+    }
+
+    public function test_installation_spk_item_can_select_matching_available_network_asset(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = WorkOrder::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'SPK-ASSET-TEST',
+            'type' => 'installation',
+            'title' => 'Asset item test',
+            'created_by' => $admin->id,
+            'status' => 'generated',
+            'source' => 'manual',
+            'priority' => 'medium',
+        ]);
+        $product = $this->product($company);
+        $otherProduct = Product::forceCreate([
+            'company_id' => $company->id,
+            'category_id' => $product->category_id,
+            'unit_id' => $product->unit_id,
+            'sku' => 'P0-OTHER',
+            'name' => 'Other product',
+            'type' => 'asset',
+            'track_stock' => true,
+            'sell_price' => 0,
+            'cost_price' => 0,
+            'min_stock' => 0,
+            'is_active' => true,
+        ]);
+        $asset = NetworkAssetFactory::new()->create([
+            'company_id' => $company->id,
+            'product_id' => $product->id,
+            'status' => 'available',
+        ]);
+        $wrongAsset = NetworkAssetFactory::new()->create([
+            'company_id' => $company->id,
+            'product_id' => $otherProduct->id,
+            'status' => 'available',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.items.store', $workOrder), [
+                'product_id' => $product->id,
+                'network_asset_id' => $wrongAsset->id,
+                'quantity_reserved' => 1,
+            ])
+            ->assertSessionHasErrors('network_asset_id');
+
+        $this->post(route('admin.spk.items.store', $workOrder), [
+            'product_id' => $product->id,
+            'network_asset_id' => $asset->id,
+            'quantity_reserved' => 1,
+            'quantity_used' => 1,
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('work_order_items', [
+            'work_order_id' => $workOrder->id,
+            'product_id' => $product->id,
+            'network_asset_id' => $asset->id,
+        ]);
+    }
+
+    public function test_network_asset_create_stores_product_and_location(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $product = $this->product($company);
+        $location = Location::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'P0-NOC',
+            'name' => 'P0 NOC',
+            'type' => 'warehouse',
+            'path' => 'P0 NOC',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.network-assets.store'), [
+                'name' => 'ONT Customer',
+                'product_id' => $product->id,
+                'asset_type' => 'onu_ont',
+                'serial_number' => 'ONT-001',
+                'location_id' => $location->id,
+                'ownership' => 'owned',
+            ])
+            ->assertRedirect(route('admin.network-assets.index'));
+
+        $this->assertDatabaseHas('network_assets', [
+            'name' => 'ONT Customer',
+            'product_id' => $product->id,
+            'location_id' => $location->id,
+            'status' => 'available',
         ]);
     }
 

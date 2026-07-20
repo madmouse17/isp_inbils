@@ -14,7 +14,9 @@ class CompanyResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'code' => $this->code,
-            'logo' => $this->getFirstMediaUrl('logo') ?: null,
+            'logo' => ($logo = $this->getFirstMedia('logo'))
+                ? '/storage/'.$logo->getPathRelativeToRoot()
+                : null,
             'address' => $this->address,
             'phone' => $this->phone,
             'email' => $this->email,

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 import {
     ArchiveBoxIcon,
@@ -9,9 +9,9 @@ import {
     BuildingOfficeIcon,
     ChartBarIcon,
     ChatBubbleLeftRightIcon,
+    ChevronDownIcon,
     ClipboardDocumentIcon,
     ClipboardDocumentListIcon,
-    Cog6ToothIcon,
     HomeIcon,
     KeyIcon,
     MapPinIcon,
@@ -27,7 +27,16 @@ import {
     SunIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
-import { Button, Sidebar, SidebarItem, SidebarSection, Topbar } from '@/Components/ui';
+import {
+    Button,
+    Dropdown,
+    DropdownItem,
+    DropdownSeparator,
+    Sidebar,
+    SidebarItem,
+    SidebarSection,
+    Topbar,
+} from '@/Components/ui';
 import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import { useToast } from '@/hooks/useToast';
@@ -417,54 +426,48 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         }
                         right={
                             <>
-                                {company && can('company.manage') && (
-                                    <Link
-                                        href="/admin/company/profile"
-                                        className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
-                                    >
-                                        {company.logo ? (
-                                            <img
-                                                src={company.logo}
-                                                alt={`${company.name} logo`}
-                                                className="h-5 w-5 rounded object-contain"
-                                            />
-                                        ) : (
-                                            <Cog6ToothIcon className="h-4 w-4" />
-                                        )}
-                                        <span>{company.name}</span>
-                                    </Link>
-                                )}
                                 {user && (
-                                    <Link
-                                        href={route('profile.edit')}
-                                        className="hidden items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-accent-foreground sm:flex"
-                                        aria-current={isActive('/profile') ? 'page' : undefined}
+                                    <Dropdown
+                                        trigger={
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                className="gap-2"
+                                                aria-label="Open user menu"
+                                            >
+                                                <UserCircleIcon className="h-5 w-5" />
+                                                <span className="hidden max-w-36 truncate sm:inline">
+                                                    {user.name}
+                                                </span>
+                                                <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+                                            </Button>
+                                        }
                                     >
-                                        <UserCircleIcon className="h-4 w-4" />
-                                        <span>{user.name}</span>
-                                    </Link>
+                                        <div className="px-3 py-2">
+                                            <p className="truncate text-sm font-semibold">{user.name}</p>
+                                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                        </div>
+                                        <DropdownSeparator />
+                                        <DropdownItem onClick={() => router.get(route('profile.edit'))}>
+                                            <UserCircleIcon className="h-4 w-4" />
+                                            Profile
+                                        </DropdownItem>
+                                        <DropdownItem onClick={toggleDark}>
+                                            {darkMode ? (
+                                                <SunIcon className="h-4 w-4" />
+                                            ) : (
+                                                <MoonIcon className="h-4 w-4" />
+                                            )}
+                                            {darkMode ? 'Light mode' : 'Dark mode'}
+                                        </DropdownItem>
+                                        <DropdownSeparator />
+                                        <DropdownItem onClick={logout} destructive>
+                                            <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
+                                            Logout
+                                        </DropdownItem>
+                                    </Dropdown>
                                 )}
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={toggleDark}
-                                    aria-label="Toggle dark mode"
-                                >
-                                    {darkMode ? (
-                                        <SunIcon className="h-5 w-5" />
-                                    ) : (
-                                        <MoonIcon className="h-5 w-5" />
-                                    )}
-                                </Button>
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={logout}
-                                    aria-label="Logout"
-                                >
-                                    <ArrowRightStartOnRectangleIcon className="h-5 w-5" />
-                                </Button>
                             </>
                         }
                     />

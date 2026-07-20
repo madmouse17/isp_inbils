@@ -26,7 +26,7 @@ class UserController extends Controller
             ->where('company_id', CompanyService::currentId())
             ->with('roles')
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
@@ -61,7 +61,7 @@ class UserController extends Controller
         ])->save();
         $user->syncRoles($roles);
 
-        return back()->with('success', 'User created.');
+        return redirect()->route('admin.users.index')->with('success', 'User created.');
     }
 
     public function show(User $user): Response
@@ -101,7 +101,7 @@ class UserController extends Controller
         $user->update($data);
         $user->syncRoles($roles);
 
-        return back()->with('success', 'User updated.');
+        return redirect()->route('admin.users.index')->with('success', 'User updated.');
     }
 
     public function destroy(User $user): RedirectResponse

@@ -36,6 +36,7 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     };
     company: Company | null;
     flash: Flash;
+    errors: Record<string, string>;
     app: {
         name: string;
         locale: string;

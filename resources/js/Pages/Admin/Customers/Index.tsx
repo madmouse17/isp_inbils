@@ -9,6 +9,7 @@ import {
     CardContent,
     Input,
     Pagination,
+    Select,
     Table,
     TBody,
     TD,
@@ -38,19 +39,19 @@ interface IndexProps extends Record<string, unknown> {
         per_page: number;
         total: number;
     };
-    filters: { type?: string; is_active?: string; search?: string };
+    filters: { type?: string; status?: string; search?: string };
 }
 
 export default function Index({ customers, filters }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(filters.type ?? '');
-    const [isActive, setIsActive] = useState(filters.is_active ?? '');
+    const [status, setStatus] = useState(filters.status ?? '');
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.customers.index'),
-            { search, type, is_active: isActive },
+            { search, type, status },
             { preserveState: true },
         );
     };
@@ -85,17 +86,25 @@ export default function Index({ customers, filters }: IndexProps) {
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Name, code, phone"
                             />
-                            <Input
+                            <Select
                                 label="Type"
                                 value={type}
                                 onChange={(e) => setType(e.target.value)}
-                                placeholder="Individual / Company"
+                                options={[
+                                    { value: '', label: 'All types' },
+                                    { value: 'Individual', label: 'Individual' },
+                                    { value: 'Company', label: 'Company' },
+                                ]}
                             />
-                            <Input
-                                label="Active"
-                                value={isActive}
-                                onChange={(e) => setIsActive(e.target.value)}
-                                placeholder="true / false"
+                            <Select
+                                label="Status"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                                options={[
+                                    { value: '', label: 'All statuses' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Inactive' },
+                                ]}
                             />
                             <div className="self-end">
                                 <Button type="submit" variant="secondary">
@@ -183,7 +192,7 @@ export default function Index({ customers, filters }: IndexProps) {
                                     page,
                                     search,
                                     type,
-                                    is_active: isActive,
+                                    status,
                                 })
                             }
                         />

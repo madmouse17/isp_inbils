@@ -20,7 +20,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('viewAny', BandwidthProfile::class);
 
         return Inertia::render('Admin/Service/BandwidthProfiles/Index', [
-            'bandwidthProfiles' => BandwidthProfileResource::collection(BandwidthProfile::query()->orderBy('name')->paginate(15)->withQueryString()),
+            'bandwidthProfiles' => BandwidthProfileResource::collection(BandwidthProfile::query()->orderBy('name')->paginate(10)->withQueryString()),
             'can' => ['create' => $request->user()?->can('service.create') || $request->user()?->can('service.manage')],
         ]);
     }
@@ -37,7 +37,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('store', BandwidthProfile::class);
         BandwidthProfile::query()->create($request->validated());
 
-        return back()->with('success', 'Bandwidth profile created.');
+        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Bandwidth profile created.');
     }
 
     public function edit(BandwidthProfile $bandwidthProfile): Response
@@ -52,7 +52,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('update', $bandwidthProfile);
         $bandwidthProfile->update($request->validated());
 
-        return back()->with('success', 'Bandwidth profile updated.');
+        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Bandwidth profile updated.');
     }
 
     public function destroy(BandwidthProfile $bandwidthProfile): RedirectResponse

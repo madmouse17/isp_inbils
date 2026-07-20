@@ -12,7 +12,7 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { CustomerRelatedTables, PageHeader } from '@/Components/composite';
 import type { Customer } from '@/types/models';
 
 interface EditProps {
@@ -21,6 +21,9 @@ interface EditProps {
 
 export default function Edit({ customer }: EditProps) {
     const c = customer.data;
+    const addresses = c.addresses ?? [];
+    const contacts = c.contacts ?? [];
+    const subscriptions = c.subscriptions ?? [];
     const { data, setData, put, processing, errors } = useForm({
         code: c.code,
         name: c.name,
@@ -128,6 +131,12 @@ export default function Edit({ customer }: EditProps) {
                         </Button>
                     </div>
                 </form>
+                <CustomerRelatedTables
+                    customerId={c.id}
+                    addresses={addresses}
+                    contacts={contacts}
+                    subscriptions={subscriptions}
+                />
             </div>
         </AdminLayout>
     );

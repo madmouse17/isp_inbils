@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\DocumentTypeResource;
 use App\Models\Core\DocumentType;
+use App\Services\Core\CompanyService;
 use App\Services\Core\DocumentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,8 @@ class DocumentController extends Controller
     public function index(): InertiaResponse
     {
         Gate::authorize('viewAny', DocumentType::class);
-        $types = DocumentType::query()->orderBy('name')->get();
+        $types = DocumentType::query()->orderBy('name')->paginate(10)->withQueryString();
+
         return Inertia::render('Admin/Documents/Index', [
             'documentTypes' => DocumentTypeResource::collection($types),
         ]);
@@ -34,8 +36,9 @@ class DocumentController extends Controller
             'is_required' => ['boolean'],
             'expiry_days' => ['nullable', 'integer', 'min:1'],
         ]);
-        $data['company_id'] = \App\Services\Core\CompanyService::currentId();
+        $data['company_id'] = CompanyService::currentId();
         DocumentType::create($data);
+
         return back()->with('success', 'Document type created.');
     }
 
@@ -49,6 +52,7 @@ class DocumentController extends Controller
             'expiry_days' => ['nullable', 'integer', 'min:1'],
             'is_active' => ['boolean'],
         ]));
+
         return back()->with('success', 'Document type updated.');
     }
 
@@ -56,6 +60,7 @@ class DocumentController extends Controller
     {
         Gate::authorize('delete', $document_type);
         $document_type->delete();
+
         return back()->with('success', 'Document type deleted.');
     }
 
@@ -84,6 +89,7 @@ class DocumentController extends Controller
     public function deleteMedia(Media $media): RedirectResponse
     {
         DocumentService::delete($media);
+
         return back()->with('success', 'Document removed.');
     }
 }

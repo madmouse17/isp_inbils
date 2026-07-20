@@ -3,18 +3,20 @@
 namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Modules\Inventory\Http\Requests\StockReceiveRequest;
-use Modules\Inventory\Http\Requests\StockIssueRequest;
-use Modules\Inventory\Http\Requests\StockTransferRequest;
 use Modules\Inventory\Http\Requests\StockAdjustRequest;
-use Modules\Inventory\Http\Resources\StockResource;
+use Modules\Inventory\Http\Requests\StockIssueRequest;
+use Modules\Inventory\Http\Requests\StockReceiveRequest;
+use Modules\Inventory\Http\Requests\StockTransferRequest;
+use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Http\Resources\StockMovementResource;
+use Modules\Inventory\Http\Resources\StockResource;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\StockMovement;
@@ -32,13 +34,13 @@ class StockController extends Controller
             ->when($request->input('product_id'), fn ($q, $v) => $q->where('product_id', $v))
             ->when($request->boolean('low_stock'), fn ($q) => $q->whereRaw('quantity <= (SELECT min_stock FROM products WHERE products.id = stocks.product_id)'))
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Stocks/Index', [
             'stocks' => StockResource::collection($stocks),
-            'products' => \Modules\Inventory\Http\Resources\ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
             'filters' => $request->only(['location_id', 'product_id', 'low_stock']),
         ]);
     }
@@ -54,7 +56,7 @@ class StockController extends Controller
             ->when($request->input('location_id'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('from_location_id', $v)->orWhere('to_location_id', $v)))
             ->latest()
-            ->paginate(20)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Movements/Index', [
@@ -74,6 +76,7 @@ class StockController extends Controller
             $request->input('reference_type'),
             $request->integer('reference_id'),
         );
+
         return back()->with('success', 'Stock received.');
     }
 
@@ -88,6 +91,7 @@ class StockController extends Controller
             $request->input('reference_type'),
             $request->integer('reference_id'),
         );
+
         return back()->with('success', 'Stock issued.');
     }
 
@@ -101,6 +105,7 @@ class StockController extends Controller
             $request->float('quantity'),
             $request->input('note'),
         );
+
         return back()->with('success', 'Stock transferred.');
     }
 
@@ -113,6 +118,7 @@ class StockController extends Controller
             $request->float('new_quantity'),
             $request->input('note'),
         );
+
         return back()->with('success', 'Stock adjusted.');
     }
 

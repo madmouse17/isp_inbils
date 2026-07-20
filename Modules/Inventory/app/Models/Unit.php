@@ -27,6 +27,11 @@ class Unit extends Model
         return $this->hasMany(Product::class);
     }
 
+    public function categories(): HasMany
+    {
+        return $this->hasMany(Category::class);
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

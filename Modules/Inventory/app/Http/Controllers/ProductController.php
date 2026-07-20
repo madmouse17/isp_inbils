@@ -3,7 +3,6 @@
 namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\LocationResource;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -14,7 +13,6 @@ use Modules\Inventory\Http\Requests\StoreProductRequest;
 use Modules\Inventory\Http\Requests\UpdateProductRequest;
 use Modules\Inventory\Http\Resources\CategoryResource;
 use Modules\Inventory\Http\Resources\ProductResource;
-use Modules\Inventory\Http\Resources\StockResource;
 use Modules\Inventory\Http\Resources\UnitResource;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
@@ -34,12 +32,12 @@ class ProductController extends Controller
                 ->where('name', 'like', "%{$v}%")
                 ->orWhere('sku', 'like', "%{$v}%")))
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Products/Index', [
             'products' => ProductResource::collection($products),
-            'categories' => CategoryResource::collection(Category::query()->where('is_active', true)->orderBy('name')->get()),
+            'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
             'filters' => $request->only(['category_id', 'is_active', 'search']),
             'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
@@ -51,7 +49,7 @@ class ProductController extends Controller
         Gate::authorize('create', Product::class);
 
         return Inertia::render('Admin/Inventory/Products/Create', [
-            'categories' => CategoryResource::collection(Category::query()->where('is_active', true)->orderBy('name')->get()),
+            'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
         ]);
     }
@@ -60,7 +58,8 @@ class ProductController extends Controller
     {
         Gate::authorize('store', Product::class);
         Product::create($request->validated());
-        return back()->with('success', 'Product created.');
+
+        return redirect()->route('admin.products.index')->with('success', 'Product created.');
     }
 
     public function show(Product $product): InertiaResponse
@@ -80,7 +79,7 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Inventory/Products/Edit', [
             'product' => new ProductResource($product),
-            'categories' => CategoryResource::collection(Category::query()->where('is_active', true)->orderBy('name')->get()),
+            'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
         ]);
     }
@@ -89,7 +88,8 @@ class ProductController extends Controller
     {
         Gate::authorize('update', $product);
         $product->update($request->validated());
-        return back()->with('success', 'Product updated.');
+
+        return redirect()->route('admin.products.index')->with('success', 'Product updated.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -101,6 +101,7 @@ class ProductController extends Controller
         }
 
         $product->delete();
+
         return back()->with('success', 'Product deleted.');
     }
 
@@ -123,7 +124,7 @@ class ProductController extends Controller
                 $p->unit?->symbol ?? '',
                 $p->sell_price ?? '', $p->cost_price ?? '',
                 $p->min_stock, $p->is_active ? 'Yes' : 'No',
-            ]) . "\n";
+            ])."\n";
         }
 
         return response($csv, 200, $headers);

@@ -48,7 +48,9 @@ class HandleInertiaRequests extends Middleware
                 'id' => $user->company->id,
                 'name' => $user->company->name,
                 'code' => $user->company->code,
-                'logo' => $user->company->getFirstMediaUrl('logo') ?: null,
+                'logo' => ($logo = $user->company->getFirstMedia('logo'))
+                    ? '/storage/'.$logo->getPathRelativeToRoot()
+                    : null,
                 'currency' => $user->company->currency,
                 'timezone' => $user->company->timezone,
                 'settings' => $user->company->settings,

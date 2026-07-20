@@ -10,7 +10,6 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,7 +24,7 @@ class CustomerAddressController extends Controller
 
         return Inertia::render('Admin/CustomerAddresses/Index', [
             'customer' => $customer->only(['id', 'code', 'name']),
-            'addresses' => CustomerAddressResource::collection($customer->addresses()->latest()->get()),
+            'addresses' => CustomerAddressResource::collection($customer->addresses()->latest()->paginate(10)->withQueryString()),
         ]);
     }
 

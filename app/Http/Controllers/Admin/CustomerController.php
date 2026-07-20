@@ -24,18 +24,18 @@ class CustomerController extends Controller
         $customers = Customer::query()
             ->withCount(['addresses', 'subscriptions'])
             ->when($request->input('type'), fn ($q, $v) => $q->where('type', $v))
-            ->when($request->input('is_active'), fn ($q, $v) => $q->where('is_active', $v === 'true'))
+            ->when($request->input('status'), fn ($q, $v) => $q->where('is_active', $v === 'active'))
             ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('name', 'like', "%{$v}%")
                 ->orWhere('code', 'like', "%{$v}%")
                 ->orWhere('phone', 'like', "%{$v}%")))
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Customers/Index', [
             'customers' => CustomerResource::collection($customers),
-            'filters' => $request->only(['type', 'is_active', 'search']),
+            'filters' => $request->only(['type', 'status', 'search']),
         ]);
     }
 
@@ -50,9 +50,9 @@ class CustomerController extends Controller
     {
         Gate::authorize('store', Customer::class);
 
-        $customer = CustomerService::createWithUser($request->validated());
+        CustomerService::createWithUser($request->validated());
 
-        return redirect()->route('admin.customers.show', $customer)
+        return redirect()->route('admin.customers.index')
             ->with('success', 'Customer created.');
     }
 
@@ -72,6 +72,7 @@ class CustomerController extends Controller
     {
         $customer = $this->findForCompany($request, $customer);
         Gate::authorize('edit', $customer);
+        $customer->load(['addresses', 'contacts', 'subscriptions.servicePackage']);
 
         return Inertia::render('Admin/Customers/Edit', [
             'customer' => new CustomerResource($customer),
@@ -85,7 +86,8 @@ class CustomerController extends Controller
 
         $customer->update($request->validated());
 
-        return back()->with('success', 'Customer updated.');
+        return redirect()->route('admin.customers.index')
+            ->with('success', 'Customer updated.');
     }
 
     public function destroy(Request $request, int|string $customer): RedirectResponse

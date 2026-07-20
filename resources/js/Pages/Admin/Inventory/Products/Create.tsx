@@ -9,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
+    SearchSelect,
     Select,
     Switch,
     Textarea,
@@ -38,6 +39,10 @@ export default function Create({ categories, units }: CreateProps) {
         e.preventDefault();
         post(route('admin.products.store'));
     };
+    const unitOptions = units.data.map((unit) => ({
+        value: String(unit.id),
+        label: `${unit.name} (${unit.symbol})`,
+    }));
 
     return (
         <AdminLayout title="Create Product">
@@ -79,20 +84,16 @@ export default function Create({ categories, units }: CreateProps) {
                                     </option>
                                 ))}
                             </Select>
-                            <Select
+                            <SearchSelect
                                 label="Unit"
                                 value={data.unit_id}
-                                onChange={(e) => setData('unit_id', e.target.value)}
+                                onChange={(value) => setData('unit_id', value)}
+                                options={unitOptions}
+                                placeholder="Search unit"
+                                emptyText="No units found."
                                 error={errors.unit_id}
                                 required
-                            >
-                                <option value="">Select unit</option>
-                                {units.data.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.name} ({u.symbol})
-                                    </option>
-                                ))}
-                            </Select>
+                            />
                             <Input
                                 label="Sell Price"
                                 type="number"

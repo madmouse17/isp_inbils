@@ -46,7 +46,7 @@ class DeterministicAssetProvisioningTest extends TestCase
         $this->assertDatabaseHas('network_asset_installations', ['network_asset_id' => $selectedAsset->id, 'spk_id' => $workOrder->id, 'subscription_id' => $subscription->id]);
     }
 
-    public function test_installation_fails_closed_without_explicit_asset_selection(): void
+    public function test_installation_can_complete_without_network_asset_selection(): void
     {
         [$company, $user, $location, $customer] = $this->scope();
         $product = $this->product($company);
@@ -55,8 +55,11 @@ class DeterministicAssetProvisioningTest extends TestCase
         WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id]);
         $this->evidence($workOrder, $user);
 
-        $this->expectException(HttpException::class);
         SpkService::approve($workOrder);
+
+        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'completed']);
+        $this->assertDatabaseHas('service_subscriptions', ['id' => $subscription->id, 'status' => 'active', 'ont_asset_id' => null]);
+        $this->assertDatabaseMissing('network_asset_installations', ['spk_id' => $workOrder->id]);
     }
 
     public function test_installation_rejects_item_product_from_another_company(): void

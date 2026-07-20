@@ -7,6 +7,8 @@ use App\Http\Requests\Admin\StoreVehicleRequest;
 use App\Http\Requests\Admin\UpdateVehicleRequest;
 use App\Http\Resources\VehicleResource;
 use App\Models\Core\Vehicle;
+use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,7 +21,8 @@ class VehicleController extends Controller
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Vehicle::class);
-        $vehicles = Vehicle::query()->latest()->paginate(15)->withQueryString();
+        $vehicles = Vehicle::query()->latest()->paginate(10)->withQueryString();
+
         return Inertia::render('Admin/Vehicles/Index', [
             'vehicles' => VehicleResource::collection($vehicles),
         ]);
@@ -29,11 +32,12 @@ class VehicleController extends Controller
     {
         Gate::authorize('store', Vehicle::class);
         $data = $request->validated();
-        $data['company_id'] = \App\Services\Core\CompanyService::currentId();
+        $data['company_id'] = CompanyService::currentId();
         DB::transaction(function () use ($data) {
             $vehicle = Vehicle::create($data);
-            \App\Services\Core\AuditService::log('vehicle', 'created', ['plate' => $vehicle->plate_number], $vehicle);
+            AuditService::log('vehicle', 'created', ['plate' => $vehicle->plate_number], $vehicle);
         });
+
         return back()->with('success', 'Vehicle created.');
     }
 
@@ -41,6 +45,7 @@ class VehicleController extends Controller
     {
         Gate::authorize('update', $vehicle);
         $vehicle->update($request->validated());
+
         return back()->with('success', 'Vehicle updated.');
     }
 
@@ -48,6 +53,7 @@ class VehicleController extends Controller
     {
         Gate::authorize('delete', $vehicle);
         $vehicle->delete();
+
         return back()->with('success', 'Vehicle deleted.');
     }
 }

@@ -3,18 +3,22 @@
 namespace Modules\Billing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Billing\Http\Requests\RecordPaymentRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceRequest;
 use Modules\Billing\Http\Requests\UpdateInvoiceRequest;
-use Modules\Billing\Http\Requests\RecordPaymentRequest;
 use Modules\Billing\Http\Resources\InvoiceResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
@@ -36,12 +40,12 @@ class InvoiceController extends Controller
             ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('number', 'like', "%{$v}%")))
             ->latest('issue_date')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Billing/Invoices/Index', [
             'invoices' => InvoiceResource::collection($invoices),
-            'customers' => \App\Http\Resources\CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search']),
             'can' => ['create' => $request->user()?->can('billing.create') ?? false],
         ]);
@@ -52,12 +56,12 @@ class InvoiceController extends Controller
         Gate::authorize('create', Invoice::class);
 
         return Inertia::render('Admin/Billing/Invoices/Create', [
-            'customers' => \App\Http\Resources\CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => \App\Http\Resources\SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
         ]);
     }
 
-    public function generatePreview(Request $request): \Illuminate\Http\JsonResponse
+    public function generatePreview(Request $request): JsonResponse
     {
         Gate::authorize('billing.create');
         $request->validate(['period' => ['required', 'date_format:Y-m']]);
@@ -80,7 +84,7 @@ class InvoiceController extends Controller
         Gate::authorize('store', Invoice::class);
 
         $data = $request->validated();
-        $data['number'] = \App\Services\Core\NumberSequenceService::generate('invoice', 'INV', $request->user()->company_id);
+        $data['number'] = NumberSequenceService::generate('invoice', 'INV', $request->user()->company_id);
         $data['type'] = 'one_time';
         $data['source'] = 'manual';
         $data['status'] = 'draft';
@@ -88,9 +92,9 @@ class InvoiceController extends Controller
         $data['due_date'] = $data['due_date'] ?? now()->addDays(14)->toDateString();
         $data['created_by'] = $request->user()->id;
 
-        $invoice = Invoice::create($data);
+        Invoice::create($data);
 
-        return redirect()->route('admin.invoices.show', $invoice)
+        return redirect()->route('admin.invoices.index')
             ->with('success', 'Invoice created.');
     }
 
@@ -119,7 +123,7 @@ class InvoiceController extends Controller
             'company' => $company,
             'bankInfo' => ($company?->settings ?? [])['bank_account_info'] ?? '',
             'terbilang' => Terbilang::make((float) $invoice->total),
-        ])->download($invoice->number . '.pdf');
+        ])->download($invoice->number.'.pdf');
     }
 
     public function receivables(Request $request): InertiaResponse
@@ -154,7 +158,7 @@ class InvoiceController extends Controller
         $invoice->update($request->validated());
         BillingService::recalculate($invoice);
 
-        return back()->with('success', 'Invoice updated.');
+        return redirect()->route('admin.invoices.index')->with('success', 'Invoice updated.');
     }
 
     public function destroy(Invoice $invoice): RedirectResponse
@@ -173,6 +177,7 @@ class InvoiceController extends Controller
         $this->ensureSameCompany($invoice);
         Gate::authorize('billing.send');
         BillingService::send($invoice);
+
         return back()->with('success', 'Invoice sent.');
     }
 
@@ -210,7 +215,7 @@ class InvoiceController extends Controller
         $request->validate(['work_order_id' => ['required', 'exists:work_orders,id']]);
         $invoice = BillingService::createFromSpk($request->integer('work_order_id'));
 
-        return redirect()->route('admin.invoices.show', $invoice)
+        return redirect()->route('admin.invoices.index')
             ->with('success', 'Invoice created from SPK.');
     }
 
@@ -262,6 +267,6 @@ class InvoiceController extends Controller
 
     private function ensureSameCompany(Invoice $invoice): void
     {
-        abort_unless($invoice->company_id === \App\Services\Core\CompanyService::currentId(), 404);
+        abort_unless($invoice->company_id === CompanyService::currentId(), 404);
     }
 }

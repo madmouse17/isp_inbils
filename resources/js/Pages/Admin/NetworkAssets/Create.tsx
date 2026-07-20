@@ -8,6 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
+    SearchSelect,
     Select,
     Textarea,
 } from '@/Components/ui';
@@ -17,15 +18,25 @@ interface LocRow {
     id: number;
     name: string;
     code: string;
+    path?: string | null;
+}
+
+interface ProductRow {
+    id: number;
+    sku: string;
+    name: string;
+    type: string;
 }
 
 interface CreateProps extends Record<string, unknown> {
     locations: { data: LocRow[] };
+    products: { data: ProductRow[] };
 }
 
-export default function Create({ locations }: CreateProps) {
+export default function Create({ locations, products }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
+        product_id: '',
         asset_type: 'onu_ont',
         serial_number: '',
         mac_address: '',
@@ -40,6 +51,16 @@ export default function Create({ locations }: CreateProps) {
         warranty_expiry: '',
         notes: '',
     });
+    const locationOptions = locations.data.map((location) => ({
+        value: String(location.id),
+        label: `${location.code} - ${location.name}`,
+        description: location.path ?? undefined,
+    }));
+    const productOptions = products.data.map((product) => ({
+        value: String(product.id),
+        label: `${product.sku} - ${product.name}`,
+        description: product.type,
+    }));
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -49,10 +70,7 @@ export default function Create({ locations }: CreateProps) {
     return (
         <AdminLayout title="Create Network Asset">
             <div className="space-y-6">
-                <PageHeader
-                    title="Create Network Asset"
-                    subtitle="Fill required fields, then save."
-                />
+                <PageHeader title="Create Network Asset" subtitle="Fill required fields, then save." />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
@@ -65,6 +83,15 @@ export default function Create({ locations }: CreateProps) {
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
+                            />
+                            <SearchSelect
+                                label="Product"
+                                value={data.product_id}
+                                onChange={(value) => setData('product_id', value)}
+                                options={productOptions}
+                                placeholder="Search product"
+                                emptyText="No active products found."
+                                error={errors.product_id}
                             />
                             <Select
                                 label="Asset Type"
@@ -109,19 +136,16 @@ export default function Create({ locations }: CreateProps) {
                                 onChange={(e) => setData('management_ip', e.target.value)}
                                 error={errors.management_ip}
                             />
-                            <Select
+                            <SearchSelect
                                 label="Location"
                                 value={data.location_id}
-                                onChange={(e) => setData('location_id', e.target.value)}
+                                onChange={(value) => setData('location_id', value)}
+                                options={locationOptions}
+                                placeholder="Search location"
+                                emptyText="No active locations found."
                                 error={errors.location_id}
-                            >
-                                <option value="">None (in storage)</option>
-                                {locations.data.map((l) => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.code} — {l.name}
-                                    </option>
-                                ))}
-                            </Select>
+                                hint="Leave empty if asset is in storage."
+                            />
                             <Select
                                 label="Ownership"
                                 value={data.ownership}

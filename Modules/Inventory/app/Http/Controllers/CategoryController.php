@@ -11,7 +11,9 @@ use Inertia\Response as InertiaResponse;
 use Modules\Inventory\Http\Requests\StoreCategoryRequest;
 use Modules\Inventory\Http\Requests\UpdateCategoryRequest;
 use Modules\Inventory\Http\Resources\CategoryResource;
+use Modules\Inventory\Http\Resources\UnitResource;
 use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Unit;
 
 class CategoryController extends Controller
 {
@@ -20,16 +22,18 @@ class CategoryController extends Controller
         Gate::authorize('viewAny', Category::class);
 
         $categories = Category::query()
+            ->with('unit')
             ->withCount('children')
             ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('name', 'like', "%{$v}%")
                 ->orWhere('code', 'like', "%{$v}%")))
             ->orderBy('name')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Categories/Index', [
             'categories' => CategoryResource::collection($categories),
+            'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
             'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
         ]);
     }
@@ -38,6 +42,7 @@ class CategoryController extends Controller
     {
         Gate::authorize('store', Category::class);
         Category::create($request->validated());
+
         return back()->with('success', 'Category created.');
     }
 
@@ -45,6 +50,7 @@ class CategoryController extends Controller
     {
         Gate::authorize('update', $category);
         $category->update($request->validated());
+
         return back()->with('success', 'Category updated.');
     }
 
@@ -57,6 +63,7 @@ class CategoryController extends Controller
         }
 
         $category->delete();
+
         return back()->with('success', 'Category deleted.');
     }
 }

@@ -29,7 +29,7 @@ class SubscriptionController extends Controller
         return Inertia::render('Admin/Subscriptions/Index', [
             'customer' => $customer->only(['id', 'code', 'name']),
             'subscriptions' => SubscriptionResource::collection(
-                $customer->subscriptions()->with(['servicePackage', 'installationAddress', 'servingPop'])->latest()->get()
+                $customer->subscriptions()->with(['servicePackage', 'installationAddress', 'servingPop'])->latest()->paginate(10)->withQueryString()
             ),
             'packages' => ServicePackageResource::collection(ServicePackage::query()->where('is_active', true)->orderBy('name')->get()),
             'addresses' => CustomerAddressResource::collection($customer->addresses()->latest()->get()),
@@ -44,9 +44,9 @@ class SubscriptionController extends Controller
         $data = $request->validated();
         $data['customer_id'] = $customer->id;
 
-        $subscription = SubscriptionService::create($data);
+        SubscriptionService::create($data);
 
-        return redirect()->route('admin.subscriptions.show', $subscription)
+        return redirect()->route('admin.customers.subscriptions.index', $customer)
             ->with('success', 'Subscription created.');
     }
 

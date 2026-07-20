@@ -2,8 +2,12 @@
 
 namespace Modules\NetworkAsset\Http\Resources;
 
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationResource;
+use App\Http\Resources\SubscriptionResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Inventory\Http\Resources\ProductResource;
 
 class NetworkAssetResource extends JsonResource
 {
@@ -12,6 +16,7 @@ class NetworkAssetResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'product_id' => $this->product_id,
             'code' => $this->code,
             'name' => $this->name,
             'asset_type' => $this->asset_type,
@@ -32,9 +37,10 @@ class NetworkAssetResource extends JsonResource
             'notes' => $this->notes,
             'installed_at' => $this->installed_at,
             'retired_at' => $this->retired_at,
-            'location' => new \App\Http\Resources\LocationResource($this->whenLoaded('location')),
-            'customer' => new \App\Http\Resources\CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new \App\Http\Resources\SubscriptionResource($this->whenLoaded('subscription')),
+            'product' => new ProductResource($this->whenLoaded('product')),
+            'location' => new LocationResource($this->whenLoaded('location')),
+            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'installations' => NetworkAssetInstallationResource::collection($this->whenLoaded('installations')),
         ];
     }

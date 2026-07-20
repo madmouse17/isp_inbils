@@ -1,10 +1,12 @@
 export interface Category {
     id: number;
     parent_id?: number | null;
+    unit_id?: number | null;
     name: string;
     code: string;
     description?: string | null;
     is_active: boolean;
+    unit?: Unit | null;
     children_count?: number;
 }
 

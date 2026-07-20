@@ -24,6 +24,9 @@ class CustomerResource extends JsonResource
             'is_active' => $this->is_active,
             'addresses_count' => $this->whenCounted('addresses'),
             'subscriptions_count' => $this->whenCounted('subscriptions'),
+            'addresses' => CustomerAddressResource::collection($this->whenLoaded('addresses')),
+            'contacts' => CustomerContactResource::collection($this->whenLoaded('contacts')),
+            'subscriptions' => SubscriptionResource::collection($this->whenLoaded('subscriptions')),
             'created_at' => $this->created_at,
         ];
     }

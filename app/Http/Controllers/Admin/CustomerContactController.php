@@ -10,7 +10,6 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerContact;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,7 +24,7 @@ class CustomerContactController extends Controller
 
         return Inertia::render('Admin/CustomerContacts/Index', [
             'customer' => $customer->only(['id', 'code', 'name']),
-            'contacts' => CustomerContactResource::collection($customer->contacts()->latest()->get()),
+            'contacts' => CustomerContactResource::collection($customer->contacts()->latest()->paginate(10)->withQueryString()),
         ]);
     }
 

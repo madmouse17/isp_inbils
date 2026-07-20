@@ -6,14 +6,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEvaluationRequest;
 use App\Http\Requests\Admin\UpdateEvaluationRequest;
 use App\Http\Resources\EmployeeEvaluationResource;
+use App\Http\Resources\UserResource;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\User;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 
 class EvaluationController extends Controller
 {
@@ -27,7 +31,7 @@ class EvaluationController extends Controller
             ->when($request->input('reference_type'), fn ($q, $v) => $q->where('reference_type', $v))
             ->when($request->input('search'), fn ($q, $v) => $q->whereHas('employee', fn ($sq) => $sq->where('name', 'like', "%{$v}%")))
             ->latest('evaluated_at')
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         // Technician sees only own
@@ -37,7 +41,7 @@ class EvaluationController extends Controller
 
         return Inertia::render('Admin/Evaluations/Index', [
             'evaluations' => EmployeeEvaluationResource::collection($evals),
-            'employees' => \App\Http\Resources\UserResource::collection(
+            'employees' => UserResource::collection(
                 User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['technician', 'staff', 'noc']))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
@@ -51,7 +55,7 @@ class EvaluationController extends Controller
         Gate::authorize('create', EmployeeEvaluation::class);
 
         return Inertia::render('Admin/Evaluations/Create', [
-            'employees' => \App\Http\Resources\UserResource::collection(
+            'employees' => UserResource::collection(
                 User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['technician', 'staff', 'noc']))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
@@ -68,8 +72,8 @@ class EvaluationController extends Controller
 
         // Snapshot FRT/resolution from reference
         if ($data['reference_type'] === 'Ticket') {
-            $ticket = \Modules\Ticketing\Models\Ticket::find($data['reference_id']);
-            if (!$ticket) {
+            $ticket = Ticket::find($data['reference_id']);
+            if (! $ticket) {
                 return back()->withErrors(['reference_id' => 'Ticket not found.'])->withInput();
             }
             if ($ticket->first_response_at) {
@@ -79,8 +83,8 @@ class EvaluationController extends Controller
                 $data['resolution_minutes'] = $ticket->created_at->diffInMinutes($ticket->resolved_at);
             }
         } elseif ($data['reference_type'] === 'WorkOrder') {
-            $wo = \Modules\SPK\Models\WorkOrder::find($data['reference_id']);
-            if (!$wo) {
+            $wo = WorkOrder::find($data['reference_id']);
+            if (! $wo) {
                 return back()->withErrors(['reference_id' => 'WorkOrder not found.'])->withInput();
             }
             if ($wo->started_at && $wo->completed_at) {
@@ -92,7 +96,7 @@ class EvaluationController extends Controller
 
         AuditService::log('employee_evaluation', 'created', ['id' => $eval->id], $eval);
 
-        return redirect()->route('admin.evaluations.show', $eval)
+        return redirect()->route('admin.evaluations.index')
             ->with('success', 'Evaluation created.');
     }
 
@@ -127,7 +131,8 @@ class EvaluationController extends Controller
 
         AuditService::log('employee_evaluation', 'updated', ['id' => $evaluation->id], $evaluation);
 
-        return back()->with('success', 'Evaluation updated.');
+        return redirect()->route('admin.evaluations.index')
+            ->with('success', 'Evaluation updated.');
     }
 
     public function destroy(EmployeeEvaluation $evaluation): RedirectResponse
@@ -144,6 +149,6 @@ class EvaluationController extends Controller
 
     private function ensureSameCompany(EmployeeEvaluation $evaluation): void
     {
-        abort_unless($evaluation->company_id === \App\Services\Core\CompanyService::currentId(), 404);
+        abort_unless($evaluation->company_id === CompanyService::currentId(), 404);
     }
 }

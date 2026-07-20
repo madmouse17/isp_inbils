@@ -1,8 +1,14 @@
 import { usePage } from '@inertiajs/react';
-import type { PageProps } from '@/types';
+import type { Company, PageProps } from '@/types';
 
-export function useCompany() {
-    const { company } = usePage<PageProps>().props;
+type CompanyProp = Company | { data: Company } | null;
 
-    return company;
+export function useCompany(): Company | null {
+    const { company } = usePage<PageProps & { company?: CompanyProp }>().props;
+
+    if (company && 'data' in company) {
+        return company.data;
+    }
+
+    return company ?? null;
 }

@@ -18,7 +18,7 @@ class PermissionController extends Controller
 
         return Inertia::render('Admin/Permissions/Index', [
             'permissions' => PermissionResource::collection(
-                Permission::query()->orderBy('name')->paginate(15)->withQueryString()
+                Permission::query()->orderBy('name')->paginate(10)->withQueryString()
             ),
         ]);
     }

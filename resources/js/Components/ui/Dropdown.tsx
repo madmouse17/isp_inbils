@@ -38,30 +38,32 @@ interface DropdownItemProps {
 
 export function DropdownItem({
     onClick,
-    href = '#',
+    href,
     disabled,
     destructive,
     children,
     className,
 }: DropdownItemProps) {
+    const classes = cn(
+        'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+        destructive
+            ? 'text-destructive hover:bg-destructive/10'
+            : 'text-foreground hover:bg-accent hover:text-accent-foreground',
+        disabled && 'cursor-not-allowed opacity-40',
+        className,
+    );
+
     return (
         <MenuItem>
-            <Button
-                as="a"
-                href={href}
-                onClick={onClick}
-                disabled={disabled}
-                className={cn(
-                    'flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                    destructive
-                        ? 'text-destructive hover:bg-destructive/10'
-                        : 'text-foreground hover:bg-accent hover:text-accent-foreground',
-                    disabled && 'cursor-not-allowed opacity-40',
-                    className,
-                )}
-            >
-                {children}
-            </Button>
+            {href ? (
+                <Button as="a" href={href} onClick={onClick} disabled={disabled} className={classes}>
+                    {children}
+                </Button>
+            ) : (
+                <Button type="button" onClick={onClick} disabled={disabled} className={classes}>
+                    {children}
+                </Button>
+            )}
         </MenuItem>
     );
 }

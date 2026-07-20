@@ -46,7 +46,7 @@ class TicketController extends Controller
                 ->where('code', 'like', "%{$v}%")
                 ->orWhere('title', 'like', "%{$v}%")))
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Tickets/Index', [
@@ -90,9 +90,9 @@ class TicketController extends Controller
         }
         $data['sla_deadline'] = now()->addHours($slaHours);
 
-        $ticket = Ticket::create($data);
+        Ticket::create($data);
 
-        return redirect()->route('admin.tickets.show', $ticket)
+        return redirect()->route('admin.tickets.index')
             ->with('success', 'Ticket created.');
     }
 
@@ -130,7 +130,7 @@ class TicketController extends Controller
 
         $ticket->update($request->validated());
 
-        return back()->with('success', 'Ticket updated.');
+        return redirect()->route('admin.tickets.index')->with('success', 'Ticket updated.');
     }
 
     public function destroy(Ticket $ticket): RedirectResponse
@@ -189,9 +189,9 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.spawn_spk');
 
-        $wo = TicketService::spawnSpk($ticket);
+        TicketService::spawnSpk($ticket);
 
-        return redirect()->route('admin.spk.show', $wo)
+        return redirect()->route('admin.spk.index')
             ->with('success', 'SPK spawned from ticket.');
     }
 

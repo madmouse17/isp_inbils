@@ -12,6 +12,7 @@ import {
     FileUpload,
     Input,
     Modal,
+    SearchSelect,
     Table,
     TBody,
     TD,
@@ -46,7 +47,7 @@ interface WoData {
         quantity_reserved: string;
         quantity_used: string;
         note?: string | null;
-        product?: { sku: string; name: string } | null;
+        product?: { sku: string; name: string; unit?: { name: string; symbol: string } | null } | null;
     }[];
     assignments?: {
         id: number;
@@ -65,9 +66,30 @@ interface WoData {
 
 interface ShowProps extends Record<string, unknown> {
     workOrder: { data: WoData };
+    technicians: { data: TechRow[] };
+    products: { data: ProductRow[] };
 }
 
-export default function Show({ workOrder }: ShowProps) {
+interface TechRow {
+    id: number;
+    user_id: number;
+    employee_number: string;
+    phone?: string | null;
+    name: string;
+    user?: { name: string; email: string } | null;
+    organization?: { name: string; code: string } | null;
+}
+
+interface ProductRow {
+    id: number;
+    sku: string;
+    name: string;
+    type: string;
+    unit?: { name: string; symbol: string } | null;
+    category?: { name: string } | null;
+}
+
+export default function Show({ workOrder, technicians, products }: ShowProps) {
     const w = workOrder.data;
     const { toast } = useToast();
     const [actionModal, setActionModal] = useState<
@@ -83,18 +105,60 @@ export default function Show({ workOrder }: ShowProps) {
     >(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
     const [evidenceCaption, setEvidenceCaption] = useState('');
-    const { data, setData, post, processing } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         technician_id: '',
         reason: '',
         product_id: '',
         quantity_reserved: '',
+        quantity_used: '',
         note: '',
     });
+    const technicianOptions = technicians.data.map((technician) => ({
+        value: String(technician.user_id),
+        label: technician.user?.name ?? technician.name,
+        description: [
+            technician.employee_number,
+            technician.organization?.name,
+            technician.phone,
+        ]
+            .filter(Boolean)
+            .join(' - '),
+    }));
+    const productOptions = products.data.map((product) => ({
+        value: String(product.id),
+        label: `${product.sku} - ${product.name}${
+            product.unit ? ` (${product.unit.symbol})` : ''
+        }`,
+        description: [
+            product.category?.name,
+            product.type,
+            product.unit ? `Unit: ${product.unit.name}` : null,
+        ]
+            .filter(Boolean)
+            .join(' - '),
+    }));
+    const selectedProduct = products.data.find((product) => String(product.id) === data.product_id);
+    const selectedUnit = selectedProduct?.unit
+        ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
+        : null;
 
     const doAction = (e: FormEvent) => {
         e.preventDefault();
         if (!actionModal) return;
-        post(route(`admin.spk.${actionModal}`, w.id), { onSuccess: () => setActionModal(null) });
+
+        const actionUrl =
+            actionModal === 'addItem'
+                ? route('admin.spk.items.store', w.id)
+                : route(`admin.spk.${actionModal}`, w.id);
+
+        post(actionUrl, {
+            onSuccess: () => {
+                if (actionModal === 'addItem') {
+                    reset('product_id', 'quantity_reserved', 'quantity_used', 'note');
+                }
+                setActionModal(null);
+            },
+        });
     };
 
     const uploadEvidence = (e: FormEvent) => {
@@ -295,14 +359,24 @@ export default function Show({ workOrder }: ShowProps) {
                 </div>
 
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex-row items-center justify-between space-y-0">
                         <CardTitle>Items</CardTitle>
+                        {!['completed', 'cancelled'].includes(w.status) && (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setActionModal('addItem')}
+                            >
+                                Add Item
+                            </Button>
+                        )}
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
                                     <TH>Product</TH>
+                                    <TH>Unit</TH>
                                     <TH>Reserved</TH>
                                     <TH>Used</TH>
                                     <TH>Note</TH>
@@ -311,14 +385,15 @@ export default function Show({ workOrder }: ShowProps) {
                             <TBody>
                                 {(w.items ?? []).length === 0 ? (
                                     <TR>
-                                        <TD colSpan={4} className="text-center text-surface-500">
+                                        <TD colSpan={5} className="text-center text-surface-500">
                                             No items.
                                         </TD>
                                     </TR>
                                 ) : (
                                     (w.items ?? []).map((i) => (
                                         <TR key={i.id}>
-                                            <TD>{i.product?.name ?? `#${i.product_id}`}</TD>
+                                            <TD>{i.product ? `${i.product.sku} - ${i.product.name}` : `#${i.product_id}`}</TD>
+                                            <TD>{i.product?.unit?.symbol ?? i.product?.unit?.name ?? '-'}</TD>
                                             <TD>{i.quantity_reserved}</TD>
                                             <TD>{i.quantity_used}</TD>
                                             <TD>{i.note ?? '-'}</TD>
@@ -428,10 +503,13 @@ export default function Show({ workOrder }: ShowProps) {
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         {actionModal === 'assign' && (
-                            <Input
-                                label="Technician ID"
+                            <SearchSelect
+                                label="Technician"
                                 value={data.technician_id}
-                                onChange={(e) => setData('technician_id', e.target.value)}
+                                onChange={(value) => setData('technician_id', value)}
+                                options={technicianOptions}
+                                placeholder="Search technician employee"
+                                emptyText="No technician employees found."
                                 required
                             />
                         )}
@@ -445,23 +523,45 @@ export default function Show({ workOrder }: ShowProps) {
                         )}
                         {actionModal === 'addItem' && (
                             <>
-                                <Input
-                                    label="Product ID"
+                                <SearchSelect
+                                    label="Product"
                                     value={data.product_id}
-                                    onChange={(e) => setData('product_id', e.target.value)}
+                                    onChange={(value) => setData('product_id', value)}
+                                    options={productOptions}
+                                    placeholder="Search product"
+                                    emptyText="No active products found."
+                                    error={errors.product_id}
                                     required
                                 />
                                 <Input
-                                    label="Quantity Reserved"
+                                    label={
+                                        selectedUnit
+                                            ? `Quantity Reserved - ${selectedUnit}`
+                                            : 'Quantity Reserved'
+                                    }
                                     type="number"
                                     step="0.01"
                                     value={data.quantity_reserved}
                                     onChange={(e) => setData('quantity_reserved', e.target.value)}
+                                    error={errors.quantity_reserved}
+                                />
+                                <Input
+                                    label={
+                                        selectedUnit
+                                            ? `Quantity Used - ${selectedUnit}`
+                                            : 'Quantity Used'
+                                    }
+                                    type="number"
+                                    step="0.01"
+                                    value={data.quantity_used}
+                                    onChange={(e) => setData('quantity_used', e.target.value)}
+                                    error={errors.quantity_used}
                                 />
                                 <Input
                                     label="Note"
                                     value={data.note}
                                     onChange={(e) => setData('note', e.target.value)}
+                                    error={errors.note}
                                 />
                             </>
                         )}

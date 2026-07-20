@@ -2,6 +2,7 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,10 +17,11 @@ class UpdateNetworkAssetRequest extends FormRequest
     public function rules(): array
     {
         $assetId = $this->route('network_asset')->id ?? $this->route('asset')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             'name' => ['required', 'string', 'max:255'],
+            'product_id' => ['nullable', Rule::exists('products', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'asset_type' => ['required', 'string', 'in:router,switch,olt,onu_ont,radio,antenna,fiber,odp,odc,rack,power,other'],
             'serial_number' => ['nullable', 'string', 'max:255', Rule::unique('network_assets')->where('company_id', $companyId)->ignore($assetId)],
             'mac_address' => ['nullable', 'string', 'max:255'],

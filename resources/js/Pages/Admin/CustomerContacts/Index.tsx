@@ -18,12 +18,13 @@ import {
     THead,
     TR,
     Modal,
+    Pagination,
 } from '@/Components/ui';
 import type { CustomerContact } from '@/types/models';
 
 interface ContactProps {
     customer: { id: number; code: string; name: string };
-    contacts: { data: CustomerContact[] };
+    contacts: { data: CustomerContact[]; current_page: number; last_page: number };
 }
 
 export default function Index({ customer, contacts }: ContactProps) {
@@ -160,6 +161,13 @@ export default function Index({ customer, contacts }: ContactProps) {
                                 )}
                             </TBody>
                         </Table>
+                        <Pagination
+                            currentPage={contacts.current_page}
+                            lastPage={contacts.last_page}
+                            onPageChange={(page) =>
+                                router.get(route('admin.customers.contacts.index', customer.id), { page })
+                            }
+                        />
                     </CardContent>
                 </Card>
 

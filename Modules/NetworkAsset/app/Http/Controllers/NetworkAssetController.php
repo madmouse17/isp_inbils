@@ -3,14 +3,17 @@
 namespace Modules\NetworkAsset\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Models\Core\Customer;
+use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
-use App\Models\Core\ServiceSubscription;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Inventory\Http\Resources\ProductResource;
+use Modules\Inventory\Models\Product;
 use Modules\NetworkAsset\Http\Requests\StoreNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
@@ -35,12 +38,12 @@ class NetworkAssetController extends Controller
                 ->orWhere('code', 'like', "%{$v}%")
                 ->orWhere('name', 'like', "%{$v}%")))
             ->latest()
-            ->paginate(15)
+            ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/NetworkAssets/Index', [
             'assets' => NetworkAssetResource::collection($assets),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
             'filters' => $request->only(['asset_type', 'status', 'location_id', 'search']),
             'can' => ['create' => $request->user()?->can('network_asset.create') ?? false],
         ]);
@@ -51,7 +54,8 @@ class NetworkAssetController extends Controller
         Gate::authorize('create', NetworkAsset::class);
 
         return Inertia::render('Admin/NetworkAssets/Create', [
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
         ]);
     }
 
@@ -65,16 +69,17 @@ class NetworkAssetController extends Controller
 
         NetworkAsset::create($data);
 
-        return back()->with('success', 'Network asset created.');
+        return redirect()->route('admin.network-assets.index')->with('success', 'Network asset created.');
     }
 
     public function show(NetworkAsset $asset): InertiaResponse
     {
         Gate::authorize('view', $asset);
-        $asset->load(['location', 'customer', 'subscription', 'installations.location']);
+        $asset->load(['product', 'location', 'customer', 'subscription', 'installations.location']);
 
         return Inertia::render('Admin/NetworkAssets/Show', [
             'asset' => new NetworkAssetResource($asset),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
         ]);
     }
 
@@ -85,7 +90,8 @@ class NetworkAssetController extends Controller
 
         return Inertia::render('Admin/NetworkAssets/Edit', [
             'asset' => new NetworkAssetResource($asset),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
         ]);
     }
 
@@ -98,7 +104,7 @@ class NetworkAssetController extends Controller
 
         $asset->update($data);
 
-        return back()->with('success', 'Network asset updated.');
+        return redirect()->route('admin.network-assets.index')->with('success', 'Network asset updated.');
     }
 
     public function destroy(NetworkAsset $asset): RedirectResponse
@@ -117,7 +123,7 @@ class NetworkAssetController extends Controller
         Gate::authorize('network_asset.install');
 
         $request->validate([
-            'location_id' => ['required', 'exists:locations,id'],
+            'location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', CompanyService::currentId())],
             'customer_id' => ['nullable', 'exists:customers,id'],
             'subscription_id' => ['nullable', 'exists:service_subscriptions,id'],
             'spk_id' => ['nullable', 'integer'],

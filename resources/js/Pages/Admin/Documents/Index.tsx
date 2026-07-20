@@ -17,6 +17,7 @@ import {
     THead,
     TR,
     Modal,
+    Pagination,
 } from '@/Components/ui';
 
 interface DtRow {
@@ -30,7 +31,7 @@ interface DtRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    documentTypes: { data: DtRow[] };
+    documentTypes: { data: DtRow[]; current_page: number; last_page: number };
 }
 
 export default function Index({ documentTypes }: IndexProps) {
@@ -153,6 +154,11 @@ export default function Index({ documentTypes }: IndexProps) {
                                 )}
                             </TBody>
                         </Table>
+                        <Pagination
+                            currentPage={documentTypes.current_page}
+                            lastPage={documentTypes.last_page}
+                            onPageChange={(page) => router.get(route('admin.documents.index'), { page })}
+                        />
                     </CardContent>
                 </Card>
                 <Modal
