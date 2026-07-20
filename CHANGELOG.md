@@ -6,6 +6,21 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — t_25cf4d0b: deterministic PHP test topology (2026-07-15)
+
+- Added a PHPUnit Modules suite plus focused topology regression so root and module tests are discovered by default.
+- Re-included readiness evidence documents after the repository-wide `docs/*` ignore rule and recorded dirty-tree inventory plus shared-DB verification boundary.
+
+### Fixed — t_f519540a: P0 QA critical fixes (2026-07-14)
+
+- Added scoped E2E coverage for the missing Ziggy registration-route regression with Chromium Playwright harness, destructive guard plus isolated built-assets lifecycle, and browser journeys including stock receive and network asset related navigation.
+- Disabled public registration and locked stock access behind seeded permissions.
+- Hardened stock integrity with non-negative quantities, reservation bounds, and scoped idempotency.
+- Locked payment reconciliation with per-company reference uniqueness.
+- Enforced tenant boundaries for admin routes and component gallery access.
+- Orchestrated SPK completion across stock, asset, subscription, and invoice updates.
+- Fixed subscription code generation to use current company context and keep codes tenant-scoped.
+
 ### Changed — t_4e61368f: permissions paging and grouped role permissions (2026-07-09)
 
 - Paginated admin permissions server-side while keeping permission group metadata.

@@ -25,11 +25,13 @@ export function Pagination({ currentPage, lastPage, onPageChange, className }: P
             </button>
             {pages.map((p, i) =>
                 p === '...' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">...</span>
+                    <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">
+                        ...
+                    </span>
                 ) : (
                     <button
                         key={p}
-                        onClick={() => onPageChange(p as number)}
+                        onClick={() => onPageChange(p)}
                         aria-current={p === currentPage ? 'page' : undefined}
                         className={cn(
                             'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium',

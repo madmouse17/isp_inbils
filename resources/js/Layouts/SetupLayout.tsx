@@ -8,15 +8,15 @@ interface SetupLayoutProps {
 }
 
 export default function SetupLayout({ title = 'Setup', children }: SetupLayoutProps) {
-    const [darkMode, setDarkMode] = useState(false);
+    const [darkMode, setDarkMode] = useState(
+        () =>
+            localStorage.getItem('darkMode') === 'true' ||
+            window.matchMedia('(prefers-color-scheme: dark)').matches,
+    );
 
     useEffect(() => {
-        const stored = localStorage.getItem('darkMode') === 'true';
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        const enabled = stored || prefersDark;
-        setDarkMode(enabled);
-        document.documentElement.classList.toggle('dark', enabled);
-    }, []);
+        document.documentElement.classList.toggle('dark', darkMode);
+    }, [darkMode]);
 
     const toggleDark = () => {
         const enabled = !darkMode;

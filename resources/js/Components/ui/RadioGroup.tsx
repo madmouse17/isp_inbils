@@ -22,9 +22,7 @@ export function RadioGroup({ name, value, onChange, label, children, className }
     return (
         <RadioContext.Provider value={{ name, value, onChange }}>
             <fieldset className={cn('space-y-2', className)} role="radiogroup" aria-label={label}>
-                {label && (
-                    <legend className="text-sm font-medium text-foreground">{label}</legend>
-                )}
+                {label && <legend className="text-sm font-medium text-foreground">{label}</legend>}
                 {children}
             </fieldset>
         </RadioContext.Provider>
@@ -60,7 +58,10 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
                 {(label || description) && (
                     <div>
                         {label && (
-                            <label htmlFor={inputId} className="text-sm font-medium text-foreground">
+                            <label
+                                htmlFor={inputId}
+                                className="text-sm font-medium text-foreground"
+                            >
                                 {label}
                             </label>
                         )}

@@ -122,8 +122,8 @@ class SubscriptionController extends Controller
         return back()->with('success', 'Subscription terminated.');
     }
 
-    private function ensureSameCompany(ServiceSubscription $subscription): void
+    private function ensureSameCompany(Customer|ServiceSubscription $model): void
     {
-        abort_unless($subscription->company_id === CompanyService::currentId(), 404);
+        abort_unless($model->company_id === CompanyService::currentId(), 404);
     }
 }

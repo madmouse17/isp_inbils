@@ -1,5 +1,17 @@
 export type NetworkAssetStatus = 'available' | 'installed' | 'maintenance' | 'damaged' | 'retired';
-export type NetworkAssetType = 'router' | 'switch' | 'olt' | 'onu_ont' | 'radio' | 'antenna' | 'fiber' | 'odp' | 'odc' | 'rack' | 'power' | 'other';
+export type NetworkAssetType =
+    | 'router'
+    | 'switch'
+    | 'olt'
+    | 'onu_ont'
+    | 'radio'
+    | 'antenna'
+    | 'fiber'
+    | 'odp'
+    | 'odc'
+    | 'rack'
+    | 'power'
+    | 'other';
 export type NetworkAssetOwnership = 'owned' | 'leased' | 'customer_provided';
 
 export interface NetworkAssetInstallation {

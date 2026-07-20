@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+return new class() extends Migration
 {
     public function up(): void
     {
@@ -15,6 +15,7 @@ return new class extends Migration
             $table->decimal('amount', 15, 2);
             $table->string('method');
             $table->string('reference')->nullable();
+            $table->string('active_reference')->nullable()->storedAs('case when `cancelled_at` is null then `reference` else null end');
             $table->timestamp('paid_at');
             $table->foreignId('received_by')->constrained('users')->restrictOnDelete();
             $table->text('notes')->nullable();
@@ -24,6 +25,7 @@ return new class extends Migration
 
             $table->index(['company_id', 'invoice_id']);
             $table->index(['company_id', 'paid_at']);
+            $table->unique(['company_id', 'active_reference']);
         });
     }
 

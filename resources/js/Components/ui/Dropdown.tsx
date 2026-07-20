@@ -36,7 +36,14 @@ interface DropdownItemProps {
     className?: string;
 }
 
-export function DropdownItem({ onClick, href = '#', disabled, destructive, children, className }: DropdownItemProps) {
+export function DropdownItem({
+    onClick,
+    href = '#',
+    disabled,
+    destructive,
+    children,
+    className,
+}: DropdownItemProps) {
     return (
         <MenuItem>
             <Button
@@ -49,7 +56,7 @@ export function DropdownItem({ onClick, href = '#', disabled, destructive, child
                     destructive
                         ? 'text-destructive hover:bg-destructive/10'
                         : 'text-foreground hover:bg-accent hover:text-accent-foreground',
-                    disabled && 'opacity-40 cursor-not-allowed',
+                    disabled && 'cursor-not-allowed opacity-40',
                     className,
                 )}
             >

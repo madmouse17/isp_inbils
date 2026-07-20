@@ -60,6 +60,17 @@ class BelongsToCompanyTraitTest extends TestCase
         $this->assertSame(['A', 'B'], TenantTestModel::withoutCompany()->orderBy('name')->pluck('name')->all());
     }
 
+    public function test_for_company_bypasses_scope_only_for_explicit_company(): void
+    {
+        [$companyA, $companyB] = $this->companies();
+        TenantTestModel::query()->create(['company_id' => $companyA->id, 'name' => 'A']);
+        TenantTestModel::query()->create(['company_id' => $companyB->id, 'name' => 'B']);
+
+        $this->actingAs(User::factory()->create(['company_id' => $companyA->id]));
+
+        $this->assertSame(['B'], TenantTestModel::forCompany($companyB->id)->pluck('name')->all());
+    }
+
     public function test_no_filter_when_current_company_is_null(): void
     {
         [$companyA, $companyB] = $this->companies();

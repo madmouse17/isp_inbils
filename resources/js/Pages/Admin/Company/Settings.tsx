@@ -1,7 +1,16 @@
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardFooter, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+    Input,
+    Switch,
+} from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 
 type SettingValue = string | number | boolean;
@@ -22,7 +31,8 @@ export default function Settings({ settings, defaults, can }: SettingsProps) {
         put(route('admin.company.settings.update'));
     };
 
-    const setSetting = (key: string, value: SettingValue) => setData('settings', { ...data.settings, [key]: value });
+    const setSetting = (key: string, value: SettingValue) =>
+        setData('settings', { ...data.settings, [key]: value });
 
     return (
         <AdminLayout title="Company Settings">
@@ -30,7 +40,14 @@ export default function Settings({ settings, defaults, can }: SettingsProps) {
                 <PageHeader
                     title="Company Settings"
                     subtitle={`Company-specific config. Defaults: ${Object.keys(defaults).join(', ')}`}
-                    actions={<Link href={route('admin.company.profile.edit')} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Profile</Link>}
+                    actions={
+                        <Link
+                            href={route('admin.company.profile.edit')}
+                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                        >
+                            Profile
+                        </Link>
+                    }
                 />
 
                 <form onSubmit={submit}>
@@ -42,7 +59,15 @@ export default function Settings({ settings, defaults, can }: SettingsProps) {
                             {keys.map((key) => {
                                 const value = data.settings[key];
                                 if (typeof value === 'boolean') {
-                                    return <Switch key={key} label={key} checked={value} disabled={!can.update} onCheckedChange={(checked) => setSetting(key, checked)} />;
+                                    return (
+                                        <Switch
+                                            key={key}
+                                            label={key}
+                                            checked={value}
+                                            disabled={!can.update}
+                                            onCheckedChange={(checked) => setSetting(key, checked)}
+                                        />
+                                    );
                                 }
 
                                 return (
@@ -51,7 +76,14 @@ export default function Settings({ settings, defaults, can }: SettingsProps) {
                                         label={key}
                                         type={typeof value === 'number' ? 'number' : 'text'}
                                         value={String(value ?? '')}
-                                        onChange={(e) => setSetting(key, typeof value === 'number' ? Number(e.target.value) : e.target.value)}
+                                        onChange={(e) =>
+                                            setSetting(
+                                                key,
+                                                typeof value === 'number'
+                                                    ? Number(e.target.value)
+                                                    : e.target.value,
+                                            )
+                                        }
                                         error={settingErrors[`settings.${key}`]}
                                         disabled={!can.update}
                                     />
@@ -60,7 +92,9 @@ export default function Settings({ settings, defaults, can }: SettingsProps) {
                         </CardContent>
                         {can.update && (
                             <CardFooter className="justify-end">
-                                <Button type="submit" loading={processing}>Save Settings</Button>
+                                <Button type="submit" loading={processing}>
+                                    Save Settings
+                                </Button>
                             </CardFooter>
                         )}
                     </Card>

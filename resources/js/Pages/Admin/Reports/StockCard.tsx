@@ -1,4 +1,5 @@
-import { FormEvent, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
@@ -6,7 +7,16 @@ import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } fro
 
 interface StockData extends Record<string, unknown> {
     product_id?: number;
-    movements?: { id: number; movement_type: string; quantity: string; balance_after: string; from_location?: string | null; to_location?: string | null; note?: string | null; created_at: string }[];
+    movements?: {
+        id: number;
+        movement_type: string;
+        quantity: string;
+        balance_after: string;
+        from_location?: string | null;
+        to_location?: string | null;
+        note?: string | null;
+        created_at: string;
+    }[];
 }
 
 interface Props extends Record<string, unknown> {
@@ -21,7 +31,11 @@ export default function StockCard({ data, filters }: Props) {
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('admin.reports.stock-card'), { product_id: productId, date_from: dateFrom, date_to: dateTo }, { preserveState: true });
+        router.get(
+            route('admin.reports.stock-card'),
+            { product_id: productId, date_from: dateFrom, date_to: dateTo },
+            { preserveState: true },
+        );
     };
 
     return (
@@ -31,24 +45,65 @@ export default function StockCard({ data, filters }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input label="Product ID" type="number" value={productId} onChange={(e) => setProductId(e.target.value)} required />
-                            <Input label="From" type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-                            <Input label="To" type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-                            <div className="self-end"><Button type="submit">Run</Button></div>
+                            <Input
+                                label="Product ID"
+                                type="number"
+                                value={productId}
+                                onChange={(e) => setProductId(e.target.value)}
+                                required
+                            />
+                            <Input
+                                label="From"
+                                type="date"
+                                value={dateFrom}
+                                onChange={(e) => setDateFrom(e.target.value)}
+                            />
+                            <Input
+                                label="To"
+                                type="date"
+                                value={dateTo}
+                                onChange={(e) => setDateTo(e.target.value)}
+                            />
+                            <div className="self-end">
+                                <Button type="submit">Run</Button>
+                            </div>
                         </form>
                         {data?.movements && (
                             <Table>
-                                <THead><TR><TH>Type</TH><TH>Qty</TH><TH>Balance</TH><TH>From</TH><TH>To</TH><TH>Note</TH><TH>Date</TH></TR></THead>
+                                <THead>
+                                    <TR>
+                                        <TH>Type</TH>
+                                        <TH>Qty</TH>
+                                        <TH>Balance</TH>
+                                        <TH>From</TH>
+                                        <TH>To</TH>
+                                        <TH>Note</TH>
+                                        <TH>Date</TH>
+                                    </TR>
+                                </THead>
                                 <TBody>
                                     {data.movements.length === 0 ? (
-                                        <TR><TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD></TR>
-                                    ) : data.movements.map((m) => (
-                                        <TR key={m.id}>
-                                            <TD>{m.movement_type}</TD><TD>{m.quantity}</TD><TD>{m.balance_after}</TD>
-                                            <TD>{m.from_location ?? '-'}</TD><TD>{m.to_location ?? '-'}</TD>
-                                            <TD>{m.note ?? '-'}</TD><TD className="text-sm">{m.created_at}</TD>
+                                        <TR>
+                                            <TD
+                                                colSpan={7}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No data found.
+                                            </TD>
                                         </TR>
-                                    ))}
+                                    ) : (
+                                        data.movements.map((m) => (
+                                            <TR key={m.id}>
+                                                <TD>{m.movement_type}</TD>
+                                                <TD>{m.quantity}</TD>
+                                                <TD>{m.balance_after}</TD>
+                                                <TD>{m.from_location ?? '-'}</TD>
+                                                <TD>{m.to_location ?? '-'}</TD>
+                                                <TD>{m.note ?? '-'}</TD>
+                                                <TD className="text-sm">{m.created_at}</TD>
+                                            </TR>
+                                        ))
+                                    )}
                                 </TBody>
                             </Table>
                         )}

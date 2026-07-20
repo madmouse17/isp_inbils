@@ -9,7 +9,12 @@ interface SwitchProps {
 
 export function Switch({ checked, onCheckedChange, label, disabled }: SwitchProps) {
     return (
-        <label className={cn('inline-flex items-center gap-3', disabled && 'opacity-60 cursor-not-allowed')}>
+        <label
+            className={cn(
+                'inline-flex items-center gap-3',
+                disabled && 'cursor-not-allowed opacity-60',
+            )}
+        >
             <button
                 type="button"
                 role="switch"

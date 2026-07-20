@@ -1,0 +1,855 @@
+{
+  "out": [
+    {
+      "role": "admin",
+      "menu": [
+        "Dashboard",
+        "Organization",
+        "Company",
+        "Users",
+        "Roles",
+        "Permissions",
+        "Customers",
+        "Locations",
+        "Employees",
+        "Vehicles",
+        "Documents",
+        "Number Sequences",
+        "Service",
+        "Bandwidth Profiles",
+        "Speed Profiles",
+        "SLA Tiers",
+        "Inventory",
+        "Categories",
+        "Units",
+        "Stocks",
+        "Stock Movements",
+        "Network Assets",
+        "SPK",
+        "Billing",
+        "Tunggakan",
+        "Ticketing",
+        "Evaluations",
+        "Reports",
+        "Komponen"
+      ],
+      "missing": [],
+      "forbiddenVisible": [],
+      "pages": [
+        {
+          "label": "Dashboard",
+          "href": "/admin/dashboard",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Organization",
+          "href": "/admin/organizations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Company",
+          "href": "/admin/company/profile",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Users",
+          "href": "/admin/users",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Roles",
+          "href": "/admin/roles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Permissions",
+          "href": "/admin/permissions",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Customers",
+          "href": "/admin/customers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Locations",
+          "href": "/admin/locations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Employees",
+          "href": "/admin/employees",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Vehicles",
+          "href": "/admin/vehicles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Documents",
+          "href": "/admin/documents",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Number Sequences",
+          "href": "/admin/number-sequences",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Service",
+          "href": "/admin/service-packages",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Bandwidth Profiles",
+          "href": "/admin/bandwidth-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Speed Profiles",
+          "href": "/admin/speed-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SLA Tiers",
+          "href": "/admin/sla-tiers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Inventory",
+          "href": "/admin/products",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Categories",
+          "href": "/admin/categories",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Units",
+          "href": "/admin/units",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stocks",
+          "href": "/admin/stocks",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stock Movements",
+          "href": "/admin/stock-movements",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Network Assets",
+          "href": "/admin/network-assets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SPK",
+          "href": "/admin/spk",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Billing",
+          "href": "/admin/invoices",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Tunggakan",
+          "href": "/admin/billing/receivables",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Ticketing",
+          "href": "/admin/tickets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Evaluations",
+          "href": "/admin/evaluations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Reports",
+          "href": "/admin/reports",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Komponen",
+          "href": "/admin/components",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        }
+      ],
+      "dark": {
+        "pass": true,
+        "bgBefore": "rgba(241, 245, 249, 0.3)",
+        "bgAfter": "rgb(2, 8, 23)",
+        "stored": "true",
+        "persisted": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "role": "manager",
+      "menu": [
+        "Dashboard",
+        "Customers",
+        "Locations",
+        "Service",
+        "Bandwidth Profiles",
+        "Speed Profiles",
+        "SLA Tiers",
+        "Inventory",
+        "Categories",
+        "Units",
+        "Stocks",
+        "Stock Movements",
+        "Network Assets",
+        "SPK",
+        "Billing",
+        "Tunggakan",
+        "Ticketing",
+        "Evaluations",
+        "Reports",
+        "Komponen"
+      ],
+      "missing": [],
+      "forbiddenVisible": [],
+      "pages": [
+        {
+          "label": "Dashboard",
+          "href": "/admin/dashboard",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Customers",
+          "href": "/admin/customers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Locations",
+          "href": "/admin/locations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Service",
+          "href": "/admin/service-packages",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Bandwidth Profiles",
+          "href": "/admin/bandwidth-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Speed Profiles",
+          "href": "/admin/speed-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SLA Tiers",
+          "href": "/admin/sla-tiers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Inventory",
+          "href": "/admin/products",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Categories",
+          "href": "/admin/categories",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Units",
+          "href": "/admin/units",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stocks",
+          "href": "/admin/stocks",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stock Movements",
+          "href": "/admin/stock-movements",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Network Assets",
+          "href": "/admin/network-assets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SPK",
+          "href": "/admin/spk",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Billing",
+          "href": "/admin/invoices",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Tunggakan",
+          "href": "/admin/billing/receivables",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Ticketing",
+          "href": "/admin/tickets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Evaluations",
+          "href": "/admin/evaluations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Reports",
+          "href": "/admin/reports",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Komponen",
+          "href": "/admin/components",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        }
+      ],
+      "dark": {
+        "pass": true,
+        "bgBefore": "rgba(241, 245, 249, 0.3)",
+        "bgAfter": "rgb(2, 8, 23)",
+        "stored": "true",
+        "persisted": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "role": "staff",
+      "menu": [
+        "Dashboard",
+        "Customers",
+        "Locations",
+        "Service",
+        "Bandwidth Profiles",
+        "Speed Profiles",
+        "SLA Tiers",
+        "Inventory",
+        "Categories",
+        "Units",
+        "Stocks",
+        "Stock Movements",
+        "Network Assets",
+        "SPK",
+        "Billing",
+        "Tunggakan",
+        "Ticketing",
+        "Evaluations",
+        "Reports",
+        "Komponen"
+      ],
+      "missing": [],
+      "forbiddenVisible": [],
+      "pages": [
+        {
+          "label": "Dashboard",
+          "href": "/admin/dashboard",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Customers",
+          "href": "/admin/customers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Locations",
+          "href": "/admin/locations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Service",
+          "href": "/admin/service-packages",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Bandwidth Profiles",
+          "href": "/admin/bandwidth-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Speed Profiles",
+          "href": "/admin/speed-profiles",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SLA Tiers",
+          "href": "/admin/sla-tiers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Inventory",
+          "href": "/admin/products",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Categories",
+          "href": "/admin/categories",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Units",
+          "href": "/admin/units",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stocks",
+          "href": "/admin/stocks",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stock Movements",
+          "href": "/admin/stock-movements",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Network Assets",
+          "href": "/admin/network-assets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SPK",
+          "href": "/admin/spk",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Billing",
+          "href": "/admin/invoices",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Tunggakan",
+          "href": "/admin/billing/receivables",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Ticketing",
+          "href": "/admin/tickets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Evaluations",
+          "href": "/admin/evaluations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Reports",
+          "href": "/admin/reports",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Komponen",
+          "href": "/admin/components",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        }
+      ],
+      "dark": {
+        "pass": true,
+        "bgBefore": "rgba(241, 245, 249, 0.3)",
+        "bgAfter": "rgb(2, 8, 23)",
+        "stored": "true",
+        "persisted": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "role": "technician",
+      "menu": [
+        "Dashboard",
+        "Customers",
+        "Locations",
+        "Inventory",
+        "Categories",
+        "Units",
+        "Stocks",
+        "Stock Movements",
+        "Network Assets",
+        "SPK",
+        "Ticketing",
+        "Evaluations",
+        "Komponen"
+      ],
+      "missing": [],
+      "forbiddenVisible": [],
+      "pages": [
+        {
+          "label": "Dashboard",
+          "href": "/admin/dashboard",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Customers",
+          "href": "/admin/customers",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Locations",
+          "href": "/admin/locations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Inventory",
+          "href": "/admin/products",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Categories",
+          "href": "/admin/categories",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Units",
+          "href": "/admin/units",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stocks",
+          "href": "/admin/stocks",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Stock Movements",
+          "href": "/admin/stock-movements",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Network Assets",
+          "href": "/admin/network-assets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "SPK",
+          "href": "/admin/spk",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Ticketing",
+          "href": "/admin/tickets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Evaluations",
+          "href": "/admin/evaluations",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Komponen",
+          "href": "/admin/components",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        }
+      ],
+      "dark": {
+        "pass": true,
+        "bgBefore": "rgba(241, 245, 249, 0.3)",
+        "bgAfter": "rgb(2, 8, 23)",
+        "stored": "true",
+        "persisted": true
+      },
+      "consoleErrors": []
+    },
+    {
+      "role": "customer",
+      "menu": [
+        "Dashboard",
+        "Ticketing",
+        "Komponen"
+      ],
+      "missing": [],
+      "forbiddenVisible": [],
+      "pages": [
+        {
+          "label": "Dashboard",
+          "href": "/admin/dashboard",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Ticketing",
+          "href": "/admin/tickets",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        },
+        {
+          "label": "Komponen",
+          "href": "/admin/components",
+          "finalUrl": "http://127.0.0.1:8000/admin/dashboard",
+          "status": "rendered",
+          "blank": false,
+          "errors": []
+        }
+      ],
+      "dark": {
+        "pass": true,
+        "bgBefore": "rgba(241, 245, 249, 0.3)",
+        "bgAfter": "rgb(2, 8, 23)",
+        "stored": "true",
+        "persisted": true
+      },
+      "consoleErrors": []
+    }
+  ],
+  "issues": []
+}

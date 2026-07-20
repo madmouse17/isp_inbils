@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+.env.e2e
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -19,6 +20,9 @@
 /public/build
 /public/hot
 /public/storage
+/playwright-report
+/test-results
+/tests/e2e/.runtime
 /storage/*.key
 /storage/pail
 /vendor
@@ -28,6 +32,9 @@ Thumbs.db
 .hermes-tmp
 
 docs/*
+!docs/ENTERPRISE_ISP_READINESS.md
+!docs/plans/
+!docs/plans/ENTERPRISE_ISP_EXECUTION_PLAN.md
 !docs/architecture/
 docs/architecture/*
 !docs/architecture/overview.md

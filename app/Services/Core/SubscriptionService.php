@@ -3,15 +3,16 @@
 namespace App\Services\Core;
 
 use App\Models\Core\ServiceSubscription;
-use App\Services\Core\AuditService;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\Service\Models\ServicePackage;
 
 class SubscriptionService
 {
     public static function create(array $data): ServiceSubscription
     {
         return DB::transaction(function () use ($data) {
-            $package = \Modules\Service\Models\ServicePackage::findOrFail($data['service_package_id']);
+            $package = ServicePackage::findOrFail($data['service_package_id']);
 
             $data['mrc_amount'] ??= $package->price_mrc;
             $data['code'] = self::generateCode();
@@ -107,10 +108,11 @@ class SubscriptionService
 
     private static function generateCode(): string
     {
+        $companyId = CompanyService::currentId();
         $year = now()->year;
         $prefix = "SUB-{$year}-";
 
-        $last = ServiceSubscription::withoutCompany()
+        $last = ServiceSubscription::forCompany($companyId)
             ->where('code', 'like', $prefix.'%')
             ->orderByDesc('code')
             ->lockForUpdate()
@@ -121,7 +123,7 @@ class SubscriptionService
         return $prefix.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
     }
 
-    private static function nextBillingDate(int $billingDay): \Carbon\Carbon
+    private static function nextBillingDate(int $billingDay): Carbon
     {
         $today = now();
         $day = min($billingDay, $today->daysInMonth);

@@ -1,7 +1,21 @@
-import { FormEvent, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, Input, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    Input,
+    Pagination,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 
 interface CustomerRow {
@@ -17,7 +31,13 @@ interface CustomerRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    customers: { data: CustomerRow[]; current_page: number; last_page: number; per_page: number; total: number };
+    customers: {
+        data: CustomerRow[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
+    };
     filters: { type?: string; is_active?: string; search?: string };
 }
 
@@ -28,11 +48,16 @@ export default function Index({ customers, filters }: IndexProps) {
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('admin.customers.index'), { search, type, is_active: isActive }, { preserveState: true });
+        router.get(
+            route('admin.customers.index'),
+            { search, type, is_active: isActive },
+            { preserveState: true },
+        );
     };
 
     const remove = (c: CustomerRow) => {
-        if (window.confirm(`Delete ${c.name}?`)) router.delete(route('admin.customers.destroy', c.id));
+        if (window.confirm(`Delete ${c.name}?`))
+            router.delete(route('admin.customers.destroy', c.id));
     };
 
     return (
@@ -41,16 +66,42 @@ export default function Index({ customers, filters }: IndexProps) {
                 <PageHeader
                     title="Customers"
                     subtitle="Manage customer master data."
-                    actions={<Button type="button" onClick={() => router.get(route('admin.customers.create'))}>Create Customer</Button>}
+                    actions={
+                        <Button
+                            type="button"
+                            onClick={() => router.get(route('admin.customers.create'))}
+                        >
+                            Create Customer
+                        </Button>
+                    }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Name, code, phone" />
-                            <Input label="Type" value={type} onChange={(e) => setType(e.target.value)} placeholder="Individual / Company" />
-                            <Input label="Active" value={isActive} onChange={(e) => setIsActive(e.target.value)} placeholder="true / false" />
-                            <div className="self-end"><Button type="submit" variant="secondary">Filter</Button></div>
+                            <Input
+                                label="Search"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Name, code, phone"
+                            />
+                            <Input
+                                label="Type"
+                                value={type}
+                                onChange={(e) => setType(e.target.value)}
+                                placeholder="Individual / Company"
+                            />
+                            <Input
+                                label="Active"
+                                value={isActive}
+                                onChange={(e) => setIsActive(e.target.value)}
+                                placeholder="true / false"
+                            />
+                            <div className="self-end">
+                                <Button type="submit" variant="secondary">
+                                    Filter
+                                </Button>
+                            </div>
                         </form>
                         <Table>
                             <THead>
@@ -67,22 +118,56 @@ export default function Index({ customers, filters }: IndexProps) {
                             <TBody>
                                 {customers.data.length === 0 ? (
                                     <TR>
-                                        <TD colSpan={7} className="py-10 text-center text-muted-foreground">No data found.</TD>
+                                        <TD
+                                            colSpan={7}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No data found.
+                                        </TD>
                                     </TR>
                                 ) : (
                                     customers.data.map((c) => (
                                         <TR key={c.id}>
                                             <TD className="font-mono text-sm">{c.code}</TD>
                                             <TD>{c.name}</TD>
-                                            <TD><Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>{c.type}</Badge></TD>
+                                            <TD>
+                                                <Badge
+                                                    variant={
+                                                        c.type === 'Company' ? 'brand' : 'neutral'
+                                                    }
+                                                >
+                                                    {c.type}
+                                                </Badge>
+                                            </TD>
                                             <TD>{c.phone ?? '-'}</TD>
-                                            <TD><Badge variant={c.is_active ? 'success' : 'danger'}>{c.is_active ? 'Active' : 'Inactive'}</Badge></TD>
+                                            <TD>
+                                                <Badge variant={c.is_active ? 'success' : 'danger'}>
+                                                    {c.is_active ? 'Active' : 'Inactive'}
+                                                </Badge>
+                                            </TD>
                                             <TD>{c.subscriptions_count ?? 0}</TD>
                                             <TD>
                                                 <div className="flex flex-wrap gap-2">
-                                                    <Link href={route('admin.customers.show', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link>
-                                                    <Link href={route('admin.customers.edit', c.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Edit</Link>
-                                                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(c)}>Delete</Button>
+                                                    <Link
+                                                        href={route('admin.customers.show', c.id)}
+                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                    >
+                                                        Show
+                                                    </Link>
+                                                    <Link
+                                                        href={route('admin.customers.edit', c.id)}
+                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                    >
+                                                        Edit
+                                                    </Link>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => remove(c)}
+                                                    >
+                                                        Delete
+                                                    </Button>
                                                 </div>
                                             </TD>
                                         </TR>
@@ -90,7 +175,18 @@ export default function Index({ customers, filters }: IndexProps) {
                                 )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={customers.current_page} lastPage={customers.last_page} onPageChange={(page) => router.get(route('admin.customers.index'), { page, search, type, is_active: isActive })} />
+                        <Pagination
+                            currentPage={customers.current_page}
+                            lastPage={customers.last_page}
+                            onPageChange={(page) =>
+                                router.get(route('admin.customers.index'), {
+                                    page,
+                                    search,
+                                    type,
+                                    is_active: isActive,
+                                })
+                            }
+                        />
                     </CardContent>
                 </Card>
             </div>

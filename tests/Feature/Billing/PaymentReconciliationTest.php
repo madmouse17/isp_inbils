@@ -2,17 +2,20 @@
 
 namespace Tests\Feature\Billing;
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Services\BillingService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
 class PaymentReconciliationTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_partial_and_full_payment_update_invoice_status(): void
     {
@@ -49,7 +52,7 @@ class PaymentReconciliationTest extends TestCase
             try {
                 BillingService::recordPayment($invoice, $amount, 'cash');
                 $this->fail("Amount {$amount} should be rejected.");
-            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            } catch (HttpException $e) {
                 $this->assertSame(422, $e->getStatusCode());
             }
         }
@@ -74,9 +77,63 @@ class PaymentReconciliationTest extends TestCase
         try {
             BillingService::recordPayment($invoice->fresh(), 10000, 'transfer', 'BANK-123');
             $this->fail('Duplicate reference should be rejected.');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             $this->assertSame(422, $e->getStatusCode());
         }
+    }
+
+    public function test_database_rejects_duplicate_active_payment_reference_per_company(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $invoice = InvoiceFactory::new()->create([
+            'company_id' => $user->company_id,
+            'status' => 'sent',
+            'total' => 100000,
+            'paid_amount' => 0,
+        ]);
+
+        BillingService::recordPayment($invoice, 10000, 'transfer', 'BANK-RACE');
+
+        $this->expectException(UniqueConstraintViolationException::class);
+
+        Payment::create([
+            'company_id' => $user->company_id,
+            'invoice_id' => $invoice->id,
+            'amount' => 10000,
+            'method' => 'transfer',
+            'reference' => 'BANK-RACE',
+            'paid_at' => now(),
+            'received_by' => $user->id,
+        ]);
+    }
+
+    public function test_payment_uses_locked_fresh_balance_to_prevent_stale_overpay(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $invoice = InvoiceFactory::new()->create([
+            'company_id' => $user->company_id,
+            'status' => 'sent',
+            'total' => 100000,
+            'paid_amount' => 0,
+        ]);
+
+        $staleInvoice = $invoice->fresh();
+
+        DB::table('invoices')->where('id', $invoice->id)->update(['paid_amount' => 90000]);
+
+        try {
+            BillingService::recordPayment($staleInvoice, 20000, 'transfer', 'BANK-STALE');
+            $this->fail('Stale invoice balance should be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+
+        $invoice = $invoice->fresh();
+        $this->assertSame(0, Payment::count());
+        $this->assertEquals(90000.00, (float) $invoice->paid_amount);
+        $this->assertSame('sent', $invoice->status);
     }
 
     public function test_user_cannot_record_payment_for_other_company_invoice(): void
@@ -94,7 +151,7 @@ class PaymentReconciliationTest extends TestCase
         try {
             BillingService::recordPayment($invoice, 10000, 'cash');
             $this->fail('Cross-company payment should be rejected.');
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             $this->assertSame(404, $e->getStatusCode());
         }
     }

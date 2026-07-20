@@ -38,4 +38,20 @@ trait BelongsToCompany
     {
         return $query->withoutGlobalScope('company');
     }
+
+    public function scopeForCompany(Builder $query, ?int $companyId): Builder
+    {
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        return $query->withoutGlobalScope('company')->where($query->getModel()->getTable().'.company_id', $companyId);
+    }
+
+    public function scopeForCurrentCompany(Builder $query): Builder
+    {
+        $companyId = CompanyService::currentId();
+
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        return $query->forCompany($companyId);
+    }
 }

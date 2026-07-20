@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Resources;
 
+use App\Http\Resources\LocationResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -25,6 +26,8 @@ class StockMovementResource extends JsonResource
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
             'product' => new ProductResource($this->whenLoaded('product')),
+            'from_location' => new LocationResource($this->whenLoaded('fromLocation')),
+            'to_location' => new LocationResource($this->whenLoaded('toLocation')),
         ];
     }
 }

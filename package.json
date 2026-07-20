@@ -9,12 +9,15 @@
         "lint:fix": "eslint resources/js --fix",
         "typecheck": "tsc --noEmit",
         "format": "prettier --write \"resources/js/**/*.{ts,tsx,css}\"",
-        "format:check": "prettier --check \"resources/js/**/*.{ts,tsx,css}\""
+        "format:check": "prettier --check \"resources/js/**/*.{ts,tsx,css}\"",
+        "test:e2e": "node scripts/e2e-guard-matrix.mjs && php tests/e2e/setup.php && node scripts/e2e-run.mjs",
+        "test:e2e:smoke": "node scripts/e2e-guard-matrix.mjs && php tests/e2e/setup.php && node scripts/e2e-run.mjs --grep @smoke"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@headlessui/react": "^2.0.0",
         "@inertiajs/react": "^2.0.0",
+        "@playwright/test": "^1.61.1",
         "@tailwindcss/forms": "^0.5.3",
         "@types/node": "^22.0.0",
         "@types/react": "^18.0.28",

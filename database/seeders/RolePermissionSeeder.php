@@ -69,6 +69,10 @@ class RolePermissionSeeder extends Seeder
             'inventory.delete',
             'inventory.export',
             'inventory.manage',
+            'inventory.stock.receive',
+            'inventory.stock.issue',
+            'inventory.stock.transfer',
+            'inventory.stock.adjust',
 
             'spk.view',
             'spk.create',
@@ -159,6 +163,8 @@ class RolePermissionSeeder extends Seeder
 
             'inventory.view', 'inventory.create', 'inventory.update',
             'inventory.export', 'inventory.manage',
+            'inventory.stock.receive', 'inventory.stock.issue',
+            'inventory.stock.transfer', 'inventory.stock.adjust',
 
             'spk.view', 'spk.create', 'spk.update',
             'spk.assign', 'spk.approve', 'spk.reject', 'spk.cancel',
@@ -190,6 +196,7 @@ class RolePermissionSeeder extends Seeder
             'location.view',
 
             'inventory.view', 'inventory.create', 'inventory.update',
+            'inventory.stock.receive', 'inventory.stock.issue',
 
             'spk.view', 'spk.create', 'spk.start', 'spk.submit',
 
@@ -210,7 +217,7 @@ class RolePermissionSeeder extends Seeder
 
             'location.view',
 
-            'inventory.view',
+            'inventory.view', 'inventory.stock.issue',
 
             'spk.view', 'spk.start', 'spk.submit',
             'spk.evidence.upload', 'spk.evidence.view',

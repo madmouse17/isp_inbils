@@ -13,7 +13,11 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
         return (
             <div className="w-full">
-                {label && <Label htmlFor={inputId} required={props.required}>{label}</Label>}
+                {label && (
+                    <Label htmlFor={inputId} required={props.required}>
+                        {label}
+                    </Label>
+                )}
                 <textarea
                     ref={ref}
                     id={inputId}
@@ -24,11 +28,21 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                         className,
                     )}
                     aria-invalid={error ? 'true' : undefined}
-                    aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+                    aria-describedby={
+                        error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+                    }
                     {...props}
                 />
-                {error && <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">{error}</p>}
-                {!error && hint && <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">{hint}</p>}
+                {error && (
+                    <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">
+                        {error}
+                    </p>
+                )}
+                {!error && hint && (
+                    <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">
+                        {hint}
+                    </p>
+                )}
             </div>
         );
     },

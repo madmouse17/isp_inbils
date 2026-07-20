@@ -2,15 +2,13 @@
 
 namespace Modules\Inventory\Services;
 
-use App\Models\Core\Location;
 use App\Services\Core\AuditService;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Exceptions\InsufficientStockException;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\StockMovement;
-use Modules\Inventory\Models\Product;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 
 class StockService
 {
@@ -19,7 +17,11 @@ class StockService
         abort_if($quantity <= 0, 422, 'Quantity must be positive for receive.');
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
-            $stock = self::getOrCreateStock($productId, $locationId);
+            if ($movement = self::existingMovement($productId, $locationId, 'receive', $refType, $refId)) {
+                return $movement;
+            }
+
+            $stock = self::lockedStock($productId, $locationId);
             $stock->quantity += $quantity;
             $stock->save();
 
@@ -52,7 +54,11 @@ class StockService
         abort_if($quantity <= 0, 422, 'Quantity must be positive for issue.');
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
-            $stock = self::getOrCreateStock($productId, $locationId);
+            if ($movement = self::existingMovement($productId, $locationId, 'issue', $refType, $refId)) {
+                return $movement;
+            }
+
+            $stock = self::lockedStock($productId, $locationId);
             $available = (float) $stock->quantity - (float) $stock->reserved_quantity;
 
             if ($available < $quantity) {
@@ -92,8 +98,9 @@ class StockService
         abort_if($fromLocationId === $toLocationId, 422, 'From and to locations must differ.');
 
         return DB::transaction(function () use ($productId, $fromLocationId, $toLocationId, $quantity, $note) {
-            $fromStock = self::getOrCreateStock($productId, $fromLocationId);
-            $toStock = self::getOrCreateStock($productId, $toLocationId);
+            $stocks = self::lockedStocks($productId, [$fromLocationId, $toLocationId]);
+            $fromStock = $stocks[$fromLocationId];
+            $toStock = $stocks[$toLocationId];
 
             $available = (float) $fromStock->quantity - (float) $fromStock->reserved_quantity;
 
@@ -138,9 +145,14 @@ class StockService
     public static function adjust(int $productId, int $locationId, float $newQuantity, string $note): StockMovement
     {
         abort_if(empty($note), 422, 'Note is required for adjustment.');
+        abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
 
         return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note) {
-            $stock = self::getOrCreateStock($productId, $locationId);
+            $stock = self::lockedStock($productId, $locationId);
+            if ($newQuantity < (float) $stock->reserved_quantity) {
+                throw InsufficientStockException::forIssue((float) $stock->reserved_quantity, $newQuantity);
+            }
+
             $delta = $newQuantity - (float) $stock->quantity;
 
             $stock->quantity = $newQuantity;
@@ -174,7 +186,11 @@ class StockService
         abort_if($quantity <= 0, 422, 'Quantity must be positive for reserve.');
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
-            $stock = self::getOrCreateStock($productId, $locationId);
+            if ($movement = self::existingMovement($productId, $locationId, 'reserve', $refType, $refId)) {
+                return $movement;
+            }
+
+            $stock = self::lockedStock($productId, $locationId);
             $available = (float) $stock->quantity - (float) $stock->reserved_quantity;
 
             if ($available < $quantity) {
@@ -204,8 +220,16 @@ class StockService
         abort_if($quantity <= 0, 422, 'Quantity must be positive for release.');
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
-            $stock = self::getOrCreateStock($productId, $locationId);
-            $stock->reserved_quantity = max(0, (float) $stock->reserved_quantity - $quantity);
+            if ($movement = self::existingMovement($productId, $locationId, 'release', $refType, $refId)) {
+                return $movement;
+            }
+
+            $stock = self::lockedStock($productId, $locationId);
+            if ((float) $stock->reserved_quantity < $quantity) {
+                throw InsufficientStockException::forReserve($quantity, (float) $stock->reserved_quantity);
+            }
+
+            $stock->reserved_quantity -= $quantity;
             $stock->save();
 
             return StockMovement::create([
@@ -228,7 +252,11 @@ class StockService
         abort_if($quantity <= 0, 422, 'Quantity must be positive for return.');
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
-            $stock = self::getOrCreateStock($productId, $locationId);
+            if ($movement = self::existingMovement($productId, $locationId, 'return', $refType, $refId)) {
+                return $movement;
+            }
+
+            $stock = self::lockedStock($productId, $locationId);
             $stock->quantity += $quantity;
             $stock->save();
 
@@ -248,11 +276,64 @@ class StockService
         });
     }
 
-    private static function getOrCreateStock(int $productId, int $locationId): Stock
+    private static function lockedStock(int $productId, int $locationId): Stock
     {
-        return Stock::firstOrCreate(
-            ['product_id' => $productId, 'location_id' => $locationId],
-            ['quantity' => 0, 'reserved_quantity' => 0]
-        );
+        self::ensureStock($productId, $locationId);
+
+        return Stock::query()
+            ->where('product_id', $productId)
+            ->where('location_id', $locationId)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
+    /**
+     * @return array<int, Stock>
+     */
+    private static function lockedStocks(int $productId, array $locationIds): array
+    {
+        foreach ($locationIds as $locationId) {
+            self::ensureStock($productId, $locationId);
+        }
+
+        return Stock::query()
+            ->where('product_id', $productId)
+            ->whereIn('location_id', $locationIds)
+            ->orderBy('location_id')
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('location_id')
+            ->all();
+    }
+
+    private static function ensureStock(int $productId, int $locationId): void
+    {
+        try {
+            Stock::query()->firstOrCreate(
+                ['product_id' => $productId, 'location_id' => $locationId],
+                ['quantity' => 0, 'reserved_quantity' => 0]
+            );
+        } catch (QueryException) {
+            // Concurrent insert won unique race; next locked read owns row.
+        }
+    }
+
+    private static function existingMovement(int $productId, int $locationId, string $movementType, ?string $refType, ?int $refId): ?StockMovement
+    {
+        if ($refType === null || $refId === null) {
+            return null;
+        }
+
+        return StockMovement::query()
+            ->where('product_id', $productId)
+            ->where(function ($query) use ($locationId) {
+                $query->where('from_location_id', $locationId)
+                    ->orWhere('to_location_id', $locationId);
+            })
+            ->where('movement_type', $movementType)
+            ->where('reference_type', $refType)
+            ->where('reference_id', $refId)
+            ->lockForUpdate()
+            ->first();
     }
 }

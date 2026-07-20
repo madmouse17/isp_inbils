@@ -5,15 +5,17 @@ use App\Http\Controllers\Admin\CustomerAddressController;
 use App\Http\Controllers\Admin\CustomerContactController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EvaluationController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\NumberSequenceController;
 use App\Http\Controllers\Admin\OrganizationController;
-use App\Http\Controllers\Admin\VehicleController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\VehicleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -38,7 +40,11 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
         Route::delete('/{location}', [LocationController::class, 'destroy'])->name('destroy');
     });
 
-    Route::get('components', fn () => Inertia::render('Admin/Components'))->name('components');
+    Route::get('components', function () {
+        abort_unless(app()->isLocal(), 404);
+
+        return Inertia::render('Admin/Components');
+    })->middleware('can:system.setting')->name('components');
 
     // Customer management
     Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
@@ -72,10 +78,10 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);
 
     // Number Sequences
-    Route::resource('number-sequences', \App\Http\Controllers\Admin\NumberSequenceController::class)->only(['index', 'update']);
+    Route::resource('number-sequences', NumberSequenceController::class)->only(['index', 'update']);
 
     // Documents (types + media)
-    Route::resource('documents', \App\Http\Controllers\Admin\DocumentController::class)->except(['create', 'edit', 'show']);
-    Route::post('documents/media', [\App\Http\Controllers\Admin\DocumentController::class, 'uploadMedia'])->name('documents.media.store');
-    Route::delete('documents/media/{media}', [\App\Http\Controllers\Admin\DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
+    Route::resource('documents', DocumentController::class)->except(['create', 'edit', 'show']);
+    Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
+    Route::delete('documents/media/{media}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 });

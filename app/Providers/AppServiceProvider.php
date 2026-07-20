@@ -28,6 +28,13 @@ use App\Policies\RolePolicy;
 use App\Policies\SubscriptionPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\VehiclePolicy;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Vite;
+use Illuminate\Support\ServiceProvider;
+use Modules\Billing\Models\Invoice;
+use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
@@ -36,17 +43,6 @@ use Modules\Inventory\Policies\ProductPolicy;
 use Modules\Inventory\Policies\UnitPolicy;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
-use Modules\SPK\Models\WorkOrder;
-use Modules\SPK\Policies\WorkOrderPolicy;
-use Modules\Billing\Models\Invoice;
-use Modules\Billing\Policies\InvoicePolicy;
-use Modules\Ticketing\Models\Ticket;
-use Modules\Ticketing\Policies\TicketPolicy;
-use Illuminate\Auth\Events\Login;
-use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Vite;
-use Illuminate\Support\ServiceProvider;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\SLATier;
@@ -55,6 +51,10 @@ use Modules\Service\Policies\BandwidthProfilePolicy;
 use Modules\Service\Policies\ServicePackagePolicy;
 use Modules\Service\Policies\SLATierPolicy;
 use Modules\Service\Policies\SpeedProfilePolicy;
+use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Policies\WorkOrderPolicy;
+use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Policies\TicketPolicy;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -99,6 +99,8 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
 
-        Vite::prefetch(concurrency: 3);
+        if (! $this->app->environment('e2e')) {
+            Vite::prefetch(concurrency: 3);
+        }
     }
 }

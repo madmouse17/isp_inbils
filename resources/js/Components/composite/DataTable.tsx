@@ -77,9 +77,19 @@ export function DataTable<T extends object>({
                         </TR>
                     ) : (
                         rows.map((row, index) => (
-                            <TR key={String((row as Record<string, unknown>).id ?? index)}>
+                            <TR
+                                key={
+                                    // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Generic row IDs intentionally preserve prior String coercion.
+                                    String((row as Record<string, unknown>).id ?? index)
+                                }
+                            >
                                 {columns.map((column) => (
-                                    <TD key={column.key}>{column.render ? column.render(row) : String((row as Record<string, unknown>)[column.key] ?? '')}</TD>
+                                    <TD key={column.key}>
+                                        {column.render
+                                            ? column.render(row)
+                                            : // eslint-disable-next-line @typescript-eslint/no-base-to-string -- Generic cell values intentionally preserve prior String coercion.
+                                              String((row as Record<string, unknown>)[column.key] ?? '')}
+                                    </TD>
                                 ))}
                             </TR>
                         ))

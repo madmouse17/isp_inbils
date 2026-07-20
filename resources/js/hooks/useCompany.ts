@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { PageProps } from '@/types';
+import type { PageProps } from '@/types';
 
 export function useCompany() {
     const { company } = usePage<PageProps>().props;

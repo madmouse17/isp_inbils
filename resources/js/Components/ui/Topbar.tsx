@@ -17,7 +17,9 @@ export function Topbar({ title, left, right, className }: TopbarProps) {
         >
             <div className="flex items-center gap-3">
                 {left}
-                {title && <h1 className="text-sm font-medium text-foreground md:text-base">{title}</h1>}
+                {title && (
+                    <h1 className="text-sm font-medium text-foreground md:text-base">{title}</h1>
+                )}
             </div>
             {right && <div className="flex items-center gap-3">{right}</div>}
         </header>

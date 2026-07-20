@@ -67,12 +67,18 @@ export function Sidebar({ children, open, onClose, className }: SidebarProps) {
             <aside
                 className={cn(
                     'fixed inset-y-0 left-0 z-50 flex w-72 transform flex-col border-r border-border bg-card p-4 text-card-foreground shadow-xl transition-transform dark:bg-card lg:static lg:translate-x-0 lg:shadow-none',
-                    open === undefined ? 'hidden lg:block' : open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+                    open === undefined
+                        ? 'hidden lg:block'
+                        : open
+                          ? 'translate-x-0'
+                          : '-translate-x-full lg:translate-x-0',
                     className,
                 )}
             >
                 <div className="mb-6 flex items-center gap-3 px-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">in</div>
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-sm font-semibold text-primary-foreground">
+                        in
+                    </div>
                     <div>
                         <p className="text-sm font-semibold leading-none">inbils</p>
                         <p className="text-xs text-muted-foreground">ISP ERP</p>

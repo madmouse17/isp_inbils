@@ -18,13 +18,17 @@ export function formatNumber(value: number | string): string {
     return new Intl.NumberFormat('id-ID').format(Number.isFinite(number) ? number : 0);
 }
 
-export function formatDate(value: string | Date | null | undefined, company?: Company | null): string {
+export function formatDate(
+    value: string | Date | null | undefined,
+    company?: Company | null,
+): string {
     if (!value) return '-';
 
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '-';
 
-    const format = String(company?.settings?.date_format ?? 'd/m/Y');
+    const dateFormat = company?.settings?.date_format;
+    const format = typeof dateFormat === 'string' ? dateFormat : 'd/m/Y';
     const day = String(date.getDate()).padStart(2, '0');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const year = String(date.getFullYear());

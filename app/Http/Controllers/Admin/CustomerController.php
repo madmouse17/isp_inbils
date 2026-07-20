@@ -133,8 +133,7 @@ class CustomerController extends Controller
 
     private function findForCompany(Request $request, int|string $customer): Customer
     {
-        return Customer::withoutCompany()
-            ->where('company_id', $request->user()?->company_id)
+        return Customer::forCompany($request->user()?->company_id)
             ->findOrFail($customer);
     }
 }

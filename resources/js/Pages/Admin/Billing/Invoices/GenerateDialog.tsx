@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
-import { Button, Card, CardContent, Input, Modal, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    Input,
+    Modal,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
 
 interface PreviewRow {
     subscription_id: number;
@@ -12,6 +24,11 @@ interface PreviewRow {
     total: number;
 }
 
+interface PreviewResponse {
+    rows: PreviewRow[];
+    skipped: number;
+}
+
 const previousMonth = () => {
     const d = new Date();
     d.setDate(1);
@@ -19,7 +36,12 @@ const previousMonth = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const idr = (n: number) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
+const idr = (n: number) =>
+    new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0,
+    }).format(n);
 
 export default function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [period, setPeriod] = useState(previousMonth());
@@ -30,7 +52,10 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
     const preview = async () => {
         setLoading(true);
         try {
-            const { data } = await axios.post(route('admin.invoices.generate-preview'), { period });
+            const { data } = await axios.post<PreviewResponse>(
+                route('admin.invoices.generate-preview'),
+                { period },
+            );
             setRows(data.rows);
             setSkipped(data.skipped);
         } finally {
@@ -47,24 +72,50 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
             <div className="space-y-4">
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Input label="Periode" type="month" value={period} onChange={(e) => { setPeriod(e.target.value); setRows(null); }} />
+                        <Input
+                            label="Periode"
+                            type="month"
+                            value={period}
+                            onChange={(e) => {
+                                setPeriod(e.target.value);
+                                setRows(null);
+                            }}
+                        />
                         {rows && (
                             <>
                                 <p className="text-sm text-muted-foreground">
                                     {rows.length} tagihan akan dibuat, {skipped} dilewati.
                                 </p>
                                 <Table>
-                                    <THead><TR><TH>Pelanggan</TH><TH>Paket</TH><TH>Hari</TH><TH className="text-right">Total</TH></TR></THead>
+                                    <THead>
+                                        <TR>
+                                            <TH>Pelanggan</TH>
+                                            <TH>Paket</TH>
+                                            <TH>Hari</TH>
+                                            <TH className="text-right">Total</TH>
+                                        </TR>
+                                    </THead>
                                     <TBody>
                                         {rows.map((r) => (
                                             <TR key={r.subscription_id}>
                                                 <TD>{r.customer}</TD>
                                                 <TD>{r.package}</TD>
-                                                <TD>{r.active_days}/{r.days_in_period}</TD>
+                                                <TD>
+                                                    {r.active_days}/{r.days_in_period}
+                                                </TD>
                                                 <TD className="text-right">{idr(r.total)}</TD>
                                             </TR>
                                         ))}
-                                        {rows.length === 0 && <TR><TD colSpan={4} className="text-center text-muted-foreground">Tidak ada tagihan baru.</TD></TR>}
+                                        {rows.length === 0 && (
+                                            <TR>
+                                                <TD
+                                                    colSpan={4}
+                                                    className="text-center text-muted-foreground"
+                                                >
+                                                    Tidak ada tagihan baru.
+                                                </TD>
+                                            </TR>
+                                        )}
                                     </TBody>
                                 </Table>
                             </>
@@ -72,9 +123,23 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                     </CardContent>
                 </Card>
                 <div className="flex justify-end gap-2">
-                    <Button type="button" variant="secondary" onClick={onClose}>Batal</Button>
-                    <Button type="button" onClick={preview} loading={loading}>Preview</Button>
-                    {rows !== null && rows.length > 0 && <Button type="button" onClick={confirm}>Terbitkan {rows.length} Tagihan</Button>}
+                    <Button type="button" variant="secondary" onClick={onClose}>
+                        Batal
+                    </Button>
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            void preview();
+                        }}
+                        loading={loading}
+                    >
+                        Preview
+                    </Button>
+                    {rows !== null && rows.length > 0 && (
+                        <Button type="button" onClick={confirm}>
+                            Terbitkan {rows.length} Tagihan
+                        </Button>
+                    )}
                 </div>
             </div>
         </Modal>

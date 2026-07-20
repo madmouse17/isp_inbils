@@ -13,6 +13,18 @@ class CustomerAddressFactory extends Factory
 {
     protected $model = CustomerAddress::class;
 
+    public function configure(): static
+    {
+        return $this->afterMaking(function (CustomerAddress $address): void {
+            if ($address->customer_id !== null && $address->getAttribute('company_id') === null) {
+                $address->setAttribute(
+                    'company_id',
+                    Customer::withoutCompany()->whereKey($address->customer_id)->value('company_id')
+                );
+            }
+        });
+    }
+
     public function definition(): array
     {
         return [

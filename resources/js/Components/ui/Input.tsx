@@ -14,7 +14,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
         return (
             <div className="w-full">
-                {label && <Label htmlFor={inputId} required={props.required}>{label}</Label>}
+                {label && (
+                    <Label htmlFor={inputId} required={props.required}>
+                        {label}
+                    </Label>
+                )}
                 <div className="relative mt-1">
                     {leftIcon && (
                         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -31,12 +35,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                             className,
                         )}
                         aria-invalid={error ? 'true' : undefined}
-                        aria-describedby={error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined}
+                        aria-describedby={
+                            error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
+                        }
                         {...props}
                     />
                 </div>
-                {error && <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">{error}</p>}
-                {!error && hint && <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">{hint}</p>}
+                {error && (
+                    <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">
+                        {error}
+                    </p>
+                )}
+                {!error && hint && (
+                    <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">
+                        {hint}
+                    </p>
+                )}
             </div>
         );
     },

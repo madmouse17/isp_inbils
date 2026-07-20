@@ -3,16 +3,22 @@
 namespace Modules\Ticketing\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\LocationResource;
+use App\Http\Resources\SubscriptionResource;
+use App\Http\Resources\UserResource;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Ticketing\Http\Requests\StoreTicketRequest;
 use Modules\Ticketing\Http\Requests\UpdateTicketRequest;
@@ -20,8 +26,8 @@ use Modules\Ticketing\Http\Resources\TicketCategoryResource;
 use Modules\Ticketing\Http\Resources\TicketResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketAttachment;
-use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Models\TicketCategory;
+use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Services\TicketService;
 
 class TicketController extends Controller
@@ -47,7 +53,7 @@ class TicketController extends Controller
         return Inertia::render('Admin/Tickets/Index', [
             'tickets' => TicketResource::collection($tickets),
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
-            'handlers' => \App\Http\Resources\UserResource::collection(
+            'handlers' => UserResource::collection(
                 User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'manager', 'noc', 'staff', 'technician']))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
@@ -62,10 +68,10 @@ class TicketController extends Controller
 
         return Inertia::render('Admin/Tickets/Create', [
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
-            'customers' => \App\Http\Resources\CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => \App\Http\Resources\SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->orderBy('code')->get()),
-            'assets' => \Modules\NetworkAsset\Http\Resources\NetworkAssetResource::collection(NetworkAsset::query()->where('is_active', true)->orderBy('code')->get()),
-            'locations' => \App\Http\Resources\LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->orderBy('code')->get()),
+            'assets' => NetworkAssetResource::collection(NetworkAsset::query()->orderBy('code')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
         ]);
     }
 
@@ -155,6 +161,7 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.start');
         TicketService::startWork($ticket);
+
         return back()->with('success', 'Ticket started.');
     }
 
@@ -174,6 +181,7 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.close');
         TicketService::close($ticket);
+
         return back()->with('success', 'Ticket closed.');
     }
 
@@ -246,6 +254,6 @@ class TicketController extends Controller
 
     private function ensureSameCompany(Ticket $ticket): void
     {
-        abort_unless($ticket->company_id === \App\Services\Core\CompanyService::currentId(), 404);
+        abort_unless($ticket->company_id === CompanyService::currentId(), 404);
     }
 }

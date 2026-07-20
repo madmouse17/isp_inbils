@@ -8,7 +8,8 @@ const variants = {
     ghost: 'hover:bg-accent hover:text-accent-foreground',
     danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
     destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
-    outline: 'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
+    outline:
+        'border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground',
 } as const;
 
 const sizes = {
@@ -27,7 +28,20 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-    ({ variant = 'default', size = 'md', loading = false, leftIcon, rightIcon, className, disabled, children, ...props }, ref) => (
+    (
+        {
+            variant = 'default',
+            size = 'md',
+            loading = false,
+            leftIcon,
+            rightIcon,
+            className,
+            disabled,
+            children,
+            ...props
+        },
+        ref,
+    ) => (
         <button
             ref={ref}
             className={cn(
@@ -52,8 +66,19 @@ Button.displayName = 'Button';
 function Spinner() {
     return (
         <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+            />
+            <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
         </svg>
     );
 }

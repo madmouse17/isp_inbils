@@ -8,11 +8,12 @@ use App\Services\Core\AuditService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
 use Carbon\CarbonImmutable;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
+use Modules\SPK\Models\WorkOrder;
 
 class BillingService
 {
@@ -61,6 +62,7 @@ class BillingService
 
             if ($exists) {
                 $skipped++;
+
                 continue;
             }
 
@@ -68,6 +70,7 @@ class BillingService
 
             if ($amount <= 0) {
                 $skipped++;
+
                 continue;
             }
 
@@ -107,8 +110,8 @@ class BillingService
                     'created_by' => null, // ponytail: batch job, no human actor
                 ]);
 
-                $label = 'MRC ' . ($sub->servicePackage?->name ?? 'Subscription')
-                    . ' ' . $periodStart->toDateString() . ' s/d ' . $periodEnd->toDateString();
+                $label = 'MRC '.($sub->servicePackage?->name ?? 'Subscription')
+                    .' '.$periodStart->toDateString().' s/d '.$periodEnd->toDateString();
                 if ($activeDays < $daysInPeriod) {
                     $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
                 }
@@ -161,7 +164,7 @@ class BillingService
 
     public static function createFromSpk(int $workOrderId): Invoice
     {
-        $wo = \Modules\SPK\Models\WorkOrder::findOrFail($workOrderId);
+        $wo = WorkOrder::findOrFail($workOrderId);
 
         abort_if($wo->status !== 'completed', 422, 'SPK must be completed to create invoice.');
 
@@ -205,7 +208,7 @@ class BillingService
             if ($subscription && $subscription->otc_installation_fee > 0) {
                 InvoiceItem::create([
                     'invoice_id' => $invoice->id,
-                    'description' => 'Biaya Instalasi ' . $wo->type,
+                    'description' => 'Biaya Instalasi '.$wo->type,
                     'quantity' => 1,
                     'unit_price' => $subscription->otc_installation_fee,
                     'tax_rate' => $taxRate,
@@ -237,21 +240,22 @@ class BillingService
     public static function recordPayment(Invoice $invoice, float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
         abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
-        $sisa = $invoice->sisa;
-
-        abort_if($amount > $sisa, 422, 'Payment amount exceeds remaining balance.');
         abort_if($amount <= 0, 422, 'Payment amount must be positive.');
-        abort_if(
-            $reference && Payment::withoutCompany()
-                ->where('company_id', $invoice->company_id)
-                ->where('reference', $reference)
-                ->whereNull('cancelled_at')
-                ->exists(),
-            422,
-            'Payment reference already exists.'
-        );
 
-        return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes, $sisa) {
+        return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
+            abort_if($amount > $invoice->sisa, 422, 'Payment amount exceeds remaining balance.');
+            abort_if(
+                $reference && Payment::withoutCompany()
+                    ->where('company_id', $invoice->company_id)
+                    ->where('reference', $reference)
+                    ->whereNull('cancelled_at')
+                    ->exists(),
+                422,
+                'Payment reference already exists.'
+            );
+
             $payment = Payment::create([
                 'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
@@ -281,10 +285,11 @@ class BillingService
 
     public static function cancel(Invoice $invoice, string $reason): Invoice
     {
-        abort_if($invoice->status === 'cancelled', 422, 'Invoice already cancelled.');
-        abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Cannot cancel invoice with active payments. Reverse payments first.');
-
         return DB::transaction(function () use ($invoice, $reason) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            abort_if($invoice->status === 'cancelled', 422, 'Invoice already cancelled.');
+            abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Cannot cancel invoice with active payments. Reverse payments first.');
+
             $invoice->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
@@ -299,24 +304,27 @@ class BillingService
 
     public static function recalculate(Invoice $invoice): void
     {
-        $invoice->load('items');
-        $subtotal = 0;
-        $taxAmount = 0;
+        DB::transaction(function () use ($invoice) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            $invoice->load('items');
+            $subtotal = 0;
+            $taxAmount = 0;
 
-        foreach ($invoice->items as $item) {
-            $lineTotal = (float) $item->quantity * (float) $item->unit_price - (float) $item->discount_amount;
-            $item->update(['line_total' => $lineTotal]);
-            $subtotal += $lineTotal;
-            $taxAmount += $lineTotal * (float) $item->tax_rate / 100;
-        }
+            foreach ($invoice->items as $item) {
+                $lineTotal = (float) $item->quantity * (float) $item->unit_price - (float) $item->discount_amount;
+                $item->update(['line_total' => $lineTotal]);
+                $subtotal += $lineTotal;
+                $taxAmount += $lineTotal * (float) $item->tax_rate / 100;
+            }
 
-        $total = $subtotal + $taxAmount - (float) $invoice->discount_amount;
+            $total = $subtotal + $taxAmount - (float) $invoice->discount_amount;
 
-        $invoice->update([
-            'subtotal' => $subtotal,
-            'tax_amount' => $taxAmount,
-            'total' => $total,
-        ]);
+            $invoice->update([
+                'subtotal' => $subtotal,
+                'tax_amount' => $taxAmount,
+                'total' => $total,
+            ]);
+        });
     }
 
     public static function checkOverdue(): void

@@ -3,10 +3,11 @@
 namespace Modules\NetworkAsset\Services;
 
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\NetworkAssetInstallation;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth;
 
 class NetworkAssetService
 {
@@ -172,14 +173,14 @@ class NetworkAssetService
         $year = now()->year;
         $prefix = "AST-{$year}-";
 
-        $last = NetworkAsset::withoutCompany()
-            ->where('code', 'like', $prefix . '%')
+        $last = NetworkAsset::forCompany(CompanyService::currentId())
+            ->where('code', 'like', $prefix.'%')
             ->orderByDesc('code')
             ->lockForUpdate()
             ->first();
 
         $next = $last ? ((int) substr($last->code, strlen($prefix))) + 1 : 1;
 
-        return $prefix . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
     }
 }

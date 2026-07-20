@@ -1,5 +1,5 @@
 import { usePage } from '@inertiajs/react';
-import { PageProps } from '@/types';
+import type { PageProps } from '@/types';
 
 export function usePermission() {
     const { auth } = usePage<PageProps>().props;

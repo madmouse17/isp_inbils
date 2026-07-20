@@ -18,7 +18,9 @@ export function PageHeader({ title, subtitle, breadcrumbs, actions }: PageHeader
             <div className="space-y-2">
                 {breadcrumbs && breadcrumbs.length > 0 && <Breadcrumb items={breadcrumbs} />}
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+                        {title}
+                    </h1>
                     {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
                 </div>
             </div>

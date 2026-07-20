@@ -3,9 +3,12 @@
 namespace Modules\Ticketing\Services;
 
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Illuminate\Support\Facades\Auth;
-use Modules\Ticketing\Models\Ticket;
 use Illuminate\Support\Facades\DB;
+use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Services\SpkService;
+use Modules\Ticketing\Models\Ticket;
 
 class TicketService
 {
@@ -14,22 +17,22 @@ class TicketService
         $year = now()->year;
         $prefix = "TKT-{$year}-";
 
-        $last = Ticket::withoutCompany()
-            ->where('code', 'like', $prefix . '%')
+        $last = Ticket::forCompany(CompanyService::currentId())
+            ->where('code', 'like', $prefix.'%')
             ->orderByDesc('code')
             ->lockForUpdate()
             ->first();
 
         $next = $last ? ((int) substr($last->code, strlen($prefix))) + 1 : 1;
 
-        return $prefix . str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+        return $prefix.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
     }
 
     public static function assign(Ticket $ticket, int $handlerId, int $assignedBy): Ticket
     {
         abort_if(! in_array($ticket->status, ['open']), 422, 'Ticket must be open to assign.');
 
-        return DB::transaction(function () use ($ticket, $handlerId, $assignedBy) {
+        return DB::transaction(function () use ($ticket, $handlerId) {
             $ticket->update(['assigned_to' => $handlerId, 'status' => 'assigned']);
 
             AuditService::log('ticket', 'assigned', ['handler_id' => $handlerId], $ticket);
@@ -84,16 +87,16 @@ class TicketService
         });
     }
 
-    public static function spawnSpk(Ticket $ticket): \Modules\SPK\Models\WorkOrder
+    public static function spawnSpk(Ticket $ticket): WorkOrder
     {
         abort_if($ticket->spawned_spk_id, 422, 'SPK already spawned for this ticket.');
         abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Ticket must be on progress or assigned to spawn SPK.');
 
         $wo = DB::transaction(function () use ($ticket) {
-            $wo = \Modules\SPK\Models\WorkOrder::create([
-                'code' => \Modules\SPK\Services\SpkService::generateCode(),
+            $wo = WorkOrder::create([
+                'code' => SpkService::generateCode(),
                 'type' => 'maintenance',
-                'title' => 'SPK from Ticket ' . $ticket->code,
+                'title' => 'SPK from Ticket '.$ticket->code,
                 'description' => $ticket->description,
                 'status' => 'generated',
                 'customer_id' => $ticket->customer_id,

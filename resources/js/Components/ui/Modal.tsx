@@ -24,7 +24,7 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
                 transition
                 className="fixed inset-0 bg-black/50 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150"
             />
-            <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto">
+            <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
                 <DialogPanel
                     transition
                     className={cn(
@@ -34,7 +34,9 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
                 >
                     {title && (
                         <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                            <DialogTitle className="font-semibold text-foreground">{title}</DialogTitle>
+                            <DialogTitle className="font-semibold text-foreground">
+                                {title}
+                            </DialogTitle>
                             <button
                                 onClick={onClose}
                                 className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"

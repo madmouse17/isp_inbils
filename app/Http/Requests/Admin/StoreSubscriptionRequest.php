@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
+use Modules\Service\Models\ServicePackage;
 
 class StoreSubscriptionRequest extends FormRequest
 {
@@ -15,7 +18,7 @@ class StoreSubscriptionRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             'customer_id' => ['required', 'exists:customers,id'],
@@ -32,18 +35,27 @@ class StoreSubscriptionRequest extends FormRequest
         ];
     }
 
+    protected function prepareForValidation(): void
+    {
+        $customer = $this->route('customer');
+
+        if ($customer instanceof Customer) {
+            $this->merge(['customer_id' => $customer->id]);
+        }
+    }
+
     public function after(): array
     {
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             function ($validator) use ($companyId) {
-                $pkg = \Modules\Service\Models\ServicePackage::find($this->input('service_package_id'));
+                $pkg = ServicePackage::find($this->input('service_package_id'));
                 if ($pkg && (int) $pkg->company_id !== (int) $companyId) {
                     $validator->errors()->add('service_package_id', 'Invalid package for this company.');
                 }
 
-                $addr = \App\Models\Core\CustomerAddress::find($this->input('installation_address_id'));
+                $addr = CustomerAddress::find($this->input('installation_address_id'));
                 if ($addr && (int) $addr->customer_id !== (int) $this->input('customer_id')) {
                     $validator->errors()->add('installation_address_id', 'Address does not belong to customer.');
                 }

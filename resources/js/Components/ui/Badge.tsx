@@ -25,8 +25,17 @@ interface BadgeProps {
 
 export function Badge({ variant = 'neutral', size = 'md', dot, children, className }: BadgeProps) {
     return (
-        <span className={cn('inline-flex items-center gap-1.5 rounded-full font-medium', variants[variant], sizes[size], className)}>
-            {dot && <span className={cn('h-1.5 w-1.5 rounded-full', variants[variant].split(' ')[1])} />}
+        <span
+            className={cn(
+                'inline-flex items-center gap-1.5 rounded-full font-medium',
+                variants[variant],
+                sizes[size],
+                className,
+            )}
+        >
+            {dot && (
+                <span className={cn('h-1.5 w-1.5 rounded-full', variants[variant].split(' ')[1])} />
+            )}
             {children}
         </span>
     );

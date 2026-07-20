@@ -10,9 +10,7 @@ export function Divider({ orientation = 'horizontal', className }: DividerProps)
         <div
             role="separator"
             className={cn(
-                orientation === 'horizontal'
-                    ? 'h-px w-full bg-border'
-                    : 'h-full w-px bg-border',
+                orientation === 'horizontal' ? 'h-px w-full bg-border' : 'h-full w-px bg-border',
                 className,
             )}
         />

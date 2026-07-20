@@ -1,32 +1,74 @@
-import { FormEvent, useState } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, Input, Select, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    Input,
+    Select,
+    Pagination,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 
 interface TRow {
-    id: number; code: string; title: string; source: string; status: string; priority: string;
-    is_sla_breached: boolean; sla_deadline?: string | null;
+    id: number;
+    code: string;
+    title: string;
+    source: string;
+    status: string;
+    priority: string;
+    is_sla_breached: boolean;
+    sla_deadline?: string | null;
     category?: { name: string } | null;
     customer?: { name: string } | null;
     assignee?: { name: string } | null;
 }
 
-interface CatRow { id: number; name: string }
-interface HandlerRow { id: number; name: string }
+interface CatRow {
+    id: number;
+    name: string;
+}
+interface HandlerRow {
+    id: number;
+    name: string;
+}
 
 interface IndexProps extends Record<string, unknown> {
     tickets: { data: TRow[]; current_page: number; last_page: number };
     categories: { data: CatRow[] };
     handlers: { data: HandlerRow[] };
-    filters: { status?: string; source?: string; category_id?: string; assigned_to?: string; sla_breached?: string; search?: string };
+    filters: {
+        status?: string;
+        source?: string;
+        category_id?: string;
+        assigned_to?: string;
+        sla_breached?: string;
+        search?: string;
+    };
     can: { create: boolean };
 }
 
 const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'closed' ? 'muted' : s === 'resolved' ? 'success' : s === 'on_progress' ? 'info' : s === 'assigned' ? 'warning' : 'danger';
+    s === 'closed'
+        ? 'muted'
+        : s === 'resolved'
+          ? 'success'
+          : s === 'on_progress'
+            ? 'info'
+            : s === 'assigned'
+              ? 'warning'
+              : 'danger';
 
-export default function Index({ tickets, categories, handlers, filters, can }: IndexProps) {
+export default function Index({ tickets, categories, filters, can }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
     const [source, setSource] = useState(filters.source ?? '');
@@ -34,7 +76,11 @@ export default function Index({ tickets, categories, handlers, filters, can }: I
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('admin.tickets.index'), { search, status, source, category_id: categoryId }, { preserveState: true });
+        router.get(
+            route('admin.tickets.index'),
+            { search, status, source, category_id: categoryId },
+            { preserveState: true },
+        );
     };
 
     return (
@@ -43,13 +89,31 @@ export default function Index({ tickets, categories, handlers, filters, can }: I
                 <PageHeader
                     title="Tickets"
                     subtitle="Customer service tickets."
-                    actions={can.create && <Button type="button" onClick={() => router.get(route('admin.tickets.create'))}>Create Ticket</Button>}
+                    actions={
+                        can.create && (
+                            <Button
+                                type="button"
+                                onClick={() => router.get(route('admin.tickets.create'))}
+                            >
+                                Create Ticket
+                            </Button>
+                        )
+                    }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input label="Search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Code or title" />
-                            <Select label="Status" value={status} onChange={(e) => setStatus(e.target.value)}>
+                            <Input
+                                label="Search"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Code or title"
+                            />
+                            <Select
+                                label="Status"
+                                value={status}
+                                onChange={(e) => setStatus(e.target.value)}
+                            >
                                 <option value="">All</option>
                                 <option value="open">Open</option>
                                 <option value="assigned">Assigned</option>
@@ -57,24 +121,56 @@ export default function Index({ tickets, categories, handlers, filters, can }: I
                                 <option value="resolved">Resolved</option>
                                 <option value="closed">Closed</option>
                             </Select>
-                            <Select label="Source" value={source} onChange={(e) => setSource(e.target.value)}>
+                            <Select
+                                label="Source"
+                                value={source}
+                                onChange={(e) => setSource(e.target.value)}
+                            >
                                 <option value="">All</option>
                                 <option value="customer">Customer</option>
                                 <option value="noc">NOC</option>
                                 <option value="internal">Internal</option>
                             </Select>
-                            <Select label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                            <Select
+                                label="Category"
+                                value={categoryId}
+                                onChange={(e) => setCategoryId(e.target.value)}
+                            >
                                 <option value="">All</option>
-                                {categories.data.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                {categories.data.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
                             </Select>
-                            <div className="self-end"><Button type="submit" variant="secondary">Filter</Button></div>
+                            <div className="self-end">
+                                <Button type="submit" variant="secondary">
+                                    Filter
+                                </Button>
+                            </div>
                         </form>
                         <Table>
-                            <THead><TR><TH>Code</TH><TH>Title</TH><TH>Category</TH><TH>Source</TH><TH>Status</TH><TH>Priority</TH><TH>SLA</TH><TH>Actions</TH></TR></THead>
+                            <THead>
+                                <TR>
+                                    <TH>Code</TH>
+                                    <TH>Title</TH>
+                                    <TH>Category</TH>
+                                    <TH>Source</TH>
+                                    <TH>Status</TH>
+                                    <TH>Priority</TH>
+                                    <TH>SLA</TH>
+                                    <TH>Actions</TH>
+                                </TR>
+                            </THead>
                             <TBody>
                                 {tickets.data.length === 0 ? (
                                     <TR>
-                                        <TD colSpan={8} className="py-10 text-center text-muted-foreground">No data found.</TD>
+                                        <TD
+                                            colSpan={8}
+                                            className="py-10 text-center text-muted-foreground"
+                                        >
+                                            No data found.
+                                        </TD>
                                     </TR>
                                 ) : (
                                     tickets.data.map((t) => (
@@ -82,17 +178,60 @@ export default function Index({ tickets, categories, handlers, filters, can }: I
                                             <TD className="font-mono text-sm">{t.code}</TD>
                                             <TD>{t.title}</TD>
                                             <TD>{t.category?.name ?? '-'}</TD>
-                                            <TD><Badge variant="neutral">{t.source}</Badge></TD>
-                                            <TD><StatusBadge variant={statusVariant(t.status)}>{t.status}</StatusBadge></TD>
-                                            <TD><Badge variant={t.priority === 'urgent' ? 'danger' : t.priority === 'high' ? 'brand' : 'neutral'}>{t.priority}</Badge></TD>
-                                            <TD>{t.is_sla_breached ? <Badge variant="danger">Breached</Badge> : <Badge variant="success">OK</Badge>}</TD>
-                                            <TD><Link href={route('admin.tickets.show', t.id)} className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link></TD>
+                                            <TD>
+                                                <Badge variant="neutral">{t.source}</Badge>
+                                            </TD>
+                                            <TD>
+                                                <StatusBadge variant={statusVariant(t.status)}>
+                                                    {t.status}
+                                                </StatusBadge>
+                                            </TD>
+                                            <TD>
+                                                <Badge
+                                                    variant={
+                                                        t.priority === 'urgent'
+                                                            ? 'danger'
+                                                            : t.priority === 'high'
+                                                              ? 'brand'
+                                                              : 'neutral'
+                                                    }
+                                                >
+                                                    {t.priority}
+                                                </Badge>
+                                            </TD>
+                                            <TD>
+                                                {t.is_sla_breached ? (
+                                                    <Badge variant="danger">Breached</Badge>
+                                                ) : (
+                                                    <Badge variant="success">OK</Badge>
+                                                )}
+                                            </TD>
+                                            <TD>
+                                                <Link
+                                                    href={route('admin.tickets.show', t.id)}
+                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                >
+                                                    Show
+                                                </Link>
+                                            </TD>
                                         </TR>
                                     ))
                                 )}
                             </TBody>
                         </Table>
-                        <Pagination currentPage={tickets.current_page} lastPage={tickets.last_page} onPageChange={(page) => router.get(route('admin.tickets.index'), { page, search, status, source, category_id: categoryId })} />
+                        <Pagination
+                            currentPage={tickets.current_page}
+                            lastPage={tickets.last_page}
+                            onPageChange={(page) =>
+                                router.get(route('admin.tickets.index'), {
+                                    page,
+                                    search,
+                                    status,
+                                    source,
+                                    category_id: categoryId,
+                                })
+                            }
+                        />
                     </CardContent>
                 </Card>
             </div>

@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {}
+type TableProps = React.TableHTMLAttributes<HTMLTableElement>;
 
 export function Table({ className, children, ...props }: TableProps) {
     return (
@@ -12,25 +12,33 @@ export function Table({ className, children, ...props }: TableProps) {
     );
 }
 
-interface THeadProps extends React.HTMLAttributes<HTMLTableSectionElement> {}
+type THeadProps = React.HTMLAttributes<HTMLTableSectionElement>;
 
 export function THead({ className, ...props }: THeadProps) {
-    return <thead className={cn('[&_tr]:border-b bg-muted/50', className)} {...props} />;
+    return <thead className={cn('bg-muted/50 [&_tr]:border-b', className)} {...props} />;
 }
 
-interface TBodyProps extends React.HTMLAttributes<HTMLTableSectionElement> {}
+type TBodyProps = React.HTMLAttributes<HTMLTableSectionElement>;
 
 export function TBody({ className, ...props }: TBodyProps) {
     return <tbody className={cn('[&_tr:last-child]:border-0', className)} {...props} />;
 }
 
-interface TRProps extends React.HTMLAttributes<HTMLTableRowElement> {}
+type TRProps = React.HTMLAttributes<HTMLTableRowElement>;
 
 export function TR({ className, ...props }: TRProps) {
-    return <tr className={cn('border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted', className)} {...props} />;
+    return (
+        <tr
+            className={cn(
+                'border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted',
+                className,
+            )}
+            {...props}
+        />
+    );
 }
 
-interface THProps extends React.ThHTMLAttributes<HTMLTableCellElement> {}
+type THProps = React.ThHTMLAttributes<HTMLTableCellElement>;
 
 export function TH({ className, ...props }: THProps) {
     return (
@@ -44,7 +52,7 @@ export function TH({ className, ...props }: THProps) {
     );
 }
 
-interface TDProps extends React.TdHTMLAttributes<HTMLTableCellElement> {}
+type TDProps = React.TdHTMLAttributes<HTMLTableCellElement>;
 
 export function TD({ className, ...props }: TDProps) {
     return <td className={cn('p-3 align-middle text-sm', className)} {...props} />;

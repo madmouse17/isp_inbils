@@ -14,7 +14,8 @@ export function useInertiaForm<TForm extends FormDataType<TForm>>(initialValues:
     const withToast = (options: SubmitOptions = {}): UseFormSubmitOptions => ({
         ...options,
         onSuccess: (page) => {
-            if (options.successMessage) toast({ title: options.successMessage, variant: 'success' });
+            if (options.successMessage)
+                toast({ title: options.successMessage, variant: 'success' });
             options.onSuccess?.(page);
         },
         onError: (errors) => {

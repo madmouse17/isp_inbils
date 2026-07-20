@@ -1,6 +1,10 @@
 import { cn } from '@/lib/utils';
 
-const sizes = { sm: 'h-8 w-8 text-xs', md: 'h-10 w-10 text-sm', lg: 'h-12 w-12 text-base' } as const;
+const sizes = {
+    sm: 'h-8 w-8 text-xs',
+    md: 'h-10 w-10 text-sm',
+    lg: 'h-12 w-12 text-base',
+} as const;
 
 const statusColors = { online: 'bg-success', offline: 'bg-muted-foreground' } as const;
 
@@ -14,14 +18,19 @@ interface AvatarProps {
 
 export function Avatar({ src, name, size = 'md', status, className }: AvatarProps) {
     const initials = name
-        ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()
+        ? name
+              .split(' ')
+              .map((w) => w[0])
+              .slice(0, 2)
+              .join('')
+              .toUpperCase()
         : '';
 
     return (
         <span className={cn('relative inline-flex shrink-0', className)}>
             <span
                 className={cn(
-                    'inline-flex items-center justify-center rounded-full overflow-hidden bg-muted',
+                    'inline-flex items-center justify-center overflow-hidden rounded-full bg-muted',
                     sizes[size],
                 )}
             >

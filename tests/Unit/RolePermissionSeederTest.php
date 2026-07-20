@@ -42,6 +42,26 @@ class RolePermissionSeederTest extends TestCase
         $this->assertTrue($admin->hasPermissionTo('customer.manage'));
     }
 
+    public function test_inventory_stock_permissions_are_seeded_and_mapped(): void
+    {
+        $admin = Role::where('name', 'admin')->firstOrFail();
+        $manager = Role::where('name', 'manager')->firstOrFail();
+        $staff = Role::where('name', 'staff')->firstOrFail();
+        $technician = Role::where('name', 'technician')->firstOrFail();
+
+        foreach (['inventory.stock.receive', 'inventory.stock.issue', 'inventory.stock.transfer', 'inventory.stock.adjust'] as $permission) {
+            $this->assertTrue(Permission::where('name', $permission)->exists());
+            $this->assertTrue($admin->hasPermissionTo($permission));
+            $this->assertTrue($manager->hasPermissionTo($permission));
+        }
+
+        $this->assertTrue($staff->hasPermissionTo('inventory.stock.receive'));
+        $this->assertTrue($staff->hasPermissionTo('inventory.stock.issue'));
+        $this->assertFalse($staff->hasPermissionTo('inventory.stock.transfer'));
+        $this->assertFalse($staff->hasPermissionTo('inventory.stock.adjust'));
+        $this->assertTrue($technician->hasPermissionTo('inventory.stock.issue'));
+    }
+
     public function test_no_users_seeded(): void
     {
         $this->assertSame(0, User::count());

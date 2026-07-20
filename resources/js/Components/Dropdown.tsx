@@ -1,13 +1,8 @@
 import { Transition } from '@headlessui/react';
-import { InertiaLinkProps, Link } from '@inertiajs/react';
-import {
-    createContext,
-    Dispatch,
-    PropsWithChildren,
-    SetStateAction,
-    useContext,
-    useState,
-} from 'react';
+import type { InertiaLinkProps } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
+import type { Dispatch, PropsWithChildren, SetStateAction } from 'react';
+import { createContext, useContext, useState } from 'react';
 
 const DropDownContext = createContext<{
     open: boolean;
@@ -40,12 +35,7 @@ const Trigger = ({ children }: PropsWithChildren) => {
         <>
             <div onClick={toggleOpen}>{children}</div>
 
-            {open && (
-                <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setOpen(false)}
-                ></div>
-            )}
+            {open && <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />}
         </>
     );
 };
@@ -92,10 +82,7 @@ const Content = ({
                     onClick={() => setOpen(false)}
                 >
                     <div
-                        className={
-                            `rounded-md ring-1 ring-black ring-opacity-5 ` +
-                            contentClasses
-                        }
+                        className={`rounded-md ring-1 ring-black ring-opacity-5 ` + contentClasses}
                     >
                         {children}
                     </div>
@@ -105,11 +92,7 @@ const Content = ({
     );
 };
 
-const DropdownLink = ({
-    className = '',
-    children,
-    ...props
-}: InertiaLinkProps) => {
+const DropdownLink = ({ className = '', children, ...props }: InertiaLinkProps) => {
     return (
         <Link
             {...props}

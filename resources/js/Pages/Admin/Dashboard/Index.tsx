@@ -40,7 +40,10 @@ export default function Index({
     return (
         <AdminLayout title="Dashboard">
             <div className="space-y-6">
-                <PageHeader title="Dashboard" subtitle="Monitor users, modules, and recent activity." />
+                <PageHeader
+                    title="Dashboard"
+                    subtitle="Monitor users, modules, and recent activity."
+                />
 
                 <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard label="Users" value={userCount} />
@@ -68,15 +71,26 @@ export default function Index({
                         </CardHeader>
                         <CardContent className="space-y-3">
                             {recentActivity.length === 0 ? (
-                                <p className="text-sm text-surface-500 dark:text-surface-400">No activity yet.</p>
+                                <p className="text-sm text-surface-500 dark:text-surface-400">
+                                    No activity yet.
+                                </p>
                             ) : (
                                 recentActivity.map((activity) => (
-                                    <div key={activity.id} className="flex flex-col gap-2 rounded-lg border border-surface-200 p-3 dark:border-surface-800 sm:flex-row sm:items-center sm:justify-between">
+                                    <div
+                                        key={activity.id}
+                                        className="flex flex-col gap-2 rounded-lg border border-surface-200 p-3 dark:border-surface-800 sm:flex-row sm:items-center sm:justify-between"
+                                    >
                                         <div>
-                                            <p className="text-sm font-medium text-surface-900 dark:text-surface-100">{activity.description}</p>
-                                            <p className="text-xs text-surface-500 dark:text-surface-400">{formatDate(activity.created_at, company)}</p>
+                                            <p className="text-sm font-medium text-surface-900 dark:text-surface-100">
+                                                {activity.description}
+                                            </p>
+                                            <p className="text-xs text-surface-500 dark:text-surface-400">
+                                                {formatDate(activity.created_at, company)}
+                                            </p>
                                         </div>
-                                        <StatusBadge variant="info">{activity.log_name}</StatusBadge>
+                                        <StatusBadge variant="info">
+                                            {activity.log_name}
+                                        </StatusBadge>
                                     </div>
                                 ))
                             )}
@@ -96,10 +110,14 @@ export default function Index({
                                 className="rounded-xl border border-surface-200 p-4 transition hover:border-brand-300 hover:bg-brand-50/50 focus:outline-none focus:ring-2 focus:ring-brand-500/40 dark:border-surface-800 dark:hover:border-brand-700 dark:hover:bg-brand-950/30"
                             >
                                 <div className="flex items-center justify-between gap-3">
-                                    <h3 className="font-semibold text-surface-900 dark:text-surface-100">{module.name}</h3>
+                                    <h3 className="font-semibold text-surface-900 dark:text-surface-100">
+                                        {module.name}
+                                    </h3>
                                     <StatusBadge variant="muted">{module.count}</StatusBadge>
                                 </div>
-                                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">Open module</p>
+                                <p className="mt-2 text-sm text-surface-500 dark:text-surface-400">
+                                    Open module
+                                </p>
                             </Link>
                         ))}
                     </CardContent>

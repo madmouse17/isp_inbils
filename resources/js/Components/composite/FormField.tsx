@@ -11,7 +11,9 @@ interface FormFieldProps {
 export function FormField({ label, htmlFor, error, required, children }: FormFieldProps) {
     return (
         <div className="space-y-1">
-            <Label htmlFor={htmlFor} required={required}>{label}</Label>
+            <Label htmlFor={htmlFor} required={required}>
+                {label}
+            </Label>
             {children}
             {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
