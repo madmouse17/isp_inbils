@@ -21,8 +21,8 @@ class UpdateProductRequest extends FormRequest
         return [
             'sku' => ['required', 'string', 'max:100', Rule::unique('products')->where('company_id', $companyId)->ignore($productId)],
             'name' => ['required', 'string', 'max:255'],
-            'category_id' => ['required', 'exists:categories,id'],
-            'unit_id' => ['required', 'exists:units,id'],
+            'category_id' => ['required', Rule::exists('categories', 'id')->where('company_id', $companyId)],
+            'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'description' => ['nullable', 'string'],
             'type' => ['nullable', 'string', 'in:consumable'],
             'track_stock' => ['boolean'],

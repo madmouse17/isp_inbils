@@ -29,7 +29,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         ref={ref}
                         id={inputId}
                         className={cn(
-                            'h-9 w-full appearance-none rounded-md border border-input bg-transparent px-3 py-1 pr-9 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+                            'h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-9 text-sm text-foreground shadow-sm transition-colors [color-scheme:light] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark] [&>option:disabled]:text-muted-foreground [&>option]:bg-background [&>option]:text-foreground',
                             error && 'border-destructive focus-visible:ring-destructive',
                             className,
                         )}

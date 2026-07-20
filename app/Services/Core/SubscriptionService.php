@@ -5,6 +5,8 @@ namespace App\Services\Core;
 use App\Models\Core\ServiceSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\Service\Models\ServicePackage;
 
 class SubscriptionService
@@ -87,14 +89,28 @@ class SubscriptionService
     {
         abort_if($subscription->status === 'terminated', 422, 'Subscription already terminated.');
 
-        // ponytail: ONT release deferred to Phase 3 (network_assets table not created yet)
-        // if ($releaseOnt && $subscription->ont_asset_id) { ... }
+        return DB::transaction(function () use ($subscription, $reason, $releaseOnt) {
+            $subscription = ServiceSubscription::with('customer')
+                ->lockForUpdate()
+                ->findOrFail($subscription->id);
 
-        return DB::transaction(function () use ($subscription, $reason) {
+            if ($releaseOnt && $subscription->ont_asset_id) {
+                $asset = NetworkAsset::withoutCompany()
+                    ->lockForUpdate()
+                    ->find($subscription->ont_asset_id);
+
+                abort_unless($asset, 422, 'ONT asset is unavailable.');
+                abort_unless($asset->subscription_id === $subscription->id, 422, 'ONT asset must belong to the subscription.');
+                abort_unless($asset->company_id === $subscription->customer?->company_id, 422, 'ONT asset must belong to the subscription company.');
+
+                NetworkAssetService::remove($asset, 'subscription terminated: '.$reason);
+            }
+
             $subscription->update([
                 'status' => 'terminated',
                 'terminated_at' => now(),
                 'terminated_reason' => $reason,
+                'ont_asset_id' => $releaseOnt ? null : $subscription->ont_asset_id,
             ]);
 
             AuditService::log('service_subscription', 'terminated', [

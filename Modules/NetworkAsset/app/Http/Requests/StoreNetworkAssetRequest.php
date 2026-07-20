@@ -24,7 +24,7 @@ class StoreNetworkAssetRequest extends FormRequest
             'mac_address' => ['nullable', 'string', 'max:255'],
             'ip_address' => ['nullable', 'ip'],
             'management_ip' => ['nullable', 'ip'],
-            'location_id' => ['nullable', 'exists:locations,id'],
+            'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'ownership' => ['nullable', 'string', 'in:owned,leased,customer_provided'],
             'vendor' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],

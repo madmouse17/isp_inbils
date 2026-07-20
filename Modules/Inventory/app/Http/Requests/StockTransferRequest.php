@@ -2,7 +2,9 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StockTransferRequest extends FormRequest
 {
@@ -14,10 +16,12 @@ class StockTransferRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $companyId = CompanyService::currentId();
+
         return [
-            'product_id' => ['required', 'exists:products,id'],
-            'from_location_id' => ['required', 'exists:locations,id'],
-            'to_location_id' => ['required', 'exists:locations,id'],
+            'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $companyId)],
+            'from_location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
+            'to_location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'quantity' => ['required', 'numeric', 'min:0.01'],
             'note' => ['nullable', 'string', 'max:500'],
         ];

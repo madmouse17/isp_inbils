@@ -2,7 +2,9 @@
 
 namespace Modules\Ticketing\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTicketRequest extends FormRequest
 {
@@ -14,16 +16,18 @@ class StoreTicketRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $companyId = CompanyService::currentId();
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'source' => ['required', 'string', 'in:customer,noc,internal'],
-            'category_id' => ['required', 'exists:ticket_categories,id'],
+            'category_id' => ['required', Rule::exists('ticket_categories', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'subscription_id' => ['nullable', 'exists:service_subscriptions,id'],
-            'network_asset_id' => ['nullable', 'exists:network_assets,id'],
-            'location_id' => ['nullable', 'exists:locations,id'],
+            'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('company_id', $companyId)],
+            'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
+            'network_asset_id' => ['nullable', Rule::exists('network_assets', 'id')->where('company_id', $companyId)],
+            'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
         ];
     }
 

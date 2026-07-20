@@ -48,9 +48,10 @@ class NetworkAssetService
 
     public static function remove(NetworkAsset $asset, string $reason): NetworkAsset
     {
-        abort_if($asset->status !== 'installed', 422, 'Asset must be installed to remove.');
-
         return DB::transaction(function () use ($asset, $reason) {
+            $asset = NetworkAsset::withoutCompany()->lockForUpdate()->findOrFail($asset->id);
+            abort_if($asset->status !== 'installed', 422, 'Asset must be installed to remove.');
+
             $asset->update([
                 'status' => 'available',
                 'location_id' => null,

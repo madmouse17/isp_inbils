@@ -18,7 +18,7 @@ class CompleteSpkAction
     public static function execute(WorkOrder $workOrder): WorkOrder
     {
         return DB::transaction(function () use ($workOrder) {
-            $workOrder = WorkOrder::with(['evidence', 'items.product', 'subscription', 'customer'])
+            $workOrder = WorkOrder::with(['evidence', 'items.product', 'subscription.customer', 'customer'])
                 ->lockForUpdate()
                 ->findOrFail($workOrder->id);
 
@@ -112,15 +112,22 @@ class CompleteSpkAction
             return;
         }
 
-        $asset = NetworkAsset::where('status', 'available')
-            ->whereIn('product_id', $workOrder->items->pluck('product_id')->filter()->values())
-            ->first();
+        abort_unless($workOrder->subscription && $workOrder->customer, 422, 'Installation SPK requires customer and subscription.');
+        abort_unless($workOrder->subscription->customer?->company_id === $workOrder->company_id, 422, 'Subscription must belong to the SPK company.');
+        abort_unless($workOrder->subscription->customer_id === $workOrder->customer_id, 422, 'Subscription must belong to the SPK customer.');
 
-        // ponytail: exact asset selection needs work_order_items.network_asset_id or work_orders.network_asset_id.
-        // Current safe path installs first available asset matching SPK product.
-        if (! $asset) {
-            return;
-        }
+        $selectedItems = $workOrder->items->filter(fn (WorkOrderItem $item) => $item->network_asset_id !== null);
+        abort_unless($selectedItems->count() === 1, 422, 'Installation SPK requires exactly one selected network asset.');
+
+        $selectedItem = $selectedItems->first();
+        $asset = NetworkAsset::withoutCompany()
+            ->lockForUpdate()
+            ->find($selectedItem->network_asset_id);
+
+        abort_unless($asset, 422, 'Selected network asset is unavailable.');
+        abort_unless($asset->company_id === $workOrder->company_id, 422, 'Selected network asset must belong to the SPK company.');
+        abort_unless($asset->product_id === $selectedItem->product_id, 422, 'Selected network asset must match the SPK item product.');
+        abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
 
         NetworkAssetService::install(
             $asset,

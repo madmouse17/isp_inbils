@@ -59,6 +59,7 @@ class SpkCompletionOrchestrationTest extends TestCase
             'company_id' => $company->id,
             'work_order_id' => $workOrder->id,
             'product_id' => $product->id,
+            'network_asset_id' => $asset->id,
             'quantity_reserved' => 2,
             'quantity_used' => 2,
         ]);

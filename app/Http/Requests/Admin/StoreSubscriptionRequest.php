@@ -6,6 +6,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Modules\Service\Models\ServicePackage;
 
 class StoreSubscriptionRequest extends FormRequest
@@ -21,14 +22,14 @@ class StoreSubscriptionRequest extends FormRequest
         $companyId = CompanyService::currentId();
 
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
-            'service_package_id' => ['required', 'exists:service_packages,id'],
-            'installation_address_id' => ['required', 'exists:customer_addresses,id'],
+            'customer_id' => ['required', Rule::exists('customers', 'id')->where('company_id', $companyId)],
+            'service_package_id' => ['required', Rule::exists('service_packages', 'id')->where('company_id', $companyId)],
+            'installation_address_id' => ['required', Rule::exists('customer_addresses', 'id')->where('company_id', $companyId)],
             'billing_day' => ['required', 'integer', 'between:1,28'],
             'mrc_amount' => ['nullable', 'numeric', 'min:0'],
             'otc_installation_fee' => ['nullable', 'numeric', 'min:0'],
             'contract_months' => ['nullable', 'integer', 'min:1'],
-            'serving_pop_id' => ['nullable', 'exists:locations,id'],
+            'serving_pop_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'activation_date' => ['nullable', 'date'],
             'expiration_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],

@@ -2,7 +2,9 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StockAdjustRequest extends FormRequest
 {
@@ -14,9 +16,11 @@ class StockAdjustRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        $companyId = CompanyService::currentId();
+
         return [
-            'product_id' => ['required', 'exists:products,id'],
-            'location_id' => ['required', 'exists:locations,id'],
+            'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $companyId)],
+            'location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'new_quantity' => ['required', 'numeric', 'min:0'],
             'note' => ['required', 'string', 'max:500'],
         ];

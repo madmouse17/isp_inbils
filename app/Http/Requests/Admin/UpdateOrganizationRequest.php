@@ -20,7 +20,7 @@ class UpdateOrganizationRequest extends FormRequest
             'code' => ['required', 'string', 'max:50', Rule::unique('organization_units')->where('company_id', $companyId)->ignore($unitId)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:company,branch,area,unit,team'],
-            'parent_id' => ['nullable', 'exists:organization_units,id'],
+            'parent_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
             'address' => ['nullable', 'string'],
             'phone' => ['nullable', 'string', 'max:50'],
             'email' => ['nullable', 'email', 'max:255'],

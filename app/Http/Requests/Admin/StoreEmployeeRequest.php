@@ -16,9 +16,9 @@ class StoreEmployeeRequest extends FormRequest
     {
         $companyId = \App\Services\Core\CompanyService::currentId();
         return [
-            'user_id' => ['required', 'exists:users,id'],
-            'organization_id' => ['nullable', 'exists:organization_units,id'],
-            'vehicle_id' => ['nullable', 'exists:vehicles,id'],
+            'user_id' => ['required', Rule::exists('users', 'id')->where('company_id', $companyId)],
+            'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
+            'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('company_id', $companyId)],
             'employee_number' => ['required', 'string', 'max:50', Rule::unique('employee_profiles')->where('company_id', $companyId)],
             'phone' => ['nullable', 'string', 'max:50'],
             'hire_date' => ['nullable', 'date'],

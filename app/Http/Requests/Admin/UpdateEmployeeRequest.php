@@ -17,8 +17,8 @@ class UpdateEmployeeRequest extends FormRequest
         $profileId = $this->route('employee_profile')->id;
         $companyId = \App\Services\Core\CompanyService::currentId();
         return [
-            'organization_id' => ['nullable', 'exists:organization_units,id'],
-            'vehicle_id' => ['nullable', 'exists:vehicles,id'],
+            'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
+            'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('company_id', $companyId)],
             'employee_number' => ['required', 'string', 'max:50', Rule::unique('employee_profiles')->where('company_id', $companyId)->ignore($profileId)],
             'phone' => ['nullable', 'string', 'max:50'],
             'hire_date' => ['nullable', 'date'],

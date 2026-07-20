@@ -20,7 +20,7 @@ class StoreCategoryRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'code' => ['required', 'string', 'max:100', Rule::unique('categories')->where('company_id', $companyId)],
-            'parent_id' => ['nullable', 'exists:categories,id'],
+            'parent_id' => ['nullable', Rule::exists('categories', 'id')->where('company_id', $companyId)],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];

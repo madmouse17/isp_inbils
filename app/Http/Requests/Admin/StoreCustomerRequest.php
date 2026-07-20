@@ -25,7 +25,7 @@ class StoreCustomerRequest extends FormRequest
             'phone' => ['nullable', 'string', 'max:50'],
             'tax_id' => ['nullable', 'string', 'max:100'],
             'contact_person' => ['nullable', 'string', 'max:255'],
-            'area_coverage_id' => ['nullable', 'exists:locations,id'],
+            'area_coverage_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'notes' => ['nullable', 'string'],
             'is_active' => ['boolean'],
         ];
