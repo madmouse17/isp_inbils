@@ -21,6 +21,7 @@ class CompanySeeder extends Seeder
         $this->seedSpeedProfiles($company);
         $this->seedServicePackages($company);
         $this->seedInventoryCategories($company);
+        $this->seedProductStocks($company);
         $this->seedNetworkAssets($company);
     }
 
@@ -282,6 +283,53 @@ class CompanySeeder extends Seeder
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+        }
+    }
+
+    private function seedProductStocks(Company $company): void
+    {
+        if (! Schema::hasTable('stocks') || ! Schema::hasTable('products') || ! Schema::hasTable('locations')) {
+            return;
+        }
+
+        if (DB::table('stocks')->where('company_id', $company->id)->exists()) {
+            return;
+        }
+
+        $locationId = DB::table('locations')
+            ->where('company_id', $company->id)
+            ->where('type', 'pop')
+            ->orderBy('id')
+            ->value('id')
+            ?? DB::table('locations')
+                ->where('company_id', $company->id)
+                ->orderBy('id')
+                ->value('id');
+
+        if (! $locationId) {
+            return;
+        }
+
+        $products = DB::table('products')
+            ->where('company_id', $company->id)
+            ->where('track_stock', true)
+            ->orderBy('id')
+            ->get(['id']);
+
+        foreach ($products as $index => $product) {
+            DB::table('stocks')->updateOrInsert(
+                [
+                    'company_id' => $company->id,
+                    'product_id' => $product->id,
+                    'location_id' => $locationId,
+                ],
+                [
+                    'quantity' => 20 + ($index * 5),
+                    'reserved_quantity' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ],
+            );
         }
     }
 

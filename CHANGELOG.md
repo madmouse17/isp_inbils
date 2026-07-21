@@ -6,6 +6,12 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — local full demo seed (2026-07-21)
+
+- `DatabaseSeeder` now runs demo users, customer demo, and E2E fixtures on local/dev/testing.
+- `CompanySeeder` seeds sample stock quantities for trackable products.
+
+
 ### Fixed — inventory unit ownership on category (2026-07-21)
 
 - Category form now requires and displays `unit_id`.

@@ -13,7 +13,14 @@ class DatabaseSeeder extends Seeder
             SystemSettingSeeder::class,
         ]);
 
-        // User created via php artisan inbils:setup (P1-03).
-        // Company via Setup Wizard (P1-03).
+        // Local/dev convenience: one-shot demo company + sample data.
+        // Production install remains bootstrap command + setup wizard.
+        if (app()->environment(['local', 'development', 'testing'])) {
+            $this->call([
+                DemoUserSeeder::class,
+                CustomerDemoSeeder::class,
+                E2eFixtureSeeder::class,
+            ]);
+        }
     }
 }

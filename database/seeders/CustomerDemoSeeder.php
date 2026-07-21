@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
@@ -12,7 +13,7 @@ class CustomerDemoSeeder extends Seeder
 {
     public function run(): void
     {
-        $company = CompanyService::current() ?? \App\Models\Core\Company::query()->first();
+        $company = CompanyService::current() ?? Company::query()->first();
 
         if (! $company) {
             return;
@@ -43,6 +44,7 @@ class CustomerDemoSeeder extends Seeder
             CustomerAddress::factory()->create([
                 'customer_id' => $customer->id,
                 'company_id' => $company->id,
+                'label' => 'Utama',
                 'is_installation_point' => true,
                 'is_primary' => true,
             ]);
@@ -88,7 +90,7 @@ class CustomerDemoSeeder extends Seeder
                 'customer_id' => $customer->id,
                 'service_package_id' => $packageId,
                 'installation_address_id' => $address->id,
-                'code' => 'SUB-' . date('Y') . '-' . str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
+                'code' => 'SUB-'.date('Y').'-'.str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
                 'status' => $status,
                 'billing_day' => rand(1, 28),
                 'mrc_amount' => $pkg->price_mrc ?? 150000,
