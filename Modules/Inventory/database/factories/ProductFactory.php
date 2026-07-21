@@ -6,7 +6,6 @@ use App\Models\Core\Company;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\Unit;
 
 /**
  * @extends Factory<Product>
@@ -18,10 +17,24 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         return [
-            'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
-            'category_id' => Category::factory(),
-            'unit_id' => Unit::factory(),
-            'sku' => 'PRD-' . strtoupper(fake()->unique()->bothify('??####')),
+            'company_id' => Company::factory(),
+            'category_id' => function (array $attributes) {
+                $companyId = $attributes['company_id'] ?? Company::factory()->create()->id;
+
+                return Category::factory()->create([
+                    'company_id' => $companyId,
+                ])->id;
+            },
+            'unit_id' => function (array $attributes) {
+                $categoryId = $attributes['category_id'] ?? null;
+
+                if ($categoryId) {
+                    return Category::query()->find($categoryId)?->unit_id;
+                }
+
+                return null;
+            },
+            'sku' => 'PRD-'.strtoupper(fake()->unique()->bothify('??####')),
             'name' => fake()->words(3, true),
             'description' => fake()->optional()->sentence(),
             'type' => 'consumable',

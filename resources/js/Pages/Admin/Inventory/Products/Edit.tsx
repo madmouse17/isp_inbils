@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+﻿import type { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
@@ -9,26 +9,23 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    SearchSelect,
     Select,
     Switch,
     Textarea,
 } from '@/Components/ui';
-import type { Category, Product, Unit } from '@/types/inventory';
+import type { Category, Product } from '@/types/inventory';
 
 interface EditProps extends Record<string, unknown> {
     product: { data: Product };
     categories: { data: Category[] };
-    units: { data: Unit[] };
 }
 
-export default function Edit({ product, categories, units }: EditProps) {
+export default function Edit({ product, categories }: EditProps) {
     const p = product.data;
     const { data, setData, processing, errors } = useForm({
         sku: p.sku,
         name: p.name,
         category_id: String(p.category_id ?? ''),
-        unit_id: String(p.unit_id ?? ''),
         description: p.description ?? '',
         sell_price: p.sell_price ?? '',
         cost_price: p.cost_price ?? '',
@@ -37,14 +34,19 @@ export default function Edit({ product, categories, units }: EditProps) {
         is_active: p.is_active,
     });
 
+    const selectedCategory = categories.data.find(
+        (category) => String(category.id) === String(data.category_id),
+    );
+    const unitLabel = selectedCategory?.unit
+        ? `${selectedCategory.unit.name} (${selectedCategory.unit.symbol})`
+        : p.unit
+          ? `${p.unit.name} (${p.unit.symbol})`
+          : 'Select category first';
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.put(route('admin.products.update', p.id), data);
     };
-    const unitOptions = units.data.map((unit) => ({
-        value: String(unit.id),
-        label: `${unit.name} (${unit.symbol})`,
-    }));
 
     return (
         <AdminLayout title={`Edit ${p.name}`}>
@@ -85,15 +87,13 @@ export default function Edit({ product, categories, units }: EditProps) {
                                     </option>
                                 ))}
                             </Select>
-                            <SearchSelect
+                            <Input
                                 label="Unit"
-                                value={data.unit_id}
-                                onChange={(value) => setData('unit_id', value)}
-                                options={unitOptions}
-                                placeholder="Search unit"
-                                emptyText="No units found."
+                                value={unitLabel}
+                                readOnly
+                                disabled
+                                hint="Unit follows selected category."
                                 error={errors.unit_id}
-                                required
                             />
                             <Input
                                 label="Sell Price"

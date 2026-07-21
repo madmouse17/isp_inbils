@@ -13,10 +13,8 @@ use Modules\Inventory\Http\Requests\StoreProductRequest;
 use Modules\Inventory\Http\Requests\UpdateProductRequest;
 use Modules\Inventory\Http\Resources\CategoryResource;
 use Modules\Inventory\Http\Resources\ProductResource;
-use Modules\Inventory\Http\Resources\UnitResource;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\Unit;
 
 class ProductController extends Controller
 {
@@ -38,7 +36,6 @@ class ProductController extends Controller
         return Inertia::render('Admin/Inventory/Products/Index', [
             'products' => ProductResource::collection($products),
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
-            'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
             'filters' => $request->only(['category_id', 'is_active', 'search']),
             'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
         ]);
@@ -50,7 +47,6 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Inventory/Products/Create', [
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
-            'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
         ]);
     }
 
@@ -80,7 +76,6 @@ class ProductController extends Controller
         return Inertia::render('Admin/Inventory/Products/Edit', [
             'product' => new ProductResource($product),
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
-            'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
         ]);
     }
 

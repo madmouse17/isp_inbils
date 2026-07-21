@@ -474,8 +474,8 @@ class P0CriticalPathTest extends TestCase
 
     private function product(Company $company, array $extra = []): Product
     {
-        $category = Category::forceCreate(['company_id' => $company->id, 'name' => 'P0 Category', 'code' => 'P0-CAT', 'is_active' => true]);
         $unit = Unit::forceCreate(['company_id' => $company->id, 'name' => 'Piece', 'symbol' => 'pcs']);
+        $category = Category::forceCreate(['company_id' => $company->id, 'unit_id' => $unit->id, 'name' => 'P0 Category', 'code' => 'P0-CAT', 'is_active' => true]);
 
         return Product::forceCreate(array_merge([
             'company_id' => $company->id,

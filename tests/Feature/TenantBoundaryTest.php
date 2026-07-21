@@ -13,11 +13,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
-use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
-use Modules\SPK\Models\WorkOrder;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Tests\TestCase;
@@ -56,19 +55,21 @@ class TenantBoundaryTest extends TestCase
 
     public function test_inventory_detail_hides_other_company_product(): void
     {
+        $unit = Unit::withoutCompany()->forceCreate([
+            'company_id' => $this->otherCompany->id,
+            'name' => 'Other Unit',
+            'symbol' => 'OU',
+        ]);
         $product = Product::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
             'category_id' => Category::withoutCompany()->forceCreate([
                 'company_id' => $this->otherCompany->id,
+                'unit_id' => $unit->id,
                 'name' => 'Other Category',
                 'code' => 'OTHER-CAT',
                 'is_active' => true,
             ])->id,
-            'unit_id' => Unit::withoutCompany()->forceCreate([
-                'company_id' => $this->otherCompany->id,
-                'name' => 'Other Unit',
-                'symbol' => 'OU',
-            ])->id,
+            'unit_id' => $unit->id,
             'sku' => 'OTHER-SKU',
             'name' => 'Other Product',
             'type' => 'consumable',
@@ -109,6 +110,11 @@ class TenantBoundaryTest extends TestCase
     {
         $category = TicketCategory::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
+            'unit_id' => Unit::withoutCompany()->forceCreate([
+                'company_id' => $this->otherCompany->id,
+                'name' => 'Auto Unit '.fake()->unique()->numberBetween(1, 9999),
+                'symbol' => 'AU'.fake()->unique()->numberBetween(1, 9999),
+            ])->id,
             'name' => 'Other Support',
             'code' => 'OTHER',
             'default_sla_hours' => 24,
@@ -132,16 +138,17 @@ class TenantBoundaryTest extends TestCase
 
     public function test_product_store_rejects_other_company_category_and_unit(): void
     {
-        $category = Category::withoutCompany()->forceCreate([
-            'company_id' => $this->otherCompany->id,
-            'name' => 'Other Product Category',
-            'code' => 'OTHER-PROD-CAT',
-            'is_active' => true,
-        ]);
         $unit = Unit::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
             'name' => 'Other Piece',
             'symbol' => 'OPC',
+        ]);
+        $category = Category::withoutCompany()->forceCreate([
+            'company_id' => $this->otherCompany->id,
+            'unit_id' => $unit->id,
+            'name' => 'Other Product Category',
+            'code' => 'OTHER-PROD-CAT',
+            'is_active' => true,
         ]);
 
         $this->actingAs($this->admin)->post(route('admin.products.store'), [
@@ -152,12 +159,10 @@ class TenantBoundaryTest extends TestCase
             'type' => 'consumable',
             'track_stock' => true,
             'is_active' => true,
-        ])->assertSessionHasErrors(['category_id', 'unit_id']);
+        ])->assertSessionHasErrors(['category_id']);
 
         $this->assertDatabaseMissing('products', [
             'sku' => 'XTENANT-PROD',
-            'category_id' => $category->id,
-            'unit_id' => $unit->id,
         ]);
     }
 
@@ -215,6 +220,11 @@ class TenantBoundaryTest extends TestCase
         ]);
         $category = TicketCategory::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
+            'unit_id' => Unit::withoutCompany()->forceCreate([
+                'company_id' => $this->otherCompany->id,
+                'name' => 'Auto Unit '.fake()->unique()->numberBetween(1, 9999),
+                'symbol' => 'AU'.fake()->unique()->numberBetween(1, 9999),
+            ])->id,
             'name' => 'Other Ticket Category',
             'code' => 'OTHER-TICKET-CAT',
             'default_sla_hours' => 24,
@@ -241,16 +251,17 @@ class TenantBoundaryTest extends TestCase
 
     public function test_stock_receive_rejects_other_company_product_and_location(): void
     {
-        $category = Category::withoutCompany()->forceCreate([
-            'company_id' => $this->otherCompany->id,
-            'name' => 'Other Stock Category',
-            'code' => 'OTHER-STOCK-CAT',
-            'is_active' => true,
-        ]);
         $unit = Unit::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
             'name' => 'Other Stock Unit',
             'symbol' => 'OSU',
+        ]);
+        $category = Category::withoutCompany()->forceCreate([
+            'company_id' => $this->otherCompany->id,
+            'unit_id' => $unit->id,
+            'name' => 'Other Stock Category',
+            'code' => 'OTHER-STOCK-CAT',
+            'is_active' => true,
         ]);
         $product = Product::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,

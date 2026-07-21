@@ -5,6 +5,7 @@ namespace Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -13,6 +14,7 @@ use Modules\Inventory\Http\Requests\UpdateCategoryRequest;
 use Modules\Inventory\Http\Resources\CategoryResource;
 use Modules\Inventory\Http\Resources\UnitResource;
 use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 
 class CategoryController extends Controller
@@ -49,7 +51,18 @@ class CategoryController extends Controller
     public function update(UpdateCategoryRequest $request, Category $category): RedirectResponse
     {
         Gate::authorize('update', $category);
-        $category->update($request->validated());
+
+        $validated = $request->validated();
+
+        DB::transaction(function () use ($category, $validated) {
+            $category->update($validated);
+
+            if (array_key_exists('unit_id', $validated)) {
+                Product::query()
+                    ->where('category_id', $category->id)
+                    ->update(['unit_id' => $validated['unit_id']]);
+            }
+        });
 
         return back()->with('success', 'Category updated.');
     }

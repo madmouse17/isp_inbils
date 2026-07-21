@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+﻿import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -18,7 +18,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import type { Category, Product, Unit } from '@/types/inventory';
+import type { Category, Product } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
     products: {
@@ -29,7 +29,6 @@ interface IndexProps extends Record<string, unknown> {
         total: number;
     };
     categories: { data: Category[] };
-    units: { data: Unit[] };
     filters: { category_id?: string; is_active?: string; search?: string };
     can: { create: boolean };
 }
@@ -197,3 +196,4 @@ export default function Index({ products, categories, filters, can }: IndexProps
         </AdminLayout>
     );
 }
+

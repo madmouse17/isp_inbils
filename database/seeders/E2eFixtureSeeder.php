@@ -23,7 +23,6 @@ class E2eFixtureSeeder extends Seeder
         }
 
         $now = now();
-        $categoryId = DB::table('categories')->where('company_id', $company->id)->value('id');
 
         DB::table('units')->updateOrInsert(
             ['company_id' => $company->id, 'name' => 'E2E Unit'],
@@ -34,12 +33,34 @@ class E2eFixtureSeeder extends Seeder
             ->where('name', 'E2E Unit')
             ->value('id');
 
+        $categoryId = DB::table('categories')->where('company_id', $company->id)->value('id');
+
+        if (! $categoryId) {
+            $categoryId = DB::table('categories')->insertGetId([
+                'company_id' => $company->id,
+                'parent_id' => null,
+                'unit_id' => $unitId,
+                'name' => 'E2E Category',
+                'code' => 'E2E-CAT',
+                'description' => null,
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        } else {
+            DB::table('categories')
+                ->where('id', $categoryId)
+                ->whereNull('unit_id')
+                ->update(['unit_id' => $unitId, 'updated_at' => $now]);
+        }
+
         if ($categoryId) {
+            $categoryUnitId = DB::table('categories')->where('id', $categoryId)->value('unit_id') ?: $unitId;
             DB::table('products')->updateOrInsert(
                 ['company_id' => $company->id, 'sku' => 'E2E-STOCK-PRODUCT'],
                 [
                     'category_id' => $categoryId,
-                    'unit_id' => $unitId,
+                    'unit_id' => $categoryUnitId,
                     'name' => 'E2E Stock Product',
                     'type' => 'consumable',
                     'track_stock' => true,

@@ -66,10 +66,11 @@ class DeterministicAssetProvisioningTest extends TestCase
     {
         [$company, $user, $location, $customer] = $this->scope();
         $foreignCompany = Company::factory()->create();
+        $foreignUnit = Unit::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs']);
         $foreignProduct = Product::withoutCompany()->forceCreate([
             'company_id' => $foreignCompany->id,
-            'category_id' => Category::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
-            'unit_id' => Unit::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs'])->id,
+            'category_id' => Category::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'unit_id' => $foreignUnit->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
+            'unit_id' => $foreignUnit->id,
             'sku' => 'SPK-FPRD-'.fake()->unique()->numberBetween(1, 9999),
             'name' => 'SPK Foreign Product',
             'type' => 'asset',
@@ -129,8 +130,8 @@ class DeterministicAssetProvisioningTest extends TestCase
 
     private function product(Company $company): Product
     {
-        $category = Category::create(['company_id' => $company->id, 'name' => 'SPK Test Category', 'code' => 'SPK-CAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true]);
         $unit = Unit::create(['company_id' => $company->id, 'name' => 'Piece', 'symbol' => 'pcs']);
+        $category = Category::create(['company_id' => $company->id, 'unit_id' => $unit->id, 'name' => 'SPK Test Category', 'code' => 'SPK-CAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true]);
 
         return Product::create(['company_id' => $company->id, 'category_id' => $category->id, 'unit_id' => $unit->id, 'sku' => 'SPK-PRD-'.fake()->unique()->numberBetween(1, 9999), 'name' => 'SPK Test Product', 'type' => 'asset', 'track_stock' => true, 'sell_price' => 100_000, 'cost_price' => 50_000, 'min_stock' => 0, 'is_active' => true]);
     }

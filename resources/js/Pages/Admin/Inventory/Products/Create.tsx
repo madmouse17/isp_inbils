@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+﻿import type { FormEvent } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
@@ -9,24 +9,21 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    SearchSelect,
     Select,
     Switch,
     Textarea,
 } from '@/Components/ui';
-import type { Category, Unit } from '@/types/inventory';
+import type { Category } from '@/types/inventory';
 
 interface CreateProps extends Record<string, unknown> {
     categories: { data: Category[] };
-    units: { data: Unit[] };
 }
 
-export default function Create({ categories, units }: CreateProps) {
+export default function Create({ categories }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         sku: '',
         name: '',
         category_id: '',
-        unit_id: '',
         description: '',
         sell_price: '',
         cost_price: '',
@@ -35,14 +32,17 @@ export default function Create({ categories, units }: CreateProps) {
         is_active: true,
     });
 
+    const selectedCategory = categories.data.find(
+        (category) => String(category.id) === String(data.category_id),
+    );
+    const unitLabel = selectedCategory?.unit
+        ? `${selectedCategory.unit.name} (${selectedCategory.unit.symbol})`
+        : 'Select category first';
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         post(route('admin.products.store'));
     };
-    const unitOptions = units.data.map((unit) => ({
-        value: String(unit.id),
-        label: `${unit.name} (${unit.symbol})`,
-    }));
 
     return (
         <AdminLayout title="Create Product">
@@ -84,15 +84,13 @@ export default function Create({ categories, units }: CreateProps) {
                                     </option>
                                 ))}
                             </Select>
-                            <SearchSelect
+                            <Input
                                 label="Unit"
-                                value={data.unit_id}
-                                onChange={(value) => setData('unit_id', value)}
-                                options={unitOptions}
-                                placeholder="Search unit"
-                                emptyText="No units found."
+                                value={unitLabel}
+                                readOnly
+                                disabled
+                                hint="Unit follows selected category."
                                 error={errors.unit_id}
-                                required
                             />
                             <Input
                                 label="Sell Price"

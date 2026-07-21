@@ -26,14 +26,19 @@ class CompanySeeder extends Seeder
 
     private function seedUnits(Company $company): void
     {
-        if (! Schema::hasTable('units') || ! Schema::hasColumns('units', ['company_id', 'name', 'is_active'])) {
+        if (! Schema::hasTable('units') || ! Schema::hasColumns('units', ['company_id', 'name', 'symbol'])) {
             return;
         }
 
-        foreach (['pcs', 'meter', 'roll', 'box'] as $name) {
+        foreach ([
+            ['name' => 'pcs', 'symbol' => 'pcs'],
+            ['name' => 'meter', 'symbol' => 'm'],
+            ['name' => 'roll', 'symbol' => 'roll'],
+            ['name' => 'box', 'symbol' => 'box'],
+        ] as $unit) {
             DB::table('units')->updateOrInsert(
-                ['company_id' => $company->id, 'name' => $name],
-                ['is_active' => true, 'updated_at' => now(), 'created_at' => now()],
+                ['company_id' => $company->id, 'name' => $unit['name']],
+                ['symbol' => $unit['symbol'], 'updated_at' => now(), 'created_at' => now()],
             );
         }
     }
@@ -207,11 +212,28 @@ class CompanySeeder extends Seeder
             ['name' => 'Patch Cord', 'code' => 'PTC', 'description' => 'Patch cord fiber'],
         ];
 
+        $unitIds = DB::table('units')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
+
+        if (empty($unitIds)) {
+            return;
+        }
+
+        // Category unit ownership: Kabel/Patch Cord meter, rest pcs.
+        $categoryUnitMap = [
+            'KBL' => 1,
+            'CON' => 0,
+            'SPR' => 0,
+            'TLS' => 0,
+            'PTC' => 1,
+        ];
+
         foreach ($categories as $c) {
+            $unitIdx = $categoryUnitMap[$c['code']] ?? 0;
             DB::table('categories')->insert([
                 ...$c,
                 'company_id' => $company->id,
                 'parent_id' => null,
+                'unit_id' => $unitIds[$unitIdx] ?? $unitIds[0],
                 'is_active' => true,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -219,16 +241,11 @@ class CompanySeeder extends Seeder
         }
 
         // Seed products
-        if (! Schema::hasTable('products') || ! Schema::hasTable('units')) {
+        if (! Schema::hasTable('products')) {
             return;
         }
 
         $catIds = DB::table('categories')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
-        $unitIds = DB::table('units')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
-
-        if (empty($unitIds)) {
-            return;
-        }
 
         $products = [
             ['sku' => 'KBL-UTP-CAT6', 'name' => 'Kabel UTP Cat6', 'category_idx' => 0, 'unit_idx' => 0, 'sell_price' => 5000, 'cost_price' => 3500],
@@ -243,11 +260,16 @@ class CompanySeeder extends Seeder
             ['sku' => 'PTC-SC-3M', 'name' => 'Patch Cord SC/APC 3m', 'category_idx' => 4, 'unit_idx' => 1, 'sell_price' => 35000, 'cost_price' => 22000],
         ];
 
+        $categoryUnits = DB::table('categories')
+            ->where('company_id', $company->id)
+            ->pluck('unit_id', 'id');
+
         foreach ($products as $p) {
+            $categoryId = $catIds[$p['category_idx']] ?? $catIds[0];
             DB::table('products')->insert([
                 'company_id' => $company->id,
-                'category_id' => $catIds[$p['category_idx']] ?? $catIds[0],
-                'unit_id' => $unitIds[$p['unit_idx']] ?? $unitIds[0],
+                'category_id' => $categoryId,
+                'unit_id' => $categoryUnits[$categoryId] ?? $unitIds[$p['unit_idx']] ?? $unitIds[0],
                 'sku' => $p['sku'],
                 'name' => $p['name'],
                 'description' => null,
@@ -291,7 +313,7 @@ class CompanySeeder extends Seeder
                 ...$a,
                 'company_id' => $company->id,
                 'product_id' => null,
-                'code' => 'AST-' . date('Y') . '-' . str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
+                'code' => 'AST-'.date('Y').'-'.str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
                 'mac_address' => null,
                 'ip_address' => null,
                 'management_ip' => null,

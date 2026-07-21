@@ -156,16 +156,17 @@ class SpkCompletionOrchestrationTest extends TestCase
 
     private function product(Company $company, array $extra = []): Product
     {
-        $category = Category::create([
-            'company_id' => $company->id,
-            'name' => 'SPK Test Category',
-            'code' => 'SPK-CAT-'.fake()->unique()->numberBetween(1, 9999),
-            'is_active' => true,
-        ]);
         $unit = Unit::create([
             'company_id' => $company->id,
             'name' => 'Piece',
             'symbol' => 'pcs',
+        ]);
+        $category = Category::create([
+            'company_id' => $company->id,
+            'unit_id' => $unit->id,
+            'name' => 'SPK Test Category',
+            'code' => 'SPK-CAT-'.fake()->unique()->numberBetween(1, 9999),
+            'is_active' => true,
         ]);
 
         return Product::create(array_merge([

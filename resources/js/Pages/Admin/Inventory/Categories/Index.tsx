@@ -1,4 +1,4 @@
-import type { FormEvent } from 'react';
+﻿import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -11,6 +11,7 @@ import {
     Input,
     Modal,
     Pagination,
+    SearchSelect,
     Switch,
     Table,
     TBody,
@@ -20,7 +21,7 @@ import {
     TR,
     Textarea,
 } from '@/Components/ui';
-import type { Category } from '@/types/inventory';
+import type { Category, Unit } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
     categories: {
@@ -30,10 +31,11 @@ interface IndexProps extends Record<string, unknown> {
         per_page: number;
         total: number;
     };
+    units: { data: Unit[] };
     can: { create: boolean };
 }
 
-export default function Index({ categories, can }: IndexProps) {
+export default function Index({ categories, units, can }: IndexProps) {
     const [search, setSearch] = useState('');
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Category | null>(null);
@@ -41,9 +43,15 @@ export default function Index({ categories, can }: IndexProps) {
         name: '',
         code: '',
         parent_id: '',
+        unit_id: '',
         description: '',
         is_active: true,
     });
+
+    const unitOptions = units.data.map((unit) => ({
+        value: String(unit.id),
+        label: `${unit.name} (${unit.symbol})`,
+    }));
 
     const submitFilter = (e: FormEvent) => {
         e.preventDefault();
@@ -62,6 +70,7 @@ export default function Index({ categories, can }: IndexProps) {
             name: c.name,
             code: c.code,
             parent_id: c.parent_id ? String(c.parent_id) : '',
+            unit_id: c.unit_id ? String(c.unit_id) : '',
             description: c.description ?? '',
             is_active: c.is_active,
         });
@@ -88,8 +97,9 @@ export default function Index({ categories, can }: IndexProps) {
     };
 
     const remove = (c: Category) => {
-        if (window.confirm(`Delete ${c.name}?`))
+        if (window.confirm(`Delete ${c.name}?`)) {
             router.delete(route('admin.categories.destroy', c.id));
+        }
     };
 
     return (
@@ -97,7 +107,7 @@ export default function Index({ categories, can }: IndexProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Categories"
-                    subtitle="Manage product categories."
+                    subtitle="Manage product categories and default unit."
                     actions={
                         can.create && (
                             <Button type="button" onClick={openCreate}>
@@ -126,6 +136,7 @@ export default function Index({ categories, can }: IndexProps) {
                                 <TR>
                                     <TH>Code</TH>
                                     <TH>Name</TH>
+                                    <TH>Unit</TH>
                                     <TH>Children</TH>
                                     <TH>Status</TH>
                                     <TH>Actions</TH>
@@ -135,7 +146,7 @@ export default function Index({ categories, can }: IndexProps) {
                                 {categories.data.length === 0 ? (
                                     <TR>
                                         <TD
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="py-10 text-center text-muted-foreground"
                                         >
                                             No data found.
@@ -146,6 +157,11 @@ export default function Index({ categories, can }: IndexProps) {
                                         <TR key={c.id}>
                                             <TD className="font-mono text-sm">{c.code}</TD>
                                             <TD>{c.name}</TD>
+                                            <TD>
+                                                {c.unit
+                                                    ? `${c.unit.name} (${c.unit.symbol})`
+                                                    : '—'}
+                                            </TD>
                                             <TD>{c.children_count ?? 0}</TD>
                                             <TD>
                                                 <Badge variant={c.is_active ? 'success' : 'danger'}>
@@ -206,6 +222,16 @@ export default function Index({ categories, can }: IndexProps) {
                         value={data.code}
                         onChange={(e) => setData('code', e.target.value)}
                         error={errors.code}
+                        required
+                    />
+                    <SearchSelect
+                        label="Unit"
+                        value={data.unit_id}
+                        onChange={(value) => setData('unit_id', value)}
+                        options={unitOptions}
+                        placeholder="Search unit"
+                        emptyText="No units found."
+                        error={errors.unit_id}
                         required
                     />
                     <Input

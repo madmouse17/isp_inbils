@@ -30,8 +30,8 @@ class StockServiceTest extends TestCase
         $company = Company::factory()->create();
         $this->actingAs(User::factory()->create(['company_id' => $company->id]));
 
-        $category = Category::query()->create(['name' => 'Routers', 'code' => 'RTR']);
         $unit = Unit::query()->create(['name' => 'Piece', 'symbol' => 'PCS']);
+        $category = Category::query()->create(['name' => 'Routers', 'code' => 'RTR', 'unit_id' => $unit->id]);
         $this->productId = Product::query()->create([
             'category_id' => $category->id,
             'unit_id' => $unit->id,
