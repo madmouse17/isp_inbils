@@ -33,6 +33,9 @@ Thumbs.db
 
 docs/*
 !docs/ENTERPRISE_ISP_READINESS.md
+!docs/ari/
+docs/ari/*
+!docs/ari/customer-spk-ticket-revision-plan.md
 !docs/plans/
 !docs/plans/ENTERPRISE_ISP_EXECUTION_PLAN.md
 !docs/architecture/
