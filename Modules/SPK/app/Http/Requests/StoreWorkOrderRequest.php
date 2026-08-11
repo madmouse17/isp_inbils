@@ -2,6 +2,7 @@
 
 namespace Modules\SPK\Http\Requests;
 
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -31,12 +32,29 @@ class StoreWorkOrderRequest extends FormRequest
         ];
     }
 
-    protected function prepareForValidation(): void
+    public function after(): array
     {
-        if (in_array($this->input('type'), ['installation', 'upgrade_service', 'relocation'])) {
-            if (!$this->input('customer_id') || !$this->input('subscription_id')) {
-                $this->getValidatorInstance()->errors()->add('customer_id', 'Customer and subscription required for this SPK type.');
-            }
-        }
+        return [
+            function ($validator): void {
+                $companyId = CompanyService::currentId();
+
+                if (! in_array($this->input('type'), ['installation', 'upgrade_service', 'relocation'], true)) {
+                    return;
+                }
+
+                if (! $this->input('customer_id') || ! $this->input('subscription_id')) {
+                    $validator->errors()->add('customer_id', 'Customer and subscription required for this SPK type.');
+
+                    return;
+                }
+
+                $subscription = ServiceSubscription::query()
+                    ->where('company_id', $companyId)
+                    ->find($this->input('subscription_id'));
+                if ($subscription && (int) $subscription->customer_id !== (int) $this->input('customer_id')) {
+                    $validator->errors()->add('subscription_id', 'Subscription does not belong to customer.');
+                }
+            },
+        ];
     }
 }

@@ -19,7 +19,7 @@ class InvoiceFactory extends Factory
     {
         return [
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
-            'number' => 'INV-' . now()->year . '-' . str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
+            'number' => 'INV-'.now()->year.'-'.str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
             'type' => fake()->randomElement(['one_time', 'recurring']),
             'source' => 'manual',
             'customer_id' => Customer::factory(),

@@ -28,7 +28,7 @@ class Ticket extends Model implements HasMedia
     use SoftDeletes;
 
     protected $fillable = [
-        'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
+        'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
         'assigned_to', 'spawned_spk_id', 'sla_deadline', 'first_response_at',
         'resolved_at', 'closed_at', 'resolution_note', 'created_by',

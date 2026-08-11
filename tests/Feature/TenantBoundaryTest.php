@@ -110,11 +110,6 @@ class TenantBoundaryTest extends TestCase
     {
         $category = TicketCategory::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
-            'unit_id' => Unit::withoutCompany()->forceCreate([
-                'company_id' => $this->otherCompany->id,
-                'name' => 'Auto Unit '.fake()->unique()->numberBetween(1, 9999),
-                'symbol' => 'AU'.fake()->unique()->numberBetween(1, 9999),
-            ])->id,
             'name' => 'Other Support',
             'code' => 'OTHER',
             'default_sla_hours' => 24,
@@ -220,11 +215,6 @@ class TenantBoundaryTest extends TestCase
         ]);
         $category = TicketCategory::withoutCompany()->forceCreate([
             'company_id' => $this->otherCompany->id,
-            'unit_id' => Unit::withoutCompany()->forceCreate([
-                'company_id' => $this->otherCompany->id,
-                'name' => 'Auto Unit '.fake()->unique()->numberBetween(1, 9999),
-                'symbol' => 'AU'.fake()->unique()->numberBetween(1, 9999),
-            ])->id,
             'name' => 'Other Ticket Category',
             'code' => 'OTHER-TICKET-CAT',
             'default_sla_hours' => 24,

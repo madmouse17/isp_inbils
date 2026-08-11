@@ -3,6 +3,22 @@
 Stack: Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v3 + Vite.
 Auth: Laravel Breeze (React/Inertia). DB: MySQL (Laragon).
 
+## AI Artifact Cleanup Rule (MANDATORY)
+
+- File/folder sementara buatan AI untuk scan, debug, ekstraksi, patching, atau laporan antara WAJIB dihapus segera setelah selesai digunakan.
+- Evidence/dump AI bersifat sementara: setelah diperiksa, diringkas, atau tidak lagi digunakan, WAJIB langsung dihapus. Pertahankan hanya evidence yang secara eksplisit diwajibkan sebagai deliverable permanen.
+- Gunakan direktori temporary di luar repository jika artefak tidak perlu menjadi bagian proyek.
+- Sebelum tugas dinyatakan selesai, periksa `git status` dan hapus hanya artefak usang dari tugas tersebut.
+- Jangan hapus source code, test resmi, migration, dokumentasi, evidence wajib, atau pekerjaan aktif lain hanya karena untracked.
+
+## Test Database Rule (MANDATORY)
+
+- Semua test otomatis, QA, browser smoke, dan E2E WAJIB memakai database MySQL `inbils_test`.
+- Jika `inbils_test` belum ada, buat database tersebut lalu gunakan kembali pada run berikutnya.
+- DILARANG memakai database utama `inbils` untuk test/QA/E2E.
+- DILARANG membuat database sementara bernama acak seperti `inbils_*`, `inbils_testing_*`, `inbils_qa_*`, atau `inbils_e2e`.
+- Konfigurasi default PHPUnit berada di `phpunit.xml` dengan `DB_DATABASE=inbils_test`; override test harus tetap menunjuk ke nama yang sama.
+
 Dokumen acuan (baca semua sebelum mulai tugas):
 - `docs/VISION.md` — tujuan produk + open questions.
 - `docs/ARCHITECTURE.md` — layered backend, Inertia-as-Island, dependency

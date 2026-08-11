@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use Database\Factories\DocumentTypeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -16,7 +17,7 @@ class DocumentType extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected static string $factory = \Database\Factories\DocumentTypeFactory::class;
+    protected static string $factory = DocumentTypeFactory::class;
 
     protected $fillable = [
         'company_id', 'name', 'code', 'applies_to', 'is_required', 'expiry_days', 'is_active',

@@ -1,240 +1,234 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
+import { Head, Link } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
     Select,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/Select';
+import { useCan } from '@/hooks/useCan';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { formatDateTime } from '@/lib/format';
 
-interface TRow {
+type Row = {
     id: number;
-    code: string;
-    title: string;
-    source: string;
-    status: string;
+    number: string;
+    subject: string;
     priority: string;
-    is_sla_breached: boolean;
-    sla_deadline?: string | null;
-    category?: { name: string } | null;
-    customer?: { name: string } | null;
-    assignee?: { name: string } | null;
-}
+    status: string;
+    created_at: string | null;
+    customer?: { id: number; name: string } | null;
+    assignee?: { id: number; name: string } | null;
+};
 
-interface CatRow {
-    id: number;
-    name: string;
-}
-interface HandlerRow {
-    id: number;
-    name: string;
-}
+type PaginatorLink = { url: string | null; label: string; active: boolean };
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    path?: string;
+    links?: PaginatorLink[];
+    first_page_url?: string;
+    last_page_url?: string;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    tickets: { data: TRow[]; current_page: number; last_page: number };
-    categories: { data: CatRow[] };
-    handlers: { data: HandlerRow[] };
+type Props = {
+    tickets: Paginator<Row>;
     filters: {
-        status?: string;
-        source?: string;
-        category_id?: string;
-        assigned_to?: string;
-        sla_breached?: string;
         search?: string;
+        priority?: string;
+        status?: string;
+        sort_by?: string;
+        sort_dir?: string;
+        per_page?: string | number;
     };
-    can: { create: boolean };
-}
+    priorityOptions?: string[];
+    statusOptions?: string[];
+};
 
-const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'closed'
-        ? 'muted'
-        : s === 'resolved'
-          ? 'success'
-          : s === 'on_progress'
-            ? 'info'
-            : s === 'assigned'
-              ? 'warning'
-              : 'danger';
+export default function TicketsIndex({
+    tickets,
+    filters,
+    priorityOptions = [],
+    statusOptions = [],
+}: Props) {
+    const can = useCan();
+    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            priority: filters.priority ?? '',
+            status: filters.status ?? '',
+            sort_by: filters.sort_by ?? '',
+            sort_dir: filters.sort_dir ?? '',
+            per_page: filters.per_page ?? tickets.per_page,
+        },
+        { only: ['tickets', 'filters'] },
+    );
 
-export default function Index({ tickets, categories, filters, can }: IndexProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [status, setStatus] = useState(filters.status ?? '');
-    const [source, setSource] = useState(filters.source ?? '');
-    const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
-
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.tickets.index'),
-            { search, status, source, category_id: categoryId },
-            { preserveState: true },
-        );
-    };
+    const columns: DataTableColumn<Row>[] = useMemo(
+        () => [
+            {
+                key: 'number',
+                header: 'Number',
+                sortable: true,
+                sortKey: 'number',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.tickets.show', row.id)}
+                        className="font-medium text-primary hover:underline"
+                    >
+                        {row.number}
+                    </Link>
+                ),
+            },
+            {
+                key: 'subject',
+                header: 'Subject',
+                sortable: true,
+                sortKey: 'subject',
+                cell: (row) => row.subject,
+            },
+            {
+                key: 'priority',
+                header: 'Priority',
+                sortable: true,
+                sortKey: 'priority',
+                cell: (row) => <StatusBadge status={row.priority} />,
+            },
+            {
+                key: 'status',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'status',
+                cell: (row) => <StatusBadge status={row.status} />,
+            },
+            {
+                key: 'customer',
+                header: 'Customer',
+                cell: (row) => row.customer?.name ?? '—',
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDateTime(row.created_at),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Tickets">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Tickets" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Tickets"
-                    subtitle="Customer service tickets."
+                    description="Support tickets and escalations."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.tickets.create'))}
-                            >
-                                Create Ticket
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.tickets.export')}
+                                params={params}
+                                canExport={can('ticket.export')}
+                            />
+                            {can('ticket.create') && (
+                                <Button asChild size="sm">
+                                    <Link href={route('admin.tickets.create')}>
+                                        <Plus className="size-4" />
+                                        New ticket
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Search"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Code or title"
-                            />
-                            <Select
-                                label="Status"
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="open">Open</option>
-                                <option value="assigned">Assigned</option>
-                                <option value="on_progress">On Progress</option>
-                                <option value="resolved">Resolved</option>
-                                <option value="closed">Closed</option>
-                            </Select>
-                            <Select
-                                label="Source"
-                                value={source}
-                                onChange={(e) => setSource(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="customer">Customer</option>
-                                <option value="noc">NOC</option>
-                                <option value="internal">Internal</option>
-                            </Select>
-                            <Select
-                                label="Category"
-                                value={categoryId}
-                                onChange={(e) => setCategoryId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {categories.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </Select>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Title</TH>
-                                    <TH>Category</TH>
-                                    <TH>Source</TH>
-                                    <TH>Status</TH>
-                                    <TH>Priority</TH>
-                                    <TH>SLA</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {tickets.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    tickets.data.map((t) => (
-                                        <TR key={t.id}>
-                                            <TD className="font-mono text-sm">{t.code}</TD>
-                                            <TD>{t.title}</TD>
-                                            <TD>{t.category?.name ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant="neutral">{t.source}</Badge>
-                                            </TD>
-                                            <TD>
-                                                <StatusBadge variant={statusVariant(t.status)}>
-                                                    {t.status}
-                                                </StatusBadge>
-                                            </TD>
-                                            <TD>
-                                                <Badge
-                                                    variant={
-                                                        t.priority === 'urgent'
-                                                            ? 'danger'
-                                                            : t.priority === 'high'
-                                                              ? 'brand'
-                                                              : 'neutral'
-                                                    }
-                                                >
-                                                    {t.priority}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                {t.is_sla_breached ? (
-                                                    <Badge variant="danger">Breached</Badge>
-                                                ) : (
-                                                    <Badge variant="success">OK</Badge>
-                                                )}
-                                            </TD>
-                                            <TD>
-                                                <Link
-                                                    href={route('admin.tickets.show', t.id)}
-                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                >
-                                                    Show
-                                                </Link>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={tickets.current_page}
-                            lastPage={tickets.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.tickets.index'), {
-                                    page,
-                                    search,
-                                    status,
-                                    source,
-                                    category_id: categoryId,
-                                })
-                            }
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="tk-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="tk-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Number or subject…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                            Priority
+                        </label>
+                        <Select
+                            value={params.priority || '__all__'}
+                            onValueChange={(v) => set('priority', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {priorityOptions.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Status</label>
+                        <Select
+                            value={params.status || '__all__'}
+                            onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {statusOptions.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={tickets.data}
+                    emptyTitle="No tickets"
+                    emptyDescription="No tickets match the current filters."
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    pagination={tickets}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(n) => set('per_page', n)}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

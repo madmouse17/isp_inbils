@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\NetworkAsset\Http\Controllers\NetworkAssetController;
 
 Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+    Route::get('network-assets/export', [NetworkAssetController::class, 'export'])->name('network-assets.export');
     Route::get('network-assets/trace', [NetworkAssetController::class, 'trace'])->name('network-assets.trace');
     Route::resource('network-assets', NetworkAssetController::class)->parameters(['network-assets' => 'asset']);
     Route::post('network-assets/{asset}/install', [NetworkAssetController::class, 'install'])->name('network-assets.install');

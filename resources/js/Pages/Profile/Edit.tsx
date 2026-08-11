@@ -18,10 +18,10 @@ export default function Edit({
                 <div className="grid gap-6 xl:grid-cols-2">
                     <Card>
                         <CardContent className="pt-6">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                        />
+                            <UpdateProfileInformationForm
+                                mustVerifyEmail={mustVerifyEmail}
+                                status={status}
+                            />
                         </CardContent>
                     </Card>
 

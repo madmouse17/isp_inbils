@@ -5,14 +5,21 @@ namespace Modules\Reporting\Queries;
 use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\NetworkAssetInstallation;
+use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 
 class AssetUtilizationQuery
 {
+    use AppliesDateRange;
+
     public static function execute(?int $locationId = null, ?string $assetType = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = NetworkAsset::query();
-        if ($locationId) $query->where('location_id', $locationId);
-        if ($assetType) $query->where('asset_type', $assetType);
+        if ($locationId) {
+            $query->where('location_id', $locationId);
+        }
+        if ($assetType) {
+            $query->where('asset_type', $assetType);
+        }
 
         $statusDist = (clone $query)->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')->pluck('count', 'status')->toArray();
@@ -24,9 +31,7 @@ class AssetUtilizationQuery
             ->groupBy('locations.name')->pluck('count', 'name')->toArray();
 
         $installQuery = NetworkAssetInstallation::query();
-        if ($dateFrom && $dateTo) {
-            $installQuery->whereBetween('installed_at', [$dateFrom, $dateTo]);
-        }
+        self::applyDateRange($installQuery, 'installed_at', $dateFrom, $dateTo);
         $installCount = $installQuery->count();
 
         $customerLinked = NetworkAsset::whereNotNull('customer_id')->count();

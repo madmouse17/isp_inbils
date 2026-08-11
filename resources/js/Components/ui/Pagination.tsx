@@ -1,86 +1,75 @@
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/20/solid';
+import { Button } from '@/Components/ui/Button';
+import type { PaginationMeta } from '@/types';
 import { cn } from '@/lib/utils';
 
-interface PaginationProps {
-    currentPage: number | string;
-    lastPage: number | string;
+export interface PaginationProps {
+    meta?: PaginationMeta | null;
+    currentPage?: number;
+    lastPage?: number;
+    total?: number;
+    from?: number | null;
+    to?: number | null;
     onPageChange: (page: number) => void;
     className?: string;
 }
 
-export function Pagination({ currentPage, lastPage, onPageChange, className }: PaginationProps) {
-    const current = toPageNumber(currentPage);
-    const last = toPageNumber(lastPage);
+export function Pagination({
+    meta,
+    currentPage,
+    lastPage,
+    total,
+    from,
+    to,
+    onPageChange,
+    className,
+}: PaginationProps) {
+    const page = meta?.current_page ?? currentPage ?? 1;
+    const last = meta?.last_page ?? lastPage ?? 1;
+    const totalCount = meta?.total ?? total ?? 0;
+    const rangeFrom = meta?.from ?? from ?? null;
+    const rangeTo = meta?.to ?? to ?? null;
 
-    if (current === null || last === null || last <= 1) return null;
-
-    const pages = buildWindow(current, last);
-
-    return (
-        <nav aria-label="Pagination" className={cn('flex items-center gap-1', className)}>
-            <button
-                onClick={() => onPageChange(current - 1)}
-                disabled={current <= 1}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Previous page"
-            >
-                <ChevronLeftIcon className="h-4 w-4" />
-            </button>
-            {pages.map((p, i) =>
-                p === '...' ? (
-                    <span key={`ellipsis-${i}`} className="px-1 text-sm text-muted-foreground">
-                        ...
-                    </span>
-                ) : (
-                    <button
-                        key={p}
-                        onClick={() => onPageChange(p)}
-                        aria-current={p === current ? 'page' : undefined}
-                        className={cn(
-                            'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium',
-                            p === current
-                                ? 'bg-primary !text-white'
-                                : 'text-foreground hover:bg-accent hover:text-accent-foreground',
-                        )}
-                    >
-                        {p}
-                    </button>
-                ),
-            )}
-            <button
-                onClick={() => onPageChange(current + 1)}
-                disabled={current >= last}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-not-allowed disabled:opacity-40"
-                aria-label="Next page"
-            >
-                <ChevronRightIcon className="h-4 w-4" />
-            </button>
-        </nav>
-    );
-}
-
-function buildWindow(current: number, last: number): (number | '...')[] {
-    const pages: (number | '...')[] = [];
-    const set = new Set<number>();
-    set.add(1);
-    set.add(last);
-    for (let i = Math.max(1, current - 2); i <= Math.min(last, current + 2); i++) set.add(i);
-
-    let prev = 0;
-    for (const p of [...set].sort((a, b) => a - b)) {
-        if (p - prev > 1) pages.push('...');
-        pages.push(p);
-        prev = p;
-    }
-    return pages;
-}
-
-function toPageNumber(page: number | string): number | null {
-    const parsedPage = Number(page);
-
-    if (!Number.isInteger(parsedPage) || parsedPage < 1) {
+    if (last <= 1 && totalCount === 0) {
         return null;
     }
 
-    return parsedPage;
+    return (
+        <div
+            className={cn(
+                'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between',
+                className,
+            )}
+        >
+            <p className="text-sm text-muted-foreground">
+                {rangeFrom != null && rangeTo != null
+                    ? `Showing ${rangeFrom}–${rangeTo} of ${totalCount}`
+                    : `${totalCount} total`}
+            </p>
+            <div className="flex items-center gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page <= 1}
+                    onClick={() => onPageChange(page - 1)}
+                >
+                    Previous
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                    Page {page} of {last}
+                </span>
+                <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={page >= last}
+                    onClick={() => onPageChange(page + 1)}
+                >
+                    Next
+                </Button>
+            </div>
+        </div>
+    );
 }
+
+export default Pagination;

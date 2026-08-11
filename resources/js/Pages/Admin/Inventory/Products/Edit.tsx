@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -23,8 +23,8 @@ interface EditProps extends Record<string, unknown> {
 export default function Edit({ product, categories }: EditProps) {
     const p = product.data;
     const { data, setData, processing, errors } = useForm({
-        sku: p.sku,
-        name: p.name,
+        sku: p.sku ?? '',
+        name: p.name ?? '',
         category_id: String(p.category_id ?? ''),
         description: p.description ?? '',
         sell_price: p.sell_price ?? '',
@@ -61,21 +61,21 @@ export default function Edit({ product, categories }: EditProps) {
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
                                 label="SKU"
-                                value={data.sku}
+                                value={data.sku ?? ''}
                                 onChange={(e) => setData('sku', e.target.value)}
                                 error={errors.sku}
                                 required
                             />
                             <Input
                                 label="Name"
-                                value={data.name}
+                                value={data.name ?? ''}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Category"
-                                value={data.category_id}
+                                value={data.category_id ?? ''}
                                 onChange={(e) => setData('category_id', e.target.value)}
                                 error={errors.category_id}
                                 required
@@ -86,20 +86,19 @@ export default function Edit({ product, categories }: EditProps) {
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Unit"
                                 value={unitLabel}
                                 readOnly
                                 disabled
                                 hint="Unit follows selected category."
-                                error={errors.unit_id}
                             />
                             <Input
                                 label="Sell Price"
                                 type="number"
                                 step="0.01"
-                                value={data.sell_price}
+                                value={data.sell_price ?? ''}
                                 onChange={(e) => setData('sell_price', e.target.value)}
                                 error={errors.sell_price}
                             />
@@ -107,7 +106,7 @@ export default function Edit({ product, categories }: EditProps) {
                                 label="Cost Price"
                                 type="number"
                                 step="0.01"
-                                value={data.cost_price}
+                                value={data.cost_price ?? ''}
                                 onChange={(e) => setData('cost_price', e.target.value)}
                                 error={errors.cost_price}
                             />
@@ -115,19 +114,19 @@ export default function Edit({ product, categories }: EditProps) {
                                 label="Min Stock"
                                 type="number"
                                 step="0.01"
-                                value={data.min_stock}
+                                value={data.min_stock ?? ''}
                                 onChange={(e) => setData('min_stock', e.target.value)}
                                 error={errors.min_stock}
                             />
                             <div className="flex items-center gap-6">
                                 <Switch
                                     label="Track Stock"
-                                    checked={data.track_stock}
+                                    checked={Boolean(data.track_stock)}
                                     onCheckedChange={(checked) => setData('track_stock', checked)}
                                 />
                                 <Switch
                                     label="Active"
-                                    checked={data.is_active}
+                                    checked={Boolean(data.is_active)}
                                     onCheckedChange={(checked) => setData('is_active', checked)}
                                 />
                             </div>

@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -92,7 +92,7 @@ export default function Edit({
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Bandwidth Profile"
                                 value={data.bandwidth_profile_id}
                                 onChange={(e) => setData('bandwidth_profile_id', e.target.value)}
@@ -104,8 +104,8 @@ export default function Edit({
                                         {b.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Speed Profile"
                                 value={data.speed_profile_id}
                                 onChange={(e) => setData('speed_profile_id', e.target.value)}
@@ -117,8 +117,8 @@ export default function Edit({
                                         {s.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="SLA Tier"
                                 value={data.sla_tier_id}
                                 onChange={(e) => setData('sla_tier_id', e.target.value)}
@@ -130,7 +130,7 @@ export default function Edit({
                                         {s.name}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Price MRC"
                                 value={data.price_mrc}

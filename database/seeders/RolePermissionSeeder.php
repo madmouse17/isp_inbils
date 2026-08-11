@@ -14,14 +14,18 @@ class RolePermissionSeeder extends Seeder
             // Core admin
             'users.manage',
             'roles.manage',
+            'roles.export',
             'company.manage',
             'system.setting',
+            'dashboard.view',
             'organization.view',
             'organization.manage',
             'employee.view',
             'employee.manage',
+            'employee.export',
             'vehicle.view',
             'vehicle.manage',
+            'vehicle.export',
 
             // Customer
             'customer.view',
@@ -42,7 +46,17 @@ class RolePermissionSeeder extends Seeder
             'service.create',
             'service.update',
             'service.delete',
+            'service.export',
             'service.manage',
+
+            'organization.view',
+            'organization.manage',
+            'organization.export',
+
+            'document.export',
+            'customer.contact.export',
+            'customer.subscription.export',
+            'customer.address.export',
 
             'network_asset.view',
             'network_asset.create',
@@ -125,6 +139,7 @@ class RolePermissionSeeder extends Seeder
             'evaluation.delete',
             'evaluation.view.own',
             'evaluation.customer.submit',
+            'evaluation.export',
             'evaluation.manage',
 
             'report.view',
@@ -152,6 +167,7 @@ class RolePermissionSeeder extends Seeder
             'customer.export', 'customer.manage',
 
             'service.view', 'service.create', 'service.update', 'service.manage',
+            'dashboard.view',
 
             'network_asset.view', 'network_asset.create', 'network_asset.update',
             'network_asset.install', 'network_asset.remove',
@@ -188,43 +204,28 @@ class RolePermissionSeeder extends Seeder
             'customer.view', 'customer.create', 'customer.update',
             'customer.address.manage',
             'customer.subscription.view',
-
             'service.view',
-
             'network_asset.view',
-
             'location.view',
-
             'inventory.view', 'inventory.create', 'inventory.update',
             'inventory.stock.receive', 'inventory.stock.issue',
-
             'spk.view', 'spk.create', 'spk.start', 'spk.submit',
-
             'billing.view', 'billing.create', 'billing.send', 'billing.payment.record',
-
             'ticket.view', 'ticket.create', 'ticket.comment.create',
             'ticket.attachment.upload',
-
             'evaluation.view', 'evaluation.create', 'evaluation.update',
-
             'report.view',
         ]);
 
         $technician->givePermissionTo([
             'customer.view',
-
             'network_asset.view',
-
             'location.view',
-
             'inventory.view', 'inventory.stock.issue',
-
             'spk.view', 'spk.start', 'spk.submit',
             'spk.evidence.upload', 'spk.evidence.view',
-
             'ticket.view', 'ticket.create', 'ticket.start', 'ticket.resolve',
             'ticket.comment.create',
-
             'evaluation.view.own',
         ]);
 

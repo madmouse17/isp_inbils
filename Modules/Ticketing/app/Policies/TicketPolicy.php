@@ -17,6 +17,7 @@ class TicketPolicy
         if ($user->hasRole('technician')) {
             return $ticket->assigned_to === $user->id;
         }
+
         return $user->can('ticket.view');
     }
 

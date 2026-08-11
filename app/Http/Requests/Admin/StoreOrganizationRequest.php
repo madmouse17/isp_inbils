@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,8 @@ class StoreOrganizationRequest extends FormRequest
 
     public function rules(): array
     {
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
+
         return [
             'code' => ['required', 'string', 'max:50', Rule::unique('organization_units')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],

@@ -14,7 +14,11 @@ import { ToastProvider } from '@/Components/ui';
 
 const appName = (import.meta.env.VITE_APP_NAME as string | undefined) || 'Laravel';
 
-registerPlugin(FilePondPluginFileValidateSize, FilePondPluginFileValidateType, FilePondPluginImagePreview);
+registerPlugin(
+    FilePondPluginFileValidateSize,
+    FilePondPluginFileValidateType,
+    FilePondPluginImagePreview,
+);
 
 void createInertiaApp({
     title: (title) => `${title} - ${appName}`,

@@ -4,21 +4,20 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
-use App\Models\Core\DocumentType;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\DocumentService;
-use Database\Seeders\RolePermissionSeeder;
-use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
 class DocumentTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     private User $admin;
 
@@ -85,18 +84,18 @@ class DocumentTest extends TestCase
             'is_active' => true,
         ]);
         $this->actingAs($otherAdmin);
-        \App\Services\Core\CompanyService::resetCache();
+        CompanyService::resetCache();
         $media = DocumentService::upload($otherCustomer, $file);
 
         // Admin from company A tries to delete media from company B
         $this->actingAs($this->admin);
-        \App\Services\Core\CompanyService::resetCache();
+        CompanyService::resetCache();
 
         try {
             DocumentService::delete($media);
             // If no exception, check it wasn't deleted
             $this->assertDatabaseHas('media', ['id' => $media->id]);
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             // 403 thrown — correct behavior
             $this->assertEquals(403, $e->getStatusCode());
         }

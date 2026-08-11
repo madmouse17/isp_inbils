@@ -1,5 +1,5 @@
 import { ChevronUpDownIcon, XMarkIcon } from '@heroicons/react/20/solid';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Label } from './Label';
 
@@ -38,7 +38,7 @@ export function SearchSelect({
 }: SearchSelectProps) {
     const [open, setOpen] = useState(false);
     const selectedOption = options.find((option) => option.value === value);
-    const [query, setQuery] = useState(selectedOption?.label ?? '');
+    const [query, setQuery] = useState('');
     const inputId = label?.toLowerCase().replace(/\s+/g, '-');
     const filteredOptions = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -52,10 +52,6 @@ export function SearchSelect({
         );
     }, [options, query, selectedOption?.label]);
 
-    useEffect(() => {
-        setQuery(selectedOption?.label ?? '');
-    }, [selectedOption?.label]);
-
     const select = (option: SearchSelectOption) => {
         onChange(option.value);
         setQuery(option.label);
@@ -67,6 +63,8 @@ export function SearchSelect({
         setQuery('');
         setOpen(false);
     };
+
+    const displayValue = open ? query : (selectedOption?.label ?? query);
 
     return (
         <div className={cn('relative w-full', className)}>
@@ -81,7 +79,7 @@ export function SearchSelect({
                     name={`${inputId ?? 'search-select'}-lookup`}
                     autoComplete="new-password"
                     spellCheck={false}
-                    value={query}
+                    value={displayValue}
                     onChange={(event) => {
                         setQuery(event.target.value);
                         onChange('');
@@ -124,7 +122,8 @@ export function SearchSelect({
                                     onClick={() => select(option)}
                                     className={cn(
                                         'w-full rounded px-3 py-2 text-left text-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                                        option.value === value && 'bg-accent text-accent-foreground',
+                                        option.value === value &&
+                                            'bg-accent text-accent-foreground',
                                     )}
                                 >
                                     <span className="block font-medium">{option.label}</span>

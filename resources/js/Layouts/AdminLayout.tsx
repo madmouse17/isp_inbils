@@ -445,11 +445,17 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                         }
                                     >
                                         <div className="px-3 py-2">
-                                            <p className="truncate text-sm font-semibold">{user.name}</p>
-                                            <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+                                            <p className="truncate text-sm font-semibold">
+                                                {user.name}
+                                            </p>
+                                            <p className="truncate text-xs text-muted-foreground">
+                                                {user.email}
+                                            </p>
                                         </div>
                                         <DropdownSeparator />
-                                        <DropdownItem onClick={() => router.get(route('profile.edit'))}>
+                                        <DropdownItem
+                                            onClick={() => router.get(route('profile.edit'))}
+                                        >
                                             <UserCircleIcon className="h-4 w-4" />
                                             Profile
                                         </DropdownItem>
@@ -471,7 +477,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                             </>
                         }
                     />
-                    <main className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
+                    <main className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
                         <div className="mx-auto w-full max-w-[1600px] space-y-6">{children}</div>
                     </main>
                 </div>

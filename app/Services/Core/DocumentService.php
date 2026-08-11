@@ -4,11 +4,10 @@ namespace App\Services\Core;
 
 use App\Models\Core\DocumentType;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DocumentService
 {
@@ -41,7 +40,7 @@ class DocumentService
             ->toMediaCollection($collection, 'public');
     }
 
-    public static function list(HasMedia $model, ?string $collection = 'documents'): \Illuminate\Support\Collection
+    public static function list(HasMedia $model, ?string $collection = 'documents'): Collection
     {
         return $model->getMedia($collection)->map(fn (Media $media) => [
             'id' => $media->id,
@@ -63,6 +62,7 @@ class DocumentService
         if ((int) $media->getCustomProperty('company_id') !== $companyId) {
             abort(403, 'Cannot delete media from another company.');
         }
+
         return $media->delete();
     }
 }

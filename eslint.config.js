@@ -13,6 +13,7 @@ export default tseslint.config(
             'storage/**',
             'bootstrap/**',
             'resources/css/**',
+            'resources/js/**/*.mjs',
             '*.js',
             '*.cjs',
             '*.mjs',

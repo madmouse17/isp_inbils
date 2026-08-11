@@ -2,6 +2,8 @@
 
 namespace Modules\Billing\Http\Resources;
 
+use App\Http\Resources\CustomerResource;
+use App\Http\Resources\SubscriptionResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -34,8 +36,8 @@ class InvoiceResource extends JsonResource
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
             'created_at' => $this->created_at,
-            'customer' => new \App\Http\Resources\CustomerResource($this->whenLoaded('customer')),
-            'subscription' => new \App\Http\Resources\SubscriptionResource($this->whenLoaded('subscription')),
+            'customer' => new CustomerResource($this->whenLoaded('customer')),
+            'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'items' => InvoiceItemResource::collection($this->whenLoaded('items')),
             'payments' => PaymentResource::collection($this->whenLoaded('payments')),
         ];

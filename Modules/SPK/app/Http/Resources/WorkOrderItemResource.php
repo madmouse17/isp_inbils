@@ -5,6 +5,7 @@ namespace Modules\SPK\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\Inventory\Http\Resources\ProductResource;
+use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 
 class WorkOrderItemResource extends JsonResource
 {
@@ -20,6 +21,7 @@ class WorkOrderItemResource extends JsonResource
             'quantity_used' => $this->quantity_used,
             'note' => $this->note,
             'product' => new ProductResource($this->whenLoaded('product')),
+            'network_asset' => new NetworkAssetResource($this->whenLoaded('networkAsset')),
         ];
     }
 }

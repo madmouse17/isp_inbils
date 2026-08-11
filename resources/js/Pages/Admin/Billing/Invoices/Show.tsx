@@ -11,7 +11,7 @@ import {
     CardTitle,
     Input,
     Modal,
-    Select,
+    NativeSelect,
     Table,
     TBody,
     TD,
@@ -385,7 +385,7 @@ export default function Show({ invoice }: ShowProps) {
                             onChange={(e) => setData('amount', e.target.value)}
                             required
                         />
-                        <Select
+                        <NativeSelect
                             label="Method"
                             value={data.method}
                             onChange={(e) => setData('method', e.target.value)}
@@ -394,7 +394,7 @@ export default function Show({ invoice }: ShowProps) {
                             <option value="transfer">Transfer</option>
                             <option value="cheque">Cheque</option>
                             <option value="other">Other</option>
-                        </Select>
+                        </NativeSelect>
                         <Input
                             label="Reference"
                             value={data.reference}

@@ -67,12 +67,12 @@ export default function Index({ categories, units, can }: IndexProps) {
     const openEdit = (c: Category) => {
         setEditing(c);
         setData({
-            name: c.name,
-            code: c.code,
+            name: c.name ?? '',
+            code: c.code ?? '',
             parent_id: c.parent_id ? String(c.parent_id) : '',
             unit_id: c.unit_id ? String(c.unit_id) : '',
             description: c.description ?? '',
-            is_active: c.is_active,
+            is_active: Boolean(c.is_active),
         });
         setModalOpen(true);
     };
@@ -158,11 +158,9 @@ export default function Index({ categories, units, can }: IndexProps) {
                                             <TD className="font-mono text-sm">{c.code}</TD>
                                             <TD>{c.name}</TD>
                                             <TD>
-                                                {c.unit
-                                                    ? `${c.unit.name} (${c.unit.symbol})`
-                                                    : '—'}
+                                                {c.unit ? `${c.unit.name} (${c.unit.symbol})` : '—'}
                                             </TD>
-                                            <TD>{c.children_count ?? 0}</TD>
+                                            <TD>{Number(c.children_count ?? 0) || 0}</TD>
                                             <TD>
                                                 <Badge variant={c.is_active ? 'success' : 'danger'}>
                                                     {c.is_active ? 'Active' : 'Inactive'}

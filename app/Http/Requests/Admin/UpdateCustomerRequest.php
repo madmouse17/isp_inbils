@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +17,7 @@ class UpdateCustomerRequest extends FormRequest
     public function rules(): array
     {
         $customerId = $this->route('customer')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             'code' => ['required', 'string', 'max:50', Rule::unique('customers')->where('company_id', $companyId)->ignore($customerId)],

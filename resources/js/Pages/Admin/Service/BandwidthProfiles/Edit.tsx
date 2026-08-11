@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -63,14 +63,14 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Type"
                                 value={data.type}
                                 onChange={(e) => setData('type', e.target.value)}
                             >
                                 <option value="shared">Shared</option>
                                 <option value="dedicated">Dedicated</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Download (Mbps)"
                                 type="number"

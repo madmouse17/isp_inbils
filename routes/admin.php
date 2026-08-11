@@ -27,7 +27,9 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     Route::get('company/settings', [CompanyController::class, 'editSettings'])->name('company.settings.edit');
     Route::put('company/settings', [CompanyController::class, 'updateSettings'])->name('company.settings.update');
 
+    Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
+    Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');
     Route::resource('roles', RoleController::class);
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
@@ -47,6 +49,7 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     })->middleware('can:system.setting')->name('components');
 
     // Customer management
+    Route::get('customers/{customer}/addresses/export', [CustomerAddressController::class, 'export'])->name('customers.addresses.export');
     Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
     Route::resource('customers', CustomerController::class)->parameters(['customers' => 'customer']);
 
@@ -55,11 +58,13 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     Route::put('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'update'])->name('customers.addresses.update');
     Route::delete('customers/{customer}/addresses/{address}', [CustomerAddressController::class, 'destroy'])->name('customers.addresses.destroy');
 
+    Route::get('customers/{customer}/contacts/export', [CustomerContactController::class, 'export'])->name('customers.contacts.export');
     Route::get('customers/{customer}/contacts', [CustomerContactController::class, 'index'])->name('customers.contacts.index');
     Route::post('customers/{customer}/contacts', [CustomerContactController::class, 'store'])->name('customers.contacts.store');
     Route::put('customers/{customer}/contacts/{contact}', [CustomerContactController::class, 'update'])->name('customers.contacts.update');
     Route::delete('customers/{customer}/contacts/{contact}', [CustomerContactController::class, 'destroy'])->name('customers.contacts.destroy');
 
+    Route::get('customers/{customer}/subscriptions/export', [SubscriptionController::class, 'export'])->name('customers.subscriptions.export');
     Route::get('customers/{customer}/subscriptions', [SubscriptionController::class, 'indexForCustomer'])->name('customers.subscriptions.index');
     Route::post('customers/{customer}/subscriptions', [SubscriptionController::class, 'storeForCustomer'])->name('customers.subscriptions.store');
     Route::resource('subscriptions', SubscriptionController::class)->only(['show', 'update']);
@@ -69,20 +74,26 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     Route::post('subscriptions/{subscription}/terminate', [SubscriptionController::class, 'terminate'])->name('subscriptions.terminate');
 
     // Employee evaluations
+    Route::get('evaluations/export', [EvaluationController::class, 'export'])->name('evaluations.export');
     Route::resource('evaluations', EvaluationController::class);
 
     // Organization & Employee
+    Route::get('organizations/export', [OrganizationController::class, 'export'])->name('organizations.export');
     Route::resource('organizations', OrganizationController::class)
         ->parameters(['organizations' => 'organization_unit'])
         ->except(['create', 'edit', 'show']);
     Route::post('organizations/{organization_unit}/move', [OrganizationController::class, 'move'])->name('organizations.move');
+    Route::get('employees/export', [EmployeeController::class, 'export'])->name('employees.export');
     Route::resource('employees', EmployeeController::class)->except(['create', 'edit', 'show']);
+    Route::get('vehicles/export', [VehicleController::class, 'export'])->name('vehicles.export');
     Route::resource('vehicles', VehicleController::class)->except(['create', 'edit', 'show']);
 
     // Number Sequences
+    Route::get('number-sequences/export', [NumberSequenceController::class, 'export'])->name('number-sequences.export');
     Route::resource('number-sequences', NumberSequenceController::class)->only(['index', 'update']);
 
     // Documents (types + media)
+    Route::get('documents/export', [DocumentController::class, 'export'])->name('documents.export');
     Route::resource('documents', DocumentController::class)->except(['create', 'edit', 'show']);
     Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
     Route::delete('documents/media/{media}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');

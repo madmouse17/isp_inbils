@@ -262,6 +262,31 @@ class P0CriticalPathTest extends TestCase
         ]);
     }
 
+    public function test_spk_assignment_rejects_active_employee_who_is_not_technician(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = WorkOrder::forceCreate([
+            'company_id' => $company->id,
+            'code' => 'SPK-ASSIGN-TEST',
+            'type' => 'maintenance',
+            'title' => 'Assign test',
+            'created_by' => $admin->id,
+            'status' => 'generated',
+            'source' => 'manual',
+            'priority' => 'medium',
+        ]);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $admin->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.assign', $workOrder), ['technician_id' => $admin->id])
+            ->assertSessionHasErrors('technician_id');
+    }
+
     public function test_spk_assignment_requires_active_technician_employee_profile(): void
     {
         $admin = $this->user('admin');
@@ -311,14 +336,14 @@ class P0CriticalPathTest extends TestCase
             'source' => 'manual',
             'priority' => 'medium',
         ]);
-        $product = $this->product($company);
+        $product = $this->product($company, ['type' => 'consumable']);
         $inactiveProduct = Product::forceCreate([
             'company_id' => $company->id,
             'category_id' => $product->category_id,
             'unit_id' => $product->unit_id,
             'sku' => 'P0-INACTIVE',
             'name' => 'Inactive product',
-            'type' => 'asset',
+            'type' => 'consumable',
             'track_stock' => true,
             'sell_price' => 0,
             'cost_price' => 0,

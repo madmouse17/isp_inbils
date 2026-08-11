@@ -2,6 +2,7 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { usePermission } from '@/hooks/usePermission';
 import {
     Badge,
     Button,
@@ -47,7 +48,13 @@ interface WoData {
         quantity_reserved: string;
         quantity_used: string;
         note?: string | null;
-        product?: { sku: string; name: string; unit?: { name: string; symbol: string } | null } | null;
+        product?: {
+            sku: string;
+            name: string;
+            unit?: { name: string; symbol: string } | null;
+        } | null;
+        network_asset_id?: number | null;
+        network_asset?: { code: string; name: string } | null;
     }[];
     assignments?: {
         id: number;
@@ -68,6 +75,21 @@ interface ShowProps extends Record<string, unknown> {
     workOrder: { data: WoData };
     technicians: { data: TechRow[] };
     products: { data: ProductRow[] };
+    networkAssets: { data: NetworkAssetRow[] };
+}
+
+interface NetworkAssetRow {
+    id: number;
+    code: string;
+    name: string;
+    status: string;
+    product_id: number;
+    product?: {
+        id: number;
+        sku: string;
+        name: string;
+        unit?: { name: string; symbol: string } | null;
+    } | null;
 }
 
 interface TechRow {
@@ -89,8 +111,9 @@ interface ProductRow {
     category?: { name: string } | null;
 }
 
-export default function Show({ workOrder, technicians, products }: ShowProps) {
+export default function Show({ workOrder, technicians, products, networkAssets }: ShowProps) {
     const w = workOrder.data;
+    const { can } = usePermission();
     const { toast } = useToast();
     const [actionModal, setActionModal] = useState<
         | 'generate'
@@ -109,6 +132,7 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
         technician_id: '',
         reason: '',
         product_id: '',
+        network_asset_id: '',
         quantity_reserved: '',
         quantity_used: '',
         note: '',
@@ -116,19 +140,13 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
     const technicianOptions = technicians.data.map((technician) => ({
         value: String(technician.user_id),
         label: technician.user?.name ?? technician.name,
-        description: [
-            technician.employee_number,
-            technician.organization?.name,
-            technician.phone,
-        ]
+        description: [technician.employee_number, technician.organization?.name, technician.phone]
             .filter(Boolean)
             .join(' - '),
     }));
     const productOptions = products.data.map((product) => ({
         value: String(product.id),
-        label: `${product.sku} - ${product.name}${
-            product.unit ? ` (${product.unit.symbol})` : ''
-        }`,
+        label: `${product.sku} - ${product.name}${product.unit ? ` (${product.unit.symbol})` : ''}`,
         description: [
             product.category?.name,
             product.type,
@@ -137,9 +155,23 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
             .filter(Boolean)
             .join(' - '),
     }));
+    const networkAssetOptions = networkAssets.data.map((asset) => ({
+        value: String(asset.id),
+        label: `${asset.code} - ${asset.name}`,
+        description: asset.product ? `${asset.product.sku} - ${asset.product.name}` : undefined,
+    }));
     const selectedProduct = products.data.find((product) => String(product.id) === data.product_id);
+    const selectedNetworkAsset = networkAssets.data.find(
+        (asset) => String(asset.id) === data.network_asset_id,
+    );
     const selectedUnit = selectedProduct?.unit
         ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
+        : null;
+    const selectedAssetUnit = selectedNetworkAsset?.product?.unit
+        ? `${selectedNetworkAsset.product.unit.name} (${selectedNetworkAsset.product.unit.symbol})`
+        : null;
+    const selectedAssetLabel = selectedNetworkAsset
+        ? `${selectedNetworkAsset.code} - ${selectedNetworkAsset.name}`
         : null;
 
     const doAction = (e: FormEvent) => {
@@ -154,7 +186,13 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
         post(actionUrl, {
             onSuccess: () => {
                 if (actionModal === 'addItem') {
-                    reset('product_id', 'quantity_reserved', 'quantity_used', 'note');
+                    reset(
+                        'product_id',
+                        'network_asset_id',
+                        'quantity_reserved',
+                        'quantity_used',
+                        'note',
+                    );
                 }
                 setActionModal(null);
             },
@@ -330,12 +368,12 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
                                         Submit for Review
                                     </Button>
                                 )}
-                                {w.status === 'waiting_review' && (
+                                {w.status === 'waiting_review' && can('spk.approve') && (
                                     <Button type="button" onClick={() => setActionModal('approve')}>
                                         Approve
                                     </Button>
                                 )}
-                                {w.status === 'waiting_review' && (
+                                {w.status === 'waiting_review' && can('spk.reject') && (
                                     <Button
                                         type="button"
                                         variant="danger"
@@ -376,6 +414,7 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
                             <THead>
                                 <TR>
                                     <TH>Product</TH>
+                                    <TH>Network Asset</TH>
                                     <TH>Unit</TH>
                                     <TH>Reserved</TH>
                                     <TH>Used</TH>
@@ -385,15 +424,30 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
                             <TBody>
                                 {(w.items ?? []).length === 0 ? (
                                     <TR>
-                                        <TD colSpan={5} className="text-center text-surface-500">
+                                        <TD colSpan={6} className="text-center text-surface-500">
                                             No items.
                                         </TD>
                                     </TR>
                                 ) : (
                                     (w.items ?? []).map((i) => (
                                         <TR key={i.id}>
-                                            <TD>{i.product ? `${i.product.sku} - ${i.product.name}` : `#${i.product_id}`}</TD>
-                                            <TD>{i.product?.unit?.symbol ?? i.product?.unit?.name ?? '-'}</TD>
+                                            <TD>
+                                                {i.product
+                                                    ? `${i.product.sku} - ${i.product.name}`
+                                                    : `#${i.product_id}`}
+                                            </TD>
+                                            <TD>
+                                                {i.network_asset
+                                                    ? `${i.network_asset.code} - ${i.network_asset.name}`
+                                                    : i.network_asset_id
+                                                      ? `#${i.network_asset_id}`
+                                                      : '-'}
+                                            </TD>
+                                            <TD>
+                                                {i.product?.unit?.symbol ??
+                                                    i.product?.unit?.name ??
+                                                    '-'}
+                                            </TD>
                                             <TD>{i.quantity_reserved}</TD>
                                             <TD>{i.quantity_used}</TD>
                                             <TD>{i.note ?? '-'}</TD>
@@ -531,6 +585,22 @@ export default function Show({ workOrder, technicians, products }: ShowProps) {
                                     placeholder="Search product"
                                     emptyText="No active products found."
                                     error={errors.product_id}
+                                    required
+                                />
+                                <SearchSelect
+                                    label="Network Asset"
+                                    value={data.network_asset_id}
+                                    onChange={(value) => setData('network_asset_id', value)}
+                                    options={networkAssetOptions}
+                                    placeholder="Search available asset"
+                                    emptyText="No available network assets found."
+                                    hint={
+                                        selectedAssetLabel
+                                            ? `Selected: ${selectedAssetLabel}`
+                                            : selectedAssetUnit
+                                              ? `Asset product unit: ${selectedAssetUnit}`
+                                              : undefined
+                                    }
                                     required
                                 />
                                 <Input

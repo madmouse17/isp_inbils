@@ -1,6 +1,5 @@
-import React from 'react';
+import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Label } from './Label';
 
 export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
     label?: string;
@@ -8,44 +7,48 @@ export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextArea
     hint?: string;
 }
 
-export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-    ({ label, error, hint, className, id, rows = 3, ...props }, ref) => {
-        const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+    ({ className, label, error, hint, id, ...props }, ref) => {
+        const areaId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+        const describedBy = error ? `${areaId}-error` : hint ? `${areaId}-hint` : undefined;
+
         return (
-            <div className="w-full">
-                {label && (
-                    <Label htmlFor={inputId} required={props.required}>
+            <div className="w-full space-y-1.5">
+                {label ? (
+                    <label
+                        htmlFor={areaId}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
                         {label}
-                    </Label>
-                )}
+                        {props.required ? <span className="text-destructive"> *</span> : null}
+                    </label>
+                ) : null}
                 <textarea
-                    ref={ref}
-                    id={inputId}
-                    rows={rows}
+                    id={areaId}
                     className={cn(
-                        'mt-1 min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+                        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
                         error && 'border-destructive focus-visible:ring-destructive',
                         className,
                     )}
-                    aria-invalid={error ? 'true' : undefined}
-                    aria-describedby={
-                        error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
-                    }
+                    ref={ref}
+                    aria-invalid={error ? true : undefined}
+                    aria-describedby={describedBy}
                     {...props}
                 />
-                {error && (
-                    <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">
+                {error ? (
+                    <p id={`${areaId}-error`} className="text-sm text-destructive">
                         {error}
                     </p>
-                )}
-                {!error && hint && (
-                    <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">
+                ) : null}
+                {!error && hint ? (
+                    <p id={`${areaId}-hint`} className="text-sm text-muted-foreground">
                         {hint}
                     </p>
-                )}
+                ) : null}
             </div>
         );
     },
 );
-
 Textarea.displayName = 'Textarea';
+
+export { Textarea };

@@ -2,6 +2,7 @@
 
 namespace Modules\NetworkAsset\Http\Resources;
 
+use App\Http\Resources\LocationResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,7 +21,7 @@ class NetworkAssetInstallationResource extends JsonResource
             'installed_at' => $this->installed_at,
             'removed_at' => $this->removed_at,
             'removal_reason' => $this->removal_reason,
-            'location' => new \App\Http\Resources\LocationResource($this->whenLoaded('location')),
+            'location' => new LocationResource($this->whenLoaded('location')),
         ];
     }
 }

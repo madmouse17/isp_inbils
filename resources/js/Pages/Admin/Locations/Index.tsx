@@ -11,7 +11,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 
@@ -161,7 +161,7 @@ export default function Index({ locations, can }: LocationsProps) {
                                     error={createForm.errors.name}
                                     required
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Type"
                                     value={createForm.data.type}
                                     onChange={(e) =>
@@ -171,7 +171,7 @@ export default function Index({ locations, can }: LocationsProps) {
                                     error={createForm.errors.type}
                                     required
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Parent"
                                     value={createForm.data.parent_id}
                                     onChange={(e) =>
@@ -258,7 +258,7 @@ export default function Index({ locations, can }: LocationsProps) {
                                     error={editForm.errors.name}
                                     required
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Type"
                                     value={editForm.data.type}
                                     onChange={(e) =>
@@ -268,7 +268,7 @@ export default function Index({ locations, can }: LocationsProps) {
                                     error={editForm.errors.type}
                                     required
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Parent"
                                     value={editForm.data.parent_id}
                                     onChange={(e) => editForm.setData('parent_id', e.target.value)}
@@ -323,7 +323,7 @@ export default function Index({ locations, can }: LocationsProps) {
                                 onSubmit={submitMove}
                                 className="flex flex-col gap-4 sm:flex-row sm:items-end"
                             >
-                                <Select
+                                <NativeSelect
                                     label="New parent"
                                     value={moveForm.data.new_parent_id}
                                     onChange={(e) =>

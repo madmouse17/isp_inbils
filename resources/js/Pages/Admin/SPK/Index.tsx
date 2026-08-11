@@ -1,228 +1,233 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
+import { Head, Link } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
     Select,
-    SearchSelect,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/Select';
+import { useCan } from '@/hooks/useCan';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { formatDate, formatDateTime } from '@/lib/format';
 
-interface WoRow {
+type Row = {
     id: number;
     code: string;
     type: string;
-    title: string;
     status: string;
-    priority: string;
-    customer?: { name: string } | null;
-    assignee?: { name: string } | null;
-}
+    scheduled_at?: string | null;
+    created_at: string | null;
+    customer?: { id: number; name: string } | null;
+    assignee?: { id: number; name: string } | null;
+};
 
-interface TechRow {
-    id: number;
-    user_id: number;
-    employee_number: string;
-    phone?: string | null;
-    name: string;
-    user?: { name: string; email: string } | null;
-    organization?: { name: string; code: string } | null;
-}
+type PaginatorLink = { url: string | null; label: string; active: boolean };
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    path?: string;
+    links?: PaginatorLink[];
+    first_page_url?: string;
+    last_page_url?: string;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    workOrders: { data: WoRow[]; current_page: number; last_page: number };
-    technicians: { data: TechRow[] };
-    filters: { type?: string; status?: string; assigned_to?: string; search?: string };
-    can: { create: boolean };
-}
-
-const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'completed'
-        ? 'success'
-        : s === 'in_progress' || s === 'waiting_review'
-          ? 'info'
-          : s === 'rejected'
-            ? 'danger'
-            : s === 'cancelled'
-              ? 'muted'
-              : 'warning';
-
-export default function Index({ workOrders, technicians, filters, can }: IndexProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [type, setType] = useState(filters.type ?? '');
-    const [status, setStatus] = useState(filters.status ?? '');
-    const [assignedTo, setAssignedTo] = useState(filters.assigned_to ?? '');
-    const technicianOptions = technicians.data.map((technician) => ({
-        value: String(technician.user_id),
-        label: technician.user?.name ?? technician.name,
-        description: [
-            technician.employee_number,
-            technician.organization?.name,
-            technician.phone,
-        ]
-            .filter(Boolean)
-            .join(' - '),
-    }));
-
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.spk.index'),
-            { search, type, status, assigned_to: assignedTo },
-            { preserveState: true },
-        );
+type Props = {
+    workOrders: Paginator<Row>;
+    filters: {
+        search?: string;
+        type?: string;
+        status?: string;
+        sort_by?: string;
+        sort_dir?: string;
+        per_page?: string | number;
     };
+    typeOptions?: string[];
+    statusOptions?: string[];
+};
+
+export default function SpkIndex({
+    workOrders,
+    filters,
+    typeOptions = [],
+    statusOptions = [],
+}: Props) {
+    const can = useCan();
+    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            type: filters.type ?? '',
+            status: filters.status ?? '',
+            sort_by: filters.sort_by ?? '',
+            sort_dir: filters.sort_dir ?? '',
+            per_page: filters.per_page ?? workOrders.per_page,
+        },
+        { only: ['workOrders', 'filters'] },
+    );
+
+    const columns: DataTableColumn<Row>[] = useMemo(
+        () => [
+            {
+                key: 'code',
+                header: 'Number',
+                sortable: true,
+                sortKey: 'code',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.spk.show', row.id)}
+                        className="font-medium text-primary hover:underline"
+                        aria-label={`Open SPK ${row.code}`}
+                    >
+                        {row.code}
+                    </Link>
+                ),
+            },
+            {
+                key: 'type',
+                header: 'Type',
+                sortable: true,
+                sortKey: 'type',
+                cell: (row) => row.type,
+            },
+            {
+                key: 'status',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'status',
+                cell: (row) => <StatusBadge status={row.status} />,
+            },
+            {
+                key: 'customer',
+                header: 'Customer',
+                cell: (row) => row.customer?.name ?? '—',
+            },
+            {
+                key: 'scheduled_at',
+                header: 'Scheduled',
+                sortable: true,
+                sortKey: 'scheduled_at',
+                cell: (row) => formatDateTime(row.scheduled_at ?? null),
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDate(row.created_at),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="SPK">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="SPK / Work Orders" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Surat Perintah Kerja"
-                    subtitle="Work orders for field technicians."
+                    title="SPK / Work Orders"
+                    description="Field work orders and installation jobs."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.spk.create'))}
-                            >
-                                Create SPK
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.spk.export')}
+                                params={params}
+                                canExport={can('spk.export')}
+                            />
+                            {can('spk.create') && (
+                                <Button asChild size="sm">
+                                    <Link href={route('admin.spk.create')}>
+                                        <Plus className="size-4" />
+                                        New SPK
+                                    </Link>
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Search"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Code or title"
-                            />
-                            <Select
-                                label="Type"
-                                value={type}
-                                onChange={(e) => setType(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="installation">Installation</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="upgrade_service">Upgrade</option>
-                                <option value="relocation">Relocation</option>
-                            </Select>
-                            <Select
-                                label="Status"
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="draft">Draft</option>
-                                <option value="generated">Generated</option>
-                                <option value="assigned">Assigned</option>
-                                <option value="in_progress">In Progress</option>
-                                <option value="waiting_review">Waiting Review</option>
-                                <option value="completed">Completed</option>
-                                <option value="rejected">Rejected</option>
-                                <option value="cancelled">Cancelled</option>
-                            </Select>
-                            <SearchSelect
-                                label="Technician"
-                                value={assignedTo}
-                                onChange={setAssignedTo}
-                                options={technicianOptions}
-                                placeholder="Search technician"
-                                emptyText="No technician employees found."
-                            />
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Title</TH>
-                                    <TH>Type</TH>
-                                    <TH>Status</TH>
-                                    <TH>Priority</TH>
-                                    <TH>Customer</TH>
-                                    <TH>Technician</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {workOrders.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    workOrders.data.map((w) => (
-                                        <TR key={w.id}>
-                                            <TD className="font-mono text-sm">{w.code}</TD>
-                                            <TD>{w.title}</TD>
-                                            <TD>
-                                                <Badge variant="neutral">{w.type}</Badge>
-                                            </TD>
-                                            <TD>
-                                                <StatusBadge variant={statusVariant(w.status)}>
-                                                    {w.status}
-                                                </StatusBadge>
-                                            </TD>
-                                            <TD>
-                                                <Badge
-                                                    variant={
-                                                        w.priority === 'urgent'
-                                                            ? 'danger'
-                                                            : w.priority === 'high'
-                                                              ? 'brand'
-                                                              : 'neutral'
-                                                    }
-                                                >
-                                                    {w.priority}
-                                                </Badge>
-                                            </TD>
-                                            <TD>{w.customer?.name ?? '-'}</TD>
-                                            <TD>{w.assignee?.name ?? '-'}</TD>
-                                            <TD>
-                                                <Link
-                                                    href={route('admin.spk.show', w.id)}
-                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                >
-                                                    Show
-                                                </Link>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={workOrders.current_page}
-                            lastPage={workOrders.last_page}
-                            onPageChange={(page) => router.get(route('admin.spk.index'), { page })}
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="spk-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="spk-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Number or customer…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Type</label>
+                        <Select
+                            value={params.type || '__all__'}
+                            onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {typeOptions.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Status</label>
+                        <Select
+                            value={params.status || '__all__'}
+                            onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {statusOptions.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={workOrders.data}
+                    emptyTitle="No work orders"
+                    emptyDescription="No SPK/work orders match the current filters."
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    pagination={workOrders}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(n) => set('per_page', n)}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

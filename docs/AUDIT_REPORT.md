@@ -135,7 +135,7 @@
 | SPK → Billing | CreateInvoiceFromSpkAction (OTC invoice) | **Stub** — BillingService::createFromSpk exists but not called from SPK |
 | Ticketing → SPK | TicketService::spawnSpk creates WorkOrder | **Works** — but SPK type=maintenance only, no material template |
 | Billing → Subscription | SubscriptionService::suspend/reactivate | **Stub** — no auto-suspend job |
-| Reporting → All | Direct model queries (allowed exception) | **Works** |
+| Reporting → All | Direct model queries (sanctioned read-model exception) | **Works** |
 
 ## 4. Gap Analysis by Module
 

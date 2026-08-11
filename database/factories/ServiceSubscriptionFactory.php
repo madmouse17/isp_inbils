@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Service\Models\ServicePackage;
@@ -19,8 +20,8 @@ class ServiceSubscriptionFactory extends Factory
         return [
             'customer_id' => Customer::factory(),
             'service_package_id' => ServicePackage::factory(),
-            'installation_address_id' => \App\Models\Core\CustomerAddress::factory(),
-            'code' => 'SUB-' . now()->year . '-' . str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
+            'installation_address_id' => CustomerAddress::factory(),
+            'code' => 'SUB-'.now()->year.'-'.str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
             'status' => 'pending',
             'activation_date' => null,
             'expiration_date' => null,

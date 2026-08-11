@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use Database\Factories\EmployeeProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +19,7 @@ class EmployeeProfile extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected static string $factory = \Database\Factories\EmployeeProfileFactory::class;
+    protected static string $factory = EmployeeProfileFactory::class;
 
     protected $fillable = [
         'company_id',

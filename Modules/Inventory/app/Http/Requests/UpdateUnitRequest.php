@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +17,7 @@ class UpdateUnitRequest extends FormRequest
     public function rules(): array
     {
         $unitId = $this->route('unit')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             'name' => ['required', 'string', 'max:100', Rule::unique('units')->where('company_id', $companyId)->ignore($unitId)],

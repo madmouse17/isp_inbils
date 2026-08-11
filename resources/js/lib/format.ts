@@ -12,6 +12,17 @@ export function formatRupiah(amount: number | string, company?: Company | null):
     }).format(Number.isFinite(value) ? value : 0);
 }
 
+export function formatMoney(
+    value: number | string | null | undefined,
+    companyOrCurrency?: Company | string | null,
+): string {
+    if (typeof companyOrCurrency === 'string') {
+        return formatRupiah(value ?? 0, { currency: companyOrCurrency } as Company);
+    }
+
+    return formatRupiah(value ?? 0, companyOrCurrency ?? null);
+}
+
 export function formatNumber(value: number | string): string {
     const number = typeof value === 'string' ? Number(value) : value;
 
@@ -34,4 +45,18 @@ export function formatDate(
     const year = String(date.getFullYear());
 
     return format.replace('d', day).replace('m', month).replace('Y', year);
+}
+
+export function formatDateTime(value: string | number | Date | null | undefined): string {
+    if (value == null || value === '') return '-';
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return '-';
+
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = String(date.getFullYear());
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${day}/${month}/${year} ${hours}:${minutes}`;
 }

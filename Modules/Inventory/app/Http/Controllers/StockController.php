@@ -5,8 +5,11 @@ namespace Modules\Inventory\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -21,6 +24,7 @@ use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Services\StockService;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StockController extends Controller
 {
@@ -28,12 +32,7 @@ class StockController extends Controller
     {
         Gate::authorize('inventory.view');
 
-        $stocks = Stock::query()
-            ->with(['product', 'location'])
-            ->when($request->input('location_id'), fn ($q, $v) => $q->where('location_id', $v))
-            ->when($request->input('product_id'), fn ($q, $v) => $q->where('product_id', $v))
-            ->when($request->boolean('low_stock'), fn ($q) => $q->whereRaw('quantity <= (SELECT min_stock FROM products WHERE products.id = stocks.product_id)'))
-            ->latest()
+        $stocks = $this->filteredQuery($request)
             ->paginate(10)
             ->withQueryString();
 
@@ -41,28 +40,98 @@ class StockController extends Controller
             'stocks' => StockResource::collection($stocks),
             'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'filters' => $request->only(['location_id', 'product_id', 'low_stock']),
+            'filters' => $request->only(['location_id', 'product_id', 'low_stock', 'search']),
+            'can' => ['export' => $request->user()?->can('inventory.export') ?? false],
         ]);
+    }
+
+    public function export(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('inventory.export');
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+        $export = ExportQuery::make($this->filteredQuery($request))
+            ->defaultSort('id', 'desc')
+            ->maxRows((int) config('exports.max_rows', 5000));
+
+        $columns = [
+            'product' => 'Product',
+            'location' => 'Location',
+            'quantity' => 'Quantity',
+            'reserved_quantity' => 'Reserved',
+            'available' => 'Available',
+        ];
+
+        $map = static fn (Stock $stock): array => [
+            'product' => $stock->product?->name ?? '-',
+            'location' => $stock->location?->code ?? '-',
+            'quantity' => $stock->quantity,
+            'reserved_quantity' => $stock->reserved_quantity,
+            'available' => $stock->available,
+        ];
+
+        if ($format === 'pdf') {
+            return $export->streamPdf('Stocks', $columns, $map, "stocks-export-{$stamp}.pdf");
+        }
+
+        return $export->streamCsv($columns, $map, "stocks-export-{$stamp}.csv");
     }
 
     public function movements(Request $request): InertiaResponse
     {
         Gate::authorize('inventory.view');
 
-        $movements = StockMovement::query()
-            ->with(['product', 'fromLocation', 'toLocation'])
-            ->when($request->input('product_id'), fn ($q, $v) => $q->where('product_id', $v))
-            ->when($request->input('movement_type'), fn ($q, $v) => $q->where('movement_type', $v))
-            ->when($request->input('location_id'), fn ($q, $v) => $q->where(fn ($sq) => $sq
-                ->where('from_location_id', $v)->orWhere('to_location_id', $v)))
-            ->latest()
+        $movements = $this->filteredMovementsQuery($request)
             ->paginate(10)
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Movements/Index', [
             'movements' => StockMovementResource::collection($movements),
-            'filters' => $request->only(['product_id', 'movement_type', 'location_id']),
+            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
+            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'filters' => $request->only(['product_id', 'movement_type', 'location_id', 'search']),
+            'can' => ['export' => $request->user()?->can('inventory.export') ?? false],
         ]);
+    }
+
+    public function movementsExport(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('inventory.export');
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+        $export = ExportQuery::make($this->filteredMovementsQuery($request))
+            ->defaultSort('created_at', 'desc')
+            ->maxRows((int) config('exports.max_rows', 5000));
+
+        $columns = [
+            'movement_type' => 'Type',
+            'product' => 'Product',
+            'from_location' => 'From',
+            'to_location' => 'To',
+            'quantity' => 'Quantity',
+            'balance_after' => 'Balance',
+            'note' => 'Note',
+            'created_at' => 'Date',
+        ];
+
+        $map = static fn (StockMovement $movement): array => [
+            'movement_type' => $movement->movement_type,
+            'product' => $movement->product?->name ?? '-',
+            'from_location' => $movement->fromLocation?->name ?? '-',
+            'to_location' => $movement->toLocation?->name ?? '-',
+            'quantity' => $movement->quantity,
+            'balance_after' => $movement->balance_after,
+            'note' => $movement->note ?? '',
+            'created_at' => $movement->created_at,
+        ];
+
+        if ($format === 'pdf') {
+            return $export->streamPdf('Stock Movements', $columns, $map, "stock-movements-export-{$stamp}.pdf");
+        }
+
+        return $export->streamCsv($columns, $map, "stock-movements-export-{$stamp}.csv");
     }
 
     public function receive(StockReceiveRequest $request): RedirectResponse
@@ -152,5 +221,46 @@ class StockController extends Controller
             'results' => $results->values(),
             'search' => $request->input('search', ''),
         ]);
+    }
+
+    /** @return Builder<Stock> */
+    private function filteredQuery(Request $request): Builder
+    {
+        return Stock::query()
+            ->with(['product', 'location'])
+            ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where('location_id', $v))
+            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
+            ->when($request->boolean('low_stock'), fn (Builder $q) => $q->whereRaw('quantity <= (SELECT min_stock FROM products WHERE products.id = stocks.product_id)'))
+            ->when(trim((string) $request->input('search')) !== '', function (Builder $q) use ($request): void {
+                $term = '%'.trim((string) $request->input('search')).'%';
+                $q->where(function (Builder $sq) use ($term): void {
+                    $sq->whereHas('product', fn (Builder $pq) => $pq->where('name', 'like', $term)->orWhere('sku', 'like', $term))
+                        ->orWhereHas('location', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term));
+                });
+            })
+            ->latest();
+    }
+
+    /** @return Builder<StockMovement> */
+    private function filteredMovementsQuery(Request $request): Builder
+    {
+        return StockMovement::query()
+            ->with(['product', 'fromLocation', 'toLocation'])
+            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
+            ->when($request->input('movement_type'), fn (Builder $q, $v) => $q->where('movement_type', $v))
+            ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where(function (Builder $sq) use ($v): void {
+                $sq->where('from_location_id', $v)->orWhere('to_location_id', $v);
+            }))
+            ->when(trim((string) $request->input('search')) !== '', function (Builder $q) use ($request): void {
+                $term = '%'.trim((string) $request->input('search')).'%';
+                $q->where(function (Builder $sq) use ($term): void {
+                    $sq->where('movement_type', 'like', $term)
+                        ->orWhere('note', 'like', $term)
+                        ->orWhereHas('product', fn (Builder $pq) => $pq->where('name', 'like', $term)->orWhere('sku', 'like', $term))
+                        ->orWhereHas('fromLocation', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term))
+                        ->orWhereHas('toLocation', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term));
+                });
+            })
+            ->latest();
     }
 }

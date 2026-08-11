@@ -46,7 +46,7 @@ export default function Index({ units, can }: IndexProps) {
 
     const openEdit = (u: Unit) => {
         setEditing(u);
-        setData({ name: u.name, symbol: u.symbol });
+        setData({ name: u.name ?? '', symbol: u.symbol ?? '' });
         setModalOpen(true);
     };
 

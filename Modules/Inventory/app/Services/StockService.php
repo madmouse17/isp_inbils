@@ -2,21 +2,28 @@
 
 namespace Modules\Inventory\Services;
 
+use App\Models\Core\Location;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Exceptions\InsufficientStockException;
+use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\StockMovement;
+use Modules\SPK\Models\WorkOrderItem;
 
 class StockService
 {
     public static function receive(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for receive.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
+            self::assertProductLocation($productId, $locationId);
+            self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'receive', $refType, $refId)) {
                 return $movement;
             }
@@ -52,8 +59,11 @@ class StockService
     public static function issue(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for issue.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
+            self::assertProductLocation($productId, $locationId);
+            self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'issue', $refType, $refId)) {
                 return $movement;
             }
@@ -96,8 +106,12 @@ class StockService
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for transfer.');
         abort_if($fromLocationId === $toLocationId, 422, 'From and to locations must differ.');
+        self::assertProductLocation($productId, $fromLocationId);
+        self::assertProductLocation($productId, $toLocationId);
 
         return DB::transaction(function () use ($productId, $fromLocationId, $toLocationId, $quantity, $note) {
+            self::assertProductLocation($productId, $fromLocationId);
+            self::assertProductLocation($productId, $toLocationId);
             $stocks = self::lockedStocks($productId, [$fromLocationId, $toLocationId]);
             $fromStock = $stocks[$fromLocationId];
             $toStock = $stocks[$toLocationId];
@@ -146,8 +160,10 @@ class StockService
     {
         abort_if(empty($note), 422, 'Note is required for adjustment.');
         abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note) {
+            self::assertProductLocation($productId, $locationId);
             $stock = self::lockedStock($productId, $locationId);
             if ($newQuantity < (float) $stock->reserved_quantity) {
                 throw InsufficientStockException::forIssue((float) $stock->reserved_quantity, $newQuantity);
@@ -184,8 +200,11 @@ class StockService
     public static function reserve(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for reserve.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
+            self::assertProductLocation($productId, $locationId);
+            self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'reserve', $refType, $refId)) {
                 return $movement;
             }
@@ -218,8 +237,11 @@ class StockService
     public static function release(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for release.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
+            self::assertProductLocation($productId, $locationId);
+            self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'release', $refType, $refId)) {
                 return $movement;
             }
@@ -250,8 +272,11 @@ class StockService
     public static function returnStock(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
         abort_if($quantity <= 0, 422, 'Quantity must be positive for return.');
+        self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
+            self::assertProductLocation($productId, $locationId);
+            self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'return', $refType, $refId)) {
                 return $movement;
             }
@@ -335,5 +360,51 @@ class StockService
             ->where('reference_id', $refId)
             ->lockForUpdate()
             ->first();
+    }
+
+    private static function assertReference(?string $refType, ?int $refId): void
+    {
+        if ($refType === null && $refId === null) {
+            return;
+        }
+
+        abort_if($refType === null || $refId === null, 422, 'Stock reference type and id are required together.');
+
+        $typeMap = self::referenceTypes();
+        abort_unless(isset($typeMap[$refType]), 422, 'Stock reference type is not allowed.');
+
+        $modelClass = $typeMap[$refType];
+        abort_unless(
+            $modelClass::withoutCompany()->whereKey($refId)->where('company_id', self::companyId())->lockForUpdate()->first(),
+            422,
+            'Stock reference is invalid for this company.'
+        );
+    }
+
+    /** @return array<string, class-string<WorkOrderItem>> */
+    private static function referenceTypes(): array
+    {
+        $type = (new WorkOrderItem())->getMorphClass();
+
+        return array_unique([
+            WorkOrderItem::class => WorkOrderItem::class,
+            $type => WorkOrderItem::class,
+        ]);
+    }
+
+    private static function companyId(): int
+    {
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        return $companyId;
+    }
+
+    private static function assertProductLocation(int $productId, int $locationId): void
+    {
+        $companyId = self::companyId();
+
+        abort_unless(Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid product for this company.');
+        abort_unless(Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid location for this company.');
     }
 }

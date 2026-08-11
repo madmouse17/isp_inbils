@@ -6,14 +6,30 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Traits\BelongsToCompany;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\Inventory\Models\Product;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $code
+ * @property string $name
+ * @property string $asset_type
+ * @property string $status
+ * @property ?int $location_id
+ * @property ?int $customer_id
+ * @property ?int $subscription_id
+ * @property ?string $serial_number
+ * @property ?CarbonInterface $installed_at
+ * @property ?CarbonInterface $retired_at
+ */
 class NetworkAsset extends Model
 {
     use BelongsToCompany;
@@ -55,7 +71,7 @@ class NetworkAsset extends Model
 
     public function product(): BelongsTo
     {
-        return $this->belongsTo(\Modules\Inventory\Models\Product::class);
+        return $this->belongsTo(Product::class);
     }
 
     public function location(): BelongsTo

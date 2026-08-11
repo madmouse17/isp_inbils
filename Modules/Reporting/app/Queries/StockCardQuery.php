@@ -3,16 +3,21 @@
 namespace Modules\Reporting\Queries;
 
 use Modules\Inventory\Models\StockMovement;
+use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 
 class StockCardQuery
 {
+    use AppliesDateRange;
+
     public static function execute(int $productId, ?int $locationId = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = StockMovement::query()->where('product_id', $productId);
-        if ($locationId) $query->where(function ($q) use ($locationId) {
-            $q->where('from_location_id', $locationId)->orWhere('to_location_id', $locationId);
-        });
-        if ($dateFrom && $dateTo) $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($locationId) {
+            $query->where(function ($q) use ($locationId) {
+                $q->where('from_location_id', $locationId)->orWhere('to_location_id', $locationId);
+            });
+        }
+        self::applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
         $movements = $query->with(['product', 'fromLocation', 'toLocation'])
             ->orderBy('created_at', 'desc')->get()->map(fn ($m) => [

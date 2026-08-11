@@ -5,6 +5,7 @@ namespace Modules\Billing\Models;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\Money;
 use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -74,9 +75,9 @@ class Invoice extends Model
         return $this->hasMany(Payment::class, 'invoice_id');
     }
 
-    public function getSisaAttribute(): float
+    public function getSisaAttribute(): string
     {
-        return (float) $this->total - (float) $this->paid_amount;
+        return Money::round(Money::sub($this->total, $this->paid_amount));
     }
 
     public function getActivitylogOptions(): LogOptions

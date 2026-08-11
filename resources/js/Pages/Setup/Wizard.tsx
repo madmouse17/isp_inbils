@@ -12,7 +12,7 @@ import {
     CardTitle,
     FileUpload,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 
@@ -177,7 +177,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
 
                         {step === 1 && (
                             <div className="grid gap-4 sm:grid-cols-2">
-                                <Select
+                                <NativeSelect
                                     label="Currency"
                                     required
                                     value={data.currency}
@@ -190,7 +190,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                                         { value: 'EUR', label: 'EUR' },
                                     ]}
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Timezone"
                                     required
                                     value={data.timezone}

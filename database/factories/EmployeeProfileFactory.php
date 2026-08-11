@@ -19,7 +19,7 @@ class EmployeeProfileFactory extends Factory
             'user_id' => User::factory(),
             'organization_id' => null,
             'vehicle_id' => null,
-            'employee_number' => 'EMP-' . str_pad((string) fake()->unique()->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT),
+            'employee_number' => 'EMP-'.str_pad((string) fake()->unique()->numberBetween(1, 9999), 4, '0', STR_PAD_LEFT),
             'phone' => fake()->optional()->phoneNumber(),
             'hire_date' => fake()->optional()->dateTimeBetween('-5 years', 'now')?->format('Y-m-d'),
             'status' => 'active',

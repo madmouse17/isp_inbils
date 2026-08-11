@@ -12,7 +12,7 @@ import {
     FileUpload,
     Input,
     Modal,
-    Select,
+    NativeSelect,
     Textarea,
     useToast,
 } from '@/Components/ui';
@@ -319,7 +319,10 @@ export default function Show({ ticket }: ShowProps) {
                         <CardTitle>Attachments</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                        <form onSubmit={uploadAttachment} className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                        <form
+                            onSubmit={uploadAttachment}
+                            className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start"
+                        >
                             <FileUpload
                                 label="Attachment"
                                 value={attachmentFile}
@@ -391,7 +394,7 @@ export default function Show({ ticket }: ShowProps) {
                                     required
                                     rows={3}
                                 />
-                                <Select
+                                <NativeSelect
                                     label="Visibility"
                                     value={data.is_internal ? 'internal' : 'public'}
                                     onChange={(e) =>
@@ -400,7 +403,7 @@ export default function Show({ ticket }: ShowProps) {
                                 >
                                     <option value="public">Public</option>
                                     <option value="internal">Internal</option>
-                                </Select>
+                                </NativeSelect>
                             </>
                         )}
                         <div className="flex justify-end gap-2">

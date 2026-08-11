@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Operations\ReadinessController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Setup\SetupWizardController;
 use Illuminate\Foundation\Application;
@@ -19,6 +20,8 @@ Route::get('/', function () {
 Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'))
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
+
+Route::get('/ready', ReadinessController::class);
 
 Route::middleware(['auth', 'verified', 'require.no.company'])->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupWizardController::class, 'index'])->name('index');

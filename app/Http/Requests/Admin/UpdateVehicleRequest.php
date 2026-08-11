@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,8 +15,9 @@ class UpdateVehicleRequest extends FormRequest
 
     public function rules(): array
     {
-        $vehicleId = $this->route('vehicle')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $vehicleId = $this->route('vehicle')?->id;
+        $companyId = CompanyService::currentId();
+
         return [
             'plate_number' => ['required', 'string', 'max:20', Rule::unique('vehicles')->where('company_id', $companyId)->ignore($vehicleId)],
             'type' => ['nullable', 'string', 'max:50'],

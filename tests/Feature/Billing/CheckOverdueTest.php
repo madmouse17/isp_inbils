@@ -4,15 +4,14 @@ namespace Tests\Feature\Billing;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Billing\Database\Factories\InvoiceFactory;
-use Modules\Billing\Models\Invoice;
 use Modules\Billing\Services\BillingService;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
 class CheckOverdueTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_only_past_due_sent_or_partial_become_overdue(): void
     {

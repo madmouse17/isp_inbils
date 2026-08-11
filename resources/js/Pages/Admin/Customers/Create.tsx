@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -57,7 +57,7 @@ export default function Create() {
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Type"
                                 value={data.type}
                                 onChange={(e) =>
@@ -67,7 +67,7 @@ export default function Create() {
                             >
                                 <option value="Individual">Individual</option>
                                 <option value="Company">Company</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Email"
                                 type="email"

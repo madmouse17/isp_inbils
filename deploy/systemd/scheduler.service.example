@@ -1,0 +1,9 @@
+[Unit]
+Description=inbils scheduler runner
+After=network.target mysql.service
+
+[Service]
+Type=oneshot
+User=www-data
+WorkingDirectory=/var/www/inbils/current
+ExecStart=/usr/bin/php artisan schedule:run

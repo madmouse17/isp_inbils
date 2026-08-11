@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreUserRequest;
 use App\Http\Requests\Admin\UpdateUserRequest;
@@ -9,30 +10,37 @@ use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 use Spatie\Permission\Models\Role;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class UserController extends Controller
 {
-    public function index(Request $request): Response
+    use HasIndexQuery;
+
+    private const SORTABLE = ['name', 'email', 'is_active', 'created_at'];
+
+    public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', User::class);
 
-        $users = User::query()
-            ->where('company_id', CompanyService::currentId())
-            ->with('roles')
-            ->latest()
-            ->paginate(10)
+        $users = $this->filteredQuery($request)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Users/Index', [
             'users' => UserResource::collection($users),
+            'filters' => $request->only(['search', 'is_active', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('users.manage') ?? false,
+                'export' => $request->user()?->can('users.manage') ?? false,
             ],
         ]);
     }
@@ -114,8 +122,68 @@ class UserController extends Controller
         return back()->with('success', 'User deleted.');
     }
 
-    private function ensureSameCompany(User $user): void
+    public function export(Request $request): Response|StreamedResponse
     {
-        abort_unless($user->company_id === CompanyService::currentId(), 404);
+        Gate::authorize('users.manage');
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+        $export = ExportQuery::make($this->filteredQuery($request))
+            ->defaultSort('name', 'asc')
+            ->maxRows((int) config('exports.max_rows', 5000));
+
+        $columns = [
+            'name' => 'Name',
+            'email' => 'Email',
+            'roles' => 'Roles',
+            'is_active' => 'Status',
+        ];
+
+        $map = static fn (User $user): array => [
+            'name' => $user->name,
+            'email' => $user->email,
+            'roles' => $user->roles->pluck('name')->implode(', '),
+            'is_active' => $user->is_active ? 'Active' : 'Inactive',
+        ];
+
+        return $format === 'pdf'
+            ? $export->streamPdf('Users', $columns, $map, "users-export-{$stamp}.pdf")
+            : $export->streamCsv($columns, $map, "users-export-{$stamp}.csv");
+    }
+
+    /**
+     * @return Builder<User>
+     */
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = User::query()
+            ->where('company_id', CompanyService::currentId())
+            ->with('roles')
+            ->when($request->input('search'), function (Builder $query, string $value): void {
+                $term = trim($value);
+
+                if ($term === '') {
+                    return;
+                }
+
+                $query->where(function (Builder $sub) use ($term): void {
+                    $like = '%'.$term.'%';
+                    $sub->where('name', 'like', $like)
+                        ->orWhere('email', 'like', $like);
+                });
+            });
+
+        $status = $request->input('is_active');
+        if ($status !== null && $status !== '') {
+            $normalized = strtolower((string) $status);
+
+            if (in_array($normalized, ['1', 'true', 'active'], true)) {
+                $query->where('is_active', true);
+            } elseif (in_array($normalized, ['0', 'false', 'inactive'], true)) {
+                $query->where('is_active', false);
+            }
+        }
+
+        return $this->applySort($query, $request, 'name');
     }
 }

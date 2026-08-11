@@ -12,11 +12,11 @@ export default function Show({ customer }: ShowProps) {
     const c = customer.data;
 
     return (
-        <AdminLayout title={c.name}>
+        <AdminLayout title={c.name ?? ''}>
             <div className="space-y-6">
                 <PageHeader
-                    title={c.name}
-                    subtitle={`${c.code} - ${c.type}`}
+                    title={c.name ?? ''}
+                    subtitle={`${c.code ?? ''} - ${c.type ?? ''}`}
                     actions={
                         <>
                             <Button
@@ -89,7 +89,7 @@ export default function Show({ customer }: ShowProps) {
                 </div>
 
                 <CustomerRelatedTables
-                    customerId={c.id}
+                    customerId={Number(c.id)}
                     addresses={c.addresses ?? []}
                     contacts={c.contacts ?? []}
                     subscriptions={c.subscriptions ?? []}

@@ -1,0 +1,10 @@
+[Unit]
+Description=Run inbils scheduler once per minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+Unit=scheduler.service
+
+[Install]
+WantedBy=timers.target

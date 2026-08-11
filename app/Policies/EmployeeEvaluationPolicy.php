@@ -17,6 +17,7 @@ class EmployeeEvaluationPolicy
         if ($user->hasRole('technician')) {
             return $eval->employee_id === $user->id;
         }
+
         return $user->can('evaluation.view');
     }
 

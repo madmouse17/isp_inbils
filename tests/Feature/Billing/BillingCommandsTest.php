@@ -10,8 +10,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class BillingCommandsTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_generate_command_creates_invoices_for_given_period(): void
     {

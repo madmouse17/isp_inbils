@@ -1,36 +1,50 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import {
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Modal,
-    Pagination,
-    Select,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import { Modal } from '@/Components/ui/Modal';
+import { NativeSelect } from '@/Components/composite';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
 import type { ServiceSubscription } from '@/types/models';
 
 interface SubIndexProps {
     customer: { id: number; code: string; name: string };
-    subscriptions: { data: ServiceSubscription[]; current_page: number; last_page: number };
+    subscriptions: {
+        data: ServiceSubscription[];
+        current_page: number;
+        last_page: number;
+        per_page?: number;
+        total?: number;
+    };
     packages: { data: { id: number; code: string; name: string; price_mrc: string }[] };
     addresses: { data: { id: number; label: string; address: string }[] };
+    filters: {
+        search?: string;
+        service_package_id?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { export: boolean };
 }
 
-export default function Index({ customer, subscriptions, packages, addresses }: SubIndexProps) {
+export default function Index({
+    customer,
+    subscriptions,
+    packages,
+    addresses,
+    filters,
+    can,
+}: SubIndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const list = subscriptions.data;
-    const { data, setData, post, processing, errors } = useForm({
+    const { data, setData, post, processing, errors, reset } = useForm({
         service_package_id: '',
         installation_address_id: '',
         billing_day: '1',
@@ -39,6 +53,67 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
         contract_months: '',
         notes: '',
     });
+
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.customers.subscriptions.index', customer.id),
+        filters,
+        only: ['subscriptions', 'filters', 'can', 'packages', 'addresses'],
+    });
+
+    const columns: DataTableColumn<ServiceSubscription>[] = useMemo(
+        () => [
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (row) => <span className="font-mono text-sm">{row.code}</span>,
+            },
+            {
+                key: 'package',
+                header: 'Package',
+                cell: (row) => row.package?.name ?? `#${row.service_package_id}`,
+            },
+            {
+                key: 'status',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'status',
+                cell: (row) => (
+                    <StatusBadge
+                        variant={
+                            row.status === 'active'
+                                ? 'success'
+                                : row.status === 'suspended'
+                                  ? 'warning'
+                                  : row.status === 'terminated'
+                                    ? 'danger'
+                                    : 'muted'
+                        }
+                    >
+                        {row.status}
+                    </StatusBadge>
+                ),
+            },
+            { key: 'mrc_amount', header: 'MRC', cell: (row) => row.mrc_amount },
+            { key: 'billing_day', header: 'Billing Day', cell: (row) => row.billing_day },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => (
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={route('admin.subscriptions.show', row.id)}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Show
+                        </Link>
+                    </div>
+                ),
+            },
+        ],
+        [],
+    );
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -54,7 +129,17 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
                     title="Subscriptions"
                     subtitle={`${customer.code} — ${customer.name}`}
                     actions={
-                        <>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route(
+                                        'admin.customers.subscriptions.export',
+                                        customer.id,
+                                    )}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
                             <Button
                                 type="button"
                                 variant="secondary"
@@ -67,77 +152,73 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
                             <Button type="button" onClick={() => setModalOpen(true)}>
                                 Create Subscription
                             </Button>
-                        </>
+                        </div>
                     }
                 />
 
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Package</TH>
-                                    <TH>Status</TH>
-                                    <TH>MRC</TH>
-                                    <TH>Billing Day</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {list.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    list.map((s) => (
-                                        <TR key={s.id}>
-                                            <TD className="font-mono text-sm">{s.code}</TD>
-                                            <TD>{s.package?.name ?? `#${s.service_package_id}`}</TD>
-                                            <TD>
-                                                <StatusBadge
-                                                    variant={
-                                                        s.status === 'active'
-                                                            ? 'success'
-                                                            : s.status === 'suspended'
-                                                              ? 'warning'
-                                                              : s.status === 'terminated'
-                                                                ? 'danger'
-                                                                : 'muted'
-                                                    }
-                                                >
-                                                    {s.status}
-                                                </StatusBadge>
-                                            </TD>
-                                            <TD>{s.mrc_amount}</TD>
-                                            <TD>{s.billing_day}</TD>
-                                            <TD>
-                                                <Link
-                                                    href={route('admin.subscriptions.show', s.id)}
-                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                >
-                                                    Show
-                                                </Link>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={subscriptions.current_page}
-                            lastPage={subscriptions.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.customers.subscriptions.index', customer.id), { page })
-                            }
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="sub-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="sub-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Code or package…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Package</label>
+                        <NativeSelect
+                            value={params.service_package_id || '__all__'}
+                            onChange={(e) =>
+                                set(
+                                    'service_package_id',
+                                    e.target.value === '__all__' ? '' : e.target.value,
+                                )
+                            }
+                            options={[
+                                { value: '__all__', label: 'All' },
+                                ...packages.data.map((pkg) => ({
+                                    value: String(pkg.id),
+                                    label: `${pkg.name} (${pkg.code})`,
+                                })),
+                            ]}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Status</label>
+                        <NativeSelect
+                            value={params.status || '__all__'}
+                            onChange={(e) =>
+                                set('status', e.target.value === '__all__' ? '' : e.target.value)
+                            }
+                            options={[
+                                { value: '__all__', label: 'All' },
+                                { value: 'active', label: 'Active' },
+                                { value: 'suspended', label: 'Suspended' },
+                                { value: 'pending', label: 'Pending' },
+                                { value: 'terminated', label: 'Terminated' },
+                            ]}
+                        />
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    pagination={toPagination(subscriptions)}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(perPage) => set('per_page', perPage)}
+                    emptyTitle="No subscriptions"
+                    emptyDescription="No subscriptions match the current filters."
+                />
 
                 <Modal
                     open={modalOpen}
@@ -145,34 +226,34 @@ export default function Index({ customer, subscriptions, packages, addresses }: 
                     title="Create Subscription"
                 >
                     <form onSubmit={submit} className="space-y-4">
-                        <Select
+                        <NativeSelect
                             label="Service Package"
                             value={data.service_package_id}
                             onChange={(e) => setData('service_package_id', e.target.value)}
                             error={errors.service_package_id}
+                            options={[
+                                { value: '', label: 'Select package…' },
+                                ...packages.data.map((pkg) => ({
+                                    value: String(pkg.id),
+                                    label: `${pkg.name} (MRC: ${pkg.price_mrc})`,
+                                })),
+                            ]}
                             required
-                        >
-                            <option value="">Select package...</option>
-                            {packages.data.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name} (MRC: {p.price_mrc})
-                                </option>
-                            ))}
-                        </Select>
-                        <Select
+                        />
+                        <NativeSelect
                             label="Installation Address"
                             value={data.installation_address_id}
                             onChange={(e) => setData('installation_address_id', e.target.value)}
                             error={errors.installation_address_id}
+                            options={[
+                                { value: '', label: 'Select address…' },
+                                ...addresses.data.map((a) => ({
+                                    value: String(a.id),
+                                    label: `${a.label} — ${a.address}`,
+                                })),
+                            ]}
                             required
-                        >
-                            <option value="">Select address...</option>
-                            {addresses.data.map((a) => (
-                                <option key={a.id} value={a.id}>
-                                    {a.label} — {a.address}
-                                </option>
-                            ))}
-                        </Select>
+                        />
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
                                 label="Billing Day (1-28)"

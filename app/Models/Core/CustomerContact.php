@@ -3,10 +3,10 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use Database\Factories\CustomerContactFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -15,16 +15,21 @@ class CustomerContact extends Model
     use BelongsToCompany;
     use HasFactory;
     use LogsActivity;
-    use SoftDeletes;
+
+    protected static function newFactory()
+    {
+        return CustomerContactFactory::new();
+    }
 
     protected $fillable = [
         'customer_id',
         'name',
-        'position',
+        'role',
         'phone',
         'email',
         'is_primary',
         'notes',
+        'company_id',
     ];
 
     protected $casts = [

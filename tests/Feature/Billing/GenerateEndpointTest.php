@@ -10,8 +10,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class GenerateEndpointTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     private function makeActiveSub(): void
     {

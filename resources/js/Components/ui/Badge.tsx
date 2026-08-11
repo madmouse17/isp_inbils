@@ -1,42 +1,40 @@
+import * as React from 'react';
 import { cn } from '@/lib/utils';
 
-const variants = {
-    neutral: 'bg-secondary text-secondary-foreground',
-    muted: 'bg-muted text-muted-foreground',
-    brand: 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300',
-    info: 'bg-primary/10 text-primary',
-    success: 'bg-green-50 text-success dark:bg-green-900/20 dark:text-green-400',
-    warning: 'bg-amber-50 text-warning dark:bg-amber-900/20 dark:text-amber-400',
-    danger: 'bg-destructive/10 text-destructive',
-} as const;
+const variants: Record<string, string> = {
+    default: 'border-transparent bg-primary text-primary-foreground shadow',
+    secondary: 'border-transparent bg-secondary text-secondary-foreground',
+    destructive: 'border-transparent bg-destructive text-destructive-foreground shadow',
+    danger: 'border-transparent bg-destructive text-destructive-foreground shadow',
+    outline: 'text-foreground',
+    success: 'border-transparent bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+    warning: 'border-transparent bg-amber-500/15 text-amber-700 dark:text-amber-400',
+    info: 'border-transparent bg-sky-500/15 text-sky-700 dark:text-sky-400',
+};
 
-const sizes = {
-    sm: 'px-2 py-0.5 text-xs',
-    md: 'px-2.5 py-0.5 text-xs',
-} as const;
-
-interface BadgeProps {
+export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
     variant?: keyof typeof variants;
-    size?: keyof typeof sizes;
     dot?: boolean;
-    children: React.ReactNode;
-    className?: string;
 }
 
-export function Badge({ variant = 'neutral', size = 'md', dot, children, className }: BadgeProps) {
+function Badge({ className, variant = 'default', dot = false, children, ...props }: BadgeProps) {
     return (
-        <span
+        <div
             className={cn(
-                'inline-flex items-center gap-1.5 rounded-full font-medium',
+                'inline-flex items-center gap-1 rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors',
                 variants[variant],
-                sizes[size],
                 className,
             )}
+            {...props}
         >
-            {dot && (
-                <span className={cn('h-1.5 w-1.5 rounded-full', variants[variant].split(' ')[1])} />
-            )}
+            {dot ? (
+                <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+            ) : null}
             {children}
-        </span>
+        </div>
     );
 }
+
+const badgeVariants = variants;
+
+export { Badge, badgeVariants };

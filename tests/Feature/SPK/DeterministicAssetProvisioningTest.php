@@ -13,6 +13,8 @@ use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
+use Modules\NetworkAsset\Models\NetworkAssetInstallation;
+use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
@@ -46,7 +48,7 @@ class DeterministicAssetProvisioningTest extends TestCase
         $this->assertDatabaseHas('network_asset_installations', ['network_asset_id' => $selectedAsset->id, 'spk_id' => $workOrder->id, 'subscription_id' => $subscription->id]);
     }
 
-    public function test_installation_can_complete_without_network_asset_selection(): void
+    public function test_installation_requires_explicit_network_asset_selection_for_serialized_products(): void
     {
         [$company, $user, $location, $customer] = $this->scope();
         $product = $this->product($company);
@@ -55,47 +57,88 @@ class DeterministicAssetProvisioningTest extends TestCase
         WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id]);
         $this->evidence($workOrder, $user);
 
-        SpkService::approve($workOrder);
-
-        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'completed']);
-        $this->assertDatabaseHas('service_subscriptions', ['id' => $subscription->id, 'status' => 'active', 'ont_asset_id' => null]);
-        $this->assertDatabaseMissing('network_asset_installations', ['spk_id' => $workOrder->id]);
-    }
-
-    public function test_installation_rejects_item_product_from_another_company(): void
-    {
-        [$company, $user, $location, $customer] = $this->scope();
-        $foreignCompany = Company::factory()->create();
-        $foreignUnit = Unit::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'name' => 'Foreign Piece', 'symbol' => 'fpcs']);
-        $foreignProduct = Product::withoutCompany()->forceCreate([
-            'company_id' => $foreignCompany->id,
-            'category_id' => Category::withoutCompany()->forceCreate(['company_id' => $foreignCompany->id, 'unit_id' => $foreignUnit->id, 'name' => 'SPK Foreign Category', 'code' => 'SPK-FCAT-'.fake()->unique()->numberBetween(1, 9999), 'is_active' => true])->id,
-            'unit_id' => $foreignUnit->id,
-            'sku' => 'SPK-FPRD-'.fake()->unique()->numberBetween(1, 9999),
-            'name' => 'SPK Foreign Product',
-            'type' => 'asset',
-            'track_stock' => true,
-            'sell_price' => 100_000,
-            'cost_price' => 50_000,
-            'min_stock' => 0,
-            'is_active' => true,
-        ]);
-        $this->assertNotSame($company->id, $foreignProduct->company_id);
-        $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id]);
-        $asset = NetworkAssetFactory::new()->create(['company_id' => $company->id, 'product_id' => $foreignProduct->id, 'status' => 'available']);
-        $workOrder = $this->workOrder($company, $user, $location, $customer, $subscription);
-        WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $foreignProduct->id, 'network_asset_id' => $asset->id]);
-        $this->evidence($workOrder, $user);
-
         try {
             SpkService::approve($workOrder);
-            $this->fail('Foreign-company SPK item product was accepted.');
+            $this->fail('Serialized installation completed without an explicit network asset selection.');
         } catch (HttpException $exception) {
             $this->assertSame(422, $exception->getStatusCode());
         }
 
         $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'waiting_review']);
-        $this->assertDatabaseHas('network_assets', ['id' => $asset->id, 'status' => 'available', 'customer_id' => null, 'subscription_id' => null]);
+        $this->assertDatabaseHas('service_subscriptions', ['id' => $subscription->id, 'status' => 'pending', 'ont_asset_id' => null]);
+        $this->assertDatabaseMissing('network_asset_installations', ['spk_id' => $workOrder->id]);
+    }
+
+    public function test_installation_rejects_selected_asset_from_another_company(): void
+    {
+        [$company, $user, $location, $customer] = $this->scope();
+        $product = $this->product($company);
+        $foreignCompany = Company::factory()->create();
+        $foreignAsset = NetworkAssetFactory::new()->create([
+            'company_id' => $foreignCompany->id,
+            'product_id' => $product->id,
+            'status' => 'available',
+        ]);
+        $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id]);
+        $workOrder = $this->workOrder($company, $user, $location, $customer, $subscription);
+        WorkOrderItem::create([
+            'company_id' => $company->id,
+            'work_order_id' => $workOrder->id,
+            'product_id' => $product->id,
+            'network_asset_id' => $foreignAsset->id,
+        ]);
+        $this->evidence($workOrder, $user);
+
+        try {
+            SpkService::approve($workOrder);
+            $this->fail('Foreign-company network asset was accepted.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'waiting_review']);
+        $this->assertDatabaseHas('network_assets', ['id' => $foreignAsset->id, 'status' => 'available', 'customer_id' => null, 'subscription_id' => null]);
+    }
+
+    public function test_installation_rejects_selected_asset_with_active_installation(): void
+    {
+        [$company, $user, $location, $customer] = $this->scope();
+        $product = $this->product($company);
+        $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id]);
+        $asset = NetworkAssetFactory::new()->create([
+            'company_id' => $company->id,
+            'product_id' => $product->id,
+            'status' => 'available',
+        ]);
+        NetworkAssetInstallation::create([
+            'company_id' => $company->id,
+            'network_asset_id' => $asset->id,
+            'location_id' => $location->id,
+            'customer_id' => $customer->id,
+            'subscription_id' => $subscription->id,
+            'spk_id' => 999999,
+            'installed_by' => $user->id,
+            'installed_at' => now(),
+        ]);
+        $workOrder = $this->workOrder($company, $user, $location, $customer, $subscription);
+        WorkOrderItem::create([
+            'company_id' => $company->id,
+            'work_order_id' => $workOrder->id,
+            'product_id' => $product->id,
+            'network_asset_id' => $asset->id,
+        ]);
+        $this->evidence($workOrder, $user);
+
+        try {
+            SpkService::approve($workOrder);
+            $this->fail('Asset with active installation was accepted.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
+
+        $this->assertDatabaseHas('work_orders', ['id' => $workOrder->id, 'status' => 'waiting_review']);
+        $this->assertDatabaseHas('network_assets', ['id' => $asset->id, 'status' => 'available']);
+        $this->assertDatabaseCount('network_asset_installations', 1);
     }
 
     public function test_termination_releases_ont_only_when_requested(): void
@@ -104,11 +147,10 @@ class DeterministicAssetProvisioningTest extends TestCase
         $subscription = ServiceSubscription::factory()->create(['customer_id' => $customer->id, 'status' => 'active']);
         $asset = NetworkAssetFactory::new()->create([
             'company_id' => $company->id,
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
-            'location_id' => $location->id,
-            'status' => 'installed',
+            'product_id' => $this->product($company)->id,
+            'status' => 'available',
         ]);
+        NetworkAssetService::install($asset, $location->id, $customer->id, $subscription->id, 123456);
         $subscription->update(['ont_asset_id' => $asset->id]);
 
         SubscriptionService::terminate($subscription, 'customer cancelled', true);

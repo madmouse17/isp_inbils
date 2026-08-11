@@ -1,144 +1,196 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
+import { Head, Link } from '@inertiajs/react';
+import { useMemo } from 'react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
     Select,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/Select';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { formatDateTime } from '@/lib/format';
 
-interface MovementRow {
+type MovementRow = {
     id: number;
-    movement_type: string;
-    quantity: string;
-    balance_after: string;
-    note?: string | null;
-    created_at: string;
-    product?: { sku: string; name: string } | null;
-    from_location?: { name: string } | null;
-    to_location?: { name: string } | null;
-}
+    type: string;
+    quantity: number | string;
+    reference?: string | null;
+    notes?: string | null;
+    created_at: string | null;
+    product?: { id: number; name: string; sku?: string | null } | null;
+    from_location?: { id: number; name: string } | null;
+    to_location?: { id: number; name: string } | null;
+    created_by?: { id: number; name: string } | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    movements: { data: MovementRow[]; current_page: number; last_page: number };
-    filters: { product_id?: string; movement_type?: string; location_id?: string };
-}
+type PaginatorLink = { url: string | null; label: string; active: boolean };
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    path?: string;
+    links?: PaginatorLink[];
+    first_page_url?: string;
+    last_page_url?: string;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+};
 
-export default function Index({ movements, filters }: IndexProps) {
-    const [movementType, setMovementType] = useState(filters.movement_type ?? '');
-
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.stock-movements.index'),
-            { movement_type: movementType },
-            { preserveState: true },
-        );
+type Props = {
+    movements: Paginator<MovementRow>;
+    filters: {
+        search?: string;
+        type?: string;
+        sort_by?: string;
+        sort_dir?: string;
+        per_page?: string | number;
     };
+    typeOptions?: string[];
+};
+
+export default function MovementsIndex({ movements, filters, typeOptions = [] }: Props) {
+    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            type: filters.type ?? '',
+            sort_by: filters.sort_by ?? '',
+            sort_dir: filters.sort_dir ?? '',
+            per_page: filters.per_page ?? movements.per_page,
+        },
+        { only: ['movements', 'filters'] },
+    );
+
+    const columns: DataTableColumn<MovementRow>[] = useMemo(
+        () => [
+            {
+                key: 'type',
+                header: 'Type',
+                sortable: true,
+                sortKey: 'type',
+                cell: (row) => <StatusBadge status={row.type} />,
+            },
+            {
+                key: 'product',
+                header: 'Product',
+                cell: (row) =>
+                    row.product ? (
+                        <div>
+                            <div className="font-medium">{row.product.name}</div>
+                            {row.product.sku ? (
+                                <div className="text-xs text-muted-foreground">
+                                    {row.product.sku}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        '—'
+                    ),
+            },
+            {
+                key: 'quantity',
+                header: 'Qty',
+                sortable: true,
+                sortKey: 'quantity',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.quantity ?? '—'),
+            },
+            {
+                key: 'from',
+                header: 'From',
+                cell: (row) => row.from_location?.name ?? '—',
+            },
+            {
+                key: 'to',
+                header: 'To',
+                cell: (row) => row.to_location?.name ?? '—',
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDateTime(row.created_at),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Stock Movements">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Stock Movements" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Stock Movements"
-                    subtitle="Immutable audit trail."
+                    description="Inbound, outbound, transfer, and adjustment history."
                     actions={
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => router.get(route('admin.stocks.index'))}
-                        >
-                            Stocks
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={route('admin.inventory.stocks.index')}>Stocks</Link>
                         </Button>
                     }
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex gap-2">
-                            <Select
-                                label="Type"
-                                value={movementType}
-                                onChange={(e) => setMovementType(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="receive">Receive</option>
-                                <option value="issue">Issue</option>
-                                <option value="transfer">Transfer</option>
-                                <option value="adjustment">Adjustment</option>
-                                <option value="reserve">Reserve</option>
-                                <option value="release">Release</option>
-                                <option value="return">Return</option>
-                            </Select>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Type</TH>
-                                    <TH>Product</TH>
-                                    <TH>From</TH>
-                                    <TH>To</TH>
-                                    <TH>Quantity</TH>
-                                    <TH>Balance</TH>
-                                    <TH>Note</TH>
-                                    <TH>Date</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {movements.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    movements.data.map((m) => (
-                                        <TR key={m.id}>
-                                            <TD>
-                                                <Badge variant="neutral">{m.movement_type}</Badge>
-                                            </TD>
-                                            <TD>{m.product?.name ?? '-'}</TD>
-                                            <TD>{m.from_location?.name ?? '-'}</TD>
-                                            <TD>{m.to_location?.name ?? '-'}</TD>
-                                            <TD>{m.quantity}</TD>
-                                            <TD>{m.balance_after}</TD>
-                                            <TD>{m.note ?? '-'}</TD>
-                                            <TD className="text-sm text-muted-foreground">
-                                                {m.created_at}
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={movements.current_page}
-                            lastPage={movements.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.stock-movements.index'), { page })
-                            }
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="mv-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="mv-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Product, reference…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Type</label>
+                        <Select
+                            value={params.type || '__all__'}
+                            onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {(typeOptions.length
+                                    ? typeOptions
+                                    : ['in', 'out', 'transfer', 'adjust']
+                                ).map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={movements.data}
+                    emptyTitle="No movements"
+                    emptyDescription="No stock movements match the current filters."
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    pagination={movements}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(n) => set('per_page', n)}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

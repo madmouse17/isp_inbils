@@ -2,6 +2,8 @@
 
 namespace Modules\Ticketing\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
+use App\Http\Controllers\Concerns\UploadsMedia;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationResource;
@@ -12,6 +14,8 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,6 +23,7 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\Ticketing\Http\Requests\AssignTicketRequest;
 use Modules\Ticketing\Http\Requests\StoreTicketRequest;
 use Modules\Ticketing\Http\Requests\UpdateTicketRequest;
 use Modules\Ticketing\Http\Resources\TicketCategoryResource;
@@ -28,25 +33,22 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class TicketController extends Controller
 {
+    use HasIndexQuery;
+    use UploadsMedia;
+
+    private const SORTABLE = ['code', 'title', 'source', 'status', 'priority', 'sla_deadline', 'created_at'];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Ticket::class);
 
-        $tickets = Ticket::query()
-            ->with(['category', 'customer', 'assignee'])
-            ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->input('source'), fn ($q, $v) => $q->where('source', $v))
-            ->when($request->input('category_id'), fn ($q, $v) => $q->where('category_id', $v))
-            ->when($request->input('assigned_to'), fn ($q, $v) => $q->where('assigned_to', $v))
-            ->when($request->input('sla_breached') === 'true', fn ($q) => $q->where('sla_deadline', '<', now())->whereNotIn('status', ['resolved', 'closed']))
-            ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
-                ->where('code', 'like', "%{$v}%")
-                ->orWhere('title', 'like', "%{$v}%")))
-            ->latest()
-            ->paginate(10)
+        $tickets = $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Tickets/Index', [
@@ -56,9 +58,87 @@ class TicketController extends Controller
                 User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'manager', 'noc', 'staff', 'technician']))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
-            'filters' => $request->only(['status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'search']),
-            'can' => ['create' => $request->user()?->can('ticket.create') ?? false],
+            'filters' => $request->only(['search', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
+            'can' => [
+                'create' => $request->user()?->can('ticket.create') ?? false,
+                'export' => $request->user()?->can('ticket.export') ?? false,
+            ],
         ]);
+    }
+
+    public function export(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('viewAny', Ticket::class);
+
+        abort_unless($request->user()?->can('ticket.export') ?? false, 403);
+
+        $query = $this->filteredQuery($request)->with(['customer:id,code,name']);
+
+        $export = ExportQuery::make($query)
+            ->for(
+                $request,
+                self::SORTABLE,
+                ['code', 'title'],
+                'created_at',
+                'desc'
+            )
+            ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
+
+        $columns = [
+            'Code' => 'code',
+            'Title' => 'title',
+            'Priority' => 'priority',
+            'Status' => 'status',
+            'Customer' => 'customer.name',
+            'Created' => 'created_at',
+        ];
+
+        $map = static function (Ticket $ticket): array {
+            return [
+                'Code' => $ticket->code,
+                'Title' => $ticket->title,
+                'Priority' => $ticket->priority,
+                'Status' => $ticket->status,
+                'Customer' => $ticket->customer?->name,
+                'Created' => optional($ticket->created_at)?->toDateTimeString(),
+            ];
+        };
+
+        $stamp = now()->format('Ymd-His');
+        $format = strtolower((string) $request->input('format', 'csv'));
+
+        return $format === 'pdf'
+            ? $export->downloadPdf('Tickets', $columns, $map, "tickets-export-{$stamp}.pdf")
+            : $export->streamCsv($columns, $map, "tickets-export-{$stamp}.csv");
+    }
+
+    /**
+     * @return Builder<Ticket>
+     */
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = Ticket::query()
+            ->with(['category', 'customer', 'assignee'])
+            ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
+            ->when($request->input('source'), fn (Builder $q, string $v) => $q->where('source', $v))
+            ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', $v))
+            ->when($request->input('assigned_to'), fn (Builder $q, string $v) => $q->where('assigned_to', $v))
+            ->when($request->boolean('sla_breached'), fn (Builder $q) => $q->where('sla_deadline', '<', now())->whereNotIn('status', ['resolved', 'closed']))
+            ->when($request->input('search'), function (Builder $q, string $v): void {
+                $term = trim($v);
+
+                if ($term === '') {
+                    return;
+                }
+
+                $like = '%'.$term.'%';
+                $q->where(function (Builder $sq) use ($like): void {
+                    $sq->where('code', 'like', $like)
+                        ->orWhere('title', 'like', $like);
+                });
+            });
+
+        return $this->applySort($query, $request, 'created_at', 'desc');
     }
 
     public function create(Request $request): InertiaResponse
@@ -78,19 +158,7 @@ class TicketController extends Controller
     {
         Gate::authorize('store', Ticket::class);
 
-        $data = $request->validated();
-        $data['code'] = TicketService::generateCode();
-        $data['status'] = 'open';
-        $data['created_by'] = $request->user()->id;
-
-        $category = TicketCategory::find($data['category_id']);
-        $slaHours = $category?->default_sla_hours ?? 24;
-        if (isset($data['priority']) && $data['priority'] === 'urgent') {
-            $slaHours = (int) ceil($slaHours / 2);
-        }
-        $data['sla_deadline'] = now()->addHours($slaHours);
-
-        Ticket::create($data);
+        TicketService::create($request->validated(), $request->user()->id);
 
         return redirect()->route('admin.tickets.index')
             ->with('success', 'Ticket created.');
@@ -144,18 +212,17 @@ class TicketController extends Controller
         return back()->with('success', 'Ticket deleted.');
     }
 
-    public function assign(Request $request, Ticket $ticket): RedirectResponse
+    public function assign(AssignTicketRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.assign');
 
-        $request->validate(['handler_id' => ['required', 'exists:users,id']]);
         TicketService::assign($ticket, $request->integer('handler_id'), $request->user()->id);
 
         return back()->with('success', 'Ticket assigned.');
     }
 
-    public function start(Request $request, Ticket $ticket): RedirectResponse
+    public function start(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.start');
@@ -175,7 +242,7 @@ class TicketController extends Controller
         return back()->with('success', 'Ticket resolved.');
     }
 
-    public function close(Request $request, Ticket $ticket): RedirectResponse
+    public function close(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('ticket.close');
@@ -225,12 +292,10 @@ class TicketController extends Controller
         ]);
 
         $file = $request->file('file');
-        $ticket->addMedia($file)
-            ->withCustomProperties([
-                'company_id' => $ticket->company_id,
-                'uploaded_by' => $request->user()->id,
-            ])
-            ->toMediaCollection('attachments', 'public');
+        $this->storeMedia($ticket, $file, 'attachments', [
+            'company_id' => $ticket->company_id,
+            'uploaded_by' => $request->user()->id,
+        ]);
 
         return back()->with('success', 'Attachment uploaded.');
     }

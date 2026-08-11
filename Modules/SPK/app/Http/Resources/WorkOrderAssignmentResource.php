@@ -2,6 +2,7 @@
 
 namespace Modules\SPK\Http\Resources;
 
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +18,7 @@ class WorkOrderAssignmentResource extends JsonResource
             'assigned_at' => $this->assigned_at,
             'unassigned_at' => $this->unassigned_at,
             'reason' => $this->reason,
-            'technician' => new \App\Http\Resources\UserResource($this->whenLoaded('technician')),
+            'technician' => new UserResource($this->whenLoaded('technician')),
         ];
     }
 }

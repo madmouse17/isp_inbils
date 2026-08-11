@@ -18,11 +18,33 @@ class CustomerContactFactory extends Factory
         return [
             'customer_id' => Customer::factory(),
             'name' => fake()->name(),
-            'position' => fake()->optional()->jobTitle(),
+            'role' => fake()->optional()->jobTitle(),
             'phone' => fake()->phoneNumber(),
-            'email' => fake()->optional()->email(),
+            'email' => fake()->optional()->safeEmail(),
             'is_primary' => false,
             'notes' => fake()->optional()->sentence(),
         ];
+    }
+
+    public function configure(): static
+    {
+        return $this->afterMaking(function (CustomerContact $contact): void {
+            if ($contact->company_id) {
+                return;
+            }
+
+            $customer = $contact->relationLoaded('customer')
+                ? $contact->customer
+                : Customer::query()->find($contact->customer_id);
+
+            // If customer_id is still a factory instance unresolved, create it now.
+            if (! $customer && $contact->customer_id) {
+                return;
+            }
+
+            if ($customer) {
+                $contact->company_id = $customer->company_id;
+            }
+        });
     }
 }

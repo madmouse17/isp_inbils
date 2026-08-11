@@ -1,57 +1,54 @@
+import * as React from 'react';
 import { cn } from '@/lib/utils';
-import {
-    XMarkIcon,
-    CheckCircleIcon,
-    ExclamationTriangleIcon,
-    XCircleIcon,
-    InformationCircleIcon,
-} from '@heroicons/react/20/solid';
 
-const variants = {
-    info: {
-        bg: 'bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800',
-        text: 'text-blue-700 dark:text-blue-300',
-        Icon: InformationCircleIcon,
-    },
-    success: {
-        bg: 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800',
-        text: 'text-green-700 dark:text-green-300',
-        Icon: CheckCircleIcon,
-    },
-    warning: {
-        bg: 'bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-800',
-        text: 'text-amber-700 dark:text-amber-300',
-        Icon: ExclamationTriangleIcon,
-    },
-    danger: {
-        bg: 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800',
-        text: 'text-red-700 dark:text-red-300',
-        Icon: XCircleIcon,
-    },
-} as const;
+const variants: Record<string, string> = {
+    default: 'bg-background text-foreground',
+    destructive:
+        'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
+    danger: 'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
+    success: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
+    warning: 'border-amber-500/40 text-amber-700 dark:text-amber-400',
+    info: 'border-sky-500/40 text-sky-700 dark:text-sky-400',
+};
 
-interface AlertProps {
+export interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
     variant?: keyof typeof variants;
-    title?: string;
-    children: React.ReactNode;
     onDismiss?: () => void;
-    className?: string;
 }
 
-export function Alert({ variant = 'info', title, children, onDismiss, className }: AlertProps) {
-    const { bg, text, Icon } = variants[variant];
-    return (
-        <div className={cn('flex gap-3 rounded-lg border p-4', bg, text, className)} role="alert">
-            <Icon className="mt-0.5 h-5 w-5 shrink-0" />
-            <div className="flex-1">
-                {title && <p className="font-semibold">{title}</p>}
-                <div className={cn('text-sm', title && 'mt-1')}>{children}</div>
-            </div>
-            {onDismiss && (
-                <button onClick={onDismiss} className={cn('shrink-0', text)} aria-label="Dismiss">
-                    <XMarkIcon className="h-5 w-5" />
-                </button>
+const Alert = React.forwardRef<HTMLDivElement, AlertProps>(
+    ({ className, variant = 'default', onDismiss: _onDismiss, ...props }, ref) => (
+        <div
+            ref={ref}
+            role="alert"
+            className={cn(
+                'relative w-full rounded-lg border px-4 py-3 text-sm [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground [&>svg~*]:pl-7',
+                variants[variant],
+                className,
             )}
-        </div>
-    );
-}
+            {...props}
+        />
+    ),
+);
+Alert.displayName = 'Alert';
+
+const AlertTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(
+    ({ className, ...props }, ref) => (
+        <h5
+            ref={ref}
+            className={cn('mb-1 font-medium leading-none tracking-tight', className)}
+            {...props}
+        />
+    ),
+);
+AlertTitle.displayName = 'AlertTitle';
+
+const AlertDescription = React.forwardRef<
+    HTMLParagraphElement,
+    React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+    <div ref={ref} className={cn('text-sm [&_p]:leading-relaxed', className)} {...props} />
+));
+AlertDescription.displayName = 'AlertDescription';
+
+export { Alert, AlertTitle, AlertDescription };

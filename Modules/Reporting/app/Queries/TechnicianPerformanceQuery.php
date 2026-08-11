@@ -3,29 +3,31 @@
 namespace Modules\Reporting\Queries;
 
 use App\Models\Core\EmployeeEvaluation;
-use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 
 class TechnicianPerformanceQuery
 {
+    use AppliesDateRange;
+
     public static function execute(int $technicianId, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $spkQuery = WorkOrder::where('assigned_to', $technicianId)->where('status', 'completed');
         $ticketQuery = Ticket::where('assigned_to', $technicianId)->whereIn('status', ['resolved', 'closed']);
 
-        if ($dateFrom && $dateTo) {
-            $spkQuery->whereBetween('completed_at', [$dateFrom, $dateTo]);
-            $ticketQuery->whereBetween('resolved_at', [$dateFrom, $dateTo]);
-        }
+        self::applyDateRange($spkQuery, 'completed_at', $dateFrom, $dateTo);
+        self::applyDateRange($ticketQuery, 'resolved_at', $dateFrom, $dateTo);
 
-        $spkCount = $spkQuery->count();
-        $ticketCount = $ticketQuery->count();
+        $spkCount = (clone $spkQuery)->count();
+        $ticketCount = (clone $ticketQuery)->count();
 
-        $avgSpkMinutes = $spkQuery->whereNotNull('started_at')
+        $avgSpkQuery = clone $spkQuery;
+        $avgSpkMinutes = $avgSpkQuery->whereNotNull('started_at')
             ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, started_at, completed_at)) as avg')->value('avg');
-        $avgTicketMinutes = $ticketQuery->whereNotNull('resolved_at')
+        $avgTicketQuery = clone $ticketQuery;
+        $avgTicketMinutes = $avgTicketQuery->whereNotNull('resolved_at')
             ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) as avg')->value('avg');
 
         $slaCompliant = Ticket::where('assigned_to', $technicianId)
@@ -43,7 +45,7 @@ class TechnicianPerformanceQuery
         $activeWorkload = WorkOrder::where('assigned_to', $technicianId)
             ->whereIn('status', ['assigned', 'in_progress'])->count()
             + Ticket::where('assigned_to', $technicianId)
-            ->whereIn('status', ['open', 'assigned', 'on_progress'])->count();
+                ->whereIn('status', ['open', 'assigned', 'on_progress'])->count();
 
         $spkByType = WorkOrder::where('assigned_to', $technicianId)->where('status', 'completed')
             ->select('type', DB::raw('count(*) as count'))

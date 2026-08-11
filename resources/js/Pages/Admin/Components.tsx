@@ -7,7 +7,7 @@ import {
     IconButton,
     Input,
     Textarea,
-    Select,
+    NativeSelect,
     Checkbox,
     Switch,
     RadioGroup,
@@ -153,7 +153,7 @@ export default function Components() {
                                     <Input label="Error" error="Required field" value="" />
                                     <Input label="Hint" hint="Optional helper text" />
                                     <Textarea label="Textarea" placeholder="Notes..." />
-                                    <Select
+                                    <NativeSelect
                                         label="Select"
                                         options={[
                                             { value: 'a', label: 'Option A' },

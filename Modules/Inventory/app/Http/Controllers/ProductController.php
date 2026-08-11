@@ -2,7 +2,10 @@
 
 namespace Modules\Inventory\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,29 +18,30 @@ use Modules\Inventory\Http\Resources\CategoryResource;
 use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends Controller
 {
+    use HasIndexQuery;
+
+    private const SORTABLE = ['name', 'sku', 'created_at'];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Product::class);
 
-        $products = Product::query()
-            ->with(['category', 'unit'])
-            ->when($request->input('category_id'), fn ($q, $v) => $q->where('category_id', $v))
-            ->when($request->filled('is_active'), fn ($q) => $q->where('is_active', $request->boolean('is_active')))
-            ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
-                ->where('name', 'like', "%{$v}%")
-                ->orWhere('sku', 'like', "%{$v}%")))
-            ->latest()
-            ->paginate(10)
+        $products = $this->filteredQuery($request)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Products/Index', [
             'products' => ProductResource::collection($products),
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
-            'filters' => $request->only(['category_id', 'is_active', 'search']),
-            'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
+            'filters' => $request->only(['category_id', 'is_active', 'search', 'sort', 'direction', 'per_page']),
+            'can' => [
+                'create' => $request->user()?->can('inventory.create') ?? false,
+                'export' => $request->user()?->can('inventory.export') ?? false,
+            ],
         ]);
     }
 
@@ -100,28 +104,66 @@ class ProductController extends Controller
         return back()->with('success', 'Product deleted.');
     }
 
-    public function export(Request $request): Response
+    public function export(Request $request): Response|StreamedResponse
     {
         Gate::authorize('inventory.export');
 
-        $products = Product::query()->with(['category', 'unit'])->latest()->get();
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+        $export = ExportQuery::make($this->filteredQuery($request))
+            ->maxRows((int) config('exports.max_rows', 5000));
 
-        $headers = [
-            'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename=products.csv',
+        $columns = [
+            'sku' => 'SKU',
+            'name' => 'Name',
+            'category' => 'Category',
+            'unit' => 'Unit',
+            'sell_price' => 'SellPrice',
+            'cost_price' => 'CostPrice',
+            'min_stock' => 'MinStock',
+            'is_active' => 'IsActive',
         ];
 
-        $csv = "SKU,Name,Category,Unit,SellPrice,CostPrice,MinStock,IsActive\n";
-        foreach ($products as $p) {
-            $csv .= implode(',', [
-                $p->sku, $p->name,
-                $p->category?->name ?? '',
-                $p->unit?->symbol ?? '',
-                $p->sell_price ?? '', $p->cost_price ?? '',
-                $p->min_stock, $p->is_active ? 'Yes' : 'No',
-            ])."\n";
+        $map = static fn (Product $p): array => [
+            'sku' => $p->sku,
+            'name' => $p->name,
+            'category' => $p->category?->name ?? '',
+            'unit' => $p->unit?->symbol ?? '',
+            'sell_price' => $p->sell_price ?? '',
+            'cost_price' => $p->cost_price ?? '',
+            'min_stock' => $p->min_stock,
+            'is_active' => $p->is_active ? 'Yes' : 'No',
+        ];
+
+        if ($format === 'pdf') {
+            return $export->streamPdf('Products', $columns, $map, "products-export-{$stamp}.pdf");
         }
 
-        return response($csv, 200, $headers);
+        return $export->streamCsv($columns, $map, "products-export-{$stamp}.csv");
+    }
+
+    /**
+     * @return Builder<Product>
+     */
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = Product::query()
+            ->with(['category', 'unit'])
+            ->when($request->input('category_id'), fn (Builder $q, $v) => $q->where('category_id', $v))
+            ->when($request->filled('is_active'), fn (Builder $q) => $q->where('is_active', $request->boolean('is_active')))
+            ->when($request->input('search'), function (Builder $q, string $v): void {
+                $term = trim($v);
+                if ($term === '') {
+                    return;
+                }
+
+                $like = '%'.$term.'%';
+                $q->where(function (Builder $sq) use ($like): void {
+                    $sq->where('name', 'like', $like)
+                        ->orWhere('sku', 'like', $like);
+                });
+            });
+
+        return $this->applySort($query, $request, 'created_at', 'desc');
     }
 }

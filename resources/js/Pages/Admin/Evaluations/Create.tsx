@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -48,7 +48,7 @@ export default function Create({ employees }: CreateProps) {
                             <CardTitle>Details</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <Select
+                            <NativeSelect
                                 label="Employee"
                                 value={data.employee_id}
                                 onChange={(e) => setData('employee_id', e.target.value)}
@@ -61,8 +61,8 @@ export default function Create({ employees }: CreateProps) {
                                         {e.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Reference Type"
                                 value={data.reference_type}
                                 onChange={(e) => setData('reference_type', e.target.value)}
@@ -71,7 +71,7 @@ export default function Create({ employees }: CreateProps) {
                             >
                                 <option value="Ticket">Ticket</option>
                                 <option value="WorkOrder">SPK (WorkOrder)</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Reference ID"
                                 type="number"

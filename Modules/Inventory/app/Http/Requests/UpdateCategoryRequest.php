@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,7 +17,7 @@ class UpdateCategoryRequest extends FormRequest
     public function rules(): array
     {
         $categoryId = $this->route('category')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
 
         return [
             'name' => ['required', 'string', 'max:255'],

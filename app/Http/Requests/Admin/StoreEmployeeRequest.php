@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,8 @@ class StoreEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
+
         return [
             'user_id' => ['required', Rule::exists('users', 'id')->where('company_id', $companyId)],
             'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],

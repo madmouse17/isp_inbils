@@ -2,16 +2,23 @@
 
 namespace Modules\Reporting\Queries;
 
+use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Spatie\Activitylog\Models\Activity;
 
 class AuditLogQuery
 {
+    use AppliesDateRange;
+
     public static function execute(?int $userId = null, ?string $logName = null, ?string $dateFrom = null, ?string $dateTo = null): array
     {
         $query = Activity::query();
-        if ($userId) $query->where('causer_id', $userId)->where('causer_type', 'App\\Models\\User');
-        if ($logName) $query->where('log_name', $logName);
-        if ($dateFrom && $dateTo) $query->whereBetween('created_at', [$dateFrom, $dateTo]);
+        if ($userId) {
+            $query->where('causer_id', $userId)->where('causer_type', 'App\\Models\\User');
+        }
+        if ($logName) {
+            $query->where('log_name', $logName);
+        }
+        self::applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
         return $query->latest()->limit(500)->get()->map(fn ($a) => [
             'id' => $a->id,

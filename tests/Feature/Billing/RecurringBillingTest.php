@@ -11,8 +11,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class RecurringBillingTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     private function makeSubscription(array $attrs = []): ServiceSubscription
     {

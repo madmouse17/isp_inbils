@@ -11,9 +11,18 @@ class CompanyService
 
     private static ?Company $cachedCompany = null;
 
+    private static ?int $testingCompanyId = null;
+
     public static function currentId(): ?int
     {
-        return Auth::user()?->company_id;
+        return Auth::user()?->company_id ?? (app()->environment('testing') ? self::$testingCompanyId : null);
+    }
+
+    public static function useCompanyForTests(?int $companyId): void
+    {
+        abort_unless(app()->environment('testing'), 403);
+
+        self::$testingCompanyId = $companyId;
     }
 
     public static function current(): ?Company
@@ -71,5 +80,6 @@ class CompanyService
     {
         self::$cachedCompanyId = null;
         self::$cachedCompany = null;
+        self::$testingCompanyId = null;
     }
 }

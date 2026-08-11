@@ -9,6 +9,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\ExportQuery;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Billing\Http\Requests\CreateFromSpkRequest;
 use Modules\Billing\Http\Requests\RecordPaymentRequest;
+use Modules\Billing\Http\Requests\StoreInvoiceItemRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceRequest;
 use Modules\Billing\Http\Requests\UpdateInvoiceRequest;
 use Modules\Billing\Http\Resources\InvoiceResource;
@@ -24,9 +27,13 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Support\Terbilang;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InvoiceController extends Controller
 {
+    private const SORTABLE = ['number', 'status', 'issue_date', 'due_date', 'total', 'created_at'];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Invoice::class);
@@ -47,7 +54,11 @@ class InvoiceController extends Controller
             'invoices' => InvoiceResource::collection($invoices),
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search']),
-            'can' => ['create' => $request->user()?->can('billing.create') ?? false],
+            'statusOptions' => ['draft', 'issued', 'partial', 'paid', 'void', 'written_off'],
+            'can' => [
+                'create' => $request->user()?->can('billing.create') ?? false,
+                'export' => $request->user()?->can('billing.export') ?? false,
+            ],
         ]);
     }
 
@@ -96,6 +107,58 @@ class InvoiceController extends Controller
 
         return redirect()->route('admin.invoices.index')
             ->with('success', 'Invoice created.');
+    }
+
+    public function export(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('viewAny', Invoice::class);
+
+        abort_unless($request->user()?->can('billing.export') ?? false, 403);
+
+        $query = Invoice::query()->with('customer:id,code,name');
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        $export = ExportQuery::make($query)
+            ->for(
+                $request,
+                self::SORTABLE,
+                ['number', 'status', 'notes'],
+                'created_at',
+                'desc'
+            )
+            ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
+
+        $columns = [
+            'Number' => 'number',
+            'Customer' => 'customer.name',
+            'Status' => 'status',
+            'Total' => 'total',
+            'Issue Date' => 'issue_date',
+            'Due Date' => 'due_date',
+            'Created' => 'created_at',
+        ];
+
+        $map = static function (Invoice $invoice): array {
+            return [
+                'Number' => $invoice->number,
+                'Customer' => $invoice->customer?->name,
+                'Status' => $invoice->status,
+                'Total' => $invoice->total,
+                'Issue Date' => optional($invoice->issue_date)->format('Y-m-d') ?? (string) $invoice->issue_date,
+                'Due Date' => optional($invoice->due_date)->format('Y-m-d') ?? (string) $invoice->due_date,
+                'Created' => optional($invoice->created_at)?->toDateTimeString(),
+            ];
+        };
+
+        $stamp = now()->format('Ymd-His');
+        $format = strtolower((string) $request->input('format', 'csv'));
+
+        return $format === 'pdf'
+            ? $export->downloadPdf('Invoices', $columns, $map, "invoices-export-{$stamp}.pdf")
+            : $export->streamCsv($columns, $map, "invoices-export-{$stamp}.csv");
     }
 
     public function show(Invoice $invoice): InertiaResponse
@@ -208,59 +271,32 @@ class InvoiceController extends Controller
         return back()->with('success', 'Invoice cancelled.');
     }
 
-    public function createFromSpk(Request $request): RedirectResponse
+    public function createFromSpk(CreateFromSpkRequest $request): RedirectResponse
     {
         Gate::authorize('billing.create');
 
-        $request->validate(['work_order_id' => ['required', 'exists:work_orders,id']]);
-        $invoice = BillingService::createFromSpk($request->integer('work_order_id'));
+        BillingService::createFromSpk($request->integer('work_order_id'));
 
         return redirect()->route('admin.invoices.index')
             ->with('success', 'Invoice created from SPK.');
     }
 
-    public function addItem(Request $request, Invoice $invoice): RedirectResponse
+    public function addItem(StoreInvoiceItemRequest $request, Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('billing.update');
         abort_if($invoice->status !== 'draft', 422, 'Can only add items to draft invoices.');
 
-        $request->validate([
-            'product_id' => ['nullable', 'exists:products,id'],
-            'description' => ['required', 'string', 'max:500'],
-            'quantity' => ['required', 'numeric', 'min:0.01'],
-            'unit_price' => ['required', 'numeric', 'min:0'],
-            'discount_amount' => ['nullable', 'numeric', 'min:0'],
-            'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
-        ]);
-
-        $lineTotal = $request->float('quantity') * $request->float('unit_price') - $request->float('discount_amount', 0);
-
-        InvoiceItem::create([
-            'invoice_id' => $invoice->id,
-            'product_id' => $request->input('product_id'),
-            'description' => $request->input('description'),
-            'quantity' => $request->float('quantity'),
-            'unit_price' => $request->float('unit_price'),
-            'discount_amount' => $request->float('discount_amount', 0),
-            'tax_rate' => $request->float('tax_rate', 0),
-            'line_total' => $lineTotal,
-        ]);
-
-        BillingService::recalculate($invoice);
+        BillingService::addItem($invoice, $request->validated());
 
         return back()->with('success', 'Item added.');
     }
 
     public function removeItem(Invoice $invoice, InvoiceItem $item): RedirectResponse
     {
-        $this->ensureSameCompany($invoice);
-        abort_unless($item->invoice_id === $invoice->id, 404);
-        Gate::authorize('billing.update');
-        abort_if($invoice->status !== 'draft', 422, 'Can only remove items from draft invoices.');
-
-        $item->delete();
-        BillingService::recalculate($invoice);
+        // ponytail: status/ownership checks deferred to BillingService::removeItem
+        // which re-fetches both rows with lockForUpdate inside a transaction.
+        BillingService::removeItem($invoice, $item->id);
 
         return back()->with('success', 'Item removed.');
     }

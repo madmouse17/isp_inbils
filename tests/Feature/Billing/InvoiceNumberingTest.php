@@ -11,8 +11,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class InvoiceNumberingTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_store_uses_number_sequence_and_created_by_is_nullable(): void
     {

@@ -1,134 +1,178 @@
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
-import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { Head, Link, router } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import { formatDate } from '@/lib/format';
 
-interface BwRow {
+type Row = {
     id: number;
     name: string;
-    download_mbps: number;
-    upload_mbps: number;
-    type: string;
-    contention_ratio: number;
-    is_active: boolean;
-}
+    code?: string | null;
+    download_kbps?: number | string | null;
+    upload_kbps?: number | string | null;
+    is_active?: boolean;
+    created_at: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    bandwidthProfiles: { data: BwRow[]; current_page: number; last_page: number };
-    can: { create: boolean };
-}
-
-export default function Index({ bandwidthProfiles, can }: IndexProps) {
-    const remove = (b: BwRow) => {
-        if (window.confirm(`Delete ${b.name}?`))
-            router.delete(route('admin.bandwidth-profiles.destroy', b.id));
+type Props = {
+    bandwidthProfiles: {
+        data: Row[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
     };
+    filters: {
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean };
+};
+
+export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can }: Props) {
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.bandwidth-profiles.index'),
+        filters,
+        only: ['bandwidthProfiles', 'filters', 'can'],
+    });
+
+    const columns: DataTableColumn<Row>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.bandwidth-profiles.edit', row.id)}
+                        className="font-medium text-primary hover:underline"
+                    >
+                        {row.name}
+                    </Link>
+                ),
+            },
+            {
+                key: 'download_kbps',
+                header: 'Download (kbps)',
+                sortable: true,
+                sortKey: 'download_kbps',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.download_kbps ?? '—'),
+            },
+            {
+                key: 'upload_kbps',
+                header: 'Upload (kbps)',
+                sortable: true,
+                sortKey: 'upload_kbps',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.upload_kbps ?? '—'),
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDate(row.created_at),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => (
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={route('admin.bandwidth-profiles.edit', row.id)}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Edit
+                        </Link>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (window.confirm(`Delete ${row.name}?`))
+                                    router.delete(
+                                        route('admin.bandwidth-profiles.destroy', row.id),
+                                    );
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Bandwidth Profiles">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Bandwidth Profiles" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Bandwidth Profiles"
-                    subtitle="Manage bandwidth profiles for service packages."
+                    description="QoS / bandwidth templates for packages."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.bandwidth-profiles.create'))}
-                            >
-                                Create
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.bandwidth-profiles.export')}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button asChild size="sm">
+                                    <Link href={route('admin.bandwidth-profiles.create')}>
+                                        <Plus className="size-4" />
+                                        New profile
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
 
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Down</TH>
-                                    <TH>Up</TH>
-                                    <TH>Type</TH>
-                                    <TH>Contention</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {bandwidthProfiles.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    bandwidthProfiles.data.map((b) => (
-                                        <TR key={b.id}>
-                                            <TD>{b.name}</TD>
-                                            <TD>{b.download_mbps} Mbps</TD>
-                                            <TD>{b.upload_mbps} Mbps</TD>
-                                            <TD>
-                                                <Badge variant="neutral">{b.type}</Badge>
-                                            </TD>
-                                            <TD>1:{b.contention_ratio}</TD>
-                                            <TD>
-                                                <Badge variant={b.is_active ? 'success' : 'danger'}>
-                                                    {b.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Link
-                                                        href={route(
-                                                            'admin.bandwidth-profiles.edit',
-                                                            b.id,
-                                                        )}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(b)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={bandwidthProfiles.current_page}
-                            lastPage={bandwidthProfiles.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.bandwidth-profiles.index'), { page })
-                            }
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="bw-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="bw-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Name or code…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    pagination={toPagination(bandwidthProfiles)}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(perPage) => set('per_page', perPage)}
+                    emptyTitle="No bandwidth profiles"
+                    emptyDescription="No bandwidth profiles match the current filters."
+                    loading={false}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

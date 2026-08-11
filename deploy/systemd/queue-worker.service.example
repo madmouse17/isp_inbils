@@ -1,0 +1,14 @@
+[Unit]
+Description=inbils queue worker
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/inbils/current
+ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --timeout=90
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

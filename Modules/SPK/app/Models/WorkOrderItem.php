@@ -3,11 +3,21 @@
 namespace Modules\SPK\Models;
 
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Inventory\Models\Product;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
+/**
+ * @property int $id
+ * @property int $work_order_id
+ * @property int $product_id
+ * @property ?int $network_asset_id
+ * @property string|float|int|null $quantity_reserved
+ * @property string|float|int|null $quantity_used
+ * @property ?string $note
+ */
 class WorkOrderItem extends Model
 {
     use BelongsToCompany;
@@ -30,5 +40,10 @@ class WorkOrderItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function networkAsset(): BelongsTo
+    {
+        return $this->belongsTo(NetworkAsset::class, 'network_asset_id');
     }
 }

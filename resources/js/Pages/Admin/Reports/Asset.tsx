@@ -8,7 +8,7 @@ import {
     Card,
     CardContent,
     Input,
-    Select,
+    NativeSelect,
     Table,
     TBody,
     TD,
@@ -54,7 +54,7 @@ export default function Asset({ data, filters }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Select
+                            <NativeSelect
                                 label="Asset Type"
                                 value={assetType}
                                 onChange={(e) => setAssetType(e.target.value)}
@@ -66,7 +66,7 @@ export default function Asset({ data, filters }: Props) {
                                 <option value="onu_ont">ONU/ONT</option>
                                 <option value="radio">Radio</option>
                                 <option value="antenna">Antenna</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="From"
                                 type="date"

@@ -18,7 +18,7 @@ class NetworkAssetFactory extends Factory
         return [
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
             'product_id' => null,
-            'code' => 'AST-' . now()->year . '-' . str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
+            'code' => 'AST-'.now()->year.'-'.str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
             'name' => fake()->words(2, true),
             'asset_type' => fake()->randomElement(['router', 'switch', 'olt', 'onu_ont', 'radio', 'antenna', 'fiber', 'odp', 'odc', 'rack', 'power', 'other']),
             'serial_number' => fake()->unique()->numerify('SN-##########'),

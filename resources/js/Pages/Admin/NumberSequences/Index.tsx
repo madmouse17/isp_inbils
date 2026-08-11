@@ -1,7 +1,18 @@
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
-import { Badge, Card, CardContent, Pagination, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Badge,
+    Card,
+    CardContent,
+    Pagination,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
 
 interface SeqRow {
     id: number;
@@ -64,7 +75,9 @@ export default function Index({ sequences }: IndexProps) {
                         <Pagination
                             currentPage={sequences.current_page}
                             lastPage={sequences.last_page}
-                            onPageChange={(page) => router.get(route('admin.number-sequences.index'), { page })}
+                            onPageChange={(page) =>
+                                router.get(route('admin.number-sequences.index'), { page })
+                            }
                         />
                     </CardContent>
                 </Card>

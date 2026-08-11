@@ -2,6 +2,7 @@
 
 namespace Modules\Ticketing\Http\Resources;
 
+use App\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -16,7 +17,7 @@ class TicketCommentResource extends JsonResource
             'body' => $this->body,
             'is_internal' => $this->is_internal,
             'created_at' => $this->created_at,
-            'author' => new \App\Http\Resources\UserResource($this->whenLoaded('author')),
+            'author' => new UserResource($this->whenLoaded('author')),
         ];
     }
 }

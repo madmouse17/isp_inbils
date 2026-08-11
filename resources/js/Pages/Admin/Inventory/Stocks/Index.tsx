@@ -1,319 +1,160 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
-import {
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Select,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-    Modal,
-} from '@/Components/ui';
+import { Head, Link } from '@inertiajs/react';
+import { useMemo } from 'react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import { useTableQuery } from '@/hooks/useTableQuery';
 
-interface StockRow {
+type StockRow = {
     id: number;
-    quantity: string;
-    reserved_quantity: string;
-    available: string;
-    product?: { sku: string; name: string } | null;
-    location?: { name: string; path?: string } | null;
-}
+    quantity: number | string;
+    reserved_quantity?: number | string;
+    available_quantity?: number | string;
+    min_quantity?: number | string | null;
+    product?: { id: number; name: string; sku?: string | null } | null;
+    location?: { id: number; name: string } | null;
+    updated_at?: string | null;
+};
 
-interface OptRow {
-    id: number;
-    name: string;
-}
-interface LocRow {
-    id: number;
-    name: string;
-    code: string;
-}
+type PaginatorLink = { url: string | null; label: string; active: boolean };
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    path?: string;
+    links?: PaginatorLink[];
+    first_page_url?: string;
+    last_page_url?: string;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    stocks: { data: StockRow[]; current_page: number; last_page: number };
-    products: { data: OptRow[] };
-    locations: { data: LocRow[] };
-    filters: { location_id?: string; product_id?: string; low_stock?: string };
-}
-
-export default function Index({ stocks, products, locations, filters }: IndexProps) {
-    const [actionModal, setActionModal] = useState<
-        'receive' | 'issue' | 'transfer' | 'adjust' | null
-    >(null);
-    const [productId, setProductId] = useState(filters.product_id ?? '');
-    const [locationId, setLocationId] = useState(filters.location_id ?? '');
-    const { data, setData, post, processing, errors } = useForm({
-        product_id: '',
-        location_id: '',
-        quantity: '',
-        from_location_id: '',
-        to_location_id: '',
-        new_quantity: '',
-        note: '',
-    });
-
-    const openAction = (
-        action: 'receive' | 'issue' | 'transfer' | 'adjust',
-        pId?: string,
-        lId?: string,
-    ) => {
-        setData('product_id', pId ?? '');
-        setData('location_id', lId ?? '');
-        setActionModal(action);
+type Props = {
+    stocks: Paginator<StockRow>;
+    filters: {
+        search?: string;
+        location_id?: string;
+        sort_by?: string;
+        sort_dir?: string;
+        per_page?: string | number;
     };
+    locations?: { id: number; name: string }[];
+};
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        if (!actionModal) return;
-        const routeName = `admin.stocks.${actionModal}`;
-        post(route(routeName), { onSuccess: () => setActionModal(null) });
-    };
+export default function StocksIndex({ stocks, filters, locations = [] }: Props) {
+    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            location_id: filters.location_id ?? '',
+            sort_by: filters.sort_by ?? '',
+            sort_dir: filters.sort_dir ?? '',
+            per_page: filters.per_page ?? stocks.per_page,
+        },
+        { only: ['stocks', 'filters'] },
+    );
 
-    const submitFilter = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.stocks.index'),
-            { product_id: productId, location_id: locationId },
-            { preserveState: true },
-        );
-    };
+    const columns: DataTableColumn<StockRow>[] = useMemo(
+        () => [
+            {
+                key: 'product',
+                header: 'Product',
+                cell: (row) =>
+                    row.product ? (
+                        <div>
+                            <div className="font-medium">{row.product.name}</div>
+                            {row.product.sku ? (
+                                <div className="text-xs text-muted-foreground">
+                                    {row.product.sku}
+                                </div>
+                            ) : null}
+                        </div>
+                    ) : (
+                        '—'
+                    ),
+            },
+            {
+                key: 'location',
+                header: 'Location',
+                cell: (row) => row.location?.name ?? '—',
+            },
+            {
+                key: 'quantity',
+                header: 'On hand',
+                sortable: true,
+                sortKey: 'quantity',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.quantity ?? '—'),
+            },
+            {
+                key: 'reserved_quantity',
+                header: 'Reserved',
+                sortable: true,
+                sortKey: 'reserved_quantity',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.reserved_quantity ?? '—'),
+            },
+            {
+                key: 'available_quantity',
+                header: 'Available',
+                sortable: true,
+                sortKey: 'available_quantity',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.available_quantity ?? '—'),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Stocks">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Stocks" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Stocks"
-                    subtitle="Stock per location."
+                    description="On-hand balances by product and location."
                     actions={
-                        <>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => openAction('receive')}
-                            >
-                                Receive
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => openAction('issue')}
-                            >
-                                Issue
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => openAction('transfer')}
-                            >
-                                Transfer
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => openAction('adjust')}
-                            >
-                                Adjust
-                            </Button>
-                        </>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={route('admin.inventory.movements.index')}>Movements</Link>
+                        </Button>
                     }
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submitFilter} className="flex flex-wrap gap-2">
-                            <Select
-                                label="Product"
-                                value={productId}
-                                onChange={(e) => setProductId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {products.data.map((p) => (
-                                    <option key={p.id} value={p.id}>
-                                        {p.name}
-                                    </option>
-                                ))}
-                            </Select>
-                            <Select
-                                label="Location"
-                                value={locationId}
-                                onChange={(e) => setLocationId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {locations.data.map((l) => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.code} — {l.name}
-                                    </option>
-                                ))}
-                            </Select>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Product</TH>
-                                    <TH>Location</TH>
-                                    <TH>Path</TH>
-                                    <TH>Quantity</TH>
-                                    <TH>Reserved</TH>
-                                    <TH>Available</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {stocks.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    stocks.data.map((s) => (
-                                        <TR key={s.id}>
-                                            <TD>{s.product?.name ?? '-'}</TD>
-                                            <TD>{s.location?.name ?? '-'}</TD>
-                                            <TD className="text-sm text-muted-foreground">
-                                                {s.location?.path ?? '-'}
-                                            </TD>
-                                            <TD>{s.quantity}</TD>
-                                            <TD>{s.reserved_quantity}</TD>
-                                            <TD className="font-medium">{s.available}</TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-                <Modal
-                    open={actionModal !== null}
-                    onClose={() => setActionModal(null)}
-                    title={
-                        actionModal
-                            ? actionModal.charAt(0).toUpperCase() + actionModal.slice(1) + ' Stock'
-                            : ''
-                    }
-                >
-                    <form onSubmit={submit} className="space-y-4">
-                        <Select
-                            label="Product"
-                            value={data.product_id}
-                            onChange={(e) => setData('product_id', e.target.value)}
-                            error={errors.product_id}
-                            required
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="st-search"
                         >
-                            <option value="">Select...</option>
-                            {products.data.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                    {p.name}
-                                </option>
-                            ))}
-                        </Select>
-                        {actionModal === 'transfer' ? (
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <Select
-                                    label="From Location"
-                                    value={data.from_location_id}
-                                    onChange={(e) => setData('from_location_id', e.target.value)}
-                                    error={errors.from_location_id}
-                                    required
-                                >
-                                    <option value="">Select...</option>
-                                    {locations.data.map((l) => (
-                                        <option key={l.id} value={l.id}>
-                                            {l.code} — {l.name}
-                                        </option>
-                                    ))}
-                                </Select>
-                                <Select
-                                    label="To Location"
-                                    value={data.to_location_id}
-                                    onChange={(e) => setData('to_location_id', e.target.value)}
-                                    error={errors.to_location_id}
-                                    required
-                                >
-                                    <option value="">Select...</option>
-                                    {locations.data.map((l) => (
-                                        <option key={l.id} value={l.id}>
-                                            {l.code} — {l.name}
-                                        </option>
-                                    ))}
-                                </Select>
-                            </div>
-                        ) : (
-                            <Select
-                                label="Location"
-                                value={data.location_id}
-                                onChange={(e) => setData('location_id', e.target.value)}
-                                error={errors.location_id}
-                                required
-                            >
-                                <option value="">Select...</option>
-                                {locations.data.map((l) => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.code} — {l.name}
-                                    </option>
-                                ))}
-                            </Select>
-                        )}
-                        {actionModal === 'adjust' ? (
-                            <Input
-                                label="New Quantity"
-                                type="number"
-                                step="0.01"
-                                value={data.new_quantity}
-                                onChange={(e) => setData('new_quantity', e.target.value)}
-                                error={errors.new_quantity}
-                                required
-                            />
-                        ) : (
-                            <Input
-                                label="Quantity"
-                                type="number"
-                                step="0.01"
-                                value={data.quantity}
-                                onChange={(e) => setData('quantity', e.target.value)}
-                                error={errors.quantity}
-                                required
-                            />
-                        )}
+                            Search
+                        </label>
                         <Input
-                            label="Note"
-                            value={data.note}
-                            onChange={(e) => setData('note', e.target.value)}
-                            error={errors.note}
+                            id="st-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Product or SKU…"
                         />
-                        <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setActionModal(null)}
-                            >
-                                Cancel
-                            </Button>
-                            <Button type="submit" loading={processing}>
-                                {actionModal === 'adjust'
-                                    ? 'Adjust'
-                                    : actionModal === 'transfer'
-                                      ? 'Transfer'
-                                      : 'Submit'}
-                            </Button>
-                        </div>
-                    </form>
-                </Modal>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={stocks.data}
+                    emptyTitle="No stock rows"
+                    emptyDescription="No stock balances match the current filters."
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    pagination={stocks}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(n) => set('per_page', n)}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

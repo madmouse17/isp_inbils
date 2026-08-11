@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEvaluationRequest;
 use App\Http\Requests\Admin\UpdateEvaluationRequest;
@@ -11,33 +12,29 @@ use App\Models\Core\EmployeeEvaluation;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EvaluationController extends Controller
 {
+    use HasIndexQuery;
+
+    private const SORTABLE = ['evaluated_at', 'score', 'reference_type', 'created_at'];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', EmployeeEvaluation::class);
 
-        $evals = EmployeeEvaluation::query()
-            ->with(['employee', 'evaluator'])
-            ->when($request->input('employee_id'), fn ($q, $v) => $q->where('employee_id', $v))
-            ->when($request->input('reference_type'), fn ($q, $v) => $q->where('reference_type', $v))
-            ->when($request->input('search'), fn ($q, $v) => $q->whereHas('employee', fn ($sq) => $sq->where('name', 'like', "%{$v}%")))
-            ->latest('evaluated_at')
-            ->paginate(10)
-            ->withQueryString();
-
-        // Technician sees only own
-        if ($request->user()?->hasRole('technician')) {
-            $evals->getQuery()->where('employee_id', $request->user()->id);
-        }
+        $evals = $this->filteredQuery($request)->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/Evaluations/Index', [
             'evaluations' => EmployeeEvaluationResource::collection($evals),
@@ -45,9 +42,63 @@ class EvaluationController extends Controller
                 User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['technician', 'staff', 'noc']))
                     ->where('is_active', true)->orderBy('name')->get()
             ),
-            'filters' => $request->only(['employee_id', 'reference_type', 'search']),
-            'can' => ['create' => $request->user()?->can('evaluation.create') ?? false],
+            'filters' => $request->only(['employee_id', 'reference_type', 'search', 'sort', 'direction']),
+            'can' => [
+                'create' => $request->user()?->can('evaluation.create') ?? false,
+                'export' => $request->user()?->can('evaluation.export') ?? false,
+            ],
         ]);
+    }
+
+    public function export(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('evaluation.export');
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+        $export = ExportQuery::make($this->filteredQuery($request))
+            ->defaultSort('evaluated_at', 'desc')
+            ->maxRows((int) config('exports.max_rows', 5000));
+
+        $columns = [
+            'employee' => 'Employee',
+            'reference' => 'Reference',
+            'score' => 'Score',
+            'customer_rating' => 'Customer Rating',
+            'evaluator' => 'Evaluator',
+            'evaluated_at' => 'Date',
+        ];
+
+        $map = static fn (EmployeeEvaluation $evaluation): array => [
+            'employee' => $evaluation->employee?->name ?? '',
+            'reference' => $evaluation->reference_type.':'.$evaluation->reference_id,
+            'score' => $evaluation->score,
+            'customer_rating' => $evaluation->customer_rating ?? '',
+            'evaluator' => $evaluation->evaluator?->name ?? '',
+            'evaluated_at' => $evaluation->evaluated_at,
+        ];
+
+        if ($format === 'pdf') {
+            return $export->streamPdf('Evaluations', $columns, $map, "evaluations-export-{$stamp}.pdf");
+        }
+
+        return $export->streamCsv($columns, $map, "evaluations-export-{$stamp}.csv");
+    }
+
+    /** @return Builder<EmployeeEvaluation> */
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = EmployeeEvaluation::query()
+            ->with(['employee', 'evaluator'])
+            ->when($request->input('employee_id'), fn ($q, $v) => $q->where('employee_id', $v))
+            ->when($request->input('reference_type'), fn ($q, $v) => $q->where('reference_type', $v))
+            ->when($request->input('search'), fn ($q, $v) => $q->whereHas('employee', fn ($sq) => $sq->where('name', 'like', "%{$v}%")));
+
+        if (request()->user()?->hasRole('technician')) {
+            $query->where('employee_id', request()->user()->id);
+        }
+
+        return $this->applySort($query, $request, 'evaluated_at', 'desc');
     }
 
     public function create(): InertiaResponse

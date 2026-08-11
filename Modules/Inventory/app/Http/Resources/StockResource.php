@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Resources;
 
+use App\Http\Resources\LocationResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -17,7 +18,7 @@ class StockResource extends JsonResource
             'quantity' => $this->quantity,
             'reserved_quantity' => $this->reserved_quantity,
             'available' => $this->available,
-            'location' => new \App\Http\Resources\LocationResource($this->whenLoaded('location')),
+            'location' => new LocationResource($this->whenLoaded('location')),
         ];
     }
 }

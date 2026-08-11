@@ -10,7 +10,7 @@ import {
     CardContent,
     Input,
     Pagination,
-    Select,
+    NativeSelect,
     Table,
     TBody,
     TD,
@@ -88,7 +88,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="SKU or name"
                             />
-                            <Select
+                            <NativeSelect
                                 label="Category"
                                 value={categoryId}
                                 onChange={(e) => setCategoryId(e.target.value)}
@@ -99,8 +99,8 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Active"
                                 value={isActive}
                                 onChange={(e) => setIsActive(e.target.value)}
@@ -108,7 +108,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                 <option value="">All</option>
                                 <option value="true">Active</option>
                                 <option value="false">Inactive</option>
-                            </Select>
+                            </NativeSelect>
                             <div className="self-end">
                                 <Button type="submit" variant="secondary">
                                     Filter
@@ -144,9 +144,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                             <TD>{p.name}</TD>
                                             <TD>{p.category?.name ?? '-'}</TD>
                                             <TD>
-                                                {p.unit
-                                                    ? `${p.unit.name} (${p.unit.symbol})`
-                                                    : '-'}
+                                                {p.unit ? `${p.unit.name} (${p.unit.symbol})` : '-'}
                                             </TD>
                                             <TD>{p.sell_price ?? '-'}</TD>
                                             <TD>
@@ -196,4 +194,3 @@ export default function Index({ products, categories, filters, can }: IndexProps
         </AdminLayout>
     );
 }
-

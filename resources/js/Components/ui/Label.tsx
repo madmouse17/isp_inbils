@@ -8,11 +8,14 @@ export function Label({ htmlFor, children, required, className, ...props }: Labe
     return (
         <label
             htmlFor={htmlFor}
-            className={cn('block text-sm font-medium text-foreground', className)}
+            className={cn(
+                'block text-sm font-medium text-surface-700 dark:text-surface-300',
+                className,
+            )}
             {...props}
         >
             {children}
-            {required && <span className="ml-1 text-destructive">*</span>}
+            {required && <span className="ml-1 text-danger">*</span>}
         </label>
     );
 }

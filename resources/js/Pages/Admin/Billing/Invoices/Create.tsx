@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -51,7 +51,7 @@ export default function Create({ customers, subscriptions }: CreateProps) {
                             <CardTitle>Details</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <Select
+                            <NativeSelect
                                 label="Customer"
                                 value={data.customer_id}
                                 onChange={(e) => setData('customer_id', e.target.value)}
@@ -64,8 +64,8 @@ export default function Create({ customers, subscriptions }: CreateProps) {
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Subscription (optional)"
                                 value={data.subscription_id}
                                 onChange={(e) => setData('subscription_id', e.target.value)}
@@ -77,7 +77,7 @@ export default function Create({ customers, subscriptions }: CreateProps) {
                                         {s.code}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Issue Date"
                                 type="date"

@@ -3,15 +3,20 @@
 namespace Modules\Reporting\Queries;
 
 use Illuminate\Support\Facades\DB;
+use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Modules\Ticketing\Models\Ticket;
 
 class SlaComplianceQuery
 {
+    use AppliesDateRange;
+
     public static function execute(?string $dateFrom = null, ?string $dateTo = null, ?int $categoryId = null): array
     {
         $query = Ticket::query()->whereNotNull('resolved_at');
-        if ($dateFrom && $dateTo) $query->whereBetween('resolved_at', [$dateFrom, $dateTo]);
-        if ($categoryId) $query->where('category_id', $categoryId);
+        self::applyDateRange($query, 'resolved_at', $dateFrom, $dateTo);
+        if ($categoryId) {
+            $query->where('category_id', $categoryId);
+        }
 
         $total = $query->count();
         $compliant = (clone $query)->whereColumn('resolved_at', '<=', 'sla_deadline')->count();

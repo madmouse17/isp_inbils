@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -85,7 +85,7 @@ export default function Create({
                                 error={errors.title}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Source"
                                 value={data.source}
                                 onChange={(e) => setData('source', e.target.value)}
@@ -95,8 +95,8 @@ export default function Create({
                                 <option value="customer">Customer</option>
                                 <option value="noc">NOC</option>
                                 <option value="internal">Internal</option>
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Category"
                                 value={data.category_id}
                                 onChange={(e) => setData('category_id', e.target.value)}
@@ -109,8 +109,8 @@ export default function Create({
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Priority"
                                 value={data.priority}
                                 onChange={(e) => setData('priority', e.target.value)}
@@ -120,8 +120,8 @@ export default function Create({
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
                                 <option value="urgent">Urgent</option>
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Customer"
                                 value={data.customer_id}
                                 onChange={(e) => setData('customer_id', e.target.value)}
@@ -133,8 +133,8 @@ export default function Create({
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Subscription"
                                 value={data.subscription_id}
                                 onChange={(e) => setData('subscription_id', e.target.value)}
@@ -146,8 +146,8 @@ export default function Create({
                                         {s.code}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Network Asset"
                                 value={data.network_asset_id}
                                 onChange={(e) => setData('network_asset_id', e.target.value)}
@@ -159,8 +159,8 @@ export default function Create({
                                         {a.code} — {a.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Location"
                                 value={data.location_id}
                                 onChange={(e) => setData('location_id', e.target.value)}
@@ -172,7 +172,7 @@ export default function Create({
                                         {l.code} — {l.name}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Textarea
                                 className="md:col-span-2"
                                 label="Description"

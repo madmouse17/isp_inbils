@@ -7,6 +7,12 @@
     "providers": [
         "Modules\\Reporting\\Providers\\ReportingServiceProvider"
     ],
-    "dependencies": [],
+    "dependencies": [
+        "Billing",
+        "Inventory",
+        "NetworkAsset",
+        "SPK",
+        "Ticketing"
+    ],
     "files": []
 }

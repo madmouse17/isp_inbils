@@ -63,7 +63,13 @@ class AdminMenuAuthorizationTest extends TestCase
             route('admin.stocks.index'),
             route('admin.stock-movements.index'),
             route('admin.inventory.find'),
+            route('admin.reports.index'),
             route('admin.reports.business'),
+            route('admin.reports.technician'),
+            route('admin.reports.asset'),
+            route('admin.reports.sla'),
+            route('admin.reports.stock-card'),
+            route('admin.reports.audit-log'),
         ] as $uri) {
             $this->get($uri)->assertForbidden();
         }

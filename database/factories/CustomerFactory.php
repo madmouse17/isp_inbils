@@ -19,7 +19,7 @@ class CustomerFactory extends Factory
 
         return [
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
-            'code' => 'CUS-' . now()->year . '-' . str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
+            'code' => 'CUS-'.now()->year.'-'.str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
             'name' => $type === 'Company' ? fake()->company() : fake()->name(),
             'type' => $type,
             'email' => fake()->optional()->email(),

@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use Database\Factories\OrganizationUnitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,7 +19,7 @@ class OrganizationUnit extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected static string $factory = \Database\Factories\OrganizationUnitFactory::class;
+    protected static string $factory = OrganizationUnitFactory::class;
 
     protected $fillable = [
         'company_id',

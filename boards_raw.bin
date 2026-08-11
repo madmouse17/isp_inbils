@@ -1,0 +1,8 @@
+    SLUG                      NAME                          COUNTS
+    default                   Default                       archived=41, blocked=13, done=195, running=1, todo=61
+●   inbils-shadcn-full        Inbils Shadcn Full            archived=20, done=199
+    local                     Local                         (empty)
+    migrasi-isp-shadcn-ui     Migrasi Isp Shadcn Ui         (empty)
+
+Current board: inbils-shadcn-full
+Switch boards with `hermes kanban boards switch <slug>`.

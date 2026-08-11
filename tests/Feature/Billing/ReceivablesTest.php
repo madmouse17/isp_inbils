@@ -11,8 +11,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class ReceivablesTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_buckets_computed_per_customer(): void
     {

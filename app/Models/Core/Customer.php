@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,11 +18,11 @@ class Customer extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
-    use InteractsWithMedia;
 
-    protected static string $factory = \Database\Factories\CustomerFactory::class;
+    protected static string $factory = CustomerFactory::class;
 
     protected $fillable = [
         'code',

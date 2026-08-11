@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
-use App\Models\Core\Vehicle;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;

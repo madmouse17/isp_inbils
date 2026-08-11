@@ -25,13 +25,15 @@ export default function Show({ product }: ShowProps) {
     const p = product.data;
     const stocks: Stock[] = p.stocks ?? [];
     const movements: StockMovement[] = p.movements ?? [];
+    const displayValue = (value: unknown) =>
+        typeof value === 'string' || typeof value === 'number' ? value : '-';
 
     return (
-        <AdminLayout title={p.name}>
+        <AdminLayout title={p.name ?? ''}>
             <div className="space-y-6">
                 <PageHeader
-                    title={p.name}
-                    subtitle={p.sku}
+                    title={p.name ?? ''}
+                    subtitle={p.sku ?? ''}
                     actions={
                         <>
                             <Badge variant={p.is_active ? 'success' : 'danger'}>
@@ -139,9 +141,9 @@ export default function Show({ product }: ShowProps) {
                                             <TD className="text-sm text-muted-foreground">
                                                 {s.location?.path ?? '-'}
                                             </TD>
-                                            <TD>{s.quantity}</TD>
-                                            <TD>{s.reserved_quantity}</TD>
-                                            <TD>{s.available}</TD>
+                                            <TD>{String(s.quantity ?? '-')}</TD>
+                                            <TD>{String(s.reserved_quantity ?? '-')}</TD>
+                                            <TD>{String(s.available ?? '-')}</TD>
                                         </TR>
                                     ))
                                 )}
@@ -188,12 +190,12 @@ export default function Show({ product }: ShowProps) {
                                                               : 'info'
                                                     }
                                                 >
-                                                    {m.movement_type}
+                                                    {String(displayValue(m.movement_type))}
                                                 </StatusBadge>
                                             </TD>
                                             <TD>{m.quantity}</TD>
-                                            <TD>{m.balance_after ?? '-'}</TD>
-                                            <TD>{m.note ?? '-'}</TD>
+                                            <TD>{displayValue(m.balance_after)}</TD>
+                                            <TD>{displayValue(m.note)}</TD>
                                             <TD className="text-sm text-muted-foreground">
                                                 {m.created_at ?? '-'}
                                             </TD>

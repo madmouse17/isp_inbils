@@ -136,3 +136,11 @@ rtk init --global       # Add RTK to ~/.claude/CLAUDE.md
 
 Overall average: **60-90% token reduction** on common development operations.
 <!-- /rtk-instructions -->
+
+## AI Temporary Artifact Cleanup (MANDATORY)
+
+- Store temporary scan/debug/extraction/patch files outside the repository whenever possible.
+- Delete AI-generated temporary artifacts immediately after their purpose is complete.
+- AI evidence/dumps are temporary: delete them immediately after inspection or once no longer needed. Retain them only when explicitly required as a permanent deliverable.
+- Before finishing, inspect Git status and remove only obsolete artifacts created by the current task.
+- Preserve source code, official tests, migrations, project documentation, required evidence, and other active work.

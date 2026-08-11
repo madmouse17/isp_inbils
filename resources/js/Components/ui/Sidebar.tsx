@@ -41,7 +41,12 @@ interface SidebarSectionProps {
     defaultOpen?: boolean;
 }
 
-export function SidebarSection({ title, children, className, defaultOpen = true }: SidebarSectionProps) {
+export function SidebarSection({
+    title,
+    children,
+    className,
+    defaultOpen = true,
+}: SidebarSectionProps) {
     const [expanded, setExpanded] = useState(defaultOpen);
 
     if (!title) {
@@ -59,9 +64,7 @@ export function SidebarSection({ title, children, className, defaultOpen = true 
             onToggle={(event) => setExpanded(event.currentTarget.open)}
         >
             <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
-                <span className="truncate">
-                    {title}
-                </span>
+                <span className="truncate">{title}</span>
                 <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
             </summary>
             <nav className="space-y-1">{children}</nav>
@@ -78,7 +81,14 @@ interface SidebarProps {
     brandLogo?: string | null;
 }
 
-export function Sidebar({ children, open, onClose, className, brandName = 'inbils', brandLogo }: SidebarProps) {
+export function Sidebar({
+    children,
+    open,
+    onClose,
+    className,
+    brandName = 'inbils',
+    brandLogo,
+}: SidebarProps) {
     const initials = brandName
         .split(/\s+/)
         .map((word) => word[0])
@@ -126,7 +136,7 @@ export function Sidebar({ children, open, onClose, className, brandName = 'inbil
                         <p className="text-xs text-muted-foreground">ISP ERP</p>
                     </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
+                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
                     {children}
                 </div>
             </aside>

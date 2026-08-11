@@ -1,226 +1,282 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
+import { Head, Link } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import GenerateDialog from '@/Pages/Admin/Billing/Invoices/GenerateDialog';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
     Select,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
-import GenerateDialog from './GenerateDialog';
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/Select';
+import { useCan } from '@/hooks/useCan';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { formatDate, formatMoney } from '@/lib/format';
 
-interface InvRow {
+type InvoiceRow = {
     id: number;
     number: string;
-    type: string;
-    source: string;
     status: string;
-    total: string;
-    paid_amount: string;
-    issue_date: string;
-    customer?: { name: string } | null;
-}
+    issue_date: string | null;
+    due_date: string | null;
+    total: string | number;
+    paid_amount: string | number;
+    sisa: string | number;
+    customer?: { id: number; name: string; code: string } | null;
+};
 
-interface CustRow {
-    id: number;
-    name: string;
-}
+type PaginatorLink = { url: string | null; label: string; active: boolean };
+type Paginator<T> = {
+    data: T[];
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+    path?: string;
+    links?: PaginatorLink[];
+    first_page_url?: string;
+    last_page_url?: string;
+    next_page_url?: string | null;
+    prev_page_url?: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    invoices: { data: InvRow[]; current_page: number; last_page: number };
-    customers: { data: CustRow[] };
+type Props = {
+    invoices: Paginator<InvoiceRow>;
     filters: {
-        type?: string;
-        status?: string;
-        source?: string;
-        customer_id?: string;
         search?: string;
+        status?: string;
+        customer_id?: string;
+        date_from?: string;
+        date_to?: string;
+        sort_by?: string;
+        sort_dir?: string;
+        per_page?: string | number;
     };
-    can: { create: boolean };
-}
+    statusOptions: string[];
+};
 
-const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'paid'
-        ? 'success'
-        : s === 'partial'
-          ? 'info'
-          : s === 'overdue'
-            ? 'danger'
-            : s === 'cancelled'
-              ? 'muted'
-              : 'warning';
+const STATUS_LABEL: Record<string, string> = {
+    draft: 'Draft',
+    issued: 'Issued',
+    partial: 'Partial',
+    paid: 'Paid',
+    void: 'Void',
+    written_off: 'Written off',
+};
 
-export default function Index({ invoices, customers, filters, can }: IndexProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [type, setType] = useState(filters.type ?? '');
-    const [status, setStatus] = useState(filters.status ?? '');
-    const [customerId, setCustomerId] = useState(filters.customer_id ?? '');
-    const [showGenerate, setShowGenerate] = useState(false);
+export default function InvoicesIndex({ invoices, filters, statusOptions }: Props) {
+    const can = useCan();
+    const [generateOpen, setGenerateOpen] = useState(false);
+    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+        {
+            search: filters.search ?? '',
+            status: filters.status ?? '',
+            customer_id: filters.customer_id ?? '',
+            date_from: filters.date_from ?? '',
+            date_to: filters.date_to ?? '',
+            sort_by: filters.sort_by ?? '',
+            sort_dir: filters.sort_dir ?? '',
+            per_page: filters.per_page ?? invoices.per_page,
+        },
+        { only: ['invoices', 'filters'] },
+    );
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.invoices.index'),
-            { search, type, status, customer_id: customerId },
-            { preserveState: true },
-        );
-    };
+    const columns: DataTableColumn<InvoiceRow>[] = useMemo(
+        () => [
+            {
+                key: 'number',
+                header: 'Number',
+                sortable: true,
+                sortKey: 'number',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.invoices.show', row.id)}
+                        className="font-medium text-primary hover:underline"
+                    >
+                        {row.number}
+                    </Link>
+                ),
+            },
+            {
+                key: 'customer',
+                header: 'Customer',
+                cell: (row) =>
+                    row.customer ? (
+                        <div>
+                            <div className="font-medium">{row.customer.name}</div>
+                            <div className="text-xs text-muted-foreground">{row.customer.code}</div>
+                        </div>
+                    ) : (
+                        '—'
+                    ),
+            },
+            {
+                key: 'status',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'status',
+                cell: (row) => (
+                    <StatusBadge
+                        status={row.status}
+                        label={STATUS_LABEL[row.status] ?? row.status}
+                    />
+                ),
+            },
+            {
+                key: 'issue_date',
+                header: 'Issue Date',
+                sortable: true,
+                sortKey: 'issue_date',
+                cell: (row) => formatDate(row.issue_date),
+            },
+            {
+                key: 'due_date',
+                header: 'Due Date',
+                sortable: true,
+                sortKey: 'due_date',
+                cell: (row) => formatDate(row.due_date),
+            },
+            {
+                key: 'total',
+                header: 'Total',
+                sortable: true,
+                sortKey: 'total',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatMoney(row.total),
+            },
+            {
+                key: 'sisa',
+                header: 'Remaining',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatMoney(row.sisa),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Invoices">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Invoices" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Invoices"
-                    subtitle="Manage billing invoices."
+                    description="Customer invoices and balances."
                     actions={
-                        can.create && (
-                            <>
-                                <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={() => setShowGenerate(true)}
-                                >
-                                    Generate Tagihan
-                                </Button>
-                                <Button
-                                    type="button"
-                                    onClick={() => router.get(route('admin.invoices.create'))}
-                                >
-                                    Create Invoice
-                                </Button>
-                            </>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.invoices.export')}
+                                params={params}
+                                canExport={can('billing.export')}
+                            />
+                            {can('billing.create') && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => setGenerateOpen(true)}
+                                    >
+                                        Generate Tagihan
+                                    </Button>
+                                    <Button asChild size="sm">
+                                        <Link href={route('admin.invoices.create')}>
+                                            <Plus className="size-4" />
+                                            New invoice
+                                        </Link>
+                                    </Button>
+                                </>
+                            )}
+                        </div>
                     }
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Search"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Invoice number"
-                            />
-                            <Select
-                                label="Type"
-                                value={type}
-                                onChange={(e) => setType(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="one_time">One Time</option>
-                                <option value="recurring">Recurring</option>
-                            </Select>
-                            <Select
-                                label="Status"
-                                value={status}
-                                onChange={(e) => setStatus(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="draft">Draft</option>
-                                <option value="sent">Sent</option>
-                                <option value="partial">Partial</option>
-                                <option value="paid">Paid</option>
-                                <option value="overdue">Overdue</option>
-                                <option value="cancelled">Cancelled</option>
-                            </Select>
-                            <Select
-                                label="Customer"
-                                value={customerId}
-                                onChange={(e) => setCustomerId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {customers.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </Select>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Number</TH>
-                                    <TH>Customer</TH>
-                                    <TH>Type</TH>
-                                    <TH>Status</TH>
-                                    <TH>Total</TH>
-                                    <TH>Paid</TH>
-                                    <TH>Issue Date</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {invoices.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    invoices.data.map((inv) => (
-                                        <TR key={inv.id}>
-                                            <TD className="font-mono text-sm">{inv.number}</TD>
-                                            <TD>{inv.customer?.name ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant="neutral">{inv.type}</Badge>
-                                            </TD>
-                                            <TD>
-                                                <StatusBadge variant={statusVariant(inv.status)}>
-                                                    {inv.status}
-                                                </StatusBadge>
-                                            </TD>
-                                            <TD className="font-medium">{inv.total}</TD>
-                                            <TD>{inv.paid_amount}</TD>
-                                            <TD className="text-sm">{inv.issue_date}</TD>
-                                            <TD>
-                                                <Link
-                                                    href={route('admin.invoices.show', inv.id)}
-                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                >
-                                                    Show
-                                                </Link>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={invoices.current_page}
-                            lastPage={invoices.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.invoices.index'), {
-                                    page,
-                                    search,
-                                    type,
-                                    status,
-                                    customer_id: customerId,
-                                })
-                            }
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="inv-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="inv-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Number or customer…"
                         />
-                    </CardContent>
-                </Card>
-                <GenerateDialog open={showGenerate} onClose={() => setShowGenerate(false)} />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Status</label>
+                        <Select
+                            value={params.status || '__all__'}
+                            onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
+                        >
+                            <SelectTrigger className="w-[10rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {statusOptions.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        {STATUS_LABEL[s] ?? s}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="inv-from"
+                        >
+                            From
+                        </label>
+                        <Input
+                            id="inv-from"
+                            type="date"
+                            value={params.date_from ?? ''}
+                            onChange={(e) => set('date_from', e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="inv-to"
+                        >
+                            To
+                        </label>
+                        <Input
+                            id="inv-to"
+                            type="date"
+                            value={params.date_to ?? ''}
+                            onChange={(e) => set('date_to', e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={invoices.data}
+                    emptyTitle="No invoices"
+                    emptyDescription="No invoices match the current filters."
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    pagination={invoices}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(n) => set('per_page', n)}
+                />
+                <GenerateDialog open={generateOpen} onClose={() => setGenerateOpen(false)} />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

@@ -2,12 +2,16 @@
 
 namespace Modules\NetworkAsset\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -19,34 +23,130 @@ use Modules\NetworkAsset\Http\Requests\UpdateNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
+use Spatie\Permission\Models\Permission;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class NetworkAssetController extends Controller
 {
+    use HasIndexQuery;
+
+    private const SORTABLE = [
+        'code',
+        'name',
+        'asset_type',
+        'serial_number',
+        'status',
+        'ownership',
+        'created_at',
+    ];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', NetworkAsset::class);
 
-        $assets = NetworkAsset::query()
-            ->with(['location', 'customer', 'subscription'])
-            ->when($request->input('asset_type'), fn ($q, $v) => $q->where('asset_type', $v))
-            ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->input('location_id'), fn ($q, $v) => $q->where('location_id', $v))
-            ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
-                ->where('serial_number', 'like', "%{$v}%")
-                ->orWhere('mac_address', 'like', "%{$v}%")
-                ->orWhere('ip_address', 'like', "%{$v}%")
-                ->orWhere('code', 'like', "%{$v}%")
-                ->orWhere('name', 'like', "%{$v}%")))
-            ->latest()
-            ->paginate(10)
-            ->withQueryString();
+        $assets = $this->applySort(
+            $this->filteredQuery($request)->with(['company:id,name']),
+            $request,
+            'created_at',
+            'desc',
+        )->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/NetworkAssets/Index', [
             'assets' => NetworkAssetResource::collection($assets),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'filters' => $request->only(['asset_type', 'status', 'location_id', 'search']),
-            'can' => ['create' => $request->user()?->can('network_asset.create') ?? false],
+            'filters' => [
+                'search' => $request->input('search'),
+                'status' => $request->input('status'),
+                'asset_type' => $request->input('asset_type'),
+                'sort_by' => $request->input('sort_by', $request->input('sort')),
+                'sort_dir' => $request->input('sort_dir', $request->input('direction')),
+                'sort' => $request->input('sort_by', $request->input('sort')),
+                'direction' => $request->input('sort_dir', $request->input('direction')),
+                'per_page' => $request->input('per_page'),
+            ],
+            'can' => [
+                'create' => $request->user()?->can('network_asset.create') ?? false,
+                'export' => $request->user()?->can('network_asset.export')
+                    ?? ($request->user()?->can('network_asset.view') ?? false),
+            ],
         ]);
+    }
+
+    public function export(Request $request): Response|StreamedResponse
+    {
+        Gate::authorize('viewAny', NetworkAsset::class);
+
+        if ($request->user() && ! $request->user()->can('network_asset.export')) {
+            $exportPermExists = Permission::query()
+                ->where('name', 'network_asset.export')
+                ->where('guard_name', 'web')
+                ->exists();
+            if ($exportPermExists) {
+                abort(403);
+            }
+        }
+
+        $format = strtolower((string) $request->input('format', 'csv'));
+        $stamp = now()->format('Ymd-His');
+
+        $export = ExportQuery::make(
+            $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
+        )
+            ->sortable(self::SORTABLE)
+            ->defaultSort('created_at', 'desc')
+            ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)))
+            ->fromRequest($request);
+
+        $columns = [
+            'code' => 'Code',
+            'name' => 'Name',
+            'asset_type' => 'Type',
+            'serial_number' => 'Serial',
+            'status' => 'Status',
+            'ownership' => 'Ownership',
+        ];
+
+        $map = static fn (NetworkAsset $asset): array => [
+            'code' => $asset->code,
+            'name' => $asset->name,
+            'asset_type' => $asset->asset_type,
+            'serial_number' => $asset->serial_number ?? '',
+            'status' => $asset->status,
+            'ownership' => $asset->ownership,
+        ];
+
+        return $format === 'pdf'
+            ? $export->streamPdf('Network Assets', $columns, $map, "network-assets-export-{$stamp}.pdf")
+            : $export->streamCsv($columns, $map, "network-assets-export-{$stamp}.csv");
+    }
+
+    /**
+     * @return Builder<NetworkAsset>
+     */
+    private function filteredQuery(Request $request): Builder
+    {
+        $query = NetworkAsset::query()
+            ->with(['location', 'customer', 'subscription'])
+            ->when($request->input('asset_type'), fn (Builder $q, string $v) => $q->where('asset_type', $v))
+            ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
+            ->when($request->input('location_id'), fn (Builder $q, string $v) => $q->where('location_id', $v))
+            ->when($request->input('search'), function (Builder $q, string $v): void {
+                $term = trim($v);
+
+                if ($term === '') {
+                    return;
+                }
+
+                $like = '%'.$term.'%';
+                $q->where(function (Builder $sq) use ($like): void {
+                    $sq->where('serial_number', 'like', $like)
+                        ->orWhere('mac_address', 'like', $like)
+                        ->orWhere('ip_address', 'like', $like)
+                        ->orWhere('code', 'like', $like)
+                        ->orWhere('name', 'like', $like);
+                });
+            });
+
+        return $query;
     }
 
     public function create(): InertiaResponse

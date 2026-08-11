@@ -10,8 +10,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class InvoicePdfTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_terbilang(): void
     {

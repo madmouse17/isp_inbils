@@ -6,13 +6,20 @@ const variants = {
     danger: 'danger',
     muted: 'muted',
     info: 'info',
+    brand: 'brand',
+    neutral: 'neutral',
 } as const;
 
-interface StatusBadgeProps {
-    variant: keyof typeof variants;
-    children: React.ReactNode;
-}
+type StatusBadgeProps = {
+    variant?: keyof typeof variants;
+    status?: string;
+    label?: React.ReactNode;
+    children?: React.ReactNode;
+};
 
-export function StatusBadge({ variant, children }: StatusBadgeProps) {
-    return <Badge variant={variants[variant]}>{children}</Badge>;
+export function StatusBadge({ variant, status, label, children }: StatusBadgeProps) {
+    const content = children ?? label ?? status;
+    const tone = variant ?? 'neutral';
+
+    return <Badge variant={variants[tone]}>{content}</Badge>;
 }

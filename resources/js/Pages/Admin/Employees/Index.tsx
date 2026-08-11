@@ -9,7 +9,7 @@ import {
     Card,
     CardContent,
     Input,
-    Select,
+    NativeSelect,
     Table,
     TBody,
     TD,
@@ -159,7 +159,7 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             {!editId && (
-                                <Select
+                                <NativeSelect
                                     label="User"
                                     value={data.user_id}
                                     onChange={(e) => setData('user_id', e.target.value)}
@@ -172,7 +172,7 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                                             {u.name}
                                         </option>
                                     ))}
-                                </Select>
+                                </NativeSelect>
                             )}
                             <Input
                                 label="Employee Number"
@@ -181,7 +181,7 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                                 error={errors.employee_number}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Organization"
                                 value={data.organization_id}
                                 onChange={(e) => setData('organization_id', e.target.value)}
@@ -193,8 +193,8 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                                         {o.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Vehicle"
                                 value={data.vehicle_id}
                                 onChange={(e) => setData('vehicle_id', e.target.value)}
@@ -206,7 +206,7 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                                         {v.plate_number}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Phone"
                                 value={data.phone}

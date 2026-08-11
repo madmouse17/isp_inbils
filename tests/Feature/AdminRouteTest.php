@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
+use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +21,7 @@ class AdminRouteTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolePermissionSeeder::class);
-        $this->seed(\Database\Seeders\SystemSettingSeeder::class);
+        $this->seed(SystemSettingSeeder::class);
         app()['cache']->forget('spatie.permission.cache');
 
         $company = Company::factory()->create(['is_active' => true]);

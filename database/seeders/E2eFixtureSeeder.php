@@ -14,6 +14,20 @@ use Modules\NetworkAsset\Models\NetworkAsset;
 
 class E2eFixtureSeeder extends Seeder
 {
+    private const DATATABLE_CUSTOMERS = [
+        'Atlas Fiber',
+        'Aria Fiber',
+        'Astra Fiber',
+        'Aurora Fiber',
+        'Apex Fiber',
+        'Ariel Fiber',
+        'Aster Fiber',
+        'Alto Fiber',
+        'Amber Fiber',
+        'Axiom Fiber',
+        'Bima Fiber',
+    ];
+
     public function run(): void
     {
         $company = CompanyService::current() ?? Company::query()->first();
@@ -86,13 +100,28 @@ class E2eFixtureSeeder extends Seeder
             ],
         );
 
+        foreach (self::DATATABLE_CUSTOMERS as $index => $name) {
+            Customer::query()->updateOrCreate(
+                ['company_id' => $company->id, 'code' => 'E2E-DT-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT)],
+                [
+                    'name' => $name,
+                    'type' => 'Individual',
+                    'email' => strtolower(str_replace(' ', '.', $name)).'@example.test',
+                    'phone' => '0800'.str_pad((string) ($index + 1), 8, '0', STR_PAD_LEFT),
+                    'is_active' => true,
+                ],
+            );
+        }
+
         $address = CustomerAddress::query()->updateOrCreate(
             ['customer_id' => $customer->id, 'label' => 'E2E Install'],
             [
                 'company_id' => $company->id,
                 'address' => 'E2E harness street',
                 'city' => 'Jakarta',
-                'is_installation_point' => true,
+                'postal_code' => '12345',
+                'lat' => '-6.2000000',
+                'lng' => '106.8166667',
                 'is_primary' => true,
             ],
         );

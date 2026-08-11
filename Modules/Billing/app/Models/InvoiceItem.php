@@ -3,9 +3,9 @@
 namespace Modules\Billing\Models;
 
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Modules\Inventory\Models\Product;
 
 class InvoiceItem extends Model

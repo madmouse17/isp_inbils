@@ -48,9 +48,10 @@ export default function Show({ subscription }: ShowProps) {
                             type="button"
                             variant="secondary"
                             onClick={() =>
-                                router.get(
-                                    route('admin.customers.subscriptions.index', s.customer_id),
-                                )
+                                (window.location.href = route(
+                                    'admin.customers.subscriptions.index',
+                                    Number(s.customer_id ?? 0),
+                                ))
                             }
                         >
                             Back

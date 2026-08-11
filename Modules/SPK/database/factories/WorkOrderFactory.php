@@ -18,7 +18,7 @@ class WorkOrderFactory extends Factory
     {
         return [
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
-            'code' => 'SPK-' . now()->year . '-' . str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
+            'code' => 'SPK-'.now()->year.'-'.str_pad((string) fake()->unique()->numberBetween(1, 99999), 5, '0', STR_PAD_LEFT),
             'type' => fake()->randomElement(['installation', 'maintenance', 'upgrade_service', 'relocation']),
             'title' => fake()->sentence(3),
             'description' => fake()->optional()->paragraph(),

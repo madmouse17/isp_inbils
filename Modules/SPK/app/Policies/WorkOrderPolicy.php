@@ -17,6 +17,7 @@ class WorkOrderPolicy
         if ($user->hasRole('technician')) {
             return $wo->assigned_to === $user->id;
         }
+
         return $user->can('spk.view');
     }
 

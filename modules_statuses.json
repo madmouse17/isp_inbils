@@ -1,5 +1,5 @@
 {
-    "Customer": true,
+    "Customer": false,
     "Service": true,
     "NetworkAsset": true,
     "Inventory": true,

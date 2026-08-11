@@ -2,26 +2,30 @@
 
 namespace Modules\Billing\Services;
 
+use App\Actions\CreateInvoiceFromSpkAction;
 use App\Models\Core\Company;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
+use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
-use Modules\SPK\Models\WorkOrder;
+use Modules\Inventory\Models\Product;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class BillingService
 {
-    public static function taxRateFor(int $companyId): float
+    public static function taxRateFor(int $companyId): string
     {
         $settings = Company::find($companyId)?->settings ?? [];
 
-        return (float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
+        return (string) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
     }
 
     public static function dueDaysFor(int $companyId): int
@@ -35,13 +39,18 @@ class BillingService
      * Generate postpaid recurring invoices for a period ('YYYY-MM').
      * Idempotent; safe to re-run. $dryRun computes rows without writing.
      */
-    public static function generateForPeriod(string $period, bool $dryRun = false): array
+    public static function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
+        $companyId ??= CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+        self::assertCompanyId($companyId);
+
         $periodStart = CarbonImmutable::createFromFormat('Y-m', $period)->startOfMonth()->startOfDay();
         $periodEnd = $periodStart->endOfMonth()->startOfDay();
 
         $subscriptions = ServiceSubscription::withoutCompany()
             ->with(['customer', 'servicePackage'])
+            ->where('company_id', $companyId)
             ->whereIn('status', ['active', 'terminated'])
             ->whereDate('activation_date', '<=', $periodEnd)
             ->where(fn ($q) => $q->whereNull('terminated_at')
@@ -68,14 +77,14 @@ class BillingService
 
             [$activeDays, $daysInPeriod, $amount] = self::prorationFor($sub, $periodStart, $periodEnd);
 
-            if ($amount <= 0) {
+            if (Money::compare($amount, '0') <= 0) {
                 $skipped++;
 
                 continue;
             }
 
             $taxRate = self::taxRateFor($sub->company_id);
-            $tax = round($amount * $taxRate / 100, 2);
+            $tax = Money::round(Money::div(Money::mul($amount, $taxRate), '100'));
 
             $rows[] = [
                 'subscription_id' => $sub->id,
@@ -84,9 +93,9 @@ class BillingService
                 'package' => $sub->servicePackage?->name ?? '-',
                 'active_days' => $activeDays,
                 'days_in_period' => $daysInPeriod,
-                'amount' => $amount,
-                'tax' => $tax,
-                'total' => round($amount + $tax, 2),
+                'amount' => Money::round($amount),
+                'tax' => Money::round($tax),
+                'total' => Money::round(Money::add($amount, $tax)),
             ];
 
             if ($dryRun) {
@@ -94,15 +103,29 @@ class BillingService
             }
 
             DB::transaction(function () use ($sub, $periodStart, $periodEnd, $activeDays, $daysInPeriod, $amount, $taxRate) {
+                $subscription = ServiceSubscription::withoutCompany()->lockForUpdate()->findOrFail($sub->id);
+                self::assertCompanyId($subscription->company_id);
+
+                $exists = Invoice::withoutCompany()
+                    ->where('subscription_id', $subscription->id)
+                    ->where('type', 'recurring')
+                    ->where('status', '!=', 'cancelled')
+                    ->whereDate('billing_period_start', $periodStart)
+                    ->lockForUpdate()
+                    ->exists();
+                if ($exists) {
+                    return;
+                }
+
                 $invoice = Invoice::create([
-                    'company_id' => $sub->company_id,
-                    'number' => NumberSequenceService::generate('invoice', 'INV', $sub->company_id),
+                    'company_id' => $subscription->company_id,
+                    'number' => NumberSequenceService::generate('invoice', 'INV', $subscription->company_id),
                     'type' => 'recurring',
                     'source' => 'subscription',
-                    'customer_id' => $sub->customer_id,
-                    'subscription_id' => $sub->id,
+                    'customer_id' => $subscription->customer_id,
+                    'subscription_id' => $subscription->id,
                     'issue_date' => now()->toDateString(),
-                    'due_date' => now()->addDays(self::dueDaysFor($sub->company_id))->toDateString(),
+                    'due_date' => now()->addDays(self::dueDaysFor($subscription->company_id))->toDateString(),
                     'billing_period_start' => $periodStart->toDateString(),
                     'billing_period_end' => $periodEnd->toDateString(),
                     'status' => 'sent',
@@ -110,14 +133,14 @@ class BillingService
                     'created_by' => null, // ponytail: batch job, no human actor
                 ]);
 
-                $label = 'MRC '.($sub->servicePackage?->name ?? 'Subscription')
+                $label = 'MRC '.($subscription->servicePackage?->name ?? 'Subscription')
                     .' '.$periodStart->toDateString().' s/d '.$periodEnd->toDateString();
                 if ($activeDays < $daysInPeriod) {
                     $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
                 }
 
                 InvoiceItem::create([
-                    'company_id' => $sub->company_id,
+                    'company_id' => $subscription->company_id,
                     'invoice_id' => $invoice->id,
                     'description' => $label,
                     'quantity' => 1,
@@ -137,7 +160,7 @@ class BillingService
         return ['created' => $created, 'skipped' => $skipped, 'rows' => $rows];
     }
 
-    /** @return array{0:int,1:int,2:float} [activeDays, daysInPeriod, amount] */
+    /** @return array{0:int,1:int,string} [activeDays, daysInPeriod, amount] */
     private static function prorationFor(ServiceSubscription $sub, CarbonImmutable $periodStart, CarbonImmutable $periodEnd): array
     {
         $daysInPeriod = $periodStart->daysInMonth;
@@ -151,84 +174,24 @@ class BillingService
         $until = ($termination && $termination->lt($periodEnd)) ? $termination : $periodEnd;
 
         if ($from->gt($until)) {
-            return [0, $daysInPeriod, 0.0];
+            return [0, $daysInPeriod, '0.00'];
         }
 
         $activeDays = (int) $from->diffInDays($until) + 1;
         $amount = $activeDays >= $daysInPeriod
-            ? round((float) $sub->mrc_amount, 2)
-            : round(($activeDays / $daysInPeriod) * (float) $sub->mrc_amount, 2);
+            ? Money::round($sub->mrc_amount)
+            : Money::round(Money::mul(Money::div((string) $activeDays, (string) $daysInPeriod), (string) $sub->mrc_amount));
 
         return [$activeDays, $daysInPeriod, $amount];
     }
 
-    public static function createFromSpk(int $workOrderId): Invoice
-    {
-        $wo = WorkOrder::findOrFail($workOrderId);
-
-        abort_if($wo->status !== 'completed', 422, 'SPK must be completed to create invoice.');
-
-        $existing = Invoice::where('work_order_id', $workOrderId)->first();
-        abort_if($existing, 422, 'Invoice already exists for this SPK.');
-
-        return DB::transaction(function () use ($wo) {
-            $subscription = $wo->subscription;
-            $taxRate = self::taxRateFor($wo->company_id);
-
-            $invoice = Invoice::create([
-                'number' => NumberSequenceService::generate('invoice', 'INV', $wo->company_id),
-                'type' => 'one_time',
-                'source' => 'spk',
-                'customer_id' => $wo->customer_id,
-                'work_order_id' => $wo->id,
-                'subscription_id' => $wo->subscription_id,
-                'issue_date' => now()->toDateString(),
-                'due_date' => now()->addDays(14)->toDateString(),
-                'status' => 'draft',
-                'created_by' => Auth::id(),
-            ]);
-
-            // Map consumable items from SPK
-            foreach ($wo->items as $item) {
-                if ($item->quantity_used > 0 && $item->product) {
-                    $lineTotal = (float) $item->quantity_used * (float) $item->product->sell_price;
-                    InvoiceItem::create([
-                        'invoice_id' => $invoice->id,
-                        'product_id' => $item->product_id,
-                        'description' => $item->product->name,
-                        'quantity' => $item->quantity_used,
-                        'unit_price' => $item->product->sell_price,
-                        'tax_rate' => $taxRate,
-                        'line_total' => $lineTotal,
-                    ]);
-                }
-            }
-
-            // Installation fee line
-            if ($subscription && $subscription->otc_installation_fee > 0) {
-                InvoiceItem::create([
-                    'invoice_id' => $invoice->id,
-                    'description' => 'Biaya Instalasi '.$wo->type,
-                    'quantity' => 1,
-                    'unit_price' => $subscription->otc_installation_fee,
-                    'tax_rate' => $taxRate,
-                    'line_total' => $subscription->otc_installation_fee,
-                ]);
-            }
-
-            self::recalculate($invoice);
-
-            AuditService::log('invoice', 'created_from_spk', ['number' => $invoice->number, 'spk_id' => $wo->id], $invoice);
-
-            return $invoice->fresh();
-        });
-    }
-
     public static function send(Invoice $invoice): Invoice
     {
-        abort_if($invoice->status !== 'draft', 422, 'Invoice must be draft to send.');
-
         return DB::transaction(function () use ($invoice) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
+            abort_if($invoice->status !== 'draft', 422, 'Invoice must be draft to send.');
+
             $invoice->update(['status' => 'sent', 'sent_at' => now()]);
 
             AuditService::log('invoice', 'sent', ['number' => $invoice->number], $invoice);
@@ -237,15 +200,15 @@ class BillingService
         });
     }
 
-    public static function recordPayment(Invoice $invoice, float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
+    public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
         abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
-        abort_if($amount <= 0, 422, 'Payment amount must be positive.');
+        abort_if(Money::compare($amount, '0') <= 0, 422, 'Payment amount must be positive.');
 
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
-            abort_if($amount > $invoice->sisa, 422, 'Payment amount exceeds remaining balance.');
+            abort_if(Money::gt($amount, $invoice->sisa), 422, 'Payment amount exceeds remaining balance.');
             abort_if(
                 $reference && Payment::withoutCompany()
                     ->where('company_id', $invoice->company_id)
@@ -259,7 +222,7 @@ class BillingService
             $payment = Payment::create([
                 'company_id' => $invoice->company_id,
                 'invoice_id' => $invoice->id,
-                'amount' => $amount,
+                'amount' => Money::round($amount),
                 'method' => $method,
                 'reference' => $reference,
                 'paid_at' => now(),
@@ -267,12 +230,12 @@ class BillingService
                 'notes' => $notes,
             ]);
 
-            $newPaid = (float) $invoice->paid_amount + $amount;
+            $newPaid = Money::add($invoice->paid_amount, $amount);
 
-            if ($newPaid >= (float) $invoice->total) {
-                $invoice->update(['status' => 'paid', 'paid_amount' => $newPaid]);
+            if (Money::compare($newPaid, $invoice->total) >= 0) {
+                $invoice->update(['status' => 'paid', 'paid_amount' => Money::round($newPaid)]);
             } else {
-                $invoice->update(['status' => 'partial', 'paid_amount' => $newPaid]);
+                $invoice->update(['status' => 'partial', 'paid_amount' => Money::round($newPaid)]);
             }
 
             AuditService::log('invoice', 'payment_recorded', [
@@ -287,6 +250,7 @@ class BillingService
     {
         return DB::transaction(function () use ($invoice, $reason) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
             abort_if($invoice->status === 'cancelled', 422, 'Invoice already cancelled.');
             abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Cannot cancel invoice with active payments. Reverse payments first.');
 
@@ -302,34 +266,105 @@ class BillingService
         });
     }
 
+    /**
+     * @param  array{product_id?: int|null, description: string, quantity: string|int|float, unit_price: string|int|float, discount_amount?: string|int|float|null, tax_rate?: string|int|float|null}  $data
+     */
+    public static function addItem(Invoice $invoice, array $data): void
+    {
+        DB::transaction(function () use ($invoice, $data) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
+            abort_if($invoice->status !== 'draft', 422, 'Can only add items to draft invoices.');
+
+            if ($productId = ($data['product_id'] ?? null)) {
+                Product::withoutCompany()
+                    ->where('company_id', $invoice->company_id)
+                    ->lockForUpdate()
+                    ->findOrFail($productId);
+            }
+
+            $lineTotal = Money::round(Money::sub(Money::mul($data['quantity'], $data['unit_price']), $data['discount_amount'] ?? 0));
+
+            InvoiceItem::create([
+                'company_id' => $invoice->company_id,
+                'invoice_id' => $invoice->id,
+                'product_id' => $data['product_id'] ?? null,
+                'description' => $data['description'],
+                'quantity' => $data['quantity'],
+                'unit_price' => $data['unit_price'],
+                'discount_amount' => $data['discount_amount'] ?? 0,
+                'tax_rate' => $data['tax_rate'] ?? 0,
+                'line_total' => $lineTotal,
+            ]);
+
+            self::recalculate($invoice);
+        });
+    }
+
+    /**
+     * Remove an item from a draft invoice inside a transaction-local lock.
+     *
+     * @throws HttpException 404 if item not found, 422 if invoice not draft
+     */
+    public static function removeItem(Invoice $invoice, int $itemId): void
+    {
+        DB::transaction(function () use ($invoice, $itemId) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
+            abort_if($invoice->status !== 'draft', 422, 'Can only remove items from draft invoices.');
+
+            $item = InvoiceItem::withoutCompany()
+                ->where('id', $itemId)
+                ->where('invoice_id', $invoice->id)
+                ->where('company_id', $invoice->company_id)
+                ->lockForUpdate()
+                ->first();
+
+            abort_unless($item, 404);
+
+            $item->delete();
+            self::recalculate($invoice);
+        });
+    }
+
+    public static function createFromSpk(int $workOrderId): Invoice
+    {
+        return CreateInvoiceFromSpkAction::execute($workOrderId);
+    }
+
     public static function recalculate(Invoice $invoice): void
     {
         DB::transaction(function () use ($invoice) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             $invoice->load('items');
-            $subtotal = 0;
-            $taxAmount = 0;
+            $subtotal = '0.00';
+            $taxAmount = '0.00';
 
             foreach ($invoice->items as $item) {
-                $lineTotal = (float) $item->quantity * (float) $item->unit_price - (float) $item->discount_amount;
+                $lineTotal = Money::round(Money::sub(Money::mul($item->quantity, $item->unit_price), $item->discount_amount));
                 $item->update(['line_total' => $lineTotal]);
-                $subtotal += $lineTotal;
-                $taxAmount += $lineTotal * (float) $item->tax_rate / 100;
+                $subtotal = Money::add($subtotal, $lineTotal);
+                $taxAmount = Money::add($taxAmount, Money::round(Money::div(Money::mul($lineTotal, $item->tax_rate), '100')));
             }
 
-            $total = $subtotal + $taxAmount - (float) $invoice->discount_amount;
+            $total = Money::sub(Money::add($subtotal, $taxAmount), $invoice->discount_amount);
 
             $invoice->update([
-                'subtotal' => $subtotal,
-                'tax_amount' => $taxAmount,
-                'total' => $total,
+                'subtotal' => Money::round($subtotal),
+                'tax_amount' => Money::round($taxAmount),
+                'total' => Money::round($total),
             ]);
         });
     }
 
-    public static function checkOverdue(): void
+    public static function checkOverdue(?int $companyId = null): void
     {
+        $companyId ??= CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+        self::assertCompanyId($companyId);
+
         Invoice::withoutCompany()
+            ->where('company_id', $companyId)
             ->whereIn('status', ['sent', 'partial'])
             ->whereDate('due_date', '<', now())
             ->whereColumn('paid_amount', '<', 'total')
@@ -338,8 +373,12 @@ class BillingService
 
     public static function receivables(): array
     {
-        $invoices = Invoice::query()
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        $invoices = Invoice::withoutCompany()
             ->with('customer:id,name')
+            ->where('company_id', $companyId)
             ->whereIn('status', ['sent', 'partial', 'overdue'])
             ->whereColumn('paid_amount', '<', 'total')
             ->get();
@@ -353,10 +392,10 @@ class BillingService
         return $invoices
             ->groupBy('customer_id')
             ->map(function ($group) use ($subsByCustomer) {
-                $buckets = ['current' => 0.0, 'b1_30' => 0.0, 'b31_60' => 0.0, 'b61_90' => 0.0, 'b90_plus' => 0.0];
+                $buckets = ['current' => '0.00', 'b1_30' => '0.00', 'b31_60' => '0.00', 'b61_90' => '0.00', 'b90_plus' => '0.00'];
 
                 foreach ($group as $invoice) {
-                    $outstanding = (float) $invoice->total - (float) $invoice->paid_amount;
+                    $outstanding = Money::sub($invoice->total, $invoice->paid_amount);
                     $daysPast = (int) $invoice->due_date->startOfDay()->diffInDays(now()->startOfDay(), false);
 
                     $key = match (true) {
@@ -367,24 +406,36 @@ class BillingService
                         default => 'b90_plus',
                     };
 
-                    $buckets[$key] += $outstanding;
+                    $buckets[$key] = Money::add($buckets[$key], $outstanding);
                 }
 
                 $first = $group->first();
+                $total = array_reduce($buckets, fn (string $carry, string $value) => Money::add($carry, $value), '0.00');
 
                 return [
                     'customer_id' => $first->customer_id,
                     'customer' => $first->customer?->name ?? '-',
                     ...$buckets,
-                    'total' => array_sum($buckets),
+                    'total' => Money::round($total),
                     'invoice_count' => $group->count(),
                     'subscriptions' => ($subsByCustomer[$first->customer_id] ?? collect())
                         ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'status' => $s->status])
                         ->values()->all(),
                 ];
             })
-            ->sortByDesc('total')
             ->values()
             ->all();
+    }
+
+    private static function assertCompanyId(int $companyId): void
+    {
+        $currentId = CompanyService::currentId();
+
+        // In Artisan/queue context there is no authenticated user; trust the
+        // explicit company id passed by the command/job. In web context the
+        // id must match the authenticated user's company.
+        if ($currentId !== null) {
+            abort_unless($companyId === (int) $currentId, 404);
+        }
     }
 }

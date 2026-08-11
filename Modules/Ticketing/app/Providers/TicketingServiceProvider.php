@@ -2,8 +2,9 @@
 
 namespace Modules\Ticketing\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Ticketing\Console\CheckTicketSla;
+use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class TicketingServiceProvider extends ModuleServiceProvider
 {
@@ -22,7 +23,9 @@ class TicketingServiceProvider extends ModuleServiceProvider
      *
      * @var string[]
      */
-    // protected array $commands = [];
+    protected array $commands = [
+        CheckTicketSla::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -36,8 +39,8 @@ class TicketingServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
-     * @param $schedule
+     *
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {

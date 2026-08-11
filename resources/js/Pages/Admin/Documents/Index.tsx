@@ -1,24 +1,19 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { Link, router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
-import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Switch,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-    Modal,
-    Pagination,
-} from '@/Components/ui';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Badge } from '@/Components/ui/Badge';
+import { Button } from '@/Components/ui/Button';
+import { Card, CardContent } from '@/Components/ui/Card';
+import { Input } from '@/Components/ui/Input';
+import { Modal } from '@/Components/ui/Modal';
+import { NativeSelect } from '@/Components/composite';
+import { Switch } from '@/Components/ui/Switch';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
 
 interface DtRow {
     id: number;
@@ -31,10 +26,18 @@ interface DtRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    documentTypes: { data: DtRow[]; current_page: number; last_page: number };
+    documentTypes: {
+        data: DtRow[];
+        current_page: number;
+        last_page: number;
+        per_page?: number;
+        total?: number;
+    };
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { export: boolean };
 }
 
-export default function Index({ documentTypes }: IndexProps) {
+export default function Index({ documentTypes, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -45,6 +48,66 @@ export default function Index({ documentTypes }: IndexProps) {
         expiry_days: '',
         is_active: true,
     });
+
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.documents.index'),
+        filters,
+        only: ['documentTypes', 'filters', 'can'],
+    });
+
+    const columns: DataTableColumn<DtRow>[] = useMemo(
+        () => [
+            { key: 'name', header: 'Name', sortable: true, sortKey: 'name', cell: (d) => d.name },
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (d) => <span className="font-mono text-sm">{d.code}</span>,
+            },
+            {
+                key: 'applies_to',
+                header: 'Applies To',
+                sortable: true,
+                sortKey: 'applies_to',
+                cell: (d) => d.applies_to ?? '-',
+            },
+            {
+                key: 'is_required',
+                header: 'Required',
+                cell: (d) => (d.is_required ? <Badge variant="brand">Yes</Badge> : '-'),
+            },
+            {
+                key: 'expiry_days',
+                header: 'Expiry',
+                cell: (d) => (d.expiry_days ? `${d.expiry_days} days` : '-'),
+            },
+            {
+                key: 'is_active',
+                header: 'Status',
+                cell: (d) => (
+                    <Badge variant={d.is_active ? 'success' : 'danger'}>
+                        {d.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (d) => (
+                    <div className="flex gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(d)}>
+                            Edit
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(d)}>
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ],
+        [],
+    );
 
     const openCreate = () => {
         reset();
@@ -81,86 +144,53 @@ export default function Index({ documentTypes }: IndexProps) {
                     title="Document Types"
                     subtitle="Business document categories. Files stored via Spatie MediaLibrary."
                     actions={
-                        <Button type="button" onClick={openCreate}>
-                            Add Type
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.documents.export')}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            <Button type="button" onClick={openCreate}>
+                                Add Type
+                            </Button>
+                        </div>
                     }
                 />
+
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Code</TH>
-                                    <TH>Applies To</TH>
-                                    <TH>Required</TH>
-                                    <TH>Expiry</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {documentTypes.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    documentTypes.data.map((d) => (
-                                        <TR key={d.id}>
-                                            <TD>{d.name}</TD>
-                                            <TD className="font-mono text-sm">{d.code}</TD>
-                                            <TD>{d.applies_to ?? '-'}</TD>
-                                            <TD>
-                                                {d.is_required ? (
-                                                    <Badge variant="brand">Yes</Badge>
-                                                ) : (
-                                                    '-'
-                                                )}
-                                            </TD>
-                                            <TD>{d.expiry_days ? `${d.expiry_days} days` : '-'}</TD>
-                                            <TD>
-                                                <Badge variant={d.is_active ? 'success' : 'danger'}>
-                                                    {d.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(d)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(d)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={documentTypes.current_page}
-                            lastPage={documentTypes.last_page}
-                            onPageChange={(page) => router.get(route('admin.documents.index'), { page })}
+                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                            <div className="min-w-[12rem] flex-1 space-y-1">
+                                <label
+                                    className="text-xs font-medium text-muted-foreground"
+                                    htmlFor="doc-search"
+                                >
+                                    Search
+                                </label>
+                                <Input
+                                    id="doc-search"
+                                    value={params.search ?? ''}
+                                    onChange={(e) => set('search', e.target.value)}
+                                    placeholder="Name or code…"
+                                />
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(documentTypes)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            emptyTitle="No document types"
+                            emptyDescription="No document types match the current filters."
                         />
                     </CardContent>
                 </Card>
+
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}

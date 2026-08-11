@@ -5,5 +5,7 @@ export type { DateRangeValue } from './DateRangeFilter';
 export { FormField } from './FormField';
 export { CustomerRelatedTables } from './CustomerRelatedTables';
 export { MoneyInput } from './MoneyInput';
+export { NativeSelect } from './NativeSelect';
+export type { NativeSelectProps } from './NativeSelect';
 export { PageHeader } from './PageHeader';
 export { StatusBadge } from './StatusBadge';

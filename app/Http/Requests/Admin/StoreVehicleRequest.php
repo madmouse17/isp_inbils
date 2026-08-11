@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,7 +15,8 @@ class StoreVehicleRequest extends FormRequest
 
     public function rules(): array
     {
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $companyId = CompanyService::currentId();
+
         return [
             'plate_number' => ['required', 'string', 'max:20', Rule::unique('vehicles')->where('company_id', $companyId)],
             'type' => ['nullable', 'string', 'max:50'],

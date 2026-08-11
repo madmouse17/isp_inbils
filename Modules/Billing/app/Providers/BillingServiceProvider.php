@@ -2,8 +2,10 @@
 
 namespace Modules\Billing\Providers;
 
-use Nwidart\Modules\Support\ModuleServiceProvider;
 use Illuminate\Console\Scheduling\Schedule;
+use Modules\Billing\Console\CheckOverdueInvoices;
+use Modules\Billing\Console\GenerateRecurringInvoices;
+use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class BillingServiceProvider extends ModuleServiceProvider
 {
@@ -23,8 +25,8 @@ class BillingServiceProvider extends ModuleServiceProvider
      * @var string[]
      */
     protected array $commands = [
-        \Modules\Billing\Console\GenerateRecurringInvoices::class,
-        \Modules\Billing\Console\CheckOverdueInvoices::class,
+        GenerateRecurringInvoices::class,
+        CheckOverdueInvoices::class,
     ];
 
     /**
@@ -39,8 +41,8 @@ class BillingServiceProvider extends ModuleServiceProvider
 
     /**
      * Define module schedules.
-     * 
-     * @param $schedule
+     *
+     * @param  $schedule
      */
     // protected function configureSchedules(Schedule $schedule): void
     // {

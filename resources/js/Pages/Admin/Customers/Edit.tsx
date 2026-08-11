@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -25,15 +25,15 @@ export default function Edit({ customer }: EditProps) {
     const contacts = c.contacts ?? [];
     const subscriptions = c.subscriptions ?? [];
     const { data, setData, put, processing, errors } = useForm({
-        code: c.code,
-        name: c.name,
-        type: c.type,
+        code: c.code ?? '',
+        name: c.name ?? '',
+        type: c.type ?? 'Individual',
         email: c.email ?? '',
         phone: c.phone ?? '',
         tax_id: c.tax_id ?? '',
         contact_person: c.contact_person ?? '',
         notes: c.notes ?? '',
-        is_active: c.is_active,
+        is_active: Boolean(c.is_active),
     });
 
     const submit = (e: FormEvent) => {
@@ -53,21 +53,21 @@ export default function Edit({ customer }: EditProps) {
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
                                 label="Code"
-                                value={data.code}
+                                value={data.code ?? ''}
                                 onChange={(e) => setData('code', e.target.value)}
                                 error={errors.code}
                                 required
                             />
                             <Input
                                 label="Name"
-                                value={data.name}
+                                value={data.name ?? ''}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Type"
-                                value={data.type}
+                                value={data.type ?? ''}
                                 onChange={(e) =>
                                     setData('type', e.target.value as 'Individual' | 'Company')
                                 }
@@ -75,43 +75,43 @@ export default function Edit({ customer }: EditProps) {
                             >
                                 <option value="Individual">Individual</option>
                                 <option value="Company">Company</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Email"
                                 type="email"
-                                value={data.email}
+                                value={data.email ?? ''}
                                 onChange={(e) => setData('email', e.target.value)}
                                 error={errors.email}
                             />
                             <Input
                                 label="Phone"
-                                value={data.phone}
+                                value={data.phone ?? ''}
                                 onChange={(e) => setData('phone', e.target.value)}
                                 error={errors.phone}
                             />
                             <Input
                                 label="Tax ID (NPWP)"
-                                value={data.tax_id}
+                                value={data.tax_id ?? ''}
                                 onChange={(e) => setData('tax_id', e.target.value)}
                                 error={errors.tax_id}
                             />
                             <Input
                                 label="Contact Person"
-                                value={data.contact_person}
+                                value={data.contact_person ?? ''}
                                 onChange={(e) => setData('contact_person', e.target.value)}
                                 error={errors.contact_person}
                             />
                             <div className="flex items-end">
                                 <Switch
                                     label="Active"
-                                    checked={data.is_active}
+                                    checked={Boolean(data.is_active)}
                                     onCheckedChange={(checked) => setData('is_active', checked)}
                                 />
                             </div>
                             <Textarea
                                 className="md:col-span-2"
                                 label="Notes"
-                                value={data.notes}
+                                value={data.notes ?? ''}
                                 onChange={(e) => setData('notes', e.target.value)}
                                 error={errors.notes}
                                 rows={3}
@@ -132,7 +132,7 @@ export default function Edit({ customer }: EditProps) {
                     </div>
                 </form>
                 <CustomerRelatedTables
-                    customerId={c.id}
+                    customerId={Number(c.id)}
                     addresses={addresses}
                     contacts={contacts}
                     subscriptions={subscriptions}

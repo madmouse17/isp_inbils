@@ -4,9 +4,9 @@ namespace Modules\Inventory\Models;
 
 use App\Models\Core\Location;
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Stock extends Model
 {

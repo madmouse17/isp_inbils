@@ -1,145 +1,175 @@
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
-import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { Head, Link, router } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import { formatDate } from '@/lib/format';
 
-interface SpRow {
+type Row = {
     id: number;
     name: string;
-    download_max_mbps: number;
-    upload_max_mbps: number;
-    burst_download_mbps: number | null;
-    burst_upload_mbps: number | null;
-    radius_profile_name: string | null;
-    is_active: boolean;
-}
+    code?: string | null;
+    download_mbps?: number | string | null;
+    upload_mbps?: number | string | null;
+    created_at: string | null;
+};
 
-interface IndexProps extends Record<string, unknown> {
-    speedProfiles: { data: SpRow[]; current_page: number; last_page: number };
-    can: { create: boolean };
-}
-
-export default function Index({ speedProfiles, can }: IndexProps) {
-    const remove = (s: SpRow) => {
-        if (window.confirm(`Delete ${s.name}?`))
-            router.delete(route('admin.speed-profiles.destroy', s.id));
+type Props = {
+    speedProfiles: {
+        data: Row[];
+        current_page: number;
+        last_page: number;
+        per_page: number;
+        total: number;
     };
+    filters: {
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean };
+};
+
+export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Props) {
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.speed-profiles.index'),
+        filters,
+        only: ['speedProfiles', 'filters', 'can'],
+    });
+
+    const columns: DataTableColumn<Row>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.speed-profiles.edit', row.id)}
+                        className="font-medium text-primary hover:underline"
+                    >
+                        {row.name}
+                    </Link>
+                ),
+            },
+            {
+                key: 'download_mbps',
+                header: 'Download (Mbps)',
+                sortable: true,
+                sortKey: 'download_mbps',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.download_mbps ?? '—'),
+            },
+            {
+                key: 'upload_mbps',
+                header: 'Upload (Mbps)',
+                sortable: true,
+                sortKey: 'upload_mbps',
+                className: 'text-right tabular-nums',
+                cell: (row) => String(row.upload_mbps ?? '—'),
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDate(row.created_at),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => (
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={route('admin.speed-profiles.edit', row.id)}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Edit
+                        </Link>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (window.confirm(`Delete ${row.name}?`))
+                                    router.delete(route('admin.speed-profiles.destroy', row.id));
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Speed Profiles">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Speed Profiles" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Speed Profiles"
-                    subtitle="Manage RADIUS speed profiles."
+                    description="Marketing speed labels linked to packages."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.speed-profiles.create'))}
-                            >
-                                Create
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.speed-profiles.export')}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button asChild size="sm">
+                                    <Link href={route('admin.speed-profiles.create')}>
+                                        <Plus className="size-4" />
+                                        New profile
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
 
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Down Max</TH>
-                                    <TH>Up Max</TH>
-                                    <TH>Burst Down</TH>
-                                    <TH>Burst Up</TH>
-                                    <TH>RADIUS</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {speedProfiles.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    speedProfiles.data.map((s) => (
-                                        <TR key={s.id}>
-                                            <TD>{s.name}</TD>
-                                            <TD>{s.download_max_mbps} Mbps</TD>
-                                            <TD>{s.upload_max_mbps} Mbps</TD>
-                                            <TD>
-                                                {s.burst_download_mbps
-                                                    ? `${s.burst_download_mbps} Mbps`
-                                                    : '-'}
-                                            </TD>
-                                            <TD>
-                                                {s.burst_upload_mbps
-                                                    ? `${s.burst_upload_mbps} Mbps`
-                                                    : '-'}
-                                            </TD>
-                                            <TD className="font-mono text-sm">
-                                                {s.radius_profile_name ?? '-'}
-                                            </TD>
-                                            <TD>
-                                                <Badge variant={s.is_active ? 'success' : 'danger'}>
-                                                    {s.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Link
-                                                        href={route(
-                                                            'admin.speed-profiles.edit',
-                                                            s.id,
-                                                        )}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(s)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={speedProfiles.current_page}
-                            lastPage={speedProfiles.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.speed-profiles.index'), { page })
-                            }
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="sp-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="sp-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Name…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    pagination={toPagination(speedProfiles)}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(perPage) => set('per_page', perPage)}
+                    emptyTitle="No speed profiles"
+                    emptyDescription="No speed profiles match the current filters."
+                    loading={false}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }

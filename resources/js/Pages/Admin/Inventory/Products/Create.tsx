@@ -9,7 +9,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -70,7 +70,7 @@ export default function Create({ categories }: CreateProps) {
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Category"
                                 value={data.category_id}
                                 onChange={(e) => setData('category_id', e.target.value)}
@@ -83,14 +83,13 @@ export default function Create({ categories }: CreateProps) {
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Unit"
                                 value={unitLabel}
                                 readOnly
                                 disabled
                                 hint="Unit follows selected category."
-                                error={errors.unit_id}
                             />
                             <Input
                                 label="Sell Price"

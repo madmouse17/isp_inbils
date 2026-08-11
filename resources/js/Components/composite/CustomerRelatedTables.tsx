@@ -1,6 +1,18 @@
 import { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { Badge, Table, Tab, TabList, TabPanel, Tabs, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Badge,
+    Table,
+    Tab,
+    TabList,
+    TabPanel,
+    Tabs,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
 import { StatusBadge } from './StatusBadge';
 import type { CustomerAddress, CustomerContact, ServiceSubscription } from '@/types/models';
 
@@ -49,7 +61,10 @@ export function CustomerRelatedTables({
                         <TBody>
                             {addresses.length === 0 ? (
                                 <TR>
-                                    <TD colSpan={5} className="py-8 text-center text-muted-foreground">
+                                    <TD
+                                        colSpan={5}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
                                         No addresses.
                                     </TD>
                                 </TR>
@@ -67,7 +82,11 @@ export function CustomerRelatedTables({
                                             )}
                                         </TD>
                                         <TD>
-                                            {address.is_primary ? <Badge variant="brand">Yes</Badge> : '-'}
+                                            {address.is_primary ? (
+                                                <Badge variant="brand">Yes</Badge>
+                                            ) : (
+                                                '-'
+                                            )}
                                         </TD>
                                     </TR>
                                 ))
@@ -99,7 +118,10 @@ export function CustomerRelatedTables({
                         <TBody>
                             {contacts.length === 0 ? (
                                 <TR>
-                                    <TD colSpan={5} className="py-8 text-center text-muted-foreground">
+                                    <TD
+                                        colSpan={5}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
                                         No contacts.
                                     </TD>
                                 </TR>
@@ -110,7 +132,13 @@ export function CustomerRelatedTables({
                                         <TD>{contact.position ?? '-'}</TD>
                                         <TD>{contact.phone ?? '-'}</TD>
                                         <TD>{contact.email ?? '-'}</TD>
-                                        <TD>{contact.is_primary ? <Badge variant="brand">Yes</Badge> : '-'}</TD>
+                                        <TD>
+                                            {contact.is_primary ? (
+                                                <Badge variant="brand">Yes</Badge>
+                                            ) : (
+                                                '-'
+                                            )}
+                                        </TD>
                                     </TR>
                                 ))
                             )}
@@ -141,7 +169,10 @@ export function CustomerRelatedTables({
                         <TBody>
                             {subscriptions.length === 0 ? (
                                 <TR>
-                                    <TD colSpan={5} className="py-8 text-center text-muted-foreground">
+                                    <TD
+                                        colSpan={5}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
                                         No subscriptions.
                                     </TD>
                                 </TR>
@@ -150,10 +181,15 @@ export function CustomerRelatedTables({
                                     <TR key={subscription.id}>
                                         <TD className="font-mono text-sm">{subscription.code}</TD>
                                         <TD>
-                                            {subscription.package?.name ?? `#${subscription.service_package_id}`}
+                                            {subscription.package?.name ??
+                                                `#${subscription.service_package_id}`}
                                         </TD>
                                         <TD>
-                                            <StatusBadge variant={subscriptionStatusVariant(subscription.status)}>
+                                            <StatusBadge
+                                                variant={subscriptionStatusVariant(
+                                                    subscription.status,
+                                                )}
+                                            >
                                                 {subscription.status}
                                             </StatusBadge>
                                         </TD>

@@ -1,27 +1,23 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { useCallback, useMemo, useState } from 'react';
+import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
-import { useInertiaForm } from '@/hooks/useInertiaForm';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
 import {
     Badge,
     Button,
     Card,
     CardContent,
     Input,
+    Modal,
     SearchSelect,
     Switch,
-    Select,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-    Modal,
-    Pagination,
+    NativeSelect,
 } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
 
 interface OrgRow {
     id: number;
@@ -38,8 +34,16 @@ interface OrgRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    organizations: { data: OrgRow[]; current_page: number; last_page: number };
+    organizations: {
+        data: OrgRow[];
+        current_page: number;
+        last_page: number;
+        per_page?: number;
+        total?: number;
+    };
     parentOptions: { data: OrgRow[] };
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { export: boolean };
 }
 
 type OrgType = 'company' | 'branch' | 'area' | 'unit' | 'team';
@@ -81,20 +85,33 @@ const emptyForm: OrganizationForm = {
     is_active: true,
 };
 
-export default function Index({ organizations, parentOptions }: IndexProps) {
+export default function Index({ organizations, parentOptions, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
     const [parentSearch, setParentSearch] = useState('');
     const { data, setData, post, put, processing, errors, reset } =
-        useInertiaForm<OrganizationForm>(emptyForm);
+        useForm<OrganizationForm>(emptyForm);
 
-    const rowMap = new Map(parentOptions.data.map((organization) => [organization.id, organization]));
-    const parentSelectOptions = parentOptions.data.map((organization) => ({
-        id: organization.id,
-        value: String(organization.id),
-        label: `${organization.code} - ${organization.name}`,
-        description: organization.path ?? organization.type,
-    }));
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.organizations.index'),
+        filters,
+        only: ['organizations', 'parentOptions', 'filters', 'can'],
+    });
+
+    const rowMap = useMemo(
+        () => new Map(parentOptions.data.map((organization) => [organization.id, organization])),
+        [parentOptions.data],
+    );
+    const parentSelectOptions = useMemo(
+        () =>
+            parentOptions.data.map((organization) => ({
+                id: organization.id,
+                value: String(organization.id),
+                label: `${organization.code} - ${organization.name}`,
+                description: organization.path ?? organization.type,
+            })),
+        [parentOptions.data],
+    );
     const availableParentOptions = parentSelectOptions.filter((option) => option.id !== editId);
 
     const openCreate = () => {
@@ -103,21 +120,28 @@ export default function Index({ organizations, parentOptions }: IndexProps) {
         setEditId(null);
         setModalOpen(true);
     };
-    const openEdit = (o: OrgRow) => {
-        setData('code', o.code);
-        setData('name', o.name);
-        setData('type', o.type as OrgType);
-        setData('parent_id', o.parent_id ? String(o.parent_id) : '');
-        setData('address', o.address ?? '');
-        setData('phone', o.phone ?? '');
-        setData('email', o.email ?? '');
-        setData('is_active', o.is_active);
-        setParentSearch(parentSelectOptions.find((option) => option.id === o.parent_id)?.value ?? '');
-        setEditId(o.id);
-        setModalOpen(true);
-    };
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
+
+    const openEdit = useCallback(
+        (o: OrgRow) => {
+            setData('code', o.code);
+            setData('name', o.name);
+            setData('type', o.type as OrgType);
+            setData('parent_id', o.parent_id ? String(o.parent_id) : '');
+            setData('address', o.address ?? '');
+            setData('phone', o.phone ?? '');
+            setData('email', o.email ?? '');
+            setData('is_active', o.is_active);
+            setParentSearch(
+                parentSelectOptions.find((option) => option.id === o.parent_id)?.value ?? '',
+            );
+            setEditId(o.id);
+            setModalOpen(true);
+        },
+        [parentSelectOptions, setData],
+    );
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
         if (editId) {
             put(route('admin.organizations.update', editId), {
                 onSuccess: () => {
@@ -126,27 +150,104 @@ export default function Index({ organizations, parentOptions }: IndexProps) {
                     setModalOpen(false);
                 },
             });
-        } else {
-            post(route('admin.organizations.store'), {
-                onSuccess: () => {
-                    reset();
-                    setParentSearch('');
-                    setModalOpen(false);
-                },
-            });
+            return;
         }
+
+        post(route('admin.organizations.store'), {
+            onSuccess: () => {
+                reset();
+                setParentSearch('');
+                setModalOpen(false);
+            },
+        });
     };
-    const remove = (o: OrgRow) => {
-        if (window.confirm(`Delete ${o.name}?`))
+
+    const remove = useCallback((o: OrgRow) => {
+        if (window.confirm(`Delete ${o.name}?`)) {
             router.delete(route('admin.organizations.destroy', o.id), {
                 preserveScroll: true,
             });
-    };
+        }
+    }, []);
 
     const updateParent = (value: string) => {
         setParentSearch(value);
         setData('parent_id', value);
     };
+
+    const columns: DataTableColumn<OrgRow>[] = useMemo(
+        () => [
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (o) => <span className="font-mono text-sm">{o.code}</span>,
+            },
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (o) => (
+                    <div>
+                        <p className="font-medium text-foreground">{o.name}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {o.parent_id
+                                ? `Parent: ${rowMap.get(o.parent_id)?.name ?? '-'}`
+                                : 'Root unit'}
+                        </p>
+                    </div>
+                ),
+            },
+            {
+                key: 'type',
+                header: 'Type',
+                sortable: true,
+                sortKey: 'type',
+                cell: (o) => <Badge variant="neutral">{o.type}</Badge>,
+            },
+            {
+                key: 'path',
+                header: 'Path',
+                cell: (o) => <span className="text-sm text-muted-foreground">{o.path ?? '-'}</span>,
+            },
+            {
+                key: 'children_count',
+                header: 'Children',
+                cell: (o) => (
+                    <Badge variant="neutral">
+                        {o.children_count ?? 0}{' '}
+                        {(o.children_count ?? 0) === 1 ? 'child' : 'children'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'is_active',
+                header: 'Status',
+                cell: (o) => (
+                    <Badge variant={o.is_active ? 'success' : 'danger'}>
+                        {o.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (o) => (
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(o)}>
+                            Edit
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(o)}>
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ],
+        [rowMap, openEdit, remove],
+    );
 
     return (
         <AdminLayout title="Organization">
@@ -155,95 +256,69 @@ export default function Index({ organizations, parentOptions }: IndexProps) {
                     title="Organization Units"
                     subtitle="Branch, area, unit, team hierarchy."
                     actions={
-                        <Button type="button" onClick={openCreate}>
-                            Add Unit
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.organizations.export')}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            <Button type="button" onClick={openCreate}>
+                                Add Unit
+                            </Button>
+                        </div>
                     }
                 />
+
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Name</TH>
-                                    <TH>Type</TH>
-                                    <TH>Path</TH>
-                                    <TH>Children</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {organizations.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    organizations.data.map((o) => (
-                                        <TR key={o.id}>
-                                            <TD className="font-mono text-sm">{o.code}</TD>
-                                            <TD>
-                                                <div>
-                                                    <p>{o.name}</p>
-                                                    <p className="mt-1 text-xs text-muted-foreground">
-                                                        {o.parent_id
-                                                            ? `Parent: ${rowMap.get(o.parent_id)?.name ?? '-'}`
-                                                            : 'Root unit'}
-                                                    </p>
-                                                </div>
-                                            </TD>
-                                            <TD>
-                                                <Badge variant="neutral">{o.type}</Badge>
-                                            </TD>
-                                            <TD className="text-sm text-surface-500">
-                                                {o.path ?? '-'}
-                                            </TD>
-                                            <TD>
-                                                <ChildrenSummary count={o.children_count ?? 0} />
-                                            </TD>
-                                            <TD>
-                                                <Badge variant={o.is_active ? 'success' : 'danger'}>
-                                                    {o.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(o)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(o)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={organizations.current_page}
-                            lastPage={organizations.last_page}
-                            onPageChange={(page) => router.get(route('admin.organizations.index'), { page })}
+                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                            <div className="min-w-[12rem] flex-1 space-y-1">
+                                <label
+                                    className="text-xs font-medium text-muted-foreground"
+                                    htmlFor="org-search"
+                                >
+                                    Search
+                                </label>
+                                <Input
+                                    id="org-search"
+                                    value={params.search ?? ''}
+                                    onChange={(event) => set('search', event.target.value)}
+                                    placeholder="Code, name, path…"
+                                />
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-xs font-medium text-muted-foreground">
+                                    Per page
+                                </label>
+                                <NativeSelect
+                                    value={params.per_page || '10'}
+                                    onChange={(event) => set('per_page', event.target.value)}
+                                    options={[
+                                        { value: '10', label: '10 / page' },
+                                        { value: '25', label: '25 / page' },
+                                        { value: '50', label: '50 / page' },
+                                    ]}
+                                    className="w-32"
+                                />
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(organizations)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="No organization units"
+                            emptyDescription="No organization units match the current filters."
                         />
                     </CardContent>
                 </Card>
+
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
@@ -254,21 +329,21 @@ export default function Index({ organizations, parentOptions }: IndexProps) {
                             <Input
                                 label="Code"
                                 value={data.code}
-                                onChange={(e) => setData('code', e.target.value)}
+                                onChange={(event) => setData('code', event.target.value)}
                                 error={errors.code}
                                 required
                             />
                             <Input
                                 label="Name"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(event) => setData('name', event.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Type"
                                 value={data.type}
-                                onChange={(e) => setData('type', e.target.value as OrgType)}
+                                onChange={(event) => setData('type', event.target.value as OrgType)}
                                 options={orgTypeOptions}
                                 error={errors.type}
                                 required
@@ -282,23 +357,23 @@ export default function Index({ organizations, parentOptions }: IndexProps) {
                             <Input
                                 label="Phone"
                                 value={data.phone}
-                                onChange={(e) => setData('phone', e.target.value)}
+                                onChange={(event) => setData('phone', event.target.value)}
                             />
                             <Input
                                 label="Email"
                                 value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
+                                onChange={(event) => setData('email', event.target.value)}
                             />
                         </div>
                         <Input
                             label="Address"
                             value={data.address}
-                            onChange={(e) => setData('address', e.target.value)}
+                            onChange={(event) => setData('address', event.target.value)}
                         />
                         <Switch
                             label="Active"
                             checked={data.is_active}
-                            onCheckedChange={(c) => setData('is_active', c)}
+                            onCheckedChange={(checked) => setData('is_active', checked)}
                         />
                         <div className="flex justify-end gap-2">
                             <Button
@@ -341,17 +416,5 @@ function ParentSearchInput({
             error={error}
             disabled={options.length === 0}
         />
-    );
-}
-
-function ChildrenSummary({ count }: { count: number }) {
-    if (count === 0) {
-        return <span className="text-sm text-muted-foreground">No children</span>;
-    }
-
-    return (
-        <Badge variant="neutral">
-            {count} {count === 1 ? 'child' : 'children'}
-        </Badge>
     );
 }

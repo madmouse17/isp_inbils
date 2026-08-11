@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Modules\Service\Http\Resources\ServicePackageResource;
 
 class SubscriptionResource extends JsonResource
 {
@@ -29,10 +30,10 @@ class SubscriptionResource extends JsonResource
             'notes' => $this->notes,
             'terminated_at' => $this->terminated_at,
             'terminated_reason' => $this->terminated_reason,
-            'package' => new \Modules\Service\Http\Resources\ServicePackageResource($this->whenLoaded('servicePackage')),
+            'package' => new ServicePackageResource($this->whenLoaded('servicePackage')),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'installation_address' => new CustomerAddressResource($this->whenLoaded('installationAddress')),
-            'serving_pop' => new \App\Http\Resources\LocationResource($this->whenLoaded('servingPop')),
+            'serving_pop' => new LocationResource($this->whenLoaded('servingPop')),
             'created_at' => $this->created_at,
         ];
     }

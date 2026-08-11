@@ -7,10 +7,22 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
+/**
+ * @property int $id
+ * @property int $network_asset_id
+ * @property ?int $location_id
+ * @property ?int $customer_id
+ * @property ?int $subscription_id
+ * @property ?int $spk_id
+ * @property ?int $installed_by
+ * @property ?CarbonInterface $installed_at
+ * @property ?CarbonInterface $removed_at
+ */
 class NetworkAssetInstallation extends Model
 {
     use BelongsToCompany;

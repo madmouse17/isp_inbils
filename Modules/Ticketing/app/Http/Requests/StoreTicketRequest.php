@@ -2,9 +2,12 @@
 
 namespace Modules\Ticketing\Http\Requests;
 
+use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
 class StoreTicketRequest extends FormRequest
 {
@@ -33,8 +36,64 @@ class StoreTicketRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->input('source') === 'customer' && !$this->input('customer_id')) {
+        if ($this->input('source') === 'customer' && ! $this->input('customer_id')) {
             $this->getValidatorInstance()->errors()->add('customer_id', 'Customer required when source is customer.');
         }
+    }
+
+    public function after(): array
+    {
+        return [
+            function ($validator): void {
+                $companyId = CompanyService::currentId();
+                $customerId = $this->input('customer_id');
+                $subscriptionId = $this->input('subscription_id');
+                $networkAssetId = $this->input('network_asset_id');
+                $locationId = $this->input('location_id');
+
+                if ($customerId && $subscriptionId) {
+                    $subscription = ServiceSubscription::query()
+                        ->where('company_id', $companyId)
+                        ->find($subscriptionId);
+
+                    if ($subscription && (int) $subscription->customer_id !== (int) $customerId) {
+                        $validator->errors()->add('subscription_id', 'Subscription does not belong to customer.');
+                    }
+                }
+
+                if ($customerId && $networkAssetId) {
+                    $asset = NetworkAsset::query()
+                        ->where('company_id', $companyId)
+                        ->find($networkAssetId);
+
+                    if ($asset && $asset->customer_id !== null && (int) $asset->customer_id !== (int) $customerId) {
+                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to customer.');
+                    }
+                }
+
+                if ($subscriptionId && $networkAssetId) {
+                    $subscription = ServiceSubscription::query()
+                        ->where('company_id', $companyId)
+                        ->find($subscriptionId);
+                    $asset = NetworkAsset::query()
+                        ->where('company_id', $companyId)
+                        ->find($networkAssetId);
+
+                    if ($subscription && $asset && $asset->subscription_id !== null && (int) $asset->subscription_id !== (int) $subscription->id) {
+                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to subscription.');
+                    }
+                }
+
+                if ($locationId) {
+                    $location = Location::query()
+                        ->where('company_id', $companyId)
+                        ->find($locationId);
+
+                    if (! $location) {
+                        $validator->errors()->add('location_id', 'Selected location is invalid for this company.');
+                    }
+                }
+            },
+        ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Models\Core\NumberSequence;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class NumberSequenceService
@@ -18,14 +19,22 @@ class NumberSequenceService
                 ->first();
 
             if (! $seq) {
-                $seq = NumberSequence::query()->create([
-                    'company_id' => $companyId,
-                    'entity_type' => $entityType,
-                    'prefix' => $prefix ?: strtoupper(substr($entityType, 0, 3)),
-                    'next_number' => 1,
-                    'padding' => 5,
-                    'year_suffix' => true,
-                ]);
+                try {
+                    $seq = NumberSequence::query()->create([
+                        'company_id' => $companyId,
+                        'entity_type' => $entityType,
+                        'prefix' => $prefix ?: strtoupper(substr($entityType, 0, 3)),
+                        'next_number' => 1,
+                        'padding' => 5,
+                        'year_suffix' => true,
+                    ]);
+                } catch (QueryException) {
+                    // Concurrent insert won the unique race; re-read the locked row it created.
+                    $seq = NumberSequence::forCompany($companyId)
+                        ->where('entity_type', $entityType)
+                        ->lockForUpdate()
+                        ->firstOrFail();
+                }
             }
 
             $number = $seq->next_number;

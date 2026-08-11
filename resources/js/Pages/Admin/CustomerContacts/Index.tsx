@@ -2,171 +2,218 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
-import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Switch,
-    Textarea,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-    Modal,
-    Pagination,
-} from '@/Components/ui';
-import type { CustomerContact } from '@/types/models';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Badge, Button, Card, CardContent, Input, Modal, Switch, Textarea } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
 
-interface ContactProps {
-    customer: { id: number; code: string; name: string };
-    contacts: { data: CustomerContact[]; current_page: number; last_page: number };
+interface ContactRow {
+    id: number;
+    name: string;
+    position?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    is_primary: boolean;
+    notes?: string | null;
 }
 
-export default function Index({ customer, contacts }: ContactProps) {
+interface IndexProps extends Record<string, unknown> {
+    customer: { id: number; code: string; name: string };
+    contacts: {
+        data: ContactRow[];
+        current_page: number;
+        last_page: number;
+        per_page?: number;
+        total?: number;
+    };
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { export: boolean };
+}
+
+const formDefaults = {
+    name: '',
+    position: '',
+    phone: '',
+    email: '',
+    is_primary: false,
+    notes: '',
+};
+
+export default function Index({ customer, contacts, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
-    const list = contacts.data;
-    const { data, setData, post, put, processing, errors, reset } = useForm({
-        name: '',
-        position: '',
-        phone: '',
-        email: '',
-        is_primary: false,
-        notes: '',
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const { data, setData, post, put, processing, errors, reset } = useForm(formDefaults);
+
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.customers.contacts.index', customer.id),
+        filters,
+        only: ['contacts', 'filters', 'can', 'customer'],
     });
 
     const openCreate = () => {
         reset();
-        setEditId(null);
+        setEditingId(null);
         setModalOpen(true);
     };
 
-    const openEdit = (c: CustomerContact) => {
-        setData('name', c.name);
-        setData('position', c.position ?? '');
-        setData('phone', c.phone ?? '');
-        setData('email', c.email ?? '');
-        setData('is_primary', c.is_primary);
-        setData('notes', c.notes ?? '');
-        setEditId(c.id);
+    const openEdit = (row: ContactRow) => {
+        setData('name', row.name);
+        setData('position', row.position ?? '');
+        setData('phone', row.phone ?? '');
+        setData('email', row.email ?? '');
+        setData('is_primary', row.is_primary);
+        setData('notes', row.notes ?? '');
+        setEditingId(row.id);
         setModalOpen(true);
     };
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        if (editId) {
-            put(route('admin.customers.contacts.update', [customer.id, editId]), {
-                onSuccess: () => setModalOpen(false),
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+
+        if (editingId) {
+            put(route('admin.customers.contacts.update', [customer.id, editingId]), {
+                onSuccess: () => {
+                    reset();
+                    setModalOpen(false);
+                },
             });
-        } else {
-            post(route('admin.customers.contacts.store', customer.id), {
-                onSuccess: () => setModalOpen(false),
+            return;
+        }
+
+        post(route('admin.customers.contacts.store', customer.id), {
+            onSuccess: () => {
+                reset();
+                setModalOpen(false);
+            },
+        });
+    };
+
+    const remove = (row: ContactRow) => {
+        if (window.confirm(`Delete ${row.name}?`)) {
+            router.delete(route('admin.customers.contacts.destroy', [customer.id, row.id]), {
+                preserveScroll: true,
             });
         }
     };
 
-    const remove = (c: CustomerContact) => {
-        if (window.confirm(`Delete ${c.name}?`))
-            router.delete(route('admin.customers.contacts.destroy', [customer.id, c.id]));
-    };
+    const columns: DataTableColumn<ContactRow>[] = [
+        {
+            key: 'name',
+            header: 'Name',
+            sortable: true,
+            sortKey: 'name',
+            cell: (row) => <span className="font-medium text-foreground">{row.name}</span>,
+        },
+        {
+            key: 'position',
+            header: 'Position',
+            sortable: true,
+            sortKey: 'role',
+            cell: (row) => row.position ?? '—',
+        },
+        {
+            key: 'phone',
+            header: 'Phone',
+            sortable: true,
+            sortKey: 'phone',
+            cell: (row) => row.phone ?? '—',
+        },
+        {
+            key: 'email',
+            header: 'Email',
+            sortable: true,
+            sortKey: 'email',
+            cell: (row) => row.email ?? '—',
+        },
+        {
+            key: 'is_primary',
+            header: 'Primary',
+            cell: (row) => (
+                <Badge variant={row.is_primary ? 'brand' : 'neutral'}>
+                    {row.is_primary ? 'Primary' : 'Secondary'}
+                </Badge>
+            ),
+        },
+        {
+            key: 'notes',
+            header: 'Notes',
+            cell: (row) => (
+                <span className="line-clamp-2 text-sm text-muted-foreground">
+                    {row.notes ?? '—'}
+                </span>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            cell: (row) => (
+                <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(row)}>
+                        Edit
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(row)}>
+                        Delete
+                    </Button>
+                </div>
+            ),
+        },
+    ];
 
     return (
         <AdminLayout title="Customer Contacts">
             <div className="space-y-6">
                 <PageHeader
-                    title="Contacts"
+                    title="Customer Contacts"
                     subtitle={`${customer.code} — ${customer.name}`}
                     actions={
-                        <>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() =>
-                                    router.get(route('admin.customers.show', customer.id))
-                                }
-                            >
-                                Back
-                            </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route(
+                                        'admin.customers.contacts.export',
+                                        customer.id,
+                                    )}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
                             <Button type="button" onClick={openCreate}>
                                 Add Contact
                             </Button>
-                        </>
+                        </div>
                     }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Position</TH>
-                                    <TH>Phone</TH>
-                                    <TH>Email</TH>
-                                    <TH>Primary</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {list.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No contacts.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    list.map((c) => (
-                                        <TR key={c.id}>
-                                            <TD>{c.name}</TD>
-                                            <TD>{c.position ?? '-'}</TD>
-                                            <TD>{c.phone ?? '-'}</TD>
-                                            <TD>{c.email ?? '-'}</TD>
-                                            <TD>
-                                                {c.is_primary ? (
-                                                    <Badge variant="brand">Yes</Badge>
-                                                ) : (
-                                                    '-'
-                                                )}
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(c)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(c)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={contacts.current_page}
-                            lastPage={contacts.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.customers.contacts.index', customer.id), { page })
-                            }
+                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                            <div className="min-w-[12rem] flex-1 space-y-1">
+                                <label
+                                    className="text-xs font-medium text-muted-foreground"
+                                    htmlFor="contacts-search"
+                                >
+                                    Search
+                                </label>
+                                <Input
+                                    id="contacts-search"
+                                    value={params.search ?? ''}
+                                    onChange={(event) => set('search', event.target.value)}
+                                    placeholder="Name, position, phone, email…"
+                                />
+                            </div>
+                        </div>
+
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(contacts)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            emptyTitle="No contacts"
+                            emptyDescription="No contacts match the current filters."
                         />
                     </CardContent>
                 </Card>
@@ -174,48 +221,47 @@ export default function Index({ customer, contacts }: ContactProps) {
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Contact' : 'Add Contact'}
+                    title={editingId ? 'Edit Contact' : 'Add Contact'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
                                 label="Name"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(event) => setData('name', event.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <Input
                                 label="Position"
                                 value={data.position}
-                                onChange={(e) => setData('position', e.target.value)}
+                                onChange={(event) => setData('position', event.target.value)}
                                 error={errors.position}
                             />
                             <Input
                                 label="Phone"
                                 value={data.phone}
-                                onChange={(e) => setData('phone', e.target.value)}
+                                onChange={(event) => setData('phone', event.target.value)}
                                 error={errors.phone}
                             />
                             <Input
                                 label="Email"
-                                type="email"
                                 value={data.email}
-                                onChange={(e) => setData('email', e.target.value)}
+                                onChange={(event) => setData('email', event.target.value)}
                                 error={errors.email}
                             />
                         </div>
-                        <Switch
-                            label="Primary"
-                            checked={data.is_primary}
-                            onCheckedChange={(c) => setData('is_primary', c)}
-                        />
                         <Textarea
                             label="Notes"
                             value={data.notes}
-                            onChange={(e) => setData('notes', e.target.value)}
+                            onChange={(event) => setData('notes', event.target.value)}
                             error={errors.notes}
-                            rows={2}
+                            rows={3}
+                        />
+                        <Switch
+                            label="Primary contact"
+                            checked={data.is_primary}
+                            onCheckedChange={(checked) => setData('is_primary', checked)}
                         />
                         <div className="flex justify-end gap-2">
                             <Button
@@ -226,7 +272,7 @@ export default function Index({ customer, contacts }: ContactProps) {
                                 Cancel
                             </Button>
                             <Button type="submit" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editingId ? 'Save' : 'Add'}
                             </Button>
                         </div>
                     </form>

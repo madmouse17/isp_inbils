@@ -9,7 +9,7 @@ import {
     CardContent,
     Input,
     Pagination,
-    Select,
+    NativeSelect,
     Table,
     TBody,
     TD,
@@ -86,7 +86,7 @@ export default function Index({ customers, filters }: IndexProps) {
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Name, code, phone"
                             />
-                            <Select
+                            <NativeSelect
                                 label="Type"
                                 value={type}
                                 onChange={(e) => setType(e.target.value)}
@@ -96,7 +96,7 @@ export default function Index({ customers, filters }: IndexProps) {
                                     { value: 'Company', label: 'Company' },
                                 ]}
                             />
-                            <Select
+                            <NativeSelect
                                 label="Status"
                                 value={status}
                                 onChange={(e) => setStatus(e.target.value)}

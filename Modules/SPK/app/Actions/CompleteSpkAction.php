@@ -2,11 +2,11 @@
 
 namespace Modules\SPK\Actions;
 
+use App\Actions\CreateInvoiceFromSpkAction;
 use App\Services\Core\AuditService;
 use App\Services\Core\SettingService;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Support\Facades\DB;
-use Modules\Billing\Services\BillingService;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Services\StockService;
 use Modules\NetworkAsset\Models\NetworkAsset;
@@ -19,7 +19,7 @@ class CompleteSpkAction
     public static function execute(WorkOrder $workOrder): WorkOrder
     {
         return DB::transaction(function () use ($workOrder) {
-            $workOrder = WorkOrder::with(['media', 'items.product', 'subscription.customer', 'customer'])
+            $workOrder = WorkOrder::with(['media', 'items.product', 'items.networkAsset.product', 'subscription.customer', 'customer'])
                 ->lockForUpdate()
                 ->findOrFail($workOrder->id);
 
@@ -117,38 +117,38 @@ class CompleteSpkAction
         abort_unless($workOrder->subscription->customer?->company_id === $workOrder->company_id, 422, 'Subscription must belong to the SPK company.');
         abort_unless($workOrder->subscription->customer_id === $workOrder->customer_id, 422, 'Subscription must belong to the SPK customer.');
 
-        $selectedItems = $workOrder->items->filter(fn (WorkOrderItem $item) => $item->network_asset_id !== null);
-        if ($selectedItems->isEmpty()) {
+        $serializedItems = $workOrder->items->filter(fn (WorkOrderItem $item) => Product::withoutCompany()->whereKey($item->product_id)->value('type') === 'asset');
+        if ($serializedItems->isEmpty()) {
             return;
         }
 
-        abort_unless($selectedItems->count() === 1, 422, 'Installation SPK can only install one selected network asset.');
+        $serializedItems->each(function (WorkOrderItem $item) use ($workOrder): void {
+            abort_unless($item->network_asset_id, 422, 'Serialized installation requires a selected network asset.');
 
-        $selectedItem = $selectedItems->first();
-        $asset = NetworkAsset::withoutCompany()
-            ->lockForUpdate()
-            ->find($selectedItem->network_asset_id);
+            $asset = NetworkAsset::withoutCompany()
+                ->lockForUpdate()
+                ->find($item->network_asset_id);
 
-        abort_unless($asset, 422, 'Selected network asset is unavailable.');
-        abort_unless($asset->company_id === $workOrder->company_id, 422, 'Selected network asset must belong to the SPK company.');
+            abort_unless($asset, 422, 'Selected network asset is unavailable.');
+            abort_unless($asset->company_id === $workOrder->company_id, 422, 'Selected network asset must belong to the SPK company.');
+            $product = Product::withoutCompany()->find($item->product_id);
+            abort_unless($product?->company_id === $workOrder->company_id, 422, 'Selected product must belong to the SPK company.');
+            abort_unless($product?->type === 'asset', 422, 'Selected product must be a serialized asset.');
+            abort_unless($asset->product_id === $item->product_id, 422, 'Selected network asset must match the SPK item product.');
+            abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
 
-        $product = Product::withoutCompany()->find($selectedItem->product_id);
+            NetworkAssetService::install(
+                $asset,
+                $workOrder->location_id,
+                $workOrder->customer_id,
+                $workOrder->subscription_id,
+                $workOrder->id
+            );
 
-        abort_unless($product?->company_id === $workOrder->company_id, 422, 'Selected product must belong to the SPK company.');
-        abort_unless($asset->product_id === $selectedItem->product_id, 422, 'Selected network asset must match the SPK item product.');
-        abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
-
-        NetworkAssetService::install(
-            $asset,
-            $workOrder->location_id,
-            $workOrder->customer_id,
-            $workOrder->subscription_id,
-            $workOrder->id
-        );
-
-        if ($workOrder->subscription && ! $workOrder->subscription->ont_asset_id) {
-            $workOrder->subscription->update(['ont_asset_id' => $asset->id]);
-        }
+            if ($workOrder->subscription && ! $workOrder->subscription->ont_asset_id) {
+                $workOrder->subscription->update(['ont_asset_id' => $asset->id]);
+            }
+        });
     }
 
     private static function activateSubscription(WorkOrder $workOrder): void
@@ -166,7 +166,7 @@ class CompleteSpkAction
             return;
         }
 
-        BillingService::createFromSpk($workOrder->id);
+        CreateInvoiceFromSpkAction::execute($workOrder->id);
     }
 
     private static function autoInvoiceEnabled(WorkOrder $workOrder): bool

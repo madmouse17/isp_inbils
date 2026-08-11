@@ -18,7 +18,7 @@ class TicketCategory extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'name', 'code', 'default_sla_hours', 'default_priority', 'is_active',
+        'company_id', 'name', 'code', 'default_sla_hours', 'default_priority', 'is_active',
     ];
 
     protected $casts = [

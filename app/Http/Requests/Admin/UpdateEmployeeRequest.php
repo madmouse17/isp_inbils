@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,9 +15,11 @@ class UpdateEmployeeRequest extends FormRequest
 
     public function rules(): array
     {
-        $profileId = $this->route('employee_profile')->id;
-        $companyId = \App\Services\Core\CompanyService::currentId();
+        $profileId = $this->route('employee')?->id ?? $this->route('employee_profile')?->id;
+        $companyId = CompanyService::currentId();
+
         return [
+            'user_id' => ['sometimes', 'required', Rule::exists('users', 'id')->where('company_id', $companyId)],
             'organization_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
             'vehicle_id' => ['nullable', Rule::exists('vehicles', 'id')->where('company_id', $companyId)],
             'employee_number' => ['required', 'string', 'max:50', Rule::unique('employee_profiles')->where('company_id', $companyId)->ignore($profileId)],

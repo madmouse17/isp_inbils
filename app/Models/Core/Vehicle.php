@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,7 +18,7 @@ class Vehicle extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected static string $factory = \Database\Factories\VehicleFactory::class;
+    protected static string $factory = VehicleFactory::class;
 
     protected $fillable = [
         'company_id',

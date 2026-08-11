@@ -9,7 +9,7 @@ import {
     CardTitle,
     Input,
     SearchSelect,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -70,7 +70,10 @@ export default function Create({ locations, products }: CreateProps) {
     return (
         <AdminLayout title="Create Network Asset">
             <div className="space-y-6">
-                <PageHeader title="Create Network Asset" subtitle="Fill required fields, then save." />
+                <PageHeader
+                    title="Create Network Asset"
+                    subtitle="Fill required fields, then save."
+                />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
@@ -93,7 +96,7 @@ export default function Create({ locations, products }: CreateProps) {
                                 emptyText="No active products found."
                                 error={errors.product_id}
                             />
-                            <Select
+                            <NativeSelect
                                 label="Asset Type"
                                 value={data.asset_type}
                                 onChange={(e) => setData('asset_type', e.target.value)}
@@ -111,7 +114,7 @@ export default function Create({ locations, products }: CreateProps) {
                                 <option value="rack">Rack</option>
                                 <option value="power">Power</option>
                                 <option value="other">Other</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Serial Number"
                                 value={data.serial_number}
@@ -146,7 +149,7 @@ export default function Create({ locations, products }: CreateProps) {
                                 error={errors.location_id}
                                 hint="Leave empty if asset is in storage."
                             />
-                            <Select
+                            <NativeSelect
                                 label="Ownership"
                                 value={data.ownership}
                                 onChange={(e) => setData('ownership', e.target.value)}
@@ -154,7 +157,7 @@ export default function Create({ locations, products }: CreateProps) {
                                 <option value="owned">Owned</option>
                                 <option value="leased">Leased</option>
                                 <option value="customer_provided">Customer Provided</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Vendor"
                                 value={data.vendor}

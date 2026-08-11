@@ -3,7 +3,15 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Select } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    Input,
+    NativeSelect,
+} from '@/Components/ui';
 
 interface TechData extends Record<string, unknown> {
     spk_completed?: number;
@@ -52,7 +60,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Select
+                            <NativeSelect
                                 label="Technician"
                                 value={techId}
                                 onChange={(e) => setTechId(e.target.value)}
@@ -63,7 +71,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                                         {t.name}
                                     </option>
                                 ))}
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="From"
                                 type="date"

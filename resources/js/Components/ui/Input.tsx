@@ -1,6 +1,5 @@
-import React from 'react';
+import * as React from 'react';
 import { cn } from '@/lib/utils';
-import { Label } from './Label';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -9,51 +8,57 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
     leftIcon?: React.ReactNode;
 }
 
-export const Input = React.forwardRef<HTMLInputElement, InputProps>(
-    ({ label, error, hint, leftIcon, className, id, ...props }, ref) => {
-        const inputId = id || label?.toLowerCase().replace(/\s+/g, '-');
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+    ({ className, type, label, error, hint, leftIcon, id, ...props }, ref) => {
+        const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
+        const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
+
         return (
-            <div className="w-full">
-                {label && (
-                    <Label htmlFor={inputId} required={props.required}>
+            <div className="w-full space-y-1.5">
+                {label ? (
+                    <label
+                        htmlFor={inputId}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                    >
                         {label}
-                    </Label>
-                )}
-                <div className="relative mt-1">
-                    {leftIcon && (
+                        {props.required ? <span className="text-destructive"> *</span> : null}
+                    </label>
+                ) : null}
+                <div className="relative">
+                    {leftIcon ? (
                         <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                             {leftIcon}
                         </span>
-                    )}
+                    ) : null}
                     <input
-                        ref={ref}
+                        type={type}
                         id={inputId}
                         className={cn(
-                            'h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+                            'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
                             leftIcon && 'pl-9',
                             error && 'border-destructive focus-visible:ring-destructive',
                             className,
                         )}
-                        aria-invalid={error ? 'true' : undefined}
-                        aria-describedby={
-                            error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined
-                        }
+                        ref={ref}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={describedBy}
                         {...props}
                     />
                 </div>
-                {error && (
-                    <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">
+                {error ? (
+                    <p id={`${inputId}-error`} className="text-sm text-destructive">
                         {error}
                     </p>
-                )}
-                {!error && hint && (
-                    <p id={`${inputId}-hint`} className="mt-1 text-sm text-muted-foreground">
+                ) : null}
+                {!error && hint ? (
+                    <p id={`${inputId}-hint`} className="text-sm text-muted-foreground">
                         {hint}
                     </p>
-                )}
+                ) : null}
             </div>
         );
     },
 );
-
 Input.displayName = 'Input';
+
+export { Input };

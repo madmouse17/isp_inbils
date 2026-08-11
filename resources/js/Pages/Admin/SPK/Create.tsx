@@ -8,7 +8,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    Select,
+    NativeSelect,
     Textarea,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -67,7 +67,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                             <CardTitle>Details</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <Select
+                            <NativeSelect
                                 label="Type"
                                 value={data.type}
                                 onChange={(e) => setData('type', e.target.value)}
@@ -78,7 +78,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 <option value="maintenance">Maintenance</option>
                                 <option value="upgrade_service">Upgrade Service</option>
                                 <option value="relocation">Relocation</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Title"
                                 value={data.title}
@@ -86,7 +86,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 error={errors.title}
                                 required
                             />
-                            <Select
+                            <NativeSelect
                                 label="Customer"
                                 value={data.customer_id}
                                 onChange={(e) => setData('customer_id', e.target.value)}
@@ -98,8 +98,8 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                         {c.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Subscription"
                                 value={data.subscription_id}
                                 onChange={(e) => setData('subscription_id', e.target.value)}
@@ -111,8 +111,8 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                         {s.code}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Location"
                                 value={data.location_id}
                                 onChange={(e) => setData('location_id', e.target.value)}
@@ -124,8 +124,8 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                         {l.code} — {l.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Priority"
                                 value={data.priority}
                                 onChange={(e) => setData('priority', e.target.value)}
@@ -134,7 +134,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
                                 <option value="urgent">Urgent</option>
-                            </Select>
+                            </NativeSelect>
                             <Input
                                 label="Scheduled Date"
                                 type="date"

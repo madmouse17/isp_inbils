@@ -29,7 +29,7 @@ interface AddressProps {
 
 export default function Index({ customer, addresses }: AddressProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editId, setEditId] = useState<number | string | null>(null);
     const addrList = addresses.data;
     const { data, setData, post, put, processing, errors, reset } = useForm({
         label: '',
@@ -48,20 +48,20 @@ export default function Index({ customer, addresses }: AddressProps) {
     };
 
     const openEdit = (a: CustomerAddress) => {
-        setData('label', a.label);
-        setData('address', a.address);
+        setData('label', a.label ?? '');
+        setData('address', a.address ?? '');
         setData('city', a.city ?? '');
-        setData('postal_code', a.postal_code ?? '');
-        setData('is_installation_point', a.is_installation_point);
-        setData('is_primary', a.is_primary);
-        setData('notes', a.notes ?? '');
+        setData('postal_code', `${a.postal_code ?? ''}`);
+        setData('is_installation_point', Boolean(a.is_installation_point));
+        setData('is_primary', Boolean(a.is_primary));
+        setData('notes', `${a.notes ?? ''}`);
         setEditId(a.id);
         setModalOpen(true);
     };
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        if (editId) {
+        if (editId !== null) {
             put(route('admin.customers.addresses.update', [customer.id, editId]), {
                 onSuccess: () => setModalOpen(false),
             });
@@ -175,7 +175,9 @@ export default function Index({ customer, addresses }: AddressProps) {
                             currentPage={addresses.current_page}
                             lastPage={addresses.last_page}
                             onPageChange={(page) =>
-                                router.get(route('admin.customers.addresses.index', customer.id), { page })
+                                router.get(route('admin.customers.addresses.index', customer.id), {
+                                    page,
+                                })
                             }
                         />
                     </CardContent>

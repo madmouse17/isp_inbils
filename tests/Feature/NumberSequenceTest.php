@@ -3,21 +3,20 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
-use App\Models\Core\NumberSequence;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
-use Database\Seeders\RolePermissionSeeder;
-use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
 class NumberSequenceTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     private User $admin;
+
     private Company $company;
 
     protected function setUp(): void
@@ -25,14 +24,14 @@ class NumberSequenceTest extends TestCase
         parent::setUp();
         $this->admin = $this->createCompanyUser();
         $this->company = $this->admin->company;
-        \App\Services\Core\CompanyService::resetCache();
+        CompanyService::resetCache();
     }
 
     public function test_first_number_generation(): void
     {
         $this->actingAs($this->admin);
         $code = NumberSequenceService::generate('invoice', 'INV');
-        $this->assertStringStartsWith('INV-' . now()->year . '-00001', $code);
+        $this->assertStringStartsWith('INV-'.now()->year.'-00001', $code);
     }
 
     public function test_next_number_increments(): void

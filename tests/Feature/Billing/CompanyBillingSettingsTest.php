@@ -9,8 +9,8 @@ use Tests\Traits\CreatesCompanyUser;
 
 class CompanyBillingSettingsTest extends TestCase
 {
-    use RefreshDatabase;
     use CreatesCompanyUser;
+    use RefreshDatabase;
 
     public function test_tax_rate_prefers_company_setting_over_global(): void
     {

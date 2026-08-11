@@ -2,6 +2,8 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readdirSync, renameSync } from 'node:fs';
 import { setTimeout as delay } from 'node:timers/promises';
 
+import { settleE2EArtifacts } from './e2e-artifacts.mjs';
+
 const hotPath = 'public/hot';
 const hotBackup = `public/hot.e2e-${process.pid}.bak`;
 const playwrightCli = 'node_modules/@playwright/test/cli.js';
@@ -88,6 +90,7 @@ const finalize = (code) => {
     if (finalizing) return;
     finalizing = true;
     restoreHot();
+    settleE2EArtifacts(process.exitCode ?? code);
     process.exit(process.exitCode ?? code);
 };
 

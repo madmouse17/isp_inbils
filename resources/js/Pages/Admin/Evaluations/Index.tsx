@@ -8,7 +8,7 @@ import {
     Card,
     CardContent,
     Input,
-    Select,
+    NativeSelect,
     Pagination,
     Table,
     TBody,
@@ -83,7 +83,7 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                                 onChange={(e) => setSearch(e.target.value)}
                                 placeholder="Employee name"
                             />
-                            <Select
+                            <NativeSelect
                                 label="Employee"
                                 value={employeeId}
                                 onChange={(e) => setEmployeeId(e.target.value)}
@@ -94,8 +94,8 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                                         {e.name}
                                     </option>
                                 ))}
-                            </Select>
-                            <Select
+                            </NativeSelect>
+                            <NativeSelect
                                 label="Reference Type"
                                 value={refType}
                                 onChange={(e) => setRefType(e.target.value)}
@@ -103,7 +103,7 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                                 <option value="">All</option>
                                 <option value="WorkOrder">SPK</option>
                                 <option value="Ticket">Ticket</option>
-                            </Select>
+                            </NativeSelect>
                             <div className="self-end">
                                 <Button type="submit" variant="secondary">
                                     Filter

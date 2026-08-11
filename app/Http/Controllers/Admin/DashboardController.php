@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 use Modules\Billing\Models\Invoice;
@@ -23,6 +24,8 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
+        Gate::authorize('dashboard.view');
+
         $company = CompanyService::current();
         $companyId = $request->user()?->company_id;
 

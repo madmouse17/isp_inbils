@@ -2,13 +2,17 @@
 
 namespace Modules\Service\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Support\ExportQuery;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
-use Inertia\Response;
+use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Requests\StoreServicePackageRequest;
 use Modules\Service\Http\Requests\UpdateServicePackageRequest;
 use Modules\Service\Http\Resources\BandwidthProfileResource;
@@ -19,34 +23,32 @@ use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ServicePackageController extends Controller
 {
-    public function index(Request $request): Response
+    use HasIndexQuery;
+
+    private const SORTABLE = ['code', 'name', 'price_mrc', 'price_otc', 'is_active', 'created_at'];
+
+    public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', ServicePackage::class);
 
-        $packages = ServicePackage::query()
-            ->with(['bandwidthProfile', 'speedProfile', 'slaTier'])
-            ->when($request->filled('is_active'), fn ($query) => $query->where('is_active', $request->boolean('is_active')))
-            ->when($request->filled('sla_tier_id'), fn ($query) => $query->where('sla_tier_id', $request->integer('sla_tier_id')))
-            ->when($request->filled('search'), fn ($query) => $query->where(function ($query) use ($request) {
-                $query->where('code', 'like', '%'.$request->string('search').'%')
-                    ->orWhere('name', 'like', '%'.$request->string('search').'%');
-            }))
-            ->orderBy('name')
-            ->paginate(10)
-            ->withQueryString();
+        $packages = $this->filteredQuery($request)->paginate(10)->withQueryString();
 
         return Inertia::render('Admin/Service/Packages/Index', [
             'servicePackages' => ServicePackageResource::collection($packages),
             'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->get()),
-            'filters' => $request->only(['is_active', 'sla_tier_id', 'search']),
-            'can' => ['create' => $request->user()?->can('service.create') || $request->user()?->can('service.manage')],
+            'filters' => $request->only(['is_active', 'sla_tier_id', 'search', 'sort', 'direction']),
+            'can' => [
+                'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
+                'export' => (bool) $request->user()?->can('service.export'),
+            ],
         ]);
     }
 
-    public function create(): Response
+    public function create(): InertiaResponse
     {
         Gate::authorize('create', ServicePackage::class);
 
@@ -61,7 +63,7 @@ class ServicePackageController extends Controller
         return redirect()->route('admin.service-packages.index')->with('success', 'Service package created.');
     }
 
-    public function show(ServicePackage $servicePackage): Response
+    public function show(ServicePackage $servicePackage): InertiaResponse
     {
         Gate::authorize('view', $servicePackage);
 
@@ -70,7 +72,7 @@ class ServicePackageController extends Controller
         ]);
     }
 
-    public function edit(ServicePackage $servicePackage): Response
+    public function edit(ServicePackage $servicePackage): InertiaResponse
     {
         Gate::authorize('edit', $servicePackage);
 
@@ -109,6 +111,46 @@ class ServicePackageController extends Controller
         return back()->with('success', 'Service package deactivated.');
     }
 
+    public function export(Request $request): HttpResponse|StreamedResponse
+    {
+        Gate::authorize('service.export');
+
+        $export = ExportQuery::make($this->filteredQuery($request))
+            ->defaultSort('name', 'asc')
+            ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)))
+            ->fromRequest($request);
+
+        $columns = [
+            'code' => 'Code',
+            'name' => 'Name',
+            'bandwidth_profile' => 'Bandwidth',
+            'speed_profile' => 'Speed',
+            'sla_tier' => 'SLA',
+            'price_mrc' => 'MRC',
+            'price_otc' => 'OTC',
+            'is_active' => 'Status',
+        ];
+
+        $map = static fn (ServicePackage $package): array => [
+            'code' => $package->code,
+            'name' => $package->name,
+            'bandwidth_profile' => $package->bandwidthProfile?->name ?? '-',
+            'speed_profile' => $package->speedProfile?->name ?? '-',
+            'sla_tier' => $package->slaTier?->name ?? '-',
+            'price_mrc' => $package->price_mrc,
+            'price_otc' => $package->price_otc,
+            'is_active' => $package->is_active ? 'Active' : 'Inactive',
+        ];
+
+        $filename = 'service-packages-export-'.now()->format('Ymd-His');
+
+        if (strtolower((string) $request->input('format', 'csv')) === 'pdf') {
+            return $export->streamPdf('Service Packages', $columns, $map, $filename.'.pdf');
+        }
+
+        return $export->streamCsv($columns, $map, $filename.'.csv');
+    }
+
     /** @return array<string, mixed> */
     private function formOptions(): array
     {
@@ -119,14 +161,28 @@ class ServicePackageController extends Controller
         ];
     }
 
+    /** @return Builder<ServicePackage> */
+    private function filteredQuery(Request $request): Builder
+    {
+        return ServicePackage::query()
+            ->with(['bandwidthProfile', 'speedProfile', 'slaTier'])
+            ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
+            ->when($request->filled('sla_tier_id'), fn (Builder $query) => $query->where('sla_tier_id', $request->integer('sla_tier_id')))
+            ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
+                $term = '%'.trim((string) $request->input('search')).'%';
+                $query->where(function (Builder $sub) use ($term): void {
+                    $sub->where('code', 'like', $term)->orWhere('name', 'like', $term);
+                });
+            })
+            ->tap(fn (Builder $query) => $this->applySort($query, $request, 'name'));
+    }
+
     private function hasActiveSubscriptions(ServicePackage $servicePackage): bool
     {
         if (! Schema::hasTable('service_subscriptions')) {
             return false;
         }
 
-        return $servicePackage->subscriptions()
-            ->whereIn('status', ['active', 'pending'])
-            ->exists();
+        return $servicePackage->subscriptions()->whereIn('status', ['active', 'pending'])->exists();
     }
 }

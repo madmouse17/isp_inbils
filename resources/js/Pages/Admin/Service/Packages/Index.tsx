@@ -1,202 +1,249 @@
-﻿import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
-import AdminLayout from '@/Layouts/AdminLayout';
+import { Head, Link, router } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { Plus } from 'lucide-react';
+import AppLayout from '@/Layouts/AppLayout';
+import { PageHeader } from '@/Components/composite/PageHeader';
+import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/Components/ui/Select';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import { formatDate, formatMoney } from '@/lib/format';
 
-interface PkgRow {
+type Row = {
     id: number;
+    name: string;
     code: string;
-    name: string;
-    price_mrc: string;
-    price_otc: string;
-    contract_min_months: number | null;
-    is_active: boolean;
-    bandwidth_profile: { name: string } | null;
-    speed_profile: { name: string } | null;
-    sla_tier: { name: string } | null;
-}
+    price: number | string;
+    currency?: string;
+    billing_cycle?: string;
+    is_active?: boolean;
+    created_at: string | null;
+};
 
-interface OptRow {
-    id: number;
-    name: string;
-}
-
-interface IndexProps extends Record<string, unknown> {
+type Props = {
     servicePackages: {
-        data: PkgRow[];
+        data: Row[];
         current_page: number;
         last_page: number;
         per_page: number;
         total: number;
     };
-    slaTiers: { data: OptRow[] };
-    filters: { is_active?: string; sla_tier_id?: string; search?: string };
-    can: { create: boolean };
-}
-
-export default function Index({ servicePackages, filters, can }: IndexProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [isActive, setIsActive] = useState(filters.is_active ?? '');
-    const [slaTierId, setSlaTierId] = useState(filters.sla_tier_id ?? '');
-
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.service-packages.index'),
-            { search, is_active: isActive, sla_tier_id: slaTierId },
-            { preserveState: true },
-        );
+    slaTiers: { data: { id: number; name: string }[] };
+    filters: {
+        search?: string;
+        is_active?: string;
+        sla_tier_id?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
     };
+    can: { create: boolean; export: boolean };
+};
 
-    const remove = (p: PkgRow) => {
-        if (window.confirm(`Delete ${p.name}?`))
-            router.delete(route('admin.service-packages.destroy', p.id));
-    };
+export default function PackagesIndex({ servicePackages, slaTiers, filters, can }: Props) {
+    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+        url: route('admin.service-packages.index'),
+        filters,
+        only: ['servicePackages', 'filters', 'can', 'slaTiers'],
+    });
+
+    const columns: DataTableColumn<Row>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (row) => (
+                    <Link
+                        href={route('admin.service-packages.edit', row.id)}
+                        className="font-medium text-primary hover:underline"
+                    >
+                        {row.name}
+                    </Link>
+                ),
+            },
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (row) => row.code,
+            },
+            {
+                key: 'price',
+                header: 'Price',
+                sortable: true,
+                sortKey: 'price',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatMoney(row.price, row.currency ?? 'IDR'),
+            },
+            {
+                key: 'billing_cycle',
+                header: 'Cycle',
+                sortable: true,
+                sortKey: 'billing_cycle',
+                cell: (row) => row.billing_cycle ?? '—',
+            },
+            {
+                key: 'is_active',
+                header: 'Active',
+                sortable: true,
+                sortKey: 'is_active',
+                cell: (row) => <StatusBadge status={row.is_active ? 'active' : 'inactive'} />,
+            },
+            {
+                key: 'created_at',
+                header: 'Created',
+                sortable: true,
+                sortKey: 'created_at',
+                cell: (row) => formatDate(row.created_at),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => (
+                    <div className="flex flex-wrap gap-2">
+                        <Link
+                            href={route('admin.service-packages.show', row.id)}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Show
+                        </Link>
+                        <Link
+                            href={route('admin.service-packages.edit', row.id)}
+                            className="text-sm font-medium text-primary hover:underline"
+                        >
+                            Edit
+                        </Link>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                if (window.confirm(`Delete ${row.name}?`)) {
+                                    router.delete(route('admin.service-packages.destroy', row.id));
+                                }
+                            }}
+                        >
+                            Delete
+                        </Button>
+                    </div>
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
-        <AdminLayout title="Service Packages">
-            <div className="space-y-6">
+        <AppLayout>
+            <Head title="Packages" />
+            <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Service Packages"
-                    subtitle="Manage internet service packages."
+                    title="Packages"
+                    description="Service packages sold to customers."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.service-packages.create'))}
-                            >
-                                Create
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.service-packages.export')}
+                                    params={params}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button asChild size="sm">
+                                    <Link href={route('admin.service-packages.create')}>
+                                        <Plus className="size-4" />
+                                        New package
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
 
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Search"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Code or name"
-                            />
-                            <Input
-                                label="Active"
-                                value={isActive}
-                                onChange={(e) => setIsActive(e.target.value)}
-                                placeholder="true/false"
-                            />
-                            <Input
-                                label="SLA Tier ID"
-                                value={slaTierId}
-                                onChange={(e) => setSlaTierId(e.target.value)}
-                                placeholder="Filter by SLA"
-                            />
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Name</TH>
-                                    <TH>Bandwidth</TH>
-                                    <TH>Speed</TH>
-                                    <TH>SLA</TH>
-                                    <TH>MRC</TH>
-                                    <TH>OTC</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {servicePackages.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={9}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    servicePackages.data.map((p) => (
-                                        <TR key={p.id}>
-                                            <TD className="font-mono text-sm">{p.code}</TD>
-                                            <TD>{p.name}</TD>
-                                            <TD>{p.bandwidth_profile?.name ?? '-'}</TD>
-                                            <TD>{p.speed_profile?.name ?? '-'}</TD>
-                                            <TD>{p.sla_tier?.name ?? '-'}</TD>
-                                            <TD>{p.price_mrc}</TD>
-                                            <TD>{p.price_otc}</TD>
-                                            <TD>
-                                                <Badge variant={p.is_active ? 'success' : 'danger'}>
-                                                    {p.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Link
-                                                        href={route(
-                                                            'admin.service-packages.show',
-                                                            p.id,
-                                                        )}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Show
-                                                    </Link>
-                                                    <Link
-                                                        href={route(
-                                                            'admin.service-packages.edit',
-                                                            p.id,
-                                                        )}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(p)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={servicePackages.current_page}
-                            lastPage={servicePackages.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.service-packages.index'), { page })
-                            }
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-[12rem] flex-1 space-y-1">
+                        <label
+                            className="text-xs font-medium text-muted-foreground"
+                            htmlFor="pkg-search"
+                        >
+                            Search
+                        </label>
+                        <Input
+                            id="pkg-search"
+                            value={params.search ?? ''}
+                            onChange={(e) => set('search', e.target.value)}
+                            placeholder="Name or code…"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">Active</label>
+                        <Select
+                            value={params.is_active || '__all__'}
+                            onValueChange={(value) =>
+                                set('is_active', value === '__all__' ? '' : value)
+                            }
+                        >
+                            <SelectTrigger className="w-[8rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                <SelectItem value="1">Active</SelectItem>
+                                <SelectItem value="0">Inactive</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-medium text-muted-foreground">
+                            SLA Tier
+                        </label>
+                        <Select
+                            value={params.sla_tier_id || '__all__'}
+                            onValueChange={(value) =>
+                                set('sla_tier_id', value === '__all__' ? '' : value)
+                            }
+                        >
+                            <SelectTrigger className="w-[12rem]">
+                                <SelectValue placeholder="All" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">All</SelectItem>
+                                {slaTiers.data.map((tier) => (
+                                    <SelectItem key={tier.id} value={String(tier.id)}>
+                                        {tier.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    pagination={toPagination(servicePackages)}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    onPageChange={(page) => set('page', page)}
+                    onPerPageChange={(perPage) => set('per_page', perPage)}
+                    emptyTitle="No packages"
+                    emptyDescription="No packages match the current filters."
+                    loading={false}
+                />
             </div>
-        </AdminLayout>
+        </AppLayout>
     );
 }
