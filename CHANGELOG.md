@@ -6,6 +6,18 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — Permission server-side DataTable (2026-08-11)
+
+- Migrated the Permission index to the shared server-side `DataTable` with search, sorting, pagination, and per-page controls.
+- Added a reusable deterministic dynamic badge for stable generated colors across permission groups and user roles.
+
+### Changed — Role DataTable and grouped permission selector (2026-08-11)
+
+- Migrated the Role index to the shared server-side `DataTable` and colored action buttons.
+- Added a compact two-panel permission selector with category-level select all behavior.
+- Ordered permission categories to follow the Admin sidebar menu sequence.
+- Applied green create and save actions to Role forms.
+
 ### Fixed — user Inertia response types (2026-08-11)
 
 - Corrected the User create, show, and edit controller return types to `Inertia\Response`.

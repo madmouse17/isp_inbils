@@ -1,19 +1,17 @@
-import { Link, router } from '@inertiajs/react';
+import { useMemo } from 'react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
+    DataTable,
+    DataTableActions,
+    type DataTableColumn,
+    PageHeader,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Badge, Button, Card, CardContent, Input } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import type { Paginated } from '@/types';
 
 interface RoleRow {
     id: number;
@@ -22,22 +20,70 @@ interface RoleRow {
     users_count?: number;
 }
 
-interface PageLinkMeta {
-    current_page: number;
-    last_page: number;
-}
 interface RolesProps {
-    roles: { data: RoleRow[]; meta: PageLinkMeta };
-    can: { create: boolean };
+    roles: Paginated<RoleRow>;
+    filters: {
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean };
 }
 
-const protectedRoles = ['admin', 'manager', 'staff', 'technician', 'customer'];
+const protectedRoles = new Set(['admin', 'manager', 'staff', 'technician', 'customer']);
 
-export default function Index({ roles, can }: RolesProps) {
-    const remove = (role: RoleRow) => {
-        if (window.confirm(`Delete ${role.name}?`))
-            router.delete(route('admin.roles.destroy', role.id));
-    };
+export default function Index({ roles, filters, can }: RolesProps) {
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+        url: route('admin.roles.index'),
+        filters,
+        only: ['roles', 'filters', 'can'],
+    });
+
+    const columns: DataTableColumn<RoleRow>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (role) => (
+                    <div className="flex items-center gap-2">
+                        <span className="font-medium">{role.name}</span>
+                        {protectedRoles.has(role.name) ? (
+                            <Badge variant="warning">Protected</Badge>
+                        ) : null}
+                    </div>
+                ),
+            },
+            {
+                key: 'permissions',
+                header: 'Permissions',
+                cell: (role) => <Badge variant="info">{role.permissions.length}</Badge>,
+            },
+            {
+                key: 'users_count',
+                header: 'Users',
+                cell: (role) => <Badge variant="secondary">{role.users_count ?? 0}</Badge>,
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (role) => (
+                    <DataTableActions
+                        editHref={route('admin.roles.edit', role.id)}
+                        deleteHref={
+                            protectedRoles.has(role.name)
+                                ? undefined
+                                : route('admin.roles.destroy', role.id)
+                        }
+                        deleteMessage={`Delete ${role.name}?`}
+                    />
+                ),
+            },
+        ],
+        [],
+    );
 
     return (
         <AdminLayout title="Roles">
@@ -46,89 +92,47 @@ export default function Index({ roles, can }: RolesProps) {
                     title="Roles"
                     subtitle="Manage RBAC roles and permission sets."
                     actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                onClick={() => router.get(route('admin.roles.create'))}
-                            >
-                                Create Role
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.roles.export')}
+                                    params={params}
+                                    formats={['csv', 'pdf']}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button
+                                    type="button"
+                                    variant="success"
+                                    onClick={() => router.get(route('admin.roles.create'))}
+                                >
+                                    Create Role
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
+
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Permissions</TH>
-                                    <TH>Users</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {roles.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={4}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    roles.data.map((role) => {
-                                        const protectedRole = protectedRoles.includes(role.name);
-                                        return (
-                                            <TR key={role.id}>
-                                                <TD>
-                                                    <div className="flex items-center gap-2">
-                                                        {role.name}
-                                                        {protectedRole && (
-                                                            <Badge variant="warning">
-                                                                Protected
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                </TD>
-                                                <TD>{role.permissions.length}</TD>
-                                                <TD>{role.users_count ?? 0}</TD>
-                                                <TD>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <Link
-                                                            href={route(
-                                                                'admin.roles.edit',
-                                                                role.id,
-                                                            )}
-                                                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                        >
-                                                            Edit
-                                                        </Link>
-                                                        {!protectedRole && (
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() => remove(role)}
-                                                            >
-                                                                Delete
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                </TD>
-                                            </TR>
-                                        );
-                                    })
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={roles.meta.current_page}
-                            lastPage={roles.meta.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.roles.index'), { page })
-                            }
+                        <Input
+                            label="Search"
+                            value={params.search ?? ''}
+                            onChange={(event) => set('search', event.target.value)}
+                            placeholder="Role name"
+                        />
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(roles)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="No roles"
+                            emptyDescription="No roles match the current search."
+                            loading={processing}
                         />
                     </CardContent>
                 </Card>

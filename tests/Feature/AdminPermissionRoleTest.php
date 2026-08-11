@@ -41,6 +41,33 @@ class AdminPermissionRoleTest extends TestCase
                 ->where('permissions.data.0.group', 'alpha'));
     }
 
+    public function test_permissions_index_supports_server_side_search_sort_and_per_page(): void
+    {
+        $this->actingAs($this->userWithPermissions('users.manage'));
+
+        Permission::create(['name' => 'billing.view', 'guard_name' => 'web']);
+        Permission::create(['name' => 'billing.update', 'guard_name' => 'web']);
+        Permission::create(['name' => 'inventory.view', 'guard_name' => 'web']);
+
+        $this->get(route('admin.permissions.index', [
+            'search' => 'billing',
+            'sort' => 'name',
+            'direction' => 'desc',
+            'per_page' => 25,
+        ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Permissions/Index')
+                ->has('permissions.data', 2)
+                ->where('permissions.data.0.name', 'billing.view')
+                ->where('permissions.data.1.name', 'billing.update')
+                ->where('permissions.meta.per_page', 25)
+                ->where('filters.search', 'billing')
+                ->where('filters.sort', 'name')
+                ->where('filters.direction', 'desc')
+                ->where('filters.per_page', '25'));
+    }
+
     public function test_role_edit_receives_permissions_group_data_and_selected_permissions(): void
     {
         $this->actingAs($this->userWithPermissions('roles.manage'));

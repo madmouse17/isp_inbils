@@ -1,74 +1,81 @@
-import { router } from '@inertiajs/react';
+import { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
-    Badge,
-    Card,
-    CardContent,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+    DataTable,
+    type DataTableColumn,
+    DynamicBadge,
+    PageHeader,
+} from '@/Components/composite';
+import { Card, CardContent, Input } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import type { Paginated } from '@/types';
 
 interface PermissionRow {
     id: number;
     name: string;
     group: string;
 }
-interface PageLinkMeta {
-    current_page: number;
-    last_page: number;
-}
+
 interface PermissionsProps {
-    permissions: { data: PermissionRow[]; meta: PageLinkMeta };
+    permissions: Paginated<PermissionRow>;
+    filters: {
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
 }
 
-export default function Index({ permissions }: PermissionsProps) {
+export default function Index({ permissions, filters }: PermissionsProps) {
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+        url: route('admin.permissions.index'),
+        filters,
+        only: ['permissions', 'filters'],
+    });
+
+    const columns: DataTableColumn<PermissionRow>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (permission) => (
+                    <span className="font-medium">{permission.name}</span>
+                ),
+            },
+            {
+                key: 'group',
+                header: 'Group',
+                cell: (permission) => <DynamicBadge value={permission.group} />,
+            },
+        ],
+        [],
+    );
+
     return (
         <AdminLayout title="Permissions">
             <div className="space-y-6">
                 <PageHeader title="Permissions" subtitle="Read-only permission matrix." />
+
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Group</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {permissions.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={2}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    permissions.data.map((permission) => (
-                                        <TR key={permission.id}>
-                                            <TD>{permission.name}</TD>
-                                            <TD>
-                                                <Badge>{permission.group}</Badge>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={permissions.meta.current_page}
-                            lastPage={permissions.meta.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.permissions.index'), { page })
-                            }
+                        <Input
+                            label="Search"
+                            value={params.search ?? ''}
+                            onChange={(event) => set('search', event.target.value)}
+                            placeholder="Permission name"
+                        />
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(permissions)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            loading={processing}
                         />
                     </CardContent>
                 </Card>
