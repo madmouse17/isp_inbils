@@ -97,7 +97,6 @@ export default function Show({ customer, history, historyAccess }: ShowProps) {
                 </div>
 
                 <CustomerRelatedTables
-                    customerId={Number(c.id)}
                     addresses={c.addresses ?? []}
                     contacts={c.contacts ?? []}
                     subscriptions={c.subscriptions ?? []}

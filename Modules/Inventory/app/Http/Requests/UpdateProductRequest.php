@@ -37,7 +37,7 @@ class UpdateProductRequest extends FormRequest
             'category_id' => ['required', Rule::exists('categories', 'id')->where('company_id', $companyId)],
             'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],
             'description' => ['nullable', 'string'],
-            'type' => ['nullable', 'string', 'in:consumable'],
+            'type' => ['nullable', 'string', 'in:consumable,asset,service'],
             'track_stock' => ['boolean'],
             'sell_price' => ['nullable', 'numeric', 'min:0'],
             'cost_price' => ['nullable', 'numeric', 'min:0'],

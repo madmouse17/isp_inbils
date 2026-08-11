@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
+return new class() extends Migration
 {
     /** @var array<string, array<string, array{values: array<int, string>, default?: string}>> */
     private array $columns = [
@@ -14,7 +14,7 @@ return new class extends Migration
         'service_subscriptions' => ['status' => ['values' => ['pending', 'active', 'suspended', 'terminated'], 'default' => 'pending']],
         'organization_units' => ['type' => ['values' => ['company', 'branch', 'area', 'unit', 'team'], 'default' => 'branch']],
         'employee_profiles' => ['status' => ['values' => ['active', 'inactive', 'terminated'], 'default' => 'active']],
-        'products' => ['type' => ['values' => ['consumable'], 'default' => 'consumable']],
+        'products' => ['type' => ['values' => ['consumable', 'asset', 'service'], 'default' => 'consumable']],
         'stock_movements' => ['movement_type' => ['values' => ['receive', 'issue', 'transfer', 'adjustment', 'reserve', 'release', 'return']]],
         'network_assets' => [
             'asset_type' => ['values' => ['router', 'switch', 'olt', 'onu_ont', 'radio', 'antenna', 'fiber', 'odp', 'odc', 'rack', 'power', 'other']],

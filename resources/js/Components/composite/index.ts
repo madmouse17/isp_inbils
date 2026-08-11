@@ -11,6 +11,8 @@ export { IndonesiaRegionFields } from './IndonesiaRegionFields';
 export type { IndonesiaRegionOptions, IndonesiaRegionValue } from './IndonesiaRegionFields';
 export { CustomerRelatedTables } from './CustomerRelatedTables';
 export type { CustomerHistory, CustomerHistoryAccess } from './CustomerRelatedTables';
+export { CustomerAddressEditor } from './CustomerAddressEditor';
+export { CustomerContactEditor } from './CustomerContactEditor';
 export { MoneyInput } from './MoneyInput';
 export { NativeSelect } from './NativeSelect';
 export type { NativeSelectProps } from './NativeSelect';

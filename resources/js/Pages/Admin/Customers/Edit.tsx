@@ -12,18 +12,27 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
-import { CustomerRelatedTables, PageHeader } from '@/Components/composite';
+import {
+    CustomerAddressEditor,
+    CustomerContactEditor,
+    PageHeader,
+    type IndonesiaRegionOptions,
+} from '@/Components/composite';
 import type { Customer } from '@/types/models';
 
 interface EditProps {
     customer: { data: Customer };
 }
 
-export default function Edit({ customer }: EditProps) {
+interface EditPageProps extends EditProps {
+    regions: IndonesiaRegionOptions;
+    can: { address: boolean; contact: boolean };
+}
+
+export default function Edit({ customer, regions, can }: EditPageProps) {
     const c = customer.data;
     const addresses = c.addresses ?? [];
     const contacts = c.contacts ?? [];
-    const subscriptions = c.subscriptions ?? [];
     const { data, setData, put, processing, errors } = useForm({
         code: c.code ?? '',
         name: c.name ?? '',
@@ -131,12 +140,10 @@ export default function Edit({ customer }: EditProps) {
                         </Button>
                     </div>
                 </form>
-                <CustomerRelatedTables
-                    customerId={Number(c.id)}
-                    addresses={addresses}
-                    contacts={contacts}
-                    subscriptions={subscriptions}
-                />
+                <div className="grid gap-6">
+                    <CustomerAddressEditor customerId={Number(c.id)} addresses={addresses} regions={regions} canManage={can.address} />
+                    <CustomerContactEditor customerId={Number(c.id)} contacts={contacts} canManage={can.contact} />
+                </div>
             </div>
         </AdminLayout>
     );

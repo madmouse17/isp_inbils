@@ -7,8 +7,10 @@ use Database\Factories\ServiceSubscriptionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Service\Models\ServicePackage;
+use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -68,6 +70,11 @@ class ServiceSubscription extends Model
     public function servingPop(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'serving_pop_id');
+    }
+
+    public function workOrders(): HasMany
+    {
+        return $this->hasMany(WorkOrder::class, 'subscription_id');
     }
 
     public function getActivitylogOptions(): LogOptions

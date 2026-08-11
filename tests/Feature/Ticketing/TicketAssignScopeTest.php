@@ -68,8 +68,8 @@ class TicketAssignScopeTest extends TestCase
             'is_active' => true,
         ]);
 
-        $normal = TicketService::computeSlaDeadline($category->id, 'medium');
-        $urgent = TicketService::computeSlaDeadline($category->id, 'urgent');
+        $normal = TicketService::computeSlaDeadline($category, 'medium');
+        $urgent = TicketService::computeSlaDeadline($category, 'urgent');
 
         $this->assertEqualsWithDelta(now()->addHours(8)->timestamp, $normal->timestamp, 2);
         $this->assertEqualsWithDelta(now()->addHours(4)->timestamp, $urgent->timestamp, 2);

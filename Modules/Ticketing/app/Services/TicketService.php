@@ -92,7 +92,7 @@ class TicketService
             $previousHandlerId = $ticket->assigned_to;
             $ticket->update(['assigned_to' => $handlerId, 'status' => 'assigned']);
 
-            if ($previousHandlerId !== $handlerId && $ticket->isDirty('assigned_to')) {
+            if ($previousHandlerId !== $handlerId) {
                 Notification::send($handler, new TicketAssignedNotification($ticket->id, $ticket->code, $ticket->company_id));
             }
 

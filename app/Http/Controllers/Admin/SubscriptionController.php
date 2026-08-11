@@ -12,6 +12,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SubscriptionService;
+use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -22,6 +23,7 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Resources\ServicePackageResource;
 use Modules\Service\Models\ServicePackage;
+use Modules\SPK\Models\WorkOrder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriptionController extends Controller
@@ -81,7 +83,27 @@ class SubscriptionController extends Controller
         $data = $request->validated();
         unset($data['status'], $data['code']);
 
-        $subscription->update($data);
+        $packageChanged = isset($data['service_package_id']) && (int) $data['service_package_id'] !== (int) $subscription->service_package_id;
+        $addressChanged = isset($data['installation_address_id']) && (int) $data['installation_address_id'] !== (int) $subscription->installation_address_id;
+
+        DB::transaction(function () use ($subscription, $data, $packageChanged, $addressChanged) {
+            $subscription->update($data);
+
+            if ($packageChanged || $addressChanged) {
+                $subscription->load('installationAddress', 'customer');
+                $generatedSpk = $subscription->workOrders()
+                    ->whereIn('status', ['draft', 'generated', 'rejected', 'cancelled'])
+                    ->latest()
+                    ->first();
+
+                if ($generatedSpk) {
+                    $generatedSpk->update([
+                        'subscription_id' => $subscription->id,
+                        'title' => 'Installation '. $subscription->code .' - '. ($subscription->customer?->name ?? ''),
+                    ]);
+                }
+            }
+        });
 
         return back()->with('success', 'Subscription updated.');
     }

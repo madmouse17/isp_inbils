@@ -59,7 +59,6 @@ export interface CustomerHistoryAccess {
 }
 
 interface CustomerRelatedTablesProps {
-    customerId: number;
     addresses: CustomerAddress[];
     contacts: CustomerContact[];
     subscriptions: ServiceSubscription[];
@@ -68,7 +67,6 @@ interface CustomerRelatedTablesProps {
 }
 
 export function CustomerRelatedTables({
-    customerId,
     addresses,
     contacts,
     subscriptions,
@@ -89,14 +87,6 @@ export function CustomerRelatedTables({
             </TabList>
             <TabPanel value="addresses">
                 <div className="space-y-3">
-                    <div className="flex justify-end">
-                        <Link
-                            href={route('admin.customers.addresses.index', customerId)}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                        >
-                            Manage Addresses
-                        </Link>
-                    </div>
                     <Table>
                         <THead>
                             <TR>
@@ -154,14 +144,6 @@ export function CustomerRelatedTables({
             </TabPanel>
             <TabPanel value="contacts">
                 <div className="space-y-3">
-                    <div className="flex justify-end">
-                        <Link
-                            href={route('admin.customers.contacts.index', customerId)}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                        >
-                            Manage Contacts
-                        </Link>
-                    </div>
                     <Table>
                         <THead>
                             <TR>
@@ -205,14 +187,6 @@ export function CustomerRelatedTables({
             </TabPanel>
             <TabPanel value="subscriptions">
                 <div className="space-y-3">
-                    <div className="flex justify-end">
-                        <Link
-                            href={route('admin.customers.subscriptions.index', customerId)}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                        >
-                            Manage Subscriptions
-                        </Link>
-                    </div>
                     <Table>
                         <THead>
                             <TR>

@@ -119,6 +119,15 @@ class CustomerController extends Controller
 
         return Inertia::render('Admin/Customers/Edit', [
             'customer' => new CustomerResource($customer),
+            'regions' => IndonesiaRegionService::options(
+                $customer->addresses->pluck('province_code')->all(),
+                $customer->addresses->pluck('city_code')->all(),
+                $customer->addresses->pluck('district_code')->all(),
+            ),
+            'can' => [
+                'address' => $request->user()?->can('customer.address.manage') ?? false,
+                'contact' => $request->user()?->can('customer.address.manage') ?? false,
+            ],
         ]);
     }
 
