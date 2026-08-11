@@ -89,4 +89,16 @@
     .filepond--progress-indicator {
         @apply text-primary;
     }
+
+    .dark .filepond--root .filepond--panel-root {
+        @apply border-border bg-muted/30;
+    }
+
+    .dark .filepond--root .filepond--drop-label {
+        @apply text-muted-foreground;
+    }
+
+    .dark .filepond--root .filepond--label-action {
+        @apply text-brand-400 decoration-brand-400/40;
+    }
 }

@@ -78,6 +78,28 @@ class UserServerTableExportTest extends TestCase
             );
     }
 
+    public function test_create_show_and_edit_render_inertia_pages(): void
+    {
+        $user = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Users/Create'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.show', $user))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Users/Show'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.edit', $user))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Users/Edit'));
+    }
+
     public function test_export_csv_respects_filters_and_company_scope(): void
     {
         User::factory()->create([

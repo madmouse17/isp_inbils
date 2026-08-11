@@ -2,6 +2,8 @@ export { Button, buttonVariants } from './Button';
 export type { ButtonProps } from './Button';
 export { Input } from './Input';
 export type { InputProps } from './Input';
+export { PhoneInput } from './PhoneInput';
+export type { PhoneInputProps } from './PhoneInput';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
 export { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './Select';

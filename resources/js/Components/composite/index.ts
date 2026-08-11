@@ -1,5 +1,7 @@
 export { DataTable } from './DataTable';
 export type { DataTableColumn, PaginatorShape, SortDirection } from './DataTable';
+export { DataTableActions } from './DataTableActions';
+export type { DataTableActionsProps } from './DataTableActions';
 export { DateRangeFilter } from './DateRangeFilter';
 export type { DateRangeValue } from './DateRangeFilter';
 export { FormField } from './FormField';
@@ -8,4 +10,5 @@ export { MoneyInput } from './MoneyInput';
 export { NativeSelect } from './NativeSelect';
 export type { NativeSelectProps } from './NativeSelect';
 export { PageHeader } from './PageHeader';
+export { RoleBadge } from './RoleBadge';
 export { StatusBadge } from './StatusBadge';

@@ -10,6 +10,7 @@ import {
     CardTitle,
     FileUpload,
     Input,
+    PhoneInput,
     Textarea,
     useToast,
 } from '@/Components/ui';
@@ -107,10 +108,11 @@ export default function Profile({ company, can }: ProfileProps) {
                                 error={errors.logo}
                                 disabled={!can.update}
                             />
-                            <Input
+                            <PhoneInput
                                 label="Phone"
                                 value={data.phone}
-                                onChange={(e) => setData('phone', e.target.value)}
+                                onChange={(value) => setData('phone', value)}
+                                hint="Allowed characters: 0-9, (, ), +, -."
                                 error={errors.phone}
                                 disabled={!can.update}
                             />

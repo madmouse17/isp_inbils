@@ -101,4 +101,35 @@ class CompanyProfileTest extends TestCase
 
         $response->assertInvalid(['logo']);
     }
+
+    public function test_company_phone_only_accepts_supported_characters(): void
+    {
+        $this->seed(RolePermissionSeeder::class);
+        app()['cache']->forget('spatie.permission.cache');
+
+        $company = Company::factory()->create(['is_active' => true]);
+        $admin = User::factory()->create([
+            'company_id' => $company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $admin->assignRole('admin');
+        CompanyService::resetCache();
+
+        $this->actingAs($admin)->post(route('admin.company.profile.update'), [
+            '_method' => 'put',
+            'name' => $company->name,
+            'code' => $company->code,
+            'phone' => '+62(21)-5550100',
+        ])->assertRedirect();
+
+        $this->assertSame('+62(21)-5550100', $company->fresh()->phone);
+
+        $this->actingAs($admin)->post(route('admin.company.profile.update'), [
+            '_method' => 'put',
+            'name' => $company->name,
+            'code' => $company->code,
+            'phone' => '0812ABC',
+        ])->assertInvalid(['phone']);
+    }
 }

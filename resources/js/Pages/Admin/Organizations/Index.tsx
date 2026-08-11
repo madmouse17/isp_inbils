@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { DataTableActions } from '@/Components/composite/DataTableActions';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ExportMenu';
@@ -162,14 +163,6 @@ export default function Index({ organizations, parentOptions, filters, can }: In
         });
     };
 
-    const remove = useCallback((o: OrgRow) => {
-        if (window.confirm(`Delete ${o.name}?`)) {
-            router.delete(route('admin.organizations.destroy', o.id), {
-                preserveScroll: true,
-            });
-        }
-    }, []);
-
     const updateParent = (value: string) => {
         setParentSearch(value);
         setData('parent_id', value);
@@ -235,18 +228,15 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 key: 'actions',
                 header: 'Actions',
                 cell: (o) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(o)}>
-                            Edit
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(o)}>
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        onEdit={() => openEdit(o)}
+                        deleteHref={route('admin.organizations.destroy', o.id)}
+                        deleteMessage={`Delete ${o.name}?`}
+                    />
                 ),
             },
         ],
-        [rowMap, openEdit, remove],
+        [rowMap, openEdit],
     );
 
     return (
@@ -264,7 +254,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" onClick={openCreate}>
+                            <Button type="button" variant="success" onClick={openCreate}>
                                 Add Unit
                             </Button>
                         </div>

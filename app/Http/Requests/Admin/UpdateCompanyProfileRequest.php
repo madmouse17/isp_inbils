@@ -21,9 +21,17 @@ class UpdateCompanyProfileRequest extends FormRequest
             'code' => ['required', 'string', 'max:50', Rule::unique('companies', 'code')->ignore(CompanyService::currentId())],
             'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'mimetypes:image/jpeg,image/png,image/webp,image/svg+xml', 'max:10240'],
             'address' => ['nullable', 'string', 'max:1000'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'max:50', 'regex:/^[0-9()+-]+$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'website' => ['nullable', 'url', 'max:255'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'phone.regex' => 'The phone may only contain numbers and the characters (, ), +, and -.',
         ];
     }
 }

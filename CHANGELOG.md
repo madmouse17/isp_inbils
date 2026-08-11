@@ -6,6 +6,20 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Fixed — user Inertia response types (2026-08-11)
+
+- Corrected the User create, show, and edit controller return types to `Inertia\Response`.
+
+### Changed — user DataTable actions and role badges (2026-08-11)
+
+- Migrated the Users index to the shared server-side `DataTable` pattern.
+- Added reusable show, edit, and delete table actions.
+- Applied shared colored table actions and the green add style to Organization Units.
+- Added consistent generated badge colors for built-in and custom user roles.
+- Added a reusable green success button style for create and add actions.
+- Muted the FilePond upload panel in dark mode to avoid a bright white surface.
+- Added a reusable `PhoneInput` component restricted to numbers and `() + -` characters.
+
 ### Changed — local full demo seed (2026-07-21)
 
 - `DatabaseSeeder` now runs demo users, customer demo, and E2E fixtures on local/dev/testing.
@@ -295,4 +309,3 @@ menunggu approval baginda sebelum eksekusi Phase 1.
 - `app.tsx`: remove redundant page-level ToastProvider (conflict root
   provider).
 - `Dashboard.tsx`: template dashboard (stats + table + recent activity).
-

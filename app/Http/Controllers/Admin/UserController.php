@@ -45,7 +45,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function create(Request $request): Response
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('create', User::class);
 
@@ -72,7 +72,7 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User created.');
     }
 
-    public function show(User $user): Response
+    public function show(User $user): InertiaResponse
     {
         $this->ensureSameCompany($user);
         Gate::authorize('view', $user);
@@ -82,7 +82,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function edit(User $user): Response
+    public function edit(User $user): InertiaResponse
     {
         $this->ensureSameCompany($user);
         Gate::authorize('edit', $user);
@@ -149,6 +149,11 @@ class UserController extends Controller
         return $format === 'pdf'
             ? $export->streamPdf('Users', $columns, $map, "users-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "users-export-{$stamp}.csv");
+    }
+
+    private function ensureSameCompany(User $user): void
+    {
+        abort_unless($user->company_id === CompanyService::currentId(), 404);
     }
 
     /**
