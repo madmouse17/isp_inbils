@@ -121,7 +121,7 @@ class TenantBoundaryTest extends TestCase
             'code' => 'TKT-XTENANT',
             'title' => 'Other ticket',
             'description' => 'Other company ticket',
-            'source' => 'manual',
+            'source' => 'internal',
             'category_id' => $category->id,
             'status' => 'open',
             'priority' => 'medium',
@@ -286,7 +286,7 @@ class TenantBoundaryTest extends TestCase
             'company_id' => $company->id,
             'code' => $code,
             'name' => $code,
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => $code,
             'is_active' => true,
         ]);

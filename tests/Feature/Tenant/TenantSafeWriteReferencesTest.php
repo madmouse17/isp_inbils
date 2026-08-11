@@ -139,7 +139,7 @@ class TenantSafeWriteReferencesTest extends TestCase
         $location = Location::query()->create([
             'code' => 'REQ-WH',
             'name' => 'Request WH',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'REQ-WH',
             'is_active' => true,
         ]);
@@ -173,7 +173,7 @@ class TenantSafeWriteReferencesTest extends TestCase
         $location = Location::query()->create([
             'code' => 'REQ-WH-2',
             'name' => 'Request WH 2',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'REQ-WH-2',
             'is_active' => true,
         ]);
@@ -230,7 +230,7 @@ class TenantSafeWriteReferencesTest extends TestCase
             'company_id' => $this->companyB->id,
             'code' => 'WH-B',
             'name' => 'Foreign WH',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'WH-B',
             'is_active' => true,
         ]);

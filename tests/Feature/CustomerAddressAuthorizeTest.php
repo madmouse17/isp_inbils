@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -20,6 +21,10 @@ class CustomerAddressAuthorizeTest extends TestCase
     {
         parent::setUp();
         app(PermissionRegistrar::class)->forgetCachedPermissions();
+        DB::table('indonesia_provinces')->insert(['code' => '31', 'name' => 'DKI JAKARTA']);
+        DB::table('indonesia_cities')->insert(['code' => '3171', 'province_code' => '31', 'name' => 'KOTA JAKARTA SELATAN']);
+        DB::table('indonesia_districts')->insert(['code' => '3171010', 'city_code' => '3171', 'name' => 'KEBAYORAN BARU']);
+        DB::table('indonesia_villages')->insert(['code' => '3171010001', 'district_code' => '3171010', 'name' => 'GANDARIA UTARA']);
     }
 
     public function test_store_forbids_user_without_customer_address_manage(): void
@@ -57,20 +62,16 @@ class CustomerAddressAuthorizeTest extends TestCase
             ->from(route('admin.customers.edit', $customer))
             ->post(route('admin.customers.addresses.store', $customer), $this->validPayload([
                 'label' => 'HQ',
-                'address_line' => 'Jl. Merdeka 1',
+                'address' => 'Jl. Merdeka 1',
                 'is_primary' => true,
             ]));
-
-        if ($response->status() !== 302 || $response->headers->get('Location') === null) {
-            fwrite(STDERR, 'ALLOW_STORE_DEBUG status='.$response->status().' loc='.($response->headers->get('Location') ?? 'null').' session='.json_encode($response->getSession()?->all())."\n");
-        }
 
         $response->assertRedirect(route('admin.customers.edit', $customer));
         $this->assertDatabaseHas('customer_addresses', [
             'customer_id' => $customer->id,
             'company_id' => $user->company_id,
             'label' => 'HQ',
-            'address_line' => 'Jl. Merdeka 1',
+            'address' => 'Jl. Merdeka 1',
             'is_primary' => 1,
         ]);
     }
@@ -82,7 +83,7 @@ class CustomerAddressAuthorizeTest extends TestCase
             'company_id' => $user->company_id,
             'customer_id' => $customer->id,
             'label' => 'Old',
-            'address_line' => 'Old street',
+            'address' => 'Old street',
         ]);
 
         $response = $this
@@ -90,14 +91,14 @@ class CustomerAddressAuthorizeTest extends TestCase
             ->from(route('admin.customers.edit', $customer))
             ->put(route('admin.customers.addresses.update', [$customer, $address]), $this->validPayload([
                 'label' => 'New',
-                'address_line' => 'New street',
+                'address' => 'New street',
             ]));
 
         $response->assertRedirect(route('admin.customers.edit', $customer));
         $this->assertDatabaseHas('customer_addresses', [
             'id' => $address->id,
             'label' => 'New',
-            'address_line' => 'New street',
+            'address' => 'New street',
         ]);
     }
 
@@ -127,16 +128,16 @@ class CustomerAddressAuthorizeTest extends TestCase
     {
         return array_merge([
             'label' => 'Office',
-            'address_line' => 'Jl. Sudirman 10',
-            'city' => 'Jakarta',
-            'province' => 'DKI',
+            'address' => 'Jl. Sudirman 10',
+            'province_code' => '31',
+            'city_code' => '3171',
+            'district_code' => '3171010',
+            'village_code' => '3171010001',
             'postal_code' => '12190',
-            'country' => 'ID',
             'lat' => -6.2,
             'lng' => 106.8,
             'is_primary' => false,
-            'is_billing' => false,
-            'is_shipping' => true,
+            'is_installation_point' => false,
             'notes' => null,
         ], $overrides);
     }

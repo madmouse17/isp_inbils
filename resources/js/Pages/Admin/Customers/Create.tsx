@@ -9,6 +9,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
+    MapPicker,
     NativeSelect,
     PhoneInput,
     Switch,
@@ -17,14 +18,26 @@ import {
     TabPanel,
     Tabs,
     Textarea,
+    type GeocodeResult,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import {
+    IndonesiaRegionFields,
+    PageHeader,
+    type IndonesiaRegionOptions,
+    type IndonesiaRegionValue,
+} from '@/Components/composite';
 
 interface AddressInput {
     label: string;
     address: string;
     city: string;
     postal_code: string;
+    province_code: string;
+    city_code: string;
+    district_code: string;
+    village_code: string;
+    lat: string;
+    lng: string;
     is_installation_point: boolean;
     is_primary: boolean;
     notes: string;
@@ -81,6 +94,9 @@ interface CustomerForm {
 interface CreateProps {
     packages: PackageOption[];
     locations: LocationOption[];
+    regions: IndonesiaRegionOptions;
+    geocodeResults?: GeocodeResult[];
+    geocodeIndex?: number;
 }
 
 const emptyAddress = (): AddressInput => ({
@@ -88,6 +104,12 @@ const emptyAddress = (): AddressInput => ({
     address: '',
     city: '',
     postal_code: '',
+    province_code: '',
+    city_code: '',
+    district_code: '',
+    village_code: '',
+    lat: '',
+    lng: '',
     is_installation_point: false,
     is_primary: false,
     notes: '',
@@ -102,8 +124,15 @@ const emptyContact = (): ContactInput => ({
     notes: '',
 });
 
-export default function Create({ packages, locations }: CreateProps) {
+export default function Create({
+    packages,
+    locations,
+    regions,
+    geocodeResults = [],
+    geocodeIndex,
+}: CreateProps) {
     const [tab, setTab] = useState('customer');
+    const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
     const { data, setData, post, processing, errors } = useForm<CustomerForm>({
         code: '',
         name: '',
@@ -135,6 +164,18 @@ export default function Create({ packages, locations }: CreateProps) {
     });
     const formErrors = errors as Record<string, string | undefined>;
 
+    const reloadRegions = (addresses: AddressInput[]) => {
+        router.get(
+            route('admin.customers.create'),
+            {
+                region_provinces: addresses.map((address) => address.province_code).filter(Boolean),
+                region_cities: addresses.map((address) => address.city_code).filter(Boolean),
+                region_districts: addresses.map((address) => address.district_code).filter(Boolean),
+            },
+            { only: ['regions'], preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
     const updateAddress = <Key extends keyof AddressInput>(
         index: number,
         key: Key,
@@ -156,6 +197,60 @@ export default function Create({ packages, locations }: CreateProps) {
                 [key]: current === index,
             })),
         );
+    };
+
+    const updateAddressRegion = (index: number, region: IndonesiaRegionValue) => {
+        const addresses = data.addresses.map((address, current) =>
+            current === index ? { ...address, ...region } : address,
+        );
+        setData('addresses', addresses);
+        reloadRegions(addresses);
+    };
+
+    const updateAddressCoordinates = (index: number, latitude: number, longitude: number) => {
+        setData(
+            'addresses',
+            data.addresses.map((address, current) =>
+                current === index
+                    ? { ...address, lat: latitude.toFixed(7), lng: longitude.toFixed(7) }
+                    : address,
+            ),
+        );
+    };
+
+    const searchAddress = (index: number, query: string) => {
+        setGeocodeSearchingIndex(index);
+        router.get(
+            route('admin.customers.create'),
+            { geocode_query: query, geocode_index: index },
+            {
+                only: ['geocodeResults', 'geocodeIndex'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setGeocodeSearchingIndex(null),
+            },
+        );
+    };
+
+    const selectGeocodeResult = (index: number, result: GeocodeResult) => {
+        const addresses = data.addresses.map((address, current) =>
+            current === index
+                ? {
+                      ...address,
+                      postal_code: result.postal_code,
+                      lat: Number(result.lat).toFixed(7),
+                      lng: Number(result.lng).toFixed(7),
+                      province_code: result.province_code,
+                      city_code: result.city_code,
+                      district_code: result.district_code,
+                      village_code: result.village_code,
+                      city: result.city,
+                  }
+                : address,
+        );
+        setData('addresses', addresses);
+        reloadRegions(addresses);
     };
 
     const removeAddress = (index: number) => {
@@ -328,17 +423,44 @@ export default function Create({ packages, locations }: CreateProps) {
                                                         error={formErrors[`addresses.${index}.label`]}
                                                         required
                                                     />
-                                                    <Input
-                                                        label="City"
-                                                        value={address.city}
-                                                        onChange={(event) =>
-                                                            updateAddress(
+                                                    <MapPicker
+                                                        latitude={address.lat}
+                                                        longitude={address.lng}
+                                                        onChange={(latitude, longitude) =>
+                                                            updateAddressCoordinates(
                                                                 index,
-                                                                'city',
-                                                                event.target.value,
+                                                                latitude,
+                                                                longitude,
                                                             )
                                                         }
-                                                        error={formErrors[`addresses.${index}.city`]}
+                                                        latitudeError={
+                                                            formErrors[`addresses.${index}.lat`]
+                                                        }
+                                                        longitudeError={
+                                                            formErrors[`addresses.${index}.lng`]
+                                                        }
+                                                        searchResults={
+                                                            geocodeIndex === index ? geocodeResults : []
+                                                        }
+                                                        searching={geocodeSearchingIndex === index}
+                                                        onSearch={(query) => searchAddress(index, query)}
+                                                        onSelectSearchResult={(result) =>
+                                                            selectGeocodeResult(index, result)
+                                                        }
+                                                    />
+                                                    <IndonesiaRegionFields
+                                                        idPrefix={`customer-address-${index}`}
+                                                        value={address}
+                                                        options={regions}
+                                                        onChange={(region) =>
+                                                            updateAddressRegion(index, region)
+                                                        }
+                                                        errors={{
+                                                            province_code: formErrors[`addresses.${index}.province_code`],
+                                                            city_code: formErrors[`addresses.${index}.city_code`],
+                                                            district_code: formErrors[`addresses.${index}.district_code`],
+                                                            village_code: formErrors[`addresses.${index}.village_code`],
+                                                        }}
                                                     />
                                                     <Textarea
                                                         className="md:col-span-2"

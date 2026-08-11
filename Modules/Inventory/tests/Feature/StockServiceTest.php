@@ -158,7 +158,7 @@ class StockServiceTest extends TestCase
         return Location::query()->create([
             'code' => $code,
             'name' => $code,
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => $code,
             'is_active' => true,
         ]);

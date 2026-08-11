@@ -2,13 +2,19 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import {
+    IndonesiaRegionFields,
+    PageHeader,
+    type IndonesiaRegionOptions,
+    type IndonesiaRegionValue,
+} from '@/Components/composite';
 import {
     Badge,
     Button,
     Card,
     CardContent,
     Input,
+    MapPicker,
     Switch,
     Textarea,
     Table,
@@ -19,23 +25,33 @@ import {
     TR,
     Modal,
     Pagination,
+    type GeocodeResult,
 } from '@/Components/ui';
 import type { CustomerAddress } from '@/types/models';
 
 interface AddressProps {
     customer: { id: number; code: string; name: string };
     addresses: { data: CustomerAddress[]; current_page: number; last_page: number };
+    regions: IndonesiaRegionOptions;
+    geocodeResults?: GeocodeResult[];
 }
 
-export default function Index({ customer, addresses }: AddressProps) {
+export default function Index({ customer, addresses, regions, geocodeResults = [] }: AddressProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | string | null>(null);
+    const [geocodeSearching, setGeocodeSearching] = useState(false);
     const addrList = addresses.data;
     const { data, setData, post, put, processing, errors, reset } = useForm({
         label: '',
         address: '',
         city: '',
         postal_code: '',
+        province_code: '',
+        city_code: '',
+        district_code: '',
+        village_code: '',
+        lat: '',
+        lng: '',
         is_installation_point: false,
         is_primary: false,
         notes: '',
@@ -52,11 +68,76 @@ export default function Index({ customer, addresses }: AddressProps) {
         setData('address', a.address ?? '');
         setData('city', a.city ?? '');
         setData('postal_code', `${a.postal_code ?? ''}`);
+        setData('province_code', `${a.province_code ?? ''}`);
+        setData('city_code', `${a.city_code ?? ''}`);
+        setData('district_code', `${a.district_code ?? ''}`);
+        setData('village_code', `${a.village_code ?? ''}`);
+        setData('lat', `${a.lat ?? ''}`);
+        setData('lng', `${a.lng ?? ''}`);
         setData('is_installation_point', Boolean(a.is_installation_point));
         setData('is_primary', Boolean(a.is_primary));
         setData('notes', `${a.notes ?? ''}`);
         setEditId(a.id);
         setModalOpen(true);
+        reloadRegions({
+            province_code: `${a.province_code ?? ''}`,
+            city_code: `${a.city_code ?? ''}`,
+            district_code: `${a.district_code ?? ''}`,
+        });
+    };
+
+    const reloadRegions = (region: {
+        province_code: string;
+        city_code: string;
+        district_code: string;
+    }) => {
+        router.get(
+            route('admin.customers.addresses.index', customer.id),
+            {
+                region_provinces: region.province_code ? [region.province_code] : [],
+                region_cities: region.city_code ? [region.city_code] : [],
+                region_districts: region.district_code ? [region.district_code] : [],
+            },
+            { only: ['regions'], preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
+    const updateRegion = (region: IndonesiaRegionValue) => {
+        setData((current) => ({ ...current, ...region }));
+        reloadRegions(region);
+    };
+
+    const searchAddress = (query: string) => {
+        setGeocodeSearching(true);
+        router.get(
+            route('admin.customers.addresses.index', customer.id),
+            { geocode_query: query },
+            {
+                only: ['geocodeResults'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setGeocodeSearching(false),
+            },
+        );
+    };
+
+    const selectGeocodeResult = (result: GeocodeResult) => {
+        const region = {
+            province_code: result.province_code,
+            city_code: result.city_code,
+            district_code: result.district_code,
+            village_code: result.village_code,
+            city: result.city,
+        };
+        setData((current) => ({
+            ...current,
+            ...region,
+            postal_code: result.postal_code,
+            lat: Number(result.lat).toFixed(7),
+            lng: Number(result.lng).toFixed(7),
+        }));
+        reloadRegions(region);
     };
 
     const submit = (e: FormEvent) => {
@@ -196,6 +277,30 @@ export default function Index({ customer, addresses }: AddressProps) {
                             error={errors.label}
                             required
                         />
+                        <MapPicker
+                            latitude={data.lat}
+                            longitude={data.lng}
+                            onChange={(latitude, longitude) =>
+                                setData((current) => ({
+                                    ...current,
+                                    lat: latitude.toFixed(7),
+                                    lng: longitude.toFixed(7),
+                                }))
+                            }
+                            latitudeError={errors.lat}
+                            longitudeError={errors.lng}
+                            searchResults={geocodeResults}
+                            searching={geocodeSearching}
+                            onSearch={searchAddress}
+                            onSelectSearchResult={selectGeocodeResult}
+                        />
+                        <IndonesiaRegionFields
+                            idPrefix="customer-address-modal"
+                            value={data}
+                            options={regions}
+                            onChange={updateRegion}
+                            errors={errors}
+                        />
                         <Textarea
                             label="Address"
                             value={data.address}
@@ -205,12 +310,6 @@ export default function Index({ customer, addresses }: AddressProps) {
                             rows={2}
                         />
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Input
-                                label="City"
-                                value={data.city}
-                                onChange={(e) => setData('city', e.target.value)}
-                                error={errors.city}
-                            />
                             <Input
                                 label="Postal Code"
                                 value={data.postal_code}

@@ -11,6 +11,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Inventory\Models\Category;
@@ -36,6 +37,10 @@ class P0CriticalPathTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
         app()['cache']->forget('spatie.permission.cache');
+        DB::table('indonesia_provinces')->insert(['code' => '31', 'name' => 'DKI JAKARTA']);
+        DB::table('indonesia_cities')->insert(['code' => '3171', 'province_code' => '31', 'name' => 'KOTA JAKARTA SELATAN']);
+        DB::table('indonesia_districts')->insert(['code' => '3171010', 'city_code' => '3171', 'name' => 'KEBAYORAN BARU']);
+        DB::table('indonesia_villages')->insert(['code' => '3171010001', 'district_code' => '3171010', 'name' => 'GANDARIA UTARA']);
     }
 
     public function test_registration_is_unavailable_and_admin_login_reaches_dashboard(): void
@@ -67,7 +72,7 @@ class P0CriticalPathTest extends TestCase
             'company_id' => $company->id,
             'code' => 'P0-LOC',
             'name' => 'P0 Warehouse',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'P0 Warehouse',
             'is_active' => true,
         ]);
@@ -89,6 +94,12 @@ class P0CriticalPathTest extends TestCase
                     'address' => 'P0 Street',
                     'city' => 'P0 City',
                     'postal_code' => '12345',
+                    'province_code' => '31',
+                    'city_code' => '3171',
+                    'district_code' => '3171010',
+                    'village_code' => '3171010001',
+                    'lat' => -6.2,
+                    'lng' => 106.8166667,
                     'is_installation_point' => true,
                     'is_primary' => true,
                     'notes' => null,
@@ -441,7 +452,7 @@ class P0CriticalPathTest extends TestCase
             'company_id' => $company->id,
             'code' => 'P0-NOC',
             'name' => 'P0 NOC',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'P0 NOC',
             'is_active' => true,
         ]);

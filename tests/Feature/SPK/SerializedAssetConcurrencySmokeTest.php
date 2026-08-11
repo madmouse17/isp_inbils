@@ -289,7 +289,7 @@ class SerializedAssetConcurrencySmokeTest extends TestCase
             'company_id' => $company->id,
             'code' => 'LOC-SMK-'.fake()->unique()->numberBetween(1, 9999),
             'name' => 'SMK Test Location',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'SMK Test Location',
             'is_active' => true,
         ]);

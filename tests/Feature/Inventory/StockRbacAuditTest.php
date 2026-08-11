@@ -301,7 +301,7 @@ class StockRbacAuditTest extends TestCase
         return Location::query()->create([
             'name' => $code,
             'code' => $code,
-            'type' => 'warehouse',
+            'type' => 'site',
             'is_active' => true,
         ]);
     }

@@ -182,7 +182,7 @@ class TenantSafeWriteReferenceTest extends TestCase
         $location = Location::query()->create([
             'code' => 'TS-LOC-1',
             'name' => 'TS Loc',
-            'type' => 'warehouse',
+            'type' => 'site',
             'is_active' => true,
         ]);
 
@@ -352,7 +352,7 @@ class TenantSafeWriteReferenceTest extends TestCase
             'company_id' => $companyId,
             'code' => 'OX-LOC-'.fake()->unique()->numberBetween(1, 9999),
             'name' => 'Other Loc',
-            'type' => 'warehouse',
+            'type' => 'site',
             'is_active' => true,
         ]);
 

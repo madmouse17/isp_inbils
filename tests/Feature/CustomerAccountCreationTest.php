@@ -11,6 +11,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
@@ -36,6 +37,7 @@ class CustomerAccountCreationTest extends TestCase
 
         $this->seed(RolePermissionSeeder::class);
         app()['cache']->forget('spatie.permission.cache');
+        $this->seedRegion();
 
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = User::factory()->create([
@@ -115,6 +117,15 @@ class CustomerAccountCreationTest extends TestCase
         $this->assertSame('installation', $workOrder->type);
         $this->assertSame('generated', $workOrder->status);
         $this->assertSame($this->location->id, $workOrder->location_id);
+        $this->assertDatabaseHas('customer_addresses', [
+            'customer_id' => $customer->id,
+            'province_code' => '31',
+            'city_code' => '3171',
+            'district_code' => '3171010',
+            'village_code' => '3171010001',
+            'lat' => -6.2000000,
+            'lng' => 106.8166667,
+        ]);
     }
 
     public function test_initial_address_requires_related_data_permission(): void
@@ -177,6 +188,12 @@ class CustomerAccountCreationTest extends TestCase
                     'address' => 'Main Street 1',
                     'city' => 'Jakarta',
                     'postal_code' => '12345',
+                    'province_code' => '31',
+                    'city_code' => '3171',
+                    'district_code' => '3171010',
+                    'village_code' => '3171010001',
+                    'lat' => -6.2,
+                    'lng' => 106.8166667,
                     'is_primary' => true,
                     'is_installation_point' => false,
                     'notes' => null,
@@ -186,6 +203,12 @@ class CustomerAccountCreationTest extends TestCase
                     'address' => 'Installation Street 2',
                     'city' => 'Jakarta',
                     'postal_code' => '12346',
+                    'province_code' => '31',
+                    'city_code' => '3171',
+                    'district_code' => '3171010',
+                    'village_code' => '3171010001',
+                    'lat' => -6.201,
+                    'lng' => 106.817,
                     'is_primary' => false,
                     'is_installation_point' => true,
                     'notes' => null,
@@ -219,5 +242,13 @@ class CustomerAccountCreationTest extends TestCase
                 'notes' => null,
             ],
         ];
+    }
+
+    private function seedRegion(): void
+    {
+        DB::table('indonesia_provinces')->insert(['code' => '31', 'name' => 'DKI JAKARTA']);
+        DB::table('indonesia_cities')->insert(['code' => '3171', 'province_code' => '31', 'name' => 'KOTA JAKARTA SELATAN']);
+        DB::table('indonesia_districts')->insert(['code' => '3171010', 'city_code' => '3171', 'name' => 'KEBAYORAN BARU']);
+        DB::table('indonesia_villages')->insert(['code' => '3171010001', 'district_code' => '3171010', 'name' => 'GANDARIA UTARA']);
     }
 }

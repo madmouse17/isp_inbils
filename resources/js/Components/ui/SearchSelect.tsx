@@ -10,6 +10,7 @@ export interface SearchSelectOption {
 }
 
 export interface SearchSelectProps {
+    id?: string;
     label?: string;
     value: string;
     onChange: (value: string) => void;
@@ -21,9 +22,11 @@ export interface SearchSelectProps {
     disabled?: boolean;
     required?: boolean;
     className?: string;
+    clearValueOnSearch?: boolean;
 }
 
 export function SearchSelect({
+    id,
     label,
     value,
     onChange,
@@ -35,11 +38,12 @@ export function SearchSelect({
     disabled,
     required,
     className,
+    clearValueOnSearch = true,
 }: SearchSelectProps) {
     const [open, setOpen] = useState(false);
     const selectedOption = options.find((option) => option.value === value);
     const [query, setQuery] = useState('');
-    const inputId = label?.toLowerCase().replace(/\s+/g, '-');
+    const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     const filteredOptions = useMemo(() => {
         const needle = query.trim().toLowerCase();
 
@@ -82,7 +86,7 @@ export function SearchSelect({
                     value={displayValue}
                     onChange={(event) => {
                         setQuery(event.target.value);
-                        onChange('');
+                        if (clearValueOnSearch) onChange('');
                         setOpen(true);
                     }}
                     onFocus={() => setOpen(true)}

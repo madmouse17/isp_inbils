@@ -1,14 +1,22 @@
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
-import { CustomerRelatedTables, PageHeader, StatusBadge } from '@/Components/composite';
+import {
+    CustomerRelatedTables,
+    PageHeader,
+    StatusBadge,
+    type CustomerHistory,
+    type CustomerHistoryAccess,
+} from '@/Components/composite';
 import type { Customer } from '@/types/models';
 
 interface ShowProps extends Record<string, unknown> {
     customer: { data: Customer };
+    history: CustomerHistory;
+    historyAccess: CustomerHistoryAccess;
 }
 
-export default function Show({ customer }: ShowProps) {
+export default function Show({ customer, history, historyAccess }: ShowProps) {
     const c = customer.data;
 
     return (
@@ -93,6 +101,8 @@ export default function Show({ customer }: ShowProps) {
                     addresses={c.addresses ?? []}
                     contacts={c.contacts ?? []}
                     subscriptions={c.subscriptions ?? []}
+                    history={history}
+                    historyAccess={historyAccess}
                 />
             </div>
         </AdminLayout>

@@ -58,6 +58,14 @@
 }
 
 @layer components {
+    .map-picker-marker {
+        @apply text-danger drop-shadow-sm;
+    }
+
+    .map-picker-marker svg {
+        @apply h-10 w-[30px];
+    }
+
     .filepond--root {
         @apply mb-0 font-sans text-sm;
     }

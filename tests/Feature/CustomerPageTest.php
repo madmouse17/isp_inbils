@@ -11,7 +11,11 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Billing\Models\Invoice;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Models\TicketCategory;
 use Tests\TestCase;
 
 class CustomerPageTest extends TestCase
@@ -101,5 +105,66 @@ class CustomerPageTest extends TestCase
                 ->has('customers.data', 1)
                 ->where('customers.data.0.name', 'Inactive Customer')
                 ->where('filters.status', 'inactive'));
+    }
+
+    public function test_show_includes_billing_spk_and_ticket_history(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $category = TicketCategory::forceCreate([
+            'company_id' => $this->admin->company_id,
+            'name' => 'Customer History',
+            'code' => 'CUSTOMER-HISTORY',
+            'default_sla_hours' => 24,
+            'default_priority' => 'medium',
+            'is_active' => true,
+        ]);
+        Invoice::forceCreate([
+            'company_id' => $this->admin->company_id,
+            'number' => 'INV-CUSTOMER-HISTORY',
+            'type' => 'recurring',
+            'source' => 'manual',
+            'customer_id' => $customer->id,
+            'issue_date' => now()->toDateString(),
+            'due_date' => now()->addDays(14)->toDateString(),
+            'status' => 'partial',
+            'subtotal' => 100000,
+            'tax_amount' => 0,
+            'discount_amount' => 0,
+            'total' => 100000,
+            'paid_amount' => 40000,
+            'created_by' => $this->admin->id,
+        ]);
+        WorkOrder::forceCreate([
+            'company_id' => $this->admin->company_id,
+            'code' => 'SPK-CUSTOMER-HISTORY',
+            'type' => 'maintenance',
+            'title' => 'Customer SPK',
+            'status' => 'generated',
+            'customer_id' => $customer->id,
+            'source' => 'manual',
+            'priority' => 'medium',
+            'created_by' => $this->admin->id,
+        ]);
+        Ticket::forceCreate([
+            'company_id' => $this->admin->company_id,
+            'code' => 'TKT-CUSTOMER-HISTORY',
+            'title' => 'Customer Ticket',
+            'source' => 'internal',
+            'category_id' => $category->id,
+            'status' => 'open',
+            'priority' => 'medium',
+            'customer_id' => $customer->id,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.customers.show', $customer))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('history.invoices.0.number', 'INV-CUSTOMER-HISTORY')
+                ->where('history.invoices.0.paid_amount', '40000.00')
+                ->where('history.work_orders.0.code', 'SPK-CUSTOMER-HISTORY')
+                ->where('history.tickets.0.code', 'TKT-CUSTOMER-HISTORY')
+            );
     }
 }

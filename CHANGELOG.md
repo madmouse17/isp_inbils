@@ -6,6 +6,16 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — Indonesia regions, address map, and customer history (2026-08-11)
+
+- Added `laravolt/indonesia` reference data for province, city/regency, district, and village/subdistrict selection.
+- Added searchable cascading region fields immediately after each address label in customer onboarding and address management.
+- Added OpenStreetMap address search that fills the latest selected address, postal code, coordinates, and matched region hierarchy without duplicating region sources.
+- Fixed village loading for Laravolt district codes that use either six or seven digits and kept child region values cleared whenever a parent changes.
+- Added a reusable OpenStreetMap Leaflet picker centered on Indonesia with click selection, a draggable red pin, device geolocation, and required latitude/longitude storage.
+- Added region foreign keys and coordinate validation to customer addresses while preserving existing address records.
+- Added permission-aware Billing, SPK, and Ticket tabs to Customer Show, including billed, paid, and outstanding invoice amounts.
+
 ### Changed — Customer server-side DataTable and unified creation (2026-08-11)
 
 - Migrated the Customer index to the shared server-side `DataTable` with consistent colored actions and green create button.

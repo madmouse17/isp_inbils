@@ -4,6 +4,8 @@ export { Input } from './Input';
 export type { InputProps } from './Input';
 export { PhoneInput } from './PhoneInput';
 export type { PhoneInputProps } from './PhoneInput';
+export { MapPicker } from './MapPicker';
+export type { GeocodeResult, MapPickerProps } from './MapPicker';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
 export { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './Select';

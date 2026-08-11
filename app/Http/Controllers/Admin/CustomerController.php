@@ -9,6 +9,9 @@ use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
+use App\Queries\Admin\CustomerHistoryQuery;
+use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +28,8 @@ class CustomerController extends Controller
     use HasIndexQuery;
 
     private const SORTABLE = ['code', 'name', 'type', 'phone', 'is_active', 'created_at'];
+
+    public function __construct(private readonly OpenStreetMapGeocoder $geocoder) {}
 
     public function index(Request $request): InertiaResponse
     {
@@ -64,6 +69,15 @@ class CustomerController extends Controller
                 ->whereNull('deleted_at')
                 ->orderBy('name')
                 ->get(['id', 'code', 'name', 'type']),
+            'regions' => fn () => IndonesiaRegionService::options(
+                $request->input('region_provinces', []),
+                $request->input('region_cities', []),
+                $request->input('region_districts', []),
+            ),
+            'geocodeResults' => Inertia::optional(
+                fn () => $this->geocoder->search((string) $request->input('geocode_query')),
+            ),
+            'geocodeIndex' => Inertia::optional(fn () => $request->integer('geocode_index')),
         ]);
     }
 
@@ -83,10 +97,17 @@ class CustomerController extends Controller
         $customer = $this->findForCompany($request, $customer);
         Gate::authorize('view', $customer);
 
-        $customer->load(['addresses', 'contacts', 'subscriptions.servicePackage']);
+        $customer->load(['addresses.province', 'addresses.regionCity', 'addresses.district', 'addresses.village', 'contacts', 'subscriptions.servicePackage']);
+        $historyAccess = [
+            'billing' => $request->user()?->can('billing.view') ?? false,
+            'tickets' => $request->user()?->can('ticket.view') ?? false,
+            'spk' => $request->user()?->can('spk.view') ?? false,
+        ];
 
         return Inertia::render('Admin/Customers/Show', [
             'customer' => new CustomerResource($customer),
+            'history' => CustomerHistoryQuery::execute($customer, $historyAccess),
+            'historyAccess' => $historyAccess,
         ]);
     }
 
@@ -94,7 +115,7 @@ class CustomerController extends Controller
     {
         $customer = $this->findForCompany($request, $customer);
         Gate::authorize('edit', $customer);
-        $customer->load(['addresses', 'contacts', 'subscriptions.servicePackage']);
+        $customer->load(['addresses.province', 'addresses.regionCity', 'addresses.district', 'addresses.village', 'contacts', 'subscriptions.servicePackage']);
 
         return Inertia::render('Admin/Customers/Edit', [
             'customer' => new CustomerResource($customer),

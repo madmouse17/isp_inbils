@@ -8,6 +8,16 @@ export type CustomerAddress = {
     address?: string | null;
     city?: string | null;
     postal_code?: string | null;
+    province_code?: string | null;
+    province_name?: string | null;
+    city_code?: string | null;
+    city_name?: string | null;
+    district_code?: string | null;
+    district_name?: string | null;
+    village_code?: string | null;
+    village_name?: string | null;
+    lat?: string | number | null;
+    lng?: string | number | null;
     notes?: string | null;
     is_installation_point?: boolean | null;
     is_primary?: boolean | null;

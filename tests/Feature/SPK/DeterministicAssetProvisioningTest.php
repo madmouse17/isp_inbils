@@ -163,7 +163,7 @@ class DeterministicAssetProvisioningTest extends TestCase
     {
         $company = Company::factory()->create();
         $user = User::factory()->create(['company_id' => $company->id]);
-        $location = Location::create(['company_id' => $company->id, 'code' => 'LOC-SPK-'.fake()->unique()->numberBetween(1, 9999), 'name' => 'SPK Test Location', 'type' => 'warehouse', 'path' => 'SPK Test Location', 'is_active' => true]);
+        $location = Location::create(['company_id' => $company->id, 'code' => 'LOC-SPK-'.fake()->unique()->numberBetween(1, 9999), 'name' => 'SPK Test Location', 'type' => 'site', 'path' => 'SPK Test Location', 'is_active' => true]);
         $customer = Customer::factory()->create(['company_id' => $company->id]);
         $this->actingAs($user);
 

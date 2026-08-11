@@ -141,7 +141,7 @@ class UserServerTableExportTest extends TestCase
             'company_id' => $this->admin->company_id,
             'code' => 'TKT-USER-HISTORY',
             'title' => 'Assigned user ticket',
-            'source' => 'manual',
+            'source' => 'internal',
             'category_id' => $category->id,
             'status' => 'open',
             'priority' => 'medium',

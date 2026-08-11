@@ -10,6 +10,8 @@ use App\Http\Resources\CustomerAddressResource;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
+use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -27,16 +29,26 @@ class CustomerAddressController extends Controller
 
     private const SORTABLE = ['label', 'city', 'postal_code', 'created_at'];
 
-    public function index(Customer $customer): InertiaResponse
+    public function __construct(private readonly OpenStreetMapGeocoder $geocoder) {}
+
+    public function index(Customer $customer, Request $request): InertiaResponse
     {
         $this->ensureSameCompany($customer);
         Gate::authorize('customer.address.manage');
 
         return Inertia::render('Admin/CustomerAddresses/Index', [
             'customer' => $customer->only(['id', 'code', 'name']),
-            'addresses' => CustomerAddressResource::collection($this->filteredQuery($customer, request())->paginate(10)->withQueryString()),
-            'filters' => request()->only(['search', 'sort', 'direction']),
-            'can' => ['export' => request()->user()?->can('customer.address.export') ?? false],
+            'addresses' => CustomerAddressResource::collection($this->filteredQuery($customer, $request)->paginate(10)->withQueryString()),
+            'filters' => $request->only(['search', 'sort', 'direction']),
+            'can' => ['export' => $request->user()?->can('customer.address.export') ?? false],
+            'regions' => fn () => IndonesiaRegionService::options(
+                $request->input('region_provinces', []),
+                $request->input('region_cities', []),
+                $request->input('region_districts', []),
+            ),
+            'geocodeResults' => Inertia::optional(
+                fn () => $this->geocoder->search((string) $request->input('geocode_query')),
+            ),
         ]);
     }
 
@@ -83,7 +95,7 @@ class CustomerAddressController extends Controller
         $this->ensureSameCompany($customer);
         Gate::authorize('customer.address.manage');
 
-        $data = $request->validated();
+        $data = IndonesiaRegionService::normalizeAddress($request->validated());
 
         DB::transaction(function () use ($customer, $data) {
             if (($data['is_installation_point'] ?? false) === true) {
@@ -101,7 +113,7 @@ class CustomerAddressController extends Controller
         abort_unless($address->customer_id === $customer->id, 404);
         Gate::authorize('customer.address.manage');
 
-        $data = $request->validated();
+        $data = IndonesiaRegionService::normalizeAddress($request->validated());
 
         DB::transaction(function () use ($customer, $address, $data) {
             if (($data['is_installation_point'] ?? false) === true && ! $address->is_installation_point) {
@@ -135,6 +147,7 @@ class CustomerAddressController extends Controller
     private function filteredQuery(Customer $customer, Request $request): Builder
     {
         $query = $customer->addresses()
+            ->with(['province', 'regionCity', 'district', 'village'])
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

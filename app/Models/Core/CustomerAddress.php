@@ -9,6 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravolt\Indonesia\Models\City;
+use Laravolt\Indonesia\Models\District;
+use Laravolt\Indonesia\Models\Province;
+use Laravolt\Indonesia\Models\Village;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -25,6 +29,10 @@ class CustomerAddress extends Model
         'address',
         'city',
         'postal_code',
+        'province_code',
+        'city_code',
+        'district_code',
+        'village_code',
         'lat',
         'lng',
         'is_installation_point',
@@ -47,6 +55,26 @@ class CustomerAddress extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(ServiceSubscription::class, 'installation_address_id');
+    }
+
+    public function province(): BelongsTo
+    {
+        return $this->belongsTo(Province::class, 'province_code', 'code');
+    }
+
+    public function regionCity(): BelongsTo
+    {
+        return $this->belongsTo(City::class, 'city_code', 'code');
+    }
+
+    public function district(): BelongsTo
+    {
+        return $this->belongsTo(District::class, 'district_code', 'code');
+    }
+
+    public function village(): BelongsTo
+    {
+        return $this->belongsTo(Village::class, 'village_code', 'code');
     }
 
     public function getActivitylogOptions(): LogOptions

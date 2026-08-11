@@ -31,7 +31,7 @@ class CustomerService
             $customer->forceFill(['user_id' => $user->id])->save();
 
             foreach ($addresses as $address) {
-                $customer->addresses()->create($address);
+                $customer->addresses()->create(IndonesiaRegionService::normalizeAddress($address));
             }
 
             foreach ($contacts as $contact) {

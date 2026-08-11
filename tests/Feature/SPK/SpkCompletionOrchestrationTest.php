@@ -144,7 +144,7 @@ class SpkCompletionOrchestrationTest extends TestCase
             'company_id' => $company->id,
             'code' => 'LOC-SPK-'.fake()->unique()->numberBetween(1, 9999),
             'name' => 'SPK Test Location',
-            'type' => 'warehouse',
+            'type' => 'site',
             'path' => 'SPK Test Location',
             'is_active' => true,
         ]);
