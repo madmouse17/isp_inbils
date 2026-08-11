@@ -82,43 +82,42 @@ class P0CriticalPathTest extends TestCase
                 'name' => 'P0 Customer',
                 'type' => 'Individual',
                 'email' => 'p0@example.test',
-                'password' => 'customer-password',
                 'phone' => '0800000000',
                 'is_active' => true,
+                'addresses' => [[
+                    'label' => 'P0 Installation Address',
+                    'address' => 'P0 Street',
+                    'city' => 'P0 City',
+                    'postal_code' => '12345',
+                    'is_installation_point' => true,
+                    'is_primary' => true,
+                    'notes' => null,
+                ]],
+                'contacts' => [[
+                    'name' => 'P0 Primary Contact',
+                    'position' => 'Owner',
+                    'phone' => '0800000000',
+                    'email' => 'p0@example.test',
+                    'is_primary' => true,
+                    'notes' => null,
+                ]],
+                'subscription' => [
+                    'service_package_id' => $servicePackage->id,
+                    'serving_pop_id' => $location->id,
+                    'billing_day' => 5,
+                    'mrc_amount' => null,
+                    'otc_installation_fee' => null,
+                    'contract_months' => null,
+                    'notes' => null,
+                ],
             ])
             ->assertRedirect();
 
         $customer = Customer::where('code', 'CUST-P0')->firstOrFail();
-        $address = CustomerAddress::factory()->create([
-            'customer_id' => $customer->id,
-            'is_installation_point' => true,
-            'is_primary' => true,
-        ]);
-
-        $subscription = ServiceSubscription::forceCreate([
-            'company_id' => $company->id,
-            'customer_id' => $customer->id,
-            'service_package_id' => $servicePackage->id,
-            'installation_address_id' => $address->id,
-            'code' => 'SUB-P0',
-            'status' => 'pending',
-            'billing_day' => 5,
-            'mrc_amount' => 150_000,
-            'otc_installation_fee' => 25_000,
-            'contract_months' => 12,
-            'serving_pop_id' => $location->id,
-        ]);
-        $this->post(route('admin.spk.store'), [
-            'type' => 'installation',
-            'title' => 'Install P0 service',
-            'description' => 'Critical path install',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
-            'location_id' => $location->id,
-            'source' => 'subscription',
-            'priority' => 'high',
-        ])->assertRedirect();
-
+        $address = CustomerAddress::where('customer_id', $customer->id)
+            ->where('is_installation_point', true)
+            ->firstOrFail();
+        $subscription = ServiceSubscription::where('customer_id', $customer->id)->firstOrFail();
         $workOrder = WorkOrder::where('subscription_id', $subscription->id)->firstOrFail();
         WorkOrderItem::create([
             'company_id' => $company->id,
@@ -144,7 +143,6 @@ class P0CriticalPathTest extends TestCase
             'user_id' => $technician->id,
             'status' => 'active',
         ]);
-        $this->post(route('admin.spk.generate', $workOrder))->assertRedirect();
         $this->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])->assertRedirect();
         $this->post(route('admin.spk.start', $workOrder))->assertRedirect();
         $this->post(route('admin.spk.submit', $workOrder))->assertRedirect();

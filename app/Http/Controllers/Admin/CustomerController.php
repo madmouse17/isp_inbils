@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Actions\CreateCustomerOnboardingAction;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
-use App\Services\Core\CustomerService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -37,8 +38,10 @@ class CustomerController extends Controller
             'customers' => CustomerResource::collection($customers),
             'filters' => $request->only(['type', 'status', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
-                'create' => $request->user()?->can('customer.create') ?? false,
+                'create' => $this->canOnboard($request),
                 'export' => $request->user()?->can('customer.export') ?? false,
+                'update' => $request->user()?->can('customer.update') ?? false,
+                'delete' => $request->user()?->can('customer.delete') ?? false,
             ],
         ]);
     }
@@ -46,18 +49,33 @@ class CustomerController extends Controller
     public function create(Request $request): InertiaResponse
     {
         Gate::authorize('create', Customer::class);
+        $this->authorizeOnboarding();
 
-        return Inertia::render('Admin/Customers/Create');
+        return Inertia::render('Admin/Customers/Create', [
+            'packages' => DB::table('service_packages')
+                ->where('company_id', $request->user()?->company_id)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'price_mrc', 'price_otc', 'contract_min_months']),
+            'locations' => DB::table('locations')
+                ->where('company_id', $request->user()?->company_id)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get(['id', 'code', 'name', 'type']),
+        ]);
     }
 
     public function store(StoreCustomerRequest $request): RedirectResponse
     {
         Gate::authorize('store', Customer::class);
+        $this->authorizeOnboarding();
 
-        CustomerService::createWithUser($request->validated());
+        $customer = CreateCustomerOnboardingAction::execute($request->validated(), $request->user()->id);
 
-        return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer created.');
+        return redirect()->route('admin.customers.show', $customer)
+            ->with('success', 'Customer, subscription, and installation SPK created.');
     }
 
     public function show(Request $request, int|string $customer): InertiaResponse
@@ -182,5 +200,22 @@ class CustomerController extends Controller
     {
         return Customer::forCompany($request->user()?->company_id)
             ->findOrFail($customer);
+    }
+
+    private function canOnboard(Request $request): bool
+    {
+        $user = $request->user();
+
+        return $user?->can('customer.create') === true
+            && $user->can('customer.address.manage')
+            && $user->can('customer.subscription.manage')
+            && $user->can('spk.create');
+    }
+
+    private function authorizeOnboarding(): void
+    {
+        Gate::authorize('customer.address.manage');
+        Gate::authorize('customer.subscription.manage');
+        Gate::authorize('spk.create');
     }
 }

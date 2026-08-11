@@ -30,6 +30,10 @@ class SubscriptionService
             }
 
             $data['mrc_amount'] ??= $package->getAttribute('price_mrc');
+            $data['otc_installation_fee'] ??= $package->getAttribute('price_otc');
+            if (empty($data['contract_months']) && (int) $package->getAttribute('contract_min_months') > 0) {
+                $data['contract_months'] = $package->getAttribute('contract_min_months');
+            }
             $data['code'] = NumberSequenceService::generate('subscription', 'SUB', $companyId);
             $data['status'] = $data['status'] ?? 'pending';
 

@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -68,6 +69,11 @@ class User extends Authenticatable
     public function employeeProfile(): HasOne
     {
         return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function customer(): HasOne
+    {
+        return $this->hasOne(Customer::class);
     }
 
     public function getActivitylogOptions(): LogOptions

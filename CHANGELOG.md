@@ -6,6 +6,21 @@ selama development, v1.0.0 saat release).
 
 ## [Unreleased]
 
+### Changed — Customer server-side DataTable and unified creation (2026-08-11)
+
+- Migrated the Customer index to the shared server-side `DataTable` with consistent colored actions and green create button.
+- Combined customer data, multiple addresses, multiple contacts, subscription, and installation SPK into one tabbed create form and one database transaction.
+- Added exclusive primary address, installation address, and primary contact selection while allowing the primary and installation addresses to differ.
+- Added a nullable company-scoped Customer-to-User foreign key plus safe backfill for unambiguous existing email matches.
+- Automatically creates the initial service subscription and generated installation SPK from the selected package and serving POP.
+- Reused the restricted `PhoneInput` for customer and contact phone fields.
+
+### Changed — User billing, ticket, and SPK history (2026-08-11)
+
+- Added permission-aware Billing, Ticket, and SPK history tabs to User detail pages.
+- Resolved customer history through the Customer-to-User foreign key and included employee activity from creator and assignee references.
+- Scoped every history query to the current company and capped each tab at 50 recent records.
+
 ### Changed — Permission server-side DataTable (2026-08-11)
 
 - Migrated the Permission index to the shared server-side `DataTable` with search, sorting, pagination, and per-page controls.

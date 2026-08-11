@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\UpdateUserRequest;
 use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Queries\Admin\UserHistoryQuery;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -72,13 +73,21 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'User created.');
     }
 
-    public function show(User $user): InertiaResponse
+    public function show(Request $request, User $user): InertiaResponse
     {
         $this->ensureSameCompany($user);
         Gate::authorize('view', $user);
 
+        $historyAccess = [
+            'billing' => $request->user()?->can('billing.view') ?? false,
+            'tickets' => $request->user()?->can('ticket.view') ?? false,
+            'spk' => $request->user()?->can('spk.view') ?? false,
+        ];
+
         return Inertia::render('Admin/Users/Show', [
             'user' => new UserResource($user->load('roles')),
+            'history' => UserHistoryQuery::execute($user, $historyAccess),
+            'historyAccess' => $historyAccess,
         ]);
     }
 

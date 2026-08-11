@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\User;
 use App\Traits\BelongsToCompany;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class Customer extends Model implements HasMedia
 
     protected $fillable = [
         'code',
+        'user_id',
         'name',
         'type',
         'email',
@@ -54,6 +56,11 @@ class Customer extends Model implements HasMedia
     public function subscriptions(): HasMany
     {
         return $this->hasMany(ServiceSubscription::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
     }
 
     public function areaCoverage(): BelongsTo

@@ -1,64 +1,129 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Pagination,
-    NativeSelect,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+    DataTable,
+    DataTableActions,
+    type DataTableColumn,
+    PageHeader,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ExportMenu';
+import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import type { Paginated } from '@/types';
 
 interface CustomerRow {
     id: number;
     code: string;
     name: string;
     type: string;
-    email?: string | null;
     phone?: string | null;
     is_active: boolean;
     addresses_count?: number;
     subscriptions_count?: number;
 }
 
-interface IndexProps extends Record<string, unknown> {
-    customers: {
-        data: CustomerRow[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
+interface IndexProps {
+    customers: Paginated<CustomerRow>;
+    filters: {
+        type?: string;
+        status?: string;
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
     };
-    filters: { type?: string; status?: string; search?: string };
+    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
 }
 
-export default function Index({ customers, filters }: IndexProps) {
+export default function Index({ customers, filters, can }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(filters.type ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const { params, visit, set, sortBy, sortDir, onSort, processing } = useServerTable({
+        url: route('admin.customers.index'),
+        filters,
+        only: ['customers', 'filters', 'can'],
+    });
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.customers.index'),
-            { search, type, status },
-            { preserveState: true },
-        );
-    };
+    const columns: DataTableColumn<CustomerRow>[] = useMemo(
+        () => [
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (customer) => <span className="font-mono text-sm">{customer.code}</span>,
+            },
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+                cell: (customer) => <span className="font-medium">{customer.name}</span>,
+            },
+            {
+                key: 'type',
+                header: 'Type',
+                sortable: true,
+                sortKey: 'type',
+                cell: (customer) => (
+                    <Badge variant={customer.type === 'Company' ? 'brand' : 'neutral'}>
+                        {customer.type}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'phone',
+                header: 'Phone',
+                sortable: true,
+                sortKey: 'phone',
+                cell: (customer) => customer.phone ?? '-',
+            },
+            {
+                key: 'is_active',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'is_active',
+                cell: (customer) => (
+                    <Badge variant={customer.is_active ? 'success' : 'danger'}>
+                        {customer.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'addresses_count',
+                header: 'Addresses',
+                cell: (customer) => customer.addresses_count ?? 0,
+            },
+            {
+                key: 'subscriptions_count',
+                header: 'Subscriptions',
+                cell: (customer) => customer.subscriptions_count ?? 0,
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (customer) => (
+                    <DataTableActions
+                        showHref={route('admin.customers.show', customer.id)}
+                        editHref={can.update ? route('admin.customers.edit', customer.id) : undefined}
+                        deleteHref={
+                            can.delete ? route('admin.customers.destroy', customer.id) : undefined
+                        }
+                        deleteMessage={`Delete ${customer.name}?`}
+                    />
+                ),
+            },
+        ],
+        [can.delete, can.update],
+    );
 
-    const remove = (c: CustomerRow) => {
-        if (window.confirm(`Delete ${c.name}?`))
-            router.delete(route('admin.customers.destroy', c.id));
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        visit({ search, type, status });
     };
 
     return (
@@ -68,28 +133,44 @@ export default function Index({ customers, filters }: IndexProps) {
                     title="Customers"
                     subtitle="Manage customer master data."
                     actions={
-                        <Button
-                            type="button"
-                            onClick={() => router.get(route('admin.customers.create'))}
-                        >
-                            Create Customer
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.customers.export')}
+                                    params={params}
+                                    formats={['csv', 'pdf']}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button
+                                    type="button"
+                                    variant="success"
+                                    onClick={() => router.get(route('admin.customers.create'))}
+                                >
+                                    Create Customer
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
+                        <form
+                            onSubmit={submit}
+                            className="grid gap-3 rounded-lg border bg-card p-3 md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_auto] md:items-end"
+                        >
                             <Input
                                 label="Search"
                                 value={search}
-                                onChange={(e) => setSearch(e.target.value)}
+                                onChange={(event) => setSearch(event.target.value)}
                                 placeholder="Name, code, phone"
                             />
                             <NativeSelect
                                 label="Type"
                                 value={type}
-                                onChange={(e) => setType(e.target.value)}
+                                onChange={(event) => setType(event.target.value)}
                                 options={[
                                     { value: '', label: 'All types' },
                                     { value: 'Individual', label: 'Individual' },
@@ -99,102 +180,25 @@ export default function Index({ customers, filters }: IndexProps) {
                             <NativeSelect
                                 label="Status"
                                 value={status}
-                                onChange={(e) => setStatus(e.target.value)}
+                                onChange={(event) => setStatus(event.target.value)}
                                 options={[
                                     { value: '', label: 'All statuses' },
                                     { value: 'active', label: 'Active' },
                                     { value: 'inactive', label: 'Inactive' },
                                 ]}
                             />
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
+                            <Button type="submit" variant="secondary">Filter</Button>
                         </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Name</TH>
-                                    <TH>Type</TH>
-                                    <TH>Phone</TH>
-                                    <TH>Status</TH>
-                                    <TH>Subs</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {customers.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    customers.data.map((c) => (
-                                        <TR key={c.id}>
-                                            <TD className="font-mono text-sm">{c.code}</TD>
-                                            <TD>{c.name}</TD>
-                                            <TD>
-                                                <Badge
-                                                    variant={
-                                                        c.type === 'Company' ? 'brand' : 'neutral'
-                                                    }
-                                                >
-                                                    {c.type}
-                                                </Badge>
-                                            </TD>
-                                            <TD>{c.phone ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant={c.is_active ? 'success' : 'danger'}>
-                                                    {c.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>{c.subscriptions_count ?? 0}</TD>
-                                            <TD>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Link
-                                                        href={route('admin.customers.show', c.id)}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Show
-                                                    </Link>
-                                                    <Link
-                                                        href={route('admin.customers.edit', c.id)}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(c)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={customers.current_page}
-                            lastPage={customers.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.customers.index'), {
-                                    page,
-                                    search,
-                                    type,
-                                    status,
-                                })
-                            }
+
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(customers)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            loading={processing}
                         />
                     </CardContent>
                 </Card>

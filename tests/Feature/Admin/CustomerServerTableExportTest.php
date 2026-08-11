@@ -67,6 +67,7 @@ class CustomerServerTableExportTest extends TestCase
                 'search' => 'Own',
                 'sort' => 'code',
                 'direction' => 'asc',
+                'per_page' => 25,
             ]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -77,6 +78,8 @@ class CustomerServerTableExportTest extends TestCase
                 ->where('filters.search', 'Own')
                 ->where('filters.sort', 'code')
                 ->where('filters.direction', 'asc')
+                ->where('filters.per_page', '25')
+                ->where('customers.meta.per_page', 25)
             );
     }
 

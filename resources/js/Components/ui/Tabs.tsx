@@ -49,6 +49,7 @@ export function Tab({ value, children, disabled }: TabProps) {
     const active = ctx?.value === value;
     return (
         <button
+            type="button"
             role="tab"
             aria-selected={active}
             disabled={disabled}
