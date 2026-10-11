@@ -44,24 +44,28 @@ class MidtransGateway
         $gross = $attempt->grossAmount();
         $customer = $invoice->customer;
         $endpoint = $this->url('app', '/snap/v1/transactions');
+        $notificationUrl = (string) config('services.midtrans.notification_url');
 
         try {
-            $response = $this->client()->post($endpoint, [
-                'transaction_details' => ['order_id' => $attempt->order_id, 'gross_amount' => $gross],
-                'item_details' => [[
-                    'id' => Str::limit($invoice->number, 50, ''),
-                    'price' => $gross,
-                    'quantity' => 1,
-                    'name' => Str::limit('Tagihan '.$invoice->number, 50, ''),
-                ]],
-                'customer_details' => array_filter([
-                    'first_name' => $customer ? Str::limit($customer->name, 30, '') : null,
-                    'email' => $customer?->email,
-                ]),
-                'expiry' => ['unit' => 'hours', 'duration' => PaymentAttempt::TTL_HOURS],
-                'page_expiry' => ['duration' => PaymentAttempt::TTL_HOURS, 'unit' => 'hours'],
-                'callbacks' => ['finish' => $finishUrl, 'error' => $finishUrl],
-            ]);
+            $response = $this->client()
+                // Lets an install point notifications at its own webhook without editing the Midtrans dashboard.
+                ->when(str_starts_with($notificationUrl, 'https://'), fn ($request) => $request->withHeaders(['X-Override-Notification' => $notificationUrl]))
+                ->post($endpoint, [
+                    'transaction_details' => ['order_id' => $attempt->order_id, 'gross_amount' => $gross],
+                    'item_details' => [[
+                        'id' => Str::limit($invoice->number, 50, ''),
+                        'price' => $gross,
+                        'quantity' => 1,
+                        'name' => Str::limit('Tagihan '.$invoice->number, 50, ''),
+                    ]],
+                    'customer_details' => array_filter([
+                        'first_name' => $customer ? Str::limit($customer->name, 30, '') : null,
+                        'email' => $customer?->email,
+                    ]),
+                    'expiry' => ['unit' => 'hours', 'duration' => PaymentAttempt::TTL_HOURS],
+                    'page_expiry' => ['duration' => PaymentAttempt::TTL_HOURS, 'unit' => 'hours'],
+                    'callbacks' => ['finish' => $finishUrl, 'error' => $finishUrl],
+                ]);
         } catch (HttpClientException $e) {
             throw new MidtransGatewayException('Midtrans Snap request failed: '.class_basename($e), previous: $e);
         }

@@ -97,6 +97,25 @@ class MidtransGatewayTest extends TestCase
         });
     }
 
+    public function test_an_https_notification_url_overrides_the_dashboard_for_each_order(): void
+    {
+        $attempt = $this->attempt();
+        $this->enableMidtrans();
+        Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
+
+        config(['services.midtrans.notification_url' => 'https://billing.example.com/webhooks/midtrans']);
+        $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
+        Http::assertSent(fn (Request $request): bool => $request->header('X-Override-Notification') === ['https://billing.example.com/webhooks/midtrans']);
+
+        // A plain-http or empty value is never sent: Midtrans would post the notification unencrypted.
+        foreach (['http://billing.example.com/webhooks/midtrans', ''] as $unsafe) {
+            Http::fake([self::SNAP_URL => Http::response($this->snapReply(), 201)]);
+            config(['services.midtrans.notification_url' => $unsafe]);
+            $this->gateway->createSnapTransaction($attempt, $attempt->invoice, self::FINISH_URL);
+            Http::assertNotSent(fn (Request $request): bool => $request->hasHeader('X-Override-Notification'));
+        }
+    }
+
     public function test_a_redirect_url_on_another_host_is_refused(): void
     {
         $attempt = $this->attempt();

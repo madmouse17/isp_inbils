@@ -349,7 +349,10 @@ yang bisa menandai attempt lunas.
   non-produksi (host `APP_ENV=production` butuh kunci produksi, atau
   `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` yang disetujui owner); set
   "Payment Notification URL" di dashboard Midtrans ke
-  `https://<host>/webhooks/midtrans`; pastikan scheduler jalan.
+  `https://<host>/webhooks/midtrans`, **atau** isi `MIDTRANS_NOTIFICATION_URL`
+  dengan URL HTTPS itu (dikirim sebagai header `X-Override-Notification` di tiap
+  order Snap, menimpa setelan dashboard; URL non-HTTPS diabaikan); pastikan
+  scheduler jalan.
 - Rollback migrasi: `payment_attempts` bisa dihapus; `payments.method`
   kembali ke empat nilai dan `payments.received_by` kembali NOT NULL **hanya
   jika tidak ada pembayaran `midtrans`/tanpa penerima** (migrasi menolak dan

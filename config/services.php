@@ -45,7 +45,9 @@ return [
     | (is_production=false) unless allow_sandbox_in_production is set on purpose:
     | sandbox payments there would be booked as real ones. `base_url` points the
     | gateway at a local mock and is honoured only in the local, testing and e2e
-    | environments and never when is_production is true.
+    | environments and never when is_production is true. `notification_url`
+    | (HTTPS only) is sent as X-Override-Notification on every Snap order, so
+    | notifications reach this install without editing the Midtrans dashboard.
     |
     */
     'midtrans' => [
@@ -55,6 +57,7 @@ return [
         'is_production' => (bool) env('MIDTRANS_IS_PRODUCTION', false),
         'allow_sandbox_in_production' => (bool) env('MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION', false),
         'base_url' => env('MIDTRANS_BASE_URL'),
+        'notification_url' => env('MIDTRANS_NOTIFICATION_URL'),
     ],
 
 ];

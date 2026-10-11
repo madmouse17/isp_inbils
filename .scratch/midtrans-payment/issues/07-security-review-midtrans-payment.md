@@ -1,6 +1,6 @@
 # SECURITY REVIEW: Midtrans payment, webhook and portal release gate
 
-Status: ready-for-agent
+Status: done
 Role: security-reviewer
 Blocked by: 06
 Card: none (new lane; no Hermes card)
@@ -21,3 +21,7 @@ Read-only `security-reviewer` pass (repo rule 10: payments, auth, user data). Re
 - [ ] Verdict APPROVED or BLOCKED with file:line findings and a fix per finding.
 - [ ] Advisory table present (or "none" with the command output).
 - [ ] Explicit statement that production use remains blocked pending Q1 follow-up (real merchant account, public HTTPS URL, production keys set only on the host).
+
+## Result (2026-10-12)
+
+security-reviewer `SecReviewMidtrans`: first pass BLOCKED (MTP-01 phone password could clear the portal gate, MTP-03 sandbox gateway live under APP_ENV=production; MTP-02/04 low). All fixed red-first by the implementer; re-review SIGNED for the sandbox pilot. MTP-05 (low, email redirect of the set-password link) closed in `ProfileUpdateRequest` (flagged logins cannot change email). Production stays blocked under spec Q1.
