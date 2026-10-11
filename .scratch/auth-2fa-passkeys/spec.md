@@ -1,6 +1,6 @@
 # Auth hardening — TOTP two-factor + recovery codes (passkeys optional)
 
-Status: ready-for-agent
+Status: done
 Ledger: none yet (new lane from the isp_ari gap analysis of 2026-10-11)
 Source: `/tmp/isp_ari_gap.md` row "Two-Factor Authentication & Passkeys" — **the scout's claim that isp_ari implements it is wrong** (see Corrections).
 

@@ -1,6 +1,6 @@
 # Customer Status Rollup — customer status derived from subscriptions (isp_ari ADR-011)
 
-Status: ready-for-agent
+Status: done
 Ledger: none yet (new lane from the isp_ari gap analysis of 2026-10-11; add a ledger entry when approved)
 Source: `/tmp/isp_ari_gap.md` row "Customer Status Rollup" (verified; two corrections below)
 

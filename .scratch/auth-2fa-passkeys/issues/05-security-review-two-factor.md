@@ -1,6 +1,6 @@
 # SECURITY REVIEW: two-factor authentication release gate
 
-Status: ready-for-agent
+Status: done
 Role: security-reviewer
 Blocked by: 04
 Card: none (new lane; no Hermes card)
@@ -20,3 +20,7 @@ Read-only `security-reviewer` pass required by repo rule 10 (touches auth, permi
 - [ ] Verdict APPROVED or BLOCKED with file:line findings and the fix for each.
 - [ ] Advisory table present (or "none" with the command output).
 - [ ] Release notes: `php artisan migrate`, `php artisan db:seed --class=RolePermissionSeeder --force`; rollback = migration down (secrets are discarded).
+
+## Result
+
+security-reviewer `SecReviewTwoFactor` SIGNED (2026-10-12). Findings fixed red-first: medium challenge-throttle race (count before verify + per-user cap), low session revocation, low step-up throttle, code whitespace; plus inactive users refused at login and uniform throttled forgot-password.
