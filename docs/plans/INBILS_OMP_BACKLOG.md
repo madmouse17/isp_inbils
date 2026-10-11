@@ -1113,5 +1113,6 @@ Analisis gap vs `/home/madmouse/Documents/web/isp_ari` (laporan scout `/tmp/isp_
 | `installation-spk-delta` | 0 | no-gap | inbils sudah membuat SPK instalasi otomatis saat onboarding (`CreateCustomerOnboardingAction`); klaim scout "PARTIAL" salah. |
 | `midtrans-payment` | 8 (4 backend, ui, tester, security-reviewer, reviewer) | needs-owner-approval | Snap sandbox + webhook + portal bayar + rekonsiliasi; bertentangan dengan pengecualian di `ENTERPRISE_ISP_READINESS.md` (Q1). Kunci hanya di `.env`. |
 | `isp-roadmap` | 0 | roadmap | Item yang tidak ada di kedua aplikasi (MikroTik/RADIUS, WhatsApp, portal lanjutan, IPAM, ODN, PO/vendor, payroll, GIS). |
+| `private-media` | 3 (backend, ui, tester) | needs-owner-approval | Temuan keamanan F-01 (medium): lampiran tiket, bukti SPK, dan dokumen customer disimpan di disk `public` dan bisa diunduh tanpa login lewat `/storage/{id}/{file}`. Rekomendasi: disk privat + route berotorisasi + command migrasi file lama. |
 
 Ledger tetap otoritatif; saat Owner menyetujui sebuah lane, tambahkan kartu/entri ledger dan perbarui `Status:` di `.scratch`.

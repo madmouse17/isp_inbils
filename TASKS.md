@@ -856,3 +856,5 @@ sla_tiers, locations) via event CompanyCreated listener atau
 - **Head Company selesai 2026-10-11:** konteks company fail-closed, membership + subsidiary (CLI), switcher company, laporan konsolidasi Business untuk Head. Review isolasi SIGNED (instalasi satu root). Semua 9 lane recovery Hermes kini selesai.
 
 - **isp_ari gap lanes (2026-10-11), semua `needs-owner-approval`, belum dikerjakan:** `customer-status-rollup` (4 tiket), `auth-2fa-passkeys` (6 tiket, satu kondisional), `midtrans-payment` (8 tiket), `installation-spk-delta` (0 tiket, kesimpulan no-gap), `isp-roadmap` (roadmap, 0 tiket). Spec + tiket di `.scratch/<slug>/`; keputusan Owner ada di bagian "Owner decisions" tiap spec.
+
+- **Keamanan 2026-10-11:** tiket customer kini hanya bisa melihat/komentar/membuat tiket miliknya sendiri, komentar internal disembunyikan; pembayaran hanya untuk invoice sent/partial/overdue. Lane baru `private-media` (3 tiket, `needs-owner-approval`): file upload masih bisa diunduh publik.
