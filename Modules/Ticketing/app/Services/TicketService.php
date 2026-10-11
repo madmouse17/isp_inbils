@@ -405,5 +405,7 @@ class TicketService
             && CompanyService::idFor($actor) === (int) $ticket->company_id,
             403
         );
+        // Maker/checker: the handler who resolved the ticket cannot also close it.
+        abort_if((int) $ticket->assigned_to === (int) $actor->id, 422, 'Cannot close a ticket you resolved.');
     }
 }

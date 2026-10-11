@@ -321,11 +321,13 @@ export default function Show({ ticket }: ShowProps) {
                                     Resolve
                                 </Button>
                             )}
-                            {t.status === 'resolved' && can('ticket.close') && (
-                                <Button type="button" onClick={() => setActionModal('close')}>
-                                    Close
-                                </Button>
-                            )}
+                            {t.status === 'resolved' &&
+                                can('ticket.close') &&
+                                t.assigned_to !== auth.user?.id && (
+                                    <Button type="button" onClick={() => setActionModal('close')}>
+                                        Close
+                                    </Button>
+                                )}
                             {(t.status === 'on_progress' || t.status === 'assigned') &&
                                 !t.resolution_note && (
                                     <Button

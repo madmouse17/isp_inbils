@@ -9,6 +9,7 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -71,6 +72,26 @@ class TicketCloseTest extends TestCase
         $this->actingAs($this->technician)
             ->post(route('admin.tickets.close', $ticket))
             ->assertForbidden();
+
+        $this->assertSame('resolved', $ticket->fresh()->status);
+    }
+
+    public function test_the_handler_who_resolved_cannot_close_even_with_ticket_close(): void
+    {
+        $ticket = $this->ticketHandledByTechnician('resolved');
+        // The admin holds ticket.close; as the handler it must still leave closing to a checker.
+        $ticket->forceFill(['assigned_to' => $this->admin->id])->save();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.tickets.close', $ticket))
+            ->assertForbidden();
+
+        try {
+            TicketService::close($ticket->fresh());
+            $this->fail('The handler closed its own ticket.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
 
         $this->assertSame('resolved', $ticket->fresh()->status);
     }

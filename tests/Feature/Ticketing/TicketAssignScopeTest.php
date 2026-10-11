@@ -240,8 +240,12 @@ class TicketAssignScopeTest extends TestCase
 
         $this->assertSame('resolved', $ticket->fresh()->status);
 
-        // 3. Handler with ticket.close can close
+        // 3. The handler who resolved cannot close (maker/checker); another ticket.close holder can
         $this->actingAs($handler)
+            ->post(route('admin.tickets.close', $ticket))
+            ->assertForbidden();
+
+        $this->actingAs($admin)
             ->post(route('admin.tickets.close', $ticket))
             ->assertRedirect();
 

@@ -107,12 +107,13 @@ class TicketPolicy
             && $this->isAssignedEligibleHandler($user, $ticket);
     }
 
-    /** A checker (any ticket.close holder in the company) closes work the handler resolved. */
+    /** A checker (any ticket.close holder in the company other than the handler who resolved it) closes the work. */
     public function close(User $user, Ticket $ticket): bool
     {
         return $this->sameCompany($user, $ticket)
             && $user->is_active
             && $ticket->status === 'resolved'
+            && (int) $ticket->assigned_to !== (int) $user->id
             && $user->can('ticket.close');
     }
 
