@@ -39,7 +39,7 @@ export default function TwoFactorChallenge() {
                 Two-factor authentication
             </h1>
 
-            <p className="mb-4 mt-2 text-sm text-muted-foreground">
+            <p className="mt-2 mb-4 text-sm text-muted-foreground">
                 {usingRecoveryCode
                     ? 'Enter one of your recovery codes. Each code works only once.'
                     : 'Enter the 6-digit code from your authenticator app.'}
@@ -71,14 +71,14 @@ export default function TwoFactorChallenge() {
                 <button
                     type="button"
                     onClick={toggleMethod}
-                    className="rounded-md font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="rounded-md font-medium text-primary underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
                 >
                     {usingRecoveryCode ? 'Use an authentication code' : 'Use a recovery code'}
                 </button>
 
                 <Link
                     href={route('login')}
-                    className="rounded-md text-muted-foreground underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                    className="rounded-md text-muted-foreground underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
                 >
                     Back to log in
                 </Link>

@@ -40,11 +40,11 @@ export function FilterBar({
     return (
         <form
             onSubmit={onSubmitSearch}
-            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-sm md:flex-row md:items-end"
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xs md:flex-row md:items-end"
             role="search"
             aria-label="Filter Antrean Approval"
         >
-            <div className="min-w-[14rem] flex-1">
+            <div className="min-w-56 flex-1">
                 <Input
                     id="approvals-search"
                     label="Pencarian"

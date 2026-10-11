@@ -1,6 +1,6 @@
 # inbils — ISP Management System
 
-ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v3.
+ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v4.
 
 ## Features
 
@@ -109,7 +109,7 @@ ISP management platform built with Laravel 12 + Inertia.js + React 18 + TypeScri
 |-------|-----------|
 | Backend | Laravel 12, PHP 8.2+ |
 | Frontend | React 18, TypeScript, Inertia.js |
-| Styling | Tailwind CSS v3 + @tailwindcss/forms |
+| Styling | Tailwind CSS v4 (CSS-first config in `resources/css/app.css`) + @tailwindcss/forms |
 | Build | Vite |
 | Database | MySQL 8+ |
 | Auth | Laravel Breeze (Inertia/React) |

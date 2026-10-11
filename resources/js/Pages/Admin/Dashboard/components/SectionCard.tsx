@@ -71,7 +71,7 @@ export function SectionCard({ section, company, className }: SectionCardProps) {
         <Card className={cn('flex min-w-0 flex-col', className)}>
             <Link
                 href={section.href}
-                className="block flex-1 rounded-lg p-5 transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
+                className="block flex-1 rounded-lg p-5 transition-colors hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden focus-visible:ring-inset motion-reduce:transition-none"
             >
                 <div className="flex items-start justify-between gap-3">
                     <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
@@ -99,7 +99,7 @@ export function SectionCard({ section, company, className }: SectionCardProps) {
                         {details.map(({ label, value }) => (
                             <div key={label} className="flex gap-1">
                                 <dt>{label}</dt>
-                                <dd className="font-medium tabular-nums text-foreground">
+                                <dd className="font-medium text-foreground tabular-nums">
                                     {value}
                                 </dd>
                             </div>

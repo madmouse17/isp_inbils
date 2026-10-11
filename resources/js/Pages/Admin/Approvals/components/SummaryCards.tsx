@@ -29,10 +29,10 @@ export function SummaryCards({ summary, domain }: SummaryCardsProps) {
             role="region"
             aria-label="Ringkasan Antrean Approval"
         >
-            <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/40 motion-reduce:transition-none">
+            <Card className="border-border bg-card shadow-xs transition-colors hover:border-primary/40 motion-reduce:transition-none">
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Menunggu Saya
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -46,10 +46,10 @@ export function SummaryCards({ summary, domain }: SummaryCardsProps) {
                 </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-sm">
+            <Card className="border-border bg-card shadow-xs">
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Mendesak / Terlambat
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-muted-foreground">—</p>
@@ -63,10 +63,10 @@ export function SummaryCards({ summary, domain }: SummaryCardsProps) {
                 </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-sm">
+            <Card className="border-border bg-card shadow-xs">
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Diproses
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -80,10 +80,10 @@ export function SummaryCards({ summary, domain }: SummaryCardsProps) {
                 </CardContent>
             </Card>
 
-            <Card className="border-border bg-card shadow-sm">
+            <Card className="border-border bg-card shadow-xs">
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Riwayat Kanonikal
                         </p>
                         <div className="flex items-baseline gap-2">

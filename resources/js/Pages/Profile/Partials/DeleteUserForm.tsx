@@ -109,7 +109,7 @@ export default function DeleteUserForm({ className = '' }: { className?: string 
                             <AlertDialogAction
                                 type="submit"
                                 disabled={processing}
-                                className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                                className="bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90"
                             >
                                 {processing ? 'Deleting…' : 'Delete Account'}
                             </AlertDialogAction>

@@ -180,7 +180,7 @@ export default function MyWorkIndex({
                     {row.actions.view && row.detail_url ? (
                         <a
                             href={row.detail_url}
-                            className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.code}
                         </a>
@@ -204,7 +204,7 @@ export default function MyWorkIndex({
             sortable: true,
             sortKey: 'title',
             cell: (row) => (
-                <div className="max-w-xs space-y-1">
+                <div className="space-y-1 max-w-xs">
                     <span className="line-clamp-2 text-sm font-medium text-foreground">
                         {row.title}
                     </span>
@@ -392,7 +392,7 @@ export default function MyWorkIndex({
                 />
 
                 {/* Main Content Area: Filter and Table */}
-                <Card className="border-border bg-card shadow-sm">
+                <Card className="border-border bg-card shadow-xs">
                     <CardContent className="space-y-4 pt-6">
                         <FilterBar
                             params={params}

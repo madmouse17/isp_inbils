@@ -71,7 +71,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                                         key={notification.id}
                                         className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6 ${notification.read_at ? '' : 'bg-muted/30'}`}
                                     >
-                                        <div className="min-w-0 space-y-1">
+                                        <div className="space-y-1 min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h2 className="font-semibold text-foreground">
                                                     {notification.title}

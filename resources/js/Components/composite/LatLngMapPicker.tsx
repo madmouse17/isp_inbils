@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef } from 'react';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Button } from '@/Components/ui/Button';
 import {
     JAKARTA_CENTER,

@@ -86,7 +86,7 @@ export default function Components() {
     return (
         <AdminLayout title="Galeri Komponen">
             <div className="mx-auto flex max-w-7xl gap-8 p-6 lg:p-8">
-                <nav className="sticky top-8 hidden w-56 shrink-0 space-y-1 self-start lg:block">
+                <nav className="sticky top-8 space-y-1 hidden w-56 shrink-0 self-start lg:block">
                     {sections.map((s) => (
                         <a
                             key={s.id}
@@ -98,7 +98,7 @@ export default function Components() {
                     ))}
                 </nav>
 
-                <div className="flex-1 space-y-10">
+                <div className="space-y-10 flex-1">
                     <PageHeader
                         title="Galeri Komponen"
                         subtitle="Semua komponen UI sistem desain inbils."

@@ -39,7 +39,7 @@ export default function Login({
                             href="/"
                             className="flex items-center gap-3 text-sm font-semibold tracking-tight"
                         >
-                            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-primary shadow-sm">
+                            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-primary shadow-xs">
                                 <ApplicationLogo className="h-6 w-6 fill-current" />
                             </span>
                             Inbils
@@ -49,7 +49,7 @@ export default function Login({
                             <div className="mb-5 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-brand-200">
                                 Billing command center
                             </div>
-                            <h1 className="text-4xl font-semibold leading-tight tracking-tight xl:text-5xl">
+                            <h1 className="text-4xl leading-tight font-semibold tracking-tight xl:text-5xl xl:leading-none">
                                 Masuk ke panel yang rapi untuk invoice, pelanggan, dan kas masuk.
                             </h1>
                             <p className="mt-5 max-w-md text-sm leading-6 text-slate-300">
@@ -76,14 +76,14 @@ export default function Login({
                 </section>
 
                 <section className="flex items-center justify-center bg-muted/30 px-4 py-10 sm:px-6 lg:bg-background">
-                    <Card className="w-full max-w-md border-border/80 shadow-sm">
+                    <Card className="w-full max-w-md border-border/80 shadow-xs">
                         <CardContent className="p-6 sm:p-8">
                             <div className="mb-8 lg:hidden">
                                 <Link
                                     href="/"
                                     className="inline-flex items-center gap-3 text-sm font-semibold tracking-tight"
                                 >
-                                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+                                    <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-xs">
                                         <ApplicationLogo className="h-6 w-6 fill-current" />
                                     </span>
                                     Inbils
@@ -144,7 +144,7 @@ export default function Login({
                                     {canResetPassword && (
                                         <Link
                                             href={route('password.request')}
-                                            className="rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                            className="rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
                                         >
                                             Forgot password?
                                         </Link>

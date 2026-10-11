@@ -222,7 +222,7 @@ export default function ApprovalInboxIndex({
                     {row.actions?.view && row.detail_url ? (
                         <a
                             href={row.detail_url}
-                            className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.code}
                         </a>
@@ -342,7 +342,7 @@ export default function ApprovalInboxIndex({
                             Tinjau
                         </Button>
                     ) : (
-                        <span className="rounded border border-muted bg-muted/30 px-2 py-0.5 text-[11px] italic text-muted-foreground">
+                        <span className="rounded border border-muted bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground italic">
                             Maker-checker
                         </span>
                     )}
@@ -414,7 +414,7 @@ export default function ApprovalInboxIndex({
                 )}
 
                 {/* Main Content Area: Filter and Items */}
-                <Card className="border-border bg-card shadow-sm">
+                <Card className="border-border bg-card shadow-xs">
                     <CardContent className="space-y-4 pt-6">
                         {/* Server-driven Filter Bar */}
                         <FilterBar

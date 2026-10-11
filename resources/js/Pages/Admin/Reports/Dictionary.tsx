@@ -31,7 +31,7 @@ export default function Dictionary({ reports }: Props) {
                                     <li key={report.key}>
                                         <a
                                             href={`#dictionary-${report.key}`}
-                                            className="rounded-sm font-medium text-foreground underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                            className="rounded-sm font-medium text-foreground underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
                                         >
                                             {report.title} ({report.metrics.length})
                                         </a>
@@ -44,7 +44,7 @@ export default function Dictionary({ reports }: Props) {
                                 key={report.key}
                                 id={`dictionary-${report.key}`}
                                 aria-labelledby={`dictionary-${report.key}-heading`}
-                                className="scroll-mt-4 space-y-4"
+                                className="space-y-4 scroll-mt-4"
                             >
                                 <div className="space-y-1">
                                     <h2
@@ -53,7 +53,7 @@ export default function Dictionary({ reports }: Props) {
                                     >
                                         {report.title}
                                     </h2>
-                                    <p className="break-words text-xs text-muted-foreground">
+                                    <p className="text-xs wrap-break-word text-muted-foreground">
                                         Formula version {report.formula_version ?? 'none'} ·
                                         Requires{' '}
                                         <code className="font-mono">{report.permission}</code>
@@ -73,17 +73,17 @@ export default function Dictionary({ reports }: Props) {
                                             <CardHeader className="space-y-1">
                                                 <CardTitle
                                                     id={`dictionary-${report.key}-${metric.key}-title`}
-                                                    className="break-words leading-tight"
+                                                    className="leading-tight wrap-break-word"
                                                 >
                                                     {metric.label}
                                                 </CardTitle>
-                                                <p className="break-words text-xs text-muted-foreground">
+                                                <p className="text-xs wrap-break-word text-muted-foreground">
                                                     <code className="font-mono">{metric.key}</code>{' '}
                                                     · {metric.version}
                                                 </p>
                                             </CardHeader>
-                                            <CardContent className="min-w-0 space-y-4">
-                                                <p className="break-words text-sm text-foreground">
+                                            <CardContent className="space-y-4 min-w-0">
+                                                <p className="text-sm wrap-break-word text-foreground">
                                                     {metric.definition}
                                                 </p>
                                                 <MetricDefinitionDetails definition={metric} />

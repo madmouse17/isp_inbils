@@ -19,7 +19,7 @@ export function MediaPreview({ media }: { media: MediaFile }) {
     const isImage = media.mime_type?.startsWith('image/') ?? false;
 
     return (
-        <div className="mt-2 space-y-2">
+        <div className="space-y-2 mt-2">
             {isImage && !broken && (
                 <img
                     src={media.url}

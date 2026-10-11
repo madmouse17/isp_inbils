@@ -151,7 +151,7 @@ export function Tab({ value, children, disabled, className }: TabProps) {
             disabled={disabled}
             onClick={() => ctx?.onValueChange(value)}
             className={cn(
-                'px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40',
+                'px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-40',
                 active
                     ? 'border-b-2 border-primary text-primary'
                     : 'text-muted-foreground hover:text-foreground',
@@ -182,7 +182,7 @@ export function TabPanel({ value, children, className }: TabPanelProps) {
             id={panelId}
             aria-labelledby={tabId}
             tabIndex={0}
-            className={cn('py-4 focus-visible:outline-none', className)}
+            className={cn('py-4 focus-visible:outline-hidden', className)}
         >
             {children}
         </div>

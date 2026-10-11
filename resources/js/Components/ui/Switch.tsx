@@ -29,13 +29,13 @@ export function Switch({ checked, onCheckedChange, label, disabled }: SwitchProp
                     }
                 }}
                 className={cn(
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed',
+                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed',
                     checked ? 'bg-primary' : 'bg-muted',
                 )}
             >
                 <span
                     className={cn(
-                        'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform',
+                        'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-xs transition-transform',
                         checked ? 'translate-x-5' : 'translate-x-0',
                     )}
                 />

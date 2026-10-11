@@ -56,7 +56,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                         id={checkboxId}
                         type="checkbox"
                         className={cn(
-                            'h-4 w-4 rounded border border-primary text-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50',
+                            'h-4 w-4 rounded border border-primary text-primary shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
                             error && 'border-destructive',
                             className,
                         )}

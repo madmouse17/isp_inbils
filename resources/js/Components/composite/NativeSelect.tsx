@@ -30,7 +30,7 @@ export const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProp
                         ref={ref}
                         id={inputId}
                         className={cn(
-                            'h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-9 text-sm text-foreground shadow-sm transition-colors [color-scheme:light] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark] [&>option:disabled]:text-muted-foreground [&>option]:bg-background [&>option]:text-foreground',
+                            'h-9 w-full appearance-none rounded-md border border-input bg-background px-3 py-1 pr-9 text-sm text-foreground scheme-light shadow-xs transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 dark:scheme-dark [&>option]:bg-background [&>option]:text-foreground [&>option:disabled]:text-muted-foreground',
                             error && 'border-destructive focus-visible:ring-destructive',
                             className,
                         )}
@@ -47,7 +47,7 @@ export const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProp
                         ))}
                         {children}
                     </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground">
                         <svg
                             className="h-4 w-4"
                             fill="none"

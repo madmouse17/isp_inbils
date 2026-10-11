@@ -1,6 +1,6 @@
 # inbils — Project Agent Guide
 
-Stack: Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v3 + Vite.
+Stack: Laravel 12 + Inertia.js + React 18 + TypeScript + Tailwind CSS v4 + Vite.
 Auth: Laravel Breeze (React/Inertia). DB: MySQL (Laragon).
 
 ## AI Artifact Cleanup Rule (MANDATORY)
@@ -217,12 +217,12 @@ This is the single source of truth for the design system.
 ## Design System
 
 - Theme: modern flat. No heavy gradients, no faux-3D, no drop shadows
-  deeper than `shadow-sm`. Rounded corners (`rounded-lg`/`rounded-xl`),
+  deeper than `shadow-xs` (Tailwind v4 name of the old `shadow-sm`). Rounded corners (`rounded-lg`/`rounded-xl`),
   generous whitespace, restrained palette.
 - Dark mode: every component MUST support `dark:` variants. The app
-  toggles via the `class` strategy (set on `<html>`). `tailwind.config.js`
-  has `darkMode: 'class'`.
-- Color tokens: `tailwind.config.js` → `theme.extend.colors`. Use semantic
+  toggles via the `class` strategy (set on `<html>`); `resources/css/app.css`
+  declares `@custom-variant dark`.
+- Color tokens: `resources/css/app.css` `@theme` (CSS-first config; no `tailwind.config.js`). Use semantic
   names (`brand`, `surface`, `success`, `warning`, `danger`), never raw
   hex in components.
 - Typography: Figtree (already wired). Headings via `font-semibold`/
@@ -427,7 +427,7 @@ This application is a Laravel application and its main Laravel ecosystems packag
 - phpunit/phpunit (PHPUNIT) - v11
 - @inertiajs/react (INERTIA_REACT) - v2
 - react (REACT) - v18
-- tailwindcss (TAILWINDCSS) - v3
+- tailwindcss (TAILWINDCSS) - v4
 
 ## Skills Activation
 

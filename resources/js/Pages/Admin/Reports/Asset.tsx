@@ -172,7 +172,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                 </p>
                                 <MetricDefinitionNote
                                     definition={meta.metrics.status_distribution}
-                                    className="mb-4 mt-0 border-t-0 pt-0"
+                                    className="mt-0 mb-4 border-t-0 pt-0"
                                 />
                                 <Table>
                                     <THead>

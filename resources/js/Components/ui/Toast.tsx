@@ -52,7 +52,7 @@ function Toast({ message, onDismiss }: ToastProps) {
             </div>
             <button
                 onClick={() => onDismiss(message.id)}
-                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                 aria-label="Close notification"
             >
                 <XMarkIcon className="h-4 w-4" />
@@ -87,7 +87,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
             <div
                 aria-live="polite"
                 aria-label="Notifications"
-                className="pointer-events-none fixed right-4 top-4 z-50 flex flex-col gap-2"
+                className="pointer-events-none fixed top-4 right-4 z-50 flex flex-col gap-2"
             >
                 {messages.map((m) => (
                     <div key={m.id} className="pointer-events-auto">

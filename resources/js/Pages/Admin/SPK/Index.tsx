@@ -148,7 +148,7 @@ export default function SpkIndex({
                 />
 
                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="min-w-[12rem] flex-1 space-y-1">
+                    <div className="space-y-1 min-w-48 flex-1">
                         <label
                             className="text-xs font-medium text-muted-foreground"
                             htmlFor="spk-search"
@@ -168,7 +168,7 @@ export default function SpkIndex({
                             value={params.type || '__all__'}
                             onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger aria-label="Type" className="w-[10rem]">
+                            <SelectTrigger aria-label="Type" className="w-40">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -187,7 +187,7 @@ export default function SpkIndex({
                             value={params.status || '__all__'}
                             onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger aria-label="Status" className="w-[10rem]">
+                            <SelectTrigger aria-label="Status" className="w-40">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>

@@ -101,7 +101,7 @@ interface CompanyLabelProps {
 function CompanyLabel({ name, detail, isHead = false }: CompanyLabelProps) {
     return (
         <div className="space-y-1">
-            <span className="block break-words font-medium">{name}</span>
+            <span className="block font-medium wrap-break-word">{name}</span>
             {(detail || isHead) && (
                 <div className="flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
                     {isHead && <Badge variant="secondary">Head</Badge>}
@@ -133,7 +133,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
             key: 'company',
             header: 'Company',
             cell: ({ company }) => (
-                <div className="min-w-[12rem]">
+                <div className="min-w-48">
                     <CompanyLabel
                         name={company.name}
                         detail={`${company.code}, ${company.timezone}`}
@@ -189,7 +189,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
             ) : (
                 <ul
                     aria-labelledby="consolidated-figures"
-                    className="grid gap-3 sm:grid-cols-2 min-[1200px]:hidden"
+                    className="grid gap-3 min-[1200px]:hidden sm:grid-cols-2"
                 >
                     {cards.map((card) => (
                         <li key={card.key} className={card.total ? 'sm:col-span-2' : undefined}>
@@ -242,7 +242,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
                                 {METRIC_KEYS.map((key) => (
                                     <TD
                                         key={key}
-                                        className="whitespace-nowrap text-right font-semibold tabular-nums"
+                                        className="text-right font-semibold whitespace-nowrap tabular-nums"
                                     >
                                         <MetricValue
                                             metric={key}
@@ -358,7 +358,7 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                                     Each company&apos;s own figures stay available in{' '}
                                     <Link
                                         href={route('admin.reports.business')}
-                                        className="rounded-sm font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        className="rounded-sm font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                     >
                                         Business Metrics
                                     </Link>

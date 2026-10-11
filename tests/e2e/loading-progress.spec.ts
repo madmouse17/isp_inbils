@@ -607,7 +607,7 @@ test.describe('@loading-progress upload', () => {
             expect(
                 await indicator.evaluate((element) => getComputedStyle(element).transitionProperty),
                 'bar animates the fill',
-            ).toBe('transform');
+            ).toMatch(/^transform\b/);
             await page.emulateMedia({ reducedMotion: 'reduce' });
             expect(
                 await indicator.evaluate((element) => getComputedStyle(element).transitionProperty),

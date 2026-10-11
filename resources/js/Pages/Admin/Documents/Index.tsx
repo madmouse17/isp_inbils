@@ -163,7 +163,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                            <div className="min-w-[12rem] flex-1 space-y-1">
+                            <div className="space-y-1 min-w-48 flex-1">
                                 <label
                                     className="text-xs font-medium text-muted-foreground"
                                     htmlFor="doc-search"

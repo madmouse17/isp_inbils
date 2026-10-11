@@ -28,7 +28,7 @@ export default function SetupLayout({ title = 'Setup', children }: SetupLayoutPr
     return (
         <>
             <Head title={title} />
-            <main className="min-h-screen bg-muted/30 px-4 py-8 text-foreground dark:bg-background sm:px-6 lg:px-8">
+            <main className="min-h-screen bg-muted/30 px-4 py-8 text-foreground sm:px-6 lg:px-8 dark:bg-background">
                 <div className="mx-auto flex max-w-3xl flex-col gap-6">
                     <header className="flex items-center justify-between">
                         <div className="flex items-center gap-3">

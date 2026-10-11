@@ -190,18 +190,18 @@ export default function TwoFactorAuthenticationForm({
                     />
 
                     <div className="space-y-5">
-                        <ol className="list-decimal space-y-2 pl-5 text-sm text-foreground">
+                        <ol className="space-y-2 list-decimal pl-5 text-sm text-foreground">
                             <li>Scan the QR code with an authenticator app on your phone.</li>
                             <li>
                                 Cannot scan? Enter this setup key in the app instead:
-                                <code className="mt-1 block select-all break-all rounded-md bg-muted px-2 py-1 font-mono text-sm">
+                                <code className="mt-1 block rounded-md bg-muted px-2 py-1 font-mono text-sm break-all select-all">
                                     {setup.setup_key.match(/.{1,4}/g)?.join(' ')}
                                 </code>
                             </li>
                             <li>Type the 6-digit code the app shows to finish.</li>
                         </ol>
 
-                        <form onSubmit={confirmSetup} className="max-w-xs space-y-4">
+                        <form onSubmit={confirmSetup} className="space-y-4 max-w-xs">
                             <Input
                                 id="two_factor_confirm_code"
                                 label="Authentication code"
@@ -250,7 +250,7 @@ export default function TwoFactorAuthenticationForm({
                         {recoveryCodes.map((code) => (
                             <li
                                 key={code}
-                                className="select-all rounded-md bg-background px-3 py-1"
+                                className="rounded-md bg-background px-3 py-1 select-all"
                             >
                                 {code}
                             </li>
@@ -347,7 +347,7 @@ export default function TwoFactorAuthenticationForm({
                         <AlertDialogAction
                             type="button"
                             disabled={disable.processing}
-                            className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                            className="bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90"
                             onClick={(e) => {
                                 e.preventDefault();
                                 turnOff();

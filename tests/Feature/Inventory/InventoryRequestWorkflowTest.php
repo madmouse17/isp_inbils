@@ -106,6 +106,14 @@ class InventoryRequestWorkflowTest extends TestCase
         $this->adminUser->assignRole('admin');
     }
 
+    public function test_create_page_lists_products_with_their_sku_as_code(): void
+    {
+        $response = $this->actingAs($this->technician)->get(route('admin.inventory.requests.create'))->assertOk();
+
+        $product = collect($response->viewData('page')['props']['products'])->firstWhere('id', $this->cableProduct->id);
+        $this->assertSame($this->cableProduct->sku, $product['code']);
+    }
+
     public function test_technician_can_create_draft_and_submit_inventory_request(): void
     {
         Notification::fake();

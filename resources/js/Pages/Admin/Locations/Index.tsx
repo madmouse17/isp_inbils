@@ -278,7 +278,7 @@ export default function Index({
                 header: 'Path',
                 sortable: true,
                 sortKey: 'path',
-                className: 'max-w-[12rem] truncate text-xs text-muted-foreground',
+                className: 'max-w-48 truncate text-xs text-muted-foreground',
             },
             {
                 key: 'is_active',
@@ -389,7 +389,7 @@ export default function Index({
                             <CardContent className="space-y-4 pt-6">
                                 {/* Filter bar */}
                                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                                    <div className="min-w-[12rem] flex-1">
+                                    <div className="min-w-48 flex-1">
                                         <Input
                                             label="Cari"
                                             value={params.search ?? ''}
@@ -604,7 +604,7 @@ export default function Index({
 
                             {/* Coordinate change confirmation */}
                             {coordsChanged && (
-                                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950 lg:col-span-2">
+                                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm lg:col-span-2 dark:border-amber-700 dark:bg-amber-950">
                                     <p className="font-medium text-amber-800 dark:text-amber-200">
                                         Koordinat berubah
                                     </p>

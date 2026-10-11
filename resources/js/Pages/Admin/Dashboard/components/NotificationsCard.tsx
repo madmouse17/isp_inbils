@@ -21,7 +21,7 @@ export function NotificationsCard({ items }: NotificationsCardProps) {
                                 <p className="text-sm font-medium text-foreground">{item.title}</p>
                                 {!item.read_at && <ToneBadge tone="info">Belum dibaca</ToneBadge>}
                             </div>
-                            <p className="break-words text-sm text-muted-foreground">
+                            <p className="text-sm wrap-break-word text-muted-foreground">
                                 {item.message}
                             </p>
                             <p className="text-xs text-muted-foreground">
@@ -33,7 +33,7 @@ export function NotificationsCard({ items }: NotificationsCardProps) {
             )}
             <Link
                 href={route('admin.notifications.index')}
-                className="flex min-h-11 items-center justify-center rounded-b-lg border-t border-border px-4 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                className="flex min-h-11 items-center justify-center rounded-b-lg border-t border-border px-4 text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden focus-visible:ring-inset"
             >
                 Lihat semua notifikasi
             </Link>

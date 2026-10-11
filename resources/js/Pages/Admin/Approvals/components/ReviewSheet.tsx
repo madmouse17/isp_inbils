@@ -203,7 +203,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
             </SheetHeader>
 
             <div
-                className="flex-1 space-y-5 overflow-y-auto p-6"
+                className="space-y-5 flex-1 overflow-y-auto p-6"
                 tabIndex={0}
                 aria-label={
                     isInventory ? 'Detail Peninjauan Permintaan Barang' : 'Detail Peninjauan SPK'
@@ -257,8 +257,8 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 )}
 
                 {/* General Information Card */}
-                <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-sm">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-xs">
+                    <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         {isInventory ? 'Informasi Permintaan Barang' : 'Informasi SPK'}
                     </h4>
                     <div>
@@ -303,8 +303,8 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 </div>
 
                 {/* Impact & Material Summary Card */}
-                <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-sm">
-                    <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
+                    <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                         Dampak Material & Penggunaan Barang
                     </h4>
                     <p className="text-sm font-medium text-foreground">{item.summary.label}</p>
@@ -320,7 +320,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                             unit
                         </span>
                     </div>
-                    <p className="pt-1 text-[11px] italic text-muted-foreground">
+                    <p className="pt-1 text-[11px] text-muted-foreground italic">
                         {isInventory
                             ? '* Persetujuan akan mereservasi stok material di gudang dan mengubah status menjadi Disetujui (Reservasi).'
                             : '* Persetujuan akan memproses alokasi stok material dan memperbarui status SPK secara permanen.'}
@@ -329,10 +329,10 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
 
                 {/* Optional Approval Note for Inventory Request */}
                 {isInventory && item.actions.approve && !isRejecting && (
-                    <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-sm">
+                    <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
                         <label
                             htmlFor="inv-approve-note"
-                            className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+                            className="text-xs font-semibold tracking-wider text-muted-foreground uppercase"
                         >
                             Catatan Persetujuan (Opsional)
                         </label>
@@ -352,7 +352,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 {isRejecting && (
                     <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-semibold uppercase tracking-wider text-destructive">
+                            <h4 className="text-xs font-semibold tracking-wider text-destructive uppercase">
                                 {isInventory
                                     ? 'Konfirmasi Penolakan Permintaan Barang'
                                     : 'Konfirmasi Penolakan SPK'}

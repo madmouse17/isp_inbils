@@ -887,7 +887,7 @@ export default function InventoryRequestsIndex({
                                                                 <span className="text-muted-foreground">
                                                                     Barang Dikembalikan:
                                                                 </span>
-                                                                <ul className="mt-1 space-y-1">
+                                                                <ul className="space-y-1 mt-1">
                                                                     {c.lines.map((l) => (
                                                                         <li
                                                                             key={l.id}
@@ -1030,7 +1030,7 @@ function RequestsTableView({
                             sortable: true,
                             className: 'whitespace-normal',
                             cell: (row) => (
-                                <Card key={row.id} className="border border-border shadow-sm">
+                                <Card key={row.id} className="border border-border shadow-xs">
                                     <CardContent className="space-y-3 p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div>

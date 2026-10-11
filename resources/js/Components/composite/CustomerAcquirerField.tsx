@@ -67,7 +67,7 @@ export function CustomerAcquirerField({
     if (readOnly) {
         return (
             <div className="space-y-1.5">
-                <p className="text-sm font-medium leading-none">Acquired by</p>
+                <p className="text-sm leading-none font-medium">Acquired by</p>
                 <div className="text-sm" data-testid="customer-acquirer-readonly">
                     <CustomerAcquirerValue acquirer={current} />
                 </div>

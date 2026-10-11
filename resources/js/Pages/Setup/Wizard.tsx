@@ -119,7 +119,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                         </p>
                     )}
 
-                    <form onSubmit={submit} className="mt-6 space-y-5">
+                    <form onSubmit={submit} className="space-y-5 mt-6">
                         {step === 0 && (
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Input

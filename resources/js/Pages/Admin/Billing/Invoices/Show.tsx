@@ -461,7 +461,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                 </TD>
                                                 <TD className="font-medium">{a.amount}</TD>
                                                 <TD>{a.payment_type ?? '-'}</TD>
-                                                <TD className="break-all font-mono text-xs">
+                                                <TD className="font-mono text-xs break-all">
                                                     {a.transaction_id ?? '-'}
                                                 </TD>
                                                 <TD className="text-sm">

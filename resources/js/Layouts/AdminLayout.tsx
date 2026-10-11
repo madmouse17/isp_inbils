@@ -180,9 +180,9 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     </div>
                     <main
                         aria-busy={navigating || undefined}
-                        className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+                        className="min-h-0 flex-1 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto p-4 md:p-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent"
                     >
-                        <div className="mx-auto w-full max-w-[1600px] space-y-6">{children}</div>
+                        <div className="mx-auto space-y-6 w-full max-w-[1600px]">{children}</div>
                     </main>
                 </div>
             </div>

@@ -13,11 +13,11 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
         const describedBy = error ? `${areaId}-error` : hint ? `${areaId}-hint` : undefined;
 
         return (
-            <div className="w-full space-y-1.5">
+            <div className="space-y-1.5 w-full">
                 {label ? (
                     <label
                         htmlFor={areaId}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                         {label}
                         {props.required ? (
@@ -31,7 +31,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 <textarea
                     id={areaId}
                     className={cn(
-                        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+                        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
                         error && 'border-destructive focus-visible:ring-destructive',
                         className,
                     )}

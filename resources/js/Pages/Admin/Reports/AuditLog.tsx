@@ -505,7 +505,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 sortable: true,
                 sortKey: 'created_at',
                 cell: (row) => (
-                    <div className="flex flex-col whitespace-nowrap text-xs">
+                    <div className="flex flex-col text-xs whitespace-nowrap">
                         <span className="font-medium text-foreground">
                             {formatDateTime(row.created_at)}
                         </span>
@@ -575,7 +575,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 User #{row.causer_id}
                             </span>
                         ) : (
-                            <span className="italic text-muted-foreground">Sistem</span>
+                            <span className="text-muted-foreground italic">Sistem</span>
                         )}
                     </div>
                 ),
@@ -726,8 +726,8 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 )}
 
                 {/* Filter and Search Card */}
-                <Card className="border border-border shadow-sm">
-                    <CardHeader className="pb-3 pt-5">
+                <Card className="border border-border shadow-xs">
+                    <CardHeader className="pt-5 pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold">
                                 <Filter
@@ -761,7 +761,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     </label>
                                     <div className="relative">
                                         <Search
-                                            className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground"
+                                            className="pointer-events-none absolute top-2.5 left-3 h-4 w-4 text-muted-foreground"
                                             aria-hidden="true"
                                         />
                                         <Input
@@ -947,7 +947,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 </Card>
 
                 {/* Table & Cards Container */}
-                <Card className="border border-border shadow-sm">
+                <Card className="border border-border shadow-xs">
                     <CardContent className="space-y-4 p-4 sm:p-6">
                         {/* Desktop Table */}
                         <div className="hidden md:block">
@@ -996,7 +996,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 paginatedRows.map((row) => (
                                     <Card
                                         key={row.id}
-                                        className="border border-border bg-card p-4 shadow-sm"
+                                        className="border border-border bg-card p-4 shadow-xs"
                                     >
                                         <div className="space-y-3">
                                             {/* Header */}
@@ -1014,7 +1014,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                         {formatEventLabel(row.event)}
                                                     </Badge>
                                                 </div>
-                                                <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+                                                <span className="text-[11px] whitespace-nowrap text-muted-foreground">
                                                     {formatDateTime(row.created_at)}
                                                 </span>
                                             </div>
@@ -1129,7 +1129,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                     <div className="space-y-5">
                         {/* Section 1: Overview Details */}
                         <div className="rounded-lg border border-border bg-muted/30 p-4">
-                            <h4 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            <h4 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                 Informasi Ringkasan
                             </h4>
                             <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
@@ -1203,7 +1203,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                         {/* Section 2: Properties & Data Changes */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                     Properti & Perubahan Nilai
                                 </h4>
                                 {hasSelectedProps && canViewAudit && (

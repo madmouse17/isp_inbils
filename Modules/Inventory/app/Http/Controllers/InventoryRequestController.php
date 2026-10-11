@@ -117,7 +117,7 @@ class InventoryRequestController extends Controller
             ->where('company_id', $companyId)
             ->where('is_active', true)
             ->where('type', '!=', 'asset')
-            ->select('id', 'name', 'code', 'type', 'unit_id')
+            ->select('id', 'name', 'sku as code', 'type', 'unit_id')
             ->with('unit:id,name,symbol')
             ->get();
 

@@ -461,7 +461,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                 </div>
 
                 <Card>
-                    <CardHeader className="flex-row items-center justify-between space-y-0">
+                    <CardHeader className="space-y-0 flex-row items-center justify-between">
                         <CardTitle>Items</CardTitle>
                         {!['completed', 'cancelled'].includes(w.status) && (
                             <Button

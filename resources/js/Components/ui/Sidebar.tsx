@@ -16,9 +16,9 @@ export function SidebarItem({ href, icon, label, active, badge }: SidebarItemPro
         <Link
             href={href}
             className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden',
                 active
-                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    ? 'bg-primary text-primary-foreground shadow-xs'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )}
             aria-current={active ? 'page' : undefined}
@@ -68,7 +68,7 @@ export function SidebarSection({
             open={expanded}
             onToggle={(event) => setExpanded(event.currentTarget.open)}
         >
-            <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+            <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
                 <span className="truncate">{title}</span>
                 <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
             </summary>
@@ -108,7 +108,7 @@ export function Sidebar({
             )}
             <aside
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-xl transition-transform dark:bg-card lg:static lg:translate-x-0 lg:shadow-none',
+                    'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-xl transition-transform lg:static lg:translate-x-0 lg:shadow-none dark:bg-card',
                     open === undefined
                         ? 'hidden lg:block'
                         : open
@@ -137,11 +137,11 @@ export function Sidebar({
                         )}
                     </div>
                     <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold leading-none">{brandName}</p>
+                        <p className="truncate text-sm leading-none font-semibold">{brandName}</p>
                         <p className="text-xs text-muted-foreground">ISP ERP</p>
                     </div>
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+                <div className="min-h-0 flex-1 scrollbar-thin [scrollbar-color:hsl(var(--muted-foreground))_transparent] overflow-y-auto px-4 pb-4 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
                     {children}
                 </div>
             </aside>

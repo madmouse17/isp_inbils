@@ -43,7 +43,7 @@ export function Avatar({ src, name, size = 'md', status, className }: AvatarProp
             {status && (
                 <span
                     className={cn(
-                        'absolute bottom-0 right-0 block rounded-full ring-2 ring-background',
+                        'absolute right-0 bottom-0 block rounded-full ring-2 ring-background',
                         statusColors[status],
                         size === 'sm' ? 'h-2 w-2' : 'h-2.5 w-2.5',
                     )}

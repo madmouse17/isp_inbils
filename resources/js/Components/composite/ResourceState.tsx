@@ -40,7 +40,7 @@ export function LoadingState({
                 {Array.from({ length: rows }, (_, i) => (
                     <div key={i} className="flex items-center gap-3">
                         <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
-                        <div className="flex-1 space-y-2">
+                        <div className="space-y-2 flex-1">
                             <Skeleton className="h-4 w-1/3" />
                             <Skeleton className="h-3 w-1/2" />
                         </div>
@@ -61,7 +61,7 @@ export function LoadingState({
                 role="status"
                 aria-live="polite"
             >
-                <div className="w-full max-w-md space-y-3">
+                <div className="space-y-3 w-full max-w-md">
                     <Skeleton className="mx-auto h-8 w-1/2" />
                     <Skeleton className="mx-auto h-4 w-3/4" />
                     <Skeleton className="h-32 w-full" />
@@ -162,7 +162,7 @@ export function ForbiddenState({
                     {backHref ? (
                         <Link
                             href={backHref}
-                            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-sm hover:bg-accent hover:text-accent-foreground"
+                            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground"
                         >
                             {backLabel}
                         </Link>

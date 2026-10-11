@@ -107,7 +107,7 @@ function FooterRow({
         <TR>
             <TD className="font-semibold">{label}</TD>
             {SALES_METRIC_KEYS.map((key) => (
-                <TD key={key} className="whitespace-nowrap text-right font-semibold tabular-nums">
+                <TD key={key} className="text-right font-semibold whitespace-nowrap tabular-nums">
                     {formatMetric(key, metrics, company)}
                 </TD>
             ))}
@@ -145,8 +145,8 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
             header: 'Acquirer',
             sortable: true,
             cell: (row) => (
-                <div className="flex min-w-[10rem] flex-wrap items-center gap-2">
-                    <span className="break-words font-medium">{row.name}</span>
+                <div className="flex min-w-40 flex-wrap items-center gap-2">
+                    <span className="font-medium wrap-break-word">{row.name}</span>
                     {!row.is_active && <Badge variant="secondary">Inactive</Badge>}
                 </div>
             ),
@@ -248,7 +248,7 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
                                     <CardTitle>{meta.metrics[key].label}</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="break-words text-2xl font-bold tabular-nums">
+                                    <p className="text-2xl font-bold wrap-break-word tabular-nums">
                                         {formatMetric(key, data.totals, company)}
                                     </p>
                                     <MetricDefinitionNote definition={meta.metrics[key]} />

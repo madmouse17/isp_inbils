@@ -20,14 +20,14 @@ export function MobileItemCard({ item, onReview }: MobileItemCardProps) {
     const isInventory = item.domain === 'inventory_request';
 
     return (
-        <Card className="border-border bg-card shadow-sm transition-colors hover:border-primary/30 motion-reduce:transition-none">
+        <Card className="border-border bg-card shadow-xs transition-colors hover:border-primary/30 motion-reduce:transition-none">
             <CardContent className="space-y-3 p-4">
                 <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1">
                         {item.actions?.view && item.detail_url ? (
                             <a
                                 href={item.detail_url}
-                                className="font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                             >
                                 {item.code}
                             </a>
@@ -101,7 +101,7 @@ export function MobileItemCard({ item, onReview }: MobileItemCardProps) {
                             Tinjau
                         </Button>
                     ) : (
-                        <div className="flex-1 rounded border border-muted bg-muted/20 px-2 py-1 text-center text-xs italic text-muted-foreground">
+                        <div className="flex-1 rounded border border-muted bg-muted/20 px-2 py-1 text-center text-xs text-muted-foreground italic">
                             Maker-checker guard
                         </div>
                     )}

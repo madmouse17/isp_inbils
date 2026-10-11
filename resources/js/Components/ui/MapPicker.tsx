@@ -161,8 +161,8 @@ export function MapPicker({
                     aria-label="Map for selecting customer address coordinates"
                 />
                 {onSearch ? (
-                    <div className="absolute left-3 right-3 top-3 z-[1000] max-w-2xl space-y-2 md:right-auto md:w-[36rem]">
-                        <div className="rounded-lg border border-border bg-background/95 p-2 shadow-sm backdrop-blur dark:bg-background/95">
+                    <div className="absolute top-3 right-3 left-3 z-1000 space-y-2 max-w-2xl md:right-auto md:w-xl">
+                        <div className="rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
                             <div className="mb-2 flex gap-2" aria-label="Location search mode">
                                 <Button
                                     type="button"
@@ -237,7 +237,7 @@ export function MapPicker({
                         </div>
                         {searchMode === 'address' && hasSearched && searchResults.length > 0 ? (
                             <div
-                                className="max-h-56 overflow-y-auto rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur dark:bg-background/95"
+                                className="max-h-56 overflow-y-auto rounded-lg border border-border bg-background/95 p-1 shadow-xs backdrop-blur-sm dark:bg-background/95"
                                 aria-label="Location search results"
                             >
                                 {searchResults.map((result) => (
@@ -245,7 +245,7 @@ export function MapPicker({
                                         key={`${result.lat}-${result.lng}`}
                                         type="button"
                                         variant="ghost"
-                                        className="h-auto w-full justify-start whitespace-normal text-left"
+                                        className="h-auto w-full justify-start text-left whitespace-normal"
                                         onClick={() => {
                                             setSearchQuery(result.display_name);
                                             setHasSearched(false);
@@ -257,13 +257,13 @@ export function MapPicker({
                                 ))}
                             </div>
                         ) : searchMode === 'address' && hasSearched && !searching ? (
-                            <div className="rounded-lg border border-border bg-background/95 p-3 text-sm text-muted-foreground shadow-sm">
+                            <div className="rounded-lg border border-border bg-background/95 p-3 text-sm text-muted-foreground shadow-xs">
                                 Location not found. Try a more specific address.
                             </div>
                         ) : null}
                     </div>
                 ) : null}
-                <div className="absolute bottom-3 right-3 z-[1000]">
+                <div className="absolute right-3 bottom-3 z-1000">
                     <Button type="button" variant="success" size="sm" onClick={useCurrentLocation}>
                         Current Location
                     </Button>

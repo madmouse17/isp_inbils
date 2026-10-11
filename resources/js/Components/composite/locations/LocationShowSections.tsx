@@ -351,7 +351,7 @@ function TreeItem({
 
     return (
         <li>
-            <div className="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-950 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-surface-800 dark:bg-surface-950">
                 <div className="flex items-center gap-3">
                     <Button
                         type="button"
@@ -413,7 +413,7 @@ function TreeItem({
                 </div>
             </div>
             {hasChildren && open.has(location.id) && (
-                <ul className="ml-5 mt-2 space-y-2 border-l border-surface-200 pl-4 dark:border-surface-800">
+                <ul className="space-y-2 mt-2 ml-5 border-l border-surface-200 pl-4 dark:border-surface-800">
                     {location.children.map((child) => (
                         <TreeItem
                             key={child.id}

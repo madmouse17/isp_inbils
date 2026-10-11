@@ -16,7 +16,7 @@ export function FilterBar({ search, onSearchChange, children, className }: Filte
                 placeholder="Search..."
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring sm:w-64"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:ring-1 focus:ring-ring focus:outline-hidden sm:w-64"
             />
             {children}
         </div>

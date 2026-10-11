@@ -6,7 +6,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --legacy-peer-deps
 COPY resources ./resources
 COPY public ./public
-COPY tsconfig.json vite.config.* tailwind.config.* postcss.config.* ./
+COPY tsconfig.json vite.config.* ./
 RUN npm run build
 
 FROM dunglas/frankenphp:php8.4-bookworm AS vendor

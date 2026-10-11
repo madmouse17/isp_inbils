@@ -167,7 +167,7 @@ function ResolveDialogInner({
                         >
                             {getDomainLabel(item.domain)}
                         </Badge>
-                        <DialogTitle className="break-words text-lg font-bold">
+                        <DialogTitle className="text-lg font-bold wrap-break-word">
                             Selesaikan Tiket {item.code}
                         </DialogTitle>
                     </div>
@@ -187,13 +187,13 @@ function ResolveDialogInner({
                             : ''}
                 </div>
 
-                <div className="mt-4 space-y-4 text-sm">
+                <div className="space-y-4 mt-4 text-sm">
                     <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
-                        <div className="break-words">
+                        <div className="wrap-break-word">
                             <span className="font-semibold text-foreground">Judul Tiket: </span>
                             <span className="text-muted-foreground">{item.title}</span>
                         </div>
-                        <div className="break-words">
+                        <div className="wrap-break-word">
                             <span className="font-semibold text-foreground">Pelanggan: </span>
                             <span className="text-muted-foreground">
                                 {item.customer?.name ?? '—'}

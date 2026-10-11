@@ -129,7 +129,7 @@ export function CustomerContactEditor({
     return (
         <div className="space-y-4">
             <Card>
-                <CardHeader className="flex-row flex-wrap items-center justify-between space-y-0">
+                <CardHeader className="space-y-0 flex-row flex-wrap items-center justify-between">
                     <CardTitle>Contacts</CardTitle>
                     {canManage ? (
                         <Button

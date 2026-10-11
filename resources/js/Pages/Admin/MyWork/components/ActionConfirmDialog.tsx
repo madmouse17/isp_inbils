@@ -207,7 +207,7 @@ function ActionConfirmDialogInner({
         >
             <AlertDialogContent className="max-h-[min(90dvh,40rem)] max-w-md overflow-y-auto">
                 <AlertDialogHeader>
-                    <AlertDialogTitle className="break-words">{config.title}</AlertDialogTitle>
+                    <AlertDialogTitle className="wrap-break-word">{config.title}</AlertDialogTitle>
                     <AlertDialogDescription className="text-xs">
                         {config.description}
                     </AlertDialogDescription>

@@ -33,7 +33,7 @@ export function PermissionGroupSelector({
                 Select a category checkbox to select or clear all permissions in that category.
             </p>
             <div className="grid overflow-hidden rounded-lg border border-border md:grid-cols-[17rem_1fr]">
-                <div className="max-h-[30rem] overflow-y-auto border-b border-border bg-muted/20 md:border-b-0 md:border-r">
+                <div className="max-h-120 overflow-y-auto border-b border-border bg-muted/20 md:border-r md:border-b-0">
                     {groups.map(([group, items]) => {
                         const selectedCount = items.filter((item) =>
                             value.includes(item.name),
@@ -60,7 +60,7 @@ export function PermissionGroupSelector({
                                 />
                                 <button
                                     type="button"
-                                    className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                     onClick={() => setActiveGroup(group)}
                                 >
                                     <span className="truncate text-sm font-medium">
@@ -84,7 +84,7 @@ export function PermissionGroupSelector({
                             </p>
                         </div>
                     </div>
-                    <div className="grid max-h-[24rem] gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="grid max-h-96 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
                         {currentPermissions.map((permission) => (
                             <Checkbox
                                 key={permission.id}

@@ -287,7 +287,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                 Last login: {formatDateTime(user.data.last_login_at)}
                             </p>
                             {history.linked_customer ? (
-                                <p className="text-surface-700 dark:text-surface-300 md:col-span-2">
+                                <p className="text-surface-700 md:col-span-2 dark:text-surface-300">
                                     Customer: {history.linked_customer.code} —{' '}
                                     {history.linked_customer.name}
                                 </p>
@@ -342,7 +342,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                     <AlertDialogAction
-                                                        className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                                                        className="bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90"
                                                         onClick={() =>
                                                             router.post(
                                                                 route(

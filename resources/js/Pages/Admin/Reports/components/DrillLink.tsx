@@ -24,7 +24,7 @@ export function DrillLink({ href, label, group }: DrillLinkProps) {
             : `${href}${href.includes('?') ? '&' : '?'}group=${encodeURIComponent(group)}`;
 
     return (
-        <Button asChild variant="ghost" size="sm" className="-ml-3 mt-1">
+        <Button asChild variant="ghost" size="sm" className="mt-1 -ml-3">
             <Link href={target} aria-label={`View records behind ${label}`}>
                 View records
             </Link>

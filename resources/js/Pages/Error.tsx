@@ -41,7 +41,7 @@ export default function ErrorPage({ status }: { status: number }) {
     return (
         <div className="flex min-h-svh items-center justify-center bg-background p-6">
             <Head title={title} />
-            <div className="w-full max-w-lg space-y-4">
+            <div className="space-y-4 w-full max-w-lg">
                 {isForbidden ? (
                     <Alert variant="destructive">
                         <ShieldAlert />

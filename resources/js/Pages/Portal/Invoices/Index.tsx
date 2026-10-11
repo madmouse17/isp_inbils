@@ -51,10 +51,10 @@ export default function Index({ invoices, paymentEnabled }: IndexProps) {
                                     key={invoice.id}
                                     className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 p-4"
                                 >
-                                    <div className="min-w-0 space-y-1">
+                                    <div className="space-y-1 min-w-0">
                                         <Link
                                             href={route('portal.invoices.show', invoice.id)}
-                                            className="rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className="rounded-sm font-medium hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                         >
                                             {invoice.number}
                                         </Link>

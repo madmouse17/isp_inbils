@@ -1,6 +1,129 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Scan resources/ only, like the v3 content globs; automatic detection would also read docs/, Modules/ and the rest of the repo. */
+@import 'tailwindcss' source('../');
+@import './palette-v3.css';
+
+/*
+ * Vendor CSS lives in the components layer. Tailwind v4 emits real cascade layers and unlayered CSS
+ * beats every layer, so imported from JS these files would override utilities and the dark
+ * overrides below. Here the overrides still win by specificity, as they did on Tailwind v3.
+ */
+@import 'filepond/dist/filepond.min.css' layer(components);
+@import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css' layer(components);
+@import 'leaflet/dist/leaflet.css' layer(components);
+
+@plugin '@tailwindcss/forms';
+
+/* Same selector Tailwind v3 emitted, so dark: keeps its specificity against hover:/focus: states. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Tailwind v3 spaced siblings by giving every element after the first a margin-top (margin-left for
+ * space-x), with a selector that outranked each child's own margins. v4 puts the margin on every
+ * element but the last, which drops the gap after inline children such as <label> and leaves a
+ * trailing gap before a hidden or sr-only last child. These utilities restore the v3 rules and cancel
+ * the v4 ones, so layouts stay as they were.
+ * shortcut: only numeric steps (space-y-4, space-x-0.5), no -space-*, space-*-reverse, px or
+ * arbitrary values; those still use the v4 rules. Move to flex/grid with gap before adding them.
+ */
+@utility space-y-* {
+    & > :not([hidden]) ~ :not([hidden]) {
+        margin-top: calc(var(--spacing) * --value(number));
+        margin-bottom: 0;
+    }
+
+    & > :not(:last-child) {
+        margin-block-end: 0;
+    }
+}
+
+@utility space-x-* {
+    & > :not([hidden]) ~ :not([hidden]) {
+        margin-left: calc(var(--spacing) * --value(number));
+        margin-right: 0;
+    }
+
+    & > :not(:last-child) {
+        margin-inline-end: 0;
+    }
+}
+
+@theme {
+    --font-sans:
+        Figtree, ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Fixed line heights like Tailwind v3: v4's ratios would shrink the lines of text-[10px] and other custom sizes nested in a text-sm parent. */
+    --text-xs--line-height: 1rem;
+    --text-sm--line-height: 1.25rem;
+    --text-base--line-height: 1.5rem;
+    --text-lg--line-height: 1.75rem;
+    --text-xl--line-height: 1.75rem;
+    --text-2xl--line-height: 2rem;
+    --text-3xl--line-height: 2.25rem;
+    --text-4xl--line-height: 2.5rem;
+
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #1e3a8a;
+    --color-brand-950: #172554;
+
+    --color-surface-50: #f8fafc;
+    --color-surface-100: #f1f5f9;
+    --color-surface-200: #e2e8f0;
+    --color-surface-300: #cbd5e1;
+    --color-surface-400: #94a3b8;
+    --color-surface-500: #64748b;
+    --color-surface-600: #475569;
+    --color-surface-700: #334155;
+    --color-surface-800: #1e293b;
+    --color-surface-900: #0f172a;
+    --color-surface-950: #020617;
+
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-danger: #dc2626;
+}
+
+/* inline: utilities read the variables where they are used, so a nested .dark or --radius still applies. */
+@theme inline {
+    --radius-lg: var(--radius);
+    --radius-md: calc(var(--radius) - 2px);
+    --radius-sm: calc(var(--radius) - 4px);
+
+    --color-border: hsl(var(--border));
+    --color-input: hsl(var(--input));
+    --color-ring: hsl(var(--ring));
+    --color-background: hsl(var(--background));
+    --color-foreground: hsl(var(--foreground));
+
+    --color-primary: hsl(var(--primary));
+    --color-primary-foreground: hsl(var(--primary-foreground));
+
+    --color-secondary: hsl(var(--secondary));
+    --color-secondary-foreground: hsl(var(--secondary-foreground));
+
+    --color-destructive: hsl(var(--destructive));
+    --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+    --color-muted: hsl(var(--muted));
+    --color-muted-foreground: hsl(var(--muted-foreground));
+
+    --color-accent: hsl(var(--accent));
+    --color-accent-foreground: hsl(var(--accent-foreground));
+
+    --color-popover: hsl(var(--popover));
+    --color-popover-foreground: hsl(var(--popover-foreground));
+
+    --color-card: hsl(var(--card));
+    --color-card-foreground: hsl(var(--card-foreground));
+}
 
 @layer base {
     :root {
@@ -48,8 +171,29 @@
         --ring: 224.3 76.3% 48%;
     }
 
-    * {
+    /* Tailwind v4 defaults borders to currentColor; keep the themed border color everywhere. */
+    *,
+    ::after,
+    ::before,
+    ::backdrop,
+    ::file-selector-button {
         @apply border-border;
+    }
+
+    /* Tailwind v4 stopped giving buttons a pointer cursor. */
+    button:not(:disabled),
+    [role='button']:not(:disabled) {
+        cursor: pointer;
+    }
+
+    /* Tailwind v4 resets padding on every element, which also removes the UA padding of table cells and select options. */
+    th,
+    td {
+        padding: 1px;
+    }
+
+    option {
+        padding: 0 2px 1px;
     }
 
     body {
@@ -57,45 +201,50 @@
     }
 }
 
+/*
+ * @tailwindcss/forms keeps its :focus and :checked rules in the base layer. On Tailwind v3 their
+ * selectors out-ranked single-class utilities such as border-input; on v4 every utility beats the
+ * base layer. Declared here at the old specificity, focused and checked controls keep their border
+ * while hover:, focus: and dark: utilities still override it.
+ */
+@layer utilities {
+    input:where(
+            :not([type]),
+            [type='text'],
+            [type='email'],
+            [type='url'],
+            [type='password'],
+            [type='number'],
+            [type='date'],
+            [type='datetime-local'],
+            [type='month'],
+            [type='search'],
+            [type='tel'],
+            [type='time'],
+            [type='week']
+        ):focus,
+    textarea:focus,
+    select:focus {
+        border-color: var(--color-blue-600);
+    }
+
+    input:where([type='checkbox'], [type='radio']):checked {
+        border-color: transparent;
+    }
+}
+
 @layer components {
     .map-picker-marker {
-        @apply text-danger drop-shadow-sm;
+        @apply text-danger drop-shadow-xs;
     }
 
     .map-picker-marker svg {
         @apply h-10 w-[30px];
     }
 
-    .filepond--root {
-        @apply mb-0 font-sans text-sm;
-    }
-
-    .filepond--panel-root {
-        @apply rounded-lg border border-dashed border-input bg-background;
-    }
-
-    .filepond--drop-label {
-        @apply text-muted-foreground;
-    }
-
+    /* Tailwind v3 purged component rules whose class is not in a template, so only these FilePond overrides ever applied. The rest of the FilePond look is vendor CSS on purpose. */
     .filepond--label-action {
         @apply text-primary underline decoration-primary/50 underline-offset-4;
-    }
-
-    .filepond--item-panel {
-        @apply bg-muted;
-    }
-
-    .filepond--file {
-        @apply text-foreground;
-    }
-
-    .filepond--file-status {
-        @apply text-muted-foreground;
-    }
-
-    .filepond--progress-indicator {
-        @apply text-primary;
     }
 
     .dark .filepond--root .filepond--panel-root {

@@ -49,7 +49,7 @@ export default function UpdatePasswordForm({ className = '' }: { className?: str
                 </p>
             </header>
 
-            <form onSubmit={updatePassword} className="mt-6 space-y-6">
+            <form onSubmit={updatePassword} className="space-y-6 mt-6">
                 <div>
                     <InputLabel htmlFor="current_password" value="Current Password" />
 

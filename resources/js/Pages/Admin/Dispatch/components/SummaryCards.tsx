@@ -21,14 +21,14 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             aria-label="Ringkasan Antrean Penugasan"
         >
             <Card
-                className={`cursor-pointer border-border bg-card shadow-sm transition-colors hover:border-primary/40 motion-reduce:transition-none ${
+                className={`cursor-pointer border-border bg-card shadow-xs transition-colors hover:border-primary/40 motion-reduce:transition-none ${
                     activeStatus === 'unassigned' || !activeStatus ? 'ring-1 ring-primary/30' : ''
                 }`}
                 onClick={() => onSelectStatus?.('unassigned')}
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -45,12 +45,12 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             </Card>
 
             <Card
-                className="cursor-pointer border-border bg-card shadow-sm transition-colors hover:border-primary/40 motion-reduce:transition-none"
+                className="cursor-pointer border-border bg-card shadow-xs transition-colors hover:border-primary/40 motion-reduce:transition-none"
                 onClick={() => onSelectStatus?.('unassigned')}
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Tiket Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -67,12 +67,12 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             </Card>
 
             <Card
-                className="cursor-pointer border-border bg-card shadow-sm transition-colors hover:border-primary/40 motion-reduce:transition-none"
+                className="cursor-pointer border-border bg-card shadow-xs transition-colors hover:border-primary/40 motion-reduce:transition-none"
                 onClick={() => onSelectStatus?.('unassigned')}
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             SPK Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -89,14 +89,14 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             </Card>
 
             <Card
-                className={`cursor-pointer border-border bg-card shadow-sm transition-colors hover:border-primary/40 motion-reduce:transition-none ${
+                className={`cursor-pointer border-border bg-card shadow-xs transition-colors hover:border-primary/40 motion-reduce:transition-none ${
                     activeStatus === 'assigned' ? 'ring-1 ring-primary/30' : ''
                 }`}
                 onClick={() => onSelectStatus?.('assigned')}
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
                             Sudah Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">

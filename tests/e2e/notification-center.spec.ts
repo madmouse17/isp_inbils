@@ -415,7 +415,14 @@ test('@notification-center owned assignments persist reads and fail closed after
                 await postAction(page, ticket, 'resolve', {
                     resolution_note: 'Notification acceptance cleanup',
                 });
+            }
+            // Maker/checker: the admin resolved as handler, so the manager closes.
+            await switchTo(page, 'manager');
+            for (const ticket of owned) {
                 await postAction(page, ticket, 'close');
+            }
+            await switchTo(page, 'admin');
+            for (const ticket of owned) {
                 const closed = await inertiaProps(page, `/admin/tickets/${ticket.id}`);
                 expect(closed.props?.ticket?.data.status).toBe('closed');
                 const response = await page.request.delete(`/admin/tickets/${ticket.id}`, {

@@ -22,13 +22,13 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
         <Dialog open={open} onClose={onClose} className="fixed inset-0 z-50">
             <DialogBackdrop
                 transition
-                className="fixed inset-0 bg-black/50 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150"
+                className="fixed inset-0 bg-black/50 transition-opacity data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
             />
             <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
                 <DialogPanel
                     transition
                     className={cn(
-                        'w-full rounded-lg border bg-card text-card-foreground shadow-xl transition-transform data-[closed]:scale-95 data-[enter]:duration-200 data-[leave]:duration-150',
+                        'w-full rounded-lg border bg-card text-card-foreground shadow-xl transition-transform data-closed:scale-95 data-enter:duration-200 data-leave:duration-150',
                         sizes[size],
                     )}
                 >
@@ -39,7 +39,7 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
                             </DialogTitle>
                             <button
                                 onClick={onClose}
-                                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                                 aria-label="Tutup"
                             >
                                 <XMarkIcon className="h-5 w-5" />

@@ -20,8 +20,6 @@ export default tseslint.config(
             '*.cjs',
             '*.mjs',
             'vite.config.js',
-            'postcss.config.js',
-            'tailwind.config.js',
         ],
     },
 

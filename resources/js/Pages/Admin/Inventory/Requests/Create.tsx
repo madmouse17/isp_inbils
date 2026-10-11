@@ -100,7 +100,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
     return (
         <AppLayout>
             <Head title="Buat Permintaan Barang Baru" />
-            <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
+            <div className="mx-auto space-y-6 max-w-4xl p-4 md:p-6">
                 <PageHeader
                     title="Buat Permintaan Barang"
                     description="Ajukan permohonan material atau alat kerja kepada bagian gudang."
@@ -122,7 +122,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                             <AlertCircle className="h-4 w-4" />
                             <span>Terdapat kesalahan pengisian formulir:</span>
                         </div>
-                        <ul className="list-inside list-disc space-y-0.5 text-xs">
+                        <ul className="space-y-0.5 list-inside list-disc text-xs">
                             {Object.entries(errors).map(([key, msg]) => (
                                 <li key={key}>{msg}</li>
                             ))}
@@ -300,7 +300,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                                                     className="h-9 pr-10"
                                                     required
                                                 />
-                                                <span className="pointer-events-none absolute right-2.5 top-2 text-xs text-muted-foreground">
+                                                <span className="pointer-events-none absolute top-2 right-2.5 text-xs text-muted-foreground">
                                                     {unitSymbol}
                                                 </span>
                                             </div>

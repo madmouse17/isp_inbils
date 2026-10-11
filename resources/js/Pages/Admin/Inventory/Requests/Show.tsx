@@ -368,7 +368,7 @@ export default function InventoryRequestsShow({ request }: Props) {
     return (
         <AppLayout>
             <Head title={`Permintaan ${r.code}`} />
-            <div className="mx-auto max-w-5xl space-y-6 p-4 md:p-6">
+            <div className="mx-auto space-y-6 max-w-5xl p-4 md:p-6">
                 <PageHeader
                     title={`Permintaan: ${r.code}`}
                     description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at)}`}
@@ -948,7 +948,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     <span className="mb-1 block text-muted-foreground">
                                         Alasan Permintaan:
                                     </span>
-                                    <p className="rounded bg-muted/20 p-2 italic leading-relaxed text-foreground">
+                                    <p className="rounded bg-muted/20 p-2 leading-relaxed text-foreground italic">
                                         &ldquo;{r.reason}&rdquo;
                                     </p>
                                 </div>

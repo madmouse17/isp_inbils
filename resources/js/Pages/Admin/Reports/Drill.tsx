@@ -95,7 +95,7 @@ export default function Drill({
             return index === 0 && row.url ? (
                 <Link
                     href={row.url}
-                    className="font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="font-medium text-primary underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                 >
                     {text}
                 </Link>
@@ -171,7 +171,9 @@ export default function Drill({
                                     <dt className="text-xs text-muted-foreground">
                                         {tieOut.sum_label}
                                     </dt>
-                                    <dd className="break-words text-2xl font-bold">{tieOut.sum}</dd>
+                                    <dd className="text-2xl font-bold wrap-break-word">
+                                        {tieOut.sum}
+                                    </dd>
                                 </div>
                             )}
                             {tieOut.compliant !== null && (
@@ -186,7 +188,7 @@ export default function Drill({
                                 <dt className="text-xs text-muted-foreground">
                                     Figure on {report.title}
                                 </dt>
-                                <dd className="break-words text-2xl font-bold">
+                                <dd className="text-2xl font-bold wrap-break-word">
                                     {tieOut.figure ?? '—'}
                                     {tieOut.measure === 'share' ? '%' : ''}
                                 </dd>

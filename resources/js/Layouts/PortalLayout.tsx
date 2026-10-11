@@ -50,7 +50,7 @@ export default function PortalLayout({ title, children }: PortalLayoutProps) {
             <Head title={title} />
             <a
                 href="#portal-content"
-                className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:left-2 focus-visible:top-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
+                className="sr-only focus-visible:not-sr-only focus-visible:fixed focus-visible:top-2 focus-visible:left-2 focus-visible:z-50 focus-visible:rounded-md focus-visible:bg-background focus-visible:px-3 focus-visible:py-2 focus-visible:text-sm focus-visible:ring-2 focus-visible:ring-ring"
             >
                 Lewati ke konten
             </a>
@@ -138,7 +138,7 @@ export default function PortalLayout({ title, children }: PortalLayoutProps) {
                 <main
                     id="portal-content"
                     tabIndex={-1}
-                    className="mx-auto w-full max-w-4xl space-y-6 px-4 py-6 focus:outline-none sm:py-8"
+                    className="mx-auto space-y-6 w-full max-w-4xl px-4 py-6 focus:outline-hidden sm:py-8"
                 >
                     {children}
                 </main>

@@ -61,12 +61,12 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                 const isActive = card.key === '' ? !activeStatus : activeStatus === card.key;
 
                 return (
-                    <Card key={card.key || 'all'} className="border-border bg-card shadow-sm">
+                    <Card key={card.key || 'all'} className="border-border bg-card shadow-xs">
                         <CardContent className="p-0">
                             <Button
                                 type="button"
                                 variant="ghost"
-                                className={`h-full min-h-32 w-full justify-between whitespace-normal rounded-lg p-5 text-left hover:border-primary/40 hover:bg-transparent motion-reduce:transition-none ${
+                                className={`h-full min-h-32 w-full justify-between rounded-lg p-5 text-left whitespace-normal hover:border-primary/40 hover:bg-transparent motion-reduce:transition-none ${
                                     isActive ? 'ring-1 ring-primary/30' : ''
                                 }`}
                                 aria-label={`Filter ${card.label}: ${card.value} tugas`}
@@ -74,7 +74,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                                 onClick={() => onSelectStatus?.(card.key)}
                             >
                                 <span className="space-y-1">
-                                    <span className="block text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                    <span className="block text-xs font-medium tracking-wider text-muted-foreground uppercase">
                                         {card.label}
                                     </span>
                                     <span className="block text-2xl font-bold tracking-tight text-foreground">

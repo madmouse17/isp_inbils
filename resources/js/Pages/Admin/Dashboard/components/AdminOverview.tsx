@@ -39,7 +39,7 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                                     className="flex items-center justify-between gap-4"
                                 >
                                     <dt className="text-muted-foreground">{label}</dt>
-                                    <dd className="min-w-0 break-words text-right font-medium text-foreground">
+                                    <dd className="min-w-0 text-right font-medium wrap-break-word text-foreground">
                                         {value ?? '-'}
                                     </dd>
                                 </div>
@@ -63,7 +63,7 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                                         className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         <div className="min-w-0">
-                                            <p className="break-words text-sm font-medium text-foreground">
+                                            <p className="text-sm font-medium wrap-break-word text-foreground">
                                                 {activity.description}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
@@ -96,7 +96,7 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                             <Link
                                 key={module.name}
                                 href={module.href}
-                                className="block rounded-lg border border-border p-4 transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+                                className="block rounded-lg border border-border p-4 transition-colors hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden motion-reduce:transition-none"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <span className="font-semibold text-foreground">

@@ -207,7 +207,7 @@ function AssignDialogInner({
                         >
                             {getDomainLabel(item.domain)}
                         </Badge>
-                        <DialogTitle className="break-words text-lg font-bold">
+                        <DialogTitle className="text-lg font-bold wrap-break-word">
                             Tugaskan {getDomainLabel(item.domain)} {item.code}
                         </DialogTitle>
                     </div>
@@ -217,7 +217,7 @@ function AssignDialogInner({
                     </DialogDescription>
                 </DialogHeader>
 
-                <div className="mt-4 space-y-4 text-sm">
+                <div className="space-y-4 mt-4 text-sm">
                     <p className="sr-only" aria-live="polite">
                         {submitting
                             ? 'Sedang menyimpan penugasan.'
@@ -228,7 +228,7 @@ function AssignDialogInner({
                     {/* Informative Context Panel */}
                     <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3.5">
                         <div>
-                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                            <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                                 Judul / Permintaan:
                             </span>
                             <p className="font-medium text-foreground">{item.title}</p>

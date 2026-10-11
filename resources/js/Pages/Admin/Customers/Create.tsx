@@ -444,7 +444,7 @@ export default function Create({
                                         ) : null}
                                         {data.addresses.map((address, index) => (
                                             <Card key={index}>
-                                                <CardHeader className="flex-row items-center justify-between space-y-0">
+                                                <CardHeader className="space-y-0 flex-row items-center justify-between">
                                                     <CardTitle>Address {index + 1}</CardTitle>
                                                     <Button
                                                         type="button"
@@ -638,7 +638,7 @@ export default function Create({
                                         ) : null}
                                         {data.contacts.map((contact, index) => (
                                             <Card key={index}>
-                                                <CardHeader className="flex-row items-center justify-between space-y-0">
+                                                <CardHeader className="space-y-0 flex-row items-center justify-between">
                                                     <CardTitle>Contact {index + 1}</CardTitle>
                                                     <Button
                                                         type="button"

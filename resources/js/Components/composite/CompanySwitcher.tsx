@@ -82,7 +82,7 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent
                 align="start"
-                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[14rem]"
+                className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
             >
                 <DropdownMenuLabel>Switch company</DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -95,7 +95,7 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                         <DropdownMenuRadioItem
                             key={company.id}
                             value={String(company.id)}
-                            className="min-h-11 py-2 data-[highlighted]:ring-2 data-[highlighted]:ring-inset data-[highlighted]:ring-ring"
+                            className="min-h-11 py-2 data-highlighted:ring-2 data-highlighted:ring-ring data-highlighted:ring-inset"
                         >
                             <span className="flex min-w-0 flex-col">
                                 <span className="truncate font-medium">{company.name}</span>

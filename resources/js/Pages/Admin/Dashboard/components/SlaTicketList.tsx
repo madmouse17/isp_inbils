@@ -31,7 +31,7 @@ export function SlaTicketList({ items, total }: SlaTicketListProps) {
                         <li key={item.id}>
                             <Link
                                 href={item.href}
-                                className="block space-y-1 px-5 py-3 transition-colors hover:bg-accent/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary motion-reduce:transition-none"
+                                className="space-y-1 block px-5 py-3 transition-colors hover:bg-accent/30 focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden focus-visible:ring-inset motion-reduce:transition-none"
                             >
                                 <div className="flex items-center justify-between gap-3">
                                     <p className="truncate text-sm font-medium text-foreground">

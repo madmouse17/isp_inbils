@@ -4,6 +4,15 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Tailwind CSS 4 (2026-10-12)
+
+- Tailwind 3.4 → 4.3 with `@tailwindcss/vite`; CSS-first config in `resources/css/app.css` (`@theme` semantic tokens, `@custom-variant dark`, `@plugin '@tailwindcss/forms'`); `tailwind.config.js` and `postcss.config.js` removed (autoprefixer/postcss dropped). The v3 colour palette is pinned (`resources/css/palette-v3.css`) and small compat rules keep the v3 look (`space-x/y`, text line-heights, form focus borders); 123 files got the v4 utility renames (`shadow-sm`→`shadow-xs`, `outline-none`→`outline-hidden`, …). Visual diff of 238 screenshot pairs showed no regression. `npm audit`: 0 vulnerabilities (the 7 Tailwind-chain advisories are gone).
+
+### Fixed (2026-10-12)
+
+- `/admin/inventory/requests/create` returned 500 (selected a non-existent `products.code`; now `sku as code`), with a regression test.
+- `tests/e2e/notification-center.spec.ts` cleanup now lets the manager close tickets the admin resolved (ticket maker/checker rule).
+
 ### Added - Owner-approved security and product wave (2026-10-12)
 
 - Midtrans Snap sandbox pilot and customer invoice portal (`.scratch/midtrans-payment`): customers pay invoices from `/portal/invoices` ("Tagihan Saya") through a hosted Midtrans page (`payment_attempts`, one open attempt per invoice). `POST /webhooks/midtrans` verifies the SHA-512 signature, re-fetches the Status API and books exactly one `midtrans` payment (`payments.received_by` NULL) under `CompanyService::runAs`; anything unexpected becomes an `exception` attempt. `midtrans:reconcile` runs every 15 minutes. Staff see an "Online payments" panel on the invoice page. Laravel `Http` client, no SDK. The gateway stays off on `APP_ENV=production` while `MIDTRANS_IS_PRODUCTION=false` unless `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true`; `MIDTRANS_BASE_URL` works only in local/testing/e2e; the webhook throttle (30/min per IP) counts only unsigned posts. Production stays blocked until a real merchant account, public HTTPS notification URL and signed security review exist. Deploy: `migrate`, `RolePermissionSeeder`, the `MIDTRANS_*` env values, the dashboard Payment Notification URL, a running scheduler.

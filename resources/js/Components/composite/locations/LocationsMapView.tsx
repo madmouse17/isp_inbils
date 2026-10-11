@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Badge } from '@/Components/ui/Badge';
@@ -187,7 +186,8 @@ export function LocationsMapView({
             if (!(event.target instanceof Element)) return;
 
             const markerElement = event.target.closest('.leaflet-marker-icon');
-            if (!(markerElement instanceof HTMLElement) || !savedMarkerElements.has(markerElement)) return;
+            if (!(markerElement instanceof HTMLElement) || !savedMarkerElements.has(markerElement))
+                return;
 
             mapContainer.focus({ preventScroll: true });
         };
@@ -467,8 +467,8 @@ export function LocationsMapView({
     return (
         <div className={cn('relative', className)}>
             {/* Search / filter overlay */}
-            <div className="absolute left-3 right-3 top-3 z-[1000] flex max-w-md flex-col gap-2 md:right-auto">
-                <div className="rounded-lg border border-border bg-background/95 p-2 shadow-sm backdrop-blur dark:bg-background/95">
+            <div className="absolute top-3 right-3 left-3 z-1000 flex max-w-md flex-col gap-2 md:right-auto">
+                <div className="rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
                     <Input
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
@@ -516,17 +516,17 @@ export function LocationsMapView({
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-3 left-3 z-[1000]">
+            <div className="absolute bottom-3 left-3 z-1000">
                 <button
                     type="button"
                     onClick={() => setLegendOpen(!legendOpen)}
-                    className="rounded-lg border border-border bg-background/95 px-2 py-1 text-xs font-medium text-foreground shadow-sm backdrop-blur hover:bg-accent dark:bg-background/95"
+                    className="rounded-lg border border-border bg-background/95 px-2 py-1 text-xs font-medium text-foreground shadow-xs backdrop-blur-sm hover:bg-accent dark:bg-background/95"
                     aria-label={legendOpen ? 'Hide legend' : 'Show legend'}
                 >
                     {legendOpen ? 'Legenda ▾' : 'Legenda ▸'}
                 </button>
                 {legendOpen && (
-                    <div className="mt-1 rounded-lg border border-border bg-background/95 p-2 shadow-sm backdrop-blur dark:bg-background/95">
+                    <div className="mt-1 rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
                         <ul className="space-y-1 text-xs">
                             {Object.entries(TYPE_ICONS).map(([type, config]) => (
                                 <li key={type} className="flex items-center gap-2">
@@ -549,7 +549,7 @@ export function LocationsMapView({
             </div>
 
             {/* Fit bounds + stats */}
-            <div className="absolute bottom-3 right-3 z-[1000] flex items-center gap-2">
+            <div className="absolute right-3 bottom-3 z-1000 flex items-center gap-2">
                 <Badge variant="secondary" className="text-xs">
                     {filteredMarkers.length} lokasi
                 </Badge>
@@ -569,13 +569,13 @@ export function LocationsMapView({
                 <div
                     id={`locations-map-${mapId}`}
                     ref={containerRef}
-                    className="h-[32rem] w-full rounded-lg border border-border md:h-[40rem]"
+                    className="h-128 w-full rounded-lg border border-border md:h-160"
                     role="application"
                     aria-label="Peta lokasi"
                 />
                 {tileStatus !== 'ok' && (
                     <div
-                        className="absolute inset-x-3 top-1/2 z-[1100] -translate-y-1/2 rounded-lg border border-warning/50 bg-background/95 p-4 text-center shadow-sm backdrop-blur dark:bg-background/95 sm:inset-x-1/4"
+                        className="absolute inset-x-3 top-1/2 z-1100 -translate-y-1/2 rounded-lg border border-warning/50 bg-background/95 p-4 text-center shadow-xs backdrop-blur-sm sm:inset-x-1/4 dark:bg-background/95"
                         role={tileStatus === 'error' ? 'alert' : 'status'}
                         aria-live="polite"
                     >

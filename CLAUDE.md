@@ -154,8 +154,8 @@ Overall average: **60-90% token reduction** on common development operations.
 <!-- antislop-inbils:start -->
 ## antislop inbils
 Untuk perubahan rendered UI/UX, gunakan mode DURING tanpa menanyakan mode lagi. Muat `antislop` + `antislop-ui`; tambah `antislop-human` untuk interaction/forms/data views, `antislop-layoutmobile` untuk responsive work, dan `antislop-copywriting` hanya jika user-facing copy berubah. Mode AFTER hanya atas permintaan audit eksplisit dan read-only sampai pengguna menyetujui perubahan.
-Precedence: instruksi pengguna dan ADR/docs proyek; Superpowers workflow; Laravel/Inertia/Tailwind 3/shadcn-Radix implementation rules; tokens dan vocabulary komponen existing; Anti-slop sebagai filter; contoh generik skill lain.
-Enterprise overrides: familiarity dan consistency menang atas novelty; density desktop boleh; contained horizontal table scroll boleh; 44px diprioritaskan touch/mobile; breakpoint Tailwind existing; Lucide tetap library proyek; ketiadaan DESIGN.md tidak menahan perubahan kecil karena app.css, tailwind.config.js, docs/ui/design-system.md, dan incumbent UI adalah visual authority.
+Precedence: instruksi pengguna dan ADR/docs proyek; Superpowers workflow; Laravel/Inertia/Tailwind 4/shadcn-Radix implementation rules; tokens dan vocabulary komponen existing; Anti-slop sebagai filter; contoh generik skill lain.
+Enterprise overrides: familiarity dan consistency menang atas novelty; density desktop boleh; contained horizontal table scroll boleh; 44px diprioritaskan touch/mobile; breakpoint Tailwind existing; Lucide tetap library proyek; ketiadaan DESIGN.md tidak menahan perubahan kecil karena app.css (`@theme`), docs/ui/design-system.md, dan incumbent UI adalah visual authority.
 Muat antislop-code hanya saat menulis atau mengubah komentar; jangan hapus komentar business rule, architecture, security, concurrency, protocol, API contract, compliance, workaround, edge case, atau licensing.
 <!-- antislop-inbils:end -->
 
