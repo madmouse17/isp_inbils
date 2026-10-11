@@ -3,6 +3,8 @@
 namespace Modules\Billing\Providers;
 
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\Billing\Events\PaymentRecorded;
+use Modules\Billing\Listeners\ReactivateSubscriptionAfterPayment;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -11,7 +13,9 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        PaymentRecorded::class => [ReactivateSubscriptionAfterPayment::class],
+    ];
 
     /**
      * Indicates if events should be discovered.

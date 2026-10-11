@@ -1,11 +1,11 @@
 <?php
 
+use App\Http\Middleware\EnsureCustomerAccess;
 use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\Controllers\InvoiceController;
 use Modules\Billing\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use Modules\Billing\Http\Controllers\Portal\PasswordController as PortalPasswordController;
 use Modules\Billing\Http\Controllers\Portal\PaymentReturnController;
-use Modules\Billing\Http\Middleware\EnsureCustomerPortalAccess;
 use Modules\Billing\Http\Middleware\EnsurePortalPasswordChanged;
 
 Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
@@ -24,8 +24,10 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::delete('invoices/{invoice}/items/{item}', [InvoiceController::class, 'removeItem'])->name('invoices.items.destroy');
 });
 
+Route::inertia('pembayaran/selesai', 'Portal/Payments/Finished')->name('payments.finished');
+
 // Customer portal: customer logins only (role + linked Customer), never the admin permission set.
-Route::middleware(['auth', 'verified', 'require.has.company', EnsureCustomerPortalAccess::class])->prefix('portal')->name('portal.')->group(function () {
+Route::middleware(['auth', 'verified', 'require.has.company', EnsureCustomerAccess::class])->prefix('portal')->name('portal.')->group(function () {
     Route::get('password', [PortalPasswordController::class, 'edit'])->name('password.edit');
     Route::post('password/link', [PortalPasswordController::class, 'sendLink'])->middleware('throttle:3,1,portal-password-link')->name('password.link');
 

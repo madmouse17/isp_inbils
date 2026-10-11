@@ -3,11 +3,11 @@
 namespace Modules\Billing\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\Core\Customer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Modules\Billing\Http\Middleware\EnsureCustomerPortalAccess;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
 
@@ -20,7 +20,7 @@ class PaymentReturnController extends Controller
     public function __invoke(Request $request): InertiaResponse
     {
         /** @var Customer $customer */
-        $customer = $request->attributes->get(EnsureCustomerPortalAccess::CUSTOMER_ATTRIBUTE);
+        $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
         $orderId = $request->query('order_id');
 
         $attempt = PaymentAttempt::query()

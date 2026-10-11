@@ -30,9 +30,14 @@ use App\Policies\UserPolicy;
 use App\Policies\VehiclePolicy;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Services\WhatsApp\WhatsAppCloudClient;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Cache\RateLimiting\Unlimited;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Modules\Billing\Models\Invoice;
@@ -47,8 +52,18 @@ use Modules\Inventory\Policies\InventoryRequestPolicy;
 use Modules\Inventory\Policies\MaterialReturnCasePolicy;
 use Modules\Inventory\Policies\ProductPolicy;
 use Modules\Inventory\Policies\UnitPolicy;
+use Modules\Ipam\Models\IpAddress;
+use Modules\Ipam\Models\IpPrefix;
+use Modules\Ipam\Models\Vlan;
+use Modules\Ipam\Policies\IpAddressPolicy;
+use Modules\Ipam\Policies\IpPrefixPolicy;
+use Modules\Ipam\Policies\VlanPolicy;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Models\OdnPort;
+use Modules\NetworkAsset\Models\OdnSplitter;
 use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
+use Modules\NetworkAsset\Policies\OdnPortPolicy;
+use Modules\NetworkAsset\Policies\OdnSplitterPolicy;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\SLATier;
@@ -95,6 +110,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(NetworkAsset::class, NetworkAssetPolicy::class);
+        Gate::policy(IpPrefix::class, IpPrefixPolicy::class);
+        Gate::policy(IpAddress::class, IpAddressPolicy::class);
+        Gate::policy(Vlan::class, VlanPolicy::class);
+        Gate::policy(OdnPort::class, OdnPortPolicy::class);
+        Gate::policy(OdnSplitter::class, OdnSplitterPolicy::class);
         Gate::policy(WorkOrder::class, WorkOrderPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
@@ -107,6 +127,8 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
+        $this->registerWhatsAppRateLimiters();
+        $this->registerApiRateLimiters();
 
         Activity::saving(function (Activity $activity) {
             $subject = $activity->relationLoaded('subject')
@@ -147,5 +169,48 @@ class AppServiceProvider extends ServiceProvider
         if (! $this->app->environment('e2e')) {
             Vite::prefetch(concurrency: 3);
         }
+    }
+
+    /**
+     * The WhatsApp queue's send rate per company, and the throttle of Meta's webhook. As with Midtrans, only
+     * requests that fail the credential check count against the throttle: Meta's own calls are never
+     * throttled, so junk that shares their apparent address cannot lock them out.
+     */
+    private function registerWhatsAppRateLimiters(): void
+    {
+        // The queue middleware passes the job (a SendQueuedNotifications) to the callback.
+        RateLimiter::for('whatsapp-send', fn (object $job): Limit => Limit::perSecond((int) config('whatsapp.rate_per_second'))
+            ->by('company:'.data_get($job, 'notification.companyId')));
+
+        RateLimiter::for('whatsapp-webhook', function (Request $request): Limit|Unlimited {
+            $client = app(WhatsAppCloudClient::class);
+            // PHP turns the dots of Meta's hub.verify_token query parameter into underscores.
+            $token = $request->query('hub_verify_token');
+            $valid = $request->isMethod('GET')
+                ? is_string($token) && $client->isValidVerifyToken($token)
+                : $client->isValidSignature($request->getContent(), $request->header('X-Hub-Signature-256'));
+
+            return $valid ? Limit::none() : Limit::perMinute(30)->by($request->ip());
+        });
+    }
+
+    /**
+     * Limiters of the mobile API. `api` covers every call (the api group throttles with it): per token once signed
+     * in, per address before that. The others are attached by the routes they name. Login and two-factor also keep
+     * the web's own budgets (per e-mail and address, per user), shared with the web through the same keys.
+     */
+    private function registerApiRateLimiters(): void
+    {
+        $perUser = fn (Request $request): string => 'user:'.($request->user()?->getAuthIdentifier() ?? $request->ip());
+
+        RateLimiter::for('api', function (Request $request): Limit {
+            $token = $request->user()?->currentAccessToken()?->getKey();
+
+            return Limit::perMinute(120)->by($token ? 'token:'.$token : 'ip:'.$request->ip());
+        });
+        RateLimiter::for('api-login', fn (Request $request): Limit => Limit::perMinute(20)->by($request->ip()));
+        RateLimiter::for('api-forgot-password', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
+        RateLimiter::for('api-pay', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
+        RateLimiter::for('api-upload', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
     }
 }

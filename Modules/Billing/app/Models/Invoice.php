@@ -47,6 +47,8 @@ class Invoice extends Model
     use LogsActivity;
     use SoftDeletes;
 
+    public const CUSTOMER_VISIBLE_STATUSES = ['sent', 'partial', 'paid', 'overdue', 'cancelled'];
+
     protected $fillable = [
         'company_id', 'number', 'type', 'source', 'customer_id', 'subscription_id', 'work_order_id',
         'issue_date', 'due_date', 'billing_period_start', 'billing_period_end',

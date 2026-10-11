@@ -34,7 +34,10 @@ class TwoFactorService
 
     private const PENDING_LOGIN_MINUTES = 10;
 
-    public function __construct(private readonly Google2FA $google2fa) {}
+    public function __construct(
+        private readonly Google2FA $google2fa,
+        private readonly ApiTokenService $apiTokens,
+    ) {}
 
     /**
      * @return array{enabled: bool, pending: bool, recovery_codes_remaining: int}
@@ -232,10 +235,12 @@ class TwoFactorService
      * - The acting session gets a new id and its old record is destroyed, so a stolen copy of its cookie is dead.
      * - With the database session driver, which the deployment uses, the user's other sessions are deleted.
      *   File and Redis sessions cannot be listed by user: there they last until they expire (SESSION_LIFETIME).
+     * - Every mobile app token goes too: a token skips the login, so it would skip the second factor as well.
      */
     private function endOtherLogins(User $user, ?Session $current = null): void
     {
         $this->store($user, ['remember_token' => Str::random(60)]);
+        $this->apiTokens->revokeAll($user, 'two_factor_changed');
 
         $current?->regenerate(destroy: true);
 

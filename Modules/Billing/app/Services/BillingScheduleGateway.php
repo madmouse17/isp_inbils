@@ -20,4 +20,12 @@ class BillingScheduleGateway
     {
         BillingService::checkOverdue($companyId);
     }
+
+    /**
+     * @return list<array{id: int, code: string}>
+     */
+    public function suspendOverdue(int $companyId, bool $dryRun = false): array
+    {
+        return OverdueSuspensionService::suspendOverdue($companyId, $dryRun);
+    }
 }

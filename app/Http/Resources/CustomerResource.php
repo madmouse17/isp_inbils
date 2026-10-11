@@ -3,12 +3,14 @@
 namespace App\Http\Resources;
 
 use App\Models\Core\Customer;
+use App\Services\WhatsApp\PhoneNumber;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/** @mixin Customer */
 class CustomerResource extends JsonResource
 {
-    /** @return array<string, mixed> */
+    /** @return array<int|string, mixed> */
     public function toArray(Request $request): array
     {
         return [
@@ -31,6 +33,13 @@ class CustomerResource extends JsonResource
             'contacts' => CustomerContactResource::collection($this->whenLoaded('contacts')),
             'subscriptions' => SubscriptionResource::collection($this->whenLoaded('subscriptions')),
             'created_at' => $this->created_at,
+            // Consent and reachability only; the number itself is already the `phone` above.
+            'whatsapp' => [
+                'opted_in' => $this->hasWhatsAppConsent(),
+                'opted_in_at' => $this->whatsapp_opt_in_at,
+                'opted_out_at' => $this->whatsapp_opt_out_at,
+                'reachable' => PhoneNumber::normalizeIndonesianMobile($this->phone) !== null,
+            ],
             // Only the customer pages load the relation, and only for holders of customer.sales.assign or
             // customer.sales.correct; other resources embedding a customer never carry attribution.
             $this->mergeWhen($this->relationLoaded('acquirer') && ($request->user()?->can('viewAcquirer', Customer::class) ?? false), fn (): array => [

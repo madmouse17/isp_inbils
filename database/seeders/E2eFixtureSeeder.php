@@ -2,22 +2,38 @@
 
 namespace Database\Seeders;
 
+use App\Actions\SetCustomerWhatsAppConsentAction;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
+use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyHierarchyService;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
+use App\Services\Core\LocationService;
+use App\Services\WhatsApp\PhoneNumber;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\Ipam\Models\IpPrefix;
+use Modules\Ipam\Models\Vlan;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\Ipam\Services\IpPrefixService;
+use Modules\Ipam\Services\VlanService;
+use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Models\OdnPort;
+use Modules\NetworkAsset\Models\OdnSplitter;
+use Modules\NetworkAsset\Services\NasDeviceService;
+use Modules\NetworkAsset\Services\NetworkAccountService;
+use Modules\NetworkAsset\Services\OdnService;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 
@@ -355,6 +371,7 @@ class E2eFixtureSeeder extends Seeder
         $this->seedDispatchFixtures($company, $customer->id, $adminUser?->id, $now);
         $this->seedOperationalTableFixtures($company, $customer->id, $location->id, $adminUser?->id);
         $this->seedSalesAttributionFixtures($company);
+        $this->seedNetworkLaneFixtures($location, (int) $packageId, $adminUser);
         $this->seedSalesKpiFixtures($company);
         if ($adminUser && Schema::hasTable('activity_log')) {
             $prev = Auth::user();
@@ -1046,5 +1063,178 @@ class E2eFixtureSeeder extends Seeder
                 );
             }
         }
+    }
+
+    /**
+     * Fixtures of the IPAM/ODN, MikroTik and WhatsApp specs, all under the POP of E2E-LINKED-SUB: an address plan,
+     * an OLT with a wired ODC and ODP (every port free), an unregistered router for the "register a NAS router"
+     * flow plus a registered one (writes off) with a network account on a second subscription, and a customer
+     * with WhatsApp consent and a few log rows. E2E-LINKED-SUB itself gets no address, drop or network account.
+     */
+    private function seedNetworkLaneFixtures(Location $pop, int $packageId, ?User $admin): void
+    {
+        if ($admin === null) {
+            return;
+        }
+
+        $previous = Auth::user();
+        Auth::setUser($admin);
+
+        try {
+            $this->seedAddressPlanFixtures($pop);
+            $this->seedFibreFixtures($pop);
+            $this->seedRouterFixtures($pop, $packageId);
+            $this->seedWhatsAppFixtures($pop, $packageId, $admin);
+        } finally {
+            $previous !== null ? Auth::setUser($previous) : Auth::forgetGuards();
+        }
+    }
+
+    private function seedAddressPlanFixtures(Location $pop): void
+    {
+        $vlan = Vlan::query()->where('vid', 999)->where('location_id', $pop->id)->first()
+            ?? VlanService::create(['vid' => 999, 'name' => 'E2E-VLAN', 'location_id' => $pop->id]);
+
+        foreach ([
+            ['10.99.0.0/24', 'customer_static', $vlan->id],
+            ['10.99.1.0/24', 'customer_dynamic', $vlan->id],
+            ['10.99.9.0/24', 'infrastructure', null],
+        ] as [$cidr, $usage, $vlanId]) {
+            if (! IpPrefix::query()->where('cidr', $cidr)->exists()) {
+                IpPrefixService::create(['cidr' => $cidr, 'usage' => $usage, 'location_id' => $pop->id, 'vlan_id' => $vlanId, 'description' => 'E2E '.$usage]);
+            }
+        }
+    }
+
+    private function seedFibreFixtures(Location $pop): void
+    {
+        $rack = Location::query()->where('code', 'E2E-RACK-01')->first() ?? LocationService::create([
+            'parent_id' => $pop->id, 'code' => 'E2E-RACK-01', 'name' => 'E2E Rack 01', 'type' => 'rack', 'is_active' => true,
+        ]);
+        $site = Location::query()->where('code', 'E2E-ODP-SITE-01')->first() ?? LocationService::create([
+            'parent_id' => $rack->id, 'code' => 'E2E-ODP-SITE-01', 'name' => 'E2E ODP Site 01', 'type' => 'site', 'is_active' => true,
+        ]);
+
+        $olt = $this->e2eAsset('E2E-OLT-001', 'E2E OLT', 'olt', $pop->id);
+        $odc = $this->e2eAsset('E2E-ODC-001', 'E2E ODC', 'odc', $rack->id);
+        $odp = $this->e2eAsset('E2E-ODP-001', 'E2E ODP', 'odp', $site->id);
+
+        if (! OdnPort::query()->where('network_asset_id', $olt->id)->where('kind', OdnPort::KIND_PON)->exists()) {
+            OdnService::createPonPorts($olt, 4);
+        }
+
+        $trunk = OdnPort::query()->where('network_asset_id', $olt->id)->where('kind', OdnPort::KIND_PON)->where('number', 1)->firstOrFail();
+        $odcSplitter = OdnSplitter::query()->where('network_asset_id', $odc->id)->first() ?? OdnService::createSplitter($odc, 4, $trunk, 'E2E ODC 1:4');
+
+        if (! OdnSplitter::query()->where('network_asset_id', $odp->id)->exists()) {
+            $feeder = OdnPort::query()->where('odn_splitter_id', $odcSplitter->id)->where('number', 1)->firstOrFail();
+            OdnService::createSplitter($odp, 8, $feeder, 'E2E ODP 1:8');
+        }
+    }
+
+    private function seedRouterFixtures(Location $pop, int $packageId): void
+    {
+        // Unregistered on purpose: the MikroTik spec registers it through the UI.
+        $this->e2eAsset('E2E-ROUTER-001', 'E2E Router (unregistered)', 'router', $pop->id, '10.99.9.1');
+        $registered = $this->e2eAsset('E2E-ROUTER-002', 'E2E Router (registered)', 'router', $pop->id, '10.99.9.2');
+
+        $nas = NasDevice::query()->where('network_asset_id', $registered->id)->first() ?? NasDeviceService::create([
+            'network_asset_id' => $registered->id,
+            'api_username' => 'e2e-api',
+            'api_password' => 'e2e-not-a-real-secret',
+            'provisioning_enabled' => false,
+        ]);
+
+        $subscription = $this->e2eWhatsAppSubscription($pop, $packageId);
+
+        if (! NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
+            NetworkAccountService::create($subscription, [
+                'nas_device_id' => $nas->id,
+                'service_type' => 'pppoe',
+                'username' => 'e2e-wa',
+                'password' => 'e2e-pppoe-password',
+            ]);
+        }
+    }
+
+    private function seedWhatsAppFixtures(Location $pop, int $packageId, User $admin): void
+    {
+        $subscription = $this->e2eWhatsAppSubscription($pop, $packageId);
+        $customer = Customer::query()->findOrFail($subscription->customer_id);
+
+        SetCustomerWhatsAppConsentAction::execute($customer, true, $admin);
+
+        $phone = PhoneNumber::normalizeIndonesianMobile($customer->phone) ?? throw new \LogicException('The E2E WhatsApp customer needs a valid mobile number.');
+
+        foreach ([['sent', null], ['delivered', null], ['skipped', 'no_consent']] as $index => [$status, $reason]) {
+            $at = now()->subHours(3 - $index);
+
+            WhatsAppMessage::query()->firstOrCreate(['dedupe_key' => "e2e:wa:{$index}"], [
+                'recipient_type' => 'customer',
+                'recipient_id' => $customer->id,
+                'event' => 'invoice_issued',
+                'template' => 'tagihan_terbit',
+                'language' => 'id',
+                'status' => $status,
+                'skip_reason' => $reason,
+                'provider_message_id' => $reason === null ? "wamid.E2E{$index}" : null,
+                'recipient_hash' => hash_hmac('sha256', $phone, (string) config('app.key')),
+                'recipient_last4' => substr($phone, -4),
+                'sent_at' => $reason === null ? $at : null,
+                'delivered_at' => $status === 'delivered' ? $at->copy()->addMinute() : null,
+            ]);
+        }
+    }
+
+    /** The customer of the WhatsApp and router fixtures, with an active subscription of its own. */
+    private function e2eWhatsAppSubscription(Location $pop, int $packageId): ServiceSubscription
+    {
+        $customer = Customer::query()->updateOrCreate(
+            ['code' => 'E2E-WA-CUST'],
+            ['name' => 'E2E WhatsApp Customer', 'type' => 'Individual', 'email' => 'e2e-wa-customer@example.test', 'phone' => '081234560001', 'is_active' => true],
+        );
+        $address = CustomerAddress::query()->updateOrCreate(
+            ['customer_id' => $customer->id, 'label' => 'E2E Install'],
+            ['address' => 'E2E WhatsApp street', 'city' => 'Jakarta', 'postal_code' => '12345', 'lat' => '-6.2000000', 'lng' => '106.8166667', 'is_primary' => true],
+        );
+
+        return ServiceSubscription::query()->updateOrCreate(
+            ['code' => 'E2E-WA-SUB'],
+            [
+                'customer_id' => $customer->id,
+                'service_package_id' => $packageId,
+                'installation_address_id' => $address->id,
+                'status' => 'active',
+                'activation_date' => now()->subDay()->toDateString(),
+                'billing_day' => 1,
+                'next_invoice_date' => now()->addMonth()->toDateString(),
+                'serving_pop_id' => $pop->id,
+                'mrc_amount' => 150000,
+                'otc_installation_fee' => 0,
+                'contract_months' => 12,
+            ],
+        );
+    }
+
+    private function e2eAsset(string $serial, string $name, string $type, int $locationId, ?string $managementIp = null): NetworkAsset
+    {
+        $asset = NetworkAsset::query()->updateOrCreate(
+            ['serial_number' => $serial],
+            [
+                'code' => $serial,
+                'name' => $name,
+                'asset_type' => $type,
+                'location_id' => $locationId,
+                'management_ip' => $managementIp,
+                'status' => 'available',
+                'ownership' => 'owned',
+                'vendor' => 'E2E',
+                'model' => 'Harness',
+            ],
+        );
+
+        IpAssignmentService::syncAssetAddresses($asset);
+
+        return $asset;
     }
 }

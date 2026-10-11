@@ -7,8 +7,10 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
+use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Models\ServicePackage;
 
 class SubscriptionService
@@ -73,17 +75,18 @@ class SubscriptionService
         });
     }
 
-    public static function suspend(ServiceSubscription $subscription, string $reason): ServiceSubscription
+    public static function suspend(ServiceSubscription $subscription, string $reason, string $source = 'manual'): ServiceSubscription
     {
-        return DB::transaction(function () use ($subscription, $reason) {
+        return DB::transaction(function () use ($subscription, $reason, $source) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'active', 422, 'Subscription must be active to suspend.');
 
-            $subscription->update(['status' => 'suspended']);
+            $subscription->forceFill(['status' => 'suspended', 'suspension_source' => $source])->save();
 
             AuditService::log('service_subscription', 'suspended', [
                 'code' => $subscription->code,
                 'reason' => $reason,
+                'source' => $source,
             ], $subscription);
 
             CustomerStatusRecalculator::recalculate($subscription->customer_id);
@@ -98,10 +101,11 @@ class SubscriptionService
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'suspended', 422, 'Subscription must be suspended to reactivate.');
 
-            $subscription->update([
+            $subscription->forceFill([
                 'status' => 'active',
+                'suspension_source' => null,
                 'next_invoice_date' => self::nextBillingDate($subscription->billing_day),
-            ]);
+            ])->save();
 
             AuditService::log('service_subscription', 'reactivated', [
                 'code' => $subscription->code,
@@ -141,12 +145,19 @@ class SubscriptionService
 
                 NetworkAssetService::releaseOnt($asset, 'subscription terminated: '.$reason);
             }
-            $subscription->update([
+
+            // Q10a: a terminated subscription gives back its static address(es) and its drop port in this same
+            // transaction. Suspend keeps them. IpAssignmentChanged is dispatched after commit.
+            IpAssignmentService::releaseForSubscription($subscription);
+            OdnService::releaseForSubscription($subscription);
+
+            $subscription->forceFill([
                 'status' => 'terminated',
+                'suspension_source' => null,
                 'terminated_at' => now(),
                 'terminated_reason' => $reason,
                 'ont_asset_id' => $releaseOnt ? null : $subscription->ont_asset_id,
-            ]);
+            ])->save();
 
             AuditService::log('service_subscription', 'terminated', [
                 'code' => $subscription->code,

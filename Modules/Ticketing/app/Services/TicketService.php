@@ -20,6 +20,7 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
+use Modules\Ticketing\Notifications\TicketCustomerUpdateNotification;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class TicketService
@@ -51,6 +52,8 @@ class TicketService
                 'code' => $ticket->code,
                 'category_id' => $ticket->category_id,
             ], $ticket);
+
+            self::notifyCustomer($ticket, 'created');
 
             return $ticket->fresh();
         });
@@ -143,13 +146,18 @@ class TicketService
             $ticket->update(['assigned_to' => $handlerId, 'status' => 'assigned']);
 
             if ($previousHandlerId !== $handlerId) {
-                Notification::send($handler, new TicketAssignedNotification($ticket->id, $ticket->code, $ticket->company_id));
+                // After commit: a queued worker must never see the assignment before it exists.
+                Notification::send($handler, (new TicketAssignedNotification($ticket->id, $ticket->code, $ticket->company_id))->afterCommit());
             }
 
             AuditService::log('ticket', 'assigned', [
                 'handler_id' => $handlerId,
                 'assigned_by' => $assignedBy,
             ], $ticket);
+
+            if ($previousHandlerId === null) {
+                self::notifyCustomer($ticket, 'assigned');
+            }
 
             return $ticket->fresh();
         });
@@ -207,6 +215,8 @@ class TicketService
             ]);
 
             AuditService::log('ticket', 'resolved', ['code' => $ticket->code], $ticket);
+
+            self::notifyCustomer($ticket, 'resolved');
 
             return $ticket->fresh();
         });
@@ -284,6 +294,19 @@ class TicketService
 
         if ($asset !== null && $subscription !== null && $asset->subscription_id !== null) {
             abort_unless((int) $asset->subscription_id === (int) $subscription->id, 422, 'Network asset does not belong to subscription.');
+        }
+    }
+
+    /**
+     * WhatsApp to the ticket's customer, when it has one. The notification is queued after the surrounding
+     * transaction commits, so a change that rolls back tells nobody.
+     */
+    private static function notifyCustomer(Ticket $ticket, string $stage): void
+    {
+        $customer = $ticket->customer_id === null ? null : Customer::query()->find($ticket->customer_id);
+
+        if ($customer !== null) {
+            Notification::send($customer, new TicketCustomerUpdateNotification($ticket->company_id, $ticket->id, $stage));
         }
     }
 

@@ -388,6 +388,7 @@ class DashboardPersonaTest extends TestCase
                 ->where('title', 'Billing schedule failed')
                 ->where('read_at', null)
                 ->where('detail_url', null)
+                ->where('subject', null)
                 ->has('id')
                 ->has('message')
                 ->has('created_at')

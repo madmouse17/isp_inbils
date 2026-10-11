@@ -49,9 +49,9 @@ class CustomerService
         });
     }
 
-    /** Queues the set-password mail; the random initial password is never disclosed. */
+    /** Queues the set-password mail, plus the WhatsApp notice for a consenting customer; the random initial password is never disclosed. */
     public static function sendAccessLink(User $user): void
     {
-        $user->notify(new CustomerAccountCreated());
+        $user->notify(new CustomerAccountCreated((int) $user->company_id));
     }
 }

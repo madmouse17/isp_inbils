@@ -9,6 +9,8 @@ use App\Http\Resources\CompanyResource;
 use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SettingService;
+use App\Services\WhatsApp\WhatsAppCloudClient;
+use App\Services\WhatsApp\WhatsAppSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -57,7 +59,20 @@ class CompanyController extends Controller
                 'tax_ppn_rate' => 11,
                 'invoice_due_days' => 14,
                 'bank_account_info' => '',
+                'auto_suspend_enabled' => false,
+                'auto_suspend_overdue_days' => 7,
+                'auto_reactivate_on_payment' => true,
+                ...WhatsAppSettings::defaults(),
             ], $company->settings ?? []),
+            // Whether credentials exist, never their values; the usage counts this company's current month.
+            'whatsapp' => [
+                'configured' => app(WhatsAppCloudClient::class)->isConfigured(),
+                'usage' => WhatsAppSettings::for($company->id)->usage(),
+                'events' => collect(config('whatsapp.events'))
+                    ->map(fn (array $event, string $key): array => ['key' => $key, 'label' => $event['label'], 'audience' => $event['audience']])
+                    ->values()
+                    ->all(),
+            ],
             'defaults' => [
                 'app_name' => SettingService::get('default_app_name'),
                 'currency' => SettingService::get('default_currency'),

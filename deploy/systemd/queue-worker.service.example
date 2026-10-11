@@ -6,7 +6,7 @@ After=network.target mysql.service
 Type=simple
 User=www-data
 WorkingDirectory=/var/www/inbils/current
-ExecStart=/usr/bin/php artisan queue:work --sleep=3 --tries=3 --timeout=90
+ExecStart=/usr/bin/php artisan queue:work --queue=default,whatsapp --sleep=3 --tries=3 --timeout=90
 Restart=always
 RestartSec=5
 

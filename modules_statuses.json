@@ -2,6 +2,7 @@
     "Customer": false,
     "Service": true,
     "NetworkAsset": true,
+    "Ipam": true,
     "Inventory": true,
     "SPK": true,
     "Billing": true,

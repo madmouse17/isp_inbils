@@ -21,6 +21,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
+use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Http\Resources\ServicePackageResource;
 use Modules\Service\Models\ServicePackage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -62,15 +66,34 @@ class SubscriptionController extends Controller
             ->with('success', 'Subscription created.');
     }
 
-    public function show(ServiceSubscription $subscription): InertiaResponse
+    public function show(Request $request, ServiceSubscription $subscription): InertiaResponse
     {
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.view');
 
         $subscription->load(['servicePackage', 'customer', 'installationAddress', 'servingPop']);
 
+        $user = $request->user();
+        $canAssignIp = $user?->can('ipam.assign') ?? false;
+        $canAssignDrop = $user?->can('odn.assign') ?? false;
+
         return Inertia::render('Admin/Subscriptions/Show', [
             'subscription' => new SubscriptionResource($subscription),
+            'ipAddresses' => ($user?->can('ipam.view') ?? false)
+                ? IpAssignmentService::forSubscription($subscription)->map(fn ($address): array => [
+                    'id' => $address->id,
+                    'family' => $address->family,
+                    'address' => $address->address,
+                    'prefix_cidr' => $address->prefix?->cidr,
+                    'status' => $address->status,
+                ])->all()
+                : [],
+            // Pools the NOC can draw a static address from; offered only to holders of ipam.assign.
+            ...($canAssignIp ? ['staticPools' => IpPrefixUtilisationQuery::staticPools($subscription->serving_pop_id)] : []),
+            'dropPort' => ($user?->can('odn.view') ?? false) ? OdnService::dropPortFor($subscription) : null,
+            // Free ODP ports under the serving POP; evaluated only on a partial reload that asks for it.
+            ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($subscription->serving_pop_id))] : []),
+            'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop],
         ]);
     }
 
@@ -122,9 +145,12 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.suspend');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+            'source' => ['nullable', 'in:manual,overdue'],
+        ]);
 
-        SubscriptionService::suspend($subscription, $request->input('reason'));
+        SubscriptionService::suspend($subscription, $validated['reason'], $validated['source'] ?? 'manual');
 
         return back()->with('success', 'Subscription suspended.');
     }

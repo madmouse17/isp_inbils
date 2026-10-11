@@ -34,6 +34,7 @@ class UpdateCustomerRequest extends FormRequest
             'area_coverage_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'notes' => ['nullable', 'string'],
             'is_active' => ['boolean'],
+            'whatsapp_opt_in' => ['sometimes', 'boolean'],
             ...$this->acquirerRules($customerId),
         ];
     }

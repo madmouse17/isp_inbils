@@ -60,4 +60,40 @@ return [
         'notification_url' => env('MIDTRANS_NOTIFICATION_URL'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | WhatsApp Cloud API (Meta)
+    |--------------------------------------------------------------------------
+    |
+    | One install-wide sender. The feature is off while the access token or the phone number id is
+    | empty: every message is then logged as skipped (disabled) and nothing leaves the server.
+    | `app_secret` signs the delivery webhook (X-Hub-Signature-256); `webhook_verify_token` answers
+    | Meta's one-off GET handshake. Templates and per-company switches: config/whatsapp.php.
+    |
+    */
+    'whatsapp' => [
+        'access_token' => env('WHATSAPP_ACCESS_TOKEN'),
+        'phone_number_id' => env('WHATSAPP_PHONE_NUMBER_ID'),
+        'business_account_id' => env('WHATSAPP_BUSINESS_ACCOUNT_ID'),
+        'app_secret' => env('WHATSAPP_APP_SECRET'),
+        'webhook_verify_token' => env('WHATSAPP_WEBHOOK_VERIFY_TOKEN'),
+        'graph_version' => env('WHATSAPP_GRAPH_VERSION') ?: 'v25.0',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | MikroTik RouterOS provisioning (REST API, RouterOS 7.1+)
+    |--------------------------------------------------------------------------
+    |
+    | `enabled` is the installation switch: while false no request ever leaves for a router, reads
+    | included. Router API credentials live encrypted in nas_devices, never here. `ca_bundle` is the
+    | path of the NOC's internal CA (PEM); empty uses the system CA store. The router certificate is
+    | always verified: there is no switch that skips it.
+    |
+    */
+    'routeros' => [
+        'enabled' => (bool) env('ROUTEROS_PROVISIONING_ENABLED', false),
+        'ca_bundle' => env('ROUTEROS_CA_BUNDLE') ?: null,
+    ],
+
 ];

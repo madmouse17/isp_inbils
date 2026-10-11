@@ -13,6 +13,8 @@ use App\Support\Money;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Modules\Billing\Events\InvoiceIssued;
+use Modules\Billing\Events\PaymentRecorded;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
@@ -152,6 +154,8 @@ class BillingService
                 self::recalculate($invoice);
 
                 AuditService::log('invoice', 'recurring_generated', ['number' => $invoice->number], $invoice);
+
+                InvoiceIssued::dispatch($invoice->company_id, $invoice->id);
             });
 
             $created++;
@@ -195,6 +199,8 @@ class BillingService
             $invoice->update(['status' => 'sent', 'sent_at' => now()]);
 
             AuditService::log('invoice', 'sent', ['number' => $invoice->number], $invoice);
+
+            InvoiceIssued::dispatch($invoice->company_id, $invoice->id);
 
             return $invoice->fresh();
         });
@@ -242,6 +248,8 @@ class BillingService
             AuditService::log('invoice', 'payment_recorded', [
                 'number' => $invoice->number, 'amount' => $amount, 'method' => $method,
             ], $invoice);
+
+            PaymentRecorded::dispatch($invoice->company_id, $invoice->id, $payment->id);
 
             return $payment;
         });

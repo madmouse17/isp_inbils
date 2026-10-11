@@ -222,7 +222,9 @@ final class TicketDemo
         }
 
         if ($until === 'closed') {
-            $c->timeline->at($resolved->addHours(2), fn (DemoContext $c) => $c->as((string) $handler, fn () => TicketService::close(self::ticket($c, $key))), "ticket {$key} close");
+            // Maker/checker: the handler who resolved the ticket never closes it.
+            $closer = $handler === 'manager' ? 'admin' : 'manager';
+            $c->timeline->at($resolved->addHours(2), fn (DemoContext $c) => $c->as($closer, fn () => TicketService::close(self::ticket($c, $key))), "ticket {$key} close");
         }
     }
 

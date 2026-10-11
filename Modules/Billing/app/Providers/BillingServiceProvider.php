@@ -9,7 +9,12 @@ use Modules\Billing\Console\CheckOverdueInvoices;
 use Modules\Billing\Console\GenerateRecurringInvoices;
 use Modules\Billing\Console\ReconcileMidtransPayments;
 use Modules\Billing\Console\RotateLegacyCustomerPasswords;
+use Modules\Billing\Console\SendInvoiceWhatsAppReminders;
+use Modules\Billing\Console\SuspendOverdueSubscriptions;
+use Modules\Billing\Events\InvoiceIssued;
+use Modules\Billing\Events\PaymentRecorded;
 use Modules\Billing\Listeners\ClearLegacyPasswordGate;
+use Modules\Billing\Listeners\SendInvoiceWhatsAppMessages;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class BillingServiceProvider extends ModuleServiceProvider
@@ -34,6 +39,8 @@ class BillingServiceProvider extends ModuleServiceProvider
         CheckOverdueInvoices::class,
         ReconcileMidtransPayments::class,
         RotateLegacyCustomerPasswords::class,
+        SuspendOverdueSubscriptions::class,
+        SendInvoiceWhatsAppReminders::class,
     ];
 
     /**
@@ -52,6 +59,10 @@ class BillingServiceProvider extends ModuleServiceProvider
 
         // A completed password reset is what opens the portal for a legacy (flagged) customer login.
         Event::listen(PasswordReset::class, ClearLegacyPasswordGate::class);
+
+        // Billing events become WhatsApp messages to the invoice's customer (consent and settings are checked by the channel).
+        Event::listen(InvoiceIssued::class, [SendInvoiceWhatsAppMessages::class, 'invoiceIssued']);
+        Event::listen(PaymentRecorded::class, [SendInvoiceWhatsAppMessages::class, 'paymentRecorded']);
     }
 
     /**

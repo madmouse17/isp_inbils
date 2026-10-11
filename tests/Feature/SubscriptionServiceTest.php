@@ -12,6 +12,7 @@ use App\Services\Core\SubscriptionService;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -81,6 +82,47 @@ class SubscriptionServiceTest extends TestCase
 
         $this->expectException(HttpException::class);
         SubscriptionService::suspend($subscription->fresh(), 'nonpayment');
+    }
+
+    public function test_suspension_source_defaults_to_manual_and_is_audited(): void
+    {
+        $company = Company::factory()->create();
+        $this->actingAs(User::factory()->create(['company_id' => $company->id]));
+        CompanyService::resetCache();
+        $subscription = ServiceSubscription::factory()->create(['company_id' => $company->id, 'status' => 'active']);
+
+        $suspended = SubscriptionService::suspend($subscription, 'customer asked');
+
+        $this->assertSame('manual', $suspended->suspension_source);
+        $audit = Activity::query()->where('description', 'suspended')->where('subject_id', $subscription->id)->firstOrFail();
+        $this->assertSame('manual', $audit->properties['source']);
+        $this->assertSame('customer asked', $audit->properties['reason']);
+    }
+
+    public function test_overdue_source_is_stored_then_cleared_by_reactivate_and_by_terminate(): void
+    {
+        $company = Company::factory()->create();
+        $this->actingAs(User::factory()->create(['company_id' => $company->id]));
+        CompanyService::resetCache();
+        $subscription = ServiceSubscription::factory()->create(['company_id' => $company->id, 'status' => 'active', 'billing_day' => 5]);
+
+        $this->assertSame('overdue', SubscriptionService::suspend($subscription, 'unpaid', 'overdue')->suspension_source);
+        $this->assertNull(SubscriptionService::reactivate($subscription)->suspension_source);
+
+        SubscriptionService::suspend($subscription, 'unpaid again', 'overdue');
+        $this->assertNull(SubscriptionService::terminate($subscription, 'moved')->suspension_source);
+    }
+
+    public function test_suspension_source_cannot_be_mass_assigned(): void
+    {
+        $company = Company::factory()->create();
+        $this->actingAs(User::factory()->create(['company_id' => $company->id]));
+        CompanyService::resetCache();
+        $subscription = ServiceSubscription::factory()->create(['company_id' => $company->id, 'status' => 'active']);
+
+        $subscription->update(['suspension_source' => 'overdue']);
+
+        $this->assertNull($subscription->fresh()->suspension_source);
     }
 
     public function test_next_billing_date_skips_no_month_for_day_31(): void

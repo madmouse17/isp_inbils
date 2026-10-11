@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\WhatsApp\PhoneNumber;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\DemoUserSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -26,6 +27,10 @@ class DemoDataSeederTest extends TestCase
         'service' => ['bandwidth_profiles', 'speed_profiles', 'sla_tiers', 'service_packages'],
         'inventory' => ['units', 'categories', 'products', 'stocks', 'stock_movements', 'inventory_requests', 'inventory_request_items', 'material_return_cases', 'material_return_lines', 'material_return_events', 'stock_adjustment_requests'],
         'network' => ['network_assets', 'network_asset_installations'],
+        'ipam' => ['vlans', 'ip_prefixes', 'ip_addresses'],
+        'odn' => ['odn_splitters', 'odn_ports'],
+        'router' => ['nas_devices', 'network_accounts'],
+        'whatsapp' => ['whatsapp_messages'],
         'spk' => ['work_orders', 'work_order_items', 'work_order_assignments'],
         'billing' => ['invoices', 'invoice_items', 'payments'],
         'ticketing' => ['ticket_categories', 'tickets', 'ticket_comments'],
@@ -80,11 +85,147 @@ class DemoDataSeederTest extends TestCase
         $this->assertHistorySpansSixMonths();
         $this->assertNothingIsDatedInTheFuture();
         $this->assertNotificationsAndMediaExist();
+        $this->assertAddressPlanHasNoConflicts();
+        $this->assertFibreTreeIsWiredAndDropsAreFree();
+        $this->assertRoutersAreInertAndAccountsExist();
+        $this->assertWhatsAppStateIsConsistent();
 
         $before = $this->rowCounts();
         $this->seed(DemoDataSeeder::class);
 
         $this->assertSame($before, $this->rowCounts(), 'A second run must not add rows.');
+    }
+
+    public function test_it_tops_up_a_company_seeded_before_the_network_parts_existed(): void
+    {
+        $this->seed(DemoDataSeeder::class);
+        $before = $this->laneCounts();
+
+        $this->assertGreaterThan(0, $before['ip_addresses']);
+
+        DB::table('whatsapp_messages')->where('dedupe_key', 'like', 'demo:%')->delete();
+        DB::table('customers')->update(['whatsapp_opt_in_at' => null, 'whatsapp_opt_out_at' => null, 'whatsapp_opt_in_source' => null, 'whatsapp_opt_in_by' => null]);
+        DB::table('network_accounts')->delete();
+        DB::table('nas_devices')->delete();
+        DB::table('ip_addresses')->delete();
+        DB::table('ip_prefixes')->update(['parent_id' => null]);
+        DB::table('ip_prefixes')->delete();
+        DB::table('vlans')->delete();
+        DB::table('odn_splitters')->update(['input_port_id' => null]);
+        DB::table('odn_ports')->delete();
+        DB::table('odn_splitters')->delete();
+
+        $this->seed(DemoDataSeeder::class);
+
+        $this->assertSame($before, $this->laneCounts(), 'A run on a company without the network parts must add exactly them.');
+    }
+
+    /** @return array<string, int> */
+    private function laneCounts(): array
+    {
+        $counts = [];
+
+        foreach (['vlans', 'ip_prefixes', 'ip_addresses', 'odn_splitters', 'odn_ports', 'nas_devices', 'network_accounts', 'whatsapp_messages'] as $table) {
+            $counts[$table] = $this->forCompany($table)->count();
+        }
+
+        $counts['consenting'] = $this->forCompany('customers')->whereNotNull('whatsapp_opt_in_at')->count();
+        $counts['drops'] = $this->forCompany('odn_ports')->whereNotNull('subscription_id')->count();
+
+        return $counts;
+    }
+
+    private function assertAddressPlanHasNoConflicts(): void
+    {
+        $this->assertSame(0, $this->forCompany('ip_addresses')->select('address_cmp')->groupBy('address_cmp')->havingRaw('COUNT(*) > 1')->get()->count(), 'An address is registered twice.');
+        $this->assertSame(0, $this->forCompany('ip_addresses')->whereNotNull('subscription_id')->select('subscription_id', 'family')->groupBy('subscription_id', 'family')->havingRaw('COUNT(*) > 1')->get()->count(), 'A subscription holds two addresses of one family.');
+        $this->assertSame(0, $this->forCompany('ip_addresses')->whereNull('ip_prefix_id')->count(), 'An address lies outside every registered prefix.');
+
+        foreach (['customer_static', 'customer_dynamic', 'infrastructure', 'container'] as $usage) {
+            $this->assertGreaterThan(0, $this->forCompany('ip_prefixes')->where('usage', $usage)->count(), "No {$usage} prefix.");
+        }
+
+        $pops = $this->forCompany('locations')->where('type', 'pop')->where('code', 'like', 'POP-BDG-%')->count();
+        $this->assertSame($pops, $this->forCompany('ip_prefixes')->where('usage', 'customer_static')->count(), 'Every POP needs a static pool.');
+        $this->assertSame($pops, $this->forCompany('ip_prefixes')->where('usage', 'customer_dynamic')->count(), 'Every POP needs a dynamic pool.');
+        $this->assertGreaterThan(0, $this->forCompany('ip_addresses')->whereNotNull('network_asset_id')->count(), 'No management address is registered.');
+        $this->assertGreaterThan(0, $this->forCompany('ip_addresses')->whereNotNull('subscription_id')->count(), 'No customer holds a static address.');
+        $this->assertGreaterThan(0, $this->forCompany('ip_addresses')->where('status', 'reserved')->count(), 'No reserved address (gateway).');
+
+        foreach ($this->forCompany('ip_addresses')->whereNotNull('subscription_id')->get() as $row) {
+            $pool = $this->forCompany('ip_prefixes')->where('id', $row->ip_prefix_id)->first();
+            $servingPop = $this->forCompany('service_subscriptions')->where('id', $row->subscription_id)->value('serving_pop_id');
+
+            $this->assertSame('customer_static', $pool->usage, "{$row->address} is not in a static pool.");
+            $this->assertSame($servingPop, $pool->location_id, "{$row->address} is outside the pool of the serving POP.");
+            $this->assertTrue($row->address_cmp >= $pool->range_from && $row->address_cmp <= $pool->range_to, "{$row->address} lies outside {$pool->cidr}.");
+        }
+    }
+
+    private function assertFibreTreeIsWiredAndDropsAreFree(): void
+    {
+        foreach ($this->forCompany('network_assets')->where('asset_type', 'olt')->get() as $olt) {
+            $this->assertSame(8, $this->forCompany('odn_ports')->where('network_asset_id', $olt->id)->where('kind', 'pon')->count(), "OLT {$olt->name} needs 8 PON ports.");
+        }
+
+        foreach ($this->forCompany('network_assets')->whereIn('asset_type', ['odc', 'odp'])->get() as $host) {
+            $splitters = $this->forCompany('odn_splitters')->where('network_asset_id', $host->id)->get();
+
+            $this->assertCount(1, $splitters, "{$host->name} needs one splitter.");
+            $this->assertSame($host->asset_type === 'odc' ? 4 : 8, (int) $splitters[0]->outputs, "{$host->name} has the wrong splitter ratio.");
+            $this->assertNotNull($splitters[0]->input_port_id, "The splitter of {$host->name} is not wired upstream.");
+            $this->assertSame($splitters[0]->outputs, $this->forCompany('odn_ports')->where('odn_splitter_id', $splitters[0]->id)->count());
+        }
+
+        $this->assertSame(0, $this->forCompany('odn_splitters')->whereIn('input_port_id', $this->forCompany('odn_ports')->whereNotNull('subscription_id')->select('id'))->count(), 'A customer drop feeds a splitter.');
+        $this->assertSame(0, $this->forCompany('odn_splitters')->select('input_port_id')->groupBy('input_port_id')->havingRaw('COUNT(*) > 1')->get()->count(), 'A port feeds two splitters.');
+
+        $drops = $this->forCompany('odn_ports')->whereNotNull('subscription_id')->get();
+        $this->assertGreaterThan(0, $drops->count(), 'No drop was seeded.');
+        $this->assertSame($drops->count(), $drops->pluck('subscription_id')->unique()->count(), 'A subscription has two drop ports.');
+
+        foreach ($drops as $drop) {
+            $subscription = $this->forCompany('service_subscriptions')->where('id', $drop->subscription_id)->first();
+            $popPath = $this->forCompany('locations')->where('id', $subscription->serving_pop_id)->value('path');
+            $odp = $this->forCompany('network_assets')->where('id', $drop->network_asset_id)->first();
+            $odpPath = $this->forCompany('locations')->where('id', $odp->location_id)->value('path');
+
+            $this->assertSame('odp', $odp->asset_type, 'A drop is not on an ODP.');
+            $this->assertContains($subscription->status, ['active', 'suspended'], 'A drop belongs to a subscription that is not in service.');
+            $this->assertStringStartsWith($popPath.' > ', $odpPath, "The drop of {$subscription->code} is not under its serving POP.");
+        }
+    }
+
+    private function assertRoutersAreInertAndAccountsExist(): void
+    {
+        $this->assertSame(0, $this->forCompany('nas_devices')->where('provisioning_enabled', true)->count(), 'A demo router accepts writes.');
+        $this->assertFalse((bool) config('services.routeros.enabled'), 'The global RouterOS switch must stay off for the demo.');
+        $this->assertSame($this->forCompany('network_accounts')->count(), $this->forCompany('network_accounts')->where('sync_status', 'pending')->count(), 'Nothing may have reached a router.');
+        $this->assertSame(0, $this->forCompany('network_accounts')->whereNotNull('provisioned_at')->count());
+        $this->assertGreaterThan(0, $this->forCompany('network_accounts')->whereIn('subscription_id', $this->forCompany('service_subscriptions')->where('status', 'suspended')->select('id'))->count(), 'No suspended customer has an account.');
+    }
+
+    private function assertWhatsAppStateIsConsistent(): void
+    {
+        $company = Company::query()->findOrFail($this->companyId);
+        $this->assertFalse((bool) ($company->settings['whatsapp_enabled'] ?? false), 'The demo company must not have WhatsApp switched on.');
+
+        $consenting = $this->forCompany('customers')->whereNotNull('whatsapp_opt_in_at')->whereNull('whatsapp_opt_out_at')->get();
+        $this->assertGreaterThanOrEqual(3, $consenting->count());
+        $this->assertGreaterThanOrEqual(3, $consenting->filter(fn ($customer) => PhoneNumber::normalizeIndonesianMobile($customer->phone) !== null && str_starts_with($customer->phone, '0812'))->count(), 'Too few consenting customers have a valid 0812 number.');
+        $this->assertGreaterThan(0, $this->forCompany('customers')->whereNotNull('whatsapp_opt_out_at')->count(), 'No customer withdrew consent.');
+
+        $statuses = $this->forCompany('whatsapp_messages')->distinct()->pluck('status')->all();
+        $this->assertSame([], array_values(array_diff(['queued', 'sent', 'delivered', 'read', 'failed', 'skipped'], $statuses)), 'The message log misses a status.');
+
+        foreach ($this->forCompany('whatsapp_messages')->get() as $message) {
+            $this->assertTrue($message->recipient_hash === null || strlen($message->recipient_hash) === 64, 'A message holds something other than a keyed hash.');
+            $this->assertTrue($message->recipient_last4 === null || strlen($message->recipient_last4) === 4);
+
+            if ($message->status === 'skipped') {
+                $this->assertNotNull($message->skip_reason, 'A skipped message has no reason.');
+            }
+        }
     }
 
     private function assertEveryModuleHasRows(): void

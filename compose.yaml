@@ -39,7 +39,7 @@ services:
   queue:
     <<: *app
     container_name: inbils-queue
-    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90", "--no-interaction"]
+    command: ["php", "artisan", "queue:work", "--queue=default,whatsapp", "--sleep=3", "--tries=3", "--timeout=90", "--no-interaction"]
     healthcheck:
       test: ["CMD-SHELL", "grep -aq 'queue:work' /proc/1/cmdline"]
       interval: 15s

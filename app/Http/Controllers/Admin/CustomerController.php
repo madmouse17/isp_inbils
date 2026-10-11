@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\AssignCustomerAcquirerAction;
 use App\Actions\CreateCustomerOnboardingAction;
+use App\Actions\SetCustomerWhatsAppConsentAction;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
+use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Queries\Admin\CustomerHistoryQuery;
@@ -18,6 +20,7 @@ use App\Services\Core\IndonesiaRegionService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -25,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerController extends Controller
@@ -64,6 +68,7 @@ class CustomerController extends Controller
         $this->authorizeOnboarding();
 
         $canAssignAcquirer = $request->user()?->can('assignAcquirer', Customer::class) ?? false;
+        $canAssignDrop = $request->user()?->can('odn.assign') ?? false;
 
         return Inertia::render('Admin/Customers/Create', [
             'packages' => DB::table('service_packages')
@@ -89,7 +94,9 @@ class CustomerController extends Controller
             'geocodeIndex' => Inertia::optional(fn () => $request->integer('geocode_index')),
             'acquirerOptions' => $canAssignAcquirer ? CustomerAcquirerQuery::options((int) CompanyService::currentId()) : [],
             'acquirerDefaultId' => $canAssignAcquirer ? CustomerAcquirerQuery::defaultId($request->user()) : null,
-            'can' => ['assignAcquirer' => $canAssignAcquirer],
+            // Free ODP ports under the chosen serving POP; evaluated only on a partial reload that asks for it (query serving_pop_id).
+            ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($request->integer('serving_pop_id') ?: null))] : []),
+            'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop],
         ]);
     }
 
@@ -124,6 +131,7 @@ class CustomerController extends Controller
             'customer' => new CustomerResource($customer),
             'history' => CustomerHistoryQuery::execute($customer, $historyAccess),
             'historyAccess' => $historyAccess,
+            'whatsappMessages' => $this->whatsAppMessages($customer),
             'can' => [
                 'viewAcquirer' => $canViewAcquirer,
                 'update' => $request->user()?->can('update', $customer) ?? false,
@@ -196,10 +204,31 @@ class CustomerController extends Controller
                 $request->user(),
                 $request->safe()->only(['acquired_by_user_id', 'acquirer_correction_reason']),
             );
+
+            if ($request->safe()->has('whatsapp_opt_in')) {
+                SetCustomerWhatsAppConsentAction::execute($customer, $request->boolean('whatsapp_opt_in'), $request->user());
+            }
         });
 
         return redirect()->route('admin.customers.index')
             ->with('success', 'Customer updated.');
+    }
+
+    /**
+     * The customer's latest WhatsApp rows for the customer page: status and reason, never more of the number
+     * than its last four digits. Scoped to the current company by the model.
+     *
+     * @return Collection<int, WhatsAppMessage>
+     */
+    private function whatsAppMessages(Customer $customer): Collection
+    {
+        return WhatsAppMessage::query()
+            ->where('recipient_type', 'customer')
+            ->where('recipient_id', $customer->id)
+            ->latest()
+            ->latest('id')
+            ->limit(20)
+            ->get(['id', 'event', 'subject_type', 'subject_id', 'status', 'skip_reason', 'error_code', 'recipient_last4', 'created_at', 'delivered_at', 'read_at', 'failed_at']);
     }
 
     public function destroy(Request $request, int|string $customer): RedirectResponse

@@ -7,10 +7,13 @@ use App\Http\Resources\LocationResource;
 use App\Http\Resources\MediaResource;
 use App\Http\Resources\SubscriptionResource;
 use App\Http\Resources\UserResource;
+use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
+use Modules\Ticketing\Models\Ticket;
 
+/** @mixin Ticket */
 class TicketResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -48,6 +51,7 @@ class TicketResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
             'attachments' => MediaResource::collection($this->getMedia('attachments')),
+            'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?string => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : FieldCheckIn::summary($record)),
             // Show page only: lists and exports skip the per-row policy checks.
             'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [
                 'start' => (bool) $request->user()?->can('start', $this->resource),

@@ -3,11 +3,11 @@
 namespace Modules\Billing\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\Core\Customer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Modules\Billing\Http\Middleware\EnsureCustomerPortalAccess;
 use Modules\Billing\Http\Resources\PortalInvoiceResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Services\MidtransGateway;
@@ -20,14 +20,11 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class InvoiceController extends Controller
 {
-    /** Drafts are internal; a customer only sees what was issued. */
-    private const VISIBLE = ['sent', 'partial', 'paid', 'overdue', 'cancelled'];
-
     public function index(Request $request, MidtransGateway $gateway): InertiaResponse
     {
         $invoices = Invoice::query()
             ->whereBelongsTo($this->customer($request))
-            ->whereIn('status', self::VISIBLE)
+            ->whereIn('status', Invoice::CUSTOMER_VISIBLE_STATUSES)
             ->orderByDesc('issue_date')
             ->orderByDesc('id')
             ->paginate(10)
@@ -67,14 +64,14 @@ class InvoiceController extends Controller
 
     private function customer(Request $request): Customer
     {
-        return $request->attributes->get(EnsureCustomerPortalAccess::CUSTOMER_ATTRIBUTE);
+        return $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
     }
 
     private function ownInvoice(Request $request, int $id): Invoice
     {
         return Invoice::query()
             ->whereBelongsTo($this->customer($request))
-            ->whereIn('status', self::VISIBLE)
+            ->whereIn('status', Invoice::CUSTOMER_VISIBLE_STATUSES)
             ->findOrFail($id);
     }
 }

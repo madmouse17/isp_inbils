@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Notifications\Notifiable;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -22,6 +23,7 @@ class Customer extends Model implements HasMedia
     use HasFactory;
     use InteractsWithMedia;
     use LogsActivity;
+    use Notifiable;
     use SoftDeletes;
 
     protected static string $factory = CustomerFactory::class;
@@ -50,7 +52,19 @@ class Customer extends Model implements HasMedia
     protected $casts = [
         'is_active' => 'boolean',
         'acquired_by_user_id' => 'integer',
+        'whatsapp_opt_in_at' => 'datetime',
+        'whatsapp_opt_out_at' => 'datetime',
     ];
+
+    /**
+     * Consent to business-initiated WhatsApp messages: recorded by staff and not withdrawn since. The
+     * whatsapp_opt_* columns are not mass assignable; only SetCustomerWhatsAppConsentAction and the
+     * delivery webhook (STOP reply) write them.
+     */
+    public function hasWhatsAppConsent(): bool
+    {
+        return $this->whatsapp_opt_in_at !== null && $this->whatsapp_opt_out_at === null;
+    }
 
     /** @return HasMany<CustomerAddress, $this> */
     public function addresses(): HasMany

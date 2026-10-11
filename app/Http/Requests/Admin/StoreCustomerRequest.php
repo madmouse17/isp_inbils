@@ -8,6 +8,7 @@ use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Laravolt\Indonesia\Models\City;
@@ -38,6 +39,7 @@ class StoreCustomerRequest extends FormRequest
             'area_coverage_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'notes' => ['nullable', 'string'],
             'is_active' => ['boolean'],
+            'whatsapp_opt_in' => ['sometimes', 'boolean'],
             'addresses' => ['required', 'array', 'min:1'],
             'addresses.*' => ['required', 'array:label,address,city,postal_code,province_code,city_code,district_code,village_code,lat,lng,is_installation_point,is_primary,notes'],
             'addresses.*.label' => ['required', 'string', 'max:100'],
@@ -61,7 +63,7 @@ class StoreCustomerRequest extends FormRequest
             'contacts.*.email' => ['required', 'email', 'max:255'],
             'contacts.*.is_primary' => ['required', 'boolean'],
             'contacts.*.notes' => ['nullable', 'string'],
-            'subscription' => ['required', 'array:service_package_id,serving_pop_id,billing_day,mrc_amount,otc_installation_fee,contract_months,notes'],
+            'subscription' => ['required', 'array:service_package_id,serving_pop_id,billing_day,mrc_amount,otc_installation_fee,contract_months,notes,odn_port_id'],
             'subscription.service_package_id' => [
                 'required',
                 Rule::exists('service_packages', 'id')->where(fn ($query) => $query
@@ -82,6 +84,7 @@ class StoreCustomerRequest extends FormRequest
             'subscription.contract_months' => ['nullable', 'integer', 'min:1'],
             'subscription.notes' => ['nullable', 'string'],
             ...$this->acquirerRules(),
+            ...$this->dropPortRules(),
         ];
     }
 
@@ -99,6 +102,35 @@ class StoreCustomerRequest extends FormRequest
         }
 
         return ['acquired_by_user_id' => ['nullable', 'bail', CustomerAcquirerQuery::idRule(), new IsEligibleCustomerAcquirer()]];
+    }
+
+    /**
+     * The drop port is validated only for holders of odn.assign; for everyone else the key never reaches
+     * validated(), so a forged value is ignored. Whether the port is free and under the serving POP is
+     * decided by OdnService inside the onboarding transaction.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function dropPortRules(): array
+    {
+        if (! ($this->user()?->can('odn.assign') ?? false)) {
+            return [];
+        }
+
+        return ['subscription.odn_port_id' => ['nullable', 'integer', Rule::exists('odn_ports', 'id')->where('company_id', CompanyService::currentId())]];
+    }
+
+    /**
+     * A drop port sent by a user who cannot assign one is removed before validation (the parent `subscription`
+     * rule would otherwise carry the whole array, forged key included, into validated()).
+     */
+    protected function prepareForValidation(): void
+    {
+        $subscription = $this->input('subscription');
+
+        if (is_array($subscription) && ! ($this->user()?->can('odn.assign') ?? false)) {
+            $this->merge(['subscription' => Arr::except($subscription, 'odn_port_id')]);
+        }
     }
 
     /** @return array<int, callable(Validator): void> */
