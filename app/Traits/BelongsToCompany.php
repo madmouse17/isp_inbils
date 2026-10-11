@@ -7,6 +7,7 @@ use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Spatie\Activitylog\Contracts\Activity;
 
 trait BelongsToCompany
 {
@@ -63,14 +64,14 @@ trait BelongsToCompany
 
         abort_if($companyId === null, 403, 'Company context is required.');
 
-        return $query->forCompany($companyId);
+        return $this->scopeForCompany($query, $companyId);
     }
 
-    public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName): void
+    public function tapActivity(Activity $activity, string $eventName): void
     {
         $companyId = $this->getAttribute('company_id') ?? CompanyService::currentId();
-        if ($companyId !== null) {
-            $activity->company_id = (int) $companyId;
+        if ($companyId !== null && $activity instanceof Model) {
+            $activity->setAttribute('company_id', (int) $companyId);
         }
     }
 }
