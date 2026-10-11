@@ -1,6 +1,6 @@
 # Midtrans Snap (sandbox) — online invoice payment
 
-Status: ready-for-agent
+Status: done
 Ledger: none yet (new lane from the isp_ari gap analysis of 2026-10-11)
 Source: `/tmp/isp_ari_gap.md` backlog rank 2 "Automated Payment Gateway Integration" (see Corrections: this is **not** a parity gap — isp_ari has no gateway and no billing code either).
 

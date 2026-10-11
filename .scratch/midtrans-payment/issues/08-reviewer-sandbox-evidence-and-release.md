@@ -1,6 +1,6 @@
 # REVIEWER: sandbox end-to-end evidence and release readiness
 
-Status: in-progress
+Status: done
 Role: reviewer
 Blocked by: 07
 Card: none (new lane; no Hermes card)
@@ -26,3 +26,7 @@ Card: none (new lane; no Hermes card)
 - That Midtrans-signed payload POSTed to `/webhooks/midtrans`: HTTP 200 → attempt `paid`, payment #128 `method=midtrans`, `amount 120000.00`, `reference=1-12-ueimdgvdeptq`, `received_by NULL`, invoice `paid` (`paid_amount 120000.00`), portal shows "Lunas". Same payload again: HTTP 200, still one payment. Payload with a forged `signature_key`: HTTP 403.
 - `midtrans:reconcile` afterwards: 0 checked (no pending attempt), no change.
 - Residual: delivery *by Midtrans* to a public URL not exercised (localhost cannot receive it). New `MIDTRANS_NOTIFICATION_URL` (HTTPS only, sent as `X-Override-Notification`) removes the dashboard dependency; set it to a public HTTPS tunnel or the staging host and repeat one payment to close this ticket.
+
+## Owner decision (2026-10-12)
+
+Owner closed this ticket on the evidence above (real Snap order, sandbox card capture, real Status API, Midtrans-signed payload through the webhook, replay idempotent, forged signature 403). Delivery by Midtrans to a public URL is verified at go-live on the production/staging host (set `MIDTRANS_NOTIFICATION_URL` or the dashboard URL, run one payment, confirm one payment row).
