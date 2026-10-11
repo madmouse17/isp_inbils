@@ -32,6 +32,9 @@ class ExceptionReportingTest extends TestCase
 
     public function test_http_error_response_does_not_leak_exception_message(): void
     {
+        // The contract is for production error pages; a local .env with APP_DEBUG=true would render the stack trace.
+        config(['app.debug' => false]);
+
         Route::get('/__ops_test_explode', function () {
             throw new RuntimeException('TOP_SECRET_DB_DSN=mysql://root:hunter2@db/app');
         })->middleware('web');
