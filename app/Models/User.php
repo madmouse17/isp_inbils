@@ -6,6 +6,7 @@ namespace App\Models;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
+use App\Services\Core\ApiTokenService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -29,9 +31,31 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, LogsActivity, Notifiable;
+    use HasApiTokens, HasFactory, HasRoles, LogsActivity, Notifiable;
 
     protected static $recordEvents = ['created', 'updated', 'deleted'];
+
+    /**
+     * A lost phone must not outlive the credential or the account, so the app tokens go whenever the password
+     * changes, the user is deactivated or deleted. The hook sits on the model so every writer is covered: the
+     * reset, the profile form, the admin form and anything that saves a User later.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (User $user): void {
+            $reason = match (true) {
+                $user->wasChanged('password') => 'password_changed',
+                $user->wasChanged('is_active') && ! $user->is_active => 'deactivated',
+                default => null,
+            };
+
+            if ($reason !== null) {
+                app(ApiTokenService::class)->revokeAll($user, $reason);
+            }
+        });
+
+        static::deleted(fn (User $user) => app(ApiTokenService::class)->revokeAll($user, 'deleted'));
+    }
 
     /**
      * The attributes that are mass assignable.

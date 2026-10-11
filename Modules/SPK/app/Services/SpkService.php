@@ -2,13 +2,18 @@
 
 namespace Modules\SPK\Services;
 
+use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\FieldCheckIn;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Modules\Inventory\Models\Product;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\NetworkAssetInstallation;
@@ -16,6 +21,8 @@ use Modules\SPK\Actions\CompleteSpkAction;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderAssignment;
 use Modules\SPK\Models\WorkOrderItem;
+use Modules\SPK\Notifications\WorkOrderScheduledNotification;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class SpkService
@@ -127,6 +134,7 @@ class SpkService
                 'assigned_at' => now(),
             ]);
 
+            $previousTechnicianId = $wo->assigned_to;
             $wo->update(['status' => 'assigned', 'assigned_to' => $technician->id]);
 
             AuditService::log('work_order', 'assigned', [
@@ -134,16 +142,39 @@ class SpkService
                 'assigned_by' => $assignedBy,
             ], $wo);
 
+            self::notifyScheduled($wo, $technician, $previousTechnicianId);
+
             return $wo->fresh();
         });
     }
 
-    public static function start(WorkOrder $wo): WorkOrder
+    /**
+     * WhatsApp about an assignment, queued after the surrounding transaction commits: to the technician whenever
+     * the technician changes, and to the customer once, on the first assignment, when the SPK has a customer and
+     * a visit date.
+     */
+    private static function notifyScheduled(WorkOrder $wo, User $technician, ?int $previousTechnicianId): void
+    {
+        if ($previousTechnicianId !== $technician->id) {
+            Notification::send($technician, new WorkOrderScheduledNotification($wo->company_id, $wo->id, 'technician'));
+        }
+
+        $customer = $previousTechnicianId === null && $wo->scheduled_date !== null && $wo->customer_id !== null
+            ? Customer::query()->find($wo->customer_id)
+            : null;
+
+        if ($customer !== null) {
+            Notification::send($customer, new WorkOrderScheduledNotification($wo->company_id, $wo->id, 'customer'));
+        }
+    }
+
+    /** @param array<string, mixed>|null $checkIn */
+    public static function start(WorkOrder $wo, ?array $checkIn = null): WorkOrder
     {
         $expectedStatus = $wo->status;
         self::assertAssignedTechnician($wo, 'spk.start');
 
-        return DB::transaction(function () use ($wo, $expectedStatus) {
+        return DB::transaction(function () use ($wo, $expectedStatus, $checkIn) {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
             self::assertAssignedTechnician($wo, 'spk.start');
@@ -153,7 +184,76 @@ class SpkService
 
             AuditService::log('work_order', 'started', ['code' => $wo->code], $wo);
 
+            if ($checkIn !== null) {
+                $wo->loadMissing(['location', 'subscription.installationAddress']);
+                AuditService::log(
+                    'work_order',
+                    'check_in',
+                    FieldCheckIn::properties($checkIn, FieldCheckIn::site($wo->location, $wo->subscription?->installationAddress)),
+                    $wo
+                );
+            }
+
             return $wo->fresh();
+        });
+    }
+
+    /**
+     * @param  array{file: UploadedFile, caption?: ?string, captured_at?: ?string}  $data
+     */
+    public static function addEvidence(WorkOrder $wo, User $actor, array $data, ?string $idempotencyKey = null): Media
+    {
+        return DB::transaction(function () use ($wo, $actor, $data, $idempotencyKey) {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            Gate::forUser($actor)->authorize('uploadEvidence', $wo);
+
+            if ($idempotencyKey !== null) {
+                $existing = $wo->getMedia('evidence')->first(
+                    fn (Media $media): bool => $media->getCustomProperty('idempotency_key') === $idempotencyKey
+                );
+                if ($existing instanceof Media) {
+                    return $existing;
+                }
+            }
+
+            $file = $data['file'];
+            $properties = [
+                'company_id' => $wo->company_id,
+                'type' => str((string) $file->getMimeType())->startsWith('image/') ? 'photo' : 'document',
+                'caption' => $data['caption'] ?? null,
+                'uploaded_by' => $actor->id,
+            ];
+
+            if (($data['captured_at'] ?? null) !== null) {
+                $properties['captured_at'] = $data['captured_at'];
+            }
+            if ($idempotencyKey !== null) {
+                $properties['idempotency_key'] = $idempotencyKey;
+            }
+
+            $media = $wo->addMedia($file)
+                ->withCustomProperties($properties)
+                ->toMediaCollection('evidence');
+
+            AuditService::log('work_order', 'evidence_uploaded', ['media_id' => $media->id, 'uploaded_by' => $actor->id], $wo);
+
+            return $media;
+        });
+    }
+
+    public static function removeEvidence(WorkOrder $wo, int $mediaId, User $actor): void
+    {
+        DB::transaction(function () use ($wo, $mediaId, $actor): void {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            $media = $wo->getMedia('evidence')->first(fn (Media $item): bool => (int) $item->id === $mediaId);
+            abort_unless($media instanceof Media, 404);
+            Gate::forUser($actor)->authorize('removeEvidence', [$wo, $media]);
+
+            $media->delete();
+
+            AuditService::log('work_order', 'evidence_removed', ['media_id' => $mediaId, 'removed_by' => $actor->id], $wo);
         });
     }
 
@@ -400,14 +500,14 @@ class SpkService
 
     private static function assertCapability(string $ability): void
     {
-        abort_unless(Auth::user()?->can($ability) ?? false, 403);
+        abort_unless(Gate::allows($ability), 403);
     }
 
     private static function assertAssignmentActor(int $assignedBy, int $companyId, string $ability): void
     {
         $actor = Auth::user();
         abort_unless(
-            $actor !== null
+            $actor instanceof User
             && $actor->is_active
             && (int) $actor->id === $assignedBy
             && CompanyService::idFor($actor) === $companyId

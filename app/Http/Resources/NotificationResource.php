@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\Customer;
 use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -24,23 +25,32 @@ class NotificationResource extends JsonResource
         $data = is_array($data) ? $data : [];
         $type = is_string($data['type'] ?? null) ? $data['type'] : 'unknown';
         $ticketCode = is_string($data['ticket_code'] ?? null) ? $data['ticket_code'] : null;
+        $customerNotification = $this->getAttribute('notifiable_type') === Customer::class;
 
         return [
             'id' => (string) $this->id,
             'type' => $type,
-            'title' => $this->title($type),
-            'message' => $this->message($type, $ticketCode, $data),
+            'title' => $this->title($type, $customerNotification),
+            'message' => $this->message($type, $ticketCode, $data, $customerNotification),
+            'subject' => $this->subject($data),
             'created_at' => $this->created_at,
             'read_at' => $this->read_at,
-            'detail_url' => $this->detailUrl($request, $type, $data),
+            'detail_url' => $this->when(! $request->is('api/*'), fn () => $this->detailUrl($request, $type, $data)),
         ];
     }
 
-    private function title(string $type): string
+    private function title(string $type, bool $customerNotification): string
     {
         return match ($type) {
-            'ticket_assigned' => 'Ticket assigned',
+            'invoice_issued' => 'Tagihan baru',
+            'invoice_reminder' => 'Pengingat jatuh tempo',
+            'payment_received' => 'Pembayaran diterima',
+            'ticket_created' => 'Tiket dibuat',
+            'ticket_assigned' => $customerNotification ? 'Tiket mulai ditangani' : 'Ticket assigned',
+            'ticket_resolved' => 'Tiket selesai',
             'ticket_sla_breached' => 'Ticket SLA breached',
+            'spk_scheduled' => 'SPK baru ditugaskan',
+            'spk_scheduled_customer' => 'Jadwal kunjungan teknisi',
             'billing_schedule_failed' => 'Billing schedule failed',
             'inventory_request_submitted' => 'Inventory request submitted',
             'inventory_request_approved' => 'Inventory request approved',
@@ -54,19 +64,26 @@ class NotificationResource extends JsonResource
     }
 
     /** @param array<string, mixed> $data */
-    private function message(string $type, ?string $ticketCode, array $data): string
+    private function message(string $type, ?string $ticketCode, array $data, bool $customerNotification): string
     {
         $requestCode = is_string($data['request_code'] ?? null) ? $data['request_code'] : null;
         $caseId = $data['case_id'] ?? null;
         $caseId = is_int($caseId) || (is_string($caseId) && ctype_digit($caseId)) ? (int) $caseId : null;
 
         return match ($type) {
-            'ticket_assigned' => $ticketCode
-                ? "Ticket {$ticketCode} has been assigned to you."
-                : 'A ticket has been assigned to you.',
+            'invoice_issued' => 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.',
+            'invoice_reminder' => 'Tagihan Anda perlu dibayar. Buka notifikasi ini untuk melihat rinciannya.',
+            'payment_received' => 'Pembayaran Anda sudah kami terima.',
+            'ticket_created' => 'Tiket Anda sudah tercatat dan menunggu penanganan.',
+            'ticket_assigned' => $customerNotification
+                ? 'Tiket Anda sudah mulai ditangani petugas kami.'
+                : ($ticketCode ? "Ticket {$ticketCode} has been assigned to you." : 'A ticket has been assigned to you.'),
+            'ticket_resolved' => 'Tiket Anda sudah diselesaikan.',
             'ticket_sla_breached' => $ticketCode
                 ? "Ticket {$ticketCode} has breached its SLA."
                 : 'A ticket has breached its SLA.',
+            'spk_scheduled' => 'SPK baru sudah ditugaskan kepada Anda.',
+            'spk_scheduled_customer' => 'Kunjungan teknisi untuk layanan Anda sudah dijadwalkan.',
             'billing_schedule_failed' => 'A scheduled billing operation failed. Check the application logs.',
             'inventory_request_submitted' => $requestCode
                 ? "Request {$requestCode} is waiting for warehouse review."
@@ -91,6 +108,29 @@ class NotificationResource extends JsonResource
                 : 'A material return handover was rejected. Review the declaration.',
             default => 'This notification is available in your inbox.',
         };
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{type: string, id: int}|null
+     */
+    private function subject(array $data): ?array
+    {
+        foreach ([
+            'ticket_id' => 'ticket',
+            'work_order_id' => 'work_order',
+            'invoice_id' => 'invoice',
+            'request_id' => 'inventory_request',
+            'case_id' => 'material_return',
+        ] as $key => $type) {
+            $id = $data[$key] ?? null;
+
+            if (is_int($id) || (is_string($id) && ctype_digit($id))) {
+                return ['type' => $type, 'id' => (int) $id];
+            }
+        }
+
+        return null;
     }
 
     /** @param array<string, mixed> $data */

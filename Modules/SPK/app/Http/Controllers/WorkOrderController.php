@@ -3,7 +3,6 @@
 namespace Modules\SPK\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
-use App\Http\Controllers\Concerns\UploadsMedia;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\EmployeeResource;
@@ -16,6 +15,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\FieldCheckIn;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +29,9 @@ use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Product;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Services\OdnService;
 use Modules\SPK\Http\Requests\AssignWorkOrderRequest;
+use Modules\SPK\Http\Requests\StoreWorkOrderEvidenceRequest;
 use Modules\SPK\Http\Requests\StoreWorkOrderItemRequest;
 use Modules\SPK\Http\Requests\StoreWorkOrderRequest;
 use Modules\SPK\Http\Requests\UpdateWorkOrderRequest;
@@ -44,7 +46,6 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class WorkOrderController extends Controller
 {
     use HasIndexQuery;
-    use UploadsMedia;
 
     private const SORTABLE = ['code', 'title', 'type', 'status', 'priority', 'scheduled_date', 'created_at'];
 
@@ -153,18 +154,27 @@ class WorkOrderController extends Controller
             ->with('success', 'SPK created.');
     }
 
-    public function show(WorkOrder $wo): InertiaResponse
+    public function show(Request $request, WorkOrder $wo): InertiaResponse
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('view', $wo);
 
         $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'items.networkAsset.product.unit', 'assignments.technician', 'media']);
+        $checkIn = FieldCheckIn::recordFor($wo, 'work_order');
 
         return Inertia::render('Admin/SPK/Show', [
             'workOrder' => new WorkOrderResource($wo),
             'technicians' => EmployeeResource::collection($this->technicians()),
             'products' => ProductResource::collection($this->products()),
             'networkAssets' => NetworkAssetResource::collection($this->networkAssets()),
+            'can' => [
+                'uploadEvidence' => $request->user()?->can('uploadEvidence', $wo) ?? false,
+            ],
+            'checkInSummary' => $checkIn === null ? null : FieldCheckIn::summary($checkIn),
+            // The drop reserved for the customer (read-only), so the technician connects the right ODP port.
+            'dropPort' => $wo->type === 'installation' && $wo->subscription !== null && Gate::allows('odn.view')
+                ? OdnService::dropPortFor($wo->subscription)
+                : null,
         ]);
     }
 
@@ -342,35 +352,18 @@ class WorkOrderController extends Controller
         return back()->with('success', 'Item removed.');
     }
 
-    public function uploadEvidence(Request $request, WorkOrder $wo): RedirectResponse
+    public function uploadEvidence(StoreWorkOrderEvidenceRequest $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.evidence.upload');
-
-        $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx', 'mimetypes:image/jpeg,image/png,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-            'caption' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $file = $request->file('file');
-        $this->storeMedia($wo, $file, 'evidence', [
-            'company_id' => $wo->company_id,
-            'type' => str($file->getMimeType())->startsWith('image/') ? 'photo' : 'document',
-            'caption' => $request->input('caption'),
-            'uploaded_by' => $request->user()->id,
-        ]);
+        SpkService::addEvidence($wo, $request->user(), $request->evidenceAttributes());
 
         return back()->with('success', 'Evidence uploaded.');
     }
 
-    public function removeEvidence(WorkOrder $wo, Media $evidence): RedirectResponse
+    public function removeEvidence(Request $request, WorkOrder $wo, Media $evidence): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        abort_unless($evidence->model_type === $wo::class && (int) $evidence->model_id === $wo->id, 404);
-        abort_unless($evidence->collection_name === 'evidence', 404);
-        Gate::authorize('spk.evidence.upload');
-
-        $evidence->delete();
+        SpkService::removeEvidence($wo, $evidence->id, $request->user());
 
         return back()->with('success', 'Evidence removed.');
     }

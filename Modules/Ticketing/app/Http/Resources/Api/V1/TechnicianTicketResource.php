@@ -1,0 +1,32 @@
+<?php
+
+namespace Modules\Ticketing\Http\Resources\Api\V1;
+
+use Illuminate\Http\Request;
+use Modules\Ticketing\Models\Ticket;
+
+/** @mixin Ticket */
+class TechnicianTicketResource extends CustomerTicketResource
+{
+    /** @return array<string, mixed> */
+    public function toArray(Request $request): array
+    {
+        return array_merge($this->summary(), [
+            'description' => $this->description,
+            'resolution_note' => $this->resolution_note,
+            'customer' => $this->customer ? [
+                'name' => $this->customer->name,
+                'phone' => $this->customer->phone,
+            ] : null,
+            'subscription' => $this->subscription ? ['id' => $this->subscription->id, 'code' => $this->subscription->code] : null,
+            'location' => $this->location ? [
+                'name' => $this->location->name,
+                'address' => $this->location->address,
+                'lat' => $this->location->lat === null ? null : (float) $this->location->lat,
+                'lng' => $this->location->lng === null ? null : (float) $this->location->lng,
+            ] : null,
+            'comments' => TechnicianTicketCommentResource::collection($this->whenLoaded('comments')),
+            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media')),
+        ]);
+    }
+}

@@ -6,6 +6,7 @@ use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Modules\SPK\Models\WorkOrder;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class WorkOrderPolicy
 {
@@ -101,6 +102,31 @@ class WorkOrderPolicy
     public function cancel(User $user, WorkOrder $wo): bool
     {
         return $this->sameCompany($user, $wo) && $user->can('spk.cancel');
+    }
+
+    public function uploadEvidence(User $user, WorkOrder $wo): bool
+    {
+        if (! $this->sameCompany($user, $wo) || in_array($wo->status, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
+        return $user->can('spk.update')
+            || ($wo->status === 'in_progress' && $this->isAssignedTechnician($user, $wo, 'spk.evidence.upload'));
+    }
+
+    public function removeEvidence(User $user, WorkOrder $wo, Media $evidence): bool
+    {
+        if (! $this->sameCompany($user, $wo) || in_array($wo->status, ['completed', 'cancelled'], true)) {
+            return false;
+        }
+
+        if ($user->can('spk.update')) {
+            return true;
+        }
+
+        return $wo->status === 'in_progress'
+            && $user->can('spk.evidence.upload')
+            && (int) $evidence->getCustomProperty('uploaded_by') === (int) $user->id;
     }
 
     private function sameCompany(User $user, WorkOrder $wo): bool
