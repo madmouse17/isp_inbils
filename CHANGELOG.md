@@ -4,6 +4,12 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Fixed (2026-10-11)
+
+- Ticketing IDOR: a `customer`-role user (linked to a `Customer`) could open, list and comment on tickets of other customers of the same company. `TicketPolicy::view` now limits customer users to tickets of their own customer (fail closed when no customer is linked), the ticket index/export query is scoped the same way, and new `comment`/`attach` policy abilities guard `addComment`, `uploadAttachment` and `removeAttachment`. Staff behaviour is unchanged. Tests: `tests/Feature/Ticketing/TicketCustomerScopeTest.php`.
+- Ticketing: customer users no longer receive staff-only (`is_internal`) comments on the ticket page, and their own comments are always public. `StoreTicketRequest` binds a customer user's ticket to their own customer (a foreign `customer_id` is a validation error; a missing one is filled in; a user without a linked customer gets 403), rejects network assets that do not belong to them, and the create form lists only their own customer, subscriptions and assets.
+- Billing: `BillingService::recordPayment` accepted payments on `draft` and `cancelled` invoices. Only `sent`, `partial` and `overdue` invoices take payments now (422 otherwise; `paid` was already blocked by the remaining-balance check). Tests: `tests/Feature/Billing/PaymentStatusGuardTest.php`.
+
 ### Added - Local development on Laravel Sail and full demo data (2026-10-11)
 
 - Local development runs on Laravel Sail: `compose.sail.yaml` (project `inbils-sail`; PHP 8.4, MySQL 8.4, Redis 7.4, Mailpit; ports bound to 127.0.0.1), selected by `SAIL_FILES=compose.sail.yaml`. `docker/mysql/sail/10-create-test-database.sh` creates `inbils_test` and the PHPUnit user. `compose.yaml` + `Dockerfile` remain the production image (`INSTALL_DEV` build arg, default `--no-dev`). Docs: README "Local development (Laravel Sail)", `docs/operations/DOCKER.md`.

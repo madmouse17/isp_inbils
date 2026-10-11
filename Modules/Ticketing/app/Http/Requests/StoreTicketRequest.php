@@ -13,6 +13,10 @@ class StoreTicketRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        if ($this->isCustomerUser() && $this->ownCustomerId() === null) {
+            return false;
+        }
+
         return $this->user()?->can('ticket.create') ?? false;
     }
 
@@ -27,7 +31,11 @@ class StoreTicketRequest extends FormRequest
             'source' => ['required', 'string', 'in:customer,noc,internal'],
             'category_id' => ['required', Rule::exists('ticket_categories', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
-            'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('company_id', $companyId)],
+            'customer_id' => array_filter([
+                'nullable',
+                Rule::exists('customers', 'id')->where('company_id', $companyId),
+                $this->isCustomerUser() ? Rule::in([$this->ownCustomerId()]) : null,
+            ]),
             'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
             'network_asset_id' => ['nullable', Rule::exists('network_assets', 'id')->where('company_id', $companyId)],
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
@@ -36,9 +44,23 @@ class StoreTicketRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if ($this->isCustomerUser() && ! $this->input('customer_id')) {
+            $this->merge(['customer_id' => $this->ownCustomerId()]);
+        }
+
         if ($this->input('source') === 'customer' && ! $this->input('customer_id')) {
             $this->getValidatorInstance()->errors()->add('customer_id', 'Customer required when source is customer.');
         }
+    }
+
+    private function isCustomerUser(): bool
+    {
+        return $this->user()?->hasRole('customer') ?? false;
+    }
+
+    private function ownCustomerId(): ?int
+    {
+        return $this->user()?->customer?->id;
     }
 
     public function after(): array
@@ -58,6 +80,16 @@ class StoreTicketRequest extends FormRequest
 
                     if ($subscription && (int) $subscription->customer_id !== (int) $customerId) {
                         $validator->errors()->add('subscription_id', 'Subscription does not belong to customer.');
+                    }
+                }
+
+                if ($this->isCustomerUser() && $networkAssetId) {
+                    $asset = NetworkAsset::query()
+                        ->where('company_id', $companyId)
+                        ->find($networkAssetId);
+
+                    if ($asset && (int) $asset->customer_id !== $this->ownCustomerId()) {
+                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to customer.');
                     }
                 }
 

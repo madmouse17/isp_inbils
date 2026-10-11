@@ -19,6 +19,10 @@ class TicketPolicy
             return false;
         }
 
+        if ($this->isCustomerUser($user)) {
+            return $user->can('ticket.view') && $this->ownsTicket($user, $ticket);
+        }
+
         if (! $user->can('ticket.view')) {
             return $this->canActOnCurrentStatus($user, $ticket);
         }
@@ -39,6 +43,17 @@ class TicketPolicy
     public function store(User $user): bool
     {
         return $this->create($user);
+    }
+
+    public function comment(User $user, Ticket $ticket): bool
+    {
+        return $this->sameCompany($user, $ticket)
+            && (! $this->isCustomerUser($user) || $this->ownsTicket($user, $ticket));
+    }
+
+    public function attach(User $user, Ticket $ticket): bool
+    {
+        return $this->comment($user, $ticket);
     }
 
     public function update(User $user, Ticket $ticket): bool
@@ -127,5 +142,17 @@ class TicketPolicy
             'resolved' => $this->close($user, $ticket),
             default => false,
         };
+    }
+
+    private function isCustomerUser(User $user): bool
+    {
+        return $user->hasRole('customer');
+    }
+
+    private function ownsTicket(User $user, Ticket $ticket): bool
+    {
+        $customerId = $user->customer?->id;
+
+        return $customerId !== null && (int) $ticket->customer_id === (int) $customerId;
     }
 }

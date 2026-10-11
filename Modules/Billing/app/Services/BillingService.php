@@ -208,6 +208,7 @@ class BillingService
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
+            abort_unless(in_array($invoice->status, ['sent', 'partial', 'overdue'], true), 422, 'Invoice does not accept payments in its current status.');
             abort_if(Money::gt($amount, $invoice->sisa), 422, 'Payment amount exceeds remaining balance.');
             abort_if(
                 $reference && Payment::withoutCompany()

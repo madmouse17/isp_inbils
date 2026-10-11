@@ -11,6 +11,14 @@ class StoreTicketCommentRequest extends FormRequest
         return $this->user()?->can('ticket.comment.create') ?? false;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // is_internal is staff-only; customers always comment publicly.
+        if ($this->user()?->hasRole('customer')) {
+            $this->merge(['is_internal' => false]);
+        }
+    }
+
     /** @return array<string, mixed> */
     public function rules(): array
     {

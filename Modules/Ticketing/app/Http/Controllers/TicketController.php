@@ -144,6 +144,11 @@ class TicketController extends Controller
                 });
             });
 
+        if (($user = request()->user()) !== null && $user->hasRole('customer')) {
+            // fail closed: a portal user without a linked customer sees nothing
+            $query->where('customer_id', $user->customer?->id ?? 0);
+        }
+
         if (($user = request()->user()) !== null
             && ($user->can('ticket.start') || $user->can('ticket.resolve') || $user->can('ticket.close'))
             && ! $user->can('ticket.assign')) {
@@ -161,14 +166,17 @@ class TicketController extends Controller
     {
         Gate::authorize('create', Ticket::class);
 
+        $ownCustomerId = $request->user()->hasRole('customer') ? ($request->user()->customer?->id ?? 0) : null;
+
         return Inertia::render('Admin/Tickets/Create', [
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->orderBy('code')->get()),
+            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->when($ownCustomerId !== null, fn (Builder $q) => $q->whereKey($ownCustomerId))->orderBy('name')->get()),
+            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))->orderBy('code')->get()),
             'assets' => NetworkAssetResource::collection(
                 NetworkAsset::query()
                     ->whereNotIn('status', ['retired', 'decommissioned'])
                     ->whereNull('retired_at')
+                    ->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))
                     ->orderBy('code')
                     ->limit(100)
                     ->get()
@@ -192,7 +200,13 @@ class TicketController extends Controller
         $this->ensureSameCompany($ticket);
         Gate::authorize('view', $ticket);
 
-        $ticket->load(['category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'comments.author', 'media']);
+        $hideInternal = (bool) request()->user()?->hasRole('customer');
+
+        $ticket->load([
+            'category', 'customer', 'subscription', 'networkAsset', 'location', 'assignee', 'media',
+            'comments' => fn ($query) => $query->when($hideInternal, fn ($q) => $q->where('is_internal', false)),
+            'comments.author',
+        ]);
 
         return Inertia::render('Admin/Tickets/Show', [
             'ticket' => new TicketResource($ticket),
@@ -331,6 +345,7 @@ class TicketController extends Controller
     public function addComment(StoreTicketCommentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
+        Gate::authorize('comment', $ticket);
 
         TicketService::addComment($ticket, $request->validated(), $request->user()->id);
 
@@ -340,6 +355,7 @@ class TicketController extends Controller
     public function uploadAttachment(UploadTicketAttachmentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
+        Gate::authorize('attach', $ticket);
 
         $file = $request->file('file');
         $this->storeMedia($ticket, $file, 'attachments', [
@@ -353,6 +369,7 @@ class TicketController extends Controller
     public function removeAttachment(Ticket $ticket, Media $attachment): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
+        Gate::authorize('attach', $ticket);
         abort_unless($attachment->model_type === $ticket::class && (int) $attachment->model_id === $ticket->id, 404);
         abort_unless($attachment->collection_name === 'attachments', 404);
         Gate::authorize('ticket.attachment.upload');
