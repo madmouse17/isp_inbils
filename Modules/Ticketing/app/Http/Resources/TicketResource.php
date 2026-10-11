@@ -48,9 +48,11 @@ class TicketResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
             'attachments' => MediaResource::collection($this->getMedia('attachments')),
-            'can' => [
+            // Show page only: lists and exports skip the per-row policy checks.
+            'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [
+                'start' => (bool) $request->user()?->can('start', $this->resource),
                 'close' => (bool) $request->user()?->can('close', $this->resource),
-            ],
+            ]),
         ];
     }
 }

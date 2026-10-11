@@ -13,7 +13,7 @@ export interface Ticket {
     location_id?: number | null;
     assigned_to?: number | null;
     updated_at?: string | null;
-    can?: { close: boolean };
+    can?: { start: boolean; close: boolean };
     spawned_spk_id?: number | null;
     sla_deadline?: string | null;
     first_response_at?: string | null;

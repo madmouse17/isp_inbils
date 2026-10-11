@@ -138,6 +138,29 @@ class TicketCloseTest extends TestCase
         $this->assertFalse($canClose($this->admin));
     }
 
+    public function test_show_offers_start_only_to_the_assigned_handler(): void
+    {
+        $ticket = $this->ticketHandledByTechnician('assigned');
+        $canStart = fn (User $user): bool => $this->actingAs($user)
+            ->get(route('admin.tickets.show', $ticket))
+            ->assertOk()->viewData('page')['props']['ticket']['data']['can']['start'];
+
+        $this->assertTrue($canStart($this->technician));
+        $this->assertFalse($canStart($this->manager));
+        $this->assertFalse($canStart($this->admin));
+    }
+
+    public function test_ticket_list_rows_carry_no_per_row_abilities(): void
+    {
+        $this->ticketHandledByTechnician('resolved');
+
+        $rows = $this->actingAs($this->manager)->get(route('admin.tickets.index'))
+            ->assertOk()->viewData('page')['props']['tickets']['data'];
+
+        $this->assertNotEmpty($rows);
+        $this->assertArrayNotHasKey('can', $rows[0]);
+    }
+
     private function staffUser(string $role): User
     {
         $user = User::factory()->create([
@@ -169,6 +192,10 @@ class TicketCloseTest extends TestCase
             'priority' => 'medium',
         ], $this->admin->id);
         TicketService::assign($ticket, $this->technician->id, $this->admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+
+        if ($status === 'assigned') {
+            return $ticket->fresh();
+        }
 
         $this->actingAs($this->technician);
         TicketService::startWork($ticket->fresh());

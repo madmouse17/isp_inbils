@@ -1,9 +1,8 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, router, useForm, usePage } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { usePermission } from '@/hooks/usePermission';
 import {
     Alert,
     AlertDescription,
@@ -23,7 +22,6 @@ import {
     useToast,
 } from '@/Components/ui';
 import { MediaPreview, PageHeader, StatusBadge } from '@/Components/composite';
-import type { PageProps } from '@/types';
 
 interface TData {
     id: number;
@@ -35,7 +33,7 @@ interface TData {
     priority: string;
     assigned_to?: number | null;
     updated_at?: string | null;
-    can?: { close: boolean };
+    can?: { start: boolean; close: boolean };
     is_sla_breached: boolean;
     sla_deadline?: string | null;
     first_response_at?: string | null;
@@ -83,11 +81,6 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
 export default function Show({ ticket }: ShowProps) {
     const t = ticket.data;
     const { toast } = useToast();
-    const { can } = usePermission();
-    const { auth } = usePage<PageProps>().props;
-    // Mirrors TicketPolicy::start: status assigned, ticket.start, and the acting user is the handler.
-    const canStart =
-        t.status === 'assigned' && can('ticket.start') && t.assigned_to === auth.user?.id;
     const [actionModal, setActionModal] = useState<
         'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
     >(null);
@@ -312,7 +305,7 @@ export default function Show({ ticket }: ShowProps) {
                                     Assign
                                 </Button>
                             )}
-                            {canStart && (
+                            {t.can?.start && (
                                 <Button type="button" onClick={startTicket}>
                                     Start
                                 </Button>
