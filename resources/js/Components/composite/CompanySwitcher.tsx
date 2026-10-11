@@ -32,7 +32,7 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
     }
 
     const switchTo = (companyId: string) => {
-        if (Number(companyId) === current.id) {
+        if (switching || Number(companyId) === current.id) {
             return;
         }
 
@@ -53,7 +53,8 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                 <Button
                     type="button"
                     variant="outline"
-                    loading={switching}
+                    // Not `loading`: a disabled trigger cannot take back focus when the menu closes.
+                    aria-busy={switching}
                     leftIcon={
                         <BuildingOffice2Icon
                             className="h-5 w-5 shrink-0 text-muted-foreground"
