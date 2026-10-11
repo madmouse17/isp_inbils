@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import { BuildingOffice2Icon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
-import { Button } from '@/Components/ui';
+import { Button, Spinner } from '@/Components/ui';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -56,10 +56,14 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                     // Not `loading`: a disabled trigger cannot take back focus when the menu closes.
                     aria-busy={switching}
                     leftIcon={
-                        <BuildingOffice2Icon
-                            className="h-5 w-5 shrink-0 text-muted-foreground"
-                            aria-hidden="true"
-                        />
+                        switching ? (
+                            <Spinner size="sm" className="shrink-0" />
+                        ) : (
+                            <BuildingOffice2Icon
+                                className="h-5 w-5 shrink-0 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                        )
                     }
                     rightIcon={
                         <ChevronUpDownIcon
