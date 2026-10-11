@@ -11,6 +11,13 @@ Auth: Laravel Breeze (React/Inertia). DB: MySQL (Laragon).
 - Sebelum tugas dinyatakan selesai, periksa `git status` dan hapus hanya artefak usang dari tugas tersebut.
 - Jangan hapus source code, test resmi, migration, dokumentasi, evidence wajib, atau pekerjaan aktif lain hanya karena untracked.
 
+## Docker Runtime Refresh Rule (MANDATORY)
+
+- Lokal: verifikasi dengan Laravel Sail (`./vendor/bin/sail up -d`), lalu cek `/up` dan `/ready` di `http://localhost`. Source ter-mount langsung (tanpa rebuild); jalankan `./vendor/bin/sail npm run build` bila aset frontend berubah.
+- Image deploy (`compose.yaml` + `Dockerfile`): setelah tugas implementasi selesai dan stack Docker tersedia, rebuild image serta recreate hanya service yang terdampak agar runtime mencerminkan source terbaru.
+- Jalankan `docker compose --env-file .env.docker ps` dan verifikasi endpoint `/up` serta `/ready` (port 8080) sebelum menyatakan tugas selesai.
+- DILARANG menghapus named volume (`down -v`, `docker volume rm`, atau `docker system prune --volumes`) kecuali pengguna meminta penghancuran data secara eksplisit.
+
 ## Test Database Rule (MANDATORY)
 
 - Semua test otomatis, QA, browser smoke, dan E2E WAJIB memakai database MySQL `inbils_test`.
@@ -20,21 +27,25 @@ Auth: Laravel Breeze (React/Inertia). DB: MySQL (Laragon).
 - Konfigurasi default PHPUnit berada di `phpunit.xml` dengan `DB_DATABASE=inbils_test`; override test harus tetap menunjuk ke nama yang sama.
 
 Dokumen acuan (baca semua sebelum mulai tugas):
-- `docs/VISION.md` — tujuan produk + open questions.
-- `docs/ARCHITECTURE.md` — layered backend, Inertia-as-Island, dependency
-  rules, naming convention, company & multi-tenant (Section 11).
-- `docs/COMPANY_PROFILE.md` — Company Configuration Design + Setup Wizard
-  Flow + Tenant Strategy (source of truth untuk company system).
-- `docs/DATABASE.md` — schema + ERD (company_id + per-company unique).
-- `docs/API.md` — routing + Inertia response shape.
-- `docs/SECURITY.md` — RBAC matrix + company scope + multi-tenant
-  isolation (Section 14) + security checklist per task.
-- `docs/WORKFLOW.md` — state machine per modul + cross-trigger + setup
-  wizard flow.
-- `docs/TECH_STACK.md` / `docs/LIBRARY_DECISION.md` — pilihan library +
-  alasan.
-- `docs/modules/*.md` — spec per modul (inventory, spk, billing,
-  ticketing).
+- `docs/architecture/overview.md` — layered backend, Inertia-as-Island,
+  request flow, transaksi & integritas, caching/queue.
+- `docs/architecture/service-layer.md` — Service, Action, Query class,
+  Resource.
+- `docs/architecture/domain-boundaries.md` — naming convention, dependency
+  rules, cross-module communication, `module.json` dependencies.
+- `docs/architecture/modules.md` + `docs/architecture/folder-structure.md`
+  — struktur module nwidart + shared Core.
+- `docs/architecture/database.md` — schema + ERD (company_id + per-company
+  unique), seed & Setup Wizard strategy.
+- `docs/architecture/decisions/ADR-*.md` — keputusan arsitektur.
+- `docs/business/*.md` — spec per modul (customer, inventory, network,
+  billing, ticketing, dll.) termasuk state machine ringkas;
+  `docs/business/approval-flow.md` untuk approval.
+- `docs/standards/*.md` — coding, security, quality gates, delegation.
+- `docs/SECURITY.md` — RBAC matrix, capability bundle, invariant SoD.
+- Tidak ada di repo (jangan dicari): `VISION`, `COMPANY_PROFILE`, `API`,
+  `WORKFLOW`, `TECH_STACK`, `LIBRARY_DECISION`.
+  Aturan company/tenant yang berlaku adalah ringkasan di bawah.
 - `ROADMAP.md` — 7 Phase.
 - `TASKS.md` — task list OpenCode per Phase.
 
@@ -56,23 +67,47 @@ Dokumen acuan (baca semua sebelum mulai tugas):
 
 ## Company Rules (MANDATORY — multi-tenant ready)
 
-Source of truth: `docs/COMPANY_PROFILE.md`. Ringkasan:
+Source of truth: ringkasan di bawah + `docs/architecture/database.md`
+(company_id, Setup Wizard). Ringkasan:
 
 - Company identity dinamis via DB (`companies` table). TIDAK hardcode
   nama/logo/currency/timezone di kode atau `.env`.
-- v1 = single company (1 row, dibuat Setup Wizard). v2 = multi-company
-  (hooks ready, tidak dibangun v1).
+- Company pertama dibuat Setup Wizard (one-shot). Multi-company AKTIF
+  (keputusan owner 2026-10-10, `.scratch/head-company/spec.md`):
+  hierarki satu level `companies.parent_company_id` (Head → Subsidiary,
+  Head = company tanpa parent yang punya subsidiary), membership user di
+  `company_user`, subsidiary dibuat HANYA lewat artisan
+  `inbils:company:create-subsidiary`.
+- Company efektif = `active_company_id` di session (divalidasi terhadap
+  `company_user` + company aktif di SETIAP pembacaan) atau home company
+  (`users.company_id`). DILARANG membaca `users.company_id` sebagai tenant:
+  pakai `CompanyService::currentId()` / `CompanyService::idFor($user)`.
 - Setiap model master/transaksi WAJIB pakai trait `BelongsToCompany`
-  (auto-scope query ke `Auth::user()->company_id` + auto-set company_id
-  on create). Exception: User, Role, Permission, ActivityLog, Company.
+  (auto-scope query ke `CompanyService::currentId()` + auto-set company_id
+  on create). Scope FAIL-CLOSED: tanpa company context query tenant kosong
+  dan create → 403. Code tanpa user (artisan, queue job, seeder) WAJIB
+  `CompanyService::runAs($companyId, fn)`. Exception: User, Role,
+  Permission, ActivityLog, Company.
 - Setiap migration tabel master/transaksi WAJIB tambah `company_id`
   bigint unsigned FK → `companies.id` NOT NULL + unique index per-company
   (mis. `(company_id, sku)` bukan `sku` global).
 - Company identity (nama, logo, currency, timezone, settings) baca via
   `CompanyService::current()` / `CompanyService::setting($key)`. Jangan
   hardcode, jangan baca `.env` untuk company-specific.
-- TIDAK boleh query cross-company tanpa `Model::withoutCompany()` 
-  eksplisit (hanya untuk admin cross-company v2, artisan, queue job).
+- TIDAK boleh query cross-company tanpa `Model::withoutCompany()` /
+  `forCompany($id)` / `CompanyService::runAs()` eksplisit (hanya artisan,
+  queue job, seeder). Head melihat subsidiary HANYA lewat laporan
+  konsolidasi read-only (`report.consolidated.view`, Head + subsidiary
+  aktif, semua currency harus sama); menulis di subsidiary = switch
+  (`company.switch`) ke company yang di-membership-kan. Role/permission
+  tetap global (spatie teams=false).
+- Role definition (buat/ubah/hapus role + permission) bersifat global, jadi
+  HANYA boleh dari company top-level (Head atau company tunggal), tidak dari
+  subsidiary (`RolePolicy`); jumlah user per role dihitung per company efektif.
+  Administrasi user (lihat/ubah/hapus, termasuk email, password, role, status)
+  menuntut aktor member SETIAP company milik target
+  (`CompanyMembershipService::administers`): satu login berlaku di semua
+  company membernya. Head = company tanpa parent dengan >= 1 subsidiary AKTIF.
 - Setup Wizard flow wajib: fresh install → `php artisan inbils:setup`
   (bootstrap user) → login → wizard → company created. Route `/setup`
   one-shot (RequireNoCompany middleware abort 403 if company exists).
@@ -86,14 +121,15 @@ Source of truth: `docs/COMPANY_PROFILE.md`. Ringkasan:
   install. Seeder hanya berisi: (1) system roles, (2) permission template,
   (3) system setting defaults. Company dibuat SATU kali via Setup Wizard.
   Bootstrap user via `php artisan inbils:setup` (interactive, BUKAN
-  seeder). Breeze register route DISABLED. Lihat COMPANY_PROFILE.md 1.1.
+  seeder). Breeze register route DISABLED. Lihat `docs/architecture/database.md`.
 - System-global infra config (APP_NAME env, mail driver, queue connection)
   tetap `.env`/config. System setting table = business defaults/fallback
   (app.name fallback, default_currency, default_timezone, dll).
 
 ## Modular Architecture Rules (MANDATORY — nwidart/laravel-modules)
 
-Source of truth: `docs/ARCHITECTURE.md` Section 12. Ringkasan:
+Source of truth: `docs/architecture/modules.md` +
+`docs/architecture/domain-boundaries.md`. Ringkasan:
 
 - Domain logic (Inventory/SPK/Billing/Ticketing) WAJIB di `Modules/{Name}/`,
   BUKAN `app/`. Shared cross-cutting (Company/User/Auth/Audit/Setting/
@@ -106,13 +142,13 @@ Source of truth: `docs/ARCHITECTURE.md` Section 12. Ringkasan:
   - Action class cross-module (mis. `CompleteWorkOrderAction` orchestrate
     InventoryService + BillingService).
   - Event/listener (non-critical loose coupling).
-- Dokumentasikan dependency antar module di `docs/modules/{module}.md`
-  Section "Module Dependencies" + `module.json`.
+- Dokumentasikan dependency antar module di `docs/business/{module}.md`
+  + `docs/architecture/domain-boundaries.md` + `module.json`.
 - Tabel TIDAK di-prefix (global `products`, bukan `inventory_products`).
 - Inventory = sumber kebenaran stok. SPK/Billing → Inventory via
   `IssueStockAction`/`ReceiveStockAction`. Inventory → SPK/Billing via
   polymorphic `stock_movements.reference` (string, no FK hard-coupling).
-- Module detail design: `docs/modules/{module}.md` (Inventory sudah
+- Module detail design: `docs/business/{module}.md` (Inventory sudah
   rewrite dengan dynamic category/attribute/serial/stock movement).
 - Review Hermes akan REJECT: domain logic di `app/`, direct cross-module
   Model import, tabel di-prefix tanpa alasan.
@@ -328,13 +364,16 @@ tests/
 
 ## Orchestration Rules
 
-- Baca `docs/ORCHESTRATION.md` sebelum eksekusi task.
+- Ikuti `docs/standards/delegation-rules.md` dan
+  `docs/standards/quality-gates.md` (dokumen `ORCHESTRATION` terpisah
+  tidak ada di repo).
 - Ikuti one-task loop: pick 1 task, freeze scope, execution brief,
   execute, test, review, fix review findings, update docs, mark done.
 - Satu task aktif saja. Dilarang phase jump.
 - Dilarang "while here" work dan refactor di luar acceptance criteria.
-- Ide baru saat task aktif masuk `docs/PARKING_LOT.md`, bukan dikerjakan.
-- Delegasi coding ke OpenCode wajib ikuti `docs/OPENCODE_DELEGATION.md`.
+- Ide baru saat task aktif masuk `docs/PARKING_LOT.md` (buat file bila
+  belum ada), bukan dikerjakan.
+- Delegasi coding ke OpenCode wajib ikuti `docs/standards/delegation-rules.md`.
 - Task belum selesai kalau acceptance, test/build, changelog, dan review
   belum PASS.
 - Auto-continue boleh dalam phase yang sama setelah task PASS. Stop saat
@@ -353,7 +392,7 @@ tests/
 - Review hasil coding setelah OpenCode selesai task.
 - Cek: requirement sesuai (TASKS.md acceptance), arsitektur sesuai
   (AGENTS.md + docs/), database benar (migration + constraint), security
-  (SECURITY.md checklist), reusable model/component, testing coverage.
+  (`docs/SECURITY.md` checklist), reusable model/component, testing coverage.
 - DILARANG coding atau memperbaiki source code. Hanya buat
   `QA_REPORT.md` dengan status PASS / NEED FIX / BLOCKED + daftar
   perbaikan untuk OpenCode.
@@ -585,3 +624,14 @@ This project has domain-specific skills available in `**/skills/**`. You MUST ac
 - IMPORTANT: Activate `inertia-react-development` when working with Inertia React client-side patterns.
 
 </laravel-boost-guidelines>
+
+<!-- antislop:start -->
+## antislop (OpenCode)
+Untuk pekerjaan UI, teks antarmuka, aksesibilitas, layout mobile, atau komentar kode, baca `.opencode/skills/antislop/SKILL.md` dan skill terkait:
+- UI / visual: `.opencode/skills/antislop-ui/SKILL.md`
+- Teks: `.opencode/skills/antislop-copywriting/SKILL.md`
+- Aksesibilitas: `.opencode/skills/antislop-human/SKILL.md`
+- Mobile / responsive: `.opencode/skills/antislop-layoutmobile/SKILL.md`
+- Komentar kode: `.opencode/skills/antislop-code/SKILL.md`
+Mode DURING untuk pekerjaan UI sesuai arahan proyek di `CLAUDE.md`; mode AFTER hanya atas permintaan audit eksplisit. Gunakan panduan desain dan token UI proyek sebagai arah visual.
+<!-- antislop:end -->

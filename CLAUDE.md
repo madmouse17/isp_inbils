@@ -144,3 +144,27 @@ Overall average: **60-90% token reduction** on common development operations.
 - AI evidence/dumps are temporary: delete them immediately after inspection or once no longer needed. Retain them only when explicitly required as a permanent deliverable.
 - Before finishing, inspect Git status and remove only obsolete artifacts created by the current task.
 - Preserve source code, official tests, migrations, project documentation, required evidence, and other active work.
+
+## Docker Runtime Refresh (MANDATORY)
+
+- Local verification uses Laravel Sail: `./vendor/bin/sail up -d`, then check `/up` and `/ready` on `http://localhost`. Source is bind-mounted (no rebuild); run `./vendor/bin/sail npm run build` when frontend assets change.
+- Deploy images (`compose.yaml` + `Dockerfile`): after implementation work, when the Docker stack is available, rebuild the image and recreate only affected services so the running environment uses the latest source.
+- Run `docker compose --env-file .env.docker ps` and verify `/up` and `/ready` (port 8080) before declaring completion.
+- Never remove named volumes (`down -v`, `docker volume rm`, or `docker system prune --volumes`) unless the user explicitly requests data destruction.
+<!-- antislop-inbils:start -->
+## antislop inbils
+Untuk perubahan rendered UI/UX, gunakan mode DURING tanpa menanyakan mode lagi. Muat `antislop` + `antislop-ui`; tambah `antislop-human` untuk interaction/forms/data views, `antislop-layoutmobile` untuk responsive work, dan `antislop-copywriting` hanya jika user-facing copy berubah. Mode AFTER hanya atas permintaan audit eksplisit dan read-only sampai pengguna menyetujui perubahan.
+Precedence: instruksi pengguna dan ADR/docs proyek; Superpowers workflow; Laravel/Inertia/Tailwind 3/shadcn-Radix implementation rules; tokens dan vocabulary komponen existing; Anti-slop sebagai filter; contoh generik skill lain.
+Enterprise overrides: familiarity dan consistency menang atas novelty; density desktop boleh; contained horizontal table scroll boleh; 44px diprioritaskan touch/mobile; breakpoint Tailwind existing; Lucide tetap library proyek; ketiadaan DESIGN.md tidak menahan perubahan kecil karena app.css, tailwind.config.js, docs/ui/design-system.md, dan incumbent UI adalah visual authority.
+Muat antislop-code hanya saat menulis atau mengubah komentar; jangan hapus komentar business rule, architecture, security, concurrency, protocol, API contract, compliance, workaround, edge case, atau licensing.
+<!-- antislop-inbils:end -->
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as local markdown under `.scratch/<feature>/` (spec.md + `issues/NN-*.md`); the OMP ledger `docs/plans/INBILS_OMP_BACKLOG.md` stays the status checkpoint. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+Single-context: domain docs in `docs/architecture/*` and `docs/business/*`, ADRs in `docs/architecture/decisions/`. See `docs/agents/domain.md`.

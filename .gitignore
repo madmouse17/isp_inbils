@@ -4,6 +4,7 @@
 .env.backup
 .env.production
 .env.e2e
+.env.testing
 .phpactor.json
 .phpunit.result.cache
 /.fleet
@@ -20,6 +21,7 @@
 /public/build
 /public/hot
 /public/storage
+/resources/js/ziggy.js
 /playwright-report
 /test-results
 /tests/e2e/.runtime
@@ -32,7 +34,12 @@ Thumbs.db
 .hermes-tmp
 
 docs/*
+.env.docker
+/.claude/worktrees/
+/.tokensave/
 !docs/ENTERPRISE_ISP_READINESS.md
+!docs/SECURITY.md
+!docs/operations/
 !docs/plans/
 !docs/plans/ENTERPRISE_ISP_EXECUTION_PLAN.md
 !docs/architecture/
@@ -68,6 +75,10 @@ docs/standards/*
 !docs/standards/git-workflow.md
 !docs/standards/security-rules.md
 !docs/standards/token-discipline.md
+!docs/agents/
+docs/agents/*
+!docs/agents/issue-tracker.md
+!docs/agents/domain.md
 !docs/ui/
 docs/ui/*
 !docs/ui/design-system.md
@@ -106,3 +117,5 @@ docs/playbooks/*
 /nul
 /CON
 /err
+# Developer-local OMP tooling config (absolute paths per machine)
+.omp/

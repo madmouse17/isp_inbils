@@ -53,7 +53,9 @@
             "type": "local",
             "enabled": true,
             "command": [
-                "C:\\Users\\MadMouse\\AppData\\Roaming\\npm\\mcp-server-sequential-thinking.cmd"
+                "npx",
+                "-y",
+                "@modelcontextprotocol/server-sequential-thinking"
             ]
         }
     },
