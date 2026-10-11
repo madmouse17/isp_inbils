@@ -255,12 +255,15 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->actingAs($admin)
-            ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $technician->id,
-                'expected_assigned_to' => null,
-                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
-            ])
+        // Post exactly what the Show page sends, so a resource that drops updated_at fails here.
+        $shown = $this->actingAs($admin)->get(route('admin.spk.show', $workOrder))
+            ->assertOk()->viewData('page')['props']['workOrder']['data'];
+
+        $this->post(route('admin.spk.assign', $workOrder), [
+            'technician_id' => $technician->id,
+            'expected_assigned_to' => $shown['assigned_to'] ?? null,
+            'expected_updated_at' => $shown['updated_at'],
+        ])
             ->assertRedirect();
 
         $this->assertDatabaseHas('work_orders', [

@@ -62,6 +62,27 @@ class TicketAssignScopeTest extends TestCase
         $this->assertSame($handler->id, $ticket->fresh()->assigned_to);
     }
 
+    public function test_assign_succeeds_with_the_state_the_show_page_sends(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+
+        // Post exactly what the Show page sends, so a resource that drops updated_at fails here.
+        $shown = $this->get(route('admin.tickets.show', $ticket))
+            ->assertOk()->viewData('page')['props']['ticket']['data'];
+
+        $this->post(route('admin.tickets.assign', $ticket), [
+            'handler_id' => $handler->id,
+            'expected_assigned_to' => $shown['assigned_to'] ?? null,
+            'expected_updated_at' => $shown['updated_at'],
+        ])->assertSessionHasNoErrors()->assertRedirect();
+
+        $this->assertSame($handler->id, $ticket->fresh()->assigned_to);
+    }
+
     public function test_direct_service_assign_rejects_stale_assignment_state(): void
     {
         $admin = $this->createCompanyUser();
