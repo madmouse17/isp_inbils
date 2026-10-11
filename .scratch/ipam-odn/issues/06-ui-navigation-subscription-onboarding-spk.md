@@ -1,6 +1,6 @@
 # UI: navigation, subscription IP + drop panels, onboarding drop picker, SPK and asset links
 
-Status: ready-for-agent
+Status: done
 Role: ui
 Blocked by: 03, 04, 05
 Card: none (new lane; no Hermes card)
@@ -21,10 +21,12 @@ Non-goals: new pages (tickets 04, 05), backend props (ticket 03).
 
 ## Acceptance criteria
 
-- [ ] Menu shows the two entries only for users holding the permission (admin, manager, staff, technician per Q14; customer none).
-- [ ] Onboarding without choosing a port submits exactly as before (`tests/e2e/customer-subscription.spec.ts` still passes); choosing a port submits `subscription.odn_port_id`.
-- [ ] Changing the serving POP clears a previously chosen port and reloads options; no `fetch`/`axios` call added.
-- [ ] Subscription page assign/release round-trips show the new state after redirect; 422 messages inline.
-- [ ] `npm run build`, ESLint and Prettier clean on changed files; keyboard and focus behaviour of new dialogs as in ticket 04.
+- [x] Menu shows the two entries only for users holding the permission (admin, manager, staff, technician per Q14; customer none).
+- [x] Onboarding without choosing a port submits exactly as before (`tests/e2e/customer-subscription.spec.ts` still passes); choosing a port submits `subscription.odn_port_id`.
+- [x] Changing the serving POP clears a previously chosen port and reloads options; no `fetch`/`axios` call added.
+- [x] Subscription page assign/release round-trips show the new state after redirect; 422 messages inline.
+- [x] `npm run build`, ESLint and Prettier clean on changed files; keyboard and focus behaviour of new dialogs as in ticket 04.
 
 ## Comments
+
+- 2026-10-13 (IpamOdnUI): navigation gained "NAS Routers" (sent by IntegrationsUI), "IP Addresses" and "ODN" after Network Assets; `sidebar-destinations.json`, `navigation.selfcheck.mjs` (21 pass), `AdminMenuAuthorizationTest` (34 pass, new role-matrix test) and `sidebar-ia.spec.ts` updated. The VLANs page has no active sidebar item (the menu matches by href prefix); it is reached from IP Addresses.

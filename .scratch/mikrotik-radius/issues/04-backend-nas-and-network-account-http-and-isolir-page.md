@@ -1,6 +1,6 @@
 # BACKEND: NAS router and network account HTTP surface, public isolir page, docs
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 02, 03
 Card: none (new lane; no Hermes card)
@@ -59,3 +59,26 @@ vendor/bin/pint --dirty --format agent
 ```
 
 ## Comments
+
+### Backend agent (MikrotikBackend), 2026-10-13
+
+- Done: routes exactly as the spec table in `Modules/NetworkAsset/routes/web.php`; `NasDeviceController`, `NetworkAccountController`, `IsolirPageController`; the four Form Requests; `NasDeviceResource`, `NetworkAccountResource`; `NasDeviceService`, `NetworkAccountService`; tests `NasDeviceHttpTest`, `NetworkAccountHttpTest`, `IsolirPageTest`; docs `docs/business/network.md` (new section incl. runbook), `docs/business/service.md`, `docs/architecture/domain-boundaries.md`, `docs/ENTERPRISE_ISP_READINESS.md`.
+- needs-change (lead-owned): `CHANGELOG.md` entry; `RolePermissionSeeder` (see ticket 02).
+- UI contract: the props shapes are exactly the TS types in `../spec.md` "Props contract". Notes for ticket 05: single resources are passed unwrapped; lists are `Resource::collection($paginator)` (`{data, links, meta}`); the one-time password arrives only as Inertia flash `network_account.password` on the redirect to `admin.subscriptions.network-account.show` after `store` (generated password only) and `reveal`; validation problems of the subscription (no router profile name, terminated, already has an account) come back as validation errors under the key `subscription`; a router delete refused for accounts is a validation error under `nas_device`; the router form fields are `network_asset_id` (create only), `api_port`, `api_username`, `api_password` (blank on edit keeps), `isolir_profile`, `provisioning_enabled`; the account form fields are `nas_device_id`, `service_type`, `username`, `password`.
+- Pages do not exist yet, so the tests use `withoutVite()` and never call `component()`.
+- Evidence: `Tests: 220 passed (1667 assertions)` (see ticket 02 comment for the command); Pint passed; Larastan: only `NasDeviceController::SORTABLE is unused`, the same accepted pattern as `SubscriptionController` (the `HasIndexQuery` trait reads it).
+
+### Backend agent (MikrotikBackend), security review fixes, 2026-10-13
+
+- MIKROTIK-07-001 (high): `UpdateNetworkAssetRequest::after()` refuses (422 on `management_ip`) a change of a registered NAS router's address unless the user holds `network_asset.nas.manage`.
+- MIKROTIK-07-003 (medium): `bootstrap/app.php` `dontFlash(['api_password'])`.
+- MIKROTIK-07-005 (low): the one-time password waits in the session sealed with `Crypt` (`network_account.sealed_password`, flash data) and `show()` unseals it into the single response; the clear value is never written to the session. UI contract unchanged (`flash.network_account.password`).
+- MIKROTIK-07-007/-008 (low): the isolir page answers 404 for inactive companies; the route uses the named limiter `isolir` (600/min per IP + code; 20/min per IP for unknown or inactive codes).
+- MIKROTIK-07-010 (info): APP_KEY rotation note, adoption, endpoint and session rules added to `docs/business/network.md`.
+
+### Backend agent (MikrotikFixes), security re-review fixes, 2026-10-14
+
+- MIKROTIK-07-005 (low, re-review): the sealed flash still decrypted into `Inertia::flash` before Inertia's middleware checked the asset version; a GET with a stale `X-Inertia-Version` then made `onVersionChange` reflash the clear password (`session()->now()` key promoted by `reflash()`) into the stored session. `NetworkAccountController::show` now skips the unseal on exactly the request the middleware turns into a 409 (X-Inertia header, GET, version differs). Only the sealed value is reflashed; the next valid load shows the password once. UI contract unchanged (`flash.network_account.password`).
+- MIKROTIK-07-011 (medium, re-review): `NetworkAccountController::resync`, `NetworkAccountService::create` and `::update` dispatch `ApplyNetworkAccountJob` with `NetworkAccountService::adoptionApproval($account)` (null without `network_asset.nas.manage`); the approval is bound to the target as saved (details in ticket 03).
+- Tests: `tests/Feature/NetworkAsset/SecurityHardeningTest.php` (stale `X-Inertia-Version` after create and after reveal, sent twice: no clear password in the persisted session, then exactly one display after a valid load; delayed administrator job against a staff retarget).
+- Observation, not changed (outside this lane): `app/Http/Controllers/Auth/TwoFactorAuthenticationController.php` flashes the 2FA setup key and recovery codes with `Inertia::flash` before a redirect, which Inertia's middleware reflashes into the stored session by design; with `SESSION_ENCRYPT=false` they sit in clear until the next request.

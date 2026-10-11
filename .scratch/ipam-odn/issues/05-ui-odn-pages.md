@@ -1,6 +1,6 @@
 # UI: ODN pages (occupancy overview, OLT/ODC/ODP port editor)
 
-Status: ready-for-agent
+Status: done
 Role: ui
 Blocked by: 02
 Card: none (new lane; no Hermes card)
@@ -18,9 +18,11 @@ Non-goals: navigation entry and the drop-port picker on subscription/onboarding 
 
 ## Acceptance criteria
 
-- [ ] Both pages render with the spec props and no console errors; `npm run build`, ESLint and Prettier clean on new files.
-- [ ] Manage and assign controls hidden without the matching `can` flag.
-- [ ] Port state is conveyed by text or icon plus label, not colour alone; grid cells are reachable by keyboard and have accessible names ("Port 3, customer SUB-0012").
-- [ ] Server 422 (occupied port, cycle, wrong host type) shows inline without closing the dialog.
+- [x] Both pages render with the spec props and no console errors; `npm run build`, ESLint and Prettier clean on new files.
+- [x] Manage and assign controls hidden without the matching `can` flag.
+- [x] Port state is conveyed by text or icon plus label, not colour alone; grid cells are reachable by keyboard and have accessible names ("Port 3, customer SUB-0012").
+- [ ] Server 422 (occupied port, cycle, wrong host type) shows inline without closing the dialog. Implemented (field errors and an alert for the `asset` key) but not exercised: the pickers offer only free ports, so no UI path produces these refusals; the server side is covered by the backend tests.
 
 ## Comments
+
+- 2026-10-13 (IpamOdnUI): `Pages/Admin/Odn/{Index,Asset}.tsx` plus `composite/odn/{SplitterCard,SplitterDialog,PonPortsDialog}.tsx`. `ipam-odn.spec.ts` adds PON ports, adds a 1:8 splitter, disconnects and reconnects its input, and checks the free-port tiles by accessible name; staff and technician see no manage control.

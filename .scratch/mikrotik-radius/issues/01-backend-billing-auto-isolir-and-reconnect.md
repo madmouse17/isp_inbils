@@ -1,6 +1,6 @@
 # BACKEND: suspension source, automatic isolir after grace days, automatic reconnection after payment
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: none (starts only after the owner approves `../spec.md` Q7 and Q9)
 Card: none (new lane; no Hermes card)
@@ -58,3 +58,15 @@ vendor/bin/pint --dirty --format agent
 ```
 
 ## Comments
+
+### Backend agent (MikrotikBackend), 2026-10-13
+
+- Done as specified, with one deliberate difference: the reconnect hook is the event `Modules\Billing\Events\PaymentRecorded(companyId, invoiceId, paymentId)` (`ShouldDispatchAfterCommit`, dispatched at the end of the `recordPayment` transaction) plus the **queued** listener `ReactivateSubscriptionAfterPayment` (registered in `Modules/Billing/app/Providers/EventServiceProvider.php`), instead of an inline after-commit callback. Same behaviour (runs in `CompanyService::runAs($companyId)`, nothing on rollback), but a failure while reconnecting can never fail a committed payment or a Midtrans webhook. The WhatsApp lane listens to the same event.
+- Evidence (Sail, MySQL `inbils_test`): red before code `Tests: 34 failed, 11 passed` (OverdueSuspensionTest, AutoReactivateOnPaymentTest, SubscriptionServiceTest); green after: `tests/Feature/Billing tests/Feature/SubscriptionServiceTest.php tests/Feature/CustomerStatusRollupTest.php tests/Feature/Operations` → `Tests: 324 passed (1706 assertions)`; final lane run `tests/Feature/NetworkAsset tests/Feature/Billing/OverdueSuspensionTest.php tests/Feature/Billing/AutoReactivateOnPaymentTest.php tests/Feature/SubscriptionServiceTest.php` → `Tests: 220 passed (1667 assertions)`; Pint passed; Larastan clean on the new/changed files.
+- Not verified: `down()` of the migration (a plain `dropColumn`) was not rehearsed on `inbils_test` (up runs on every `migrate:fresh` of the test run).
+- Settings: `settings.auto_suspend_enabled|auto_suspend_overdue_days|auto_reactivate_on_payment` are `sometimes|required` (null is refused) with `boolean` / `integer 1-60`; the settings page props carry the defaults false / 7 / true.
+
+### Backend agent (MikrotikBackend), security review fixes, 2026-10-13
+
+- MIKROTIK-07-002 (medium) fixed: `OverdueSuspensionService::suspendIfStillOverdue` re-checks "active and an invoice unpaid past grace" inside each suspension's own transaction with locking reads (subscription row, then the invoice), so a payment that landed after the list was read keeps the subscription active. Test: `tests/Feature/Billing/OverdueSuspensionRaceTest.php` (red before: 2 failed; green after).
+- MIKROTIK-07-009 (low) is NOT implemented: written into `../spec.md` as open question Q16 for the owner.

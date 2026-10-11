@@ -1,6 +1,6 @@
 # BACKEND: ODN ports, splitters, drops and occupancy in the NetworkAsset module
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)
@@ -33,3 +33,7 @@ Non-goals: onboarding, terminate hook, subscription/SPK page props, demo data, R
 - [ ] Pint and Larastan clean on new and changed files.
 
 ## Comments
+
+2026-10-13 IpamOdnBackend: ODN migrations, models, OdnService, OdnOccupancyQuery, policies, requests, controllers, routes and tests (tests/Feature/Odn) are in. Page-name keys of the three paginators on `Admin/Odn/Index` are `odps_page`, `ports_page`, `unmapped_page`.
+
+2026-10-13 IpamOdnBackend (security review low): the loop walk read splitters from the transaction snapshot, so two opposite concurrent rewires could both commit an A-B loop. Fixed: topology writes run under `OdnLock` (per-company `Cache::lock`, transaction opened after the lock, 3 deadlock retries) and `assertNotDownstream` reads splitters with `sharedLock()` (current read). Race tests in `tests/Feature/Odn/OdnConcurrencyTest.php`: a stale-snapshot worker (red before: both rewires committed) and two simultaneous workers with the topology lock shared and not shared between processes.

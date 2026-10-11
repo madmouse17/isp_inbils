@@ -1,6 +1,6 @@
 # UI: WhatsApp consent on customer forms, message panel and company WhatsApp settings
 
-Status: ready-for-agent
+Status: done
 Role: ui
 Blocked by: 02
 Card: none (new lane; no Hermes card)
@@ -17,9 +17,18 @@ Non-goals: portal pages, resend buttons, template editing.
 
 ## Acceptance criteria
 
-- [ ] Consent checkbox round-trips on create and edit (Inertia form, validation errors shown inline).
-- [ ] Show card renders all six statuses and the empty state; no full phone number rendered anywhere in the WhatsApp card.
-- [ ] Settings section saves through the existing settings form; read-only users see values but cannot change them.
-- [ ] Keyboard: every control reachable and labelled; status badges readable without colour; contrast AA (check with the antislop contrast tool).
-- [ ] Mobile width 375 px: table scrolls horizontally inside its card, no page overflow.
-- [ ] `npm run build` and ESLint clean on touched files.
+- [x] Consent checkbox round-trips on create and edit (Inertia form, validation errors shown inline).
+- [x] Show card renders all six statuses and the empty state; no full phone number rendered anywhere in the WhatsApp card.
+- [x] Settings section saves through the existing settings form; read-only users see values but cannot change them.
+- [x] Keyboard: every control reachable and labelled; status badges readable without colour; contrast AA (check with the antislop contrast tool).
+- [x] Mobile width 375 px: table scrolls horizontally inside its card, no page overflow.
+- [x] `npm run build` and ESLint clean on touched files.
+
+## Comments
+
+### UI agent (IntegrationsUI), 2026-10-13
+
+- Done: consent checkbox in `Customers/Create` and `Edit` (Edit sends `whatsapp_opt_in` only when changed, so a stale form cannot re-opt-in a customer who replied STOP), "WhatsApp" card in `Customers/Show`, WhatsApp section in `Company/Settings` inside the existing form and Save button (the generic list skips `whatsapp_*` keys), types in `types/whatsapp.d.ts`. The monthly cap is kept as text and converted on submit, so an emptied field is a validation error, never a silent `0` (send nothing).
+- Evidence: `tests/e2e/whatsapp-notifications.spec.ts` (7 tests) in the 27-test E2E run, plus tsc, ESLint (0 messages) and Prettier clean; PHPUnit (397 passed) as listed in ticket 05. The E2E fixtures cover the statuses sent, delivered and skipped; queued, read and failed render through the same status map (code review only). No role can open the settings page or the customer edit page without also being able to update, so the read-only state is shown by serving the same page with `can.update` false; the server answer (403) is asserted for the manager and the technician.
+- Contrast with the antislop tool: status badges use `ToneBadge` (warning and danger tones 5.66:1 to 9.76:1 in both themes); the consent and unreachable alerts use the `Alert` warning variant.
+- Screenshots (light/dark, 375/1280) of the customer page, edit form and settings were captured, a representative subset reviewed, then deleted.

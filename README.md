@@ -257,14 +257,14 @@ docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/htm
 Everyday commands:
 
 ```bash
-./vendor/bin/sail artisan queue:work --tries=3   # queue worker (QUEUE_CONNECTION=database); keep a terminal open
+./vendor/bin/sail artisan queue:work --queue=default,whatsapp --tries=3   # queue worker (QUEUE_CONNECTION=database); keep a terminal open
 ./vendor/bin/sail artisan schedule:work          # scheduler, in another terminal
 ./vendor/bin/sail npm run dev                    # Vite HMR on :5173
 ./vendor/bin/sail artisan test                   # phpunit.xml pins host mysql, schema inbils_test, user inbils
 ./vendor/bin/sail stop                           # stop, keep data
 ```
 
-- To run a worker in the background instead: `./vendor/bin/sail exec -d -u sail laravel.test php artisan queue:work --tries=3` (same for `schedule:work`); it ends when the container stops.
+- To run a worker in the background instead: `./vendor/bin/sail exec -d -u sail laravel.test php artisan queue:work --queue=default,whatsapp --tries=3` (same for `schedule:work`); it ends when the container stops.
 - `phpunit.xml` stays untouched: the MySQL init script `docker/mysql/sail/10-create-test-database.sh` creates schema `inbils_test`, user `inbils`, and its grants when an empty `inbils-sail_sail-mysql` volume is first started. Sail tests use only the Sail MySQL, never the production-stack database on port 3307.
 - Do not put `APP_PORT` in `.env`: `compose.yaml` reads the same variable (default 8080). To move Sail off port 80, set it for one shell instead, e.g. `APP_PORT=8081 ./vendor/bin/sail up -d`, and keep `APP_URL` in sync.
 - Do not run `php artisan sail:install` or `sail:add`: they rewrite `compose.yaml`.

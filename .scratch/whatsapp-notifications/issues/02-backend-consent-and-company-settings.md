@@ -1,6 +1,6 @@
 # BACKEND: customer WhatsApp consent, message panel props and company WhatsApp settings
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)

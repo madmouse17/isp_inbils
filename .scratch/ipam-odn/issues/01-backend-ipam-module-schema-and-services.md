@@ -1,6 +1,6 @@
 # BACKEND: Ipam module — schema, services, routes, asset write-through, permissions
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: none (starts only after the owner approves `../spec.md` Q1-Q14)
 Card: none (new lane; no Hermes card)
@@ -38,3 +38,5 @@ Non-goals: subscription page props, onboarding, terminate hook, demo data, ODN, 
 - [ ] Pint and Larastan clean on new and changed files.
 
 ## Comments
+
+2026-10-13 IpamOdnBackend: module, schema, services, routes, import command, asset write-through and tests are in (tests/Feature/Ipam, 190 tests). Pending, lead-owned this wave: the six permissions and their role grants in `database/seeders/RolePermissionSeeder.php` (names and mapping are in the backend report); my tests grant them themselves via `tests/Traits/BuildsIpamOdnFixtures.php`.

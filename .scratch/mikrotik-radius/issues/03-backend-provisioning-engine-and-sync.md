@@ -1,6 +1,6 @@
 # BACKEND: provisioning engine (desired state, apply job, subscription observer) and the 15-minute router sync
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01, 02 (01 only because both edit `routes/console.php`)
 Card: none (new lane; no Hermes card)
@@ -51,3 +51,24 @@ vendor/bin/pint --dirty --format agent
 ```
 
 ## Comments
+
+### Backend agent (MikrotikBackend), 2026-10-13
+
+- Done: `NetworkAccountProvisioner` (desired state, apply, skip rules), `NasDeviceHealth` (one audited + notified transition per outage, shared by apply and sync), `ApplyNetworkAccountJob`, `SyncNasDeviceJob`, `network:sync`, `ServiceSubscriptionNetworkObserver` (registered through `$observers`), `NasDeviceUnreachableNotification`, `module.json` dependency `Service`, schedule `network:sync` every 15 minutes in `routes/console.php`.
+- Differences from the ticket text: (1) the observer reads `wasChanged()` while the event fires and queues the job with `DB::afterCommit` (`ApplyNetworkAccountJob::dispatchAfterCommit`) instead of `ShouldHandleEventsAfterCommit`, because after commit the model may already have been saved again and `wasChanged()` would lie (covered by a test); (2) retryable router errors `release()` with the backoff instead of throwing, so a sync-queue environment never turns a down router into an exception for the caller; (3) `unreachable_since` is the start of the outage and `last_checked_at` the last attempt: jobs skip a router for 2 minutes after its last failed attempt; (4) a secret is deleted for an absent account only when Inbils manages it (`provisioned_profile` set or comment `inbils:`), never a stray one with the same name.
+- Evidence: `tests/Feature/NetworkAsset/ProvisioningFlowTest.php` + `NetworkSyncTest.php` (flow matrix, idempotency, switches, failures, outage notification once, drift, unmanaged cap 100, hourly re-queue, tenant isolation) are part of `Tests: 220 passed (1667 assertions)` and of the wider run `tests/Feature/NetworkAsset tests/Feature/Billing tests/Feature/SubscriptionServiceTest.php tests/Feature/CustomerStatusRollupTest.php` → `502 passed, 2 failed` (the 2 failures were wrong assertions in the ticket 04 HTTP tests, fixed and re-run green). Pint passed; Larastan clean.
+- Scale limit: `SyncNasDeviceJob` loads every account of one router at once (fine for a pilot; chunk it beyond a few thousand accounts per router).
+
+### Backend agent (MikrotikBackend), security review fixes, 2026-10-13
+
+- MIKROTIK-07-004 (high): the session drop follows the recorded state, and `provisioned_*` advances only after the drop succeeded (`NetworkAccountProvisioner::apply`), so a failure between the router write and the drop is finished by the retry (isolate, terminate, package change; pppoe and hotspot).
+- MIKROTIK-07-006 (medium): `RouterOsClient::find/listAccounts` return `service` (PPPoE `.proplist` gains `,service`); adopting a secret without our `inbils:` comment refuses non-PPPoE services, narrows `any` to `pppoe`, and needs `ApplyNetworkAccountJob($company, $account, mayAdopt: true)` which only an HTTP save or resync by a user holding `network_asset.nas.manage` sets; otherwise the account stays `pending` ("An administrator ... adopts it with Resync") and the router is untouched.
+- MIKROTIK-07-001 (high): `NetworkAssetEndpointObserver` switches the NAS router's write flag off and audits `nas_device` `endpoint_changed` whenever its asset's `management_ip` changes.
+- Tests: `tests/Feature/NetworkAsset/SecurityHardeningTest.php`; `tests/Support/FakeRouterOs.php` gained `downOn([path prefixes])`.
+
+### Backend agent (MikrotikFixes), security re-review fixes, 2026-10-14
+
+- MIKROTIK-07-004 (high, re-review: drift correction, first adoption and DELETE of an unrecorded secret still lost the drop): `network_accounts.pending_disconnect_at` (NEW migration `2026_10_14_100000_add_pending_disconnect_at_to_network_accounts_table`; not fillable, in no resource or props) is the pending-disconnect intent. `NetworkAccountProvisioner::apply` decides before any router write whether a session drop is owed (secret removed, profile change, record differs, first contact into isolir, or the marker is already set) and persists the marker first; the marker is cleared in the same save that advances `provisioned_*`, after every drop succeeded. A retry therefore finishes the drop when recorded, desired and router profiles already match, when `provisioned_profile` is null, and after the DELETE of an `inbils:` secret nothing recorded. `cleanUp` (router, username or type change) clears it because its own drop settles the old router. `SyncNasDeviceJob::needsApply` re-queues an account carrying the marker first, whatever its status (also a `failed` one inside the hourly wait).
+- MIKROTIK-07-011 (medium, re-review: a queued administrator approval was reused for a retargeted account): `ApplyNetworkAccountJob` takes `?string $adoptionApproval` instead of `bool $mayAdopt`: an HMAC (APP_KEY) of router id, service type, username and password (`ApplyNetworkAccountJob::adoptionApprovalFor`), issued by `NetworkAccountService::adoptionApproval` only to a user holding `network_asset.nas.manage` (create, update, resync; `actorMayAdopt()` is gone). `handle()` recomputes it from the account as it is when the job runs: equal means adopt, otherwise the run is a plain one (account `pending`, "administrator adopts it with Resync", router untouched). The unique id carries the hash, so an approval for a new target queues next to the stale one. Payload: ids and the opaque hash. After an APP_KEY rotation a queued approval no longer matches (Resync again).
+- Tests (`tests/Feature/NetworkAsset/SecurityHardeningTest.php`, red first): failure after PATCH for isolated drift correction and for first adoption, failure after DELETE of an unrecorded secret (pppoe and hotspot each); the sync re-queues a `failed` account that owes a drop; moving an account settles the debt on the old router; a delayed administrator job against a staff retarget of username, router, service type and password leaves every unmanaged secret untouched; unique id and payload.
+- Known limit: the marker has no target. An account that was never recorded and is retargeted while a drop is owed does not get the old target's sessions dropped (a recorded one does, through `cleanUp`). Upgrade to a target-bearing marker if that case matters.

@@ -31,7 +31,7 @@ curl --fail http://localhost/ready       # database, cache, and queue checks
 - Every Sail port is published on `127.0.0.1` only (`APP_DEBUG=true`, public demo credentials, unauthenticated Redis).
 - `composer install` and `npm` run inside the Sail container against the bind-mounted source. The rule below against `composer install` in the active app, queue, or scheduler containers concerns the production containers only.
 - `sail artisan test` follows `phpunit.xml` (host `mysql`, schema `inbils_test`, user `inbils`) and runs on the Sail MySQL, whose init script `docker/mysql/sail/10-create-test-database.sh` creates that schema, user, and grants on first volume initialisation. It never touches the production stack's `inbils_test`, so it cannot race the isolated PHPUnit recipe below.
-- Queue and scheduler are commands, not services: `sail artisan queue:work --tries=3` and `sail artisan schedule:work` in their own terminals, or detached with `sail exec -d -u sail laravel.test php artisan queue:work --tries=3`.
+- Queue and scheduler are commands, not services: `sail artisan queue:work --queue=default,whatsapp --tries=3` and `sail artisan schedule:work` in their own terminals, or detached with `sail exec -d -u sail laravel.test php artisan queue:work --queue=default,whatsapp --tries=3`.
 - `sail stop` and `sail down` keep both volumes. The production volume rule applies unchanged: no `down -v` or `docker volume rm` without explicit approval to destroy local data.
 - Do not run `php artisan sail:install` or `sail:add`: they edit `compose.yaml`.
 

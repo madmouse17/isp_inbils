@@ -1,6 +1,6 @@
 # UI: NAS router pages, network account page, public isolir page, Receivables source, navigation
 
-Status: ready-for-agent
+Status: done
 Role: ui
 Blocked by: 01, 04
 Card: none (new lane; no Hermes card)
@@ -36,11 +36,11 @@ Non-goals: backend changes (report `needs-change` to the orchestrator), the comp
 
 ## Acceptance criteria
 
-- [ ] `npm run build` (tsc + vite) passes; ESLint clean on every touched file; no `any`.
-- [ ] Every page renders with the props of ticket 04 in light and dark mode at 375 px and 1280 px without horizontal scrolling; keyboard-only use reaches every action with a visible focus ring; each input has a label; status badges do not rely on colour alone.
-- [ ] The password is visible only in the one-time flash panel; it is never written into a form default, URL, `localStorage` or console.
-- [ ] Receivables isolir sends `source: 'overdue'` (seen in the request payload); the Subscriptions page link is hidden without `network_asset.account.view`; the "NAS Routers" menu item is hidden without `network_asset.nas.view`.
-- [ ] Isolir page copy reviewed for plain Indonesian; it shows nothing but the company's public contact fields and the login link.
+- [x] `npm run build` (tsc + vite) passes; ESLint clean on every touched file; no `any`.
+- [x] Every page renders with the props of ticket 04 in light and dark mode at 375 px and 1280 px without horizontal scrolling; keyboard-only use reaches every action with a visible focus ring; each input has a label; status badges do not rely on colour alone.
+- [x] The password is visible only in the one-time flash panel; it is never written into a form default, URL, `localStorage` or console.
+- [x] Receivables isolir sends `source: 'overdue'` (seen in the request payload); the Subscriptions page link is hidden without `network_asset.account.view`; the "NAS Routers" menu item is hidden without `network_asset.nas.view`.
+- [x] Isolir page copy reviewed for plain Indonesian; it shows nothing but the company's public contact fields and the login link.
 
 ## Commands
 
@@ -50,3 +50,12 @@ npx eslint resources/js/Pages/Admin/NasDevices resources/js/Pages/Admin/NetworkA
 ```
 
 ## Comments
+
+### UI agent (IntegrationsUI), 2026-10-13
+
+- Done: `Admin/NasDevices/{Index,Create,Edit,Show}`, `Admin/NetworkAccounts/Show`, public `Isolir/Show`, the "Network access" button in `Subscriptions/Show` (gate `network_asset.account.view`), Receivables isolir with `source: 'overdue'`, types in `types/network-asset.d.ts`. New shared composites: `NetworkAccessBadges`, `ToneBadge`, `CopyButton`. "Remove router" reuses IpamOdnUI's `ConfirmRequestDialog`. The "NAS Routers" menu item (group Network/Work Orders, after Network Assets) was handed to IpamOdnUI, the `navigation.ts` owner, and is in place.
+- One-time password: read only through the `onFlash` visit option of `store` and `reveal`, held in page state, dismissable. The E2E proves it is gone from the DOM, storage, history state and URL after dismissal and after a reload, and that the edit form starts with a blank password.
+- Additions to the ticket: the router page also offers "Remove router" (disabled while accounts exist, refusal message from the server shown in the dialog); the Isolir page always shows the company name and lists contact lines only when present; its login button wraps on 320-375 px (the screenshot review found the label clipped).
+- Contrast, measured with the antislop tool: `text-destructive` fails in both themes (3.76:1 light, 2.0:1 dark), so red text uses `text-red-700 dark:text-red-400`; `Badge`'s own warning and danger variants measure 4.46:1 and 3.6:1 in light mode, so these pages use `ToneBadge` (5.66:1, 6.3:1 light; 6.77:1, 9.76:1 dark). The shared `Badge` and `Input` error text still carry the old colours (needs-change for their owner).
+- Evidence: `tsc --noEmit` clean; ESLint 0 messages on the 17 touched files; Prettier clean; `flock /tmp/inbils-e2e.lock sh -c 'npm run build && php tests/e2e/setup.php && npm run test:e2e -- tests/e2e/mikrotik-provisioning.spec.ts tests/e2e/whatsapp-notifications.spec.ts tests/e2e/customer-edit.spec.ts tests/e2e/datatable-e.spec.ts tests/e2e/customer-subscription.spec.ts --project=chromium --workers=1'` → 27 passed; PHPUnit `tests/Feature/NetworkAsset tests/Feature/WhatsApp tests/Feature/CustomerPageTest.php tests/Feature/CompanyProfileTest.php tests/Feature/Billing/CompanyBillingSettingsTest.php tests/Feature/Billing/OverdueSuspensionTest.php tests/Feature/AdminSmokeTest.php tests/Feature/AdminMenuAuthorizationTest.php` → 397 passed (3824 assertions).
+- Screenshots (light/dark, 375/1280) were captured for every page, a representative subset reviewed, then deleted.

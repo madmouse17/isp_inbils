@@ -99,6 +99,12 @@ Approved by owner 2026-10-12: recommended option of every decision ("setuju reko
     (b) PPPoE only in v1.
     **Recommend (a)**, as briefed. Tradeoff: routers that run hotspot need a hotspot user profile with the isolir name as well.
 
+16. **Q16: Reconnection after an early Receivables isolir (OPEN, opened by the security review, MIKROTIK-07-009; NOT implemented).** Today `reactivateIfCleared` blocks only on invoices past the grace days (Q9a). A subscription isolated by hand from Receivables (source `overdue`) while still inside the grace days is therefore reconnected by ANY recorded payment, even Rp0.01 on one invoice, and staff hold `billing.payment.record` but not `customer.subscription.reactivate`.
+    (a) Keep Q9a as approved. Tradeoff: an insider can reconnect with a token payment (audited, with the causer).
+    (b) Reconnect only when no `sent|partial|overdue` invoice of the subscription that was already due when it was suspended remains unpaid. Needs the suspension date kept next to `suspension_source` (or the invoice ids), one more column.
+    (c) Receivables "Isolir" writes source `manual`, so only a person reconnects it. Simplest; loses the automatic reconnect after an early isolir.
+    **No recommendation until the owner answers; ticket 01 stays as shipped.**
+
 ## Corrections to the source and the brief
 
 - The brief describes the location tree as region > area > POP > ODC > ODP. `locations.type` is `region|area|pop|rack|site` (`database/migrations/2026_08_11_163004_enforce_latest_closed_values_as_enums.php:12`, hierarchy `app/Services/Core/LocationService.php:17-22`); ODC and ODP are network asset types (`database/migrations/2026_08_11_163004_enforce_latest_closed_values_as_enums.php:20`). A router reaches its POP through the router asset's `location_id` (`Modules/NetworkAsset/database/migrations/2026_07_01_110000_create_network_assets_table.php:22`); a subscription reaches its POP through `serving_pop_id` (`database/migrations/2026_06_30_220003_create_service_subscriptions_table.php:24`).

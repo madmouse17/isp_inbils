@@ -1,6 +1,6 @@
 # BACKEND: WhatsApp notice for the customer access link (no link over WhatsApp)
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)

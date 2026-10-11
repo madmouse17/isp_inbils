@@ -310,3 +310,67 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
   panggil SpkService::createFromTicket (service contract). SpkService
   return WorkOrder, ticket.spawned_spk_id set. Allowed (orchestrator
   action, like CompleteSpkAction).
+
+## Notifikasi WhatsApp (tiket dan SPK)
+
+Keputusan: `.scratch/whatsapp-notifications/spec.md`. Aturan umum (persetujuan, STOP, jam tenang, antrean `whatsapp`) ada di
+`docs/business/customer.md` § Notifikasi WhatsApp. Semua pesan di bawah ini berbasis kejadian (tidak menunggu jam tenang) dan
+dikirim setelah transaksi commit; transaksi yang dibatalkan (konflik 409, rollback) tidak mengirim apa pun.
+
+| Event (kunci) | Pemicu | Penerima | Dedupe |
+|---|---|---|---|
+| `ticket_created` | `TicketService::create`, hanya bila tiket punya `customer_id` | customer tiket | `ticket_created:{ticket}` |
+| `ticket_assigned` | `TicketService::assign` pada penugasan PERTAMA saja (`assigned_to` sebelumnya null); reassign tidak mengirim lagi | customer tiket | `ticket_assigned:{ticket}` |
+| `ticket_resolved` | `TicketService::resolve` | customer tiket | `ticket_resolved:{ticket}` |
+| `spk_scheduled` | `SpkService::assign` setiap teknisi baru (teknisi yang sama lagi: tidak) | teknisi (`employee_profiles.phone`, user aktif + profil aktif; tanpa persetujuan per orang) | `spk_scheduled:{wo}:{user teknisi}` |
+| `spk_scheduled_customer` | `SpkService::assign` pada penugasan pertama, hanya bila SPK punya `customer_id` dan `scheduled_date` | customer SPK | `spk_scheduled_customer:{wo}` |
+
+- Teknisi tidak dikirimi WhatsApp untuk tiket (sudah menerima email + in-app `TicketAssignedNotification`, tidak diubah).
+- Tanggal kunjungan SPK adalah tanggal saja (tanpa slot jam). SPK tanpa `scheduled_date`: teknisi menerima "belum dijadwalkan",
+  customer tidak dikirimi apa pun. Pesan teknisi tidak memuat telepon, nama, atau alamat customer; pesan customer tidak memuat telepon
+  teknisi. Teknisi yang sudah diganti sebelum job berjalan tidak dikirimi.
+- Judul tiket dipotong `Str::limit($title, 60)` (maks 63 karakter dengan "..."). Nama penangani = kata pertama nama user.
+
+### Template Meta (kategori `utility`, bahasa `id`) — didaftarkan owner di WhatsApp Manager
+
+`tiket_dibuat` — params: nama company, kode tiket, judul
+
+```
+Keluhan Anda kepada {{1}} sudah kami catat dengan kode {{2}}: {{3}}.
+Petugas kami akan segera menindaklanjuti. Simpan kode ini untuk menanyakan perkembangannya.
+```
+Contoh: `PT Contoh Net`, `TKT-2026-00031`, `Internet mati sejak pagi`
+
+`tiket_ditangani` — params: nama company, kode tiket, judul, nama penangani
+
+```
+Keluhan Anda kepada {{1}} dengan kode {{2}} ({{3}}) sedang ditangani oleh {{4}}.
+Kami akan mengabari Anda setelah selesai.
+```
+Contoh: `PT Contoh Net`, `TKT-2026-00031`, `Internet mati sejak pagi`, `Budi`
+
+`tiket_selesai` — params: nama company, kode tiket, judul, tanggal selesai (timezone company)
+
+```
+Keluhan Anda kepada {{1}} dengan kode {{2}} ({{3}}) sudah diselesaikan pada {{4}}.
+Jika masalah masih ada, hubungi kami dan sebutkan kode tiket.
+```
+Contoh: `PT Contoh Net`, `TKT-2026-00031`, `Internet mati sejak pagi`, `16 Okt 2026`
+
+`spk_penugasan_teknisi` — params: kode SPK, judul, tanggal kunjungan atau `belum dijadwalkan`, link SPK (perlu login)
+
+```
+Anda mendapat tugas SPK {{1}}: {{2}}.
+Jadwal kunjungan: {{3}}
+Detail tugas (perlu login): {{4}}
+Selamat bekerja.
+```
+Contoh: `SPK-2026-0001`, `Pasang ONT baru`, `20 Okt 2026`, `https://inbils.example/admin/spk/7`
+
+`spk_jadwal_pelanggan` — params: nama company, kode SPK, tanggal kunjungan, nama depan teknisi
+
+```
+Teknisi dari {{1}} akan mengerjakan SPK {{2}} di lokasi Anda pada {{3}}. Teknisi yang bertugas: {{4}}.
+Mohon pastikan ada yang menerima di lokasi.
+```
+Contoh: `PT Contoh Net`, `SPK-2026-0001`, `20 Okt 2026`, `Andi`

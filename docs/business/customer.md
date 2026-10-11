@@ -147,15 +147,20 @@ Lihat `docs/WORKFLOW.md` Section 2 (Customer/Subscription). Ringkas:
 - `POST /admin/customers/{customer}/access-link` (`customers.access-link`, permission
   `customer.update`, throttle 3/menit) mengirim ulang link. Customer tanpa akun beremail tidak
   dikirimi apa pun dan staf menerima pesan error.
+- Untuk customer yang setuju WhatsApp, `CustomerAccountCreated` juga mengantrekan satu pesan WhatsApp `akses_portal_info`
+  (antrean `whatsapp`) yang hanya memberi tahu bahwa link ada di email (email disamarkan `b***@domain`). Link dan token TIDAK
+  pernah dikirim lewat WhatsApp: password broker menyimpan satu token per user dan setiap pembuatan token menghapus yang lama.
+  Paling banyak satu pesan per user per jam saat diantrekan (kunci dedupe memuat jam itu, jadi retry di jam berikutnya memakai baris
+  yang sama), berapa pun resend staf.
 
 ### Subscription lifecycle (SubscriptionService — app/Services/Core/)
 
 | Dari | Ke | Trigger | Side effect |
 |------|-----|---------|-------------|
 | pending | active | activate(subscription) | `activation_date=now`, link ont_asset (if SPK installed), `next_invoice_date = next billing_day`, AuditLog. Dipanggil CompleteSpkAction (instalation) atau manual. |
-| active | suspended | suspend(subscription, reason) | `status=suspended`, stop recurring invoice generation (job skip), flag NOC/ticketing, AuditLog. Trigger: billing overdue job (auto) OR manual (admin/manager). |
-| suspended | active | reactivate(subscription) | `status=active`, `next_invoice_date = next billing_day`, resume recurring, AuditLog. Trigger: payment recorded (auto if Setting `billing.auto_reactivate_on_payment`) OR manual. |
-| active/suspended | terminated | terminate(subscription, reason, release_ont) | `status=terminated`, `terminated_at=now`, `terminated_reason`, stop recurring, release ont_asset (if release_ont → NetworkAsset status=Available + NetworkAssetInstallation removed_at), AuditLog. |
+| active | suspended | suspend(subscription, reason, source = 'manual') | `status=suspended`, `suspension_source` (`manual` dari halaman Subscriptions; `overdue` dari "Isolir" di Receivables atau `billing:suspend-overdue` harian 08:00), stop recurring invoice generation (job skip), flag NOC/ticketing, AuditLog (`reason`, `source`). |
+| suspended | active | reactivate(subscription) | `status=active`, `suspension_source=null`, `next_invoice_date = next billing_day`, resume recurring, AuditLog. Trigger: manual OR otomatis setelah pembayaran (setting company `auto_reactivate_on_payment`, default true) hanya bila `suspension_source=overdue` dan tidak ada invoice subscription itu yang masih lewat grace (`auto_suspend_overdue_days`, default 7); suspend `manual` tidak pernah dibuka otomatis. |
+| active/suspended | terminated | terminate(subscription, reason, release_ont) | `status=terminated`, `suspension_source=null`, `terminated_at=now`, `terminated_reason`, stop recurring, release ont_asset (if release_ont → NetworkAsset status=Available + NetworkAssetInstallation removed_at), AuditLog. |
 
 ### Customer status (rollup dari subscription)
 
@@ -227,6 +232,68 @@ membaca kolom ini).
 - **Deployment**: setelah `php artisan migrate`, jalankan ulang
   `php artisan db:seed --class=RolePermissionSeeder --force` (idempotent). Custom role tidak diubah
   seeder: beri kedua permission lewat layar Roles.
+
+### Notifikasi WhatsApp: persetujuan, STOP, pengaturan, template
+
+Keputusan: `.scratch/whatsapp-notifications/spec.md` (Q1-Q13, disetujui owner 2026-10-12). Satu pengirim untuk seluruh instalasi
+(WhatsApp Cloud API Meta; token, phone number id, app secret dan verify token hanya di `.env` host, dibaca lewat
+`config/services.php`). Per company hanya saklar non-rahasia di `companies.settings`. Pesan hanya berupa template `utility` yang sudah
+disetujui Meta (`config/whatsapp.php`); aplikasi tidak pernah mengirim teks bebas. Template billing: `docs/business/billing.md`;
+tiket dan SPK: `docs/business/ticketing.md`.
+
+- **Persetujuan (opt-in).** Tidak ada pesan ke customer tanpa `whatsapp_opt_in_at` atau dengan `whatsapp_opt_out_at` terisi. Customer
+  lama mulai tanpa persetujuan sampai staf mencatatnya. Hanya `SetCustomerWhatsAppConsentAction` yang menulisnya (kolom tidak
+  mass-assignable): dipanggil dari onboarding (`customer.create`) dan dari edit customer (`customer.update`) lewat field
+  `whatsapp_opt_in`. Mencentang mencatat waktu, sumber (`staff`) dan user pencatat (`whatsapp_opt_in_by`) serta menghapus opt-out;
+  melepas centang mengisi `whatsapp_opt_out_at`. Nilai yang tidak berubah tidak menulis dan tidak masuk audit. Audit `whatsapp`
+  (`opted_in`/`opted_out`) hanya berisi id.
+- **STOP / BERHENTI.** Balasan `STOP` atau `BERHENTI` (tanpa beda huruf besar/kecil, spasi pinggir diabaikan) dari sebuah nomor
+  mengisi `whatsapp_opt_out_at` pada SEMUA customer di semua company yang nomornya cocok (setelah normalisasi); audit
+  `opted_out_by_reply` per company. Tidak ada balasan otomatis. Staf dapat mencentang lagi (persetujuan baru). Meta mengirim callback
+  minimal satu kali, jadi satu STOP tidak boleh berlaku dua kali atau mencabut persetujuan yang staf catat sesudahnya: (a) tiap id
+  pesan masuk dicatat per company di `whatsapp_inbound_receipts` (hanya HMAC id pesan, tanpa nomor dan teks; dihapus setelah 30 hari
+  oleh `model:prune` harian) dalam transaksi yang sama dengan pencabutan, sehingga pencabutan yang gagal membatalkan receipt-nya,
+  webhook menjawab error dan Meta mengirim ulang; (b) STOP yang dikirim (timestamp bertanda tangan) sebelum `whatsapp_opt_in_at`
+  terakhir diabaikan. STOP tanpa id pesan tetap berlaku dan hanya tunduk pada aturan (b).
+- **Teknisi**: tanpa opt-in per orang (instruksi kerja); dilewati bila user nonaktif, profil pegawai tidak aktif, atau nomor tidak valid.
+- **Nomor**: dinormalisasi saat kirim, tanpa mengubah data tersimpan. Hanya seluler Indonesia (`^628[1-9][0-9]{6,10}$` setelah
+  `+62`/`0062`/`62`/`0` → `62`); telepon rumah, nomor asing dan `812…` tanpa awalan dilewati sebagai `invalid_phone` dan ditandai
+  `reachable: false` di halaman customer.
+- **Pengaturan company** (`/admin/company/settings`, `company.manage`): `whatsapp_enabled` (default mati), `whatsapp_events` (default
+  semua event), jam tenang `whatsapp_quiet_start`/`whatsapp_quiet_end` (default 21:00-07:00 waktu company; pesan batch — invoice
+  terbit dan pengingat — menunggu selesai, pesan berbasis kejadian tidak), `whatsapp_monthly_cap` (default 1000, 0 = tidak ada pesan,
+  lewat batas = `skipped: budget_exceeded`; satu slot dipakai tiap pesan yang diterima Meta sejak awal bulan kalender company menurut
+  waktu kirim `sent_at`, bukan waktu baris dibuat, dan tiap pesan `queued` yang masih bisa dikirim ulang — 2 jam sejak percobaan
+  terakhir; slot dipesan di bawah kunci baris company, sehingga worker paralel tidak melewati batas). Halaman menampilkan jumlah
+  sent/delivered/failed/billable bulan berjalan dan apakah kredensial terpasang (boolean saja). Pesan "sent" = diterima Meta (status
+  sent, delivered, read).
+- **Log pesan** `whatsapp_messages` (per company, dihapus setelah 12 bulan oleh `model:prune` harian): event, subjek, template,
+  status (`queued|sent|delivered|read|failed|skipped`), alasan skip (`disabled|event_disabled|no_consent|opted_out|invalid_phone|
+  budget_exceeded`), kode error, id pesan Meta, hash HMAC nomor dan 4 digit terakhir. Tidak menyimpan nomor lengkap, teks, atau
+  parameter. Kunci dedupe `(company_id, dedupe_key)` mencegah kirim ganda; baris `skipped` ditimpa percobaan berikutnya, baris `queued`
+  dengan kode error (gagal sementara) diambil ulang oleh retry. Halaman customer menampilkan 20 baris terakhir.
+- **Webhook** `GET|POST /webhooks/whatsapp` (tanpa session/CSRF; throttle hanya untuk permintaan yang gagal verifikasi): GET
+  `hub.verify_token`; POST `X-Hub-Signature-256` (HMAC-SHA256 body mentah dengan app secret). Status bergerak maju saja
+  (`sent → delivered → read`; `failed` hanya dari `queued|sent`); status delivered/read yang tiba saat baris masih `queued` juga
+  mengisi `sent_at`.
+- **Deploy**: `php artisan migrate`; worker WAJIB mendengarkan antrean `whatsapp` (`queue:work --queue=default,whatsapp`; ubah
+  `compose.yaml` dan `deploy/systemd/queue-worker.service.example`); isi enam variabel `WHATSAPP_*` di `.env` host; daftarkan
+  `<APP_URL>/webhooks/whatsapp` dan verify token di aplikasi Meta; admin company mencentang `whatsapp_enabled`. Tanpa token dan phone
+  number id fitur mati dan setiap pesan tercatat `skipped: disabled`. Image produksi membawa `docker/php/conf.d/inbils.ini`
+  (`zend.exception_ignore_args=On`) supaya stack trace di `failed_jobs` dan log tidak memuat argumen pemanggilan (nomor telepon);
+  parameter yang memuat nomor, token atau isi webhook juga bertanda `#[\SensitiveParameter]`. Sail memakai php.ini paket Ubuntu yang
+  sudah bersetelan sama.
+- **Batas Meta** (dicek 2026-10-11): portofolio baru boleh mengirim ke 250 nomor unik per 24 jam di luar jendela layanan; 2.000 setelah
+  verifikasi bisnis; lalu naik otomatis. Batch lebih besar dari batas harus tersebar beberapa hari (pengingat sudah tersebar menurut
+  jatuh tempo).
+
+`akses_portal_info` — params: nama company, email tersamar (tanpa URL)
+
+```
+Akun portal pelanggan Anda di {{1}} sudah dibuat. Link untuk mengatur kata sandi sudah dikirim ke email {{2}}.
+Cek kotak masuk atau folder spam Anda.
+```
+Contoh: `PT Contoh Net`, `b***@example.com`
 
 ## Permission
 

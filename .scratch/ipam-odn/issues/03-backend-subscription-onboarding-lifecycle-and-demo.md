@@ -1,6 +1,6 @@
 # BACKEND: subscription, onboarding and SPK integration, terminate release, demo data, docs
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01, 02
 Card: none (new lane; no Hermes card)
@@ -33,3 +33,5 @@ Non-goals: React pages, `CompleteSpkAction` (unchanged, Q9a), event listeners fo
 - [ ] Pint and Larastan clean on changed files.
 
 ## Comments
+
+2026-10-13 IpamOdnBackend: done in my files: terminate hook, onboarding `odn_port_id`, StoreCustomerRequest, CustomerController, SubscriptionController, WorkOrderController props, docs/business/network.md, docs/ENTERPRISE_ISP_READINESS.md, tests/Feature/IpamOdnLifecycleTest.php. Still open and lead-owned this wave: `database/seeders/DemoDataSeeder.php` + `Demo/IpamOdnDemo.php` (demo data) and `CHANGELOG.md` (exact entries in the backend report).

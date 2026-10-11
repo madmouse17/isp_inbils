@@ -1,6 +1,6 @@
 # BACKEND: NAS router and network account schema, encrypted models, RouterOS REST client, permissions
 
-Status: ready-for-agent
+Status: in-progress
 Role: backend
 Blocked by: none (starts only after the owner approves `../spec.md` Q1-Q6, Q13 and Q15; under Q2 b/c or Q3 b this ticket is rewritten first)
 Card: none (new lane; no Hermes card)
@@ -61,3 +61,13 @@ vendor/bin/pint --dirty --format agent
 ```
 
 ## Comments
+
+### Backend agent (MikrotikBackend), 2026-10-13
+
+- Done: migrations `2026_10_13_210000_create_nas_devices_table`, `2026_10_13_210001_create_network_accounts_table` (prefix is the lane prefix of this wave, not `110000`); models `NasDevice`, `NetworkAccount` (encrypted + hidden passwords, `BelongsToCompany`, no `LogsActivity`); factories with fake credentials and RFC 5737 addresses; `RouterOsClient` / `RouterOsException`; `services.routeros` config + `.env.example` / `.env.docker.example` names; test double `tests/Support/FakeRouterOs.php` + trait `tests/Traits/InteractsWithRouterOs.php`; `RouterOsClientTest` (contract per operation and service type, every error kind, switch off, stray requests refused) and `NetworkAccessModelsTest`.
+- Schema additions beyond the spec table (additive, needed by ticket 03): `network_accounts.provisioned_service_type` (clean the old menu after a PPPoE ↔ hotspot change) and `network_accounts.provisioned_password_hash` (HMAC of the pushed password: the router never gives passwords back, so this is how a password change is seen and how a second run stays at zero writes).
+- Error message: the kept text is the RouterOS `message` plus `detail` of a JSON error body (the useful part, e.g. "input does not match any value of profile", is in `detail`), capped at 255 characters; a JSON body without a string `message` and any non-JSON body are never echoed. **Confirm in the lab.**
+- STILL OPEN (cannot be done without a CHR): the lab-first criterion, i.e. recording the real request/response shapes and the minimal RouterOS user-group policy list in this `## Comments`. The fake answers with the documented RouterOS 7 REST shapes (inference, see the spec "External contract").
+- needs-change (lead-owned): `database/seeders/RolePermissionSeeder.php` must add `network_asset.nas.view`, `network_asset.nas.manage`, `network_asset.account.view`, `network_asset.account.manage`, `network_asset.account.reveal`; mapping admin = all five; manager and staff = `nas.view` + `account.view|manage|reveal`; technician none (`nas.manage` admin only). Tests create these permissions themselves.
+- Evidence: `tests/Feature/NetworkAsset` is part of the final run `Tests: 220 passed (1667 assertions)`; Pint passed; Larastan clean.
+- Not verified: `down()` rehearsal of both migrations on `inbils_test`.

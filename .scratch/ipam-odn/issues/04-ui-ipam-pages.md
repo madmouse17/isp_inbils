@@ -1,6 +1,6 @@
 # UI: IPAM pages (prefixes tree, prefix detail, VLANs)
 
-Status: ready-for-agent
+Status: done
 Role: ui
 Blocked by: 01
 Card: none (new lane; no Hermes card)
@@ -19,10 +19,12 @@ Non-goals: navigation entry, subscription panel (ticket 06), charts, maps.
 
 ## Acceptance criteria
 
-- [ ] All three pages render with the spec props and no console errors (`npm run build` clean; ESLint/Prettier clean on new files).
-- [ ] Manage controls hidden without `can.manage`; release hidden without the needed permission.
-- [ ] A duplicate/overlap 422 from the server shows the server message under the CIDR or address field without losing typed input.
-- [ ] Keyboard: every dialog opens, traps focus, closes with Escape and returns focus; utilisation bar has a text equivalent.
-- [ ] Contrast of usage badges and utilisation bar colours ≥ 4.5:1 for text (checked with the contrast tool).
+- [x] All three pages render with the spec props and no console errors (`npm run build` clean; ESLint/Prettier clean on new files).
+- [x] Manage controls hidden without `can.manage`; release hidden without the needed permission.
+- [x] A duplicate/overlap 422 from the server shows the server message under the CIDR or address field without losing typed input.
+- [x] Keyboard: every dialog opens, traps focus, closes with Escape and returns focus; utilisation bar has a text equivalent.
+- [x] Contrast of usage badges and utilisation bar colours ≥ 4.5:1 for text (checked with the contrast tool).
 
 ## Comments
+
+- 2026-10-13 (IpamOdnUI): done. Files: `Pages/Admin/Ipam/{Prefixes/Index,Prefixes/Show,Vlans/Index}.tsx` plus composites `Components/composite/{UtilisationBar,ConfirmRequestDialog}.tsx`, `composite/ipam/*`, `lib/ipam.ts`, `types/ipam-odn.ts`. `tests/e2e/ipam-odn.spec.ts` covers the duplicate 422 (input kept), Escape plus focus return, reserve/release, hidden manage controls for staff. Meter colours (red-700/amber-700/emerald-700 light, 400 dark) and usage badges checked 4.58–5.91:1 light and 5.29–8.57:1 dark with the contrast tool. `IpamOdnBackend` added `locations` and `vlans` props to the prefix show page for the edit dialog (not in the spec shapes).

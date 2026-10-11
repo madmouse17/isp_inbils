@@ -61,6 +61,7 @@ Ticketing  ──link──→     Customer/NetworkAsset/Subscription (shared Co
 Billing    ──suspend──→  Customer(Core)  (subscription status)
 Billing    ──issue──→    Inventory       (invoice stock issue, rare)
 NetworkAsset──link──→    Customer/Subscription/Location (shared Core)
+NetworkAsset──observe──→ Customer(Core) subscription (ServiceSubscriptionNetworkObserver queues the router apply job; Core never calls the module)
 Reporting  ──read──→     ALL             (read-only Query, no write)
 ```
 
@@ -73,7 +74,8 @@ direction only via polymorphic reference or shared Core model.
 |--------|-------------|
 | Customer | [] (models shared Core) |
 | Service | [] (catalog) |
-| NetworkAsset | [] (depends Core only) |
+| NetworkAsset | [Service, Ipam] (reads the package speed profile through the shared subscription relations; asset IPs write through `IpAssignmentService`) |
+| Ipam | [] (IP prefixes, VLANs, addresses; publishes `IpAssignmentChanged`) |
 | Inventory | [] |
 | SPK | [Inventory, NetworkAsset] |
 | Billing | [Inventory, SPK, Service] |

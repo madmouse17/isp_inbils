@@ -177,21 +177,46 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   - amount > sisa → 422 (overpay validation).
 - Payment immutable. Cancel = reverse (cancel_reason) + new payment.
 
-### Overdue + auto-suspend
-- `CheckOverdueInvoicesJob` (daily): invoice status in (sent, partial) +
-  due_date < today + paid < total → status=overdue + AuditLog.
-- `CheckOverdueAndSuspendJob` (daily, opt-in Setting
-  `billing.auto_suspend_enabled`): subscription dengan invoice overdue >
-  `billing.auto_suspend_overdue_days` (default 7) →
-  `SuspendSubscriptionAction` → subscription.status=suspended (stops
-  recurring generation, flags NOC/ticketing) + AuditLog.
+### Overdue + auto-suspend (isolir otomatis)
+- `billing:check-overdue` (harian 03:00): invoice `sent|partial` dengan
+  due_date < hari ini dan paid < total → status=overdue + AuditLog.
+- `billing:suspend-overdue {--company=} {--dry-run}` (harian **08:00**, jam
+  kantor agar customer service bisa menerima telepon yang ditimbulkannya;
+  setelah check-overdue; `withoutOverlapping`). Per perusahaan aktif, hanya
+  bila setting company `auto_suspend_enabled` (default `false`).
+  Subscription `active` yang punya invoice milik subscription itu sendiri
+  (belum soft-delete, status `sent|partial|overdue`, `paid_amount < total`)
+  dengan `due_date` lebih dari `auto_suspend_overdue_days` hari lalu
+  (default 7; tepat N hari → belum, N+1 → ya) di-suspend lewat
+  `SubscriptionService::suspend(..., 'overdue')`, satu transaksi per
+  subscription, AuditLog `suspended` (`source=overdue`, tanpa causer).
+  Aturan membaca `due_date`, bukan `status`, karena pembayaran parsial
+  mengembalikan invoice `overdue` menjadi `partial` sampai check-overdue
+  berikutnya. `--dry-run` hanya mencetak subscription yang akan di-suspend.
+  Kegagalan → `BillingScheduleFailedNotification` ke admin aktif.
+- Subscription suspended tidak ditagih (`generateForPeriod` hanya
+  `active|terminated`), jadi isolir otomatis juga menghentikan invoice
+  recurring-nya.
+- `service_subscriptions.suspension_source` (`manual|overdue`, tidak
+  fillable, hanya ditulis `SubscriptionService`): "Isolir" di Receivables dan
+  job otomatis menulis `overdue`; Suspend di halaman Subscriptions menulis
+  `manual` (field opsional `source` pada `POST /admin/subscriptions/{sub}/suspend`,
+  default `manual`). `reactivate` dan `terminate` mengosongkannya.
 
 ### Reactivate
-- `ReactivateSubscriptionAction`:
-  - Trigger: payment recorded untuk overdue invoice (auto if Setting
-    `billing.auto_reactivate_on_payment`) OR manual.
-  - subscription.status=active, next_invoice_date = next billing_day.
-  - Resume recurring generation. AuditLog.
+- Otomatis: setiap pembayaran (manual maupun Midtrans) mengirim event
+  `PaymentRecorded(companyId, invoiceId, paymentId)` setelah commit; listener
+  antrean `ReactivateSubscriptionAfterPayment` memanggil
+  `OverdueSuspensionService::reactivateIfCleared` di dalam
+  `CompanyService::runAs` perusahaan invoice. Syarat: setting
+  `auto_reactivate_on_payment` (default `true`), subscription `suspended`
+  dengan `suspension_source=overdue` (suspend `manual` tidak pernah dibuka
+  otomatis), dan tidak ada lagi invoice subscription itu yang memenuhi aturan
+  isolir di atas (pembayaran parsial belum cukup). Pembayaran yang
+  transaksinya di-rollback tidak menyambungkan apa pun.
+- Manual: `SubscriptionService::reactivate`. Keduanya: status=active,
+  `next_invoice_date` = billing_day berikutnya, `suspension_source`
+  dikosongkan, resume recurring generation, AuditLog.
 
 ### Manual suspend/reactivate
 - Admin/manager bisa manual suspend (reason) / reactivate subscription
@@ -246,7 +271,7 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - `POST   /admin/invoices/{inv}/cancel` (body: reason)
 - `GET    /admin/invoices/{inv}/pdf`
 - `POST   /admin/invoices/{inv}/create-from-spk` (manual trigger OTC from SPK, if not auto)
-- `POST   /admin/subscriptions/{sub}/suspend` (body: reason — manual)
+- `POST   /admin/subscriptions/{sub}/suspend` (body: reason, `source` opsional `manual|overdue`, default `manual`)
 - `POST   /admin/subscriptions/{sub}/reactivate` (manual)
 - `GET    /admin/invoices/export`
 - `GET    /portal/invoices`, `GET /portal/invoices/{id}`, `POST /portal/invoices/{id}/pay`, `GET /portal/payments/return`, `GET|PUT /portal/password` (role customer, route name `portal.*`)
@@ -324,6 +349,10 @@ finansial immutable; attempt tidak bisa dihapus.
   attempt `exception` + alasan + audit `payment_attempt`; **tidak ada
   reversal otomatis** (reversal tetap tindakan manusia maker-checker) dan
   status langganan tidak berubah.
+- Pembayaran yang berhasil (attempt `paid`) lewat `recordPayment` seperti
+  pembayaran manual, sehingga bisa menyambungkan kembali langganan yang
+  diisolir `overdue` bila tidak ada invoice lain yang lewat grace (lihat
+  "Reactivate"). Ini menggantikan keputusan midtrans Q12 untuk kasus tersebut.
 
 ### Rekonsiliasi
 `php artisan midtrans:reconcile {--company=} {--dry-run}`, dijadwalkan tiap 15
@@ -382,16 +411,17 @@ yang bisa menandai attempt lunas.
 
 ### Payment + reactivate
 1. Invoice recurring total 277500, status=sent. Pay 277500 → status=paid.
-2. Invoice overdue (due_date yesterday, paid < total). Pay rest →
-   status=paid. If auto_reactivate_on_payment + subscription was
-   suspended → ReactivateSubscriptionAction → subscription active.
+2. Subscription suspended dengan `suspension_source=overdue`, satu invoice
+   overdue (due_date 10 hari lalu). Bayar lunas → status=paid,
+   `PaymentRecorded` → subscription active, `suspension_source` kosong.
+   Source `manual` → tetap suspended.
 
 ### Overdue + auto-suspend
 1. Invoice recurring, due_date=now-10days, unpaid. status=overdue.
-2. CheckOverdueAndSuspendJob (auto_suspend_enabled, threshold 7 days):
-   SuspendSubscriptionAction → subscription.status=suspended. Recurring
-   job skip subscription.
-3. Pay overdue invoice (auto_reactivate) → subscription active.
+2. `billing:suspend-overdue` (auto_suspend_enabled, threshold 7 hari):
+   due_date tepat 7 hari lalu → belum; 8 hari → subscription suspended
+   (source=overdue). Recurring job skip subscription.
+3. Bayar invoice overdue (auto_reactivate_on_payment) → subscription active.
 
 ### Validation
 1. Pay 300000 (sisa 277500) → 422 overpay.
@@ -457,3 +487,66 @@ yang bisa menandai attempt lunas.
   entity, recurring job baca service_subscriptions + dedup via invoice
   query). HAPUS dari ARCHITECTURE (Opsi A fix). DATABASE.md authoritative
   (no recurring_invoice_schedules table).
+
+## Notifikasi WhatsApp (tagihan, pengingat, pembayaran)
+
+Keputusan: `.scratch/whatsapp-notifications/spec.md`. Aturan umum (persetujuan customer, STOP, jam tenang, batas bulanan,
+antrean `whatsapp`, webhook) ada di `docs/business/customer.md` § Notifikasi WhatsApp. Pesan hanya ke customer tagihan itu,
+hanya bila `whatsapp_enabled` company aktif, eventnya dicentang, dan customer setuju (`whatsapp_opt_in_at`).
+
+| Event (kunci) | Pemicu | Waktu kirim | Dedupe |
+|---|---|---|---|
+| `invoice_issued` | event `InvoiceIssued` setelah commit: batch `generateForPeriod` (invoice `sent`) dan `BillingService::send` (draft → sent). Tidak untuk draft, pembatalan, reversal. | batch: menunggu jam tenang selesai | `invoice_issued:{invoice}` |
+| `invoice_reminder` | `billing:whatsapp-reminders` harian 01:00 UTC (08:00 WIB): H-3, H-1, H+1 | batch | `invoice_reminder:{invoice}:{H-3\|H-1\|H+1}:{due_date}` |
+| `payment_received` | event `PaymentRecorded` setelah commit (staf maupun Midtrans), satu pesan per baris `payments` | segera | `payment_received:{payment}` |
+
+- **Pengingat**: invoice `sent`/`partial`/`overdue` dengan `paid_amount < total` yang `due_date`-nya hari ini+3, hari ini+1 atau hari
+  ini−1; "hari ini" dihitung di timezone company (run 17:30 UTC sudah hari berikutnya di WIB). `--company=ID` membatasi,
+  `--dry-run` hanya menghitung. Satu company gagal tidak menghentikan company lain; admin diberi tahu lewat
+  `BillingScheduleFailedNotification`. Invoice lunas/dibatalkan antara penjadwalan dan pengiriman tidak dikirimi (tanpa baris log).
+- **Idempotensi**: kunci dedupe per invoice/tahap/jatuh tempo; menjalankan ulang perintah atau job tidak mengirim dua kali. Ubah
+  jatuh tempo = pengingat baru.
+- Pesan WhatsApp adalah efek samping: kegagalan mengantrekannya dilaporkan (`report()`), tidak menggagalkan generate invoice atau
+  pembayaran yang sudah commit.
+- Biaya: satu baris `whatsapp_messages` per percobaan (termasuk `skipped` dengan alasan). Company yang WhatsApp-nya mati tetap
+  menulis baris `skipped: disabled`.
+
+### Template Meta (kategori `utility`, bahasa `id`) — didaftarkan owner di WhatsApp Manager
+
+Parameter positional `{{1}}`… urut seperti di `config/whatsapp.php`. Contoh nilai wajib diisi saat mendaftar.
+
+`tagihan_terbit` — params: nama company, nomor tagihan, total, jatuh tempo, link portal
+
+```
+Halo, tagihan layanan internet Anda dari {{1}} sudah terbit.
+Nomor tagihan: {{2}}
+Total: {{3}}
+Jatuh tempo: {{4}}
+Rincian tagihan: {{5}}
+Terima kasih.
+```
+Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://inbils.example/portal/invoices/12`
+
+`tagihan_pengingat` — params: nama company, nomor tagihan, sisa tagihan, jatuh tempo, link portal (dipakai H-3, H-1, H+1)
+
+```
+Pengingat dari {{1}}: tagihan {{2}} dengan sisa pembayaran {{3}} jatuh tempo pada {{4}}.
+Rincian tagihan: {{5}}
+Abaikan pesan ini jika Anda sudah membayar.
+```
+Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://inbils.example/portal/invoices/12`
+
+`pembayaran_diterima` — params: nama company, nomor tagihan, jumlah dibayar, sisa tagihan, tanggal bayar (timezone company)
+
+```
+Pembayaran Anda kepada {{1}} sudah kami terima.
+Tagihan: {{2}}
+Jumlah dibayar: {{3}}
+Sisa tagihan: {{4}}
+Tanggal pembayaran: {{5}}
+Terima kasih.
+```
+Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 100.000`, `Rp 150.000`, `14 Okt 2026`
+
+Tanpa kata promosi (diskon, promo, gratis): Meta mengubah template utility yang terdengar promosi menjadi kategori marketing
+yang lebih mahal. Mengubah kata, urutan, atau jumlah parameter = template baru + persetujuan ulang + perubahan `config/whatsapp.php`.

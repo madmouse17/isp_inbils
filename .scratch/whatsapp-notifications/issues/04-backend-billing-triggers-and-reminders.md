@@ -1,6 +1,6 @@
 # BACKEND: invoice issued, payment received and H-3/H-1/H+1 reminders on WhatsApp
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)

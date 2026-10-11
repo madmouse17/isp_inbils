@@ -1,6 +1,6 @@
 # BACKEND: ticket created/assigned/resolved and SPK schedule on WhatsApp
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)

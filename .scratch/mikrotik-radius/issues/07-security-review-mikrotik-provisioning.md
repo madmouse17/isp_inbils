@@ -1,6 +1,6 @@
 # SECURITY REVIEW: router credentials, subscriber secrets, provisioning and isolir release gate
 
-Status: ready-for-agent
+Status: done
 Role: security-reviewer
 Blocked by: 06
 Card: none (new lane; no Hermes card)
@@ -26,3 +26,11 @@ Owned files: none (findings go to the owning ticket as `needs-change`).
 - [ ] Explicit statement that production writes stay off until ticket 08's lab evidence and then start router by router with the write flag.
 
 ## Comments
+
+### Re-review 2026-10-11 (security-reviewer): APPROVED
+
+- Earlier BLOCK findings fixed: pending-disconnect intent persisted independent of profile diff; adoption approval bound to exact target/password revision (`ApplyNetworkAccountJob`); sealed password survives Inertia version redirect.
+- MIKROTIK-07-004 (high, retarget while an unrecorded disconnect is owed) fixed: `NetworkAccountService.php:77-80` rejects router/service-type/username change until the drop settles; test `SecurityHardeningTest.php` (first-adoption failure, rejection, retry, then rename allowed). Withdrawn after re-review.
+- Q16 (reconnect after token payment) stays OPEN in `../spec.md` for the owner; not implemented.
+- `composer audit`: no advisories. `npm audit`: 0 vulnerabilities (2026-10-11).
+- Production writes stay off until ticket 08 lab evidence; then enable router by router with the write flag.

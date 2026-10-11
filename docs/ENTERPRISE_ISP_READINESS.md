@@ -4,7 +4,7 @@ Status: RECOVERED AUDIT — current working tree, 2026-07-15
 
 Target: single-company ISP operations pilot/production baseline, medium scale
 
-Excluded: full telco OSS/BSS, multi-company activation, customer mobile app, Radius/NAS automation, multi-vendor NMS, public partner API, production payment-gateway go-live. Owner decision 2026-10-11: a Midtrans Snap **sandbox pilot** (webhook, reconciliation) and a minimal customer invoice portal are in scope; see `docs/business/billing.md` ("Pembayaran online").
+Excluded: full telco OSS/BSS, multi-company activation, customer mobile app, FreeRADIUS/RADIUS accounting, multi-vendor NMS, public partner API, production payment-gateway go-live. Owner decision 2026-10-12: MikroTik NAS provisioning and isolir over the RouterOS REST API is a **lab pilot** (CHR first, one production router per maintenance window after the lab evidence of `.scratch/mikrotik-radius` ticket 08; installation switch `ROUTEROS_PROVISIONING_ENABLED` default off, per-router write flag default off); see `docs/business/network.md`. Owner decision 2026-10-11: a Midtrans Snap **sandbox pilot** (webhook, reconciliation) and a minimal customer invoice portal are in scope; see `docs/business/billing.md` ("Pembayaran online"). Owner decision 2026-10-12: an IP address register (IPAM: prefixes, addresses, VLANs) and an ODN port register (PON ports, splitters, customer drop ports) are in scope as **passive registers**: staff record the facts, nothing polls a device or pushes configuration, which keeps them clear of the NMS and topology-discovery exclusions; see `docs/business/network.md` ("IPAM dan ODN").
 
 ## 1. Executive verdict
 
@@ -60,7 +60,7 @@ Runtime evidence available from latest QA closure, not rerun by this document re
 | Ticket/SLA | 7 | 4 | PARTIAL | Core transitions and ticket-to-SPK exist; escalation, notification, and full lifecycle proof missing. |
 | Network asset/topology | 6 | 4 | PARTIAL | Asset lifecycle/history exists; exact assignment and concurrency invariant need closure. |
 | Approval/SoD | 5 | 2 | PARTIAL | SPK approval exists; high-risk duties remain combined and durable approver fields are incomplete. |
-| Queues/notifications/idempotency | 6 | 1 | MISSING | Scheduler entries exist; no application jobs/notifications or production supervision. |
+| Queues/notifications/idempotency | 6 | 1 | PARTIAL: WhatsApp channel | Scheduler entries exist; the WhatsApp channel (queued template notifications for billing, tickets, SPK and the portal access link, idempotent dedupe key, retry/backoff, signed delivery webhook) is shipped; staff alerts (SLA breach, failed jobs) and production worker supervision incl. the `whatsapp` queue are not. |
 | Reporting | 5 | 3 | PARTIAL | Six live query classes exist; unit report/export and metric correctness coverage incomplete. |
 | API/integration contracts | 5 | 0 | CONTRADICTED | Authenticated routes expose HTML scaffold/empty writes, not JSON contracts. |
 | Deploy/backup/restore/observability | 9 | 1 | MISSING | Framework `/up` exists; deploy, backup restore, supervision, metrics, alerts absent. |
@@ -212,8 +212,8 @@ Gaps:
 
 - Two billing schedules exist (`routes/console.php:11-12`).
 - Development Composer command runs `queue:listen`, not production supervision (`composer.json:55-58`).
-- No application `*Job.php` or `*Notification.php` files found.
-- No retry/backoff/dead-letter/failed-job operational policy found.
+- Notification classes exist per module. The WhatsApp lane adds `app/Notifications/Channels/WhatsAppChannel.php`: every WhatsApp message is its own queued job on the `whatsapp` queue (after commit, `tries` 5, backoff 1/5/15/60 min, per-company rate limit, idempotency key `(company_id, dedupe_key)` in `whatsapp_messages`). Workers must run `queue:work --queue=default,whatsapp` (`compose.yaml`, `deploy/systemd/queue-worker.service.example` still start `queue:work` on the default queue only).
+- No retry/backoff/dead-letter/failed-job operational policy exists for the other queued jobs.
 
 P0: supervisor/systemd/container process definitions for `queue:work` and `schedule:run`, restart/timeout/tries policy, failed-job handling, deploy restart steps. P1: domain notifications and failure alerts with idempotent queued handlers.
 
@@ -276,7 +276,7 @@ Mandatory P1 additions: SPK evidence-submit-approve with stock/asset/subscriptio
 - Multi-company activation and cross-company administration.
 - Customer mobile app. The minimal web invoice portal is a sandbox pilot (owner decision 2026-10-11).
 - Payment gateway production go-live: needs a real merchant account, a public HTTPS notification URL, production keys set only on the host, and a signed security review. The Midtrans Snap sandbox pilot is implemented.
-- Radius/NAS provisioning and suspension automation.
+- RADIUS accounting and FreeRADIUS integration; MikroTik NAS provisioning and suspension automation runs as a lab pilot (see Excluded above), production per router only after the lab evidence.
 - Multi-vendor NMS, SNMP polling, topology discovery, outage correlation.
 - S3/object storage migration unless backup/attachment volume requires it.
 - Public/partner API beyond an approved consumer contract.

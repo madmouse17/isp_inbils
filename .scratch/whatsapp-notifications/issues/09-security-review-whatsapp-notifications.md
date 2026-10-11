@@ -1,6 +1,6 @@
 # SECURITY REVIEW: WhatsApp notifications release gate
 
-Status: ready-for-agent
+Status: done
 Role: security-reviewer
 Blocked by: 08
 Card: none (new lane; no Hermes card)
@@ -21,6 +21,15 @@ Read-only `security-reviewer` pass (repo rule 10: user data, external channel, a
 
 ## Acceptance criteria
 
-- [ ] Verdict APPROVED or BLOCKED with file:line findings and a fix per finding.
-- [ ] Advisory table present (or "none" with the command output).
-- [ ] Explicit statement whether production sending may start, given Meta Business verification, approved templates and host-only credentials.
+- [x] Verdict APPROVED or BLOCKED with file:line findings and a fix per finding.
+- [x] Advisory table present (or "none" with the command output).
+- [x] Explicit statement whether production sending may start, given Meta Business verification, approved templates and host-only credentials.
+
+## Comments
+
+### Security gate, 2026-10-12
+
+- Verdict: **APPROVED**. `security-reviewer` verified all 7 fixes in code.
+- Privacy/tenant evidence: `DOCKER_CONTEXT=default ./vendor/bin/sail exec -T laravel.test flock /tmp/inbils-phpunit.lock php -d memory_limit=2G artisan test --compact tests/Feature/WhatsApp` -> `Tests: 197 passed (2584 assertions)`; mutation storing the full phone in `recipient_hash` made 5 privacy tests fail (reverted). See ticket 08.
+- Advisories (run 2026-10-11): `composer audit` none; `npm audit` none.
+- Production sending: may start only after the owner prerequisites (Meta Business verification, WABA number, approved templates, host-only `WHATSAPP_*` credentials, public HTTPS webhook registered). Features default off per company.
