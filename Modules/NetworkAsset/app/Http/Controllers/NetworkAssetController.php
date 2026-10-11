@@ -12,11 +12,13 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Product;
+use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Http\Requests\InstallNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\StoreNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNetworkAssetRequest;
@@ -175,7 +177,9 @@ class NetworkAssetController extends Controller
         $data['code'] = NetworkAssetService::generateCode();
         $data['status'] = $data['status'] ?? 'available';
 
-        NetworkAsset::create($data);
+        // shortcut: ip_address and management_ip stay a display copy of the IPAM rows (Q6a); drop the columns
+        // and read asset IPs from IPAM once a second consumer needs them.
+        DB::transaction(fn () => IpAssignmentService::syncAssetAddresses(NetworkAsset::create($data)));
 
         return redirect()->route('admin.network-assets.index')->with('success', 'Network asset created.');
     }
@@ -210,7 +214,10 @@ class NetworkAssetController extends Controller
         $data = $request->validated();
         unset($data['status'], $data['code']);
 
-        $asset->update($data);
+        DB::transaction(function () use ($asset, $data): void {
+            $asset->update($data);
+            IpAssignmentService::syncAssetAddresses($asset);
+        });
 
         return redirect()->route('admin.network-assets.index')->with('success', 'Network asset updated.');
     }
@@ -221,7 +228,10 @@ class NetworkAssetController extends Controller
 
         abort_if(in_array($asset->status, ['installed', 'maintenance']), 422, 'Cannot delete installed/maintenance asset. Remove first.');
 
-        $asset->delete();
+        DB::transaction(function () use ($asset): void {
+            IpAssignmentService::releaseForAsset($asset);
+            $asset->delete();
+        });
 
         return back()->with('success', 'Network asset deleted.');
     }

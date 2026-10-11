@@ -7,6 +7,6 @@
     "providers": [
         "Modules\\NetworkAsset\\Providers\\NetworkAssetServiceProvider"
     ],
-    "dependencies": [],
+    "dependencies": ["Service", "Ipam"],
     "files": []
 }

@@ -1,0 +1,408 @@
+<?php
+
+namespace Modules\NetworkAsset\Queries;
+
+use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
+use App\Services\Core\CompanyService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\DB;
+use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\NetworkAsset\Models\OdnPort;
+use Modules\NetworkAsset\Models\OdnSplitter;
+
+/**
+ * Read side of the ODN register: how full each ODP is, who sits behind a PON port, which active subscriptions
+ * have no recorded drop, and which ports can still take one. Read-only; plain queries filtered on the current
+ * company explicitly. A port is occupied when a subscription holds it or it is a splitter's input.
+ */
+final class OdnOccupancyQuery
+{
+    /** Splitter chains are at most this deep (OdnService refuses deeper ones), so the walk down is bounded. */
+    private const MAX_HOPS = 8;
+
+    /** shortcut: a pick list is cut here; a POP with more free ports than this needs a searchable picker. */
+    private const OPTION_LIMIT = 500;
+
+    /**
+     * Every ODP with capacity (its splitter outputs), used, free and percent used.
+     *
+     * @param  array<string, mixed>  $filters  pop_id, min_percent, search
+     */
+    public static function odps(array $filters, int $perPage = 25): LengthAwarePaginator
+    {
+        $inner = DB::table('network_assets as a')
+            ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
+            ->where('a.company_id', self::companyId())
+            ->whereNull('a.deleted_at')
+            ->where('a.asset_type', 'odp')
+            ->select(['a.id as asset_id', 'a.code', 'a.name', 'l.path as location_path'])
+            ->selectSub(self::outputCount(false), 'capacity')
+            ->selectSub(self::outputCount(true), 'used');
+
+        self::underPop($inner, $filters['pop_id'] ?? null, 'l.path');
+        self::search($inner, $filters['search'] ?? null, ['a.code', 'a.name']);
+
+        $minPercent = $filters['min_percent'] ?? null;
+
+        $page = DB::query()
+            ->fromSub($inner, 'o')
+            ->select('o.*')
+            ->when(is_numeric($minPercent), fn (Builder $query) => $query->whereRaw('o.capacity > 0 and o.used * 100 >= ? * o.capacity', [(float) $minPercent]))
+            ->orderBy('o.code')
+            ->paginate($perPage, ['*'], 'odps_page')
+            ->withQueryString();
+
+        return $page->through(function (object $row): array {
+            $capacity = (int) $row->capacity;
+            $used = (int) $row->used;
+
+            return [
+                'asset_id' => (int) $row->asset_id,
+                'code' => (string) $row->code,
+                'name' => (string) $row->name,
+                'location_path' => $row->location_path === null ? null : (string) $row->location_path,
+                'capacity' => $capacity,
+                'used' => $used,
+                'free' => $capacity - $used,
+                'percent' => $capacity > 0 ? round($used / $capacity * 100, 2) : 0.0,
+            ];
+        });
+    }
+
+    /**
+     * PON ports of every OLT with the number of subscriptions behind each, through any splitter levels.
+     *
+     * @param  array<string, mixed>  $filters  pop_id, search
+     */
+    public static function ponPorts(array $filters, int $perPage = 25): LengthAwarePaginator
+    {
+        $query = DB::table('odn_ports as p')
+            ->join('network_assets as a', 'a.id', '=', 'p.network_asset_id')
+            ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
+            ->where('p.company_id', self::companyId())
+            ->where('p.kind', OdnPort::KIND_PON)
+            ->whereNull('a.deleted_at')
+            ->select(['p.id as port_id', 'a.id as olt_asset_id', 'a.code as olt_code', 'p.number', 'p.label'])
+            ->orderBy('a.code')
+            ->orderBy('p.number');
+
+        self::underPop($query, $filters['pop_id'] ?? null, 'l.path');
+        self::search($query, $filters['search'] ?? null, ['a.code', 'a.name', 'p.label']);
+
+        $page = $query->paginate($perPage, ['*'], 'ports_page')->withQueryString();
+        $subscribers = self::subscribersBehind($page->getCollection()->map(fn (object $row): int => (int) $row->port_id)->all());
+
+        return $page->through(fn (object $row): array => [
+            'port_id' => (int) $row->port_id,
+            'olt_asset_id' => (int) $row->olt_asset_id,
+            'olt_code' => (string) $row->olt_code,
+            'number' => (int) $row->number,
+            'label' => $row->label === null ? null : (string) $row->label,
+            'subscribers' => $subscribers[(int) $row->port_id] ?? 0,
+        ]);
+    }
+
+    /**
+     * Active subscriptions with no recorded drop port: the backfill list. Terminated ones are not listed.
+     *
+     * @param  array<string, mixed>  $filters  pop_id (serving POP), search
+     */
+    public static function unmapped(array $filters, int $perPage = 25): LengthAwarePaginator
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+
+        return ServiceSubscription::query()
+            ->where('status', 'active')
+            ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('odn_ports')->whereColumn('odn_ports.subscription_id', 'service_subscriptions.id'))
+            ->when(is_numeric($filters['pop_id'] ?? null), fn (EloquentBuilder $query) => $query->where('serving_pop_id', (int) $filters['pop_id']))
+            ->when($search !== '', fn (EloquentBuilder $query) => $query->where(fn (EloquentBuilder $match) => $match
+                ->where('code', 'like', '%'.$search.'%')
+                ->orWhereHas('customer', fn (EloquentBuilder $customer) => $customer->where('name', 'like', '%'.$search.'%'))))
+            ->with(['customer:id,name', 'servingPop:id,code'])
+            ->orderBy('code')
+            ->paginate($perPage, ['*'], 'unmapped_page')
+            ->withQueryString()
+            ->through(fn (ServiceSubscription $subscription): array => [
+                'subscription_id' => $subscription->id,
+                'code' => $subscription->code,
+                'customer_name' => $subscription->customer?->name,
+                'serving_pop_code' => $subscription->servingPop?->getAttribute('code'),
+                'status' => $subscription->status,
+            ]);
+    }
+
+    /**
+     * Subscriptions behind each port, counting drops on every output below it (PON port, ODC splitter, ODP splitter...).
+     *
+     * @param  list<int>  $portIds
+     * @return array<int, int> port id => subscriber count
+     */
+    public static function subscribersBehind(array $portIds): array
+    {
+        $counts = array_fill_keys($portIds, 0);
+        $frontier = array_combine($portIds, $portIds);
+        $companyId = self::companyId();
+
+        for ($hop = 0; $hop < self::MAX_HOPS && $frontier !== []; $hop++) {
+            $rootBySplitter = [];
+
+            foreach (DB::table('odn_splitters')->where('company_id', $companyId)->whereIn('input_port_id', array_keys($frontier))->get(['id', 'input_port_id']) as $splitter) {
+                $rootBySplitter[(int) $splitter->id] = $frontier[(int) $splitter->input_port_id];
+            }
+
+            if ($rootBySplitter === []) {
+                break;
+            }
+
+            $frontier = [];
+
+            foreach (DB::table('odn_ports')->where('company_id', $companyId)->whereIn('odn_splitter_id', array_keys($rootBySplitter))->get(['id', 'odn_splitter_id', 'subscription_id']) as $port) {
+                $root = $rootBySplitter[(int) $port->odn_splitter_id];
+
+                if ($port->subscription_id !== null) {
+                    $counts[$root]++;
+                }
+
+                $frontier[(int) $port->id] = $root;
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Free ODP output ports under a POP (the ODP's location path starts with the POP's path and " > "), for the
+     * drop picker at onboarding and on the subscription page. Full ODPs never appear.
+     *
+     * @return list<array{port_id: int, label: string, odp_code: string, location_path: string, free_count: int}>
+     */
+    public static function freePortOptions(?int $popId): array
+    {
+        if ($popId === null || $popId < 1) {
+            return [];
+        }
+
+        $popPath = Location::query()->whereKey($popId)->value('path');
+
+        if (! is_string($popPath)) {
+            return [];
+        }
+
+        $prefix = $popPath.' > ';
+        $free = DB::table('odn_ports as p')
+            ->join('odn_splitters as s', 's.id', '=', 'p.odn_splitter_id')
+            ->join('network_assets as a', 'a.id', '=', 'p.network_asset_id')
+            ->join('locations as l', 'l.id', '=', 'a.location_id')
+            ->where('p.company_id', self::companyId())
+            ->where('p.kind', OdnPort::KIND_SPLITTER_OUT)
+            ->whereNull('p.subscription_id')
+            ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('odn_splitters as f')->whereColumn('f.input_port_id', 'p.id'))
+            ->where('a.asset_type', 'odp')
+            ->whereNull('a.deleted_at')
+            ->whereRaw('left(l.path, ?) = ?', [mb_strlen($prefix), $prefix]);
+
+        $freeCounts = (clone $free)->groupBy('a.id')->selectRaw('a.id as asset_id, count(*) as free_count')->pluck('free_count', 'asset_id');
+
+        return (clone $free)
+            ->orderBy('a.code')
+            ->orderBy('p.odn_splitter_id')
+            ->orderBy('p.number')
+            ->limit(self::OPTION_LIMIT)
+            ->get(['p.id as port_id', 'p.number', 'a.id as asset_id', 'a.code as odp_code', 'l.path as location_path', 's.outputs', 's.label as splitter_label'])
+            ->map(fn (object $row): array => [
+                'port_id' => (int) $row->port_id,
+                'label' => "{$row->odp_code} · ".self::ratio((int) $row->outputs, $row->splitter_label)." · port {$row->number}",
+                'odp_code' => (string) $row->odp_code,
+                'location_path' => (string) $row->location_path,
+                'free_count' => (int) ($freeCounts[$row->asset_id] ?? 0),
+            ])
+            ->all();
+    }
+
+    /** @return list<array{id: int, code: string, name: string}> POPs, for the filter */
+    public static function pops(): array
+    {
+        return Location::query()
+            ->where('type', 'pop')
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get(['id', 'code', 'name'])
+            ->map(fn (Location $pop): array => ['id' => $pop->id, 'code' => $pop->code, 'name' => $pop->name])
+            ->all();
+    }
+
+    /**
+     * PON ports of an OLT for its page.
+     *
+     * @return list<array{id: int, number: int, label: string|null, splitter_id: int|null, subscribers: int}>
+     */
+    public static function ponPortRows(NetworkAsset $olt): array
+    {
+        $ports = OdnPort::query()
+            ->where('network_asset_id', $olt->id)
+            ->where('kind', OdnPort::KIND_PON)
+            ->with('feedsSplitter:id,input_port_id')
+            ->orderBy('number')
+            ->get();
+
+        $subscribers = self::subscribersBehind(array_map('intval', $ports->modelKeys()));
+
+        return $ports->map(fn (OdnPort $port): array => [
+            'id' => $port->id,
+            'number' => $port->number,
+            'label' => $port->label,
+            'splitter_id' => $port->feedsSplitter?->id,
+            'subscribers' => $subscribers[$port->id] ?? 0,
+        ])->all();
+    }
+
+    /**
+     * Splitters of an ODC or ODP with their outputs, who holds each and what each feeds.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function splitterRows(NetworkAsset $host): array
+    {
+        return OdnSplitter::query()
+            ->where('network_asset_id', $host->id)
+            ->with([
+                'inputPort.asset:id,code',
+                'inputPort.splitter:id,outputs,label',
+                'ports' => fn ($ports) => $ports->orderBy('number'),
+                'ports.subscription:id,code,customer_id',
+                'ports.subscription.customer:id,name',
+                'ports.feedsSplitter:id,input_port_id',
+            ])
+            ->orderBy('id')
+            ->get()
+            ->map(fn (OdnSplitter $splitter): array => [
+                'id' => $splitter->id,
+                'label' => $splitter->label,
+                'outputs' => $splitter->outputs,
+                'input' => $splitter->inputPort === null ? null : [
+                    'port_id' => $splitter->inputPort->id,
+                    'label' => self::label(
+                        $splitter->inputPort->kind,
+                        (string) $splitter->inputPort->asset?->code,
+                        $splitter->inputPort->number,
+                        $splitter->inputPort->splitter?->outputs,
+                        $splitter->inputPort->splitter?->label,
+                    ),
+                ],
+                'ports' => $splitter->ports->map(fn (OdnPort $port): array => [
+                    'id' => $port->id,
+                    'number' => $port->number,
+                    'label' => $port->label,
+                    'subscription' => $port->subscription === null ? null : [
+                        'id' => $port->subscription->id,
+                        'code' => $port->subscription->code,
+                        'customer_name' => $port->subscription->customer?->name,
+                    ],
+                    'feeds_splitter_id' => $port->feedsSplitter?->id,
+                ])->all(),
+            ])
+            ->all();
+    }
+
+    /**
+     * Free upstream ports in the company that a splitter's input can be connected to: PON ports first, then
+     * ODC outputs, then ODP outputs.
+     *
+     * @return list<array{port_id: int, label: string}>
+     */
+    public static function inputOptions(): array
+    {
+        return DB::table('odn_ports as p')
+            ->join('network_assets as a', 'a.id', '=', 'p.network_asset_id')
+            ->leftJoin('odn_splitters as s', 's.id', '=', 'p.odn_splitter_id')
+            ->where('p.company_id', self::companyId())
+            ->whereNull('p.subscription_id')
+            ->whereNull('a.deleted_at')
+            ->whereIn('a.asset_type', ['olt', 'odc', 'odp'])
+            ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('odn_splitters as f')->whereColumn('f.input_port_id', 'p.id'))
+            ->orderByRaw("case a.asset_type when 'olt' then 0 when 'odc' then 1 else 2 end")
+            ->orderBy('a.code')
+            ->orderBy('p.number')
+            ->limit(self::OPTION_LIMIT)
+            ->get(['p.id as port_id', 'p.kind', 'p.number', 'a.code as asset_code', 's.outputs', 's.label as splitter_label'])
+            ->map(fn (object $row): array => [
+                'port_id' => (int) $row->port_id,
+                'label' => self::label((string) $row->kind, (string) $row->asset_code, (int) $row->number, $row->outputs === null ? null : (int) $row->outputs, $row->splitter_label),
+            ])
+            ->all();
+    }
+
+    /** "OLT-1 · PON 3" or "ODC-2 · 1:4 · out 2" (the splitter label replaces the ratio when it has one). */
+    private static function label(string $kind, string $assetCode, int $number, ?int $outputs, ?string $splitterLabel): string
+    {
+        if ($kind === OdnPort::KIND_PON) {
+            return "{$assetCode} · PON {$number}";
+        }
+
+        return "{$assetCode} · ".self::ratio($outputs, $splitterLabel)." · out {$number}";
+    }
+
+    /** The splitter label when it has one, else its ratio ("1:8"). */
+    private static function ratio(?int $outputs, ?string $splitterLabel): string
+    {
+        return ($splitterLabel !== null && $splitterLabel !== '') ? $splitterLabel : '1:'.$outputs;
+    }
+
+    /** Correlated count of an ODP's splitter outputs; with $usedOnly, those held by a drop or feeding a splitter. */
+    private static function outputCount(bool $usedOnly): Builder
+    {
+        return DB::table('odn_ports as p')
+            ->selectRaw('count(*)')
+            ->whereColumn('p.network_asset_id', 'a.id')
+            ->where('p.kind', OdnPort::KIND_SPLITTER_OUT)
+            ->when($usedOnly, fn (Builder $query) => $query->where(fn (Builder $used) => $used
+                ->whereNotNull('p.subscription_id')
+                ->orWhereExists(fn (Builder $fed) => $fed->selectRaw('1')->from('odn_splitters as s')->whereColumn('s.input_port_id', 'p.id'))));
+    }
+
+    /** Keeps rows whose location lies strictly under the POP; an unknown POP keeps nothing. */
+    private static function underPop(Builder $query, mixed $popId, string $pathColumn): void
+    {
+        if (! is_numeric($popId)) {
+            return;
+        }
+
+        $popPath = Location::query()->whereKey((int) $popId)->value('path');
+
+        if (! is_string($popPath)) {
+            $query->whereRaw('1 = 0');
+
+            return;
+        }
+
+        $prefix = $popPath.' > ';
+        $query->whereRaw("left({$pathColumn}, ?) = ?", [mb_strlen($prefix), $prefix]);
+    }
+
+    /** @param list<string> $columns */
+    private static function search(Builder $query, mixed $term, array $columns): void
+    {
+        $term = trim((string) $term);
+
+        if ($term === '') {
+            return;
+        }
+
+        $query->where(function (Builder $match) use ($columns, $term): void {
+            foreach ($columns as $index => $column) {
+                $index === 0 ? $match->where($column, 'like', '%'.$term.'%') : $match->orWhere($column, 'like', '%'.$term.'%');
+            }
+        });
+    }
+
+    private static function companyId(): int
+    {
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        return $companyId;
+    }
+}

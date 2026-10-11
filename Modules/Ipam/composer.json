@@ -1,0 +1,30 @@
+{
+    "name": "nwidart/ipam",
+    "description": "",
+    "authors": [
+        {
+            "name": "Nicolas Widart",
+            "email": "n.widart@gmail.com"
+        }
+    ],
+    "extra": {
+        "laravel": {
+            "providers": [],
+            "aliases": {
+
+            }
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Ipam\\": "app/",
+            "Modules\\Ipam\\Database\\Factories\\": "database/factories/",
+            "Modules\\Ipam\\Database\\Seeders\\": "database/seeders/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Ipam\\Tests\\": "tests/"
+        }
+    }
+}

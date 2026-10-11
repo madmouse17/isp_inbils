@@ -1,0 +1,14 @@
+{
+    "name": "Ipam",
+    "alias": "ipam",
+    "description": "Passive IP address register: prefixes, VLANs, reservations and static subscription addresses.",
+    "keywords": [],
+    "priority": 0,
+    "providers": [
+        "Modules\\Ipam\\Providers\\IpamServiceProvider"
+    ],
+    "dependencies": [
+        "NetworkAsset"
+    ],
+    "files": []
+}

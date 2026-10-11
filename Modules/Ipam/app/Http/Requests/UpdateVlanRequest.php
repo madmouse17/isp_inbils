@@ -1,0 +1,29 @@
+<?php
+
+namespace Modules\Ipam\Http\Requests;
+
+use App\Services\Core\CompanyService;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\Ipam\Models\Vlan;
+
+class UpdateVlanRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        $vlan = $this->route('vlan');
+
+        return $vlan instanceof Vlan && ($this->user()?->can('update', $vlan) ?? false);
+    }
+
+    /** @return array<string, mixed> */
+    public function rules(): array
+    {
+        return [
+            'vid' => ['required', 'integer', 'between:1,4094'],
+            'name' => ['required', 'string', 'max:64'],
+            'location_id' => ['nullable', 'integer', Rule::exists('locations', 'id')->where('company_id', CompanyService::currentId())->whereNull('deleted_at')],
+            'description' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+}

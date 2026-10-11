@@ -3,8 +3,11 @@
 namespace Modules\NetworkAsset\Http\Requests;
 
 use App\Services\Core\CompanyService;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
 class UpdateNetworkAssetRequest extends FormRequest
 {
@@ -36,5 +39,28 @@ class UpdateNetworkAssetRequest extends FormRequest
             'warranty_expiry' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
         ];
+    }
+
+    /**
+     * The router's API credentials are sent to whatever address the asset carries: moving a registered NAS router is
+     * a router-credential decision (network_asset.nas.manage), not an ordinary asset edit.
+     *
+     * @return array<int, callable(Validator): void>
+     */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            $asset = $this->route('asset');
+
+            if (! $asset instanceof NetworkAsset || ! $this->has('management_ip') || ($this->user()?->can('network_asset.nas.manage') ?? false)) {
+                return;
+            }
+
+            $new = $this->filled('management_ip') ? trim((string) $this->input('management_ip')) : null;
+
+            if ($new !== $asset->getAttribute('management_ip') && NasDevice::query()->where('network_asset_id', $asset->id)->exists()) {
+                $validator->errors()->add('management_ip', 'This router is registered as a NAS router: changing its management IP needs the network_asset.nas.manage permission.');
+            }
+        }];
     }
 }
