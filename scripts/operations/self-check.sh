@@ -91,10 +91,11 @@ fi
 
 if grep -q 'EXTERNAL_EVIDENCE_REQUIRED' "${REPO_ROOT}/docs/operations/BACKUP_RESTORE.md" \
   && grep -qi 'RPO' "${REPO_ROOT}/docs/operations/BACKUP_RESTORE.md" \
-  && grep -qi 'RTO' "${REPO_ROOT}/docs/operations/BACKUP_RESTORE.md"; then
-  pass "BACKUP_RESTORE.md EXTERNAL_EVIDENCE_REQUIRED RPO RTO"
+  && grep -qi 'RTO' "${REPO_ROOT}/docs/operations/BACKUP_RESTORE.md" \
+  && grep -q 'Off-host evidence contract' "${REPO_ROOT}/docs/operations/BACKUP_RESTORE.md"; then
+  pass "BACKUP_RESTORE.md EXTERNAL_EVIDENCE_REQUIRED RPO RTO contract"
 else
-  fail "BACKUP_RESTORE.md missing EXTERNAL_EVIDENCE_REQUIRED/RPO/RTO"
+  fail "BACKUP_RESTORE.md missing EXTERNAL_EVIDENCE_REQUIRED/RPO/RTO/Off-host contract"
 fi
 
 # Runtime refuse blank target (no DB touch)
@@ -126,6 +127,38 @@ if [[ $RC -ne 0 ]] && echo "${OUT}" | grep -qi 'refuse blank'; then
   pass "backup refuses blank database"
 else
   fail "backup did not refuse blank database (rc=${RC})"
+fi
+
+# New remediation pattern assertions
+if grep -q 'verify_sha256_manifest' "${SCRIPT_DIR}/common.sh" \
+  && grep -q 'checksum MISMATCH' "${SCRIPT_DIR}/common.sh"; then
+  pass "common.sh checksum verify helper"
+else
+  fail "common.sh missing checksum verify helper"
+fi
+
+if grep -q 'verify_sha256_manifest' "${SCRIPT_DIR}/restore.sh" \
+  && grep -q '\-\-checksum-file' "${SCRIPT_DIR}/restore.sh"; then
+  pass "restore.sh verifies checksum before apply"
+else
+  fail "restore.sh missing checksum verify call"
+fi
+
+if grep -q 'alert_hook' "${SCRIPT_DIR}/common.sh" \
+  && grep -q 'OPS_ALERT_HOOK' "${SCRIPT_DIR}/common.sh" \
+  && grep -q 'alert_hook' "${SCRIPT_DIR}/restore.sh" \
+  && grep -q 'alert_hook' "${SCRIPT_DIR}/backup.sh"; then
+  pass "alert hook wired (common/restore/backup)"
+else
+  fail "alert hook missing from common/restore/backup"
+fi
+
+if grep -q 'trap cleanup_drill' "${SCRIPT_DIR}/restore-drill.sh" \
+  && grep -q 'DROP DATABASE IF EXISTS' "${SCRIPT_DIR}/restore-drill.sh" \
+  && grep -q 'inbils_restore_drill_' "${SCRIPT_DIR}/restore-drill.sh"; then
+  pass "restore-drill cleanup trap + safe drop guard"
+else
+  fail "restore-drill missing cleanup trap/safe drop guard"
 fi
 
 if [[ "${FAILS}" -eq 0 ]]; then

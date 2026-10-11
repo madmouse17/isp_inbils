@@ -1,0 +1,107 @@
+name: inbils
+
+x-app: &app
+  image: inbils-app:local
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      INSTALL_DEV: ${INSTALL_DEV:-false}
+  env_file:
+    - path: .env.docker.example
+      required: true
+    - path: .env.docker
+      required: false
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+  volumes:
+    - app_storage:/app/storage
+  networks:
+    - inbils
+
+services:
+  app:
+    <<: *app
+    container_name: inbils-app
+    ports:
+      - "${APP_BIND_ADDRESS:-0.0.0.0}:${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/ready"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  queue:
+    <<: *app
+    container_name: inbils-queue
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=3", "--timeout=90", "--no-interaction"]
+    healthcheck:
+      test: ["CMD-SHELL", "grep -aq 'queue:work' /proc/1/cmdline"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  scheduler:
+    <<: *app
+    container_name: inbils-scheduler
+    command: ["php", "artisan", "schedule:work", "--no-interaction"]
+    healthcheck:
+      test: ["CMD-SHELL", "grep -aq 'schedule:work' /proc/1/cmdline"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  mysql:
+    image: mysql:8.4
+    container_name: inbils-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DOCKER_DB_DATABASE:-inbils}
+      MYSQL_USER: ${DOCKER_DB_USERNAME:-inbils}
+      MYSQL_PASSWORD: ${DOCKER_DB_PASSWORD:-inbils_local_change_me}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_DB_ROOT_PASSWORD:-inbils_root_local_change_me}
+    ports:
+      - "${MYSQL_BIND_ADDRESS:-127.0.0.1}:${MYSQL_HOST_PORT:-3307}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - inbils
+
+  redis:
+    image: redis:7.4-alpine
+    container_name: inbils-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - inbils
+
+volumes:
+  app_storage:
+  app_cache:
+  mysql_data:
+  redis_data:
+
+networks:
+  inbils:
+    driver: bridge

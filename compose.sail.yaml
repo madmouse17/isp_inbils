@@ -1,0 +1,101 @@
+# Laravel Sail: LOCAL development only. The production build stays compose.yaml + Dockerfile.
+# ./vendor/bin/sail selects this file through SAIL_FILES in .env. The name is deliberately not one
+# that `docker compose` auto-discovers: plain `docker compose` keeps using compose.yaml without the
+# "Found multiple config files" warning, and the distinct project name never touches project `inbils`.
+# Do not run `sail:install` / `sail:add` here: they rewrite compose.yaml.
+name: inbils-sail
+
+services:
+  laravel.test:
+    build:
+      context: ./vendor/laravel/sail/runtimes/8.4
+      dockerfile: Dockerfile
+      args:
+        WWWGROUP: "${WWWGROUP}"
+    image: sail-8.4/app
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Everything is published on loopback only: APP_DEBUG=true, demo credentials and unauthenticated Redis.
+    ports:
+      - "127.0.0.1:${APP_PORT:-80}:80"
+      - "127.0.0.1:${VITE_PORT:-5173}:${VITE_PORT:-5173}"
+    environment:
+      WWWUSER: "${WWWUSER}"
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: "${SAIL_XDEBUG_MODE:-off}"
+      XDEBUG_CONFIG: "${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}"
+      IGNITION_LOCAL_SITES_PATH: "${PWD}"
+    volumes:
+      - ".:/var/www/html"
+    networks:
+      - sail
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://localhost/up"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  mysql:
+    image: mysql:8.4
+    ports:
+      - "127.0.0.1:${FORWARD_DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_USER: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+    volumes:
+      - "sail-mysql:/var/lib/mysql"
+      - "./docker/mysql/sail/10-create-test-database.sh:/docker-entrypoint-initdb.d/10-create-test-database.sh:ro"
+    networks:
+      - sail
+    healthcheck:
+      # TCP (-h 127.0.0.1): the temporary init-time server runs with --skip-networking, so this only passes for the final server.
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+
+  redis:
+    image: redis:7.4-alpine
+    ports:
+      - "127.0.0.1:${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - "sail-redis:/data"
+    networks:
+      - sail
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    image: axllent/mailpit:v1.31
+    ports:
+      - "127.0.0.1:${FORWARD_MAILPIT_PORT:-1025}:1025"
+      - "127.0.0.1:${FORWARD_MAILPIT_DASHBOARD_PORT:-8025}:8025"
+    networks:
+      - sail
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+networks:
+  sail:
+    driver: bridge
+
+volumes:
+  sail-mysql:
+  sail-redis:

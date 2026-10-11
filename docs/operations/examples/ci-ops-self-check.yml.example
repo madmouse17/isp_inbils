@@ -1,0 +1,19 @@
+# Example CI job — script syntax + artifact presence only.
+# Does not run mysqldump against real DBs.
+name: ops-self-check
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/operations/**'
+      - 'docs/operations/**'
+      - 'bootstrap/app.php'
+      - 'tests/Feature/Operations/**'
+
+jobs:
+  self-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bash syntax and refuse patterns
+        run: bash scripts/operations/self-check.sh

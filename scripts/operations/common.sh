@@ -130,3 +130,43 @@ maybe_encrypt() {
     -pass "file:${BACKUP_ENCRYPTION_KEY_FILE}"
   echo "${dest}"
 }
+
+verify_sha256_manifest() {
+  # $1 = file to verify, $2 = sha256 manifest ("<hash>  <filename>" per line).
+  # Fails closed on missing file, missing/malformed manifest, or hash mismatch.
+  local file="$1"
+  local manifest="$2"
+  [[ -f "${file}" ]] || die "verify target not found: ${file}"
+  [[ -f "${manifest}" ]] || die "checksum manifest not found: ${manifest}"
+  local expected
+  expected="$(awk '{print $1; exit}' "${manifest}" | tr -d '\r')"
+  if [[ -z "${expected}" ]] || [[ ! "${expected}" =~ ^[0-9a-fA-F]{64}$ ]]; then
+    die "checksum manifest malformed: ${manifest}"
+  fi
+  local actual
+  actual="$(sha256_file "${file}")"
+  if [[ "${actual}" != "${expected}" ]]; then
+    die "checksum MISMATCH for ${file}: manifest=${expected} actual=${actual}"
+  fi
+  info "checksum verified: ${file}"
+}
+
+alert_hook() {
+  # Minimal monitored alert hook. Configure OPS_ALERT_HOOK (a shell command
+  # string). Receives $1=event, $2=message. Secrets (e.g. webhook URL) live only
+  # in the operator's environment, never in these scripts. Returns non-zero when
+  # a configured hook fails to deliver, so callers report delivery honestly.
+  local hook="${OPS_ALERT_HOOK:-}"
+  local event="${1:-unknown}"
+  local message="${2:-}"
+  if [[ -z "${hook}" ]]; then
+    info "alert hook not configured (OPS_ALERT_HOOK empty)"
+    return 0
+  fi
+  if bash -c "${hook}" -- "${event}" "${message}"; then
+    info "alert hook delivered: ${event}"
+    return 0
+  fi
+  echo "ERROR: alert hook delivery FAILED for event=${event}" >&2
+  return 1
+}

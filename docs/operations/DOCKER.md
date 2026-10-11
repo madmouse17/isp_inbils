@@ -1,0 +1,274 @@
+# Docker Operations
+
+The production-build stack (`compose.yaml` + `Dockerfile`) uses FrankenPHP (PHP 8.4), MySQL 8.4, Redis, a Laravel queue worker, and a Laravel scheduler. Laravel storage and MySQL and Redis data use named volumes; `bootstrap/cache` is container-local and is not shared through a named volume. Local development uses Laravel Sail instead (next section).
+
+## Local development (Laravel Sail)
+
+Laravel Sail is the **local** development runtime. `compose.yaml` + `Dockerfile` (everything below this section) stay the **production** build and deploy path. They are independent Compose projects with no shared containers, networks, volumes, or ports.
+
+| | Sail (local) | Production build |
+|---|---|---|
+| Compose file | `compose.sail.yaml`, selected by `SAIL_FILES` in `.env` | `compose.yaml` |
+| Project / network | `inbils-sail` / `inbils-sail_sail` | `inbils` / `inbils_inbils` |
+| App runtime | `sail-8.4/app` (PHP 8.4, Node 24, `artisan serve`, source bind-mounted) | FrankenPHP image `inbils-app:local`, source baked in |
+| Env file | `.env` (`.env.example` holds the Sail defaults) | `.env.docker` via `--env-file` |
+| App | <http://localhost> | <http://localhost:8080> |
+| MySQL | `127.0.0.1:3306`, user `sail`, schema `inbils` | `127.0.0.1:3307`, user `inbils` |
+| Redis / Mailpit | `127.0.0.1:6379` / <http://localhost:8025> | Redis internal only / none |
+| Named volumes | `inbils-sail_sail-mysql`, `inbils-sail_sail-redis` | `inbils_mysql_data`, `inbils_redis_data`, `inbils_app_storage` |
+
+First run, ports, and everyday commands are in [README.md](../../README.md#local-development-laravel-sail). Local verification:
+
+```bash
+./vendor/bin/sail up -d                  # builds the runtime image on first use
+./vendor/bin/sail ps                     # laravel.test, mysql, redis, mailpit must be healthy
+curl --fail http://localhost/up
+curl --fail http://localhost/ready       # database, cache, and queue checks
+```
+
+- The source is bind-mounted: no rebuild after code edits. Run `./vendor/bin/sail npm run build` after frontend changes.
+- Plain `docker compose` still resolves to `compose.yaml`. `compose.sail.yaml` is deliberately not an auto-discovered file name: a `docker-compose.yml` beside `compose.yaml` makes every `docker compose` call print "Found multiple config files" warnings.
+- Every Sail port is published on `127.0.0.1` only (`APP_DEBUG=true`, public demo credentials, unauthenticated Redis).
+- `composer install` and `npm` run inside the Sail container against the bind-mounted source. The rule below against `composer install` in the active app, queue, or scheduler containers concerns the production containers only.
+- `sail artisan test` follows `phpunit.xml` (host `mysql`, schema `inbils_test`, user `inbils`) and runs on the Sail MySQL, whose init script `docker/mysql/sail/10-create-test-database.sh` creates that schema, user, and grants on first volume initialisation. It never touches the production stack's `inbils_test`, so it cannot race the isolated PHPUnit recipe below.
+- Queue and scheduler are commands, not services: `sail artisan queue:work --tries=3` and `sail artisan schedule:work` in their own terminals, or detached with `sail exec -d -u sail laravel.test php artisan queue:work --tries=3`.
+- `sail stop` and `sail down` keep both volumes. The production volume rule applies unchanged: no `down -v` or `docker volume rm` without explicit approval to destroy local data.
+- Do not run `php artisan sail:install` or `sail:add`: they edit `compose.yaml`.
+
+## First startup
+
+```bash
+cp .env.docker.example .env.docker
+# Replace APP_KEY and both database passwords before any shared or production deployment.
+docker compose --env-file .env.docker config
+docker compose --env-file .env.docker build
+docker compose --env-file .env.docker up -d
+# Preserve data: do not add --volumes and do not run docker compose --env-file .env.docker down -v.
+docker compose --env-file .env.docker ps
+```
+
+Generate a unique application key without putting the value in shell history:
+
+```bash
+docker run --rm dunglas/frankenphp:php8.4-bookworm php -r 'echo "base64:", base64_encode(random_bytes(32)), PHP_EOL;'
+```
+
+Put the generated value in `.env.docker`; this file is ignored by Git. The committed `.env.docker.example` contains development-only placeholders and no production secret.
+
+## Database migration and application setup
+
+Run normal, volume-preserving migrations and seed only system roles, permissions, and defaults:
+
+```bash
+docker compose --env-file .env.docker exec app php artisan migrate --force
+docker compose --env-file .env.docker exec app php artisan db:seed --force
+```
+
+Do not use `migrate:fresh` against persistent or shared data. On a fresh install, create the bootstrap user interactively, then finish the one-time company wizard in the browser:
+
+```bash
+docker compose --env-file .env.docker exec app php artisan inbils:setup
+```
+
+The MySQL init script also creates the mandatory automated-test database `inbils_test` on the first initialization of a new MySQL volume. Existing volumes are never reinitialized automatically.
+
+## Isolated PHPUnit
+
+The runtime image `inbils-app:local` contains production dependencies installed with `--no-dev`. **Never run `composer install` in the active app, queue, or scheduler containers. Never share their compiled cache or storage with a test container.**
+
+The verified safe path uses a separately named `inbils-test-sandbox` container on the `inbils_inbils` network. It has a 30-minute sleep entrypoint and no host bind mounts, production `env_file`, `--volumes-from`, or shared volumes. Only the allowlisted source paths below are copied into `/test/app`; `bootstrap/cache` and test storage are created empty there.
+
+`phpunit.xml` currently pins the development service connection: host `mysql`, port `3306`, schema `inbils_test`, and service user `inbils`. These credentials are development-specific and are not portable to arbitrary deployments. If the pinned credentials are wrong or `inbils_test` is absent, stop and ask an authorized operator; do not add broad grants or run `drop`, `migrate:fresh`, or similar destructive repair commands.
+
+Run this recipe from the repository root. The name guards and `set -eu` ensure a failed prerequisite or isolation test cannot proceed to later tests:
+
+```bash
+(
+set -eu
+
+SANDBOX=inbils-test-sandbox
+COMPOSER_HELPER=inbils-test-composer
+NETWORK=inbils_inbils
+
+for container in "$SANDBOX" "$COMPOSER_HELPER"; do
+    if docker container inspect "$container" >/dev/null 2>&1; then
+        printf 'Container name %s is already in use; stop and choose a free name.\n' "$container" >&2
+        exit 1
+    fi
+done
+
+docker network inspect "$NETWORK" >/dev/null
+
+docker run -d \
+    --name "$SANDBOX" \
+    --network "$NETWORK" \
+    --entrypoint sleep \
+    inbils-app:local 1800 >/dev/null
+
+docker exec "$SANDBOX" mkdir -p \
+    /test/app/bootstrap/cache \
+    /test/app/public \
+    /test/app/storage/app/public \
+    /test/app/storage/framework/cache/data \
+    /test/app/storage/framework/sessions \
+    /test/app/storage/framework/testing \
+    /test/app/storage/framework/views \
+    /test/app/storage/logs
+
+for path in app config database Modules routes resources tests; do
+    docker cp "$path" "${SANDBOX}:/test/app/"
+done
+
+for path in artisan composer.json composer.lock phpunit.xml modules_statuses.json; do
+    docker cp "$path" "${SANDBOX}:/test/app/$path"
+done
+
+docker cp bootstrap/app.php "${SANDBOX}:/test/app/bootstrap/app.php"
+docker cp bootstrap/providers.php "${SANDBOX}:/test/app/bootstrap/providers.php"
+docker cp public/build "${SANDBOX}:/test/app/public/"
+
+docker create \
+    --name "$COMPOSER_HELPER" \
+    --entrypoint /bin/true \
+    composer:2 >/dev/null
+
+umask 077
+COMPOSER_TMP="$(mktemp -d)"
+trap 'rm -f "$COMPOSER_TMP/composer.phar"; rmdir "$COMPOSER_TMP"' EXIT
+docker cp "${COMPOSER_HELPER}:/usr/bin/composer" "$COMPOSER_TMP/composer.phar"
+docker cp "$COMPOSER_TMP/composer.phar" "${SANDBOX}:/tmp/composer.phar"
+rm -f "$COMPOSER_TMP/composer.phar"
+rmdir "$COMPOSER_TMP"
+trap - EXIT
+
+docker exec \
+    --workdir /test/app \
+    --env COMPOSER_HOME=/tmp/composer-home \
+    "$SANDBOX" \
+    php /tmp/composer.phar install \
+        --no-scripts \
+        --no-interaction \
+        --prefer-dist \
+        --no-progress
+
+export APP_KEY="base64:$(openssl rand -base64 32)"
+
+docker exec --workdir /test/app --env APP_KEY "$SANDBOX" \
+    php vendor/bin/phpunit --testdox tests/Feature/Operations/TestDatabaseIsolationTest.php
+
+docker exec --workdir /test/app --env APP_KEY "$SANDBOX" \
+    php vendor/bin/phpunit --testdox tests/Feature/Operations/ReadinessEndpointTest.php
+
+docker exec --workdir /test/app --env APP_KEY "$SANDBOX" \
+    php vendor/bin/phpunit --testdox tests/Unit/ExampleTest.php
+
+docker exec --workdir /test/app --env APP_KEY "$SANDBOX" \
+    php vendor/bin/phpunit --testdox tests/Unit/PhpUnitTopologyTest.php
+)
+```
+
+For the full suite, also copy `docs/` and `scripts/` into `/test/app/`; operations artifact checks read those paths. Run `php -d memory_limit=512M vendor/bin/phpunit` in the sandbox (the verified 760-test run peaked at 145 MiB, above PHP's default 128 MiB). Keep all PHPUnit, QA, and browser fixture runs serial: separate containers still share `inbils_test`, so concurrent `RefreshDatabase` runs can race during migrations. For Larastan, also copy `phpstan.neon` so the configured level 5 and extension are used; a no-config PHPStan run is not this gate.
+
+Every test that extends `Tests\TestCase` validates the process and server target and rejects compiled configuration before Laravel bootstraps. Child subprocesses use an allowlisted, sanitized environment with the same pinned test target. In this documented focused recipe, the database isolation test is invoked first and verifies the selected database identity. Default or filtered suite safety relies on the `Tests\TestCase` pre-bootstrap target validation rather than suite order. The topology tests verify the configuration and guard behavior, include a read-only worker identity query, and perform no schema mutation. The generated `APP_KEY` exists only in the recipe's subshell, is not printed, and is passed to `docker exec` only for test processes; no real `.env` is required.
+
+`docker cp` transfers through the Docker API, so this method still works when the CLI's `/tmp` is private and the Docker daemon cannot see a bind-mount source path.
+
+After testing, remove only the separately named sandbox and stopped Composer helper. Do not add `-v` or `--volumes`, stop any live Compose service, or delete any volume:
+
+```bash
+docker rm -f inbils-test-sandbox
+docker rm -f inbils-test-composer
+```
+
+## Application and health access
+
+Defaults:
+
+- Application: <http://localhost:8080>
+- Liveness: <http://localhost:8080/up>
+- Readiness: <http://localhost:8080/ready>
+
+Override the host binding or port in `.env.docker`, for example `APP_BIND_ADDRESS=127.0.0.1` and `APP_PORT=8081`, then recreate the app service:
+
+```bash
+docker compose --env-file .env.docker up -d --force-recreate app
+```
+
+## Local MySQL CLI
+
+The safe default publishes MySQL only on host loopback at `127.0.0.1:3307`:
+
+```bash
+mysql --protocol=TCP -h 127.0.0.1 -P 3307 -u inbils -p inbils
+```
+
+Or avoid publishing-path dependencies and use the container client:
+
+```bash
+docker compose --env-file .env.docker exec mysql mysql -u inbils -p inbils
+```
+
+## Remote or LAN MySQL access
+
+Remote access is opt-in. Set a specific trusted LAN address in `.env.docker`, not a wildcard when avoidable:
+
+```dotenv
+MYSQL_BIND_ADDRESS=192.168.1.10
+MYSQL_HOST_PORT=3307
+```
+
+Recreate only MySQL while preserving its named volume:
+
+```bash
+docker compose --env-file .env.docker up -d --force-recreate mysql
+```
+
+Connect remotely with `mysql -h 192.168.1.10 -P 3307 -u inbils -p inbils`.
+
+### Firewall and security
+
+- Keep `MYSQL_BIND_ADDRESS=127.0.0.1` unless remote database access is required.
+- Prefer a VPN or SSH tunnel over exposing MySQL directly.
+- If LAN access is required, allow TCP 3307 only from explicit trusted source IPs in the host/cloud firewall; deny all other sources.
+- Never expose MySQL to `0.0.0.0` on an Internet-facing host without network ACLs, TLS, restricted users, and rotated strong credentials.
+- Replace all example credentials and generate a unique `APP_KEY`; never commit `.env.docker`.
+- Do not publish Redis. It is intentionally reachable only on the Compose network.
+
+## Rebuild and update without deleting volumes
+
+Implementation changes must rebuild/recreate affected services and verify health:
+
+```bash
+docker compose --env-file .env.docker build app queue scheduler
+docker compose --env-file .env.docker up -d --force-recreate app queue scheduler
+docker compose --env-file .env.docker ps
+curl --fail http://localhost:${APP_PORT:-8080}/ready
+```
+
+For an image refresh and full safe update:
+
+```bash
+docker compose --env-file .env.docker pull mysql redis
+docker compose --env-file .env.docker build --pull app queue scheduler
+docker compose --env-file .env.docker up -d --force-recreate
+docker compose --env-file .env.docker exec app php artisan migrate --force
+docker compose --env-file .env.docker ps
+```
+
+Stop or remove containers while preserving named volumes:
+
+```bash
+docker compose --env-file .env.docker stop
+docker compose --env-file .env.docker down
+```
+
+Never use `docker compose --env-file .env.docker down -v`, `docker volume rm`, `docker system prune --volumes`, or destructive migration commands unless data destruction is explicitly approved and a verified backup exists.
+
+Useful diagnostics:
+
+```bash
+docker compose --env-file .env.docker ps
+docker compose --env-file .env.docker logs --tail=200 app queue scheduler mysql redis
+docker compose --env-file .env.docker exec app php artisan about
+docker compose --env-file .env.docker exec mysql mysqladmin ping -u inbils -p
+```

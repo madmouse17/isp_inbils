@@ -67,12 +67,16 @@ mkdir -p "${STAMP_DIR}"
 mapfile -t CLIENT_ARGS < <(mysql_client_args)
 
 info "dumping ${DATABASE} with ${DUMP_BIN}"
-"${DUMP_BIN}" "${CLIENT_ARGS[@]}" \
+if ! "${DUMP_BIN}" "${CLIENT_ARGS[@]}" \
   --single-transaction \
   --routines \
   --triggers \
-  --databases "${DATABASE}" \
-  > "${DUMP_FILE}"
+  "${DATABASE}" \
+  > "${DUMP_FILE}"; then
+  rc=$?
+  alert_hook "backup_dump_failed" "mysqldump ${DATABASE} failed (rc=${rc})" || true
+  die "mysqldump ${DATABASE} failed (rc=${rc})"
+fi
 
 HASH="$(sha256_file "${DUMP_FILE}")"
 echo "${HASH}  ${DATABASE}.sql" > "${DUMP_FILE}.sha256"

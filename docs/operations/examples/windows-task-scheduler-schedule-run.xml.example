@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<!--
+  Example Windows Task Scheduler export skeleton for php artisan schedule:run.
+  Import via Task Scheduler UI and fix paths/user. Run once per minute.
+  Do not also run schedule:work.
+-->
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <Triggers>
+    <TimeTrigger>
+      <Repetition>
+        <Interval>PT1M</Interval>
+        <StopAtDurationEnd>false</StopAtDurationEnd>
+      </Repetition>
+      <StartBoundary>2026-01-01T00:00:00</StartBoundary>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe</Command>
+      <Arguments>artisan schedule:run</Arguments>
+      <WorkingDirectory>C:\laragon\www\inbils</WorkingDirectory>
+    </Exec>
+  </Actions>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <Enabled>true</Enabled>
+  </Settings>
+</Task>

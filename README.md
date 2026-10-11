@@ -163,7 +163,7 @@ DB_PASSWORD=
 
 ```bash
 mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils;"
-mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils_testing;"
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS inbils_test;"
 ```
 
 ### 4. Migrate & seed
@@ -222,6 +222,53 @@ php artisan serve
 ```
 
 Visit `http://localhost:8000/login`, log in with the bootstrap credentials, and complete the Setup Wizard to create your company.
+
+## Local development (Laravel Sail)
+
+[Laravel Sail](https://laravel.com/docs/sail) is the Docker route for **local development**: PHP 8.4, MySQL 8.4, Redis 7.4 and Mailpit run from `compose.sail.yaml` (Compose project `inbils-sail`) with the source bind-mounted, so code changes need no rebuild. `compose.yaml` + `Dockerfile` are the **production** image build (see [docs/operations/DOCKER.md](docs/operations/DOCKER.md)); the two stacks share no containers, volumes, networks, or ports.
+
+```bash
+cp .env.example .env                       # Sail defaults; set WWWUSER/WWWGROUP to `id -u` / `id -g` if they are not 1000
+./vendor/bin/sail build
+./vendor/bin/sail up -d
+./vendor/bin/sail composer install
+./vendor/bin/sail artisan key:generate     # only while APP_KEY is empty
+./vendor/bin/sail artisan migrate --force
+./vendor/bin/sail artisan db:seed          # roles, settings, demo users and demo data (APP_ENV=local only)
+./vendor/bin/sail npm ci --legacy-peer-deps
+./vendor/bin/sail npm run build
+```
+
+`sail build` needs `vendor/laravel/sail`, so on a fresh clone without `vendor/` install it once with a throwaway container first:
+
+```bash
+docker run --rm -u "$(id -u):$(id -g)" -v "$(pwd):/var/www/html" -w /var/www/html \
+    laravelsail/php84-composer:latest composer install --ignore-platform-reqs
+```
+
+| Service | Address (loopback only) | Notes |
+|---------|-------------------------|-------|
+| App | <http://localhost> | `/up`, `/ready`; demo login `admin@demo.inbils.test` / `password` |
+| Mailpit | <http://localhost:8025> | SMTP `mailpit:1025` inside the stack, `127.0.0.1:1025` from the host |
+| MySQL | `127.0.0.1:3306` | `sail` / `password`, schema `inbils`; `./vendor/bin/sail mysql` opens a CLI |
+| Redis | `127.0.0.1:6379` | no password; cache store |
+| Vite | <http://localhost:5173> | only while `sail npm run dev` runs |
+
+Everyday commands:
+
+```bash
+./vendor/bin/sail artisan queue:work --tries=3   # queue worker (QUEUE_CONNECTION=database); keep a terminal open
+./vendor/bin/sail artisan schedule:work          # scheduler, in another terminal
+./vendor/bin/sail npm run dev                    # Vite HMR on :5173
+./vendor/bin/sail artisan test                   # phpunit.xml pins host mysql, schema inbils_test, user inbils
+./vendor/bin/sail stop                           # stop, keep data
+```
+
+- To run a worker in the background instead: `./vendor/bin/sail exec -d -u sail laravel.test php artisan queue:work --tries=3` (same for `schedule:work`); it ends when the container stops.
+- `phpunit.xml` stays untouched: the MySQL init script `docker/mysql/sail/10-create-test-database.sh` creates schema `inbils_test`, user `inbils`, and its grants when an empty `inbils-sail_sail-mysql` volume is first started. Sail tests use only the Sail MySQL, never the production-stack database on port 3307.
+- Do not put `APP_PORT` in `.env`: `compose.yaml` reads the same variable (default 8080). To move Sail off port 80, set it for one shell instead, e.g. `APP_PORT=8081 ./vendor/bin/sail up -d`, and keep `APP_URL` in sync.
+- Do not run `php artisan sail:install` or `sail:add`: they rewrite `compose.yaml`.
+- `sail stop` and `sail down` keep the MySQL and Redis volumes. Never add `-v` unless you explicitly intend to wipe the local database.
 
 ## Development
 

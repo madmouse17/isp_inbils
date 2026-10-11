@@ -1,0 +1,17 @@
+# Example only — Windows NSSM service for queue:work.
+# Install NSSM separately. Adjust paths to Laragon/PHP install.
+
+$Nssm = "C:\tools\nssm\nssm.exe"
+$Php = "C:\laragon\bin\php\php-8.3.16-Win32-vs16-x64\php.exe"
+$Artisan = "C:\laragon\www\inbils\artisan"
+$AppDir = "C:\laragon\www\inbils"
+
+& $Nssm install inbils-queue $Php $Artisan queue:work --sleep=3 --tries=3 --timeout=90
+& $Nssm set inbils-queue AppDirectory $AppDir
+& $Nssm set inbils-queue AppStdout "$AppDir\storage\logs\queue-worker.out.log"
+& $Nssm set inbils-queue AppStderr "$AppDir\storage\logs\queue-worker.err.log"
+& $Nssm set inbils-queue AppRotateFiles 1
+& $Nssm start inbils-queue
+
+# After deploy:
+# & $Nssm restart inbils-queue
