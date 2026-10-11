@@ -70,7 +70,8 @@ trait BelongsToCompany
     public function tapActivity(Activity $activity, string $eventName): void
     {
         $companyId = $this->getAttribute('company_id') ?? CompanyService::currentId();
-        if ($companyId !== null && $activity instanceof Model) {
+        if ($companyId !== null) {
+            /** @var \Spatie\Activitylog\Models\Activity $activity */
             $activity->setAttribute('company_id', (int) $companyId);
         }
     }
