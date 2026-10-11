@@ -860,3 +860,5 @@ sla_tiers, locations) via event CompanyCreated listener atau
 - **Keamanan 2026-10-11:** tiket customer kini hanya bisa melihat/komentar/membuat tiket miliknya sendiri, komentar internal disembunyikan; pembayaran hanya untuk invoice sent/partial/overdue. Lane baru `private-media` (3 tiket, `needs-owner-approval`): file upload masih bisa diunduh publik.
 
 - **Wave keputusan Owner selesai 2026-10-12:** private media, 2FA TOTP, status customer otomatis, portal tagihan + Midtrans sandbox, link akses customer (password acak), aturan tutup tiket & lokasi tiket customer, hardening auth. Tailwind 4 ditunda.
+
+- **Lane roadmap ISP 2026-10-12 (needs-owner-approval):** `mikrotik-radius` (8 tiket), `whatsapp-notifications` (9 tiket), `ipam-odn` (8 tiket). Tailwind 4 sedang dikerjakan.

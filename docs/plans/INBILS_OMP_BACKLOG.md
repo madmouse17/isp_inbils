@@ -1123,3 +1123,16 @@ Ledger tetap otoritatif; saat Owner menyetujui sebuah lane, tambahkan kartu/entr
 - Delivered: private media route + privatize command; TOTP 2FA (pragmarx/google2fa, bacon/bacon-qr-code); customer status rollup; Midtrans Snap sandbox portal + webhook + reconcile; customer access link; ticket close/location rules; auth hardening (inactive login refused, throttled uniform forgot-password, trusted hosts, step-up throttle).
 - Security reviews: customer/ticket SIGNED, private-media SIGNED, 2FA SIGNED (medium throttle race fixed), Midtrans BLOCKED (MTP-01 phone password, MTP-03 sandbox on production) -> fixed -> re-review. Findings fixed red-first.
 - Deploy: `migrate --force`, `db:seed --class=RolePermissionSeeder --force`, `inbils:media:privatize --dry-run` then real, `customers:rotate-legacy-passwords --dry-run` then real (queue + mail running), `APP_URL` = public host.
+
+## ISP roadmap lanes (2026-10-12)
+
+Owner picked from `.scratch/isp-roadmap/spec.md`; specs written by architect, all tickets `needs-owner-approval` until the owner answers each spec's Owner decisions.
+
+| Lane (`.scratch/<slug>/`) | Tiket | Status | Catatan |
+| --- | --- | --- | --- |
+| `mikrotik-radius` | 8 | approved (ready-for-agent) | PPPoE secrets, isolir otomatis saat overdue, reconnect saat bayar; Q3 butuh fakta: semua router RouterOS ≥ 7.1? |
+| `whatsapp-notifications` | 9 | approved (ready-for-agent) | WhatsApp Cloud API resmi (rekomendasi), consent, quiet hours, kuota per company. |
+| `ipam-odn` | 8 | approved (ready-for-agent) | IPAM (`Modules/Ipam`, mlocati/ip-lib) + ODN port register di NetworkAsset; antarmuka ke mikrotik-radius disepakati. |
+
+Urutan tabrakan file: `SubscriptionService.php`, `BillingService::recordPayment`, `routes/console.php`, `RolePermissionSeeder.php`, `navigation.ts` disentuh lebih dari satu lane, jadi lane tersebut dikerjakan berurutan (ipam-odn 01 → mikrotik-radius → whatsapp).
+
