@@ -35,6 +35,7 @@ interface TData {
     priority: string;
     assigned_to?: number | null;
     updated_at?: string | null;
+    can?: { close: boolean };
     is_sla_breached: boolean;
     sla_deadline?: string | null;
     first_response_at?: string | null;
@@ -321,13 +322,11 @@ export default function Show({ ticket }: ShowProps) {
                                     Resolve
                                 </Button>
                             )}
-                            {t.status === 'resolved' &&
-                                can('ticket.close') &&
-                                t.assigned_to !== auth.user?.id && (
-                                    <Button type="button" onClick={() => setActionModal('close')}>
-                                        Close
-                                    </Button>
-                                )}
+                            {t.can?.close && (
+                                <Button type="button" onClick={() => setActionModal('close')}>
+                                    Close
+                                </Button>
+                            )}
                             {(t.status === 'on_progress' || t.status === 'assigned') &&
                                 !t.resolution_note && (
                                     <Button

@@ -5,7 +5,6 @@ namespace Tests\Feature\Ticketing;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
@@ -124,17 +123,19 @@ class TicketCloseTest extends TestCase
         $this->assertSame('resolved', $ticket->fresh()->status);
     }
 
-    public function test_show_exposes_close_permission_only_to_closers(): void
+    public function test_show_offers_close_only_to_a_checker(): void
     {
         $ticket = $this->ticketHandledByTechnician('resolved');
-
-        $this->actingAs($this->manager)
+        $canClose = fn (User $user): bool => $this->actingAs($user)
             ->get(route('admin.tickets.show', $ticket))
-            ->assertInertia(fn (Assert $page) => $page->where('auth.user.permissions', fn ($permissions) => collect($permissions)->contains('ticket.close')));
+            ->assertOk()->viewData('page')['props']['ticket']['data']['can']['close'];
 
-        $this->actingAs($this->technician)
-            ->get(route('admin.tickets.show', $ticket))
-            ->assertInertia(fn (Assert $page) => $page->where('auth.user.permissions', fn ($permissions) => ! collect($permissions)->contains('ticket.close')));
+        $this->assertTrue($canClose($this->manager));
+        $this->assertFalse($canClose($this->technician));
+
+        // The admin as resolving handler is not offered Close, though it holds ticket.close.
+        $ticket->forceFill(['assigned_to' => $this->admin->id])->save();
+        $this->assertFalse($canClose($this->admin));
     }
 
     private function staffUser(string $role): User

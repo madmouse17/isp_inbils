@@ -48,6 +48,9 @@ class TicketResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
             'attachments' => MediaResource::collection($this->getMedia('attachments')),
+            'can' => [
+                'close' => (bool) $request->user()?->can('close', $this->resource),
+            ],
         ];
     }
 }
