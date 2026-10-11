@@ -12,6 +12,7 @@ export interface Ticket {
     network_asset_id?: number | null;
     location_id?: number | null;
     assigned_to?: number | null;
+    updated_at?: string | null;
     spawned_spk_id?: number | null;
     sla_deadline?: string | null;
     first_response_at?: string | null;

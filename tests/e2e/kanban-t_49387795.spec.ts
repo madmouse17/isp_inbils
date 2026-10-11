@@ -6,6 +6,7 @@ import {
     expectSpkState,
     inertiaProps,
     loginAs,
+    logout,
     selectFirstRealOption,
     selectOptionByText,
     technicianUserId,
@@ -43,6 +44,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await expect(spkRow).toBeVisible({ timeout: 15_000 });
         await spkRow.getByRole('link', { name: /Open SPK/ }).click();
         await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
+        const spkUrl = page.url();
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
         await expect(page.getByRole('button', { name: 'Assign' })).toBeVisible();
@@ -61,6 +63,12 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 
         await expectSpkState(page, 'assigned');
         await expectDetail(page, 'Technician', 'Demo Technician');
+
+        // Starting is limited to the assigned technician (WorkOrderPolicy::start).
+        await logout(page);
+        await loginAs(page, 'technician');
+        await page.goto(spkUrl);
+        await expectSpkState(page, 'assigned');
         await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
 
         await page.getByRole('button', { name: 'Start' }).click();
@@ -165,8 +173,18 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await expectDetail(page, 'Status', 'assigned');
         await expectDetail(page, 'Handler', 'Demo Technician');
 
+        // Starting is limited to the assigned handler (TicketPolicy::start).
+        const ticketUrl = page.url();
+        await logout(page);
+        await loginAs(page, 'technician');
+        await page.goto(ticketUrl);
         await page.getByRole('button', { name: 'Start' }).click();
         await expectDetail(page, 'Status', 'on_progress');
+
+        // Internal comments and SPK spawning are abilities the technician lacks.
+        await logout(page);
+        await loginAs(page, 'admin');
+        await page.goto(ticketUrl);
         await expect(page.getByRole('button', { name: 'Spawn SPK' })).toBeVisible();
 
         await page.getByRole('button', { name: 'Add Comment' }).click();

@@ -39,6 +39,7 @@ class TicketResource extends JsonResource
             'is_sla_breached' => $this->is_sla_breached,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
             'category' => new TicketCategoryResource($this->whenLoaded('category')),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),

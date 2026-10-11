@@ -40,6 +40,7 @@ class WorkOrderResource extends JsonResource
             'rejected_at' => $this->rejected_at,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),
             'location' => new LocationResource($this->whenLoaded('location')),

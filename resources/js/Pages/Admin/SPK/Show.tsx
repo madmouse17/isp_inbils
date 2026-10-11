@@ -5,6 +5,9 @@ import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { usePermission } from '@/hooks/usePermission';
 import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
     Badge,
     Button,
     Card,
@@ -43,6 +46,8 @@ interface WoData {
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
     location?: { name: string; path?: string } | null;
+    assigned_to?: number | null;
+    updated_at?: string | null;
     assignee?: { name: string } | null;
     items?: {
         id: number;
@@ -132,7 +137,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
     const [evidenceCaption, setEvidenceCaption] = useState('');
     const [uploading, setUploading] = useState(false);
     const [uploadPercentage, setUploadPercentage] = useState(0);
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, errors, reset, clearErrors, transform } = useForm({
         technician_id: '',
         reason: '',
         product_id: '',
@@ -193,6 +198,16 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                 ? route('admin.spk.items.store', w.id)
                 : route(`admin.spk.${actionModal}`, w.id);
 
+        // Optimistic-concurrency guard required by AssignWorkOrderRequest.
+        transform((payload) =>
+            actionModal === 'assign'
+                ? {
+                      ...payload,
+                      expected_assigned_to: w.assigned_to ?? null,
+                      expected_updated_at: w.updated_at ?? null,
+                  }
+                : payload,
+        );
         post(actionUrl, {
             onSuccess: () => {
                 if (actionModal === 'addItem') {
@@ -224,6 +239,21 @@ export default function Show({ workOrder, technicians, products, networkAssets }
             },
         });
     };
+
+    const closeModal = () => {
+        setActionModal(null);
+        clearErrors();
+    };
+
+    const reloadWorkOrder = () =>
+        router.reload({ only: ['workOrder'], onSuccess: () => clearErrors() });
+
+    // Server-side keys (conflict, expected_*) are not part of the form's data shape.
+    const serverErrors: Record<string, string | undefined> = errors;
+    const staleError =
+        serverErrors.conflict ??
+        serverErrors.expected_assigned_to ??
+        serverErrors.expected_updated_at;
 
     const uploadEvidence = (e: FormEvent) => {
         e.preventDefault();
@@ -590,7 +620,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
 
                 <Modal
                     open={actionModal !== null}
-                    onClose={() => setActionModal(null)}
+                    onClose={closeModal}
                     title={
                         actionModal
                             ? actionModal.charAt(0).toUpperCase() + actionModal.slice(1)
@@ -598,6 +628,22 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                     }
                 >
                     <form onSubmit={doAction} className="space-y-4">
+                        {staleError && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Work order changed</AlertTitle>
+                                <AlertDescription className="space-y-2">
+                                    <p>{staleError}</p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={reloadWorkOrder}
+                                    >
+                                        Reload work order
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         {actionModal === 'assign' && (
                             <SearchSelect
                                 label="Technician"
@@ -606,6 +652,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 options={technicianOptions}
                                 placeholder="Search technician employee"
                                 emptyText="No technician employees found."
+                                error={errors.technician_id}
                                 required
                             />
                         )}
@@ -614,6 +661,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 label="Reason"
                                 value={data.reason}
                                 onChange={(e) => setData('reason', e.target.value)}
+                                error={errors.reason}
                                 required
                             />
                         )}
@@ -689,11 +737,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                             </>
                         )}
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setActionModal(null)}
-                            >
+                            <Button type="button" variant="secondary" onClick={closeModal}>
                                 Cancel
                             </Button>
                             <Button type="submit" loading={processing}>

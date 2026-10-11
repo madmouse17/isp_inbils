@@ -9,11 +9,17 @@
  * - denied actions (technician close denied, customer admin-create denied)
  *
  * Deterministic: no fixed IDs, unique records per run, owned data.
+ *
+ * Handler: start/resolve/close are limited to the assigned handler who holds that
+ * ability (TicketPolicy). Only admin holds all three, so the acting admin is the handler.
  */
+import type { Page } from '@playwright/test';
+
 import { expect, test } from './support/fixtures';
 import {
     csrfToken,
     e2eCustomerName,
+    expectDetail,
     loginAs,
     logout,
     refreshSession,
@@ -39,14 +45,8 @@ test.describe('@lifecycle ticket', () => {
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
 
-        // --- Assign via UI (resolve technician id dynamically, no fixed ID) ---
-        const technicianId = await resolveUserId(page, 'Demo Technician');
-        await page.getByRole('button', { name: 'Assign' }).click();
-        const assignDialog = page.getByRole('dialog', { name: 'Assign' });
-        await assignDialog.getByLabel('Handler ID').fill(technicianId);
-        await assignDialog.getByRole('button', { name: 'Confirm' }).click();
-        await expect(assignDialog).toBeHidden({ timeout: 15_000 });
-        await expect(page.getByText('Demo Technician').first()).toBeVisible({ timeout: 15_000 });
+        // --- Assign via UI (resolve handler id dynamically, no fixed ID) ---
+        await assignToHandlerViaUi(page, 'Demo Admin');
 
         // --- Start (records first_response_at) ---
         await page.getByRole('button', { name: 'Start', exact: true }).click();
@@ -93,6 +93,7 @@ test.describe('@lifecycle ticket', () => {
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${spkTicketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title2 })).toBeVisible();
+        await assignToHandlerViaUi(page, 'Demo Admin');
         await page.getByRole('button', { name: 'Start', exact: true }).click();
         await expect(page.getByText('on_progress').first()).toBeVisible({ timeout: 15_000 });
 
@@ -183,6 +184,17 @@ async function resolveUserId(page: import('@playwright/test').Page, name: string
     const id = props?.props?.users?.data?.find((u: { name: string }) => u.name === name)?.id;
     if (!id) throw new Error(`Could not resolve user id for ${name}`);
     return String(id);
+}
+
+/** Assign the open ticket on the Show page to the named handler and assert the Handler detail. */
+async function assignToHandlerViaUi(page: Page, handlerName: string) {
+    const handlerId = await resolveUserId(page, handlerName);
+    await page.getByRole('button', { name: 'Assign' }).click();
+    const assignDialog = page.getByRole('dialog', { name: 'Assign' });
+    await assignDialog.getByLabel('Handler ID').fill(handlerId);
+    await assignDialog.getByRole('button', { name: 'Confirm' }).click();
+    await expect(assignDialog).toBeHidden({ timeout: 15_000 });
+    await expectDetail(page, 'Handler', handlerName);
 }
 
 /**

@@ -19,6 +19,7 @@ import {
     inertiaProps,
     loginAs,
     logout,
+    refreshSession,
     selectOptionByText,
     unique,
 } from './support/demo';
@@ -89,6 +90,27 @@ test.describe('@lifecycle billing', () => {
         await expect(page).toHaveURL(/\/admin\/invoices$/);
         await openDraftInvoice(page, customerName);
         await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
+        const siblingPath = new URL(page.url()).pathname;
+
+        // Separation of duties (role-persona-sod): the creator cannot cancel the
+        // invoice they created. Raw JSON POST keeps the expected 422 out of the
+        // browser fail-closed watcher and Inertia's error modal.
+        const creatorCsrf = await refreshSession(page, siblingPath);
+        const selfCancel = await page.request.post(`${siblingPath}/cancel`, {
+            headers: { 'X-XSRF-TOKEN': creatorCsrf, Accept: 'application/json' },
+            form: { reason: `self-cancel-${runId}` },
+        });
+        expect(selfCancel.status()).toBe(422);
+        const selfCancelBody = (await selfCancel.json()) as { message?: string };
+        expect(selfCancelBody.message).toBe('Cannot cancel own created invoice.');
+        await page.goto(siblingPath);
+        await expectDetail(page, 'Status', 'draft');
+
+        // A different actor holding billing.cancel (manager) cancels it.
+        await logout(page);
+        await loginAs(page, 'manager');
+        await page.goto(siblingPath);
+        await expectDetail(page, 'Status', 'draft');
         await page.getByRole('button', { name: 'Cancel' }).click();
         const cancelDialog = page.getByRole('dialog', { name: 'Cancel Invoice' });
         await cancelDialog.getByLabel('Reason').fill(`cancel-${runId}`);

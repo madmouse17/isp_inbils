@@ -9,6 +9,7 @@ export interface WorkOrder {
     subscription_id?: number | null;
     location_id?: number | null;
     assigned_to?: number | null;
+    updated_at?: string | null;
     ticket_id?: number | null;
     source: string;
     priority: string;

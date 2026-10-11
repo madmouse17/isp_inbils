@@ -1,9 +1,13 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { usePermission } from '@/hooks/usePermission';
 import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
     Badge,
     Button,
     Card,
@@ -19,6 +23,7 @@ import {
     useToast,
 } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
+import type { PageProps } from '@/types';
 
 interface TData {
     id: number;
@@ -28,6 +33,8 @@ interface TData {
     source: string;
     status: string;
     priority: string;
+    assigned_to?: number | null;
+    updated_at?: string | null;
     is_sla_breached: boolean;
     sla_deadline?: string | null;
     first_response_at?: string | null;
@@ -73,13 +80,18 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
 export default function Show({ ticket }: ShowProps) {
     const t = ticket.data;
     const { toast } = useToast();
+    const { can } = usePermission();
+    const { auth } = usePage<PageProps>().props;
+    // Mirrors TicketPolicy::start: status assigned, ticket.start, and the acting user is the handler.
+    const canStart =
+        t.status === 'assigned' && can('ticket.start') && t.assigned_to === auth.user?.id;
     const [actionModal, setActionModal] = useState<
         'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
     >(null);
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadPercentage, setUploadPercentage] = useState(0);
-    const { data, setData, post, processing, reset } = useForm({
+    const { data, setData, post, processing, reset, errors, clearErrors, transform } = useForm({
         handler_id: '',
         resolution_note: '',
         body: '',
@@ -96,13 +108,49 @@ export default function Show({ ticket }: ShowProps) {
             spawnSpk: 'admin.tickets.spawn-spk',
             comment: 'admin.tickets.comments.store',
         };
+        // Optimistic-concurrency guard required by AssignTicketRequest.
+        transform((payload) =>
+            actionModal === 'assign'
+                ? {
+                      ...payload,
+                      expected_assigned_to: t.assigned_to ?? null,
+                      expected_updated_at: t.updated_at ?? null,
+                  }
+                : payload,
+        );
         post(route(routeMap[actionModal], t.id), {
-            onSuccess: () => {
-                setActionModal(null);
-                reset();
-            },
+            onSuccess: closeModal,
         });
     };
+
+    const closeModal = () => {
+        setActionModal(null);
+        clearErrors();
+        reset();
+    };
+
+    const reloadTicket = () => router.reload({ only: ['ticket'], onSuccess: () => clearErrors() });
+
+    const startTicket = () =>
+        router.post(
+            route('admin.tickets.start', t.id),
+            {},
+            {
+                onError: (startErrors) =>
+                    toast({
+                        title: 'Failed to start ticket.',
+                        description: Object.values(startErrors)[0],
+                        variant: 'danger',
+                    }),
+            },
+        );
+
+    // Server-side keys (conflict, expected_*) are not part of the form's data shape.
+    const serverErrors: Record<string, string | undefined> = errors;
+    const staleError =
+        serverErrors.conflict ??
+        serverErrors.expected_assigned_to ??
+        serverErrors.expected_updated_at;
 
     const uploadAttachment = (e: FormEvent) => {
         e.preventDefault();
@@ -261,11 +309,8 @@ export default function Show({ ticket }: ShowProps) {
                                     Assign
                                 </Button>
                             )}
-                            {(t.status === 'open' || t.status === 'assigned') && (
-                                <Button
-                                    type="button"
-                                    onClick={() => router.post(route('admin.tickets.start', t.id))}
-                                >
+                            {canStart && (
+                                <Button type="button" onClick={startTicket}>
                                     Start
                                 </Button>
                             )}
@@ -378,7 +423,7 @@ export default function Show({ ticket }: ShowProps) {
 
                 <Modal
                     open={actionModal !== null}
-                    onClose={() => setActionModal(null)}
+                    onClose={closeModal}
                     title={
                         actionModal
                             ? actionModal
@@ -388,11 +433,28 @@ export default function Show({ ticket }: ShowProps) {
                     }
                 >
                     <form onSubmit={doAction} className="space-y-4">
+                        {staleError && (
+                            <Alert variant="destructive">
+                                <AlertTitle>Ticket changed</AlertTitle>
+                                <AlertDescription className="space-y-2">
+                                    <p>{staleError}</p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={reloadTicket}
+                                    >
+                                        Reload ticket
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
                         {actionModal === 'assign' && (
                             <Input
                                 label="Handler ID"
                                 value={data.handler_id}
                                 onChange={(e) => setData('handler_id', e.target.value)}
+                                error={errors.handler_id}
                                 required
                             />
                         )}
@@ -401,6 +463,7 @@ export default function Show({ ticket }: ShowProps) {
                                 label="Resolution Note"
                                 value={data.resolution_note}
                                 onChange={(e) => setData('resolution_note', e.target.value)}
+                                error={errors.resolution_note}
                                 required
                                 rows={3}
                             />
@@ -411,6 +474,7 @@ export default function Show({ ticket }: ShowProps) {
                                     label="Comment"
                                     value={data.body}
                                     onChange={(e) => setData('body', e.target.value)}
+                                    error={errors.body}
                                     required
                                     rows={3}
                                 />
@@ -427,11 +491,7 @@ export default function Show({ ticket }: ShowProps) {
                             </>
                         )}
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setActionModal(null)}
-                            >
+                            <Button type="button" variant="secondary" onClick={closeModal}>
                                 Cancel
                             </Button>
                             <Button type="submit" loading={processing}>
