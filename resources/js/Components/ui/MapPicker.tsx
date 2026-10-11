@@ -288,7 +288,9 @@ export function MapPicker({
                     required
                 />
             </div>
-            {locationError ? <p className="text-sm text-destructive">{locationError}</p> : null}
+            {locationError ? (
+                <p className="text-sm text-red-700 dark:text-red-400">{locationError}</p>
+            ) : null}
         </div>
     );
 }

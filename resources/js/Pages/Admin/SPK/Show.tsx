@@ -28,6 +28,7 @@ import {
     useToast,
 } from '@/Components/ui';
 import { MediaPreview, PageHeader } from '@/Components/composite';
+import type { DropPort } from '@/types/ipam-odn';
 
 interface WoData {
     id: number;
@@ -86,6 +87,10 @@ interface ShowProps extends Record<string, unknown> {
     technicians: { data: TechRow[] };
     products: { data: ProductRow[] };
     networkAssets: { data: NetworkAssetRow[] };
+    /** The ODP port reserved for the customer (read-only); installation SPKs with a drop, odn.view only. */
+    dropPort?: DropPort | null;
+    can: { uploadEvidence: boolean };
+    checkInSummary?: string | null;
 }
 
 interface NetworkAssetRow {
@@ -121,7 +126,15 @@ interface ProductRow {
     category?: { name: string } | null;
 }
 
-export default function Show({ workOrder, technicians, products, networkAssets }: ShowProps) {
+export default function Show({
+    workOrder,
+    technicians,
+    products,
+    networkAssets,
+    dropPort,
+    can: permissions,
+    checkInSummary,
+}: ShowProps) {
     const w = workOrder.data;
     const { can } = usePermission();
     const { toast } = useToast();
@@ -350,6 +363,25 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 </span>
                                 {w.location?.name ?? '-'}
                             </p>
+                            {dropPort && (
+                                <p>
+                                    <span className="text-surface-500 dark:text-surface-400">
+                                        Drop port:{' '}
+                                    </span>
+                                    <Link
+                                        href={route('admin.odn.assets.show', dropPort.odp_asset_id)}
+                                        className="font-medium text-primary hover:underline"
+                                    >
+                                        {dropPort.odp_code}
+                                    </Link>{' '}
+                                    ({dropPort.odp_name}) · port {dropPort.number}
+                                    {dropPort.location_path && (
+                                        <span className="block text-xs text-surface-500 dark:text-surface-400">
+                                            {dropPort.location_path}
+                                        </span>
+                                    )}
+                                </p>
+                            )}
                             <p>
                                 <span className="text-surface-500 dark:text-surface-400">
                                     Technician:{' '}
@@ -368,6 +400,14 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 </span>
                                 {w.started_at ?? '-'}
                             </p>
+                            {checkInSummary && (
+                                <p>
+                                    <span className="text-surface-500 dark:text-surface-400">
+                                        Check-in:{' '}
+                                    </span>
+                                    {checkInSummary.replace(/^Check-in\s*/i, '')}
+                                </p>
+                            )}
                             <p>
                                 <span className="text-surface-500 dark:text-surface-400">
                                     Completed:{' '}
@@ -528,46 +568,48 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                         <CardTitle>Evidence</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                        <form
-                            onSubmit={uploadEvidence}
-                            className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-start"
-                        >
-                            <FileUpload
-                                label="Evidence file"
-                                value={evidenceFile}
-                                onChange={setEvidenceFile}
-                                acceptedFileTypes={[
-                                    'image/jpeg',
-                                    'image/png',
-                                    'application/pdf',
-                                    'application/msword',
-                                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                                ]}
-                                required
-                            />
-                            <Input
-                                label="Caption"
-                                value={evidenceCaption}
-                                onChange={(event) => setEvidenceCaption(event.target.value)}
-                                placeholder="Optional caption"
-                            />
-                            <div className="self-end">
-                                <Button
-                                    type="submit"
-                                    disabled={!evidenceFile || uploading}
-                                    loading={uploading}
-                                >
-                                    Upload
-                                </Button>
-                            </div>
-                            {uploading && (
-                                <Progress
-                                    className="lg:col-span-3"
-                                    label="Mengunggah bukti"
-                                    value={uploadPercentage}
+                        {permissions.uploadEvidence && (
+                            <form
+                                onSubmit={uploadEvidence}
+                                className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-start"
+                            >
+                                <FileUpload
+                                    label="Evidence file"
+                                    value={evidenceFile}
+                                    onChange={setEvidenceFile}
+                                    acceptedFileTypes={[
+                                        'image/jpeg',
+                                        'image/png',
+                                        'application/pdf',
+                                        'application/msword',
+                                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                                    ]}
+                                    required
                                 />
-                            )}
-                        </form>
+                                <Input
+                                    label="Caption"
+                                    value={evidenceCaption}
+                                    onChange={(event) => setEvidenceCaption(event.target.value)}
+                                    placeholder="Optional caption"
+                                />
+                                <div className="self-end">
+                                    <Button
+                                        type="submit"
+                                        disabled={!evidenceFile || uploading}
+                                        loading={uploading}
+                                    >
+                                        Upload
+                                    </Button>
+                                </div>
+                                {uploading && (
+                                    <Progress
+                                        className="lg:col-span-3"
+                                        label="Mengunggah bukti"
+                                        value={uploadPercentage}
+                                    />
+                                )}
+                            </form>
+                        )}
                         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
                             {(w.evidence ?? []).map((ev) => (
                                 <div

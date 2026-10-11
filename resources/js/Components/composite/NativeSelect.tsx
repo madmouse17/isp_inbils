@@ -64,7 +64,10 @@ export const NativeSelect = React.forwardRef<HTMLSelectElement, NativeSelectProp
                     </span>
                 </div>
                 {error && (
-                    <p id={`${inputId}-error`} className="mt-1 text-sm text-destructive">
+                    <p
+                        id={`${inputId}-error`}
+                        className="mt-1 text-sm text-red-700 dark:text-red-400"
+                    >
                         {error}
                     </p>
                 )}

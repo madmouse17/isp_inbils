@@ -1,26 +1,154 @@
 import { Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/Components/ui';
 import {
     CustomerAcquirerValue,
     CustomerRelatedTables,
+    DataTable,
     PageHeader,
     StatusBadge,
     type CustomerHistory,
     type CustomerHistoryAccess,
+    type DataTableColumn,
 } from '@/Components/composite';
+import { ToneBadge, type BadgeTone } from '@/Components/composite/ToneBadge';
 import { CustomerStatusBadge } from '@/lib/customerStatus';
+import { formatDate, formatDateTime } from '@/lib/format';
 import type { Customer } from '@/types/models';
+import type { CustomerWhatsApp, WhatsAppMessageRow, WhatsAppStatus } from '@/types/whatsapp';
 
 interface ShowProps extends Record<string, unknown> {
-    customer: { data: Customer };
+    customer: { data: Customer & { whatsapp: CustomerWhatsApp } };
     history: CustomerHistory;
     historyAccess: CustomerHistoryAccess;
+    /** The latest 20 WhatsApp rows of this customer, newest first. */
+    whatsappMessages: WhatsAppMessageRow[];
     can: { viewAcquirer: boolean; update: boolean };
 }
 
-export default function Show({ customer, history, historyAccess, can }: ShowProps) {
+const eventLabels: Record<string, string> = {
+    invoice_issued: 'Tagihan terbit',
+    invoice_reminder: 'Pengingat jatuh tempo',
+    payment_received: 'Pembayaran diterima',
+    ticket_created: 'Tiket dibuat',
+    ticket_assigned: 'Tiket mulai ditangani',
+    ticket_resolved: 'Tiket selesai',
+    spk_scheduled: 'Penugasan SPK ke teknisi',
+    spk_scheduled_customer: 'Jadwal kunjungan teknisi',
+    access_link_notice: 'Info link akses portal',
+};
+
+const subjectLabels: Record<string, string> = {
+    invoice: 'Invoice',
+    ticket: 'Tiket',
+    work_order: 'SPK',
+};
+
+const skipReasonLabels: Record<string, string> = {
+    disabled: 'WhatsApp perusahaan nonaktif',
+    event_disabled: 'Jenis pesan dinonaktifkan',
+    no_consent: 'Pelanggan belum setuju',
+    opted_out: 'Pelanggan berhenti (STOP)',
+    invalid_phone: 'Nomor tidak valid',
+    budget_exceeded: 'Batas pesan bulanan tercapai',
+};
+
+const statusBadges: Record<WhatsAppStatus, { tone: BadgeTone; label: string }> = {
+    queued: { tone: 'secondary', label: 'Antrean' },
+    sent: { tone: 'info', label: 'Terkirim' },
+    delivered: { tone: 'success', label: 'Diterima' },
+    read: { tone: 'success', label: 'Dibaca' },
+    failed: { tone: 'danger', label: 'Gagal' },
+    skipped: { tone: 'warning', label: 'Dilewati' },
+};
+
+const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
+    {
+        key: 'event',
+        header: 'Pesan',
+        cell: (row) => eventLabels[row.event] ?? row.event,
+    },
+    {
+        key: 'subject',
+        header: 'Subjek',
+        cell: (row) =>
+            row.subject_type === 'user'
+                ? 'Akun portal'
+                : row.subject_type && row.subject_id !== null
+                  ? `${subjectLabels[row.subject_type] ?? row.subject_type} #${row.subject_id}`
+                  : '—',
+    },
+    {
+        key: 'status',
+        header: 'Status',
+        cell: (row) => (
+            <ToneBadge tone={statusBadges[row.status].tone}>
+                {statusBadges[row.status].label}
+            </ToneBadge>
+        ),
+    },
+    {
+        key: 'reason',
+        header: 'Keterangan',
+        cell: (row) =>
+            row.skip_reason ? (
+                (skipReasonLabels[row.skip_reason] ?? row.skip_reason)
+            ) : row.error_code ? (
+                <span className="font-mono">Kode galat {row.error_code}</span>
+            ) : (
+                '—'
+            ),
+    },
+    {
+        key: 'recipient',
+        header: 'Nomor',
+        cell: (row) =>
+            row.recipient_last4 ? (
+                <span className="font-mono">••••{row.recipient_last4}</span>
+            ) : (
+                '—'
+            ),
+    },
+    {
+        key: 'created_at',
+        header: 'Waktu',
+        cell: (row) => formatDateTime(row.created_at),
+    },
+];
+
+function ConsentBadge({ whatsapp }: { whatsapp: CustomerWhatsApp }) {
+    if (whatsapp.opted_in) {
+        return (
+            <ToneBadge tone="success">Setuju sejak {formatDate(whatsapp.opted_in_at)}</ToneBadge>
+        );
+    }
+
+    if (whatsapp.opted_out_at) {
+        return (
+            <ToneBadge tone="warning">Berhenti sejak {formatDate(whatsapp.opted_out_at)}</ToneBadge>
+        );
+    }
+
+    return <ToneBadge tone="secondary">Belum setuju</ToneBadge>;
+}
+
+export default function Show({
+    customer,
+    history,
+    historyAccess,
+    whatsappMessages,
+    can,
+}: ShowProps) {
     const c = customer.data;
 
     return (
@@ -125,6 +253,31 @@ export default function Show({ customer, history, historyAccess, can }: ShowProp
                         </CardContent>
                     </Card>
                 </div>
+
+                <Card>
+                    <CardHeader className="flex-row items-center justify-between gap-3">
+                        <CardTitle>WhatsApp</CardTitle>
+                        <ConsentBadge whatsapp={c.whatsapp} />
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        {!c.whatsapp.reachable && (
+                            <Alert variant="warning">
+                                <AlertDescription>
+                                    Nomor telepon pelanggan bukan nomor seluler Indonesia yang
+                                    valid. Pesan WhatsApp tidak akan terkirim sampai nomor
+                                    diperbaiki.
+                                </AlertDescription>
+                            </Alert>
+                        )}
+                        <DataTable
+                            columns={messageColumns}
+                            rows={whatsappMessages}
+                            rowKey="id"
+                            emptyTitle="Belum ada pesan WhatsApp"
+                            emptyDescription="Pesan akan muncul di sini setelah pelanggan setuju dan ada tagihan, pembayaran, tiket, atau jadwal kunjungan."
+                        />
+                    </CardContent>
+                </Card>
 
                 <CustomerRelatedTables
                     addresses={c.addresses ?? []}

@@ -40,6 +40,7 @@ interface TData {
     resolved_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
+    check_in?: string | null;
     category?: { name: string; code: string } | null;
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
@@ -281,6 +282,10 @@ export default function Show({ ticket }: ShowProps) {
                             <p>
                                 <span className="text-muted-foreground">First Response: </span>
                                 {t.first_response_at ?? '-'}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">Check-in: </span>
+                                {t.check_in ?? 'no location'}
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Resolved: </span>

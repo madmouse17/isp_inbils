@@ -94,7 +94,7 @@ export function FileUpload({
                     labelIdle='Drop file here or <span class="filepond--label-action">browse</span>'
                 />
             </div>
-            {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+            {error && <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>}
             {!error && hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
         </div>
     );

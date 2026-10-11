@@ -49,6 +49,9 @@ const reportLinks = [
     'Reports',
     'Technician Performance',
 ];
+// IPAM and ODN are readable by every staff-side role (Q14 of .scratch/ipam-odn/spec.md); NAS routers
+// need their own read permission, which the technician lacks.
+const networkRegisterLinks = ['IP Addresses', 'ODN'];
 const adminOnlyLinks = [
     'Users',
     'Roles',
@@ -79,7 +82,14 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
             'CRM/Operations': ['Customers', 'Locations', 'Employees', 'Vehicles'],
             Service: serviceLinks,
             Inventory: inventoryLinks,
-            'Network/Work Orders': ['Network Assets', 'SPK', 'Approval', 'Dispatch'],
+            'Network/Work Orders': [
+                'Network Assets',
+                'NAS Routers',
+                ...networkRegisterLinks,
+                'SPK',
+                'Approval',
+                'Dispatch',
+            ],
             'Finance/Reports': reportLinks,
         },
         // The admin demo user has no employee profile, hence no Pekerjaan Saya.
@@ -99,6 +109,8 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
             Inventory: inventoryLinks,
             'Network/Work Orders': [
                 'Network Assets',
+                'NAS Routers',
+                ...networkRegisterLinks,
                 'SPK',
                 'Approval',
                 'Dispatch',
@@ -120,7 +132,13 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
             'CRM/Operations': ['Customers', 'Locations'],
             Service: serviceLinks,
             Inventory: inventoryLinks,
-            'Network/Work Orders': ['Network Assets', 'SPK', 'Pekerjaan Saya'],
+            'Network/Work Orders': [
+                'Network Assets',
+                'NAS Routers',
+                ...networkRegisterLinks,
+                'SPK',
+                'Pekerjaan Saya',
+            ],
             'Finance/Reports': ['Billing', 'Tunggakan', 'Ticketing', 'Evaluations', 'Reports'],
         },
         // Staff is the operator persona (role-persona-sod): no approve/reject, so no Approval inbox.
@@ -131,7 +149,12 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
         placed: {
             'CRM/Operations': ['Customers', 'Locations'],
             Inventory: inventoryLinks,
-            'Network/Work Orders': ['Network Assets', 'SPK', 'Pekerjaan Saya'],
+            'Network/Work Orders': [
+                'Network Assets',
+                ...networkRegisterLinks,
+                'SPK',
+                'Pekerjaan Saya',
+            ],
             'Finance/Reports': ['Ticketing', 'Evaluations', 'Technician Performance'],
         },
         absent: [
@@ -145,6 +168,7 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
             ...serviceLinks,
             'Approval',
             'Dispatch',
+            'NAS Routers',
             'Billing',
             'Tunggakan',
             'Reports',

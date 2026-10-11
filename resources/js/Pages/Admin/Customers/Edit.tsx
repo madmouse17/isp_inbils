@@ -4,9 +4,12 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    Alert,
+    AlertDescription,
     Button,
     Card,
     CardContent,
+    Checkbox,
     Tab,
     TabList,
     TabPanel,
@@ -22,10 +25,12 @@ import {
     type CustomerDataValue,
     type IndonesiaRegionOptions,
 } from '@/Components/composite';
+import { formatDate } from '@/lib/format';
 import type { AcquirerOption, Customer } from '@/types/models';
+import type { CustomerWhatsApp } from '@/types/whatsapp';
 
 interface EditPageProps {
-    customer: { data: Customer };
+    customer: { data: Customer & { whatsapp: CustomerWhatsApp } };
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
@@ -44,6 +49,8 @@ interface CustomerEditForm extends CustomerDataValue {
     /** Selected acquirer id (`''` = Unassigned); sent as `acquired_by_user_id` only when changed. */
     acquirer_id: string;
     acquirer_correction_reason: string;
+    /** Consent to WhatsApp notifications; sent only when changed, see `submit`. */
+    whatsapp_opt_in: boolean;
 }
 
 export default function Edit({
@@ -61,6 +68,12 @@ export default function Edit({
     const [tab, setTab] = useState('customer');
 
     const initialAcquirerId = c.acquired_by_user_id == null ? '' : String(c.acquired_by_user_id);
+    const initialWhatsAppOptIn = c.whatsapp.opted_in;
+    const consentStatus = c.whatsapp.opted_in
+        ? `Setuju sejak ${formatDate(c.whatsapp.opted_in_at)}`
+        : c.whatsapp.opted_out_at
+          ? `Berhenti sejak ${formatDate(c.whatsapp.opted_out_at)}`
+          : 'Belum ada persetujuan tercatat';
 
     const { data, setData, put, transform, processing, errors, reset } = useForm<CustomerEditForm>({
         code: c.code ?? '',
@@ -74,6 +87,7 @@ export default function Edit({
         is_active: Boolean(c.is_active),
         acquirer_id: initialAcquirerId,
         acquirer_correction_reason: '',
+        whatsapp_opt_in: initialWhatsAppOptIn,
     });
     const formErrors = errors as Partial<Record<keyof CustomerDataValue, string>>;
     const acquirerErrors = errors as Partial<
@@ -90,8 +104,11 @@ export default function Edit({
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (processing || readOnly) return;
-        transform(({ acquirer_id, acquirer_correction_reason, ...values }) => ({
+        transform(({ acquirer_id, acquirer_correction_reason, whatsapp_opt_in, ...values }) => ({
             ...values,
+            // A stale form must never re-opt-in a customer who replied STOP meanwhile, so consent
+            // is sent only when the user changed it.
+            ...(whatsapp_opt_in !== initialWhatsAppOptIn ? { whatsapp_opt_in } : {}),
             ...(acquirerChanged
                 ? { acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id) }
                 : {}),
@@ -162,6 +179,31 @@ export default function Edit({
                                         errors={formErrors}
                                         readOnly={readOnly}
                                     />
+                                    <div className="space-y-2">
+                                        <Checkbox
+                                            label="Pelanggan setuju menerima notifikasi WhatsApp"
+                                            description="Pesan yang dikirim: tagihan terbit, pengingat jatuh tempo, pembayaran diterima, status tiket, dan jadwal kunjungan teknisi. Pelanggan dapat berhenti kapan saja dengan membalas STOP."
+                                            checked={data.whatsapp_opt_in}
+                                            onCheckedChange={(checked) =>
+                                                setData('whatsapp_opt_in', checked === true)
+                                            }
+                                            disabled={readOnly}
+                                            error={errors.whatsapp_opt_in}
+                                        />
+                                        <p className="text-sm text-muted-foreground">
+                                            Tercatat: {consentStatus}
+                                        </p>
+                                        {!c.whatsapp.reachable && (
+                                            <Alert variant="warning">
+                                                <AlertDescription>
+                                                    Nomor pelanggan ini bukan nomor seluler
+                                                    Indonesia yang valid, sehingga pesan WhatsApp
+                                                    tidak akan terkirim. Perbaiki nomor pada kolom
+                                                    telepon.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                    </div>
                                     {can.viewAcquirer ? (
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <CustomerAcquirerField

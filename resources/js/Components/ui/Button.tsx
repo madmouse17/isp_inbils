@@ -10,8 +10,9 @@ const buttonVariantClasses = {
     success: 'bg-success text-white shadow-xs hover:bg-success/90',
     warning: 'bg-warning text-white shadow-xs hover:bg-warning/90',
     ghost: 'hover:bg-accent hover:text-accent-foreground',
-    danger: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
-    destructive: 'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90',
+    danger: 'bg-red-600 text-white shadow-xs hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90',
+    destructive:
+        'bg-red-600 text-white shadow-xs hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90',
     outline:
         'border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
 } as const;

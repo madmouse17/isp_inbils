@@ -268,6 +268,24 @@ class AdminMenuAuthorizationTest extends TestCase
         $this->assertSame(['Dashboard', 'Tagihan Saya', 'Ticketing'], $this->shownSidebarLabels());
     }
 
+    public function test_seeded_roles_get_the_network_register_entries_their_permissions_give_them(): void
+    {
+        // The seeded matrix: IPAM and ODN are readable by every staff-side role, NAS routers by all but the technician.
+        $entries = ['NAS Routers', 'IP Addresses', 'ODN'];
+
+        foreach ([
+            'admin' => ['NAS Routers', 'IP Addresses', 'ODN'],
+            'manager' => ['NAS Routers', 'IP Addresses', 'ODN'],
+            'staff' => ['NAS Routers', 'IP Addresses', 'ODN'],
+            'technician' => ['IP Addresses', 'ODN'],
+            'customer' => [],
+        ] as $roleName => $expected) {
+            $this->actingAs($this->userWithRole($roleName));
+
+            $this->assertSame($expected, array_values(array_intersect($entries, $this->shownSidebarLabels())), $roleName);
+        }
+    }
+
     public function test_admin_sidebar_offers_everything_but_my_work_portal_and_consolidation_in_a_single_company(): void
     {
         $this->actingAs($this->userWithRole('admin'));

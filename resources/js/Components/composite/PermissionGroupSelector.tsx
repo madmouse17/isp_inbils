@@ -101,7 +101,7 @@ export function PermissionGroupSelector({
                     </div>
                 </div>
             </div>
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? <p className="text-sm text-red-700 dark:text-red-400">{error}</p> : null}
         </div>
     );
 }

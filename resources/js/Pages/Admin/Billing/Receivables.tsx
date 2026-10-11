@@ -80,7 +80,7 @@ export default function Receivables({
         if (!suspending) return;
         router.post(
             route('admin.subscriptions.suspend', suspending.id),
-            { reason },
+            { reason, source: 'overdue' },
             {
                 onSuccess: () => {
                     setSuspending(null);

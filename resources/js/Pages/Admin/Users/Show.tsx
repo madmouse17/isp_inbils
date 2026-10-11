@@ -342,7 +342,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                                 <AlertDialogFooter>
                                                     <AlertDialogCancel>Cancel</AlertDialogCancel>
                                                     <AlertDialogAction
-                                                        className="bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90"
+                                                        className="bg-red-600 text-white shadow-xs hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90"
                                                         onClick={() =>
                                                             router.post(
                                                                 route(

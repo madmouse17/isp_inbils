@@ -1,18 +1,36 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Modal } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 import type { ServiceSubscription } from '@/types/models';
+import { SubscriptionNetworkPanels } from '@/Components/composite/SubscriptionNetworkPanels';
+import type { DropPort, DropPortOption, StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
+import { usePermission } from '@/hooks/usePermission';
 
 interface ShowProps extends Record<string, unknown> {
     subscription: { data: ServiceSubscription };
+    ipAddresses: SubscriptionIpAddress[];
+    /** Present only for holders of ipam.assign. */
+    staticPools?: StaticPool[];
+    dropPort: DropPort | null;
+    /** Free ODP ports; delivered by a partial reload that asks for them (odn.assign only). */
+    dropPortOptions?: DropPortOption[];
+    can: { assignIp: boolean; assignDrop: boolean };
 }
 
-export default function Show({ subscription }: ShowProps) {
+export default function Show({
+    subscription,
+    ipAddresses,
+    staticPools,
+    dropPort,
+    dropPortOptions,
+    can: assignable,
+}: ShowProps) {
     const s = subscription.data;
+    const can = usePermission();
     const [actionModal, setActionModal] = useState<'suspend' | 'terminate' | null>(null);
     const { data, setData, post, processing } = useForm({ reason: '', release_ont: false });
 
@@ -148,6 +166,20 @@ export default function Show({ subscription }: ShowProps) {
                     </Card>
                 </div>
 
+                <SubscriptionNetworkPanels
+                    subscription={{
+                        id: Number(s.id),
+                        code: s.code ?? '',
+                        status: s.status ?? '',
+                        hasServingPop: s.serving_pop_id != null,
+                    }}
+                    ipAddresses={ipAddresses}
+                    staticPools={staticPools}
+                    dropPort={dropPort}
+                    dropPortOptions={dropPortOptions}
+                    can={assignable}
+                />
+
                 <Card>
                     <CardHeader>
                         <CardTitle>Lifecycle Actions</CardTitle>
@@ -190,6 +222,18 @@ export default function Show({ subscription }: ShowProps) {
                                     onClick={() => setActionModal('terminate')}
                                 >
                                     Terminate
+                                </Button>
+                            )}
+                            {can('network_asset.account.view') && (
+                                <Button asChild variant="outline">
+                                    <Link
+                                        href={route(
+                                            'admin.subscriptions.network-account.show',
+                                            s.id,
+                                        )}
+                                    >
+                                        Network access
+                                    </Link>
                                 </Button>
                             )}
                         </div>

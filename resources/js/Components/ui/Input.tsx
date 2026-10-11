@@ -51,7 +51,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
                 </div>
                 {error ? (
-                    <p id={`${inputId}-error`} className="text-sm text-destructive">
+                    <p id={`${inputId}-error`} className="text-sm text-red-700 dark:text-red-400">
                         {error}
                     </p>
                 ) : null}

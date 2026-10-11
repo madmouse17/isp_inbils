@@ -130,13 +130,18 @@ test('technician sees no Company/Admin or Service group', () => {
         'ticket.start',
         'evaluation.view.own',
         'report.technician',
+        'ipam.view',
+        'odn.view',
     ];
 
     assert.deepEqual(outline(view(technician, { canMyWork: true })), [
         [null, ['Dashboard']],
         ['CRM/Operations', ['Customers', 'Locations']],
         ['Inventory', inventoryItems],
-        ['Network/Work Orders', ['Network Assets', 'SPK', 'Pekerjaan Saya']],
+        [
+            'Network/Work Orders',
+            ['Network Assets', 'IP Addresses', 'ODN', 'SPK', 'Pekerjaan Saya'],
+        ],
         ['Finance/Reports', ['Ticketing', 'Evaluations', 'Technician Performance']],
     ]);
 });
@@ -204,6 +209,16 @@ test('Komponen needs the permission and the environment flag (2a)', () => {
     assert.deepEqual(outline(view(component, { developerGalleryEnabled: true })), [
         ['Company/Admin', ['Komponen']],
     ]);
+});
+
+test('IP Addresses, ODN and NAS Routers each follow their own view permission', () => {
+    assert.deepEqual(outline(view(['ipam.view'])), [['Network/Work Orders', ['IP Addresses']]]);
+    assert.deepEqual(outline(view(['odn.view'])), [['Network/Work Orders', ['ODN']]]);
+    assert.deepEqual(outline(view(['network_asset.nas.view'])), [
+        ['Network/Work Orders', ['NAS Routers']],
+    ]);
+    // Managing or assigning alone opens no page: the pages are gated by view.
+    assert.deepEqual(view(['ipam.manage', 'ipam.assign', 'odn.manage', 'odn.assign']), []);
 });
 
 test('Dispatch follows assign or reassign for an active user', () => {
@@ -314,6 +329,9 @@ test('exactly one item is active, the longest matching href (story 10)', () => {
     assert.equal(active('/admin/users/12/edit'), '/admin/users');
     assert.equal(active('/admin/inventory/requests/5'), '/admin/inventory/requests');
     assert.equal(active('/admin/dashboard?tab=1'), '/admin/dashboard');
+    assert.equal(active('/admin/ipam/prefixes/12'), '/admin/ipam/prefixes');
+    assert.equal(active('/admin/odn/assets/3'), '/admin/odn');
+    assert.equal(active('/admin/nas-devices/4'), '/admin/nas-devices');
 });
 
 test('a sibling path that only shares a prefix is not active', () => {

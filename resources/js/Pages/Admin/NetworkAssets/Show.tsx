@@ -20,6 +20,7 @@ import {
 } from '@/Components/ui';
 import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
+import { usePermission } from '@/hooks/usePermission';
 
 interface InstallRow {
     id: number;
@@ -70,6 +71,7 @@ interface LocRow {
 
 export default function Show({ asset, locations }: ShowProps) {
     const a = asset.data;
+    const { can } = usePermission();
     const [actionModal, setActionModal] = useState<
         'install' | 'remove' | 'maintenance' | 'damage' | 'repair' | 'resume' | 'retire' | null
     >(null);
@@ -116,6 +118,13 @@ export default function Show({ asset, locations }: ShowProps) {
                             >
                                 Edit
                             </Button>
+                            {can('odn.view') && ['olt', 'odc', 'odp'].includes(a.asset_type) && (
+                                <Button asChild variant="outline" size="sm">
+                                    <Link href={route('admin.odn.assets.show', a.id)}>
+                                        ODN ports
+                                    </Link>
+                                </Button>
+                            )}
                         </>
                     }
                 />

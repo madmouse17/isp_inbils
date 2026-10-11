@@ -178,6 +178,27 @@
         },
         {
             "group": "Network/Work Orders",
+            "label": "NAS Routers",
+            "href": "/admin/nas-devices",
+            "route": "admin.nas-devices.index",
+            "anyOf": ["network_asset.nas.view"]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "IP Addresses",
+            "href": "/admin/ipam/prefixes",
+            "route": "admin.ipam.prefixes.index",
+            "anyOf": ["ipam.view"]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "ODN",
+            "href": "/admin/odn",
+            "route": "admin.odn.index",
+            "anyOf": ["odn.view"]
+        },
+        {
+            "group": "Network/Work Orders",
             "label": "SPK",
             "href": "/admin/spk",
             "route": "admin.spk.index",

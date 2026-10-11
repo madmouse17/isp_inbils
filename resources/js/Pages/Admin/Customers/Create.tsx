@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -9,6 +9,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    Checkbox,
     Input,
     MapPicker,
     NativeSelect,
@@ -30,6 +31,8 @@ import {
     type IndonesiaRegionValue,
 } from '@/Components/composite';
 import type { AcquirerOption } from '@/types/models';
+import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
+import type { DropPortOption } from '@/types/ipam-odn';
 
 interface AddressInput {
     label: string;
@@ -82,6 +85,8 @@ interface CustomerForm {
     contact_person: string;
     notes: string;
     is_active: boolean;
+    /** Consent to WhatsApp notifications, recorded by staff with the customer. */
+    whatsapp_opt_in: boolean;
     /** Local select state; sent as `acquired_by_user_id` only with the assign capability. */
     acquirer_id: string;
     addresses: AddressInput[];
@@ -94,6 +99,8 @@ interface CustomerForm {
         otc_installation_fee: string;
         contract_months: string;
         notes: string;
+        /** The free ODP port chosen for the drop; sent as `odn_port_id` only when one is chosen. */
+        odn_port_id: string;
     };
 }
 
@@ -103,9 +110,11 @@ interface CreateProps {
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
-    can: { assignAcquirer: boolean };
+    can: { assignAcquirer: boolean; assignDrop: boolean };
     acquirerOptions: AcquirerOption[];
     acquirerDefaultId: number | null;
+    /** Free ODP ports under the serving POP, delivered by a partial reload (odn.assign only). */
+    dropPortOptions?: DropPortOption[];
 }
 
 const emptyAddress = (): AddressInput => ({
@@ -140,11 +149,14 @@ export default function Create({
     can,
     acquirerOptions,
     acquirerDefaultId,
+    dropPortOptions,
     geocodeResults = [],
     geocodeIndex,
 }: CreateProps) {
     const [tab, setTab] = useState('customer');
     const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
+    const [loadingPorts, setLoadingPorts] = useState(false);
+    const portReload = useRef(0);
     const { data, setData, post, transform, processing, errors } = useForm<CustomerForm>({
         code: '',
         name: '',
@@ -155,6 +167,7 @@ export default function Create({
         contact_person: '',
         notes: '',
         is_active: true,
+        whatsapp_opt_in: false,
         acquirer_id: acquirerDefaultId === null ? '' : String(acquirerDefaultId),
         addresses: [
             {
@@ -173,6 +186,7 @@ export default function Create({
             otc_installation_fee: '',
             contract_months: '',
             notes: '',
+            odn_port_id: '',
         },
     });
     const formErrors = errors as Record<string, string | undefined>;
@@ -338,16 +352,45 @@ export default function Create({
         });
     };
 
+    /** A port belongs to one POP: changing the POP drops the chosen port and asks for the new POP's free ones. */
+    const selectServingPop = (popId: string) => {
+        setData('subscription', { ...data.subscription, serving_pop_id: popId, odn_port_id: '' });
+
+        if (!can.assignDrop || popId === '') return;
+
+        // Only the latest request may end the loading state; an interrupted one finishes late.
+        const request = ++portReload.current;
+        setLoadingPorts(true);
+        router.reload({
+            only: ['dropPortOptions'],
+            data: { serving_pop_id: popId },
+            replace: true,
+            onFinish: () => {
+                if (request === portReload.current) setLoadingPorts(false);
+            },
+        });
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        transform(({ acquirer_id, ...values }) =>
-            can.assignAcquirer
+        transform(({ acquirer_id, ...values }) => {
+            // Without a chosen port the request carries no odn_port_id at all, exactly as before.
+            const { odn_port_id, ...subscription } = values.subscription;
+            const payload = {
+                ...values,
+                subscription:
+                    odn_port_id === ''
+                        ? subscription
+                        : { ...subscription, odn_port_id: Number(odn_port_id) },
+            };
+
+            return can.assignAcquirer
                 ? {
-                      ...values,
+                      ...payload,
                       acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id),
                   }
-                : values,
-        );
+                : payload;
+        });
         post(route('admin.customers.store'), {
             onError: (validationErrors) => {
                 const keys = Object.keys(validationErrors);
@@ -399,6 +442,17 @@ export default function Create({
                                         errors={customerErrors}
                                         phoneHint="Link untuk mengatur kata sandi akan dikirim ke email customer."
                                     />
+                                    <div className="mt-4">
+                                        <Checkbox
+                                            label="Pelanggan setuju menerima notifikasi WhatsApp"
+                                            description="Pesan yang dikirim: tagihan terbit, pengingat jatuh tempo, pembayaran diterima, status tiket, dan jadwal kunjungan teknisi. Pelanggan dapat berhenti kapan saja dengan membalas STOP."
+                                            checked={data.whatsapp_opt_in}
+                                            onCheckedChange={(checked) =>
+                                                setData('whatsapp_opt_in', checked === true)
+                                            }
+                                            error={formErrors.whatsapp_opt_in}
+                                        />
+                                    </div>
                                     {can.assignAcquirer ? (
                                         <div className="mt-4 grid gap-4 md:grid-cols-2">
                                             <CustomerAcquirerField
@@ -763,10 +817,7 @@ export default function Create({
                                             label="Serving POP / Location"
                                             value={data.subscription.serving_pop_id}
                                             onChange={(event) =>
-                                                setData('subscription', {
-                                                    ...data.subscription,
-                                                    serving_pop_id: event.target.value,
-                                                })
+                                                selectServingPop(event.target.value)
                                             }
                                             error={formErrors['subscription.serving_pop_id']}
                                             options={[
@@ -778,6 +829,26 @@ export default function Create({
                                             ]}
                                             required
                                         />
+                                        {can.assignDrop && (
+                                            <DropPortSelect
+                                                id="subscription-drop-port"
+                                                value={data.subscription.odn_port_id}
+                                                onChange={(value) =>
+                                                    setData('subscription', {
+                                                        ...data.subscription,
+                                                        odn_port_id: value,
+                                                    })
+                                                }
+                                                options={dropPortOptions}
+                                                loading={loadingPorts}
+                                                unavailable={
+                                                    data.subscription.serving_pop_id === ''
+                                                        ? 'Choose the serving POP to list its free ports.'
+                                                        : undefined
+                                                }
+                                                error={formErrors['subscription.odn_port_id']}
+                                            />
+                                        )}
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <Input
                                                 label="Billing Day"

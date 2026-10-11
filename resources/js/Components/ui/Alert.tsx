@@ -4,8 +4,8 @@ import { cn } from '@/lib/utils';
 const variants: Record<string, string> = {
     default: 'bg-background text-foreground',
     destructive:
-        'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
-    danger: 'border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive',
+        'border-destructive/50 text-red-700 dark:border-destructive dark:text-red-400 [&>svg]:text-red-700 dark:[&>svg]:text-red-400',
+    danger: 'border-destructive/50 text-red-700 dark:border-destructive dark:text-red-400 [&>svg]:text-red-700 dark:[&>svg]:text-red-400',
     success: 'border-emerald-500/40 text-emerald-700 dark:text-emerald-400',
     warning: 'border-amber-500/40 text-amber-700 dark:text-amber-400',
     info: 'border-sky-500/40 text-sky-700 dark:text-sky-400',
