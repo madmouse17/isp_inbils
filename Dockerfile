@@ -46,6 +46,7 @@ COPY --chown=www-data:www-data . .
 COPY --from=vendor --chown=www-data:www-data /app/vendor ./vendor
 COPY --from=frontend --chown=www-data:www-data /app/public/build ./public/build
 COPY docker/Caddyfile /etc/caddy/Caddyfile
+COPY docker/php/conf.d/inbils.ini /usr/local/etc/php/conf.d/inbils.ini
 COPY docker/app/entrypoint.sh /usr/local/bin/inbils-entrypoint
 
 RUN chmod +x /usr/local/bin/inbils-entrypoint \
