@@ -1,10 +1,12 @@
 # Customer Status Rollup — customer status derived from subscriptions (isp_ari ADR-011)
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Ledger: none yet (new lane from the isp_ari gap analysis of 2026-10-11; add a ledger entry when approved)
 Source: `/tmp/isp_ari_gap.md` row "Customer Status Rollup" (verified; two corrections below)
 
 > Nothing in this lane may start until the owner answers the decisions below. "setuju rekomendasi" approves the recommended option of every item.
+
+Approved by owner 2026-10-11: recommended option of every decision ("setuju rekomendasi").
 
 ## Owner decisions
 

@@ -90,7 +90,7 @@ class CustomerPageTest extends TestCase
         }
     }
 
-    public function test_customer_index_filters_by_status(): void
+    public function test_customer_index_filters_by_account(): void
     {
         Customer::factory()->create([
             'company_id' => $this->admin->company_id,
@@ -103,12 +103,12 @@ class CustomerPageTest extends TestCase
             'is_active' => false,
         ]);
 
-        $this->actingAs($this->admin)->get(route('admin.customers.index', ['status' => 'inactive']))
+        $this->actingAs($this->admin)->get(route('admin.customers.index', ['account' => 'inactive']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
                 ->where('customers.data.0.name', 'Inactive Customer')
-                ->where('filters.status', 'inactive'));
+                ->where('filters.account', 'inactive'));
     }
 
     public function test_edit_resolves_geocode_results_only_with_address_manage_permission(): void

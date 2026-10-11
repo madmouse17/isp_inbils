@@ -9,10 +9,15 @@ use App\Models\Core\CustomerContact;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Notifications\CustomerAccountCreated;
+use App\Services\Core\CustomerService;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Contracts\Queue\ShouldBeEncrypted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Password;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Models\WorkOrder;
@@ -74,8 +79,165 @@ class CustomerAccountCreationTest extends TestCase
         $this->assertSame($this->company->id, $customer->company_id);
         $this->assertSame($user->id, $customer->user_id);
         $this->assertSame($this->company->id, $user->company_id);
-        $this->assertTrue(Hash::check('0800000001', $user->password));
+        $this->assertFalse(Hash::check('0800000001', $user->password));
         $this->assertTrue($user->hasRole('customer'));
+    }
+
+    public function test_customer_phone_number_does_not_log_in(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), $this->payload())
+            ->assertRedirect();
+        auth()->logout();
+
+        $this->post(route('login'), ['email' => 'customer.account@example.test', 'password' => '0800000001'])
+            ->assertSessionHasErrors();
+        $this->assertGuest();
+    }
+
+    public function test_access_link_is_queued_without_a_token_and_mail_carries_a_valid_one(): void
+    {
+        Notification::fake();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), $this->payload())
+            ->assertRedirect();
+
+        $user = User::query()->where('email', 'customer.account@example.test')->firstOrFail();
+        $notification = null;
+        Notification::assertSentTo($user, CustomerAccountCreated::class, function (CustomerAccountCreated $n) use (&$notification) {
+            $notification = $n;
+
+            return true;
+        });
+        Notification::assertCount(1);
+
+        // The queued payload must not hold a reset token (jobs/failed_jobs are plaintext storage).
+        $this->assertStringNotContainsString('token', serialize($notification));
+        $this->assertNotInstanceOf(ShouldBeEncrypted::class, $notification);
+
+        $url = (string) $notification->toMail($user)->actionUrl;
+        $this->assertSame(1, preg_match('#/reset-password/([^?]+)\?email=#', $url, $m));
+        $this->assertTrue(Password::broker()->tokenExists($user, $m[1]));
+        $this->assertStringStartsWith(rtrim(config('app.url'), '/').'/reset-password/', $url);
+
+        auth()->logout();
+        $this->post(route('password.store'), [
+            'token' => $m[1],
+            'email' => $user->email,
+            'password' => 'N3w-Secret-Pass!',
+            'password_confirmation' => 'N3w-Secret-Pass!',
+        ])->assertSessionHasNoErrors();
+        $this->assertTrue(Hash::check('N3w-Secret-Pass!', $user->fresh()->password));
+    }
+
+    public function test_inactive_customer_gets_no_access_link_at_creation(): void
+    {
+        Notification::fake();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), [...$this->payload(), 'is_active' => false])
+            ->assertRedirect();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_resend_is_refused_for_inactive_customer_or_portal_account(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        Notification::fake();
+        $this->actingAs($this->admin);
+
+        $customer->forceFill(['is_active' => false])->save();
+        $this->post(route('admin.customers.access-link', $customer))->assertRedirect()->assertSessionHas('error');
+
+        $customer->forceFill(['is_active' => true])->save();
+        $customer->user->forceFill(['is_active' => false])->save();
+        $this->post(route('admin.customers.access-link', $customer))->assertRedirect()->assertSessionHas('error');
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_access_link_is_not_sent_when_the_transaction_rolls_back(): void
+    {
+        Notification::fake();
+        $this->actingAs($this->admin);
+
+        try {
+            DB::transaction(function () {
+                CustomerService::createWithUser([
+                    'code' => 'CUS-ROLLBACK',
+                    'name' => 'Rollback',
+                    'type' => 'Individual',
+                    'email' => 'rollback@example.test',
+                    'phone' => '0800000002',
+                    'is_active' => true,
+                ]);
+
+                throw new \RuntimeException('abort');
+            });
+        } catch (\RuntimeException) {
+        }
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_staff_can_resend_access_link_throttled(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        Notification::fake();
+
+        $this->actingAs($this->admin);
+        for ($i = 0; $i < 3; $i++) {
+            $this->post(route('admin.customers.access-link', $customer))
+                ->assertRedirect()
+                ->assertSessionHas('success');
+        }
+        Notification::assertSentToTimes($customer->user, CustomerAccountCreated::class, 3);
+
+        $this->post(route('admin.customers.access-link', $customer))->assertTooManyRequests();
+        Notification::assertSentToTimes($customer->user, CustomerAccountCreated::class, 3);
+    }
+
+    public function test_resend_access_link_requires_customer_update_permission(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        $viewer = User::factory()->create([
+            'company_id' => $this->company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $role = Role::create(['name' => 'customer-viewer', 'guard_name' => 'web']);
+        $role->givePermissionTo('customer.view');
+        $viewer->assignRole($role);
+        Notification::fake();
+
+        $this->actingAs($viewer)->post(route('admin.customers.access-link', $customer))->assertForbidden();
+
+        Notification::assertNothingSent();
+    }
+
+    public function test_resend_without_portal_account_reports_error_and_sends_nothing(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        $customer->forceFill(['user_id' => null])->save();
+        Notification::fake();
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.access-link', $customer))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        Notification::assertNothingSent();
+    }
+
+    private function createCustomerViaForm(): Customer
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), $this->payload())
+            ->assertRedirect();
+
+        return Customer::query()->with('user')->where('code', 'CUS-ACCOUNT')->firstOrFail();
     }
 
     public function test_phone_is_required_when_creating_customer_user(): void

@@ -1,6 +1,6 @@
 # Private Media — serve uploaded documents and attachments through authorized routes
 
-Status: needs-owner-approval
+Status: done
 Ledger: none yet (found by the security review of the ticket/payment guards, 2026-10-11, finding F-01)
 Source: `agent://TicketPaymentSecReview` F-01 (medium, high confidence), extended by grep to every media writer
 
@@ -16,6 +16,8 @@ Writers today:
 - `app/Services/Core/CompanyLogoService.php:19,27` — company logo (public by nature).
 - `database/seeders/Demo/SpkFlow.php:71` — demo evidence.
 - Readers: `app/Http/Resources/MediaResource.php:16-17` (`file_path`, `url`).
+
+Approved by owner 2026-10-11: recommended option of every decision ("setuju rekomendasi").
 
 ## Owner decisions
 

@@ -4,8 +4,10 @@ namespace App\Services\Core;
 
 use App\Models\Core\Customer;
 use App\Models\User;
+use App\Notifications\CustomerAccountCreated;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class CustomerService
 {
@@ -20,7 +22,7 @@ class CustomerService
             $user = new User([
                 'name' => $customer->contact_person ?: $customer->name,
                 'email' => $customer->email,
-                'password' => (string) $customer->phone,
+                'password' => Str::password(32),
                 'is_active' => $customer->is_active,
             ]);
             $user->forceFill([
@@ -30,6 +32,9 @@ class CustomerService
             app(CompanyMembershipService::class)->grant($user, CompanyService::current() ?? abort(403), true);
             $user->assignRole('customer');
             $customer->forceFill(['user_id' => $user->id])->save();
+            if ($user->is_active) {
+                DB::afterCommit(fn () => self::sendAccessLink($user));
+            }
 
             foreach ($addresses as $address) {
                 $customer->addresses()->create(IndonesiaRegionService::normalizeAddress($address));
@@ -42,5 +47,11 @@ class CustomerService
 
             return $customer;
         });
+    }
+
+    /** Queues the set-password mail; the random initial password is never disclosed. */
+    public static function sendAccessLink(User $user): void
+    {
+        $user->notify(new CustomerAccountCreated());
     }
 }

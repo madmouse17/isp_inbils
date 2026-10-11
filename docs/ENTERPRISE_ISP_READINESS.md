@@ -4,7 +4,7 @@ Status: RECOVERED AUDIT — current working tree, 2026-07-15
 
 Target: single-company ISP operations pilot/production baseline, medium scale
 
-Excluded: full telco OSS/BSS, multi-company activation, customer portal/mobile, Radius/NAS automation, multi-vendor NMS, payment gateway, public partner API
+Excluded: full telco OSS/BSS, multi-company activation, customer mobile app, Radius/NAS automation, multi-vendor NMS, public partner API, production payment-gateway go-live. Owner decision 2026-10-11: a Midtrans Snap **sandbox pilot** (webhook, reconciliation) and a minimal customer invoice portal are in scope; see `docs/business/billing.md` ("Pembayaran online").
 
 ## 1. Executive verdict
 
@@ -274,8 +274,8 @@ Mandatory P1 additions: SPK evidence-submit-approve with stock/asset/subscriptio
 ### P2/P3, YAGNI, or external dependency
 
 - Multi-company activation and cross-company administration.
-- Customer portal/mobile app.
-- Payment gateway and webhook contract.
+- Customer mobile app. The minimal web invoice portal is a sandbox pilot (owner decision 2026-10-11).
+- Payment gateway production go-live: needs a real merchant account, a public HTTPS notification URL, production keys set only on the host, and a signed security review. The Midtrans Snap sandbox pilot is implemented.
 - Radius/NAS provisioning and suspension automation.
 - Multi-vendor NMS, SNMP polling, topology discovery, outage correlation.
 - S3/object storage migration unless backup/attachment volume requires it.

@@ -26,6 +26,9 @@ class Customer extends Model implements HasMedia
 
     protected static string $factory = CustomerFactory::class;
 
+    /** Values of the derived customer_status column; written only by CustomerStatusRecalculator. */
+    public const STATUSES = ['prospective', 'active', 'inactive', 'suspended', 'terminated'];
+
     protected $fillable = [
         'code',
         'user_id',
@@ -38,6 +41,10 @@ class Customer extends Model implements HasMedia
         'area_coverage_id',
         'notes',
         'is_active',
+    ];
+
+    protected $attributes = [
+        'customer_status' => 'prospective',
     ];
 
     protected $casts = [

@@ -52,6 +52,7 @@ export interface WorkOrderAssignment {
 export interface WorkOrderEvidence {
     id: number;
     type: string;
+    url: string;
     file_path: string;
     original_name?: string | null;
     mime_type?: string | null;

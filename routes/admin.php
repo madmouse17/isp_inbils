@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\ApprovalInboxController;
 use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\CompanySwitchController;
+use App\Http\Controllers\Admin\CustomerAccessLinkController;
 use App\Http\Controllers\Admin\CustomerAddressController;
 use App\Http\Controllers\Admin\CustomerContactController;
 use App\Http\Controllers\Admin\CustomerController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EvaluationController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\MediaController;
 use App\Http\Controllers\Admin\MyWorkController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\NumberSequenceController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\UserTwoFactorResetController;
 use App\Http\Controllers\Admin\VehicleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -44,6 +47,7 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
 
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
+    Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
     Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');
     Route::resource('roles', RoleController::class);
 
@@ -70,6 +74,7 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::get('customers/{customer}/addresses/export', [CustomerAddressController::class, 'export'])->name('customers.addresses.export');
     Route::get('customers/export', [CustomerController::class, 'export'])->name('customers.export');
     Route::resource('customers', CustomerController::class)->parameters(['customers' => 'customer']);
+    Route::post('customers/{customer}/access-link', CustomerAccessLinkController::class)->middleware('throttle:3,1')->name('customers.access-link');
 
     Route::get('customers/{customer}/addresses', [CustomerAddressController::class, 'index'])->name('customers.addresses.index');
     Route::post('customers/{customer}/addresses', [CustomerAddressController::class, 'store'])->name('customers.addresses.store');
@@ -115,4 +120,7 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::resource('documents', DocumentController::class, ['parameters' => ['documents' => 'document_type']])->except(['create', 'edit', 'show']);
     Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
     Route::delete('documents/media/{media}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
+
+    // Uploaded files (ticket attachments, SPK evidence, customer documents): authorized per owner
+    Route::get('media/{media}', [MediaController::class, 'show'])->whereNumber('media')->name('media.show');
 });

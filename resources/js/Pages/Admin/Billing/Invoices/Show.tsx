@@ -8,6 +8,7 @@ import {
     Button,
     Card,
     CardContent,
+    CardDescription,
     CardHeader,
     CardTitle,
     Input,
@@ -22,6 +23,8 @@ import {
 } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 import { usePermission } from '@/hooks/usePermission';
+import { formatDateTime } from '@/lib/format';
+import type { PaymentAttemptEntry } from '@/types/portal';
 
 interface InvData {
     id: number;
@@ -64,7 +67,16 @@ interface InvData {
 
 interface ShowProps extends Record<string, unknown> {
     invoice: { data: InvData };
+    onlinePayments: { enabled: boolean; attempts: { data: PaymentAttemptEntry[] } };
 }
+
+const attemptVariant: Record<string, 'success' | 'warning' | 'danger' | 'muted'> = {
+    paid: 'success',
+    pending: 'warning',
+    failed: 'muted',
+    expired: 'muted',
+    exception: 'danger',
+};
 
 const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
     s === 'paid'
@@ -77,8 +89,9 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
               ? 'muted'
               : 'warning';
 
-export default function Show({ invoice }: ShowProps) {
+export default function Show({ invoice, onlinePayments }: ShowProps) {
     const inv = invoice.data;
+    const attempts = onlinePayments.attempts.data;
     const { can } = usePermission();
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
@@ -399,6 +412,72 @@ export default function Show({ invoice }: ShowProps) {
                         </Table>
                     </CardContent>
                 </Card>
+
+                {(onlinePayments.enabled || attempts.length > 0) && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Online payments</CardTitle>
+                            <CardDescription>
+                                Midtrans attempts for this invoice. Read-only: a payment is booked
+                                only when Midtrans confirms it.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <THead>
+                                    <TR>
+                                        <TH>Status</TH>
+                                        <TH>Amount</TH>
+                                        <TH>Method</TH>
+                                        <TH>Transaction ID</TH>
+                                        <TH>Created</TH>
+                                        <TH>Settled</TH>
+                                    </TR>
+                                </THead>
+                                <TBody>
+                                    {attempts.length === 0 ? (
+                                        <TR>
+                                            <TD
+                                                colSpan={6}
+                                                className="text-center text-muted-foreground"
+                                            >
+                                                No online attempts yet.
+                                            </TD>
+                                        </TR>
+                                    ) : (
+                                        attempts.map((a) => (
+                                            <TR key={a.id}>
+                                                <TD>
+                                                    <StatusBadge variant={attemptVariant[a.status]}>
+                                                        {a.status}
+                                                    </StatusBadge>
+                                                    {a.status_reason && (
+                                                        <p
+                                                            className={`mt-1 max-w-xs text-xs ${a.status === 'exception' ? 'text-destructive' : 'text-muted-foreground'}`}
+                                                        >
+                                                            Reason: {a.status_reason}
+                                                        </p>
+                                                    )}
+                                                </TD>
+                                                <TD className="font-medium">{a.amount}</TD>
+                                                <TD>{a.payment_type ?? '-'}</TD>
+                                                <TD className="break-all font-mono text-xs">
+                                                    {a.transaction_id ?? '-'}
+                                                </TD>
+                                                <TD className="text-sm">
+                                                    {formatDateTime(a.created_at)}
+                                                </TD>
+                                                <TD className="text-sm">
+                                                    {formatDateTime(a.settled_at)}
+                                                </TD>
+                                            </TR>
+                                        ))
+                                    )}
+                                </TBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Modal
                     open={paymentModal}

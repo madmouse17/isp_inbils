@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -34,15 +36,21 @@ class LoginRequest extends FormRequest
     }
 
     /**
-     * Attempt to authenticate the request's credentials.
+     * Check the request's credentials and return the user without opening a session, so the caller
+     * can ask for a second factor first. Wrong credentials count against the login throttle.
      *
      * @throws ValidationException
      */
-    public function authenticate(): void
+    public function validateCredentials(): User
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        /** @var SessionGuard $guard */
+        $guard = Auth::guard('web');
+
+        // is_active is part of the lookup: an inactive user fails exactly like a wrong password, with the
+        // same message, so the form does not say which accounts exist or which are switched off.
+        if (! $guard->validate([...$this->only('email', 'password'), 'is_active' => true])) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -51,6 +59,11 @@ class LoginRequest extends FormRequest
         }
 
         RateLimiter::clear($this->throttleKey());
+
+        /** @var User $user */
+        $user = $guard->getLastAttempted();
+
+        return $user;
     }
 
     /**

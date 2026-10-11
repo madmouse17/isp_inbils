@@ -1,6 +1,6 @@
 # REVIEWER: architecture and release-readiness of the customer status rollup
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Role: reviewer
 Blocked by: 03
 Card: none (new lane; no Hermes card)

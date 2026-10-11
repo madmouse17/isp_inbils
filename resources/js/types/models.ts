@@ -89,6 +89,7 @@ export type Customer = {
     contact_person?: string | null;
     notes?: string | null;
     is_active?: boolean | null;
+    customer_status?: string | null;
     /** Present only when the viewer may see attribution. */
     acquired_by_user_id?: number | null;
     /** Present only when the viewer may see attribution; `null` = Unassigned. */

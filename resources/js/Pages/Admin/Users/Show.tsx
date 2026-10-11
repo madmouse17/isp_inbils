@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, ShieldOff } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -11,6 +11,15 @@ import {
     StatusBadge,
 } from '@/Components/composite';
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
     Badge,
     Button,
     Card,
@@ -37,6 +46,8 @@ interface UserData {
     company_id: number | null;
     is_active: boolean;
     roles: string[];
+    two_factor_enabled?: boolean;
+    can?: { delete?: boolean; reset_two_factor?: boolean };
     created_at?: string;
     last_login_at?: string | null;
     activity_log?: ActivityItem[];
@@ -289,6 +300,66 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                                     {user.data.roles.map((role) => (
                                         <RoleBadge key={role} role={role} />
                                     ))}
+                                </div>
+                            </div>
+                            <div className="space-y-2 md:col-span-2">
+                                <p className="font-medium text-surface-900 dark:text-surface-100">
+                                    Two-factor authentication
+                                </p>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <Badge
+                                        variant={
+                                            user.data.two_factor_enabled ? 'success' : 'secondary'
+                                        }
+                                    >
+                                        {user.data.two_factor_enabled ? (
+                                            <ShieldCheck className="size-3.5" aria-hidden="true" />
+                                        ) : (
+                                            <ShieldOff className="size-3.5" aria-hidden="true" />
+                                        )}
+                                        {user.data.two_factor_enabled ? 'On' : 'Off'}
+                                    </Badge>
+                                    {user.data.can?.reset_two_factor ? (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button type="button" variant="outline" size="sm">
+                                                    Reset two-factor
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>
+                                                        Reset two-factor authentication for{' '}
+                                                        {user.data.name}?
+                                                    </AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        They can log in with their password alone
+                                                        until they set it up again, and their
+                                                        recovery codes stop working. Do this only
+                                                        after confirming it is really them.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction
+                                                        className="bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90"
+                                                        onClick={() =>
+                                                            router.post(
+                                                                route(
+                                                                    'admin.users.two-factor.reset',
+                                                                    user.data.id,
+                                                                ),
+                                                                {},
+                                                                { preserveScroll: true },
+                                                            )
+                                                        }
+                                                    >
+                                                        Reset
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    ) : null}
                                 </div>
                             </div>
                         </CardContent>

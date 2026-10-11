@@ -1,6 +1,6 @@
 # TESTER: rollup rule matrix, wiring, tenant isolation, E2E
 
-Status: needs-owner-approval
+Status: done
 Role: tester
 Blocked by: 01, 02
 Card: none (new lane; no Hermes card)

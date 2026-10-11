@@ -1,6 +1,6 @@
 # REVIEWER: sandbox end-to-end evidence and release readiness
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Role: reviewer
 Blocked by: 07
 Card: none (new lane; no Hermes card)

@@ -31,7 +31,7 @@ class CustomerController extends Controller
 {
     use HasIndexQuery;
 
-    private const SORTABLE = ['code', 'name', 'type', 'phone', 'is_active', 'created_at'];
+    private const SORTABLE = ['code', 'name', 'type', 'phone', 'is_active', 'customer_status', 'created_at'];
 
     public function __construct(private readonly OpenStreetMapGeocoder $geocoder) {}
 
@@ -46,7 +46,7 @@ class CustomerController extends Controller
 
         return Inertia::render('Admin/Customers/Index', [
             'customers' => CustomerResource::collection($customers),
-            'filters' => $request->only(['type', 'status', 'search', 'sort', 'direction', 'per_page', ...($canViewAcquirer ? ['acquired_by'] : [])]),
+            'filters' => $request->only(['type', 'status', 'account', 'search', 'sort', 'direction', 'per_page', ...($canViewAcquirer ? ['acquired_by'] : [])]),
             'acquirerOptions' => $canViewAcquirer ? CustomerAcquirerQuery::filterOptions((int) CompanyService::currentId()) : [],
             'can' => [
                 'create' => $this->canOnboard($request),
@@ -101,7 +101,7 @@ class CustomerController extends Controller
         $customer = CreateCustomerOnboardingAction::execute($request->validated(), $request->user());
 
         return redirect()->route('admin.customers.show', $customer)
-            ->with('success', 'Customer, subscription, and installation SPK created.');
+            ->with('success', 'Customer, subscription, and installation SPK created. Link akses dikirim ke '.$customer->email.'.');
     }
 
     public function show(Request $request, int|string $customer): InertiaResponse
@@ -124,7 +124,10 @@ class CustomerController extends Controller
             'customer' => new CustomerResource($customer),
             'history' => CustomerHistoryQuery::execute($customer, $historyAccess),
             'historyAccess' => $historyAccess,
-            'can' => ['viewAcquirer' => $canViewAcquirer],
+            'can' => [
+                'viewAcquirer' => $canViewAcquirer,
+                'update' => $request->user()?->can('update', $customer) ?? false,
+            ],
         ]);
     }
 
@@ -231,7 +234,8 @@ class CustomerController extends Controller
             'type' => 'Type',
             'email' => 'Email',
             'phone' => 'Phone',
-            'is_active' => 'Status',
+            'is_active' => 'Account',
+            'customer_status' => 'Status',
         ];
         $acquirers = collect();
 
@@ -247,6 +251,7 @@ class CustomerController extends Controller
             'email' => $customer->email ?? '',
             'phone' => $customer->phone ?? '',
             'is_active' => $customer->is_active ? 'Active' : 'Inactive',
+            'customer_status' => ucfirst($customer->customer_status),
             'acquired_by' => self::acquirerLabel($customer->acquired_by_user_id === null ? null : $acquirers->get($customer->acquired_by_user_id)),
         ];
 
@@ -262,8 +267,23 @@ class CustomerController extends Controller
     {
         $query = Customer::query()
             ->withCount(['addresses', 'subscriptions'])
-            ->when($request->input('type'), fn (Builder $query, string $value) => $query->where('type', $value))
-            ->when($request->input('status'), function (Builder $query, string $value): void {
+            ->when($request->input('type'), fn (Builder $query, mixed $value) => is_string($value) ? $query->where('type', $value) : $query)
+            ->when($request->input('status'), function (Builder $query, mixed $value): void {
+                if (! is_string($value)) {
+                    return;
+                }
+
+                $normalized = strtolower(trim($value));
+
+                if (in_array($normalized, Customer::STATUSES, true)) {
+                    $query->where('customer_status', $normalized);
+                }
+            })
+            ->when($request->input('account'), function (Builder $query, mixed $value): void {
+                if (! is_string($value)) {
+                    return;
+                }
+
                 $normalized = strtolower(trim($value));
 
                 if ($normalized === 'active') {
@@ -272,8 +292,8 @@ class CustomerController extends Controller
                     $query->where('is_active', false);
                 }
             })
-            ->when($request->input('search'), function (Builder $query, string $value): void {
-                $term = trim($value);
+            ->when($request->input('search'), function (Builder $query, mixed $value): void {
+                $term = is_string($value) ? trim($value) : '';
 
                 if ($term === '') {
                     return;

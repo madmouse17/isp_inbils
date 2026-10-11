@@ -21,14 +21,19 @@ class CustomerIndexQuery
         return Customer::query()
             ->forCompany($companyId)
             ->withCount(['addresses', 'subscriptions'])
-            ->when($request->input('type'), fn (Builder $q, string $v) => $q->where('type', $v))
-            ->when($request->input('status'), function (Builder $q, string $v): void {
+            ->when($request->input('type'), fn (Builder $q, mixed $v) => is_string($v) ? $q->where('type', $v) : $q)
+            ->when($request->input('status'), function (Builder $q, mixed $v): void {
+                if (in_array($v, Customer::STATUSES, true)) {
+                    $q->where('customer_status', $v);
+                }
+            })
+            ->when($request->input('account'), function (Builder $q, mixed $v): void {
                 if (in_array($v, ['active', 'inactive'], true)) {
                     $q->where('is_active', $v === 'active');
                 }
             })
-            ->when($request->input('search'), function (Builder $q, string $v): void {
-                $term = trim($v);
+            ->when($request->input('search'), function (Builder $q, mixed $v): void {
+                $term = is_string($v) ? trim($v) : '';
                 if ($term === '') {
                     return;
                 }

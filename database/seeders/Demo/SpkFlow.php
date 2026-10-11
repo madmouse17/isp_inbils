@@ -68,7 +68,7 @@ final class SpkFlow
             $workOrder->addMediaFromString(base64_decode(self::EVIDENCE_PNG))
                 ->usingFileName('bukti-pekerjaan-'.strtolower($workOrder->code).'.png')
                 ->withCustomProperties(['company_id' => $c->companyId(), 'type' => 'photo', 'uploaded_by' => $tech->id])
-                ->toMediaCollection('evidence', 'public');
+                ->toMediaCollection('evidence');
 
             SpkService::submitForReview(self::find($c, $key));
         });

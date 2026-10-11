@@ -24,6 +24,7 @@ class CustomerResource extends JsonResource
             'area_coverage_id' => $this->area_coverage_id,
             'notes' => $this->notes,
             'is_active' => $this->is_active,
+            'customer_status' => $this->customer_status,
             'addresses_count' => $this->whenCounted('addresses'),
             'subscriptions_count' => $this->whenCounted('subscriptions'),
             'addresses' => CustomerAddressResource::collection($this->whenLoaded('addresses')),

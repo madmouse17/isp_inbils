@@ -99,6 +99,16 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     const customerId = page.url().match(/\/admin\/customers\/(\d+)$/)?.[1];
     if (!customerId) throw new Error('Could not resolve created customer id');
 
+    // Onboarding leaves only a pending subscription, so the derived status is Prospective.
+    await expect(page.getByRole('main').getByText('Prospective')).toBeVisible();
+    await page.goto(`/admin/customers?search=${customerCode}&status=active`);
+    await expect(page.getByRole('main').getByText(customerCode)).toHaveCount(0);
+    await page.goto(`/admin/customers?search=${customerCode}&status=prospective`);
+    await expect(page.getByRole('row').filter({ hasText: customerCode })).toContainText(
+        'Prospective',
+    );
+    await page.goto(`/admin/customers/${customerId}`);
+
     await expect(page.getByRole('tab', { name: /Addresses \(\d+\)/ })).toBeVisible();
     await expect(page.getByRole('tab', { name: /Subscriptions \(\d+\)/ })).toBeVisible();
 

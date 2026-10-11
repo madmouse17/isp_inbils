@@ -45,7 +45,7 @@ class DocumentService
 
         return $model->addMedia($file)
             ->withCustomProperties($properties)
-            ->toMediaCollection($collection, 'public');
+            ->toMediaCollection($collection);
     }
 
     public static function list(HasMedia $model, ?string $collection = self::DEFAULT_COLLECTION): Collection
@@ -61,7 +61,7 @@ class DocumentService
             'document_type' => $media->getCustomProperty('document_type_code'),
             'uploaded_by' => $media->getCustomProperty('uploaded_by'),
             'expires_at' => $media->getCustomProperty('expires_at'),
-            'url' => $media->getUrl(),
+            'url' => route('admin.media.show', $media, false),
             'created_at' => $media->created_at,
         ]);
     }

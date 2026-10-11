@@ -8,6 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Modules\Inventory\Models\Product;
 
+/**
+ * @property int $id
+ * @property int $invoice_id
+ * @property string $description
+ * @property string $quantity
+ * @property string $unit_price
+ * @property string $discount_amount
+ * @property string $tax_rate
+ * @property string $line_total
+ */
 class InvoiceItem extends Model
 {
     use BelongsToCompany;

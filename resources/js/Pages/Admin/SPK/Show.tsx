@@ -27,7 +27,7 @@ import {
     TR,
     useToast,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { MediaPreview, PageHeader } from '@/Components/composite';
 
 interface WoData {
     id: number;
@@ -72,7 +72,10 @@ interface WoData {
     evidence?: {
         id: number;
         type: string;
+        url: string;
         file_path: string;
+        original_name?: string | null;
+        mime_type?: string | null;
         caption?: string | null;
         uploaded_at: string;
     }[];
@@ -575,9 +578,10 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                         {ev.type === 'photo' ? 'Photo' : 'Document'}
                                     </p>
                                     <p className="text-xs text-surface-500">
-                                        {ev.caption ?? ev.file_path}
+                                        {ev.caption ?? ev.original_name ?? ev.file_path}
                                     </p>
                                     <p className="text-xs text-surface-400">{ev.uploaded_at}</p>
+                                    <MediaPreview media={ev} />
                                 </div>
                             ))}
                         </div>

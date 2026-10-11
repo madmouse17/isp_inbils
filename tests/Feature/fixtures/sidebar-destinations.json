@@ -227,6 +227,13 @@
         },
         {
             "group": "Finance/Reports",
+            "label": "Tagihan Saya",
+            "href": "/portal/invoices",
+            "route": "portal.invoices.index",
+            "anyOf": ["portal.invoice.view"]
+        },
+        {
+            "group": "Finance/Reports",
             "label": "Ticketing",
             "href": "/admin/tickets",
             "route": "admin.tickets.index",

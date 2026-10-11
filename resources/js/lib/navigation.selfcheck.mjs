@@ -84,7 +84,9 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
     const items = navGroups.flatMap((group) => group.items);
     assert.equal(new Set(items.map((item) => item.href)).size, items.length);
     assert.equal(new Set(items.map((item) => item.label)).size, items.length);
-    assert.ok(items.every((item) => item.href.startsWith('/admin/')));
+    assert.ok(
+        items.every((item) => item.href.startsWith('/admin/') || item.href.startsWith('/portal/')),
+    );
     assert.ok(items.every((item) => (item.anyOf?.length ?? 0) > 0 || item.flag !== undefined));
 });
 
@@ -98,17 +100,19 @@ test('dashboard needs dashboard.view (decision 3a)', () => {
     assert.ok(!outline(view(['ticket.view'])).some(([, labels]) => labels.includes('Dashboard')));
 });
 
-test('customer sees Dashboard and Ticketing only', () => {
+test('customer sees Dashboard, Tagihan Saya and Ticketing only', () => {
     const customer = [
         'dashboard.view',
         'ticket.view',
         'ticket.create',
         'evaluation.customer.submit',
+        'portal.invoice.view',
+        'portal.invoice.pay',
     ];
 
     assert.deepEqual(outline(view(customer)), [
         [null, ['Dashboard']],
-        ['Finance/Reports', ['Ticketing']],
+        ['Finance/Reports', ['Tagihan Saya', 'Ticketing']],
     ]);
 });
 

@@ -10,8 +10,8 @@
  *
  * Deterministic: no fixed IDs, unique records per run, owned data.
  *
- * Handler: start/resolve/close are limited to the assigned handler who holds that
- * ability (TicketPolicy). Only admin holds all three, so the acting admin is the handler.
+ * Handler/checker split: start/resolve are limited to the assigned handler (technician);
+ * close is open to any ticket.close holder (manager) once the ticket is resolved.
  */
 import type { Page } from '@playwright/test';
 
@@ -46,7 +46,15 @@ test.describe('@lifecycle ticket', () => {
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
 
         // --- Assign via UI (resolve handler id dynamically, no fixed ID) ---
-        await assignToHandlerViaUi(page, 'Demo Admin');
+        await assignToHandlerViaUi(page, 'Demo Technician');
+
+        // --- Technician handles the ticket ---
+        await settleAppChunks(page);
+        await logout(page);
+        await loginAs(page, 'technician');
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
 
         // --- Start (records first_response_at) ---
         await page.getByRole('button', { name: 'Start', exact: true }).click();
@@ -79,7 +87,14 @@ test.describe('@lifecycle ticket', () => {
         expect(resolvedAt.getTime()).toBeLessThanOrEqual(deadline.getTime());
         await expect(page.getByText('SLA Breached')).toHaveCount(0);
 
-        // --- Close ---
+        // --- Close: the manager (checker, not the handler) closes the technician's work ---
+        await settleAppChunks(page);
+        await logout(page);
+        await loginAs(page, 'manager');
+        await settleAppChunks(page);
+        await page.goto(`/admin/tickets/${ticketId}`);
+        await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
+        await expectDetail(page, 'Handler', 'Demo Technician');
         await page.getByRole('button', { name: 'Close', exact: true }).click();
         const closeDialog = page.getByRole('dialog', { name: 'Close' });
         await closeDialog.getByRole('button', { name: 'Confirm' }).click();
@@ -88,14 +103,15 @@ test.describe('@lifecycle ticket', () => {
         expect(closedText.trim()).not.toBe('-');
 
         // --- SPK spawn + backlink verification (product data, deterministic) ---
+        await logout(page);
+        await loginAs(page, 'admin');
         const title2 = `E2E ticket spk ${runId}`;
         const spkTicketId = await createTicketViaUi(page, title2);
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${spkTicketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title2 })).toBeVisible();
-        await assignToHandlerViaUi(page, 'Demo Admin');
-        await page.getByRole('button', { name: 'Start', exact: true }).click();
-        await expect(page.getByText('on_progress').first()).toBeVisible({ timeout: 15_000 });
+        // SPK can be spawned from an assigned ticket, so the admin needs no handler role.
+        await assignToHandlerViaUi(page, 'Demo Technician');
 
         await page.getByRole('button', { name: 'Spawn SPK' }).click();
         const spawnDialog = page.getByRole('dialog', { name: 'Spawn Spk' });

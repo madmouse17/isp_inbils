@@ -13,6 +13,6 @@ trait UploadsMedia
     {
         return $model->addMedia($file)
             ->withCustomProperties($customProperties)
-            ->toMediaCollection($collection, 'public');
+            ->toMediaCollection($collection);
     }
 }

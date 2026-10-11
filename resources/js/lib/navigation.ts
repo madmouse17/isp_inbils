@@ -318,6 +318,12 @@ export const navGroups: readonly NavGroup[] = [
                 anyOf: ['billing.view'],
             },
             {
+                label: 'Tagihan Saya',
+                href: '/portal/invoices',
+                icon: BanknotesIcon,
+                anyOf: ['portal.invoice.view'],
+            },
+            {
                 label: 'Ticketing',
                 href: '/admin/tickets',
                 icon: ChatBubbleLeftRightIcon,

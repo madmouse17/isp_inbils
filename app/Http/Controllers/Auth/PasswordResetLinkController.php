@@ -10,6 +10,10 @@ use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
+// Not the global defer(): the Swoole extension in the Sail image defines a function of that name, and
+// Laravel only defines its own global helper when the name is free.
+use function Illuminate\Support\defer;
+
 class PasswordResetLinkController extends Controller
 {
     /**
@@ -33,19 +37,11 @@ class PasswordResetLinkController extends Controller
             'email' => 'required|email',
         ]);
 
-        // We will send the password reset link to this user. Once we have attempted
-        // to send the link, we will examine the response then see the message we
-        // need to show to the user. Finally, we'll send out a proper response.
-        $status = Password::sendResetLink(
-            $request->only('email')
-        );
+        // The answer never depends on the address: an unknown one, a known one and one inside the broker's
+        // wait time all get the same status. The link goes out after the response, so neither the body nor
+        // the time it takes (mail transport included) says which one it was.
+        defer(fn () => Password::sendResetLink($request->only('email')));
 
-        if ($status == Password::RESET_LINK_SENT) {
-            return back()->with('status', __($status));
-        }
-
-        throw ValidationException::withMessages([
-            'email' => [trans($status)],
-        ]);
+        return back()->with('status', __('If an account exists for that email address, we have emailed a password reset link.'));
     }
 }

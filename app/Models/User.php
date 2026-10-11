@@ -13,10 +13,19 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Typed here because the encrypted and date casts of the two-factor columns are not inferred.
+ *
+ * @property string|null $two_factor_secret
+ * @property list<string>|null $two_factor_recovery_codes
+ * @property Carbon|null $two_factor_confirmed_at
+ * @property int|null $two_factor_last_used_step
+ */
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
@@ -45,6 +54,10 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_confirmed_at',
+        'two_factor_last_used_step',
     ];
 
     /**
@@ -59,6 +72,10 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'two_factor_secret' => 'encrypted',
+            'two_factor_recovery_codes' => 'encrypted:array',
+            'two_factor_confirmed_at' => 'datetime',
+            'two_factor_last_used_step' => 'integer',
         ];
     }
 
@@ -89,12 +106,29 @@ class User extends Authenticatable
         return $this->hasOne(Customer::class);
     }
 
+    /** Two-factor authentication is on once the first code was confirmed; a bare secret is a pending enrolment. */
+    public function hasTwoFactorEnabled(): bool
+    {
+        return $this->two_factor_confirmed_at !== null;
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
+        // The two-factor columns hold secrets or per-login state; they are written by TwoFactorService,
+        // which audits the event itself without any secret material.
         return LogOptions::defaults()
             ->useLogName('user')
             ->logAll()
-            ->logExcept(['password', 'remember_token', 'email_verified_at', 'last_login_at'])
+            ->logExcept([
+                'password',
+                'remember_token',
+                'email_verified_at',
+                'last_login_at',
+                'two_factor_secret',
+                'two_factor_recovery_codes',
+                'two_factor_confirmed_at',
+                'two_factor_last_used_step',
+            ])
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
     }

@@ -186,7 +186,7 @@ class TicketAssignScopeTest extends TestCase
         $this->assertSame('assigned', $ticket->fresh()->status);
     }
 
-    public function test_ticket_close_requires_assigned_eligible_handler(): void
+    public function test_ticket_close_requires_close_permission_not_handler_assignment(): void
     {
         $admin = $this->createCompanyUser();
         $this->actingAs($admin);
@@ -214,14 +214,14 @@ class TicketAssignScopeTest extends TestCase
 
         $this->assertSame('resolved', $ticket->fresh()->status);
 
-        // 1. Unassigned / other actor with ticket.close in same company cannot close
+        // 1. Same-company actor without ticket.close cannot close
         $otherCloser = User::factory()->create([
             'company_id' => $admin->company_id,
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
-        $otherCloserRole = Role::firstOrCreate(['name' => 'ticket-closer-only', 'guard_name' => 'web']);
-        $otherCloserRole->givePermissionTo(['ticket.close']);
+        $otherCloserRole = Role::firstOrCreate(['name' => 'ticket-viewer-only', 'guard_name' => 'web']);
+        $otherCloserRole->givePermissionTo(['ticket.view']);
         $otherCloser->assignRole($otherCloserRole);
 
         $this->actingAs($otherCloser)
@@ -230,17 +230,17 @@ class TicketAssignScopeTest extends TestCase
 
         $this->assertSame('resolved', $ticket->fresh()->status);
 
-        // 2. Direct service close by non-assigned actor also throws 403
+        // 2. Direct service close by an actor lacking ticket.close also throws 403
         try {
             TicketService::close($ticket);
-            $this->fail('Expected 403 when non-assigned actor attempts service close.');
+            $this->fail('Expected 403 when actor without ticket.close attempts service close.');
         } catch (HttpException $e) {
             $this->assertSame(403, $e->getStatusCode());
         }
 
         $this->assertSame('resolved', $ticket->fresh()->status);
 
-        // 3. Assigned handler with ticket.close can close
+        // 3. Handler with ticket.close can close
         $this->actingAs($handler)
             ->post(route('admin.tickets.close', $ticket))
             ->assertRedirect();

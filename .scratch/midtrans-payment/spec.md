@@ -1,10 +1,12 @@
 # Midtrans Snap (sandbox) — online invoice payment
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Ledger: none yet (new lane from the isp_ari gap analysis of 2026-10-11)
 Source: `/tmp/isp_ari_gap.md` backlog rank 2 "Automated Payment Gateway Integration" (see Corrections: this is **not** a parity gap — isp_ari has no gateway and no billing code either).
 
 > Credentials live only in `.env` (names `MIDTRANS_MERCHANT_ID`, `MIDTRANS_CLIENT_KEY`, `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION`; placeholders already in `.env.example:67-71`). No value may appear in any file, test, log or ticket comment. Nothing starts before the owner answers the decisions below; "setuju rekomendasi" approves the recommended option of every item.
+
+Approved by owner 2026-10-11: recommended option of every decision ("setuju rekomendasi").
 
 ## Owner decisions
 

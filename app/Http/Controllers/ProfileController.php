@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\Core\TwoFactorService;
 use App\Support\UserDeletionGuard;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -15,13 +16,15 @@ use Inertia\Response;
 class ProfileController extends Controller
 {
     /**
-     * Display the user's profile form.
+     * Display the user's profile form. The two-factor status carries counts and flags only; the
+     * setup key and recovery codes reach the page once, as Inertia flash data.
      */
-    public function edit(Request $request): Response
+    public function edit(Request $request, TwoFactorService $twoFactor): Response
     {
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
             'status' => session('status'),
+            'twoFactor' => $twoFactor->status($request->user()),
         ]);
     }
 

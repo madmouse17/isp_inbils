@@ -1,6 +1,6 @@
 # TESTER: media access matrix
 
-Status: needs-owner-approval
+Status: done
 Role: qa
 Blocked by: 01-backend-private-media, 02-ui-media-links
 Card: none (new lane; no Hermes card)
@@ -11,6 +11,6 @@ Matrix of actor (guest, customer own, customer other, staff same company, staff 
 
 ## Acceptance criteria
 
-- [ ] PHPUnit matrix green on `inbils_test`; every denied cell asserts the exact status (302 login, 403, 404).
-- [ ] E2E: ticket attachment upload + preview as staff and as the owning customer; the other customer is denied.
-- [ ] Evidence (commands + counts) recorded in the ledger closure.
+- [x] PHPUnit matrix green on `inbils_test`; every denied cell asserts the exact status (302 login, 403, 404). Employee and vehicle documents have no writer (`DocumentService` accepts only `Customer` owners), so those cells do not exist yet.
+- [x] E2E: ticket attachment upload + preview as staff and as the owning customer; the other customer is denied (`tests/e2e/private-media.spec.ts`; `E2eFixtureSeeder` now links the demo customer user to `E2E Linked Customer`).
+- [ ] Evidence (commands + counts) recorded in the ledger closure: the integration owner pastes it from the lane report.

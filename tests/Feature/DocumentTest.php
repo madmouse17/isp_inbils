@@ -26,6 +26,7 @@ class DocumentTest extends TestCase
     {
         parent::setUp();
         $this->admin = $this->createCompanyUser();
+        Storage::fake('local');
         Storage::fake('public');
     }
 
@@ -56,6 +57,10 @@ class DocumentTest extends TestCase
         ]);
         $this->assertEquals($this->admin->company_id, $media->getCustomProperty('company_id'));
         $this->assertEquals($this->admin->id, $media->getCustomProperty('uploaded_by'));
+        $this->assertSame('local', $media->disk);
+        $this->assertSame('local', $media->conversions_disk);
+        Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_list_media_for_model(): void

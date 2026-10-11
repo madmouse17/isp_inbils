@@ -26,12 +26,14 @@ use Modules\Billing\Http\Requests\StoreInvoiceItemRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceRequest;
 use Modules\Billing\Http\Requests\UpdateInvoiceRequest;
 use Modules\Billing\Http\Resources\InvoiceResource;
+use Modules\Billing\Http\Resources\PaymentAttemptResource;
 use Modules\Billing\Http\Resources\ReceivableResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Queries\ReceivablesQuery;
 use Modules\Billing\Services\BillingService;
+use Modules\Billing\Services\MidtransGateway;
 use Modules\Billing\Support\Terbilang;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -171,7 +173,7 @@ class InvoiceController extends Controller
             : $export->streamCsv($columns, $map, "invoices-export-{$stamp}.csv");
     }
 
-    public function show(Invoice $invoice): InertiaResponse
+    public function show(Invoice $invoice, MidtransGateway $gateway): InertiaResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('view', $invoice);
@@ -180,6 +182,10 @@ class InvoiceController extends Controller
 
         return Inertia::render('Admin/Billing/Invoices/Show', [
             'invoice' => new InvoiceResource($invoice),
+            'onlinePayments' => [
+                'enabled' => $gateway->isEnabled(),
+                'attempts' => PaymentAttemptResource::collection($invoice->paymentAttempts()->latest('id')->limit(20)->get()),
+            ],
         ]);
     }
 

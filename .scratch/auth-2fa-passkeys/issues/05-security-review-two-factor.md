@@ -1,6 +1,6 @@
 # SECURITY REVIEW: two-factor authentication release gate
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Role: security-reviewer
 Blocked by: 04
 Card: none (new lane; no Hermes card)

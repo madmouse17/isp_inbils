@@ -7,11 +7,13 @@ use App\Http\Controllers\Auth\EmailVerificationPromptController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\TwoFactorAuthenticationController;
+use App\Http\Controllers\Auth\TwoFactorChallengeController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
-Route::get('login', [AuthenticatedSessionController::class, 'create'])
+    Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
@@ -19,7 +21,9 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
+    // Six requests a minute per address; the answer never says whether the email has an account.
     Route::post('forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:6,1')
         ->name('password.email');
 
     Route::get('reset-password/{token}', [NewPasswordController::class, 'create'])
@@ -27,6 +31,11 @@ Route::get('login', [AuthenticatedSessionController::class, 'create'])
 
     Route::post('reset-password', [NewPasswordController::class, 'store'])
         ->name('password.store');
+
+    Route::get('two-factor-challenge', [TwoFactorChallengeController::class, 'create'])
+        ->name('two-factor.login');
+
+    Route::post('two-factor-challenge', [TwoFactorChallengeController::class, 'store']);
 });
 
 Route::middleware('auth')->group(function () {
@@ -50,4 +59,16 @@ Route::middleware('auth')->group(function () {
 
     Route::post('logout', [AuthenticatedSessionController::class, 'destroy'])
         ->name('logout');
+});
+
+// Managing your own second factor needs a recent password confirmation (the existing confirm-password page).
+Route::middleware(['auth', 'password.confirm'])->prefix('user/two-factor')->name('two-factor.')->group(function () {
+    Route::post('/', [TwoFactorAuthenticationController::class, 'store'])->name('enable');
+
+    Route::post('confirm', [TwoFactorAuthenticationController::class, 'confirm'])->name('confirm');
+
+    Route::post('recovery-codes', [TwoFactorAuthenticationController::class, 'regenerateRecoveryCodes'])
+        ->name('recovery-codes');
+
+    Route::delete('/', [TwoFactorAuthenticationController::class, 'destroy'])->name('disable');
 });

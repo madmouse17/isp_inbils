@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\Concerns\OpensSession;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Services\Core\CompanyService;
+use App\Services\Core\TwoFactorService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,8 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    use OpensSession;
+
     /**
      * Display the login view.
      */
@@ -26,17 +29,20 @@ class AuthenticatedSessionController extends Controller
     }
 
     /**
-     * Handle an incoming authentication request.
+     * Handle an incoming authentication request. A user with two-factor authentication on is not
+     * logged in here: they are sent to the challenge and logged in once it passes.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, TwoFactorService $twoFactor): RedirectResponse
     {
-        $request->authenticate();
+        $user = $request->validateCredentials();
 
-        $request->session()->regenerate();
-        // Every login starts in the default company, never in the one a previous login switched into.
-        $request->session()->forget(CompanyService::SESSION_KEY);
+        if ($user->hasTwoFactorEnabled()) {
+            $twoFactor->startChallenge($request->session(), $user, $request->boolean('remember'));
 
-        return redirect()->intended(route('admin.dashboard', absolute: false));
+            return redirect()->route('two-factor.login');
+        }
+
+        return $this->openSession($request, $user, $request->boolean('remember'));
     }
 
     /**

@@ -42,6 +42,15 @@ class UserPolicy
         return $user->can('users.manage') && ! $user->is($model) && $this->mayChange($user, $model);
     }
 
+    /**
+     * Clearing someone's second factor lets whoever can reach their password log in: never your own
+     * (turn it off from your profile), and only for a user you may change.
+     */
+    public function resetTwoFactor(User $user, User $model): bool
+    {
+        return $user->can('user.two_factor.reset') && ! $user->is($model) && $this->mayChange($user, $model);
+    }
+
     /** Only an administrator may edit or remove an administrator, and only one who answers for the user's companies. */
     private function mayChange(User $actor, User $model): bool
     {

@@ -1,9 +1,10 @@
 # BACKEND (conditional): passkeys / WebAuthn
 
-Status: needs-owner-approval
+Status: superseded
 Role: backend
 Blocked by: 05
 Card: none (new lane; no Hermes card)
+Superseded: owner decision Q1 (a) of 2026-10-11 ("setuju rekomendasi") ships TOTP and recovery codes now and treats passkeys as a separate later approval. Nothing here was started. To pursue passkeys, open a new ticket from the starting contract below once the owner picks Q1 (b) or (c).
 
 > Conditional. Do not start unless the owner chooses `../spec.md` Q1 (b) or (c) after seeing the TOTP release. If chosen, Q2 flips to `laravel/fortify` hosting `laravel/passkeys` (pre-1.0, `v0.2.1` at time of writing) and this ticket is re-planned and re-approved first; the notes below are the starting contract.
 

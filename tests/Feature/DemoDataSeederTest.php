@@ -50,6 +50,7 @@ class DemoDataSeederTest extends TestCase
     {
         parent::setUp();
 
+        Storage::fake('local');
         Storage::fake('public');
         $this->seed(RolePermissionSeeder::class);
         app()['cache']->forget('spatie.permission.cache');

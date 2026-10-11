@@ -45,6 +45,8 @@ class SubscriptionService
                 'service_package_id' => $subscription->service_package_id,
             ], $subscription);
 
+            CustomerStatusRecalculator::recalculate($subscription->customer_id);
+
             return $subscription->fresh();
         });
     }
@@ -65,6 +67,8 @@ class SubscriptionService
                 'code' => $subscription->code,
             ], $subscription);
 
+            CustomerStatusRecalculator::recalculate($subscription->customer_id);
+
             return $subscription->fresh();
         });
     }
@@ -81,6 +85,8 @@ class SubscriptionService
                 'code' => $subscription->code,
                 'reason' => $reason,
             ], $subscription);
+
+            CustomerStatusRecalculator::recalculate($subscription->customer_id);
 
             return $subscription->fresh();
         });
@@ -100,6 +106,8 @@ class SubscriptionService
             AuditService::log('service_subscription', 'reactivated', [
                 'code' => $subscription->code,
             ], $subscription);
+
+            CustomerStatusRecalculator::recalculate($subscription->customer_id);
 
             return $subscription->fresh();
         });
@@ -144,6 +152,8 @@ class SubscriptionService
                 'code' => $subscription->code,
                 'reason' => $reason,
             ], $subscription);
+
+            CustomerStatusRecalculator::recalculate($subscription->customer_id);
 
             return $subscription->fresh();
         });

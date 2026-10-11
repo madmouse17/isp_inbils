@@ -49,6 +49,8 @@ Provide these from the deployment secret store or equivalent runtime secret inje
 
 The scripts do not read secrets from repo files or `.env`. Credentials are passed to the MySQL client via a `defaults-extra-file` (preferred, mode 600) or environment variables; passwords are never logged.
 
+`BACKUP_MEDIA_DIR` must cover `storage/app/private` (ticket attachments, SPK evidence, customer documents); `storage/app/public` only holds the company logo. Pointing it at `storage/app` covers both.
+
 ## Safety rules
 
 - Never point backup output at the source tree.

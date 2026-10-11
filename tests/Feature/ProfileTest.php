@@ -43,6 +43,21 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
+    public function test_a_login_still_on_its_legacy_password_cannot_change_its_email(): void
+    {
+        $user = $this->createCompanyUser();
+        $user->forceFill(['must_change_password' => true])->save();
+
+        $this->actingAs($user)->patch('/profile', ['name' => 'Renamed', 'email' => 'attacker@example.com'])
+            ->assertSessionHasErrors('email');
+        $this->assertNotSame('attacker@example.com', $user->refresh()->email);
+
+        // Renaming without touching the email still works.
+        $this->actingAs($user)->patch('/profile', ['name' => 'Renamed', 'email' => $user->email])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Renamed', $user->refresh()->name);
+    }
+
     public function test_user_can_delete_their_account(): void
     {
         $user = $this->createCompanyUser();

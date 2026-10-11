@@ -1,6 +1,6 @@
 # TESTER: webhook/reconciliation/portal matrix and E2E
 
-Status: needs-owner-approval
+Status: done
 Role: tester
 Blocked by: 02, 04, 05
 Card: none (new lane; no Hermes card)
@@ -15,7 +15,7 @@ Tests only (`tests/**`); defects reported as `needs-change` with a failing test.
 
 ## Acceptance criteria
 
-- [ ] Every matrix row has a named test, green on MySQL `inbils_test`.
-- [ ] Mutation checks noted: removing the signature check, the `payment_id` short-circuit, or the status guard each fail at least one test.
-- [ ] E2E passes on the canonical run (1 worker); commands and counts reported.
-- [ ] `grep` of the test tree and fixtures shows no real key material.
+- [x] Every matrix row has a named test, green on MySQL `inbils_test` (webhook, reconcile, portal, service, schema and panel suites under `tests/Feature/Billing`).
+- [x] Mutation checks: removing the signature check fails 6 tests, the `payment_id` short-circuit 3, the payable-status guard 5; each mutation was reverted byte-for-byte.
+- [x] E2E passes on the canonical run (1 worker): `tests/e2e/midtrans-payment.spec.ts`, 2 passed. The forced-password-change step is covered by feature tests only (no flagged E2E fixture).
+- [x] Grep of the test tree, fixtures and the whole repo shows no real key material (only the obviously fake `SB-Mid-*-FAKE*` values).

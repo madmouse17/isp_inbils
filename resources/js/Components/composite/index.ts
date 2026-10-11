@@ -17,6 +17,8 @@ export { CustomerContactEditor } from './CustomerContactEditor';
 export { CustomerAcquirerField, CustomerAcquirerValue } from './CustomerAcquirerField';
 export { CustomerDataFields } from './CustomerDataFields';
 export type { CustomerDataValue } from './CustomerDataFields';
+export { MediaPreview } from './MediaPreview';
+export type { MediaFile } from './MediaPreview';
 export { MetricDefinitionDetails } from './MetricDefinitionDetails';
 export { MetricDefinitionNote } from './MetricDefinitionNote';
 export { MoneyInput } from './MoneyInput';

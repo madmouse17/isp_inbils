@@ -1,6 +1,6 @@
 # UI: customer portal invoice pages with Pay button, staff "Online payments" panel
 
-Status: needs-owner-approval
+Status: done
 Role: ui
 Blocked by: 03, 02
 Card: none (new lane; no Hermes card)
@@ -16,7 +16,7 @@ Non-goals: backend contracts, snap.js embedding, reconciliation report page.
 
 ## Acceptance criteria
 
-- [ ] A customer can reach the portal after login, list/open own invoices, press Pay and land on the (faked in tests) Midtrans redirect; returning shows the correct status.
-- [ ] Pay is disabled for paid/cancelled invoices and shows the reason; a second click does not open a second payment.
-- [ ] Staff panel shows attempts and an `exception` with its reason on a test invoice; absent for users without `billing.view`.
-- [ ] `npm run typecheck`, `npm run build`, scoped ESLint pass; no overflow at 320px/1280px; both themes legible; focus order correct.
+- [x] A customer can reach the portal after login, list/open own invoices, press Pay and land on the (mock) Midtrans redirect; returning shows the correct status.
+- [x] Pay is disabled for paid/cancelled invoices and shows the reason; a (double) click does not open a second payment (ref guard in the page plus server-side reuse).
+- [x] Staff panel shows attempts and an `exception` with its reason on a test invoice; absent for users without `billing.view` (they cannot open the page).
+- [x] `npm run typecheck`, `npm run build` and scoped ESLint pass; E2E asserts no horizontal overflow at 320px in light and dark. Not audited visually: colour contrast of the existing tokens and keyboard focus order (DOM order equals visual order, no tabindex tricks).

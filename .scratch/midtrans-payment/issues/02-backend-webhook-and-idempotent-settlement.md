@@ -1,6 +1,6 @@
 # BACKEND: Midtrans webhook, signature verification, idempotent payment recording
 
-Status: needs-owner-approval
+Status: done
 Role: backend
 Blocked by: 01
 Card: none (new lane; no Hermes card)
@@ -17,11 +17,11 @@ Non-goals: Status-API polling (ticket 04), portal, UI, notifications.
 
 ## Acceptance criteria
 
-- [ ] Valid settlement notification (fake test key): exactly one `payments` row (`method=midtrans`, `reference=order_id`, `received_by` null), invoice `paid` (or `partial` if balance remains), attempt `paid` with `payment_id`; response 200.
-- [ ] The same notification replayed 3× and two concurrent identical notifications leave exactly one payment and an unchanged invoice.
-- [ ] Bad signature or missing field: 403/422 respectively, zero rows changed; unknown `order_id`: 404.
-- [ ] Amount differing from the attempt, invoice cancelled/already paid, `capture` with `fraud_status=challenge`, refund/chargeback: attempt `exception` (or unchanged for challenge), no payment, response 200, audit row written.
-- [ ] pending keeps the attempt `pending`; deny/cancel/expire close it as `failed`/`expired`.
-- [ ] A notification can only credit the company that owns the attempt (two-company test).
-- [ ] Route is reachable without session/CSRF token and is not reachable via GET.
-- [ ] Pint and scoped Larastan clean; focused Billing suite green.
+- [x] Valid settlement notification (fake test key): exactly one `payments` row (`method=midtrans`, `reference=order_id`, `received_by` null), invoice `paid` (or `partial` if balance remains), attempt `paid` with `payment_id`; response 200.
+- [x] The same notification replayed 3× and a second worker holding a stale attempt leave exactly one payment, an unchanged invoice and an attempt that stays `paid` (true parallel processes were not run; the invoice-then-attempt row locks and the unique `payments` reference are the guards).
+- [x] Bad signature or missing field: 403/422 respectively, zero rows changed; unknown `order_id`: 404.
+- [x] Amount differing from the attempt, invoice cancelled/already paid/draft, balance shrunk by a manual payment, `capture` with `fraud_status=challenge`, refund/chargeback: attempt `exception` (or unchanged for challenge), no payment, response 200, audit row written.
+- [x] pending keeps the attempt `pending`; deny/cancel/failure/expire close it as `failed`/`expired`.
+- [x] A notification can only credit the company that owns the attempt (two-company test, same invoice number in both).
+- [x] Route is reachable without session/CSRF token (outside the `web` group, so no `bootstrap/app.php` exception was needed) and is not reachable via GET (405).
+- [x] Pint clean; Larastan clean on new files; Billing suite green.

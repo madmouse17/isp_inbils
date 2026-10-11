@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { router } from '@inertiajs/react';
+import { ShieldCheck, ShieldOff } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -20,6 +21,7 @@ interface UserRow {
     email: string;
     roles: string[];
     is_active: boolean;
+    two_factor_enabled?: boolean;
     can?: {
         delete?: boolean;
     };
@@ -77,6 +79,20 @@ export default function Index({ users, filters, can }: UsersProps) {
                 cell: (user) => (
                     <Badge variant={user.is_active ? 'success' : 'danger'}>
                         {user.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'two_factor_enabled',
+                header: '2FA',
+                cell: (user) => (
+                    <Badge variant={user.two_factor_enabled ? 'success' : 'secondary'}>
+                        {user.two_factor_enabled ? (
+                            <ShieldCheck className="size-3.5" aria-hidden="true" />
+                        ) : (
+                            <ShieldOff className="size-3.5" aria-hidden="true" />
+                        )}
+                        {user.two_factor_enabled ? 'On' : 'Off'}
                     </Badge>
                 ),
             },

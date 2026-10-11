@@ -215,13 +215,13 @@ class TicketService
     public static function close(Ticket $ticket): Ticket
     {
         $expectedStatus = $ticket->status;
-        self::assertAssignedActor($ticket, 'ticket.close');
+        self::assertCloser($ticket);
         abort_if($ticket->status !== 'resolved', 422, 'Ticket must be resolved to close.');
 
         return DB::transaction(function () use ($ticket, $expectedStatus) {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
-            self::assertAssignedActor($ticket, 'ticket.close');
+            self::assertCloser($ticket);
             self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'resolved', 'Ticket close conflict: item state changed by another user.');
             abort_if($ticket->status !== 'resolved', 422, 'Ticket must be resolved to close.');
             $ticket->update(['status' => 'closed', 'closed_at' => now()]);
@@ -391,6 +391,18 @@ class TicketService
             && $ticket->assigned_to !== null
             && (int) $ticket->assigned_to === (int) $actor->id
             && $actor->can($ability),
+            403
+        );
+    }
+
+    private static function assertCloser(Ticket $ticket): void
+    {
+        self::assertCapability('ticket.close');
+        $actor = Auth::user();
+        abort_unless(
+            $actor !== null
+            && $actor->is_active
+            && CompanyService::idFor($actor) === (int) $ticket->company_id,
             403
         );
     }

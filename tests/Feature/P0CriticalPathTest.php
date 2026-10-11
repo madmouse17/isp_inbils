@@ -128,6 +128,7 @@ class P0CriticalPathTest extends TestCase
         $address = CustomerAddress::where('customer_id', $customer->id)
             ->where('is_installation_point', true)
             ->firstOrFail();
+        $this->assertSame('prospective', $customer->fresh()->customer_status);
         $subscription = ServiceSubscription::where('customer_id', $customer->id)->firstOrFail();
         $workOrder = WorkOrder::where('subscription_id', $subscription->id)->firstOrFail();
         WorkOrderItem::create([
@@ -170,6 +171,7 @@ class P0CriticalPathTest extends TestCase
         $this->assertDatabaseHas('stocks', ['product_id' => $product->id, 'location_id' => $location->id, 'quantity' => 8, 'reserved_quantity' => 0]);
         $this->assertDatabaseHas('network_assets', ['id' => $asset->id, 'status' => 'installed', 'customer_id' => $customer->id, 'subscription_id' => $subscription->id]);
         $this->assertDatabaseHas('service_subscriptions', ['id' => $subscription->id, 'status' => 'active', 'ont_asset_id' => $asset->id]);
+        $this->assertSame('active', $customer->fresh()->customer_status);
         $this->assertDatabaseHas('stock_movements', [
             'product_id' => $product->id,
             'movement_type' => 'issue',
@@ -178,6 +180,7 @@ class P0CriticalPathTest extends TestCase
         ]);
 
         $invoice = Invoice::where('work_order_id', $workOrder->id)->firstOrFail();
+        $this->post(route('admin.invoices.send', $invoice))->assertRedirect();
         $this->post(route('admin.invoices.payments.store', $invoice), [
             'amount' => $invoice->total,
             'method' => 'transfer',

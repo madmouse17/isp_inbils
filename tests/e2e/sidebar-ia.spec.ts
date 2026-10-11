@@ -153,9 +153,9 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
     },
     customer: {
         groups: ['Finance/Reports'],
-        placed: { 'Finance/Reports': ['Ticketing'] },
+        placed: { 'Finance/Reports': ['Tagihan Saya', 'Ticketing'] },
         absent: ['Komponen'],
-        onlyLinks: ['Dashboard', 'Ticketing'],
+        onlyLinks: ['Dashboard', 'Tagihan Saya', 'Ticketing'],
     },
 };
 

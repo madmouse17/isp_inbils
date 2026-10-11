@@ -55,6 +55,20 @@ php artisan queue:restart
 php artisan schedule:run
 ```
 
+## Private uploads (one-time per environment)
+
+Ticket attachments, SPK evidence and customer documents live on the private disk (`storage/app/private`) and are served only by `GET /admin/media/{media}` after the owner's policy allows it. Raster images show in the browser; every other type, PDF included, downloads. The company logo is the one file that stays under `storage/app/public`. Files uploaded before this release are still on the public disk until they are moved:
+
+```bash
+php artisan inbils:media:privatize --dry-run   # lists what would move, writes nothing
+php artisan inbils:media:privatize             # copies, verifies, flips the row, removes the public copy
+php artisan inbils:media:privatize             # second run must report "Moved 0 media"
+```
+
+Only rows on the `public` disk (logo excluded) are touched, and only towards `MEDIA_DISK` (default `local`). The command refuses to start, exit 1 and nothing changed, when that disk is `public`, has public visibility, is not configured, or stores its files where the public disk does (a real run checks this with a small probe file; the dry run does not). Run it as the user that owns `storage/` (inside the container: the same user as the web process). Take the backup checkpoint first and keep `storage/app/private` in it (see `BACKUP_RESTORE.md`).
+
+Exit 1 after the run means at least one media is still on the public disk: a `Failed <id>: ...` line names the cause, a `Missing <id>: public:<path>` line means no file exists at the path the app computes for that row (look for the file on the public disk by hand, or drop the row). Fix it and rerun; finished media are not touched again.
+
 ## Prohibited commands
 
 These commands must never be executed in production:

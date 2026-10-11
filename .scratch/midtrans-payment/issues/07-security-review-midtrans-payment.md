@@ -1,6 +1,6 @@
 # SECURITY REVIEW: Midtrans payment, webhook and portal release gate
 
-Status: needs-owner-approval
+Status: ready-for-agent
 Role: security-reviewer
 Blocked by: 06
 Card: none (new lane; no Hermes card)

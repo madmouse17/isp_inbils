@@ -38,8 +38,29 @@ class StoreTicketRequest extends FormRequest
             ]),
             'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
             'network_asset_id' => ['nullable', Rule::exists('network_assets', 'id')->where('company_id', $companyId)],
-            'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
+            // Portal customers never pick a location (not validated => not in validated()); see ticketAttributes().
+            ...($this->isCustomerUser() ? [] : [
+                'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
+            ]),
         ];
+    }
+
+    /**
+     * Validated ticket data; customer tickets take their location from the subscription's serving location.
+     *
+     * @return array<string, mixed>
+     */
+    public function ticketAttributes(): array
+    {
+        $data = $this->validated();
+
+        if ($this->isCustomerUser()) {
+            $data['location_id'] = ServiceSubscription::query()
+                ->whereKey($data['subscription_id'] ?? null)
+                ->value('serving_pop_id');
+        }
+
+        return $data;
     }
 
     protected function prepareForValidation(): void
@@ -71,7 +92,7 @@ class StoreTicketRequest extends FormRequest
                 $customerId = $this->input('customer_id');
                 $subscriptionId = $this->input('subscription_id');
                 $networkAssetId = $this->input('network_asset_id');
-                $locationId = $this->input('location_id');
+                $locationId = $this->isCustomerUser() ? null : $this->input('location_id');
 
                 if ($customerId && $subscriptionId) {
                     $subscription = ServiceSubscription::query()

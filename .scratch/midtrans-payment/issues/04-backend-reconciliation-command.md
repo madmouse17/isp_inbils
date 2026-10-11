@@ -1,6 +1,6 @@
 # BACKEND: scheduled reconciliation of pending Midtrans attempts
 
-Status: needs-owner-approval
+Status: done
 Role: backend
 Blocked by: 02
 Card: none (new lane; no Hermes card)
@@ -16,9 +16,9 @@ Non-goals: report page, notifications, refund handling.
 
 ## Acceptance criteria
 
-- [ ] A pending attempt whose remote status is `settlement` (Http::fake) gets exactly one payment, same as the webhook path; running the command twice adds nothing.
-- [ ] A pending attempt past expiry with remote `expire`/404 becomes `expired`; one still within the grace period is untouched.
-- [ ] `--dry-run` changes no rows; `--company` limits to one company and never touches another's attempts.
-- [ ] A failing HTTP call for one attempt does not abort the others and leaves that attempt `pending`.
-- [ ] With no server key the command exits 0 and does nothing.
-- [ ] Scheduler registration visible in `php artisan schedule:list`.
+- [x] A pending attempt whose remote status is `settlement` (Http::fake) gets exactly one payment, same as the webhook path; running the command twice adds nothing.
+- [x] A pending attempt past expiry with remote `expire`/404 becomes `expired`; one still within the grace period is untouched.
+- [x] `--dry-run` changes no rows; `--company` limits to one company and never touches another's attempts.
+- [x] A failing HTTP call for one attempt does not abort the others and leaves that attempt `pending`.
+- [x] With no server key the command exits 0 and does nothing.
+- [x] Scheduler registration visible in `php artisan schedule:list` (every 15 minutes, `withoutOverlapping`).

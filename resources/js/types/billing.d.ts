@@ -47,7 +47,8 @@ export interface PaymentEntry {
     method: string;
     reference?: string | null;
     paid_at: string;
-    received_by: number;
+    /** Null for gateway payments: no human received them. */
+    received_by: number | null;
     notes?: string | null;
     cancelled_at?: string | null;
     cancel_reason?: string | null;

@@ -22,7 +22,7 @@ import {
     Textarea,
     useToast,
 } from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+import { MediaPreview, PageHeader, StatusBadge } from '@/Components/composite';
 import type { PageProps } from '@/types';
 
 interface TData {
@@ -56,8 +56,10 @@ interface TData {
     }[];
     attachments?: {
         id: number;
+        url: string;
         file_path: string;
         original_name?: string | null;
+        mime_type?: string | null;
         created_at: string;
     }[];
 }
@@ -319,7 +321,7 @@ export default function Show({ ticket }: ShowProps) {
                                     Resolve
                                 </Button>
                             )}
-                            {t.status === 'resolved' && (
+                            {t.status === 'resolved' && can('ticket.close') && (
                                 <Button type="button" onClick={() => setActionModal('close')}>
                                     Close
                                 </Button>
@@ -415,6 +417,7 @@ export default function Show({ ticket }: ShowProps) {
                                         {a.original_name ?? a.file_path}
                                     </p>
                                     <p className="text-xs text-muted-foreground">{a.created_at}</p>
+                                    <MediaPreview media={a} />
                                 </div>
                             ))}
                         </div>

@@ -4,6 +4,7 @@ namespace Tests\Feature\Ticketing;
 
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
+use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -203,6 +204,89 @@ class TicketCustomerScopeTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
                 ->where('customers.data.0.id', $this->customerA->customer->id));
+    }
+
+    public function test_customer_create_form_offers_no_locations(): void
+    {
+        $this->makeLocation('LOC-FORM');
+
+        $this->actingAs($this->customerA)
+            ->get(route('admin.tickets.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canChooseLocation', false)
+                ->has('locations.data', 0));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.tickets.create'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('canChooseLocation', true)
+                ->has('locations.data', 1));
+    }
+
+    public function test_customer_supplied_location_is_ignored(): void
+    {
+        $location = $this->makeLocation('LOC-PICK');
+
+        $this->actingAs($this->customerA)
+            ->post(route('admin.tickets.store'), $this->payload(['location_id' => $location->id]))
+            ->assertRedirect();
+
+        $this->assertNull(Ticket::query()->where('title', 'Portal ticket')->firstOrFail()->location_id);
+    }
+
+    public function test_customer_ticket_location_comes_from_subscription_service_location(): void
+    {
+        $pop = $this->makeLocation('LOC-POP');
+        $other = $this->makeLocation('LOC-OTHER');
+        $subscription = ServiceSubscription::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'customer_id' => $this->customerA->customer->id,
+            'service_package_id' => ServicePackageFactory::new()->create(['company_id' => $this->admin->company_id])->id,
+            'installation_address_id' => CustomerAddress::factory()->create([
+                'company_id' => $this->admin->company_id,
+                'customer_id' => $this->customerA->customer->id,
+            ])->id,
+            'serving_pop_id' => $pop->id,
+            'status' => 'active',
+            'billing_day' => 5,
+            'mrc_amount' => 100_000,
+        ]);
+
+        $this->actingAs($this->customerA)
+            ->post(route('admin.tickets.store'), $this->payload([
+                'subscription_id' => $subscription->id,
+                'location_id' => $other->id,
+            ]))
+            ->assertRedirect();
+
+        $this->assertSame($pop->id, Ticket::query()->where('title', 'Portal ticket')->firstOrFail()->location_id);
+    }
+
+    public function test_staff_can_still_choose_ticket_location(): void
+    {
+        $location = $this->makeLocation('LOC-STAFF');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.tickets.store'), $this->payload([
+                'customer_id' => $this->ticketB->customer_id,
+                'location_id' => $location->id,
+            ]))
+            ->assertRedirect();
+
+        $this->assertSame($location->id, Ticket::query()->where('title', 'Portal ticket')->firstOrFail()->location_id);
+    }
+
+    private function makeLocation(string $code): Location
+    {
+        return Location::query()->create([
+            'company_id' => $this->admin->company_id,
+            'code' => $code,
+            'name' => $code,
+            'type' => 'site',
+            'path' => $code,
+            'is_active' => true,
+        ]);
     }
 
     public function test_staff_still_sees_every_ticket(): void

@@ -251,6 +251,8 @@ class E2eFixtureSeeder extends Seeder
                 'email' => 'e2e-linked-customer@example.test',
                 'phone' => '0800005195',
                 'is_active' => true,
+                // The demo customer user owns this customer: portal specs (tickets, private media) log in as its owner.
+                'user_id' => User::query()->where('email', 'customer@demo.inbils.test')->value('id'),
             ],
         );
 

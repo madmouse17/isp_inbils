@@ -1,6 +1,6 @@
 # UI: customer status badge and filter on Customers Index/Show
 
-Status: needs-owner-approval
+Status: done
 Role: ui
 Blocked by: 01
 Card: none (new lane; no Hermes card)

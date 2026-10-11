@@ -10,13 +10,14 @@ import {
     type CustomerHistory,
     type CustomerHistoryAccess,
 } from '@/Components/composite';
+import { CustomerStatusBadge } from '@/lib/customerStatus';
 import type { Customer } from '@/types/models';
 
 interface ShowProps extends Record<string, unknown> {
     customer: { data: Customer };
     history: CustomerHistory;
     historyAccess: CustomerHistoryAccess;
-    can: { viewAcquirer: boolean };
+    can: { viewAcquirer: boolean; update: boolean };
 }
 
 export default function Show({ customer, history, historyAccess, can }: ShowProps) {
@@ -38,6 +39,21 @@ export default function Show({ customer, history, historyAccess, can }: ShowProp
                             >
                                 <Link href={route('admin.customers.index')}>Back</Link>
                             </Button>
+                            {can.update ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(
+                                            route('admin.customers.access-link', c.id),
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    Kirim ulang link akses
+                                </Button>
+                            ) : null}
                             <Button
                                 type="button"
                                 variant="warning"
@@ -98,6 +114,10 @@ export default function Show({ customer, history, historyAccess, can }: ShowProp
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Status: </span>
+                                <CustomerStatusBadge status={c.customer_status} />
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">Account: </span>
                                 <StatusBadge variant={c.is_active ? 'success' : 'danger'}>
                                     {c.is_active ? 'Active' : 'Inactive'}
                                 </StatusBadge>

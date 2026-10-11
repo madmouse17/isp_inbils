@@ -4,7 +4,11 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
+/**
+ * @mixin Media
+ */
 class MediaResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -13,8 +17,8 @@ class MediaResource extends JsonResource
         return [
             'id' => $this->id,
             'type' => $this->getCustomProperty('type'),
-            'file_path' => '/storage/'.$this->getPathRelativeToRoot(),
-            'url' => '/storage/'.$this->getPathRelativeToRoot(),
+            'file_path' => route('admin.media.show', $this->resource, false),
+            'url' => route('admin.media.show', $this->resource, false),
             'original_name' => $this->name,
             'file_name' => $this->file_name,
             'mime_type' => $this->mime_type,

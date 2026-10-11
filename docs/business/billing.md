@@ -28,7 +28,7 @@ SubscriptionService.
 | noc | view invoice + subscription status (suspend flag) (no edit) |
 | staff | view + create draft + send + record payment (no suspend/delete) |
 | technician | no access (billing = back-office) |
-| customer (v2 portal) | view own invoices + pay (v2 gateway) |
+| customer (portal pilot) | view own invoices + pay online (Midtrans sandbox pilot, lihat "Pembayaran online") |
 
 ## Entity
 
@@ -104,16 +104,19 @@ Skema: `docs/DATABASE.md` Section 11 (Billing).
 
 ### payments
 - id, company_id FK NOT NULL, invoice_id FK NOT NULL (restrict), amount
-  decimal(15,2) NOT NULL, method enum(cash/transfer/cheque/other) NOT
-  NULL, reference varchar nullable (no. transfer/cheque), paid_at
-  timestamp NOT NULL, received_by FK→users.id NOT NULL, notes nullable,
-  cancelled_at timestamp nullable, cancel_reason nullable, created_at,
-  updated_at.
+  decimal(15,2) NOT NULL, method enum(cash/transfer/cheque/other/midtrans) NOT
+  NULL, reference varchar nullable (no. transfer/cheque; order_id untuk
+  `midtrans`), paid_at timestamp NOT NULL, received_by FK→users.id
+  **nullable** (NULL = dicatat sistem, yaitu pembayaran gateway), notes
+  nullable, cancelled_at timestamp nullable, cancel_reason nullable,
+  created_at, updated_at.
 - Index: `(company_id, invoice_id)`, `(company_id, paid_at)`. Trait
   `BelongsToCompany`.
 - TIDAK soft delete (immutable financial record). Correction = reverse
   (cancel + reason) + new payment.
-- Check: `method IN ('cash','transfer','cheque','other')`.
+- Check: `method IN ('cash','transfer','cheque','other','midtrans')`.
+  `RecordPaymentRequest` membatasi staf ke empat metode manual; `midtrans`
+  hanya ditulis oleh jalur gateway.
 
 ## Workflow
 
@@ -167,6 +170,8 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
 
 ### Payment processing
 - `record_payment(amount, method, reference)`: paid_amount += amount.
+  - Hanya invoice `sent|partial|overdue` yang menerima pembayaran
+    (`draft`/`cancelled` → 422), manual maupun gateway.
   - amount >= sisa → status=paid.
   - 0 < amount < sisa → status=partial.
   - amount > sisa → 422 (overpay validation).
@@ -244,6 +249,111 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - `POST   /admin/subscriptions/{sub}/suspend` (body: reason — manual)
 - `POST   /admin/subscriptions/{sub}/reactivate` (manual)
 - `GET    /admin/invoices/export`
+- `GET    /portal/invoices`, `GET /portal/invoices/{id}`, `POST /portal/invoices/{id}/pay`, `GET /portal/payments/return`, `GET|PUT /portal/password` (role customer, route name `portal.*`)
+- `POST   /webhooks/midtrans` (publik, bertanda tangan Midtrans; lihat "Pembayaran online")
+
+## Pembayaran online (Midtrans Snap, pilot sandbox)
+
+Keputusan owner 2026-10-11 (`.scratch/midtrans-payment/spec.md`): **pilot
+sandbox** (`MIDTRANS_IS_PRODUCTION=false`). Go-live produksi butuh persetujuan
+terpisah: merchant asli, URL HTTPS publik untuk notifikasi, kunci produksi
+hanya di host, dan security review yang ditandatangani. Satu merchant untuk
+seluruh instalasi (kunci dari `.env`, dibaca hanya lewat
+`config/services.php` blok `midtrans`).
+
+Pengaman lingkungan: kunci sandbox hanya untuk host non-produksi. Pada host
+`APP_ENV=production` dengan `MIDTRANS_IS_PRODUCTION=false` gateway **mati**
+(Pay 404, webhook 404) kecuali owner menyetujui eksplisit lewat
+`MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` (sandbox di data produksi: pembayaran
+uji tercatat sebagai pembayaran sungguhan pada invoice). `MIDTRANS_BASE_URL`
+(mock E2E) hanya dihormati saat `APP_ENV` = `local`, `testing`, atau `e2e`.
+
+### Alur
+1. Pelanggan (role `customer` yang tertaut ke `customers.user_id`, permission
+   `portal.invoice.view` / `portal.invoice.pay`) membuka `/portal/invoices`,
+   membuka invoice `sent|partial|overdue`, menekan **Bayar**. Akun lama yang
+   passwordnya nomor telepon ditandai `users.must_change_password` (migrasi
+   backfill) dan **password lamanya dimatikan**: `customers:rotate-legacy-passwords`
+   (langkah deploy) menggantinya dengan password acak 32 karakter dan
+   mengantrekan link atur kata sandi. Selama bendera menyala semua halaman
+   invoice mengarah ke `/portal/password`, yang hanya menjelaskan dan menawarkan
+   "Kirim link baru" (throttle 3/menit). Bendera hanya dibersihkan oleh reset
+   password yang selesai lewat link email (event `PasswordReset`), yang juga
+   memutar `remember_token` dan menghapus sesi database akun itu. Batas: sesi
+   driver `file`/`redis` tidak bisa dicari per user, jadi hanya cookie
+   remember-me yang dicabut.
+2. `PaymentAttemptService::openFor` mengunci baris invoice, memakai ulang
+   attempt `pending` yang belum kedaluwarsa dengan nominal = `Invoice::sisa`,
+   atau membuat attempt baru + halaman Snap (`MidtransGateway`, plain `Http`
+   client, HTTP Basic server key, timeout 10 s, tanpa retry). Hanya nominal
+   rupiah bulat = sisa penuh; invoice `draft`/`paid`/`cancelled` ditolak (422).
+   Panggilan Snap gagal → attempt di-rollback, pelanggan mencoba lagi.
+3. Browser diarahkan ke `redirect_url` Midtrans (tanpa snap.js, tanpa client
+   key di halaman) dan kembali ke `/portal/payments/return`, yang menampilkan
+   status dari database (query string Midtrans tidak dipercaya).
+4. Midtrans memanggil `POST /webhooks/midtrans`. Pembayaran dicatat lewat
+   `BillingService::recordPayment` (satu-satunya tempat matematika invoice)
+   di dalam `CompanyService::runAs(attempt.company_id)`.
+
+### payment_attempts
+`company_id`, `invoice_id`, `order_id` (unik global, ≤ 50 karakter,
+`{company_id}-{invoice_id}-{12 acak}`), `amount`, `status`
+(`pending|paid|failed|expired|exception`), `status_reason`, `snap_token` dan
+`redirect_url` (tidak pernah diserialisasi/ditampilkan), `transaction_id`,
+`payment_type`, `last_notification` (JSON tanpa `signature_key`),
+`expires_at` (24 jam), `settled_at`, `payment_id` (nullable, unik). Kolom
+finansial immutable; attempt tidak bisa dihapus.
+
+### Webhook `POST /webhooks/midtrans`
+- Tanpa session/CSRF (di luar group `web`); hanya POST dengan signature salah
+  atau hilang yang di-throttle (30/menit per IP), notifikasi bertanda tangan
+  valid tidak pernah kena 429 meski proxy membuat semua pengirim berbagi satu IP, hanya
+  JSON. Gateway mati (server key kosong) → 404.
+- Urutan: field wajib (422) → `signature_key` = `sha512(order_id +
+  status_code + gross_amount + server key)` dengan `hash_equals` (403, body
+  kosong) → cari attempt dari `order_id` (404) → ambil status ulang dari
+  Status API (notifikasi hanya pemicu) → `applyNotification`. Status API
+  gagal → 503 (Midtrans mencoba ulang; rekonsiliasi sebagai cadangan).
+- `applyNotification` (dipakai webhook dan rekonsiliasi): kunci invoice lalu
+  attempt; `payment_id` terisi = tidak ada perubahan (idempoten). Dibayar =
+  `settlement`, atau `capture` dengan `fraud_status=accept`, dan
+  `status_code` 200. Nominal harus sama dengan attempt. `pending` tetap
+  pending; `deny|cancel|failure` → `failed`; `expire` → `expired`.
+- Selalu 200 untuk notifikasi bertanda tangan valid. Nominal berbeda, invoice
+  sudah tidak menerima pembayaran, referensi ganda, `refund|chargeback` →
+  attempt `exception` + alasan + audit `payment_attempt`; **tidak ada
+  reversal otomatis** (reversal tetap tindakan manusia maker-checker) dan
+  status langganan tidak berubah.
+
+### Rekonsiliasi
+`php artisan midtrans:reconcile {--company=} {--dry-run}`, dijadwalkan tiap 15
+menit (`withoutOverlapping`). Attempt `pending` lebih tua dari 10 menit
+ditanyakan ke Status API per perusahaan aktif; jawabannya melewati
+`applyNotification` yang sama. Midtrans tidak punya transaksi + halaman sudah
+kedaluwarsa → `expired`. Gagal jaringan satu attempt tidak menghentikan
+yang lain. Tanpa server key: keluar 0, tidak melakukan apa pun.
+
+### Panel staf
+Halaman invoice menampilkan panel read-only "Online payments" (status,
+jumlah, transaction id, jenis pembayaran, alasan exception). Tidak ada aksi
+yang bisa menandai attempt lunas.
+
+### Deploy dan rollback
+- `php artisan migrate`; `php artisan db:seed --class=RolePermissionSeeder --force`;
+  **`php artisan customers:rotate-legacy-passwords --dry-run`, lalu tanpa
+  `--dry-run`** (sekali: mematikan password nomor telepon akun lama dan
+  mengantrekan link atur kata sandi; butuh mail dan queue worker berjalan; aman
+  diulang, hanya akun yang belum menyelesaikan reset yang diproses lagi dan
+  dikirimi link baru); isi `MIDTRANS_MERCHANT_ID`, `MIDTRANS_CLIENT_KEY`,
+  `MIDTRANS_SERVER_KEY`, `MIDTRANS_IS_PRODUCTION=false` hanya di host
+  non-produksi (host `APP_ENV=production` butuh kunci produksi, atau
+  `MIDTRANS_ALLOW_SANDBOX_IN_PRODUCTION=true` yang disetujui owner); set
+  "Payment Notification URL" di dashboard Midtrans ke
+  `https://<host>/webhooks/midtrans`; pastikan scheduler jalan.
+- Rollback migrasi: `payment_attempts` bisa dihapus; `payments.method`
+  kembali ke empat nilai dan `payments.received_by` kembali NOT NULL **hanya
+  jika tidak ada pembayaran `midtrans`/tanpa penerima** (migrasi menolak dan
+  menjelaskan; ledger immutable).
 
 ## Testing Scenario
 
@@ -317,7 +427,7 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - [ ] UI: invoice list (filter type/status/source/customer/periode),
   detail (items table + payments timeline + linked subscription/spk +
   suspend/reactivate buttons for recurring), form (add line dynamic),
-  customer portal invoice list (v2).
+  portal pelanggan (invoice list, detail, bayar online, status pembayaran).
 - [ ] UI pakai Components/ui + composite.
 - [ ] Dark mode + responsive.
 

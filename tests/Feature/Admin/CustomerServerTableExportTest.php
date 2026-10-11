@@ -63,7 +63,7 @@ class CustomerServerTableExportTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get(route('admin.customers.index', [
-                'status' => 'active',
+                'account' => 'active',
                 'search' => 'Own',
                 'sort' => 'code',
                 'direction' => 'asc',
@@ -74,7 +74,7 @@ class CustomerServerTableExportTest extends TestCase
                 ->component('Admin/Customers/Index')
                 ->has('customers.data', 1)
                 ->where('customers.data.0.code', 'CUS-OWN-1')
-                ->where('filters.status', 'active')
+                ->where('filters.account', 'active')
                 ->where('filters.search', 'Own')
                 ->where('filters.sort', 'code')
                 ->where('filters.direction', 'asc')
@@ -110,7 +110,7 @@ class CustomerServerTableExportTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->get(route('admin.customers.export', [
                 'format' => 'csv',
-                'status' => 'active',
+                'account' => 'active',
                 'search' => 'Export Me',
             ]));
 

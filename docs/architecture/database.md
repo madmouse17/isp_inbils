@@ -44,8 +44,12 @@
   `inbils:company:create-subsidiary`).
 - `users` — id, name, email, email_verified_at, password, company_id
   (nullable FK, the HOME company: where the user lands at login, not the
-  effective tenant), is_active, remember_token, 2FA fields. Unique: email.
-  Soft delete.
+  effective tenant), is_active, remember_token, two_factor_secret
+  (encrypted text), two_factor_recovery_codes (encrypted JSON array),
+  two_factor_confirmed_at, two_factor_last_used_step (replay guard).
+  Migration `2026_10_12_500001`; secrets are never fillable, hidden on
+  serialisation and excluded from the activity log (see
+  `docs/SECURITY.md` §3). Unique: email. Soft delete.
 - `company_user` — id, company_id FK, user_id FK (both CASCADE), is_default,
   timestamps. Unique `(company_id, user_id)`; `is_default` marks the home
   company and is unique per user through the generated column

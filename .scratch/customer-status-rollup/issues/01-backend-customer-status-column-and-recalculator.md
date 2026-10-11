@@ -1,6 +1,6 @@
 # BACKEND: customer_status column, recalculator service, subscription wiring, backfill command
 
-Status: needs-owner-approval
+Status: done
 Role: backend
 Blocked by: none (starts only after owner approves `../spec.md` Q1-Q8)
 Card: none (new lane; no Hermes card)

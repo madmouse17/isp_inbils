@@ -16,6 +16,8 @@ class RolePermissionSeeder extends Seeder
             'roles.manage',
             'roles.export',
             'company.manage',
+            // Reset another user's two-factor authentication (admin only).
+            'user.two_factor.reset',
             // Switch the active company: needs a membership of the target company on top (CompanyPolicy).
             'company.switch',
             'system.setting',
@@ -171,6 +173,9 @@ class RolePermissionSeeder extends Seeder
             'evaluation.export',
             'evaluation.manage',
 
+            'portal.invoice.view',
+            'portal.invoice.pay',
+
             'report.view',
             'report.business.view',
             'report.asset.view',
@@ -196,7 +201,8 @@ class RolePermissionSeeder extends Seeder
         $technician = Role::firstOrCreate(['name' => 'technician'], ['guard_name' => 'web']);
         $customer = Role::firstOrCreate(['name' => 'customer'], ['guard_name' => 'web']);
 
-        $admin->syncPermissions($permissions);
+        // Portal permissions belong to customers only: staff pay nothing through the portal.
+        $admin->syncPermissions(array_values(array_diff($permissions, ['portal.invoice.view', 'portal.invoice.pay'])));
 
         $manager->syncPermissions([
             'customer.view', 'customer.create', 'customer.update',
@@ -295,6 +301,7 @@ class RolePermissionSeeder extends Seeder
             'dashboard.view',
             'ticket.view', 'ticket.create', 'ticket.comment.create',
             'evaluation.customer.submit',
+            'portal.invoice.view', 'portal.invoice.pay',
         ]);
     }
 }

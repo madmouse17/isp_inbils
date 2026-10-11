@@ -181,7 +181,12 @@ class TicketController extends Controller
                     ->limit(100)
                     ->get()
             ),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'canChooseLocation' => $ownCustomerId === null,
+            'locations' => LocationResource::collection(
+                $ownCustomerId === null
+                    ? Location::query()->where('is_active', true)->orderBy('code')->get()
+                    : []
+            ),
         ]);
     }
 
@@ -189,7 +194,7 @@ class TicketController extends Controller
     {
         Gate::authorize('store', Ticket::class);
 
-        TicketService::create($request->validated(), $request->user()->id);
+        TicketService::create($request->ticketAttributes(), $request->user()->id);
 
         return redirect()->route('admin.tickets.index')
             ->with('success', 'Ticket created.');

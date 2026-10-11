@@ -115,6 +115,13 @@ test.describe('@lifecycle SPK installation', () => {
         await page.getByLabel('Caption').fill(`caption-${runId}`);
         await page.getByRole('button', { name: 'Upload' }).click();
         await expect(page.getByText(`caption-${runId}`)).toBeVisible();
+        const preview = page.getByRole('img', { name: `evidence-${runId}` });
+        await expect(preview).toHaveAttribute('src', /^\/admin\/media\/\d+$/);
+        await expect
+            .poll(() =>
+                preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
+            )
+            .toBe(true);
 
         await page.getByRole('button', { name: 'Submit for Review' }).click();
         await page

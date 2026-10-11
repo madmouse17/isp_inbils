@@ -137,6 +137,17 @@ Lihat `docs/WORKFLOW.md` Section 2 (Customer/Subscription). Ringkas:
                                 └── manual terminate──→ [terminated]
 ```
 
+### Akun portal customer (CustomerService::createWithUser)
+
+- Saat customer dibuat, user portal ikut dibuat dengan password acak 32 karakter yang tidak pernah
+  ditampilkan. Nomor telepon BUKAN password.
+- Setelah transaksi commit, notifikasi antrean `CustomerAccountCreated` mengirim link atur kata sandi
+  (token password broker + route `password.reset`) ke email customer. Link berlaku sesuai
+  `auth.passwords.users.expire` (60 menit).
+- `POST /admin/customers/{customer}/access-link` (`customers.access-link`, permission
+  `customer.update`, throttle 3/menit) mengirim ulang link. Customer tanpa akun beremail tidak
+  dikirimi apa pun dan staf menerima pesan error.
+
 ### Subscription lifecycle (SubscriptionService — app/Services/Core/)
 
 | Dari | Ke | Trigger | Side effect |
@@ -145,6 +156,34 @@ Lihat `docs/WORKFLOW.md` Section 2 (Customer/Subscription). Ringkas:
 | active | suspended | suspend(subscription, reason) | `status=suspended`, stop recurring invoice generation (job skip), flag NOC/ticketing, AuditLog. Trigger: billing overdue job (auto) OR manual (admin/manager). |
 | suspended | active | reactivate(subscription) | `status=active`, `next_invoice_date = next billing_day`, resume recurring, AuditLog. Trigger: payment recorded (auto if Setting `billing.auto_reactivate_on_payment`) OR manual. |
 | active/suspended | terminated | terminate(subscription, reason, release_ont) | `status=terminated`, `terminated_at=now`, `terminated_reason`, stop recurring, release ont_asset (if release_ont → NetworkAsset status=Available + NetworkAssetInstallation removed_at), AuditLog. |
+
+### Customer status (rollup dari subscription)
+
+`customers.customer_status` (`prospective|active|inactive|suspended|terminated`, default `prospective`,
+index `(company_id, customer_status)`) diturunkan dari subscription non-deleted oleh satu service,
+`CustomerStatusRecalculator` (aturan isp_ari ADR-011). Kolom tidak fillable dan tidak diterima
+Store/UpdateCustomerRequest. `is_active` tetap saklar manual akun (label UI "Account").
+
+Urutan aturan (pertama yang cocok menang):
+
+1. ada subscription `active` → `active`
+2. ada `suspended` → `suspended`
+3. tidak ada subscription, atau semuanya `pending` → `prospective`
+4. semuanya `terminated` → `terminated`
+5. selain itu (mis. `terminated` + `pending`) → `inactive`
+
+- Trigger: `SubscriptionService::create|activate|suspend|reactivate|terminate` memanggil
+  `CustomerStatusRecalculator::recalculate()` di dalam transaksi yang sama (termasuk jalur
+  `CompleteSpkAction` dan onboarding). Recalculator mengunci baris customer sebelum membaca
+  subscription, menyimpan dan menulis audit `customer / status_changed {from,to}` hanya jika nilainya
+  berubah. Tidak ada penulis lain.
+- Penulisan langsung (seeder, tinker, factory) melewati trigger. Perbaiki dengan
+  `php artisan customers:recalculate-status {--company=} {--dry-run}` (idempotent, per company via
+  `CompanyService::runAs`).
+- Migrasi `2026_10_12_400000` mengisi customer yang sudah ada dengan aturan yang sama; `down()`
+  menghapus kolom.
+- Daftar `/admin/customers`: filter `status` (lima nilai) dan `account` (`active|inactive`, filter
+  `is_active`), sort `customer_status`. Export CSV/PDF punya kolom Account dan Status.
 
 ### Code generation
 - `CUS-{YEAR}-{NNNNN}` untuk customer. `SUB-{YEAR}-{NNNNN}` untuk
@@ -213,7 +252,7 @@ customer.manage              (super)
 
 Lihat `docs/API.md` Section 2 (Customer group). Ringkas:
 
-- `GET    /admin/customers` (list, filter: type, area, is_active, search name/code/phone)
+- `GET    /admin/customers` (list, filter: type, area, status (customer_status), account (is_active), search name/code/phone)
 - `POST   /admin/customers` (create)
 - `GET    /admin/customers/{customer}` (detail + addresses + contacts + subscriptions)
 - `PUT    /admin/customers/{customer}` (update)
@@ -235,6 +274,7 @@ Lihat `docs/API.md` Section 2 (Customer group). Ringkas:
 - `POST   /admin/subscriptions/{sub}/reactivate`
 - `POST   /admin/subscriptions/{sub}/terminate` (body: reason, release_ont bool)
 - `GET    /admin/customers/export`
+- `POST   /admin/customers/{customer}/access-link` (kirim ulang link atur kata sandi)
 - `GET    /admin/customers?acquired_by={user_id|unassigned}` (hanya pemegang assign/correct; selain itu diabaikan)
 - `POST   /admin/customers` menerima `acquired_by_user_id` opsional; `PUT /admin/customers/{customer}`
   menerima `acquired_by_user_id` dan `acquirer_correction_reason` (wajib saat koreksi)

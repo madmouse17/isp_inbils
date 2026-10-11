@@ -25,6 +25,8 @@ class ProfileUpdateRequest extends FormRequest
                 'email',
                 'max:255',
                 Rule::unique(User::class)->ignore($this->user()->id),
+                // A legacy login still on its phone-number password must not redirect its set-password link.
+                Rule::when((bool) $this->user()->must_change_password, [Rule::in([$this->user()->email])]),
             ],
         ];
     }

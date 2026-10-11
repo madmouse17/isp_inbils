@@ -29,11 +29,31 @@ class RolePermissionSeederTest extends TestCase
         $this->assertGreaterThanOrEqual(80, Permission::count());
     }
 
-    public function test_admin_has_all_permissions(): void
+    public function test_admin_has_every_permission_except_the_customer_portal(): void
     {
         $admin = Role::where('name', 'admin')->first();
         $this->assertNotNull($admin);
-        $this->assertSame(Permission::count(), $admin->permissions->count());
+        $this->assertEqualsCanonicalizing(
+            Permission::query()->whereNotIn('name', ['portal.invoice.view', 'portal.invoice.pay'])->pluck('name')->all(),
+            $admin->permissions->pluck('name')->all(),
+        );
+    }
+
+    public function test_portal_invoice_permissions_belong_to_the_customer_role_only(): void
+    {
+        foreach (['admin' => false, 'manager' => false, 'staff' => false, 'technician' => false, 'customer' => true] as $role => $holds) {
+            foreach (['portal.invoice.view', 'portal.invoice.pay'] as $permission) {
+                $this->assertSame($holds, Role::findByName($role)->hasPermissionTo($permission), "$role $permission");
+            }
+        }
+    }
+
+    public function test_two_factor_reset_permission_is_admin_only(): void
+    {
+        $this->assertTrue(Role::findByName('admin')->hasPermissionTo('user.two_factor.reset'));
+        foreach (['manager', 'staff', 'technician', 'customer'] as $role) {
+            $this->assertFalse(Role::findByName($role)->hasPermissionTo('user.two_factor.reset'), $role);
+        }
     }
 
     public function test_admin_has_customer_manage_permission(): void

@@ -12,6 +12,7 @@ import {
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
+import { CUSTOMER_STATUS_OPTIONS, CustomerStatusBadge } from '@/lib/customerStatus';
 import { toPagination } from '@/lib/pagination';
 import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
@@ -24,6 +25,7 @@ interface CustomerRow {
     type: string;
     phone?: string | null;
     is_active: boolean;
+    customer_status: string;
     addresses_count?: number;
     subscriptions_count?: number;
     acquired_by_user_id?: number | null;
@@ -35,6 +37,7 @@ interface IndexProps {
     filters: {
         type?: string;
         status?: string;
+        account?: string;
         acquired_by?: string;
         search?: string;
         sort?: string;
@@ -55,6 +58,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(filters.type ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [account, setAccount] = useState(filters.account ?? '');
     const [acquiredBy, setAcquiredBy] = useState(filters.acquired_by ?? '');
     const { params, visit, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.customers.index'),
@@ -97,8 +101,15 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                 cell: (customer) => customer.phone ?? '-',
             },
             {
-                key: 'is_active',
+                key: 'customer_status',
                 header: 'Status',
+                sortable: true,
+                sortKey: 'customer_status',
+                cell: (customer) => <CustomerStatusBadge status={customer.customer_status} />,
+            },
+            {
+                key: 'is_active',
+                header: 'Account',
                 sortable: true,
                 sortKey: 'is_active',
                 cell: (customer) => (
@@ -150,7 +161,13 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        visit({ search, type, status, ...(can.viewAcquirer ? { acquired_by: acquiredBy } : {}) });
+        visit({
+            search,
+            type,
+            status,
+            account,
+            ...(can.viewAcquirer ? { acquired_by: acquiredBy } : {}),
+        });
     };
 
     return (
@@ -189,8 +206,8 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                             className={cn(
                                 'grid gap-3 rounded-lg border bg-card p-3 md:items-end',
                                 can.viewAcquirer
-                                    ? 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_12rem_auto]'
-                                    : 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_auto]',
+                                    ? 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_12rem_12rem_auto]'
+                                    : 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_12rem_auto]',
                             )}
                         >
                             <Input
@@ -215,6 +232,15 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                                 onChange={(event) => setStatus(event.target.value)}
                                 options={[
                                     { value: '', label: 'All statuses' },
+                                    ...CUSTOMER_STATUS_OPTIONS,
+                                ]}
+                            />
+                            <NativeSelect
+                                label="Account"
+                                value={account}
+                                onChange={(event) => setAccount(event.target.value)}
+                                options={[
+                                    { value: '', label: 'All accounts' },
                                     { value: 'active', label: 'Active' },
                                     { value: 'inactive', label: 'Inactive' },
                                 ]}

@@ -28,6 +28,7 @@ class TicketAttachmentSharedUploadTest extends TestCase
 
     public function test_ticket_attachment_uses_shared_upload_concern(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         $user = $this->createCompanyUser();
@@ -45,11 +46,15 @@ class TicketAttachmentSharedUploadTest extends TestCase
         $this->assertSame((string) $user->company_id, (string) $media->getCustomProperty('company_id'));
         $this->assertSame($user->id, $media->getCustomProperty('uploaded_by'));
         $this->assertSame('attachments', $media->collection_name);
-        $this->assertSame('public', $media->disk);
+        $this->assertSame('local', $media->disk);
+        $this->assertSame('local', $media->conversions_disk);
+        Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     public function test_work_order_evidence_still_uses_shared_upload_concern(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
 
         $user = $this->createCompanyUser();
@@ -71,7 +76,10 @@ class TicketAttachmentSharedUploadTest extends TestCase
         $this->assertSame('photo', $media->getCustomProperty('type'));
         $this->assertSame('Field photo', $media->getCustomProperty('caption'));
         $this->assertSame('evidence', $media->collection_name);
-        $this->assertSame('public', $media->disk);
+        $this->assertSame('local', $media->disk);
+        $this->assertSame('local', $media->conversions_disk);
+        Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
+        $this->assertSame([], Storage::disk('public')->allFiles());
     }
 
     private function ticket(User $user): Ticket

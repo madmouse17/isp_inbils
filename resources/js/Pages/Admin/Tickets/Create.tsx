@@ -43,6 +43,7 @@ interface CreateProps extends Record<string, unknown> {
     subscriptions: { data: SubRow[] };
     assets: { data: AssetRow[] };
     locations: { data: LocRow[] };
+    canChooseLocation: boolean;
 }
 
 export default function Create({
@@ -51,6 +52,7 @@ export default function Create({
     subscriptions,
     assets,
     locations,
+    canChooseLocation,
 }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         title: '',
@@ -174,19 +176,21 @@ export default function Create({
                                     </option>
                                 ))}
                             </NativeSelect>
-                            <NativeSelect
-                                label="Location"
-                                value={data.location_id}
-                                onChange={(e) => setData('location_id', e.target.value)}
-                                error={errors.location_id}
-                            >
-                                <option value="">None</option>
-                                {locations.data.map((l) => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.code} — {l.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            {canChooseLocation && (
+                                <NativeSelect
+                                    label="Location"
+                                    value={data.location_id}
+                                    onChange={(e) => setData('location_id', e.target.value)}
+                                    error={errors.location_id}
+                                >
+                                    <option value="">None</option>
+                                    {locations.data.map((l) => (
+                                        <option key={l.id} value={l.id}>
+                                            {l.code} — {l.name}
+                                        </option>
+                                    ))}
+                                </NativeSelect>
+                            )}
                             <Textarea
                                 className="md:col-span-2"
                                 label="Description"

@@ -7,11 +7,13 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Support\Money;
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
@@ -32,6 +34,11 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property string $discount_amount
  * @property string $total
  * @property string $paid_amount
+ * @property Carbon $issue_date
+ * @property Carbon $due_date
+ * @property Carbon|null $created_at
+ * @property-read Collection<int, InvoiceItem> $items
+ * @property-read Collection<int, Payment> $payments
  */
 class Invoice extends Model
 {
@@ -61,6 +68,7 @@ class Invoice extends Model
         'cancelled_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
@@ -86,14 +94,22 @@ class Invoice extends Model
         return $this->belongsTo(User::class, 'cancelled_by');
     }
 
+    /** @return HasMany<InvoiceItem, $this> */
     public function items(): HasMany
     {
         return $this->hasMany(InvoiceItem::class, 'invoice_id');
     }
 
+    /** @return HasMany<Payment, $this> */
     public function payments(): HasMany
     {
         return $this->hasMany(Payment::class, 'invoice_id');
+    }
+
+    /** @return HasMany<PaymentAttempt, $this> */
+    public function paymentAttempts(): HasMany
+    {
+        return $this->hasMany(PaymentAttempt::class, 'invoice_id');
     }
 
     public function getSisaAttribute(): string

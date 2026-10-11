@@ -26,6 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(AssignRequestId::class);
 
+        // Password-reset URLs are built from the request host: only APP_URL (and its subdomains) may supply it,
+        // plus loopback for the container healthcheck (compose.yaml curls http://localhost:8080/ready).
+        $middleware->trustHosts(at: ['^localhost$', '^127\.0\.0\.1$']);
+
         $middleware->web(append: [
             ResolveActiveCompany::class,
             RedirectIfNoCompany::class,

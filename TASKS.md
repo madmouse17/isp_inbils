@@ -858,3 +858,5 @@ sla_tiers, locations) via event CompanyCreated listener atau
 - **isp_ari gap lanes (2026-10-11), semua `needs-owner-approval`, belum dikerjakan:** `customer-status-rollup` (4 tiket), `auth-2fa-passkeys` (6 tiket, satu kondisional), `midtrans-payment` (8 tiket), `installation-spk-delta` (0 tiket, kesimpulan no-gap), `isp-roadmap` (roadmap, 0 tiket). Spec + tiket di `.scratch/<slug>/`; keputusan Owner ada di bagian "Owner decisions" tiap spec.
 
 - **Keamanan 2026-10-11:** tiket customer kini hanya bisa melihat/komentar/membuat tiket miliknya sendiri, komentar internal disembunyikan; pembayaran hanya untuk invoice sent/partial/overdue. Lane baru `private-media` (3 tiket, `needs-owner-approval`): file upload masih bisa diunduh publik.
+
+- **Wave keputusan Owner selesai 2026-10-12:** private media, 2FA TOTP, status customer otomatis, portal tagihan + Midtrans sandbox, link akses customer (password acak), aturan tutup tiket & lokasi tiket customer, hardening auth. Tailwind 4 ditunda.

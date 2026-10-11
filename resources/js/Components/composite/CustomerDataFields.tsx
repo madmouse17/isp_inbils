@@ -18,7 +18,7 @@ interface CustomerDataFieldsProps {
     errors?: Partial<Record<keyof CustomerDataValue, string>>;
     /** When true every field is rendered read-only / disabled (viewer permission). */
     readOnly?: boolean;
-    /** Phone field hint shown on create (password = phone). */
+    /** Phone field hint shown on create. */
     phoneHint?: string;
 }
 
@@ -94,7 +94,7 @@ export function CustomerDataFields({
             />
             <div className="flex items-end">
                 <Switch
-                    label="Active"
+                    label="Account active"
                     checked={value.is_active}
                     onCheckedChange={(checked) => onChange('is_active', checked)}
                     disabled={readOnly}

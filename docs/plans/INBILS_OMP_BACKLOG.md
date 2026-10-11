@@ -1108,11 +1108,18 @@ Analisis gap vs `/home/madmouse/Documents/web/isp_ari` (laporan scout `/tmp/isp_
 
 | Lane (`.scratch/<slug>/`) | Tiket | Status | Catatan |
 | --- | --- | --- | --- |
-| `customer-status-rollup` | 4 (backend, ui, tester, reviewer) | needs-owner-approval | Status customer turunan dari subscription (ADR-011 isp_ari); kolom baru `customer_status`, `is_active` tetap manual. |
-| `auth-2fa-passkeys` | 6 (2 backend, ui, tester, security-reviewer, passkeys kondisional) | needs-owner-approval | TOTP + recovery code; butuh persetujuan library (`pragmarx/google2fa`, `bacon/bacon-qr-code`). isp_ari TIDAK menjalankan 2FA/passkey (fitur Fortify mati). |
+| `customer-status-rollup` | 4 (backend, ui, tester, reviewer) | done | Status customer turunan dari subscription (ADR-011 isp_ari); kolom baru `customer_status`, `is_active` tetap manual. |
+| `auth-2fa-passkeys` | 6 (2 backend, ui, tester, security-reviewer, passkeys kondisional) | done (TOTP; passkeys deferred) | TOTP + recovery code; butuh persetujuan library (`pragmarx/google2fa`, `bacon/bacon-qr-code`). isp_ari TIDAK menjalankan 2FA/passkey (fitur Fortify mati). |
 | `installation-spk-delta` | 0 | no-gap | inbils sudah membuat SPK instalasi otomatis saat onboarding (`CreateCustomerOnboardingAction`); klaim scout "PARTIAL" salah. |
-| `midtrans-payment` | 8 (4 backend, ui, tester, security-reviewer, reviewer) | needs-owner-approval | Snap sandbox + webhook + portal bayar + rekonsiliasi; bertentangan dengan pengecualian di `ENTERPRISE_ISP_READINESS.md` (Q1). Kunci hanya di `.env`. |
+| `midtrans-payment` | 8 (4 backend, ui, tester, security-reviewer, reviewer) | done (sandbox pilot; production blocked, ticket 08 live sandbox run open) | Snap sandbox + webhook + portal bayar + rekonsiliasi; bertentangan dengan pengecualian di `ENTERPRISE_ISP_READINESS.md` (Q1). Kunci hanya di `.env`. |
 | `isp-roadmap` | 0 | roadmap | Item yang tidak ada di kedua aplikasi (MikroTik/RADIUS, WhatsApp, portal lanjutan, IPAM, ODN, PO/vendor, payroll, GIS). |
-| `private-media` | 3 (backend, ui, tester) | needs-owner-approval | Temuan keamanan F-01 (medium): lampiran tiket, bukti SPK, dan dokumen customer disimpan di disk `public` dan bisa diunduh tanpa login lewat `/storage/{id}/{file}`. Rekomendasi: disk privat + route berotorisasi + command migrasi file lama. |
+| `private-media` | 3 (backend, ui, tester) | done | Temuan keamanan F-01 (medium): lampiran tiket, bukti SPK, dan dokumen customer disimpan di disk `public` dan bisa diunduh tanpa login lewat `/storage/{id}/{file}`. Rekomendasi: disk privat + route berotorisasi + command migrasi file lama. |
 
 Ledger tetap otoritatif; saat Owner menyetujui sebuah lane, tambahkan kartu/entri ledger dan perbarui `Status:` di `.scratch`.
+
+### Owner-approved wave closure (2026-10-12)
+
+- Owner approved (2026-10-11, `ask`): private-media (recommended), ticket close by any `ticket.close` holder on `resolved`, customer tickets without location choice, customer portal account = random password + emailed set-password link, Tailwind 4 deferred, gap lanes `customer-status-rollup`, `auth-2fa-passkeys`, `midtrans-payment` (recommended options). Owner also allowed well-maintained libraries.
+- Delivered: private media route + privatize command; TOTP 2FA (pragmarx/google2fa, bacon/bacon-qr-code); customer status rollup; Midtrans Snap sandbox portal + webhook + reconcile; customer access link; ticket close/location rules; auth hardening (inactive login refused, throttled uniform forgot-password, trusted hosts, step-up throttle).
+- Security reviews: customer/ticket SIGNED, private-media SIGNED, 2FA SIGNED (medium throttle race fixed), Midtrans BLOCKED (MTP-01 phone password, MTP-03 sandbox on production) -> fixed -> re-review. Findings fixed red-first.
+- Deploy: `migrate --force`, `db:seed --class=RolePermissionSeeder --force`, `inbils:media:privatize --dry-run` then real, `customers:rotate-legacy-passwords --dry-run` then real (queue + mail running), `APP_URL` = public host.

@@ -397,7 +397,7 @@ export default function Create({
                                         value={data}
                                         onChange={(key, value) => setData(key, value as never)}
                                         errors={customerErrors}
-                                        phoneHint="Password user customer sama dengan nomor phone."
+                                        phoneHint="Link untuk mengatur kata sandi akan dikirim ke email customer."
                                     />
                                     {can.assignAcquirer ? (
                                         <div className="mt-4 grid gap-4 md:grid-cols-2">

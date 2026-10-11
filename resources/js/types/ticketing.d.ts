@@ -43,6 +43,7 @@ export interface TicketCommentEntry {
 
 export interface TicketAttachmentEntry {
     id: number;
+    url: string;
     file_path: string;
     original_name?: string | null;
     mime_type?: string | null;
