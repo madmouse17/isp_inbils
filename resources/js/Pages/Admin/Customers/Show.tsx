@@ -1,7 +1,9 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
 import {
+    CustomerAcquirerValue,
     CustomerRelatedTables,
     PageHeader,
     StatusBadge,
@@ -14,9 +16,10 @@ interface ShowProps extends Record<string, unknown> {
     customer: { data: Customer };
     history: CustomerHistory;
     historyAccess: CustomerHistoryAccess;
+    can: { viewAcquirer: boolean };
 }
 
-export default function Show({ customer, history, historyAccess }: ShowProps) {
+export default function Show({ customer, history, historyAccess, can }: ShowProps) {
     const c = customer.data;
 
     return (
@@ -28,18 +31,19 @@ export default function Show({ customer, history, historyAccess }: ShowProps) {
                     actions={
                         <>
                             <Button
-                                type="button"
+                                asChild
                                 variant="outline"
-                                onClick={() => router.get(route('admin.customers.edit', c.id))}
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                Edit
+                                <Link href={route('admin.customers.index')}>Back</Link>
                             </Button>
                             <Button
                                 type="button"
-                                variant="secondary"
-                                onClick={() => router.get(route('admin.customers.index'))}
+                                variant="warning"
+                                onClick={() => router.get(route('admin.customers.edit', c.id))}
                             >
-                                Back
+                                Edit
                             </Button>
                         </>
                     }
@@ -67,6 +71,12 @@ export default function Show({ customer, history, historyAccess }: ShowProps) {
                                 <span className="text-muted-foreground">Contact Person: </span>
                                 {c.contact_person ?? '-'}
                             </p>
+                            {can.viewAcquirer ? (
+                                <div>
+                                    <span className="text-muted-foreground">Acquired by: </span>
+                                    <CustomerAcquirerValue acquirer={c.acquirer} />
+                                </div>
+                            ) : null}
                             {c.notes && (
                                 <p>
                                     <span className="text-muted-foreground">Notes: </span>

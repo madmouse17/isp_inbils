@@ -1,10 +1,10 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge, Button, Card, CardContent, Input, Modal, Switch, Textarea } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -46,7 +46,14 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
     const [editingId, setEditingId] = useState<number | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm(formDefaults);
 
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const {
+        params,
+        set,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
         url: route('admin.customers.contacts.index', customer.id),
         filters,
         only: ['contacts', 'filters', 'can', 'customer'],
@@ -88,14 +95,6 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                 setModalOpen(false);
             },
         });
-    };
-
-    const remove = (row: ContactRow) => {
-        if (window.confirm(`Delete ${row.name}?`)) {
-            router.delete(route('admin.customers.contacts.destroy', [customer.id, row.id]), {
-                preserveScroll: true,
-            });
-        }
     };
 
     const columns: DataTableColumn<ContactRow>[] = [
@@ -149,14 +148,12 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
             key: 'actions',
             header: 'Actions',
             cell: (row) => (
-                <div className="flex flex-wrap gap-2">
-                    <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(row)}>
-                        Edit
-                    </Button>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => remove(row)}>
-                        Delete
-                    </Button>
-                </div>
+                <DataTableActions
+                    onEdit={() => openEdit(row)}
+                    deleteHref={route('admin.customers.contacts.destroy', [customer.id, row.id])}
+                    deleteMessage={`Delete ${row.name}?`}
+                    deleteDescription={`This will permanently remove the contact "${row.name}" from this customer.`}
+                />
             ),
         },
     ];
@@ -179,7 +176,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" onClick={openCreate}>
+                            <Button type="button" variant="success" onClick={openCreate}>
                                 Add Contact
                             </Button>
                         </div>
@@ -214,6 +211,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                             onPageChange={(page) => set('page', page)}
                             emptyTitle="No contacts"
                             emptyDescription="No contacts match the current filters."
+                            loading={tableProcessing}
                         />
                     </CardContent>
                 </Card>
@@ -271,7 +269,11 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editingId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editingId ? 'Save' : 'Add'}
                             </Button>
                         </div>

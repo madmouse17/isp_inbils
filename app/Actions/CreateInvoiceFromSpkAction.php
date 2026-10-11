@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Services\BillingService;
+use Modules\Inventory\Models\Product;
+use Modules\SPK\Actions\CompleteSpkAction;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Models\WorkOrderItem;
 
 /**
  * Cross-module write orchestration: SPK -> Billing.
@@ -28,9 +31,10 @@ class CreateInvoiceFromSpkAction
             abort_if($wo->status !== 'completed', 422, 'SPK must be completed to create invoice.');
 
             $existing = Invoice::withoutCompany()->where('work_order_id', $workOrderId)->lockForUpdate()->first();
-            abort_if($existing, 422, 'Invoice already exists for this SPK.');
+            abort_if($existing !== null, 422, 'Invoice already exists for this SPK.');
 
-            $wo->loadMissing(['subscription', 'items.product']);
+            CompleteSpkAction::reconcileUsedQuantitiesFromMaterialReturns($wo);
+            $wo->load(['subscription', 'items.product']);
             $subscription = $wo->subscription;
             $taxRate = BillingService::taxRateFor($wo->company_id);
 
@@ -48,14 +52,17 @@ class CreateInvoiceFromSpkAction
             ]);
 
             foreach ($wo->items as $item) {
-                if ($item->quantity_used > 0 && $item->product) {
-                    $lineTotal = Money::round(Money::mul($item->quantity_used, $item->product->sell_price));
+                /** @var WorkOrderItem $item */
+                /** @var Product|null $product */
+                $product = $item->product;
+                if ($item->quantity_used > 0 && $product) {
+                    $lineTotal = Money::round(Money::mul((string) $item->quantity_used, (string) $product->sell_price));
                     InvoiceItem::create([
                         'invoice_id' => $invoice->id,
                         'product_id' => $item->product_id,
-                        'description' => $item->product->name,
+                        'description' => $product->name,
                         'quantity' => $item->quantity_used,
-                        'unit_price' => Money::round($item->product->sell_price),
+                        'unit_price' => Money::round((string) $product->sell_price),
                         'tax_rate' => $taxRate,
                         'line_total' => $lineTotal,
                     ]);

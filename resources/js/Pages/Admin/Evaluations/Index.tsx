@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Badge,
@@ -17,7 +17,9 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { LoadingState, PageHeader } from '@/Components/composite';
+import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { useVisitPending } from '@/hooks/useVisitPending';
 
 interface EvalRow {
     id: number;
@@ -47,13 +49,14 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
     const [search, setSearch] = useState(filters.search ?? '');
     const [employeeId, setEmployeeId] = useState(filters.employee_id ?? '');
     const [refType, setRefType] = useState(filters.reference_type ?? '');
+    const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.evaluations.index'),
             { search, employee_id: employeeId, reference_type: refType },
-            { preserveState: true },
+            { preserveState: true, ...callbacks },
         );
     };
 
@@ -67,6 +70,7 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                         can.create && (
                             <Button
                                 type="button"
+                                variant="success"
                                 onClick={() => router.get(route('admin.evaluations.create'))}
                             >
                                 Create
@@ -105,64 +109,73 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                                 <option value="Ticket">Ticket</option>
                             </NativeSelect>
                             <div className="self-end">
-                                <Button type="submit" variant="secondary">
+                                <Button type="submit" variant="secondary" loading={pending}>
                                     Filter
                                 </Button>
                             </div>
                         </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Employee</TH>
-                                    <TH>Reference</TH>
-                                    <TH>Score</TH>
-                                    <TH>Customer Rating</TH>
-                                    <TH>Evaluator</TH>
-                                    <TH>Date</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {evaluations.data.length === 0 ? (
+                        {pending ? (
+                            <LoadingState variant="rows" />
+                        ) : (
+                            <Table>
+                                <THead>
                                     <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
+                                        <TH>Employee</TH>
+                                        <TH>Reference</TH>
+                                        <TH>Score</TH>
+                                        <TH>Customer Rating</TH>
+                                        <TH>Evaluator</TH>
+                                        <TH>Date</TH>
+                                        <TH>Actions</TH>
                                     </TR>
-                                ) : (
-                                    evaluations.data.map((ev) => (
-                                        <TR key={ev.id}>
-                                            <TD>{ev.employee?.name ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant="neutral">
-                                                    {ev.reference_type}:{ev.reference_id}
-                                                </Badge>
-                                            </TD>
-                                            <TD className="font-medium">{ev.score}</TD>
-                                            <TD>{ev.customer_rating ?? '-'}</TD>
-                                            <TD>{ev.evaluator?.name ?? '-'}</TD>
-                                            <TD className="text-sm">{ev.evaluated_at}</TD>
-                                            <TD>
-                                                <Link
-                                                    href={route('admin.evaluations.show', ev.id)}
-                                                    className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                >
-                                                    Show
-                                                </Link>
+                                </THead>
+                                <TBody>
+                                    {evaluations.data.length === 0 ? (
+                                        <TR>
+                                            <TD
+                                                colSpan={7}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No data found.
                                             </TD>
                                         </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
+                                    ) : (
+                                        evaluations.data.map((ev) => (
+                                            <TR key={ev.id}>
+                                                <TD>{ev.employee?.name ?? '-'}</TD>
+                                                <TD>
+                                                    <Badge variant="neutral">
+                                                        {ev.reference_type}:{ev.reference_id}
+                                                    </Badge>
+                                                </TD>
+                                                <TD className="font-medium">{ev.score}</TD>
+                                                <TD>{ev.customer_rating ?? '-'}</TD>
+                                                <TD>{ev.evaluator?.name ?? '-'}</TD>
+                                                <TD className="text-sm">{ev.evaluated_at}</TD>
+                                                <TD>
+                                                    <DataTableActions
+                                                        showHref={route(
+                                                            'admin.evaluations.show',
+                                                            ev.id,
+                                                        )}
+                                                    />
+                                                </TD>
+                                            </TR>
+                                        ))
+                                    )}
+                                </TBody>
+                            </Table>
+                        )}
                         <Pagination
                             currentPage={evaluations.current_page}
                             lastPage={evaluations.last_page}
+                            disabled={pending}
                             onPageChange={(page) =>
-                                router.get(route('admin.evaluations.index'), { page })
+                                router.get(
+                                    route('admin.evaluations.index'),
+                                    { page },
+                                    { preserveState: true, ...callbacks },
+                                )
                             }
                         />
                     </CardContent>

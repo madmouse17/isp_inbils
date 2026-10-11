@@ -27,8 +27,15 @@ class StoreWorkOrderItemRequest extends FormRequest
         return [
             'product_id' => ['required', Rule::exists('products', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'network_asset_id' => [
+                'nullable',
                 Rule::requiredIf(fn () => $this->productType($companyId) === 'asset'),
-                Rule::prohibitedIf(fn () => $this->productType($companyId) !== 'asset'),
+                // UI (Admin/SPK/Show.tsx) mengirim network_asset_id='' untuk
+                // product NON-asset karena useForm mengirim seluruh field default.
+                // `prohibitedIf` polos menolak kehadiran field walau kosong,
+                // membuat add-item product non-asset selalu gagal 422. Tolak hanya
+                // nilai NYATA (filled): string kosong diperlakukan sebagai absen,
+                // nilai non-empty untuk product non-asset tetap dilarang.
+                Rule::prohibitedIf(fn () => $this->productType($companyId) !== 'asset' && $this->filled('network_asset_id')),
                 Rule::exists('network_assets', 'id')->where('company_id', $companyId)->where('status', 'available'),
                 new MatchesParentAttribute(NetworkAsset::class, 'product_id', 'product_id'),
             ],

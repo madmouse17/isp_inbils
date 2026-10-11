@@ -9,8 +9,10 @@
   utf8mb4_unicode_ci.
 - Every master/transaction table: `company_id FK → companies.id NOT
   NULL` + trait `BelongsToCompany` (global scope, auto-filter per
-  company). Exceptions: `companies`, `users` (company_id nullable
-  pre-wizard), `roles`, `permissions`, `activity_log` (global spatie).
+  effective company, FAIL-CLOSED: no company context = no rows, and a
+  create without company_id aborts 403; system code names its company with
+  `CompanyService::runAs()`). Exceptions: `companies`, `users` (company_id
+  nullable pre-wizard), `roles`, `permissions`, `activity_log` (global spatie).
 - Business code (code/number/sku) = unique per company:
   `(company_id, code)`, NOT global unique.
 - Soft delete (`deleted_at`) for master + transaction entities with
@@ -32,11 +34,27 @@
 
 ### Core (app/Models/Core/)
 
-- `companies` — id, name, code, address, phone, email, tax_id, logo,
-  timezone, settings (json), is_active. Unique: code (global).
+- `companies` — id, parent_company_id (nullable self FK, RESTRICT; one
+  level: Head → Subsidiary; self-parenting and depth are refused by
+  `CompanyHierarchyService`, MySQL cannot CHECK against the auto-increment
+  id), name, code, address, phone, email,
+  tax_id, logo, timezone, settings (json), is_active. Unique: code (global).
+  A Head = a company without parent that has at least one subsidiary.
+  Written only by `CompanyHierarchyService` (artisan
+  `inbils:company:create-subsidiary`).
 - `users` — id, name, email, email_verified_at, password, company_id
-  (nullable FK), is_active, remember_token, 2FA fields. Unique: email.
+  (nullable FK, the HOME company: where the user lands at login, not the
+  effective tenant), is_active, remember_token, 2FA fields. Unique: email.
   Soft delete.
+- `company_user` — id, company_id FK, user_id FK (both CASCADE), is_default,
+  timestamps. Unique `(company_id, user_id)`; `is_default` marks the home
+  company and is unique per user through the generated column
+  `default_user_id`. Migration `2026_10_11_000003` backfills one default row
+  per user with a company_id (reversible). The home company is a member even
+  without a row; any other company needs a row and `companies.is_active`.
+  Effective company = session `active_company_id` validated against this
+  table on every read, else the home company (`CompanyService`). Roles stay
+  global (spatie teams=false).
 - `roles` / `permissions` / pivots — spatie standard. Global.
 - `activity_log` — spatie standard. Global. Polymorphic.
 - `locations` — company_id, parent_id (self-ref), code, name, type
@@ -128,16 +146,22 @@
 
 ### Reporting (Modules/Reporting/)
 
-- NO models. NO migrations. NO writes.
-- Query classes only: `TechnicianPerformanceQuery`,
-  `UnitPerformanceQuery`, `BusinessMetricsQuery`,
-  `AssetUtilizationQuery`, `SlaComplianceQuery`.
+- NO migrations. NO writes. Query classes are the read path
+  (`TechnicianPerformanceQuery`, `BusinessMetricsQuery`,
+  `AssetUtilizationQuery`, `SlaComplianceQuery`, `StockCardQuery`,
+  `AuditLogQuery`, `SalesKpiQuery`).
+- One read-only model exception: `SalesCustomer` (table `customers`) declares
+  the Billing relations (`invoices`, `payments`) the Sales KPI aggregates with
+  Eloquent `withSum`/`withCount`, so Core `Customer` never depends on Billing.
+  It refuses `save`/`delete`.
 - Exception to "no direct cross-module Model import" rule.
 
 ## ERD (textual — core relations)
 
 ```
+companies 1──N companies (parent_company_id: Head → subsidiaries)
 companies 1──N users
+companies N──N users (company_user: membership)
 companies 1──N locations (self-ref parent)
 companies 1──N customers
 customers 1──N customer_addresses

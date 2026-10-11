@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\SubscriptionResource;
@@ -11,6 +12,7 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,12 +21,16 @@ use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Billing\Http\Requests\CreateFromSpkRequest;
 use Modules\Billing\Http\Requests\RecordPaymentRequest;
+use Modules\Billing\Http\Requests\ReversePaymentRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceItemRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceRequest;
 use Modules\Billing\Http\Requests\UpdateInvoiceRequest;
 use Modules\Billing\Http\Resources\InvoiceResource;
+use Modules\Billing\Http\Resources\ReceivableResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
+use Modules\Billing\Models\Payment;
+use Modules\Billing\Queries\ReceivablesQuery;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Support\Terbilang;
 use Symfony\Component\HttpFoundation\Response;
@@ -32,34 +38,48 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InvoiceController extends Controller
 {
+    use HasIndexQuery;
+
     private const SORTABLE = ['number', 'status', 'issue_date', 'due_date', 'total', 'created_at'];
 
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', Invoice::class);
 
-        $invoices = Invoice::query()
-            ->with(['customer', 'subscription', 'items'])
-            ->when($request->input('type'), fn ($q, $v) => $q->where('type', $v))
-            ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->input('source'), fn ($q, $v) => $q->where('source', $v))
-            ->when($request->input('customer_id'), fn ($q, $v) => $q->where('customer_id', $v))
-            ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
-                ->where('number', 'like', "%{$v}%")))
-            ->latest('issue_date')
-            ->paginate(10)
+        $invoices = $this->applySort(
+            $this->filteredQuery($request)->with(['customer', 'subscription', 'items']),
+            $request,
+            'issue_date',
+            'desc'
+        )
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Billing/Invoices/Index', [
             'invoices' => InvoiceResource::collection($invoices),
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search']),
+            'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
             'statusOptions' => ['draft', 'issued', 'partial', 'paid', 'void', 'written_off'],
             'can' => [
                 'create' => $request->user()?->can('billing.create') ?? false,
                 'export' => $request->user()?->can('billing.export') ?? false,
             ],
         ]);
+    }
+
+    /** @return Builder<Invoice> */
+    private function filteredQuery(Request $request): Builder
+    {
+        return Invoice::query()
+            ->when($request->input('type'), fn ($query, $value) => $query->where('type', $value))
+            ->when($request->input('status'), fn ($query, $value) => $query->where('status', $value))
+            ->when($request->input('source'), fn ($query, $value) => $query->where('source', $value))
+            ->when($request->input('customer_id'), fn ($query, $value) => $query->where('customer_id', $value))
+            ->when($request->input('date_from'), fn ($query, $value) => $query->whereDate('issue_date', '>=', $value))
+            ->when($request->input('date_to'), fn ($query, $value) => $query->whereDate('issue_date', '<=', $value))
+            ->when($request->input('search'), fn ($query, $value) => $query->where(fn ($search) => $search
+                ->where('number', 'like', "%{$value}%")
+                ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$value}%"))));
     }
 
     public function create(): InertiaResponse
@@ -95,7 +115,7 @@ class InvoiceController extends Controller
         Gate::authorize('store', Invoice::class);
 
         $data = $request->validated();
-        $data['number'] = NumberSequenceService::generate('invoice', 'INV', $request->user()->company_id);
+        $data['number'] = NumberSequenceService::generate('invoice', 'INV', CompanyService::currentId());
         $data['type'] = 'one_time';
         $data['source'] = 'manual';
         $data['status'] = 'draft';
@@ -115,20 +135,10 @@ class InvoiceController extends Controller
 
         abort_unless($request->user()?->can('billing.export') ?? false, 403);
 
-        $query = Invoice::query()->with('customer:id,code,name');
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->string('status'));
-        }
+        $query = $this->filteredQuery($request)->with('customer:id,code,name');
 
         $export = ExportQuery::make($query)
-            ->for(
-                $request,
-                self::SORTABLE,
-                ['number', 'status', 'notes'],
-                'created_at',
-                'desc'
-            )
+            ->forRequest($request, self::SORTABLE, 'created_at', 'desc')
             ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
 
         $columns = [
@@ -189,12 +199,16 @@ class InvoiceController extends Controller
         ])->download($invoice->number.'.pdf');
     }
 
-    public function receivables(Request $request): InertiaResponse
+    public function receivables(Request $request, ReceivablesQuery $query): InertiaResponse
     {
         Gate::authorize('viewAny', Invoice::class);
 
+        $result = $query->run($request);
+
         return Inertia::render('Admin/Billing/Receivables', [
-            'rows' => BillingService::receivables(),
+            'rows' => ReceivableResource::collection($result['rows']),
+            'totals' => $result['totals'],
+            'filters' => $result['filters'],
             'can' => ['suspend' => $request->user()?->can('customer.subscription.suspend') ?? false],
         ]);
     }
@@ -260,6 +274,16 @@ class InvoiceController extends Controller
         return back()->with('success', 'Payment recorded.');
     }
 
+    public function reversePayment(ReversePaymentRequest $request, Invoice $invoice, Payment $payment): RedirectResponse
+    {
+        $this->ensureSameCompany($invoice);
+        abort_unless($payment->invoice_id === $invoice->id, 404);
+
+        BillingService::reversePayment($payment, $request->input('reason'));
+
+        return back()->with('success', 'Payment reversed.');
+    }
+
     public function cancel(Request $request, Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
@@ -294,8 +318,8 @@ class InvoiceController extends Controller
 
     public function removeItem(Invoice $invoice, InvoiceItem $item): RedirectResponse
     {
-        // ponytail: status/ownership checks deferred to BillingService::removeItem
-        // which re-fetches both rows with lockForUpdate inside a transaction.
+        $this->ensureSameCompany($invoice);
+        Gate::authorize('billing.update');
         BillingService::removeItem($invoice, $item->id);
 
         return back()->with('success', 'Item removed.');

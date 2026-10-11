@@ -81,9 +81,15 @@ export function CustomerRelatedTables({
                 <Tab value="addresses">Addresses ({addresses.length})</Tab>
                 <Tab value="contacts">Contacts ({contacts.length})</Tab>
                 <Tab value="subscriptions">Subscriptions ({subscriptions.length})</Tab>
-                {historyAccess.billing ? <Tab value="billing">Billing ({history.invoices.length})</Tab> : null}
-                {historyAccess.spk ? <Tab value="spk">SPK ({history.work_orders.length})</Tab> : null}
-                {historyAccess.tickets ? <Tab value="tickets">Tickets ({history.tickets.length})</Tab> : null}
+                {historyAccess.billing ? (
+                    <Tab value="billing">Billing ({history.invoices.length})</Tab>
+                ) : null}
+                {historyAccess.spk ? (
+                    <Tab value="spk">SPK ({history.work_orders.length})</Tab>
+                ) : null}
+                {historyAccess.tickets ? (
+                    <Tab value="tickets">Tickets ({history.tickets.length})</Tab>
+                ) : null}
             </TabList>
             <TabPanel value="addresses">
                 <div className="space-y-3">
@@ -114,12 +120,21 @@ export function CustomerRelatedTables({
                                         <TD>{address.label}</TD>
                                         <TD>{address.address}</TD>
                                         <TD>
-                                            {[address.village_name, address.district_name, address.city_name, address.province_name]
+                                            {[
+                                                address.village_name,
+                                                address.district_name,
+                                                address.city_name,
+                                                address.province_name,
+                                            ]
                                                 .filter(Boolean)
-                                                .join(', ') || address.city || '-'}
+                                                .join(', ') ||
+                                                address.city ||
+                                                '-'}
                                         </TD>
                                         <TD>
-                                            {address.lat && address.lng ? `${address.lat}, ${address.lng}` : '-'}
+                                            {address.lat && address.lng
+                                                ? `${address.lat}, ${address.lng}`
+                                                : '-'}
                                         </TD>
                                         <TD>
                                             {address.is_installation_point ? (
@@ -249,18 +264,47 @@ export function CustomerRelatedTables({
                         </THead>
                         <TBody>
                             {history.invoices.length === 0 ? (
-                                <TR><TD colSpan={7} className="py-8 text-center text-muted-foreground">No billing history.</TD></TR>
-                            ) : history.invoices.map((invoice) => (
-                                <TR key={invoice.id}>
-                                    <TD className="font-mono text-sm">{invoice.number}</TD>
-                                    <TD>{formatDate(invoice.issue_date)} / {formatDate(invoice.due_date)}</TD>
-                                    <TD>{formatMoney(invoice.total)}</TD>
-                                    <TD>{formatMoney(invoice.paid_amount)}</TD>
-                                    <TD>{formatMoney(Number(invoice.total) - Number(invoice.paid_amount))}</TD>
-                                    <TD><StatusBadge variant={historyStatusVariant(invoice.status)}>{invoice.status}</StatusBadge></TD>
-                                    <TD><Link href={route('admin.invoices.show', invoice.id)} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link></TD>
+                                <TR>
+                                    <TD
+                                        colSpan={7}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
+                                        No billing history.
+                                    </TD>
                                 </TR>
-                            ))}
+                            ) : (
+                                history.invoices.map((invoice) => (
+                                    <TR key={invoice.id}>
+                                        <TD className="font-mono text-sm">{invoice.number}</TD>
+                                        <TD>
+                                            {formatDate(invoice.issue_date)} /{' '}
+                                            {formatDate(invoice.due_date)}
+                                        </TD>
+                                        <TD>{formatMoney(invoice.total)}</TD>
+                                        <TD>{formatMoney(invoice.paid_amount)}</TD>
+                                        <TD>
+                                            {formatMoney(
+                                                Number(invoice.total) - Number(invoice.paid_amount),
+                                            )}
+                                        </TD>
+                                        <TD>
+                                            <StatusBadge
+                                                variant={historyStatusVariant(invoice.status)}
+                                            >
+                                                {invoice.status}
+                                            </StatusBadge>
+                                        </TD>
+                                        <TD>
+                                            <Link
+                                                href={route('admin.invoices.show', invoice.id)}
+                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                            >
+                                                Show
+                                            </Link>
+                                        </TD>
+                                    </TR>
+                                ))
+                            )}
                         </TBody>
                     </Table>
                 </TabPanel>
@@ -268,17 +312,53 @@ export function CustomerRelatedTables({
             {historyAccess.spk ? (
                 <TabPanel value="spk">
                     <Table>
-                        <THead><TR><TH>Code</TH><TH>Title</TH><TH>Type</TH><TH>Priority</TH><TH>Status</TH><TH>Scheduled</TH><TH>Action</TH></TR></THead>
+                        <THead>
+                            <TR>
+                                <TH>Code</TH>
+                                <TH>Title</TH>
+                                <TH>Type</TH>
+                                <TH>Priority</TH>
+                                <TH>Status</TH>
+                                <TH>Scheduled</TH>
+                                <TH>Action</TH>
+                            </TR>
+                        </THead>
                         <TBody>
                             {history.work_orders.length === 0 ? (
-                                <TR><TD colSpan={7} className="py-8 text-center text-muted-foreground">No SPK history.</TD></TR>
-                            ) : history.work_orders.map((workOrder) => (
-                                <TR key={workOrder.id}>
-                                    <TD className="font-mono text-sm">{workOrder.code}</TD><TD>{workOrder.title}</TD><TD>{workOrder.type}</TD><TD>{workOrder.priority}</TD>
-                                    <TD><StatusBadge variant={historyStatusVariant(workOrder.status)}>{workOrder.status}</StatusBadge></TD><TD>{formatDate(workOrder.scheduled_date)}</TD>
-                                    <TD><Link href={route('admin.spk.show', workOrder.id)} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link></TD>
+                                <TR>
+                                    <TD
+                                        colSpan={7}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
+                                        No SPK history.
+                                    </TD>
                                 </TR>
-                            ))}
+                            ) : (
+                                history.work_orders.map((workOrder) => (
+                                    <TR key={workOrder.id}>
+                                        <TD className="font-mono text-sm">{workOrder.code}</TD>
+                                        <TD>{workOrder.title}</TD>
+                                        <TD>{workOrder.type}</TD>
+                                        <TD>{workOrder.priority}</TD>
+                                        <TD>
+                                            <StatusBadge
+                                                variant={historyStatusVariant(workOrder.status)}
+                                            >
+                                                {workOrder.status}
+                                            </StatusBadge>
+                                        </TD>
+                                        <TD>{formatDate(workOrder.scheduled_date)}</TD>
+                                        <TD>
+                                            <Link
+                                                href={route('admin.spk.show', workOrder.id)}
+                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                            >
+                                                Show
+                                            </Link>
+                                        </TD>
+                                    </TR>
+                                ))
+                            )}
                         </TBody>
                     </Table>
                 </TabPanel>
@@ -286,17 +366,51 @@ export function CustomerRelatedTables({
             {historyAccess.tickets ? (
                 <TabPanel value="tickets">
                     <Table>
-                        <THead><TR><TH>Code</TH><TH>Title</TH><TH>Priority</TH><TH>Status</TH><TH>Created</TH><TH>Action</TH></TR></THead>
+                        <THead>
+                            <TR>
+                                <TH>Code</TH>
+                                <TH>Title</TH>
+                                <TH>Priority</TH>
+                                <TH>Status</TH>
+                                <TH>Created</TH>
+                                <TH>Action</TH>
+                            </TR>
+                        </THead>
                         <TBody>
                             {history.tickets.length === 0 ? (
-                                <TR><TD colSpan={6} className="py-8 text-center text-muted-foreground">No ticket history.</TD></TR>
-                            ) : history.tickets.map((ticket) => (
-                                <TR key={ticket.id}>
-                                    <TD className="font-mono text-sm">{ticket.code}</TD><TD>{ticket.title}</TD><TD>{ticket.priority}</TD>
-                                    <TD><StatusBadge variant={historyStatusVariant(ticket.status)}>{ticket.status}</StatusBadge></TD><TD>{formatDate(ticket.created_at)}</TD>
-                                    <TD><Link href={route('admin.tickets.show', ticket.id)} className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400">Show</Link></TD>
+                                <TR>
+                                    <TD
+                                        colSpan={6}
+                                        className="py-8 text-center text-muted-foreground"
+                                    >
+                                        No ticket history.
+                                    </TD>
                                 </TR>
-                            ))}
+                            ) : (
+                                history.tickets.map((ticket) => (
+                                    <TR key={ticket.id}>
+                                        <TD className="font-mono text-sm">{ticket.code}</TD>
+                                        <TD>{ticket.title}</TD>
+                                        <TD>{ticket.priority}</TD>
+                                        <TD>
+                                            <StatusBadge
+                                                variant={historyStatusVariant(ticket.status)}
+                                            >
+                                                {ticket.status}
+                                            </StatusBadge>
+                                        </TD>
+                                        <TD>{formatDate(ticket.created_at)}</TD>
+                                        <TD>
+                                            <Link
+                                                href={route('admin.tickets.show', ticket.id)}
+                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                            >
+                                                Show
+                                            </Link>
+                                        </TD>
+                                    </TR>
+                                ))
+                            )}
                         </TBody>
                     </Table>
                 </TabPanel>

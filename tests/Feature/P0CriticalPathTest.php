@@ -154,9 +154,17 @@ class P0CriticalPathTest extends TestCase
             'user_id' => $technician->id,
             'status' => 'active',
         ]);
-        $this->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])->assertRedirect();
+        $this->post(route('admin.spk.assign', $workOrder), [
+            'technician_id' => $technician->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+        ])->assertRedirect();
+        $this->actingAs($technician);
         $this->post(route('admin.spk.start', $workOrder))->assertRedirect();
         $this->post(route('admin.spk.submit', $workOrder))->assertRedirect();
+        // Separation of duties (P0-B B2): approve as a distinct approver, not the WO creator.
+        $approver = $this->user('admin', $company);
+        $this->actingAs($approver);
         $this->post(route('admin.spk.approve', $workOrder))->assertRedirect();
 
         $this->assertDatabaseHas('stocks', ['product_id' => $product->id, 'location_id' => $location->id, 'quantity' => 8, 'reserved_quantity' => 0]);
@@ -193,7 +201,11 @@ class P0CriticalPathTest extends TestCase
         ])->assertRedirect();
 
         $ticket = Ticket::where('title', 'P0 ticket')->firstOrFail();
-        $this->post(route('admin.tickets.assign', $ticket), ['handler_id' => $admin->id])->assertRedirect();
+        $this->post(route('admin.tickets.assign', $ticket), [
+            'handler_id' => $admin->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+        ])->assertRedirect();
         $this->post(route('admin.tickets.spawn-spk', $ticket))->assertRedirect();
 
         $spawnedSpk = $ticket->fresh()->spawnedSpk;
@@ -275,6 +287,7 @@ class P0CriticalPathTest extends TestCase
     {
         $admin = $this->user('admin');
         $company = $admin->company;
+        $nonTechnician = $this->user('customer', $company);
         $workOrder = WorkOrder::forceCreate([
             'company_id' => $company->id,
             'code' => 'SPK-ASSIGN-TEST',
@@ -287,12 +300,16 @@ class P0CriticalPathTest extends TestCase
         ]);
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
-            'user_id' => $admin->id,
+            'user_id' => $nonTechnician->id,
             'status' => 'active',
         ]);
 
         $this->actingAs($admin)
-            ->post(route('admin.spk.assign', $workOrder), ['technician_id' => $admin->id])
+            ->post(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $nonTechnician->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+            ])
             ->assertSessionHasErrors('technician_id');
     }
 
@@ -313,7 +330,11 @@ class P0CriticalPathTest extends TestCase
         $technician = $this->user('technician', $company);
 
         $this->actingAs($admin)
-            ->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])
+            ->post(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $technician->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+            ])
             ->assertSessionHasErrors('technician_id');
 
         EmployeeProfile::factory()->create([
@@ -322,8 +343,11 @@ class P0CriticalPathTest extends TestCase
             'status' => 'active',
         ]);
 
-        $this->post(route('admin.spk.assign', $workOrder), ['technician_id' => $technician->id])
-            ->assertRedirect();
+        $this->post(route('admin.spk.assign', $workOrder), [
+            'technician_id' => $technician->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
+        ])->assertRedirect();
 
         $this->assertDatabaseHas('work_order_assignments', [
             'work_order_id' => $workOrder->id,

@@ -3,13 +3,28 @@
 namespace Modules\Ticketing\Models;
 
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $name
+ * @property string $code
+ * @property int $default_sla_hours
+ * @property string $default_priority
+ * @property bool $is_active
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
+ * @property ?Carbon $deleted_at
+ * @property-read Collection<int, Ticket> $tickets
+ */
 class TicketCategory extends Model
 {
     use BelongsToCompany;

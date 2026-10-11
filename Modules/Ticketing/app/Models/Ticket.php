@@ -7,11 +7,13 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
@@ -19,6 +21,43 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\InteractsWithMedia;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $code
+ * @property string $title
+ * @property ?string $description
+ * @property string $source
+ * @property int $category_id
+ * @property string $status
+ * @property string $priority
+ * @property ?int $customer_id
+ * @property ?int $subscription_id
+ * @property ?int $network_asset_id
+ * @property ?int $location_id
+ * @property ?int $assigned_to
+ * @property ?int $spawned_spk_id
+ * @property ?Carbon $sla_deadline
+ * @property ?Carbon $sla_breached_notified_at
+ * @property ?Carbon $first_response_at
+ * @property ?Carbon $resolved_at
+ * @property ?Carbon $closed_at
+ * @property ?string $resolution_note
+ * @property int $created_by
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
+ * @property ?Carbon $deleted_at
+ * @property-read bool $is_sla_breached
+ * @property-read TicketCategory|null $category
+ * @property-read Customer|null $customer
+ * @property-read ServiceSubscription|null $subscription
+ * @property-read NetworkAsset|null $networkAsset
+ * @property-read Location|null $location
+ * @property-read User|null $assignee
+ * @property-read WorkOrder|null $spawnedSpk
+ * @property-read User|null $creator
+ * @property-read Collection<int, TicketComment> $comments
+ */
 class Ticket extends Model implements HasMedia
 {
     use BelongsToCompany;

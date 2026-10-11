@@ -1,12 +1,14 @@
 import React from 'react';
 import { Slot, Slottable } from '@radix-ui/react-slot';
 import { cn } from '@/lib/utils';
+import { Spinner } from './Spinner';
 
 const buttonVariantClasses = {
     default: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
     primary: 'bg-primary text-primary-foreground shadow hover:bg-primary/90',
     secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
     success: 'bg-success text-white shadow-sm hover:bg-success/90',
+    warning: 'bg-warning text-white shadow-sm hover:bg-warning/90',
     ghost: 'hover:bg-accent hover:text-accent-foreground',
     danger: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
     destructive: 'bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90',
@@ -75,9 +77,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                     className,
                 )}
                 disabled={disabled || loading}
+                aria-busy={loading || undefined}
                 {...props}
             >
-                {loading && <Spinner />}
+                {loading && <Spinner size="sm" />}
                 {!loading && leftIcon}
                 {asChild ? <Slottable>{children}</Slottable> : children}
                 {!loading && rightIcon}
@@ -87,23 +90,3 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 );
 
 Button.displayName = 'Button';
-
-function Spinner() {
-    return (
-        <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-            <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-            />
-            <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-            />
-        </svg>
-    );
-}

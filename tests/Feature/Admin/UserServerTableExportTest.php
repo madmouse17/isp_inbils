@@ -6,7 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Models\Invoice;
 use Modules\SPK\Models\WorkOrder;
@@ -17,7 +17,7 @@ use Tests\TestCase;
 
 class UserServerTableExportTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private User $admin;
 
@@ -76,10 +76,31 @@ class UserServerTableExportTest extends TestCase
                 ->component('Admin/Users/Index')
                 ->has('users.data', 1)
                 ->where('users.data.0.email', 'alpha@example.test')
+                ->where('users.data.0.can.delete', true)
                 ->where('filters.search', 'Sort')
                 ->where('filters.is_active', '1')
                 ->where('filters.sort', 'name')
                 ->where('filters.direction', 'desc')
+            );
+    }
+
+    public function test_index_sets_server_authoritative_can_delete_false_for_self(): void
+    {
+        $otherUser = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'name' => 'Other Admin',
+            'email' => 'other-admin@example.test',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.users.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Users/Index')
+                ->where('users.data', fn ($users) => collect($users)->firstWhere('id', $this->admin->id)['can']['delete'] === false
+                    && collect($users)->firstWhere('id', $otherUser->id)['can']['delete'] === true
+                )
             );
     }
 

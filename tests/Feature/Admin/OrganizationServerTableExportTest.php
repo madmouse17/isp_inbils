@@ -67,6 +67,51 @@ class OrganizationServerTableExportTest extends TestCase
             );
     }
 
+    public function test_index_honors_page_size_sort_and_preserves_query_links(): void
+    {
+        for ($number = 1; $number <= 26; $number++) {
+            OrganizationUnit::factory()->create([
+                'company_id' => $this->admin->company_id,
+                'code' => sprintf('PAGE-%02d', $number),
+                'name' => 'Pagination Unit',
+            ]);
+        }
+        OrganizationUnit::factory()->create([
+            'company_id' => $this->otherCompany->id,
+            'code' => 'PAGE-99',
+            'name' => 'Pagination Unit',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.organizations.index', [
+                'search' => 'PAGE-',
+                'sort' => 'code',
+                'direction' => 'desc',
+                'per_page' => 25,
+                'page' => 2,
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('organizations.data', 1)
+                ->where('organizations.data.0.code', 'PAGE-01')
+                ->where('organizations.meta.total', 26)
+                ->where('organizations.meta.per_page', 25)
+                ->where('organizations.meta.current_page', 2)
+                ->where('filters.per_page', '25')
+                ->where('organizations.links.prev', function ($url): bool {
+                    parse_str(parse_url($url, PHP_URL_QUERY), $query);
+
+                    return $query === [
+                        'search' => 'PAGE-',
+                        'sort' => 'code',
+                        'direction' => 'desc',
+                        'per_page' => '25',
+                        'page' => '1',
+                    ];
+                })
+            );
+    }
+
     public function test_export_csv_respects_filters_and_company_scope(): void
     {
         OrganizationUnit::factory()->create([

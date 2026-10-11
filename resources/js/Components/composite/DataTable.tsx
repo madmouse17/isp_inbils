@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/Components/ui/Button';
@@ -6,7 +6,7 @@ import { NativeSelect } from '@/Components/ui';
 import { Checkbox } from '@/Components/ui/Checkbox';
 import { EmptyState } from '@/Components/ui/EmptyState';
 import { Skeleton } from '@/Components/ui/Skeleton';
-import { Table, TBody, TD, TH, THead, TR } from '@/Components/ui/Table';
+import { Table, TableFooter, TBody, TD, TH, THead, TR } from '@/Components/ui/Table';
 import type { PaginationMeta } from '@/types';
 
 export type SortDirection = 'asc' | 'desc';
@@ -63,6 +63,8 @@ export interface DataTableProps<T> {
     onRowClick?: (row: T) => void;
     className?: string;
     toolbar?: React.ReactNode;
+    /** Pinned rows rendered in a `<tfoot>` below the body (e.g. totals). Omit for no footer. */
+    footer?: React.ReactNode;
 }
 
 function resolveColumnId<T>(column: DataTableColumn<T>, index: number): string {
@@ -103,6 +105,22 @@ function readCellValue<T>(row: T, column: DataTableColumn<T>): React.ReactNode {
     return '—';
 }
 
+/** Skeleton rows follow the page size, bounded so a 50-row page does not render a 50-row placeholder. */
+const SKELETON_ROWS = { min: 3, max: 10 } as const;
+
+/** Empty until the first load starts, so a table that renders idle announces nothing. */
+function useLoadingAnnouncement(busy: boolean): string {
+    const [wasBusy, setWasBusy] = useState(busy);
+    const [announcement, setAnnouncement] = useState('');
+
+    if (busy !== wasBusy) {
+        setWasBusy(busy);
+        setAnnouncement(busy ? 'Memuat data…' : 'Data dimuat');
+    }
+
+    return announcement;
+}
+
 export function DataTable<T>({
     columns,
     rows,
@@ -132,6 +150,7 @@ export function DataTable<T>({
     onRowClick,
     className,
     toolbar,
+    footer,
 }: DataTableProps<T>) {
     const items = useMemo(
         () => rows ?? data ?? pagination?.data ?? paginator?.data ?? [],
@@ -154,6 +173,8 @@ export function DataTable<T>({
         paginator?.to ??
         meta?.to ??
         (total > 0 ? Math.min(page * perPage, total) : null);
+    const skeletonRows = Math.min(SKELETON_ROWS.max, Math.max(SKELETON_ROWS.min, perPage || 0));
+    const loadingAnnouncement = useLoadingAnnouncement(busy);
 
     const selectedSet = useMemo(() => new Set(selectedKeys.map(String)), [selectedKeys]);
     const itemIds = useMemo(
@@ -193,7 +214,7 @@ export function DataTable<T>({
         <div className={cn('space-y-3', className)}>
             {toolbar}
             <div className="overflow-x-auto rounded-lg border border-border">
-                <Table>
+                <Table aria-busy={busy || undefined}>
                     <THead>
                         <TR>
                             {selectable && (
@@ -256,8 +277,12 @@ export function DataTable<T>({
                     </THead>
                     <TBody>
                         {busy &&
-                            Array.from({ length: 5 }).map((_, rowIndex) => (
-                                <TR key={`skeleton-${rowIndex}`}>
+                            Array.from({ length: skeletonRows }).map((_, rowIndex) => (
+                                <TR
+                                    key={`skeleton-${rowIndex}`}
+                                    aria-hidden="true"
+                                    className="h-12 hover:bg-transparent"
+                                >
                                     {selectable && (
                                         <TD>
                                             <Skeleton className="h-4 w-4" />
@@ -315,6 +340,7 @@ export function DataTable<T>({
                                 );
                             })}
                     </TBody>
+                    {footer && <TableFooter>{footer}</TableFooter>}
                 </Table>
             </div>
             {((onPageChange && lastPage > 1) || onPerPageChange) && (
@@ -327,6 +353,7 @@ export function DataTable<T>({
                     <div className="flex flex-wrap items-center gap-2">
                         {onPerPageChange && (
                             <NativeSelect
+                                aria-label="Rows per page"
                                 value={String(perPage)}
                                 onChange={(event) => onPerPageChange(Number(event.target.value))}
                                 options={perPageOptions.map((n) => ({
@@ -342,6 +369,7 @@ export function DataTable<T>({
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    aria-label="Previous page"
                                     disabled={page <= 1}
                                     onClick={() => onPageChange(page - 1)}
                                 >
@@ -354,6 +382,7 @@ export function DataTable<T>({
                                     type="button"
                                     variant="outline"
                                     size="sm"
+                                    aria-label="Next page"
                                     disabled={page >= lastPage}
                                     onClick={() => onPageChange(page + 1)}
                                 >
@@ -364,6 +393,9 @@ export function DataTable<T>({
                     </div>
                 </div>
             )}
+            <div role="status" aria-live="polite" className="sr-only">
+                {loadingAnnouncement}
+            </div>
         </div>
     );
 }

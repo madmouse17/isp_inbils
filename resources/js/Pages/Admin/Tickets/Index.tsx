@@ -5,7 +5,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import {
@@ -18,11 +18,12 @@ import {
 import { useCan } from '@/hooks/useCan';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDateTime } from '@/lib/format';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 type Row = {
     id: number;
-    number: string;
-    subject: string;
+    code: string;
+    title: string;
     priority: string;
     status: string;
     created_at: string | null;
@@ -30,25 +31,8 @@ type Row = {
     assignee?: { id: number; name: string } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
-};
-
 type Props = {
-    tickets: Paginator<Row>;
+    tickets: PaginationLike<Row>;
     filters: {
         search?: string;
         priority?: string;
@@ -68,14 +52,16 @@ export default function TicketsIndex({
     statusOptions = [],
 }: Props) {
     const can = useCan();
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+    const pagination = toPagination(tickets);
+    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
+            ...filters,
             search: filters.search ?? '',
             priority: filters.priority ?? '',
             status: filters.status ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? tickets.per_page,
+            per_page: filters.per_page ?? pagination.per_page,
         },
         { only: ['tickets', 'filters'] },
     );
@@ -83,25 +69,25 @@ export default function TicketsIndex({
     const columns: DataTableColumn<Row>[] = useMemo(
         () => [
             {
-                key: 'number',
+                key: 'code',
                 header: 'Number',
                 sortable: true,
-                sortKey: 'number',
+                sortKey: 'code',
                 cell: (row) => (
                     <Link
                         href={route('admin.tickets.show', row.id)}
                         className="font-medium text-primary hover:underline"
                     >
-                        {row.number}
+                        {row.code}
                     </Link>
                 ),
             },
             {
-                key: 'subject',
+                key: 'title',
                 header: 'Subject',
                 sortable: true,
-                sortKey: 'subject',
-                cell: (row) => row.subject,
+                sortKey: 'title',
+                cell: (row) => row.title,
             },
             {
                 key: 'priority',
@@ -146,9 +132,10 @@ export default function TicketsIndex({
                                 exportUrl={route('admin.tickets.export')}
                                 params={params}
                                 canExport={can('ticket.export')}
+                                formats={['csv', 'pdf']}
                             />
                             {can('ticket.create') && (
-                                <Button asChild size="sm">
+                                <Button asChild size="sm" variant="success">
                                     <Link href={route('admin.tickets.create')}>
                                         <Plus className="size-4" />
                                         New ticket
@@ -182,7 +169,7 @@ export default function TicketsIndex({
                             value={params.priority || '__all__'}
                             onValueChange={(v) => set('priority', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Priority" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -201,7 +188,7 @@ export default function TicketsIndex({
                             value={params.status || '__all__'}
                             onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Status" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -221,10 +208,11 @@ export default function TicketsIndex({
                     data={tickets.data}
                     emptyTitle="No tickets"
                     emptyDescription="No tickets match the current filters."
+                    loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={tickets}
+                    pagination={pagination}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(n) => set('per_page', n)}
                 />

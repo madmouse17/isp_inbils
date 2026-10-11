@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, PermissionGroupSelector, type PermissionOption } from '@/Components/composite';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@/Components/ui';
@@ -20,7 +21,20 @@ export default function Create({ permissions }: CreateProps) {
     return (
         <AdminLayout title="Create Role">
             <div className="space-y-6">
-                <PageHeader title="Create Role" subtitle="Fill required fields, then save." />
+                <PageHeader
+                    title="Create Role"
+                    subtitle="Fill required fields, then save."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.roles.index')}>Back</Link>
+                        </Button>
+                    }
+                />
 
                 <form onSubmit={submit} className="space-y-6">
                     <Card>

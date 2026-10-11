@@ -6,18 +6,18 @@ use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
-use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Product;
+use Modules\NetworkAsset\Http\Requests\InstallNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\StoreNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNetworkAssetRequest;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
@@ -44,8 +44,11 @@ class NetworkAssetController extends Controller
     {
         Gate::authorize('viewAny', NetworkAsset::class);
 
+        /** @var Builder<Model> $assetQuery */
+        $assetQuery = $this->filteredQuery($request)->with(['company:id,name']);
+
         $assets = $this->applySort(
-            $this->filteredQuery($request)->with(['company:id,name']),
+            $assetQuery,
             $request,
             'created_at',
             'desc',
@@ -53,6 +56,8 @@ class NetworkAssetController extends Controller
 
         return Inertia::render('Admin/NetworkAssets/Index', [
             'assets' => NetworkAssetResource::collection($assets),
+            'typeOptions' => ['router', 'switch', 'olt', 'onu_ont', 'radio', 'antenna', 'fiber', 'odp', 'odc', 'rack', 'power', 'other'],
+            'statusOptions' => ['available', 'installed', 'maintenance', 'damaged', 'retired'],
             'filters' => [
                 'search' => $request->input('search'),
                 'status' => $request->input('status'),
@@ -88,8 +93,11 @@ class NetworkAssetController extends Controller
         $format = strtolower((string) $request->input('format', 'csv'));
         $stamp = now()->format('Ymd-His');
 
+        /** @var Builder<Model> $exportQuery */
+        $exportQuery = $this->filteredQuery($request);
+
         $export = ExportQuery::make(
-            $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
+            $this->applySort($exportQuery, $request, 'created_at', 'desc')
         )
             ->sortable(self::SORTABLE)
             ->defaultSort('created_at', 'desc')
@@ -111,7 +119,7 @@ class NetworkAssetController extends Controller
             'asset_type' => $asset->asset_type,
             'serial_number' => $asset->serial_number ?? '',
             'status' => $asset->status,
-            'ownership' => $asset->ownership,
+            'ownership' => $asset->getAttribute('ownership'),
         ];
 
         return $format === 'pdf'
@@ -218,23 +226,18 @@ class NetworkAssetController extends Controller
         return back()->with('success', 'Network asset deleted.');
     }
 
-    public function install(Request $request, NetworkAsset $asset): RedirectResponse
+    public function install(InstallNetworkAssetRequest $request, NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('network_asset.install');
 
-        $request->validate([
-            'location_id' => ['required', Rule::exists('locations', 'id')->where('company_id', CompanyService::currentId())],
-            'customer_id' => ['nullable', 'exists:customers,id'],
-            'subscription_id' => ['nullable', 'exists:service_subscriptions,id'],
-            'spk_id' => ['nullable', 'integer'],
-        ]);
+        $validated = $request->validated();
 
         NetworkAssetService::install(
             $asset,
-            $request->integer('location_id'),
-            $request->integer('customer_id'),
-            $request->integer('subscription_id'),
-            $request->integer('spk_id'),
+            (int) $validated['location_id'],
+            $validated['customer_id'] ?? null,
+            $validated['subscription_id'] ?? null,
+            $validated['spk_id'] ?? null,
         );
 
         return back()->with('success', 'Asset installed.');

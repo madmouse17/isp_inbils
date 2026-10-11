@@ -15,7 +15,14 @@ export function Label({ htmlFor, children, required, className, ...props }: Labe
             {...props}
         >
             {children}
-            {required && <span className="ml-1 text-danger">*</span>}
+            {required && (
+                <>
+                    {' '}
+                    <span className="text-danger" aria-hidden="true">
+                        *
+                    </span>
+                </>
+            )}
         </label>
     );
 }

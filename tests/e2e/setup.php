@@ -3,7 +3,21 @@
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Database\ConfigurationUrlParser;
 
-const E2E_DATABASE = 'inbils_e2e';
+// Canonical E2E contract (AGENTS.md Test Database Rule): every automated
+// test/QA/browser/E2E run MUST use the single shared MySQL schema `inbils_test`.
+// No disposable/random schema is ever created and no schema is ever dropped;
+// the effective database is resolved from .env.e2e (DB_DATABASE=inbils_test)
+// and enforced below — anything else is refused (fail closed). The previous
+// disposable namespace is gone: neither E2E_DATABASE nor any other env var
+// can re-target the run to a different schema.
+const canonicalDatabase = 'inbils_test';
+
+if (nonEmptyEnvValue('E2E_DATABASE') !== null) {
+    fwrite(STDERR, 'Refusing E2E reset: E2E_DATABASE is no longer supported; all E2E runs use '.canonicalDatabase.".\n");
+    exit(1);
+}
+
+define('E2E_DATABASE', canonicalDatabase);
 
 $checkOnly = in_array('--check', $argv, true);
 $root = dirname(__DIR__, 2);
@@ -36,27 +50,32 @@ if ($checkOnly) {
 
 $kernel = $app->make(Kernel::class);
 
-$exitCode = $kernel->call('migrate:fresh', [
-    '--seed' => true,
-    '--seeder' => 'Database\Seeders\DatabaseSeeder',
-    '--force' => true,
-]);
-
-if ($exitCode === 0) {
-    $exitCode = $kernel->call('db:seed', [
-        '--class' => 'Database\Seeders\DemoUserSeeder',
+try {
+    $exitCode = $kernel->call('migrate:fresh', [
+        '--seed' => true,
+        '--seeder' => 'Database\Seeders\DatabaseSeeder',
         '--force' => true,
     ]);
-}
 
-if ($exitCode === 0) {
-    $exitCode = $kernel->call('db:seed', [
-        '--class' => 'Database\Seeders\E2eFixtureSeeder',
-        '--force' => true,
-    ]);
-}
+    if ($exitCode === 0) {
+        $exitCode = $kernel->call('db:seed', [
+            '--class' => 'Database\Seeders\DemoUserSeeder',
+            '--force' => true,
+        ]);
+    }
 
-exit($exitCode);
+    if ($exitCode === 0) {
+        $exitCode = $kernel->call('db:seed', [
+            '--class' => 'Database\Seeders\E2eFixtureSeeder',
+            '--force' => true,
+        ]);
+    }
+
+    exit($exitCode);
+} catch (Throwable $e) {
+    fwrite(STDERR, "E2E setup failed with unhandled exception: {$e->getMessage()}\n{$e->getTraceAsString()}\n");
+    exit(1);
+}
 
 function rejectCachedConfig(string $root): void
 {
@@ -86,7 +105,7 @@ function rejectProcessAppEnv(): void
 function rejectProcessDatabaseUrl(): void
 {
     if (nonEmptyEnvValue('DB_URL') !== null) {
-        fwrite(STDERR, "Refusing E2E reset: DB_URL must be unset; use DB_DATABASE=inbils_e2e.\n");
+        fwrite(STDERR, 'Refusing E2E reset: DB_URL must be unset; use DB_DATABASE='.E2E_DATABASE.".\n");
         exit(1);
     }
 }
@@ -111,7 +130,7 @@ function guardE2eDatabase(): array
     }
 
     if (nonEmptyConfigValue($connection['url'] ?? null) !== null || nonEmptyEnvValue('DB_URL') !== null) {
-        fwrite(STDERR, "Refusing E2E reset: DB_URL must be unset; use DB_DATABASE=inbils_e2e.\n");
+        fwrite(STDERR, 'Refusing E2E reset: DB_URL must be unset; use DB_DATABASE='.E2E_DATABASE.".\n");
         exit(1);
     }
 

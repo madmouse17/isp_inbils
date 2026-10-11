@@ -10,6 +10,8 @@ export interface PaginationProps {
     from?: number | null;
     to?: number | null;
     onPageChange: (page: number) => void;
+    /** Disables both buttons while the next page is loading. */
+    disabled?: boolean;
     className?: string;
 }
 
@@ -21,6 +23,7 @@ export function Pagination({
     from,
     to,
     onPageChange,
+    disabled = false,
     className,
 }: PaginationProps) {
     const page = meta?.current_page ?? currentPage ?? 1;
@@ -50,7 +53,7 @@ export function Pagination({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={page <= 1}
+                    disabled={disabled || page <= 1}
                     onClick={() => onPageChange(page - 1)}
                 >
                     Previous
@@ -62,7 +65,7 @@ export function Pagination({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={page >= last}
+                    disabled={disabled || page >= last}
                     onClick={() => onPageChange(page + 1)}
                 >
                     Next

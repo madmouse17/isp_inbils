@@ -29,7 +29,7 @@ class ProductFactory extends Factory
                 $categoryId = $attributes['category_id'] ?? null;
 
                 if ($categoryId) {
-                    return Category::query()->find($categoryId)?->unit_id;
+                    return Category::withoutCompany()->find($categoryId)?->unit_id;
                 }
 
                 return null;

@@ -18,6 +18,7 @@ class SLATierResource extends JsonResource
             'resolution_time_hours' => $this->resolution_time_hours,
             'credit_pct' => $this->credit_pct,
             'is_active' => $this->is_active,
+            'created_at' => $this->created_at,
         ];
     }
 }

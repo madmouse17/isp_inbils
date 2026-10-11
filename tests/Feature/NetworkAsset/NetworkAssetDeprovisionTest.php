@@ -5,6 +5,7 @@ namespace Tests\Feature\NetworkAsset;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -12,6 +13,7 @@ use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\NetworkAssetInstallation;
 use Modules\NetworkAsset\Services\NetworkAssetService;
+use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
@@ -62,8 +64,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            1,
-            'SN-RELEASE-1',
+            null,
         );
 
         $installation = NetworkAssetInstallation::query()->where('network_asset_id', $asset->id)->whereNull('removed_at')->firstOrFail();
@@ -90,7 +91,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            9,
+            null,
         );
 
         $released = NetworkAssetService::releaseOnt($asset->fresh(), 'termination');
@@ -116,7 +117,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            5,
+            null,
         );
 
         $foreign = Company::factory()->create();
@@ -127,7 +128,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             NetworkAssetService::remove($installation, 'cross-tenant');
             $this->fail('Expected HttpException');
         } catch (HttpException $e) {
-            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame(404, $e->getStatusCode());
         }
 
         $this->assertNull($installation->fresh()->removed_at);
@@ -142,7 +143,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            2,
+            null,
         );
         NetworkAssetService::remove($installation, 'first');
 
@@ -154,7 +155,7 @@ class NetworkAssetDeprovisionTest extends TestCase
         }
     }
 
-    public function test_remove_without_company_context_still_closes_active_installation(): void
+    public function test_remove_without_a_user_closes_the_active_installation_inside_an_explicit_company_scope(): void
     {
         $asset = $this->makeAsset('available');
         NetworkAssetService::install(
@@ -162,22 +163,22 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            3,
+            null,
         );
         $installation = NetworkAssetInstallation::query()->where('network_asset_id', $asset->id)->whereNull('removed_at')->firstOrFail();
 
         auth()->logout();
         CompanyService::resetCache();
 
-        $closed = NetworkAssetService::remove($installation, 'no-company');
+        $closed = CompanyService::runAs((int) $installation->company_id, fn () => NetworkAssetService::remove($installation, 'no-user'));
 
         $this->assertSame('available', $closed->status);
-        $this->assertNotNull($installation->fresh()->removed_at);
+        $this->assertNotNull(NetworkAssetInstallation::withoutCompany()->find($installation->id)->removed_at);
     }
 
     public function test_install_requires_available_or_reserved_selected_asset_and_does_not_fallback(): void
     {
-        $selected = $this->makeAsset('faulty', 'SN-SELECTED');
+        $selected = $this->makeAsset('damaged', 'SN-SELECTED');
         $this->makeAsset('available', 'SN-OTHER');
 
         try {
@@ -186,7 +187,7 @@ class NetworkAssetDeprovisionTest extends TestCase
                 $this->location->id,
                 $this->customer->id,
                 null,
-                4,
+                null,
             );
             $this->fail('Expected HttpException');
         } catch (HttpException $e) {
@@ -194,7 +195,7 @@ class NetworkAssetDeprovisionTest extends TestCase
         }
 
         $this->assertSame(0, NetworkAssetInstallation::query()->count());
-        $this->assertSame('faulty', $selected->fresh()->status);
+        $this->assertSame('damaged', $selected->fresh()->status);
         $this->assertSame('available', NetworkAsset::query()->where('serial_number', 'SN-OTHER')->value('status'));
     }
 
@@ -207,7 +208,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            10,
+            null,
         );
 
         try {
@@ -216,7 +217,7 @@ class NetworkAssetDeprovisionTest extends TestCase
                 $this->location->id,
                 $this->customer->id,
                 null,
-                11,
+                null,
             );
             $this->fail('Expected HttpException');
         } catch (HttpException $e) {
@@ -224,6 +225,77 @@ class NetworkAssetDeprovisionTest extends TestCase
         }
 
         $this->assertSame(1, NetworkAssetInstallation::query()->whereNull('removed_at')->count());
+    }
+
+    public function test_install_rejects_soft_deleted_location_without_writing(): void
+    {
+        $asset = $this->makeAsset('available', 'SN-SOFT-LOCATION');
+        $this->location->delete();
+
+        try {
+            NetworkAssetService::install($asset, $this->location->id, $this->customer->id);
+            $this->fail('Expected HttpException');
+        } catch (HttpException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_rejects_soft_deleted_customer_and_subscription_without_writing(): void
+    {
+        $asset = $this->makeAsset('available', 'SN-SOFT-CUSTOMER');
+        $this->customer->delete();
+
+        try {
+            NetworkAssetService::install($asset, $this->location->id, $this->customer->id);
+            $this->fail('Expected HttpException');
+        } catch (HttpException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_rejects_soft_deleted_subscription_without_writing(): void
+    {
+        $asset = $this->makeAsset('available', 'SN-SOFT-SUBSCRIPTION');
+        $subscription = ServiceSubscription::factory()->create(['customer_id' => $this->customer->id]);
+        $subscription->delete();
+
+        try {
+            NetworkAssetService::install($asset, $this->location->id, $this->customer->id, $subscription->id);
+            $this->fail('Expected HttpException');
+        } catch (HttpException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_rejects_soft_deleted_work_order_without_writing(): void
+    {
+        $asset = $this->makeAsset('available', 'SN-SOFT-SPK');
+        $workOrder = WorkOrderFactory::new()->create([
+            'company_id' => $this->company->id,
+            'customer_id' => $this->customer->id,
+            'location_id' => $this->location->id,
+            'created_by' => $this->user->id,
+        ]);
+        $workOrder->delete();
+
+        try {
+            NetworkAssetService::install($asset, $this->location->id, $this->customer->id, null, $workOrder->id);
+            $this->fail('Expected HttpException');
+        } catch (HttpException $exception) {
+            $this->assertSame(404, $exception->getStatusCode());
+        }
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
     }
 
     public function test_release_ont_rejects_foreign_company_installation(): void
@@ -234,7 +306,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             $this->location->id,
             $this->customer->id,
             null,
-            20,
+            null,
         );
 
         $foreign = Company::factory()->create();
@@ -245,7 +317,7 @@ class NetworkAssetDeprovisionTest extends TestCase
             NetworkAssetService::releaseOnt($asset->fresh(), 'foreign-stale');
             $this->fail('Expected HttpException');
         } catch (HttpException $e) {
-            $this->assertSame(422, $e->getStatusCode());
+            $this->assertSame(404, $e->getStatusCode());
         }
 
         $this->assertSame('installed', $asset->fresh()->status);

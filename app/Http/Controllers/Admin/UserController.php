@@ -10,8 +10,10 @@ use App\Http\Resources\RoleResource;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Queries\Admin\UserHistoryQuery;
+use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\UserDeletionGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -68,6 +70,7 @@ class UserController extends Controller
             'company_id' => CompanyService::currentId(),
             'email_verified_at' => now(),
         ])->save();
+        app(CompanyMembershipService::class)->grant($user, CompanyService::current() ?? abort(403), true);
         $user->syncRoles($roles);
 
         return redirect()->route('admin.users.index')->with('success', 'User created.');
@@ -125,6 +128,8 @@ class UserController extends Controller
     {
         $this->ensureSameCompany($user);
         Gate::authorize('delete', $user);
+
+        UserDeletionGuard::ensureDeletable($user);
 
         $user->delete();
 

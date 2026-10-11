@@ -10,6 +10,7 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\Permission\Models\Role;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
 
@@ -26,6 +27,54 @@ class TicketAssignScopeTest extends TestCase
         app()['cache']->forget('spatie.permission.cache');
     }
 
+    public function test_direct_service_assign_requires_expected_assignment_state(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+
+        try {
+            TicketService::assign($ticket, $handler->id, $admin->id);
+            $this->fail('Missing assignment state must be rejected.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
+    }
+
+    public function test_direct_service_assign_accepts_explicit_unassigned_state(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+
+        TicketService::assign(
+            $ticket,
+            $handler->id,
+            $admin->id,
+            null,
+            $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z')
+        );
+
+        $this->assertSame($handler->id, $ticket->fresh()->assigned_to);
+    }
+
+    public function test_direct_service_assign_rejects_stale_assignment_state(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+        TicketService::assign($ticket, $handler->id, $admin->id, null, now()->subMinute()->utc()->format('Y-m-d\\TH:i:s.v\\Z'));
+    }
+
     public function test_assign_rejects_cross_company_handler(): void
     {
         $admin = $this->createCompanyUser();
@@ -35,7 +84,11 @@ class TicketAssignScopeTest extends TestCase
         $otherCompany = Company::factory()->create();
         $outsider = User::factory()->create(['company_id' => $otherCompany->id, 'is_active' => true]);
 
-        $this->post(route('admin.tickets.assign', $ticket), ['handler_id' => $outsider->id])
+        $this->post(route('admin.tickets.assign', $ticket), [
+            'handler_id' => $outsider->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+        ])
             ->assertSessionHasErrors(['handler_id']);
 
         $this->assertSame('open', $ticket->fresh()->status);
@@ -51,8 +104,145 @@ class TicketAssignScopeTest extends TestCase
         $noRole = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
         $noRole->assignRole('customer');
 
-        $this->post(route('admin.tickets.assign', $ticket), ['handler_id' => $noRole->id])
+        $this->post(route('admin.tickets.assign', $ticket), [
+            'handler_id' => $noRole->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+        ])
             ->assertSessionHasErrors(['handler_id']);
+    }
+
+    public function test_assign_accepts_same_company_handler_with_lifecycle_capability(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+
+        $this->post(route('admin.tickets.assign', $ticket), [
+            'handler_id' => $handler->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+        ])
+            ->assertRedirect();
+
+        $this->actingAs($handler)
+            ->post(route('admin.tickets.start', $ticket))
+            ->assertRedirect();
+
+        $this->assertSame('on_progress', $ticket->fresh()->status);
+    }
+
+    public function test_ticket_lifecycle_requires_assigned_handler(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+
+        $this->post(route('admin.tickets.start', $ticket))
+            ->assertStatus(403);
+
+        $this->assertSame('open', $ticket->fresh()->status);
+    }
+
+    public function test_ticket_lifecycle_rejects_other_assignee(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+        $handler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $handler->assignRole('technician');
+        $otherHandler = User::factory()->create(['company_id' => $admin->company_id, 'is_active' => true]);
+        $otherHandler->assignRole('technician');
+        TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+
+        $this->actingAs($otherHandler)
+            ->post(route('admin.tickets.start', $ticket))
+            ->assertStatus(403);
+
+        $this->assertSame('assigned', $ticket->fresh()->status);
+    }
+
+    public function test_ticket_close_requires_assigned_eligible_handler(): void
+    {
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $ticket = $this->makeOpenTicket($admin);
+
+        // Prepare a resolved ticket
+        $handler = User::factory()->create([
+            'company_id' => $admin->company_id,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        $handlerRole = Role::firstOrCreate(['name' => 'ticket-lifecycle-worker', 'guard_name' => 'web']);
+        $handlerRole->givePermissionTo(['ticket.start', 'ticket.resolve', 'ticket.close']);
+        $handler->assignRole($handlerRole);
+
+        TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+
+        $this->actingAs($handler)
+            ->post(route('admin.tickets.start', $ticket))
+            ->assertRedirect();
+
+        $this->actingAs($handler)
+            ->post(route('admin.tickets.resolve', $ticket), ['resolution_note' => 'Resolved issue properly'])
+            ->assertRedirect();
+
+        $this->assertSame('resolved', $ticket->fresh()->status);
+
+        // 1. Unassigned / other actor with ticket.close in same company cannot close
+        $otherCloser = User::factory()->create([
+            'company_id' => $admin->company_id,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
+        $otherCloserRole = Role::firstOrCreate(['name' => 'ticket-closer-only', 'guard_name' => 'web']);
+        $otherCloserRole->givePermissionTo(['ticket.close']);
+        $otherCloser->assignRole($otherCloserRole);
+
+        $this->actingAs($otherCloser)
+            ->post(route('admin.tickets.close', $ticket))
+            ->assertStatus(403);
+
+        $this->assertSame('resolved', $ticket->fresh()->status);
+
+        // 2. Direct service close by non-assigned actor also throws 403
+        try {
+            TicketService::close($ticket);
+            $this->fail('Expected 403 when non-assigned actor attempts service close.');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $this->assertSame('resolved', $ticket->fresh()->status);
+
+        // 3. Assigned handler with ticket.close can close
+        $this->actingAs($handler)
+            ->post(route('admin.tickets.close', $ticket))
+            ->assertRedirect();
+
+        $this->assertSame('closed', $ticket->fresh()->status);
+        $this->assertNotNull($ticket->fresh()->closed_at);
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'ticket',
+            'description' => 'closed',
+            'subject_type' => $ticket->getMorphClass(),
+            'subject_id' => $ticket->id,
+        ]);
+
+        // 4. Foreign tenant fail-closed on direct close
+        $foreignAdmin = $this->createCompanyUser();
+        $this->actingAs($foreignAdmin);
+        $foreignTicket = $this->makeOpenTicket($foreignAdmin);
+        TicketService::assign($foreignTicket, $foreignAdmin->id, $foreignAdmin->id, null, $foreignTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+        $foreignTicket->update(['status' => 'resolved']);
+
+        $this->actingAs($handler)
+            ->post(route('admin.tickets.close', $foreignTicket))
+            ->assertStatus(404);
     }
 
     public function test_sla_deadline_halved_for_urgent_priority(): void

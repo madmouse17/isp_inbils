@@ -118,6 +118,27 @@ class TicketServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('Skip Fiber Outage', $content);
     }
 
+    public function test_priority_filter_matches_index_and_export(): void
+    {
+        $high = $this->makeTicket((int) $this->admin->company_id, 'Priority High');
+        $high->forceFill(['priority' => 'high'])->save();
+        $this->makeTicket((int) $this->admin->company_id, 'Priority Medium');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.tickets.index', ['priority' => 'high']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('tickets.data', 1)
+                ->where('tickets.data.0.id', $high->id)
+                ->where('filters.priority', 'high')
+            );
+
+        $content = $this->get(route('admin.tickets.export', ['priority' => 'high', 'format' => 'csv']))
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('Priority High', $content);
+        $this->assertStringNotContainsString('Priority Medium', $content);
+    }
+
     public function test_export_forbidden_without_permission(): void
     {
         $user = User::factory()->create([
@@ -133,6 +154,162 @@ class TicketServerTableExportTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('admin.tickets.export', ['format' => 'csv']))
+            ->assertForbidden();
+    }
+
+    public function test_handler_without_assign_permission_only_lists_and_exports_own_tickets(): void
+    {
+        $handler = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $otherHandler = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $handlerRole = Role::firstOrCreate(['name' => 'ticket-handler-role', 'guard_name' => 'web']);
+        $handlerRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.export']);
+        $handler->assignRole($handlerRole);
+        $otherHandler->assignRole($handlerRole);
+
+        $ownTicket = $this->makeTicket((int) $this->admin->company_id, 'Handler Own Ticket');
+        $otherTicket = $this->makeTicket((int) $this->admin->company_id, 'Other Assigned Ticket');
+        $unassignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Unassigned Ticket');
+
+        $this->actingAs($this->admin);
+        TicketService::assign($ownTicket, $handler->id, $this->admin->id, null, $ownTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+        TicketService::assign($otherTicket, $otherHandler->id, $this->admin->id, null, $otherTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+
+        // 1. Index / Paginator list and count must only include own tickets
+        $this->actingAs($handler)
+            ->get(route('admin.tickets.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Tickets/Index')
+                ->has('tickets.data', 1)
+                ->where('tickets.data.0.id', $ownTicket->id)
+                ->where('tickets.meta.total', 1)
+            );
+
+        // 2. Export CSV must only include own tickets
+        $exportResponse = $this->actingAs($handler)
+            ->get(route('admin.tickets.export', ['format' => 'csv']));
+
+        $exportResponse->assertOk();
+        $csvContent = $exportResponse->streamedContent();
+        $this->assertStringContainsString('Handler Own Ticket', $csvContent);
+        $this->assertStringNotContainsString('Other Assigned Ticket', $csvContent);
+        $this->assertStringNotContainsString('Unassigned Ticket', $csvContent);
+    }
+
+    public function test_inactive_assigned_actor_lists_and_exports_zero_tickets_and_denied_detail(): void
+    {
+        $inactiveHandler = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $handlerRole = Role::firstOrCreate(['name' => 'ticket-handler-inactive-role', 'guard_name' => 'web']);
+        $handlerRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve', 'ticket.close', 'ticket.export']);
+        $inactiveHandler->assignRole($handlerRole);
+
+        $assignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Inactive Assigned Ticket');
+        $unassignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Inactive Unassigned Ticket');
+
+        $this->actingAs($this->admin);
+        TicketService::assign($assignedTicket, $inactiveHandler->id, $this->admin->id, null, $assignedTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+        $inactiveHandler->update(['is_active' => false]);
+
+        // 1. Index list and count returns zero
+        $this->actingAs($inactiveHandler)
+            ->get(route('admin.tickets.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Tickets/Index')
+                ->has('tickets.data', 0)
+                ->where('tickets.meta.total', 0)
+            );
+
+        // 2. Export returns zero ticket rows (header only)
+        $exportResponse = $this->actingAs($inactiveHandler)
+            ->get(route('admin.tickets.export', ['format' => 'csv']));
+
+        $exportResponse->assertOk();
+        $csvContent = $exportResponse->streamedContent();
+        $this->assertStringNotContainsString('Inactive Assigned Ticket', $csvContent);
+        $this->assertStringNotContainsString('Inactive Unassigned Ticket', $csvContent);
+
+        // 3. Detail show is forbidden consistent with policy
+        $this->actingAs($inactiveHandler)
+            ->get(route('admin.tickets.show', $assignedTicket))
+            ->assertForbidden();
+    }
+
+    public function test_close_and_view_actor_without_assign_only_lists_and_exports_own_tickets(): void
+    {
+        $closeOnlyHandler = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $otherHandler = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $closerRole = Role::firstOrCreate(['name' => 'ticket-closer-scope-role', 'guard_name' => 'web']);
+        $closerRole->syncPermissions(['ticket.view', 'ticket.close', 'ticket.export']);
+        $closeOnlyHandler->assignRole($closerRole);
+
+        $otherRole = Role::firstOrCreate(['name' => 'ticket-other-scope-role', 'guard_name' => 'web']);
+        $otherRole->syncPermissions(['ticket.view', 'ticket.start', 'ticket.resolve']);
+        $otherHandler->assignRole($otherRole);
+
+        $ownTicket = $this->makeTicket((int) $this->admin->company_id, 'Closer Own Ticket');
+        $otherTicket = $this->makeTicket((int) $this->admin->company_id, 'Closer Other Ticket');
+        $unassignedTicket = $this->makeTicket((int) $this->admin->company_id, 'Closer Unassigned Ticket');
+
+        $this->actingAs($this->admin);
+        TicketService::assign($ownTicket, $closeOnlyHandler->id, $this->admin->id, null, $ownTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+        TicketService::assign($otherTicket, $otherHandler->id, $this->admin->id, null, $otherTicket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
+
+        // 1. Index list and count must only include own tickets
+        $this->actingAs($closeOnlyHandler)
+            ->get(route('admin.tickets.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Tickets/Index')
+                ->has('tickets.data', 1)
+                ->where('tickets.data.0.id', $ownTicket->id)
+                ->where('tickets.meta.total', 1)
+            );
+
+        // 2. Export CSV must only include own tickets
+        $exportResponse = $this->actingAs($closeOnlyHandler)
+            ->get(route('admin.tickets.export', ['format' => 'csv']));
+
+        $exportResponse->assertOk();
+        $csvContent = $exportResponse->streamedContent();
+        $this->assertStringContainsString('Closer Own Ticket', $csvContent);
+        $this->assertStringNotContainsString('Closer Other Ticket', $csvContent);
+        $this->assertStringNotContainsString('Closer Unassigned Ticket', $csvContent);
+
+        // 3. Detail show allows own ticket, forbids other and unassigned
+        $this->actingAs($closeOnlyHandler)
+            ->get(route('admin.tickets.show', $ownTicket))
+            ->assertOk();
+
+        $this->actingAs($closeOnlyHandler)
+            ->get(route('admin.tickets.show', $otherTicket))
+            ->assertForbidden();
+
+        $this->actingAs($closeOnlyHandler)
+            ->get(route('admin.tickets.show', $unassignedTicket))
             ->assertForbidden();
     }
 }

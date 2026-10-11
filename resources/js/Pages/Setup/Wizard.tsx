@@ -13,6 +13,7 @@ import {
     FileUpload,
     Input,
     NativeSelect,
+    Progress,
     Textarea,
 } from '@/Components/ui';
 
@@ -64,7 +65,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
         datetime_format: defaults.datetime_format,
         admin_name: user.name,
     };
-    const { data, setData, post, processing, errors } = useForm(initialData);
+    const { data, setData, post, processing, progress, errors } = useForm(initialData);
 
     const next = () => {
         const message = validateStep(step, data);
@@ -246,6 +247,14 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                             </div>
                         )}
                     </form>
+
+                    {processing && data.logo !== null && (
+                        <Progress
+                            className="mt-4"
+                            label="Mengunggah logo"
+                            value={progress?.percentage ?? 0}
+                        />
+                    )}
                 </CardContent>
                 <CardFooter className="flex justify-between gap-3">
                     <Button

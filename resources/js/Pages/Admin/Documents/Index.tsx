@@ -1,16 +1,16 @@
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge } from '@/Components/ui/Badge';
 import { Button } from '@/Components/ui/Button';
 import { Card, CardContent } from '@/Components/ui/Card';
 import { Input } from '@/Components/ui/Input';
 import { Modal } from '@/Components/ui/Modal';
-import { NativeSelect } from '@/Components/composite';
+
 import { Switch } from '@/Components/ui/Switch';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -49,7 +49,14 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
         is_active: true,
     });
 
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const {
+        params,
+        set,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
         url: route('admin.documents.index'),
         filters,
         only: ['documentTypes', 'filters', 'can'],
@@ -95,14 +102,12 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                 key: 'actions',
                 header: 'Actions',
                 cell: (d) => (
-                    <div className="flex gap-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={() => openEdit(d)}>
-                            Edit
-                        </Button>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => remove(d)}>
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        onEdit={() => openEdit(d)}
+                        deleteHref={route('admin.documents.destroy', d.id)}
+                        deleteMessage={`Delete ${d.name}?`}
+                        deleteDescription={`This will permanently remove the document type "${d.name}".`}
+                    />
                 ),
             },
         ],
@@ -132,10 +137,6 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
             post(route('admin.documents.store'), { onSuccess: () => setModalOpen(false) });
         }
     };
-    const remove = (d: DtRow) => {
-        if (window.confirm(`Delete ${d.name}?`))
-            router.delete(route('admin.documents.destroy', d.id));
-    };
 
     return (
         <AdminLayout title="Document Types">
@@ -152,7 +153,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" onClick={openCreate}>
+                            <Button type="button" variant="success" onClick={openCreate}>
                                 Add Type
                             </Button>
                         </div>
@@ -187,6 +188,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                             onPageChange={(page) => set('page', page)}
                             emptyTitle="No document types"
                             emptyDescription="No document types match the current filters."
+                            loading={tableProcessing}
                         />
                     </CardContent>
                 </Card>
@@ -245,7 +247,11 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

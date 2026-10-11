@@ -2,30 +2,12 @@ import { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 import {
-    ArchiveBoxIcon,
     ArrowRightStartOnRectangleIcon,
-    BanknotesIcon,
-    BriefcaseIcon,
-    BuildingOfficeIcon,
-    ChartBarIcon,
-    ChatBubbleLeftRightIcon,
-    ChevronDownIcon,
-    ClipboardDocumentIcon,
-    ClipboardDocumentListIcon,
-    HomeIcon,
-    KeyIcon,
-    MapPinIcon,
-    ShieldCheckIcon,
-    Squares2X2Icon,
-    ServerStackIcon,
-    TagIcon,
-    TruckIcon,
-    UserCircleIcon,
-    UsersIcon,
     Bars3Icon,
+    ChevronDownIcon,
     MoonIcon,
     SunIcon,
-    WrenchScrewdriverIcon,
+    UserCircleIcon,
 } from '@heroicons/react/24/outline';
 import {
     Button,
@@ -37,9 +19,13 @@ import {
     SidebarSection,
     Topbar,
 } from '@/Components/ui';
+import { NotificationBell } from '@/Components/composite/NotificationBell';
+import { CompanySwitcher } from '@/Components/composite/CompanySwitcher';
 import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
+import { useNavigationBusy } from '@/hooks/useNavigationBusy';
 import { useToast } from '@/hooks/useToast';
+import { activeNavHref, visibleNavGroups } from '@/lib/navigation';
 
 interface AdminLayoutProps {
     title?: string;
@@ -61,11 +47,9 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const { url, props } = usePage<PageProps>();
     const user = props.auth.user;
     const company = useCompany();
-    const { can, canAny } = usePermission();
+    const { permissions } = usePermission();
     useToast();
-
-    const isActive = (href: string) =>
-        url === href || url.startsWith(`${href}/`) || url.startsWith(`${href}?`);
+    const navigating = useNavigationBusy();
 
     useEffect(() => {
         document.documentElement.classList.toggle('dark', darkMode);
@@ -79,6 +63,16 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
 
     const logout = () => router.post(route('logout'));
 
+    const groups = visibleNavGroups({
+        permissions,
+        canMyWork: props.canMyWork === true,
+        canConsolidate: props.companyHierarchy?.can_consolidate === true,
+        developerGalleryEnabled: props.developerGalleryEnabled === true,
+        isActiveUser: user?.is_active !== false,
+        workQueues: props.workQueues ?? {},
+    });
+    const activeHref = activeNavHref(groups, url);
+
     return (
         <>
             <Head title={title} />
@@ -89,324 +83,27 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     brandName={company?.name ?? 'inbils'}
                     brandLogo={company?.logo}
                 >
-                    <SidebarSection title="Dashboard" defaultOpen={isActive('/admin/dashboard')}>
-                        <SidebarItem
-                            href="/admin/dashboard"
-                            icon={<HomeIcon />}
-                            label="Dashboard"
-                            active={isActive('/admin/dashboard')}
-                        />
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="Company/Admin"
-                        className="mt-6"
-                        defaultOpen={
-                            isActive('/admin/organizations') ||
-                            isActive('/admin/company/profile') ||
-                            isActive('/admin/users') ||
-                            isActive('/admin/roles') ||
-                            isActive('/admin/permissions')
-                        }
-                    >
-                        {can('organization.view') && (
-                            <SidebarItem
-                                href="/admin/organizations"
-                                icon={<BuildingOfficeIcon />}
-                                label="Organization"
-                                active={isActive('/admin/organizations')}
-                            />
-                        )}
-                        {can('company.manage') && (
-                            <SidebarItem
-                                href="/admin/company/profile"
-                                icon={<BuildingOfficeIcon />}
-                                label="Company"
-                                active={isActive('/admin/company/profile')}
-                            />
-                        )}
-                        {canAny(['users.manage']) && (
-                            <SidebarItem
-                                href="/admin/users"
-                                icon={<UsersIcon />}
-                                label="Users"
-                                active={isActive('/admin/users')}
-                            />
-                        )}
-                        {can('roles.manage') && (
-                            <SidebarItem
-                                href="/admin/roles"
-                                icon={<ShieldCheckIcon />}
-                                label="Roles"
-                                active={isActive('/admin/roles')}
-                            />
-                        )}
-                        {can('users.manage') && (
-                            <SidebarItem
-                                href="/admin/permissions"
-                                icon={<KeyIcon />}
-                                label="Permissions"
-                                active={isActive('/admin/permissions')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="CRM/Operations"
-                        className="mt-6"
-                        defaultOpen={
-                            isActive('/admin/customers') ||
-                            isActive('/admin/locations') ||
-                            isActive('/admin/employees') ||
-                            isActive('/admin/vehicles') ||
-                            isActive('/admin/documents')
-                        }
-                    >
-                        {can('customer.view') && (
-                            <SidebarItem
-                                href="/admin/customers"
-                                icon={<BriefcaseIcon />}
-                                label="Customers"
-                                active={isActive('/admin/customers')}
-                            />
-                        )}
-                        {can('location.view') && (
-                            <SidebarItem
-                                href="/admin/locations"
-                                icon={<MapPinIcon />}
-                                label="Locations"
-                                active={isActive('/admin/locations')}
-                            />
-                        )}
-                        {can('employee.view') && (
-                            <SidebarItem
-                                href="/admin/employees"
-                                icon={<UsersIcon />}
-                                label="Employees"
-                                active={isActive('/admin/employees')}
-                            />
-                        )}
-                        {can('vehicle.view') && (
-                            <SidebarItem
-                                href="/admin/vehicles"
-                                icon={<TruckIcon />}
-                                label="Vehicles"
-                                active={isActive('/admin/vehicles')}
-                            />
-                        )}
-                        {can('system.setting') && (
-                            <SidebarItem
-                                href="/admin/documents"
-                                icon={<ClipboardDocumentIcon />}
-                                label="Documents"
-                                active={isActive('/admin/documents')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="Service"
-                        className="mt-6"
-                        defaultOpen={
-                            isActive('/admin/number-sequences') ||
-                            isActive('/admin/service-packages') ||
-                            isActive('/admin/bandwidth-profiles') ||
-                            isActive('/admin/speed-profiles') ||
-                            isActive('/admin/sla-tiers')
-                        }
-                    >
-                        {can('system.setting') && (
-                            <SidebarItem
-                                href="/admin/number-sequences"
-                                icon={<KeyIcon />}
-                                label="Number Sequences"
-                                active={isActive('/admin/number-sequences')}
-                            />
-                        )}
-                        {can('service.view') && (
-                            <SidebarItem
-                                href="/admin/service-packages"
-                                icon={<TagIcon />}
-                                label="Service"
-                                active={isActive('/admin/service-packages')}
-                            />
-                        )}
-                        {can('service.view') && (
-                            <SidebarItem
-                                href="/admin/bandwidth-profiles"
-                                icon={<WrenchScrewdriverIcon />}
-                                label="Bandwidth Profiles"
-                                active={isActive('/admin/bandwidth-profiles')}
-                            />
-                        )}
-                        {can('service.view') && (
-                            <SidebarItem
-                                href="/admin/speed-profiles"
-                                icon={<WrenchScrewdriverIcon />}
-                                label="Speed Profiles"
-                                active={isActive('/admin/speed-profiles')}
-                            />
-                        )}
-                        {can('service.view') && (
-                            <SidebarItem
-                                href="/admin/sla-tiers"
-                                icon={<WrenchScrewdriverIcon />}
-                                label="SLA Tiers"
-                                active={isActive('/admin/sla-tiers')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="Inventory"
-                        className="mt-6"
-                        defaultOpen={
-                            isActive('/admin/products') ||
-                            isActive('/admin/categories') ||
-                            isActive('/admin/units') ||
-                            isActive('/admin/stocks') ||
-                            isActive('/admin/inventory/find') ||
-                            isActive('/admin/stock-movements')
-                        }
-                    >
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/products"
-                                icon={<TagIcon />}
-                                label="Inventory"
-                                active={isActive('/admin/products')}
-                            />
-                        )}
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/categories"
-                                icon={<ArchiveBoxIcon />}
-                                label="Categories"
-                                active={isActive('/admin/categories')}
-                            />
-                        )}
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/units"
-                                icon={<ArchiveBoxIcon />}
-                                label="Units"
-                                active={isActive('/admin/units')}
-                            />
-                        )}
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/stocks"
-                                icon={<ArchiveBoxIcon />}
-                                label="Stocks"
-                                active={isActive('/admin/stocks')}
-                            />
-                        )}
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/inventory/find"
-                                icon={<ArchiveBoxIcon />}
-                                label="Item Finder"
-                                active={isActive('/admin/inventory/find')}
-                            />
-                        )}
-                        {can('inventory.view') && (
-                            <SidebarItem
-                                href="/admin/stock-movements"
-                                icon={<ArchiveBoxIcon />}
-                                label="Stock Movements"
-                                active={isActive('/admin/stock-movements')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="Network/Work Orders"
-                        className="mt-6"
-                        defaultOpen={isActive('/admin/network-assets') || isActive('/admin/spk')}
-                    >
-                        {can('network_asset.view') && (
-                            <SidebarItem
-                                href="/admin/network-assets"
-                                icon={<ServerStackIcon />}
-                                label="Network Assets"
-                                active={isActive('/admin/network-assets')}
-                            />
-                        )}
-                        {can('spk.view') && (
-                            <SidebarItem
-                                href="/admin/spk"
-                                icon={<ClipboardDocumentListIcon />}
-                                label="SPK"
-                                active={isActive('/admin/spk')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="Finance/Reports"
-                        className="mt-6"
-                        defaultOpen={
-                            isActive('/admin/invoices') ||
-                            isActive('/admin/billing/receivables') ||
-                            isActive('/admin/tickets') ||
-                            isActive('/admin/evaluations') ||
-                            isActive('/admin/reports')
-                        }
-                    >
-                        {can('billing.view') && (
-                            <SidebarItem
-                                href="/admin/invoices"
-                                icon={<BanknotesIcon />}
-                                label="Billing"
-                                active={isActive('/admin/invoices')}
-                            />
-                        )}
-                        {can('billing.view') && (
-                            <SidebarItem
-                                href="/admin/billing/receivables"
-                                icon={<BanknotesIcon />}
-                                label="Tunggakan"
-                                active={isActive('/admin/billing/receivables')}
-                            />
-                        )}
-                        {can('ticket.view') && (
-                            <SidebarItem
-                                href="/admin/tickets"
-                                icon={<ChatBubbleLeftRightIcon />}
-                                label="Ticketing"
-                                active={isActive('/admin/tickets')}
-                            />
-                        )}
-                        {canAny(['evaluation.view', 'evaluation.view.own']) && (
-                            <SidebarItem
-                                href="/admin/evaluations"
-                                icon={<ClipboardDocumentListIcon />}
-                                label="Evaluations"
-                                active={isActive('/admin/evaluations')}
-                            />
-                        )}
-                        {can('report.view') && (
-                            <SidebarItem
-                                href="/admin/reports"
-                                icon={<ChartBarIcon />}
-                                label="Reports"
-                                active={isActive('/admin/reports')}
-                            />
-                        )}
-                    </SidebarSection>
-
-                    <SidebarSection
-                        title="System/Developer"
-                        className="mt-6"
-                        defaultOpen={isActive('/admin/components')}
-                    >
-                        <SidebarItem
-                            href="/admin/components"
-                            icon={<Squares2X2Icon />}
-                            label="Komponen"
-                            active={isActive('/admin/components')}
-                        />
-                    </SidebarSection>
+                    <div className="flex flex-col gap-6">
+                        <CompanySwitcher onSwitched={() => setSidebarOpen(false)} />
+                        {groups.map((group) => (
+                            <SidebarSection
+                                key={group.id}
+                                title={group.title}
+                                defaultOpen={group.items.some((item) => item.href === activeHref)}
+                            >
+                                {group.items.map((item) => (
+                                    <SidebarItem
+                                        key={item.href}
+                                        href={item.href}
+                                        icon={<item.icon />}
+                                        label={item.label}
+                                        active={item.href === activeHref}
+                                        badge={item.badge}
+                                    />
+                                ))}
+                            </SidebarSection>
+                        ))}
+                    </div>
                 </Sidebar>
 
                 <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -426,6 +123,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         }
                         right={
                             <>
+                                {user && <NotificationBell />}
                                 {user && (
                                     <Dropdown
                                         trigger={
@@ -477,7 +175,13 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                             </>
                         }
                     />
-                    <main className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5">
+                    <div role="status" aria-live="polite" className="sr-only">
+                        {navigating ? 'Memuat halaman…' : ''}
+                    </div>
+                    <main
+                        aria-busy={navigating || undefined}
+                        className="min-h-0 flex-1 overflow-y-auto p-4 [scrollbar-color:hsl(var(--muted-foreground))_transparent] [scrollbar-width:thin] md:p-6 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-muted-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar]:w-1.5"
+                    >
                         <div className="mx-auto w-full max-w-[1600px] space-y-6">{children}</div>
                     </main>
                 </div>

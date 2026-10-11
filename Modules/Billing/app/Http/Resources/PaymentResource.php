@@ -21,6 +21,7 @@ class PaymentResource extends JsonResource
             'notes' => $this->notes,
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
+            'cancelled_by' => $this->cancelled_by,
         ];
     }
 }

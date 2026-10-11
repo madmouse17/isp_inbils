@@ -22,13 +22,15 @@ consumable Inventory.
 
 ## User Role
 
+Matriks izin resmi dan konflik pemisahan tugas (SoD) ada di
+`docs/SECURITY.md` §2; tabel ini hanya ringkasan Inventory.
+
 | Role | Hak |
 |------|-----|
-| admin | full CRUD product/category/unit/stock + movement + adjust |
-| manager | view + receive/issue/transfer/adjust stock + CRUD product (no delete) |
-| noc | view stock (untuk cek sparepart availability) |
-| staff | view + receive stock (GRN) |
-| technician | view stock + locations (untuk SPK — cek material tersedia) |
+| admin | semua izin, termasuk `inventory.stock.adjust` (penyesuaian langsung, break-glass; hanya admin) |
+| manager | controller: approve/reject permintaan barang dan approve penyesuaian stok; CRUD product (no delete); tidak receive/issue/transfer dan tidak prepare/issue permintaan |
+| staff | operator: receive/issue/transfer stok, ajukan penyesuaian stok, prepare/issue permintaan barang; tidak approve apa pun |
+| technician | view stock + locations; issue stok (`inventory.stock.issue`); tidak receive/transfer/adjust |
 
 ## Entity
 
@@ -181,7 +183,9 @@ inventory.stock.view
 inventory.stock.receive
 inventory.stock.issue
 inventory.stock.transfer
-inventory.stock.adjust
+inventory.stock.adjust          (langsung / break-glass, hanya admin)
+inventory.stock.adjust.request  (ajukan penyesuaian; staff operator)
+inventory.stock.adjust.approve  (setujui/tolak penyesuaian; manager controller)
 inventory.movement.view
 inventory.export
 inventory.manage        (super)
@@ -202,7 +206,10 @@ Lihat `docs/API.md` Section 5 (Inventory group). Ringkas:
 - `POST   /admin/stocks/receive` (body: product_id, location_id, quantity, note)
 - `POST   /admin/stocks/issue` (body: product_id, location_id, quantity, reference_type?, reference_id?, note)
 - `POST   /admin/stocks/transfer` (body: product_id, from_location_id, to_location_id, quantity, note)
-- `POST   /admin/stocks/adjust` (body: product_id, location_id, new_quantity, note wajib)
+- `POST   /admin/stocks/adjust` (body: product_id, location_id, new_quantity, note wajib) — membuat permintaan penyesuaian `pending`, stok belum berubah (`inventory.stock.adjust.request`)
+- `POST   /admin/stocks/adjustments/{adjustment}/approve` — menerapkan penyesuaian; approver wajib orang lain dari pemohon (`inventory.stock.adjust.approve`)
+- `POST   /admin/stocks/adjustments/{adjustment}/reject` (body: rejection_reason) — approver ≠ pemohon (`inventory.stock.adjust.approve`)
+- `POST   /admin/stocks/adjust/direct` (body sama dengan adjust) — penyesuaian langsung, audit log bertanda `break_glass` (`inventory.stock.adjust`, hanya admin)
 - `GET    /admin/stock-movements` (history, filter: product, location, type, date range, reference)
 - `GET    /admin/inventory/find` (Item Finder: search → locations + qty)
 - `GET    /admin/products/export`
@@ -229,17 +236,20 @@ Lihat `docs/API.md` Section 5 (Inventory group). Ringkas:
 ### Validation
 1. Issue 200 meter (stock 70) → 422 InsufficientStockException.
 2. Reserve 80 (stock 70, reserved 0) → 422.
-3. Adjust quantity 60 (from 55, note "physical count"): movement_type=
-   adjustment, delta -5. note wajib.
+3. Adjust quantity 60 (from 55, note "physical count"): staff mengajukan →
+   request `pending`, stok tetap 55; manager lain menyetujui →
+   movement_type=adjustment, delta +5 (dihitung dari stok saat disetujui),
+   created_by = approver, note = alasan pemohon.
 4. Delete product with stock > 0 → 422.
 
 ### Item Finder
 1. Search "kabel" → return products + locations with qty + path.
 
 ### Authorization
-1. Technician view stock → 200. Technician issue stock → 403 (only via SPK).
-2. Staff receive → 200. Staff adjust → 403.
-3. Manager transfer/adjust → 200. Manager delete product → 403.
+1. Technician view stock → 200. Technician issue stock → 200 (`inventory.stock.issue`); technician receive/transfer/adjust → 403.
+2. Staff receive/issue/transfer → 200. Staff ajukan adjust → 200 (request pending). Staff approve/adjust langsung → 403.
+3. Manager receive/issue/transfer atau ajukan adjust → 403. Manager approve/reject adjust milik staff → 200; approve miliknya sendiri → 403. Manager delete product → 403.
+4. Admin adjust langsung (`/admin/stocks/adjust/direct`) → 200, audit `break_glass`; admin approve request sendiri → 403.
 
 ## Acceptance Criteria
 

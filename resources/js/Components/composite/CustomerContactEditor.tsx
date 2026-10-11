@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import {
     Button,
@@ -11,6 +12,19 @@ import {
     Switch,
     Textarea,
 } from '@/Components/ui';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
+import { buttonVariants } from '@/Components/ui/Button';
+import { Spinner } from '@/Components/ui/Spinner';
+import { cn } from '@/lib/utils';
 import type { CustomerContact } from '@/types/models';
 
 interface CustomerContactEditorProps {
@@ -39,12 +53,34 @@ const emptyContact = (): ContactForm => ({
     notes: '',
 });
 
-export function CustomerContactEditor({ customerId, contacts, canManage }: CustomerContactEditorProps) {
-    const { data, setData, post, put, delete: destroy, processing, errors, reset } = useForm<ContactForm>(emptyContact());
+export function CustomerContactEditor({
+    customerId,
+    contacts,
+    canManage,
+}: CustomerContactEditorProps) {
+    const {
+        data,
+        setData,
+        post,
+        put,
+        delete: destroy,
+        processing,
+        errors,
+        reset,
+    } = useForm<ContactForm>(emptyContact());
 
-    const startCreate = () => reset();
+    // Editing state lives outside the Inertia form so it survives partial reloads.
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [deleteTarget, setDeleteTarget] = useState<CustomerContact | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+
+    const startCreate = () => {
+        setEditingId(null);
+        reset();
+    };
 
     const startEdit = (row: CustomerContact) => {
+        setEditingId(Number(row.id));
         setData('id', Number(row.id));
         setData('name', row.name ?? '');
         setData('position', row.position ?? '');
@@ -54,28 +90,40 @@ export function CustomerContactEditor({ customerId, contacts, canManage }: Custo
         setData('notes', row.notes ?? '');
     };
 
+    const cancelEdit = () => {
+        setEditingId(null);
+        reset();
+    };
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        if (processing) return;
 
-        if (data.id) {
-            put(route('admin.customers.contacts.update', [customerId, data.id]), {
+        if (editingId) {
+            put(route('admin.customers.contacts.update', [customerId, editingId]), {
                 preserveScroll: true,
-                onSuccess: () => reset(),
+                onSuccess: () => cancelEdit(),
             });
         } else {
             post(route('admin.customers.contacts.store', customerId), {
                 preserveScroll: true,
-                onSuccess: () => reset(),
+                onSuccess: () => cancelEdit(),
             });
         }
     };
 
-    const remove = (row: CustomerContact) => {
-        if (window.confirm(`Delete contact ${row.name}?`)) {
-            destroy(route('admin.customers.contacts.destroy', [customerId, row.id]), {
-                preserveScroll: true,
-            });
-        }
+    const confirmDelete = () => {
+        if (!deleteTarget) return;
+        if (processing || deleteProcessing) return;
+        setDeleteProcessing(true);
+        destroy(route('admin.customers.contacts.destroy', [customerId, deleteTarget.id]), {
+            preserveScroll: true,
+            onFinish: () => setDeleteProcessing(false),
+            onSuccess: () => {
+                setDeleteTarget(null);
+                setDeleteProcessing(false);
+            },
+        });
     };
 
     return (
@@ -83,49 +131,174 @@ export function CustomerContactEditor({ customerId, contacts, canManage }: Custo
             <Card>
                 <CardHeader className="flex-row flex-wrap items-center justify-between space-y-0">
                     <CardTitle>Contacts</CardTitle>
-                    <Button type="button" variant="success" onClick={startCreate}>Add Contact</Button>
+                    {canManage ? (
+                        <Button
+                            type="button"
+                            variant="success"
+                            size="sm"
+                            onClick={startCreate}
+                            disabled={processing}
+                        >
+                            Add Contact
+                        </Button>
+                    ) : null}
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {contacts.length === 0 ? (
-                        <p className="py-6 text-center text-sm text-muted-foreground">No contacts yet.</p>
-                    ) : contacts.map((row) => (
-                        <div key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3">
-                            <div className="min-w-0">
-                                <p className="text-sm font-medium">{row.name}</p>
-                                <p className="text-sm text-muted-foreground">{[row.position, row.phone, row.email].filter(Boolean).join(' · ') || '—'}</p>
+                        <p className="py-6 text-center text-sm text-muted-foreground">
+                            No contacts yet.
+                        </p>
+                    ) : (
+                        contacts.map((row) => (
+                            <div
+                                key={row.id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
+                            >
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium">
+                                        {row.name}
+                                        {row.is_primary ? (
+                                            <span className="ml-2 text-xs text-muted-foreground">
+                                                (primary)
+                                            </span>
+                                        ) : null}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {[row.position, row.phone, row.email]
+                                            .filter(Boolean)
+                                            .join(' · ') || '—'}
+                                    </p>
+                                </div>
+                                {canManage ? (
+                                    <div className="flex gap-2">
+                                        <Button
+                                            type="button"
+                                            variant="warning"
+                                            size="sm"
+                                            onClick={() => startEdit(row)}
+                                            disabled={processing}
+                                        >
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="danger"
+                                            size="sm"
+                                            onClick={() => setDeleteTarget(row)}
+                                            disabled={processing}
+                                        >
+                                            Delete
+                                        </Button>
+                                    </div>
+                                ) : null}
                             </div>
-                            <div className="flex gap-2">
-                                <Button type="button" variant="outline" size="sm" onClick={() => startEdit(row)}>Edit</Button>
-                                <Button type="button" variant="ghost" size="sm" onClick={() => remove(row)}>Delete</Button>
-                            </div>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </CardContent>
             </Card>
 
             {canManage ? (
                 <Card>
                     <CardHeader>
-                        <CardTitle>{data.id ? 'Edit Contact' : 'Add Contact'}</CardTitle>
+                        <CardTitle>{editingId ? 'Edit Contact' : 'Add Contact'}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <form onSubmit={submit} className="space-y-4">
+                        <form onSubmit={submit} className="space-y-4" aria-busy={processing}>
                             <div className="grid gap-4 md:grid-cols-2">
-                                <Input label="Name" value={data.name} onChange={(e) => setData('name', e.target.value)} error={errors.name} required />
-                                <Input label="Position" value={data.position} onChange={(e) => setData('position', e.target.value)} error={errors.position} />
-                                <PhoneInput label="Phone" value={data.phone} onChange={(value) => setData('phone', value)} error={errors.phone} />
-                                <Input label="Email" type="email" value={data.email} onChange={(e) => setData('email', e.target.value)} error={errors.email} />
+                                <Input
+                                    label="Name"
+                                    value={data.name}
+                                    onChange={(e) => setData('name', e.target.value)}
+                                    error={errors.name}
+                                    required
+                                />
+                                <Input
+                                    label="Position"
+                                    value={data.position}
+                                    onChange={(e) => setData('position', e.target.value)}
+                                    error={errors.position}
+                                />
+                                <PhoneInput
+                                    label="Phone"
+                                    value={data.phone}
+                                    onChange={(value) => setData('phone', value)}
+                                    error={errors.phone}
+                                    required
+                                />
+                                <Input
+                                    label="Email"
+                                    type="email"
+                                    value={data.email}
+                                    onChange={(e) => setData('email', e.target.value)}
+                                    error={errors.email}
+                                />
                             </div>
-                            <Switch label="Primary contact" checked={data.is_primary} onCheckedChange={(checked) => setData('is_primary', checked)} />
-                            <Textarea label="Notes" value={data.notes} onChange={(e) => setData('notes', e.target.value)} error={errors.notes} rows={2} />
+                            <Switch
+                                label="Primary contact"
+                                checked={data.is_primary}
+                                onCheckedChange={(checked) => setData('is_primary', checked)}
+                            />
+                            <Textarea
+                                label="Notes"
+                                value={data.notes}
+                                onChange={(e) => setData('notes', e.target.value)}
+                                error={errors.notes}
+                                rows={2}
+                            />
                             <div className="flex justify-end gap-2">
-                                {data.id ? <Button type="button" variant="secondary" onClick={() => reset()}>Cancel</Button> : null}
-                                <Button type="submit" variant="success" loading={processing}>{data.id ? 'Save' : 'Add'}</Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={cancelEdit}
+                                    disabled={processing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="success"
+                                    loading={processing}
+                                    disabled={processing}
+                                >
+                                    {editingId ? 'Save' : 'Add'}
+                                </Button>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
             ) : null}
+
+            <AlertDialog
+                open={deleteTarget !== null}
+                onOpenChange={(open) => {
+                    if (!open && !deleteProcessing) setDeleteTarget(null);
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>
+                            Delete contact {deleteTarget?.name ? `"${deleteTarget.name}"` : ''}?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This will permanently remove this contact from the customer.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                confirmDelete();
+                            }}
+                            disabled={deleteProcessing}
+                        >
+                            {deleteProcessing ? <Spinner size="sm" /> : null}
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

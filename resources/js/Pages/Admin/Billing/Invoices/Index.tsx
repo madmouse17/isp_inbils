@@ -5,7 +5,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import GenerateDialog from '@/Pages/Admin/Billing/Invoices/GenerateDialog';
@@ -19,6 +20,7 @@ import {
 import { useCan } from '@/hooks/useCan';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate, formatMoney } from '@/lib/format';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 type InvoiceRow = {
     id: number;
@@ -32,25 +34,8 @@ type InvoiceRow = {
     customer?: { id: number; name: string; code: string } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
-};
-
 type Props = {
-    invoices: Paginator<InvoiceRow>;
+    invoices: PaginationLike<InvoiceRow>;
     filters: {
         search?: string;
         status?: string;
@@ -76,7 +61,7 @@ const STATUS_LABEL: Record<string, string> = {
 export default function InvoicesIndex({ invoices, filters, statusOptions }: Props) {
     const can = useCan();
     const [generateOpen, setGenerateOpen] = useState(false);
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
             status: filters.status ?? '',
@@ -85,7 +70,7 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
             date_to: filters.date_to ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? invoices.per_page,
+            per_page: filters.per_page ?? toPagination(invoices).per_page,
         },
         { only: ['invoices', 'filters'] },
     );
@@ -159,6 +144,11 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 className: 'text-right tabular-nums',
                 cell: (row) => formatMoney(row.sisa),
             },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => <DataTableActions showHref={route('admin.invoices.show', row.id)} />,
+            },
         ],
         [],
     );
@@ -182,12 +172,12 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                                     <Button
                                         type="button"
                                         size="sm"
-                                        variant="outline"
+                                        variant="success"
                                         onClick={() => setGenerateOpen(true)}
                                     >
                                         Generate Tagihan
                                     </Button>
-                                    <Button asChild size="sm">
+                                    <Button asChild size="sm" variant="success">
                                         <Link href={route('admin.invoices.create')}>
                                             <Plus className="size-4" />
                                             New invoice
@@ -268,10 +258,11 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                     data={invoices.data}
                     emptyTitle="No invoices"
                     emptyDescription="No invoices match the current filters."
+                    loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={invoices}
+                    pagination={toPagination(invoices)}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(n) => set('per_page', n)}
                 />

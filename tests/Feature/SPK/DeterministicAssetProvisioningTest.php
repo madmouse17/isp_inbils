@@ -18,12 +18,20 @@ use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
+use Spatie\Permission\Models\Permission;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class DeterministicAssetProvisioningTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Permission::firstOrCreate(['name' => 'spk.approve', 'guard_name' => 'web']);
+    }
 
     public function test_installation_uses_explicitly_selected_asset_not_first_matching_asset(): void
     {
@@ -41,6 +49,9 @@ class DeterministicAssetProvisioningTest extends TestCase
         ]);
         $this->evidence($workOrder, $user);
 
+        $approver = User::factory()->create(['company_id' => $company->id]);
+        $approver->givePermissionTo('spk.approve');
+        $this->actingAs($approver);
         SpkService::approve($workOrder);
 
         $this->assertDatabaseHas('network_assets', ['id' => $selectedAsset->id, 'status' => 'installed', 'subscription_id' => $subscription->id]);
@@ -57,6 +68,9 @@ class DeterministicAssetProvisioningTest extends TestCase
         WorkOrderItem::create(['company_id' => $company->id, 'work_order_id' => $workOrder->id, 'product_id' => $product->id]);
         $this->evidence($workOrder, $user);
 
+        $approver = User::factory()->create(['company_id' => $company->id]);
+        $approver->givePermissionTo('spk.approve');
+        $this->actingAs($approver);
         try {
             SpkService::approve($workOrder);
             $this->fail('Serialized installation completed without an explicit network asset selection.');
@@ -89,6 +103,9 @@ class DeterministicAssetProvisioningTest extends TestCase
         ]);
         $this->evidence($workOrder, $user);
 
+        $approver = User::factory()->create(['company_id' => $company->id]);
+        $approver->givePermissionTo('spk.approve');
+        $this->actingAs($approver);
         try {
             SpkService::approve($workOrder);
             $this->fail('Foreign-company network asset was accepted.');
@@ -129,6 +146,9 @@ class DeterministicAssetProvisioningTest extends TestCase
         ]);
         $this->evidence($workOrder, $user);
 
+        $approver = User::factory()->create(['company_id' => $company->id]);
+        $approver->givePermissionTo('spk.approve');
+        $this->actingAs($approver);
         try {
             SpkService::approve($workOrder);
             $this->fail('Asset with active installation was accepted.');
@@ -150,7 +170,7 @@ class DeterministicAssetProvisioningTest extends TestCase
             'product_id' => $this->product($company)->id,
             'status' => 'available',
         ]);
-        NetworkAssetService::install($asset, $location->id, $customer->id, $subscription->id, 123456);
+        NetworkAssetService::install($asset, $location->id, $customer->id, $subscription->id, null);
         $subscription->update(['ont_asset_id' => $asset->id]);
 
         SubscriptionService::terminate($subscription, 'customer cancelled', true);

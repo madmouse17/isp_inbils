@@ -1,23 +1,13 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
-import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    NativeSelect,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-    Modal,
-} from '@/Components/ui';
+import { DataTable, type DataTableColumn, PageHeader } from '@/Components/composite';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import type { Paginated } from '@/types';
+import { Badge, Button, Card, CardContent, Input, NativeSelect, Modal } from '@/Components/ui';
 
 interface EmpRow {
     id: number;
@@ -43,15 +33,43 @@ interface UserRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    employees: { data: EmpRow[]; current_page: number; last_page: number };
+    employees: Paginated<EmpRow>;
     organizations: { data: OrgRow[] };
     vehicles: { data: VehRow[] };
     users: { data: UserRow[] };
+    filters: {
+        search?: string;
+        organization_id?: string;
+        status?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: string | number;
+    };
+    can: { create: boolean; export: boolean };
 }
 
-export default function Index({ employees, organizations, vehicles, users }: IndexProps) {
+export default function Index({
+    employees,
+    organizations,
+    vehicles,
+    users,
+    filters,
+    can,
+}: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
+    const {
+        params,
+        set,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
+        url: route('admin.employees.index'),
+        filters,
+        only: ['employees', 'organizations', 'vehicles', 'users', 'filters', 'can'],
+    });
     const { data, setData, post, put, processing, errors, reset } = useForm({
         user_id: '',
         organization_id: '',
@@ -68,10 +86,10 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
         setEditId(null);
         setModalOpen(true);
     };
-    const openEdit = (e: EmpRow) => {
-        setEditId(e.id);
+    const openEdit = useCallback((employee: EmpRow) => {
+        setEditId(employee.id);
         setModalOpen(true);
-    };
+    }, []);
     const submit = (e: FormEvent) => {
         e.preventDefault();
         if (editId) {
@@ -81,6 +99,58 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
         }
     };
 
+    const columns: DataTableColumn<EmpRow>[] = useMemo(
+        () => [
+            {
+                key: 'employee_number',
+                header: 'Emp No',
+                sortable: true,
+                sortKey: 'employee_number',
+                cell: (employee) => (
+                    <span className="font-mono text-sm">{employee.employee_number}</span>
+                ),
+            },
+            { key: 'name', header: 'Name', cell: (employee) => employee.user?.name ?? '-' },
+            {
+                key: 'organization',
+                header: 'Organization',
+                cell: (employee) => employee.organization?.name ?? '-',
+            },
+            {
+                key: 'vehicle',
+                header: 'Vehicle',
+                cell: (employee) => employee.vehicle?.plate_number ?? '-',
+            },
+            {
+                key: 'status',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'status',
+                cell: (employee) => (
+                    <Badge variant={employee.status === 'active' ? 'success' : 'danger'}>
+                        {employee.status}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (employee) =>
+                    can.create ? (
+                        <Button
+                            type="button"
+                            variant="warning"
+                            size="sm"
+                            onClick={() => openEdit(employee)}
+                        >
+                            Edit
+                        </Button>
+                    ) : null,
+            },
+        ],
+        [can.create, openEdit],
+    );
+
     return (
         <AdminLayout title="Employees">
             <div className="space-y-6">
@@ -88,67 +158,68 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                     title="Employee Profiles"
                     subtitle="Manage employee profiles linked to users."
                     actions={
-                        <Button type="button" onClick={openCreate}>
-                            Add Employee
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.employees.export')}
+                                    params={params}
+                                    formats={['csv', 'pdf']}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button type="button" variant="success" onClick={openCreate}>
+                                    Add Employee
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Emp No</TH>
-                                    <TH>Name</TH>
-                                    <TH>Organization</TH>
-                                    <TH>Vehicle</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {employees.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    employees.data.map((e) => (
-                                        <TR key={e.id}>
-                                            <TD className="font-mono text-sm">
-                                                {e.employee_number}
-                                            </TD>
-                                            <TD>{e.user?.name ?? '-'}</TD>
-                                            <TD>{e.organization?.name ?? '-'}</TD>
-                                            <TD>{e.vehicle?.plate_number ?? '-'}</TD>
-                                            <TD>
-                                                <Badge
-                                                    variant={
-                                                        e.status === 'active' ? 'success' : 'danger'
-                                                    }
-                                                >
-                                                    {e.status}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <Button
-                                                    type="button"
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => openEdit(e)}
-                                                >
-                                                    Edit
-                                                </Button>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
+                        <div className="grid gap-3 md:grid-cols-3">
+                            <Input
+                                label="Search"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Employee number, name, email, phone"
+                            />
+                            <NativeSelect
+                                label="Organization"
+                                value={params.organization_id ?? ''}
+                                onChange={(event) => set('organization_id', event.target.value)}
+                            >
+                                <option value="">All organizations</option>
+                                {organizations.data.map((organization) => (
+                                    <option key={organization.id} value={organization.id}>
+                                        {organization.name}
+                                    </option>
+                                ))}
+                            </NativeSelect>
+                            <NativeSelect
+                                label="Status"
+                                value={params.status ?? ''}
+                                onChange={(event) => set('status', event.target.value)}
+                                options={[
+                                    { value: '', label: 'All statuses' },
+                                    { value: 'active', label: 'Active' },
+                                    { value: 'inactive', label: 'Inactive' },
+                                    { value: 'terminated', label: 'Terminated' },
+                                ]}
+                            />
+                        </div>
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(employees)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="No employees"
+                            emptyDescription="No employees match the current filters."
+                            loading={tableProcessing}
+                        />
                     </CardContent>
                 </Card>
                 <Modal
@@ -227,7 +298,11 @@ export default function Index({ employees, organizations, vehicles, users }: Ind
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

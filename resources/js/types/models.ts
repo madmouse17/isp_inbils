@@ -59,6 +59,21 @@ export type ServiceSubscription = {
     [key: string]: unknown;
 };
 
+/** Employee summary on a customer; `is_active: false` renders an "Inactive" marker. */
+export type CustomerAcquirer = {
+    id: number;
+    name: string;
+    is_active: boolean;
+};
+
+/** Eligible (or historical) acquirer offered by the server for select/filter controls. */
+export type AcquirerOption = {
+    id: number;
+    name: string;
+    is_active: boolean;
+    employee_number?: string | null;
+};
+
 export type Customer = {
     id: Id;
     name?: string | null;
@@ -74,6 +89,10 @@ export type Customer = {
     contact_person?: string | null;
     notes?: string | null;
     is_active?: boolean | null;
+    /** Present only when the viewer may see attribution. */
+    acquired_by_user_id?: number | null;
+    /** Present only when the viewer may see attribution; `null` = Unassigned. */
+    acquirer?: CustomerAcquirer | null;
     [key: string]: unknown;
 };
 

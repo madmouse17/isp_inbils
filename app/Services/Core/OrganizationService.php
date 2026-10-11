@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Models\Core\OrganizationUnit;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -11,7 +12,13 @@ class OrganizationService
     public static function create(array $data): OrganizationUnit
     {
         return DB::transaction(function () use ($data) {
+            if (array_key_exists('parent_id', $data) && (int) $data['parent_id'] === 0) {
+                $data['parent_id'] = null;
+            }
+
             $unit = OrganizationUnit::create($data);
+            self::assertCompany($unit);
+            self::assertParentWithinCompany($unit, $unit->parent_id);
             self::recomputePath($unit);
             AuditService::log('organization_unit', 'created', ['code' => $unit->code], $unit);
 
@@ -22,28 +29,50 @@ class OrganizationService
     public static function update(OrganizationUnit $unit, array $data): OrganizationUnit
     {
         return DB::transaction(function () use ($unit, $data) {
-            $pathChanged = array_key_exists('code', $data) || array_key_exists('parent_id', $data);
+            $unit = OrganizationUnit::withoutCompany()->whereKey($unit->id)->lockForUpdate()->firstOrFail();
+            self::assertCompany($unit);
+
+            if (array_key_exists('parent_id', $data) && (int) $data['parent_id'] === 0) {
+                $data['parent_id'] = null;
+            }
+
+            if (array_key_exists('parent_id', $data)) {
+                self::assertParentWithinCompany($unit, $data['parent_id']);
+            }
+
             if (array_key_exists('parent_id', $data) && $data['parent_id'] !== null && self::hasCycle($unit, (int) $data['parent_id'])) {
                 throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
             }
+
+            $pathChanged = array_key_exists('code', $data) || array_key_exists('parent_id', $data);
             $unit->update($data);
+
             if ($pathChanged) {
                 self::recomputePath($unit);
                 self::recurseChildrenPath($unit);
             }
+
             AuditService::log('organization_unit', 'updated', ['code' => $unit->code], $unit);
 
             return $unit->refresh();
         });
     }
 
-    public static function move(OrganizationUnit $unit, int $newParentId): OrganizationUnit
+    public static function move(OrganizationUnit $unit, ?int $newParentId): OrganizationUnit
     {
-        if (self::hasCycle($unit, $newParentId)) {
-            throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
-        }
+        return DB::transaction(function () use ($unit, $newParentId) {
+            $unit = OrganizationUnit::withoutCompany()->whereKey($unit->id)->lockForUpdate()->firstOrFail();
+            self::assertCompany($unit);
 
-        return self::update($unit, ['parent_id' => $newParentId]);
+            $newParentId = $newParentId === 0 ? null : $newParentId;
+            self::assertParentWithinCompany($unit, $newParentId);
+
+            if ($newParentId !== null && self::hasCycle($unit, $newParentId)) {
+                throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
+            }
+
+            return self::update($unit, ['parent_id' => $newParentId]);
+        });
     }
 
     public static function delete(OrganizationUnit $unit): bool
@@ -62,7 +91,9 @@ class OrganizationService
 
     public static function recomputePath(OrganizationUnit $unit): string
     {
-        $parentPath = $unit->parent_id ? OrganizationUnit::query()->find($unit->parent_id)?->path : null;
+        $parentPath = $unit->parent_id
+            ? OrganizationUnit::withoutCompany()->where('company_id', $unit->company_id)->find($unit->parent_id)?->path
+            : null;
         $unit->path = $parentPath ? $parentPath.' > '.$unit->code : $unit->code;
         $unit->save();
 
@@ -71,7 +102,9 @@ class OrganizationService
 
     public static function recurseChildrenPath(OrganizationUnit $unit): void
     {
-        $unit->children()->orderBy('code')->get()->each(function (OrganizationUnit $child) {
+        /** @var Collection<int, OrganizationUnit> $children */
+        $children = $unit->children()->orderBy('code')->get();
+        $children->each(function (OrganizationUnit $child): void {
             self::recomputePath($child);
             self::recurseChildrenPath($child);
         });
@@ -79,14 +112,39 @@ class OrganizationService
 
     public static function hasCycle(OrganizationUnit $unit, int $newParentId): bool
     {
-        $parent = OrganizationUnit::query()->find($newParentId);
+        $parent = OrganizationUnit::withoutCompany()
+            ->where('company_id', $unit->company_id)
+            ->find($newParentId);
+
         while ($parent !== null) {
             if ($parent->id === $unit->id) {
                 return true;
             }
-            $parent = $parent->parent;
+
+            $parent = OrganizationUnit::withoutCompany()
+                ->where('company_id', $unit->company_id)
+                ->find($parent->parent_id);
         }
 
         return false;
+    }
+
+    private static function assertParentWithinCompany(OrganizationUnit $unit, mixed $parentId): void
+    {
+        if ($parentId === null || $parentId === '' || $parentId === 0) {
+            return;
+        }
+
+        $parent = OrganizationUnit::withoutCompany()
+            ->where('company_id', $unit->company_id)
+            ->lockForUpdate()
+            ->find($parentId);
+
+        abort_unless($parent !== null && (int) $parent->company_id === (int) $unit->company_id, 404);
+    }
+
+    private static function assertCompany(OrganizationUnit $unit): void
+    {
+        abort_unless(CompanyService::currentId() !== null && (int) $unit->company_id === (int) CompanyService::currentId(), 404);
     }
 }

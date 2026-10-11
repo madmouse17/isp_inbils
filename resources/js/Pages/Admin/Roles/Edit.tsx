@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, PermissionGroupSelector, type PermissionOption } from '@/Components/composite';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '@/Components/ui';
@@ -27,7 +28,20 @@ export default function Edit({ role, permissions }: EditProps) {
     return (
         <AdminLayout title="Edit Role">
             <div className="space-y-6">
-                <PageHeader title="Edit Role" subtitle="Update role permissions." />
+                <PageHeader
+                    title="Edit Role"
+                    subtitle="Update role permissions."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.roles.index')}>Back</Link>
+                        </Button>
+                    }
+                />
 
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
@@ -63,7 +77,7 @@ export default function Edit({ role, permissions }: EditProps) {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" loading={processing}>
                             Save
                         </Button>
                     </div>

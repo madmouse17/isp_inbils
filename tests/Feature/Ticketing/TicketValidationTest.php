@@ -8,6 +8,7 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Carbon\Carbon;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -99,6 +100,37 @@ class TicketValidationTest extends TestCase
         Carbon::setTestNow();
 
         $this->assertTrue($ticket->sla_deadline->equalTo($now->copy()->addHours(12)));
+    }
+
+    public function test_create_advances_past_soft_deleted_codes_without_using_other_companies(): void
+    {
+        $this->travelTo(Carbon::parse('2026-07-27 08:00:00'));
+
+        $admin = $this->createCompanyUser();
+        $this->actingAs($admin);
+        $first = $this->makeOpenTicket($admin);
+        $this->assertSame('TKT-2026-00001', $first->code);
+        $first->delete();
+        $this->assertSoftDeleted($first);
+
+        $otherAdmin = $this->createCompanyUser();
+        $this->actingAs($otherAdmin);
+        $otherTicket = $this->makeOpenTicket($otherAdmin);
+        $otherTicket->update(['code' => 'TKT-2026-99999']);
+        $otherTicket->delete();
+
+        CompanyService::useCompanyForTests((int) $admin->company_id);
+        $this->actingAs($admin);
+        $next = $this->makeOpenTicket($admin);
+
+        $this->assertSame('TKT-2026-00002', $next->code);
+        $this->assertNotSame($first->code, $next->code);
+        $this->assertDatabaseHas('tickets', [
+            'id' => $next->id,
+            'company_id' => $admin->company_id,
+            'code' => 'TKT-2026-00002',
+            'deleted_at' => null,
+        ]);
     }
 
     public function test_add_comment_requires_permission(): void

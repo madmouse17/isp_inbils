@@ -98,9 +98,24 @@ class CustomerAddressController extends Controller
         $data = IndonesiaRegionService::normalizeAddress($request->validated());
 
         DB::transaction(function () use ($customer, $data) {
-            if (($data['is_installation_point'] ?? false) === true) {
-                $customer->addresses()->update(['is_installation_point' => false]);
+            $customer->addresses()->lockForUpdate()->get();
+
+            $hasAddresses = $customer->addresses()->exists();
+
+            if (! $hasAddresses) {
+                // First address must satisfy invariant A: exactly one primary
+                // and exactly one installation point.
+                $data['is_primary'] = true;
+                $data['is_installation_point'] = true;
+            } else {
+                if (($data['is_primary'] ?? false) === true) {
+                    $customer->addresses()->update(['is_primary' => false]);
+                }
+                if (($data['is_installation_point'] ?? false) === true) {
+                    $customer->addresses()->update(['is_installation_point' => false]);
+                }
             }
+
             $customer->addresses()->create($data);
         });
 
@@ -116,10 +131,37 @@ class CustomerAddressController extends Controller
         $data = IndonesiaRegionService::normalizeAddress($request->validated());
 
         DB::transaction(function () use ($customer, $address, $data) {
-            if (($data['is_installation_point'] ?? false) === true && ! $address->is_installation_point) {
+            $customer->addresses()->lockForUpdate()->get();
+
+            if (($data['is_primary'] ?? false) === true) {
+                $customer->addresses()->where('id', '!=', $address->id)->update(['is_primary' => false]);
+            }
+            if (($data['is_installation_point'] ?? false) === true) {
                 $customer->addresses()->where('id', '!=', $address->id)->update(['is_installation_point' => false]);
             }
+
             $address->update($data);
+
+            // Invariant A: a non-empty collection must keep exactly one primary
+            // and one installation point marker.
+            $address->refresh();
+            $siblings = $customer->addresses()->where('id', '!=', $address->id)->get(['id', 'is_primary', 'is_installation_point']);
+
+            if (! $address->is_primary && $siblings->where('is_primary', true)->isEmpty()) {
+                if ($siblings->isEmpty()) {
+                    $address->update(['is_primary' => true]);
+                } else {
+                    $customer->addresses()->whereKey($siblings->first()->id)->update(['is_primary' => true]);
+                }
+            }
+
+            if (! $address->is_installation_point && $siblings->where('is_installation_point', true)->isEmpty()) {
+                if ($siblings->isEmpty()) {
+                    $address->update(['is_installation_point' => true]);
+                } else {
+                    $customer->addresses()->whereKey($siblings->first()->id)->update(['is_installation_point' => true]);
+                }
+            }
         });
 
         return back()->with('success', 'Address updated.');
@@ -131,9 +173,31 @@ class CustomerAddressController extends Controller
         abort_unless($address->customer_id === $customer->id, 404);
         Gate::authorize('customer.address.manage');
 
-        abort_if($address->subscriptions()->exists(), 422, 'Cannot delete address with active subscription.');
+        if ($address->subscriptions()->exists()) {
+            return back()->withErrors(['address' => 'Cannot delete address with active subscription.']);
+        }
 
-        $address->delete();
+        DB::transaction(function () use ($customer, $address) {
+            $customer->addresses()->lockForUpdate()->get();
+
+            $wasPrimary = $address->is_primary;
+            $wasInstallationPoint = $address->is_installation_point;
+
+            $address->delete();
+
+            // Invariant A: promote the earliest remaining row to keep exactly
+            // one primary / installation-point marker in a non-empty collection.
+            $remaining = $customer->addresses()->orderBy('id')->get();
+
+            if ($remaining->isNotEmpty()) {
+                if ($wasPrimary && $remaining->where('is_primary', true)->isEmpty()) {
+                    $customer->addresses()->whereKey($remaining->first()->id)->update(['is_primary' => true]);
+                }
+                if ($wasInstallationPoint && $remaining->where('is_installation_point', true)->isEmpty()) {
+                    $customer->addresses()->whereKey($remaining->first()->id)->update(['is_installation_point' => true]);
+                }
+            }
+        });
 
         return back()->with('success', 'Address deleted.');
     }
@@ -147,6 +211,7 @@ class CustomerAddressController extends Controller
     private function filteredQuery(Customer $customer, Request $request): Builder
     {
         $query = $customer->addresses()
+            ->getQuery()
             ->with(['province', 'regionCity', 'district', 'village'])
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';

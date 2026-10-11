@@ -210,18 +210,26 @@ export function MapPicker({
                                     <Input
                                         inputMode="decimal"
                                         value={coordinateLatitude}
-                                        onChange={(event) => setCoordinateLatitude(event.target.value)}
+                                        onChange={(event) =>
+                                            setCoordinateLatitude(event.target.value)
+                                        }
                                         placeholder="Latitude"
                                         aria-label="Latitude"
                                     />
                                     <Input
                                         inputMode="decimal"
                                         value={coordinateLongitude}
-                                        onChange={(event) => setCoordinateLongitude(event.target.value)}
+                                        onChange={(event) =>
+                                            setCoordinateLongitude(event.target.value)
+                                        }
                                         placeholder="Longitude"
                                         aria-label="Longitude"
                                     />
-                                    <Button type="button" variant="success" onClick={useCoordinates}>
+                                    <Button
+                                        type="button"
+                                        variant="success"
+                                        onClick={useCoordinates}
+                                    >
                                         Find
                                     </Button>
                                 </div>
@@ -265,8 +273,20 @@ export function MapPicker({
                 Click the map, drag the red pin, search an address, or enter coordinates.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
-                <Input label="Latitude" value={latitude ?? ''} readOnly error={latitudeError} required />
-                <Input label="Longitude" value={longitude ?? ''} readOnly error={longitudeError} required />
+                <Input
+                    label="Latitude"
+                    value={latitude ?? ''}
+                    readOnly
+                    error={latitudeError}
+                    required
+                />
+                <Input
+                    label="Longitude"
+                    value={longitude ?? ''}
+                    readOnly
+                    error={longitudeError}
+                    required
+                />
             </div>
             {locationError ? <p className="text-sm text-destructive">{locationError}</p> : null}
         </div>

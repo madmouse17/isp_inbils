@@ -6,9 +6,14 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
+use App\Services\Core\SubscriptionService;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
+use Modules\Service\Models\ServicePackage;
 
+/**
+ * Generic sample customers for a company that has none. DemoDataSeeder tells the whole story of the demo
+ * company, so this one leaves a company that already has customers alone.
+ */
 class CustomerDemoSeeder extends Seeder
 {
     public function run(): void
@@ -19,24 +24,25 @@ class CustomerDemoSeeder extends Seeder
             return;
         }
 
-        // Run within company context
-        CompanyService::resetCache();
+        // Tenant models fail closed without a company: a seeder names the company it seeds.
+        CompanyService::runAs((int) $company->id, function () use ($company): void {
+            if (Customer::query()->exists()) {
+                return;
+            }
 
+            $this->seedCustomers($company);
+        });
+    }
+
+    private function seedCustomers(Company $company): void
+    {
         // 20 customers: 12 Individual + 8 Company
         $customers = collect();
 
-        for ($i = 0; $i < 12; $i++) {
-            $customers->push(Customer::factory()->create([
-                'company_id' => $company->id,
-                'type' => 'Individual',
-            ]));
-        }
-
-        for ($i = 0; $i < 8; $i++) {
-            $customers->push(Customer::factory()->create([
-                'company_id' => $company->id,
-                'type' => 'Company',
-            ]));
+        foreach (['Individual' => 12, 'Company' => 8] as $type => $count) {
+            for ($i = 0; $i < $count; $i++) {
+                $customers->push(Customer::factory()->create(['company_id' => $company->id, 'type' => $type]));
+            }
         }
 
         // Each customer gets 1-2 addresses
@@ -58,44 +64,36 @@ class CustomerDemoSeeder extends Seeder
             }
         }
 
-        // 30 subscriptions: 20 active, 5 suspended, 3 pending, 2 terminated
-        $packageIds = DB::table('service_packages')->where('company_id', $company->id)->pluck('id')->toArray();
+        $packages = ServicePackage::query()->get();
 
-        if (empty($packageIds)) {
+        if ($packages->isEmpty()) {
             return;
         }
 
-        $statusDistribution = [
+        // 30 subscriptions: 20 active, 5 suspended, 3 pending, 2 terminated
+        $statuses = [
             ...array_fill(0, 20, 'active'),
             ...array_fill(0, 5, 'suspended'),
             ...array_fill(0, 3, 'pending'),
             ...array_fill(0, 2, 'terminated'),
         ];
 
-        shuffle($statusDistribution);
+        shuffle($statuses);
 
-        foreach ($statusDistribution as $status) {
+        foreach ($statuses as $status) {
             $customer = $customers->random();
             $address = $customer->addresses()->first();
-
-            if (! $address) {
-                continue;
-            }
-
-            $packageId = $packageIds[array_rand($packageIds)];
-            $pkg = DB::table('service_packages')->where('id', $packageId)->first();
+            $package = $packages->random();
 
             $data = [
-                'company_id' => $company->id,
                 'customer_id' => $customer->id,
-                'service_package_id' => $packageId,
+                'service_package_id' => $package->id,
                 'installation_address_id' => $address->id,
-                'code' => 'SUB-'.date('Y').'-'.str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
                 'status' => $status,
                 'billing_day' => rand(1, 28),
-                'mrc_amount' => $pkg->price_mrc ?? 150000,
-                'otc_installation_fee' => $pkg->price_otc ?? 0,
-                'contract_months' => $pkg->contract_min_months,
+                'mrc_amount' => $package->getAttribute('price_mrc'),
+                'otc_installation_fee' => $package->getAttribute('price_otc'),
+                'contract_months' => (int) $package->getAttribute('contract_min_months') > 0 ? (int) $package->getAttribute('contract_min_months') : null,
             ];
 
             if ($status === 'active') {
@@ -109,11 +107,7 @@ class CustomerDemoSeeder extends Seeder
                 $data['terminated_reason'] = 'Service cancelled by customer';
             }
 
-            DB::table('service_subscriptions')->insert([
-                ...$data,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
+            SubscriptionService::create($data);
         }
     }
 }

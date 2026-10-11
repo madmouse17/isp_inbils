@@ -1,5 +1,6 @@
 ﻿import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -37,7 +38,20 @@ export default function Edit({ slaTier }: EditProps) {
     return (
         <AdminLayout title="Edit SLA Tier">
             <div className="space-y-6">
-                <PageHeader title="Edit SLA Tier" subtitle="Fill required fields, then save." />
+                <PageHeader
+                    title="Edit SLA Tier"
+                    subtitle="Fill required fields, then save."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.sla-tiers.index')}>Back</Link>
+                        </Button>
+                    }
+                />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>

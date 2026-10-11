@@ -57,26 +57,26 @@ const run = (name, env, wantCode) => {
 
 const firstLine = (output) => output.split(/\r?\n/).find(Boolean) ?? '(no output)';
 
-run('valid e2e database', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_e2e' }, 0);
+run('valid e2e database', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_test' }, 0);
 run('dev database rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils' }, 1);
 run('testing database rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_testing' }, 1);
 run(
     'DB_URL override rejected',
     {
         APP_ENV: 'e2e',
-        DB_DATABASE: 'inbils_e2e',
+        DB_DATABASE: 'inbils_test',
         DB_URL: 'mysql://root@127.0.0.1:3306/inbils',
     },
     1,
 );
-run('non-e2e app env rejected', { APP_ENV: 'local', DB_DATABASE: 'inbils_e2e' }, 1);
+run('non-e2e app env rejected', { APP_ENV: 'local', DB_DATABASE: 'inbils_test' }, 1);
 
 mkdirSync(runtimeDir, { recursive: true });
 writeFileSync(appConfigCache, '<?php return [];\n');
 try {
     run(
         'APP_CONFIG_CACHE override rejected',
-        { APP_ENV: 'e2e', DB_DATABASE: 'inbils_e2e', APP_CONFIG_CACHE: appConfigCache },
+        { APP_ENV: 'e2e', DB_DATABASE: 'inbils_test', APP_CONFIG_CACHE: appConfigCache },
         1,
     );
 } finally {
@@ -84,11 +84,11 @@ try {
 }
 
 if (existsSync(configCache)) {
-    run('cached config rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_e2e' }, 1);
+    run('cached config rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_test' }, 1);
 } else {
     writeFileSync(configCache, '<?php return [];\n', { flag: 'wx' });
     try {
-        run('cached config rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_e2e' }, 1);
+        run('cached config rejected', { APP_ENV: 'e2e', DB_DATABASE: 'inbils_test' }, 1);
     } finally {
         rmSync(configCache, { force: true });
     }

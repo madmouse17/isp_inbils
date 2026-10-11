@@ -39,35 +39,40 @@ use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class WorkOrderController extends Controller
 {
     use HasIndexQuery;
     use UploadsMedia;
 
-    private const SORTABLE = ['code', 'title', 'type', 'status', 'priority', 'created_at'];
+    private const SORTABLE = ['code', 'title', 'type', 'status', 'priority', 'scheduled_date', 'created_at'];
 
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', WorkOrder::class);
 
-        $workOrders = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $workOrders = $this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc')
+            ->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/SPK/Index', [
             'workOrders' => WorkOrderResource::collection($workOrders),
             'technicians' => EmployeeResource::collection($this->technicians()),
-            'filters' => $request->only(['type', 'status', 'assigned_to', 'search', 'sort', 'direction']),
+            'typeOptions' => ['installation', 'maintenance', 'upgrade_service', 'relocation'],
+            'statusOptions' => ['draft', 'generated', 'assigned', 'in_progress', 'waiting_review', 'completed', 'rejected', 'cancelled'],
+            'filters' => $request->only(['type', 'status', 'assigned_to', 'search', 'sort_by', 'sort_dir', 'per_page']),
             'can' => ['create' => $request->user()?->can('spk.create') ?? false, 'export' => $request->user()?->can('spk.export') ?? false],
         ]);
     }
 
     public function export(Request $request): Response|StreamedResponse
     {
+        Gate::authorize('viewAny', WorkOrder::class);
         Gate::authorize('spk.export');
 
         $format = strtolower((string) $request->input('format', 'csv'));
         $stamp = now()->format('Ymd-His');
-        $export = ExportQuery::make($this->filteredQuery($request))
+        $export = ExportQuery::make($this->applySort($this->filteredQuery($request), $request, 'created_at', 'desc'))
             ->defaultSort('created_at', 'desc')
             ->maxRows((int) config('exports.max_rows', 5000));
 
@@ -87,8 +92,8 @@ class WorkOrderController extends Controller
             'type' => $wo->type,
             'status' => $wo->status,
             'priority' => $wo->priority,
-            'customer' => $wo->customer?->name ?? '',
-            'assignee' => $wo->assignee?->name ?? '',
+            'customer' => data_get($wo, 'customer.name', ''),
+            'assignee' => data_get($wo, 'assignee.name', ''),
         ];
 
         if ($format === 'pdf') {
@@ -110,11 +115,13 @@ class WorkOrderController extends Controller
                 ->where('code', 'like', "%{$v}%")
                 ->orWhere('title', 'like', "%{$v}%")));
 
-        if (request()->user()?->hasRole('technician')) {
+        if (($user = request()->user()) !== null
+            && ($user->can('spk.start') || $user->can('spk.submit'))
+            && ! $user->can('spk.assign')) {
             $query->where('assigned_to', request()->user()->id);
         }
 
-        return $query->tap(fn (Builder $query) => $this->applySort($query, $request, 'created_at', 'desc'));
+        return $query;
     }
 
     public function create(Request $request): InertiaResponse
@@ -212,8 +219,23 @@ class WorkOrderController extends Controller
     public function assign(AssignWorkOrderRequest $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
+        Gate::authorize('assign', $wo);
 
-        SpkService::assign($wo, $request->integer('technician_id'), $request->user()->id);
+        try {
+            SpkService::assign(
+                $wo,
+                $request->integer('technician_id'),
+                $request->user()->id,
+                $request->input('expected_assigned_to') !== null ? $request->integer('expected_assigned_to') : null,
+                $request->input('expected_updated_at')
+            );
+        } catch (HttpException $exception) {
+            if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'SPK assigned.');
     }
@@ -221,8 +243,17 @@ class WorkOrderController extends Controller
     public function start(WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.start');
-        SpkService::start($wo);
+        Gate::authorize('start', $wo);
+
+        try {
+            SpkService::start($wo);
+        } catch (HttpException $exception) {
+            if (request()->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'SPK started.');
     }
@@ -230,17 +261,33 @@ class WorkOrderController extends Controller
     public function submit(WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.submit');
-        SpkService::submitForReview($wo);
+        Gate::authorize('submit', $wo);
+        try {
+            SpkService::submitForReview($wo);
+        } catch (HttpException $exception) {
+            if (request()->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'SPK submitted for review.');
     }
 
-    public function approve(WorkOrder $wo): RedirectResponse
+    public function approve(Request $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.approve');
-        SpkService::approve($wo);
+        Gate::authorize('approve', $wo);
+
+        try {
+            SpkService::approve($wo);
+        } catch (HttpException $e) {
+            if ($request->header('X-Inertia') && $e->getStatusCode() === 422) {
+                return back()->withErrors(['error' => $e->getMessage()]);
+            }
+            throw $e;
+        }
 
         return back()->with('success', 'SPK approved.');
     }
@@ -248,10 +295,18 @@ class WorkOrderController extends Controller
     public function reject(Request $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.reject');
+        Gate::authorize('reject', $wo);
 
         $request->validate(['reason' => ['required', 'string', 'max:500']]);
-        SpkService::reject($wo, $request->input('reason'));
+
+        try {
+            SpkService::reject($wo, $request->input('reason'));
+        } catch (HttpException $e) {
+            if ($request->header('X-Inertia') && $e->getStatusCode() === 422) {
+                return back()->withErrors(['error' => $e->getMessage()]);
+            }
+            throw $e;
+        }
 
         return back()->with('success', 'SPK rejected.');
     }
@@ -259,7 +314,7 @@ class WorkOrderController extends Controller
     public function cancel(Request $request, WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        Gate::authorize('spk.cancel');
+        Gate::authorize('cancel', $wo);
 
         $request->validate(['reason' => ['required', 'string', 'max:500']]);
         SpkService::cancel($wo, $request->input('reason'));
@@ -330,9 +385,16 @@ class WorkOrderController extends Controller
     {
         return EmployeeProfile::query()
             ->with(['user', 'organization'])
+            ->where('company_id', CompanyService::currentId())
             ->where('status', 'active')
-            ->whereHas('user', fn ($query) => $query->where('is_active', true))
-            ->whereHas('user.roles', fn ($query) => $query->where('name', 'technician'))
+            ->whereHas('user', function ($query) {
+                $query->where('company_id', CompanyService::currentId())
+                    ->where('is_active', true)
+                    ->where(function ($permissionQuery) {
+                        $permissionQuery->whereHas('permissions', fn ($query) => $query->whereIn('name', ['spk.start', 'spk.submit']))
+                            ->orWhereHas('roles.permissions', fn ($query) => $query->whereIn('name', ['spk.start', 'spk.submit']));
+                    });
+            })
             ->orderBy('employee_number')
             ->get();
     }

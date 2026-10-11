@@ -5,7 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import {
     Badge,
     Button,
@@ -93,7 +93,14 @@ export default function Index({ organizations, parentOptions, filters, can }: In
     const { data, setData, post, put, processing, errors, reset } =
         useForm<OrganizationForm>(emptyForm);
 
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const {
+        params,
+        set,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
         url: route('admin.organizations.index'),
         filters,
         only: ['organizations', 'parentOptions', 'filters', 'can'],
@@ -278,21 +285,6 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                                     placeholder="Code, name, path…"
                                 />
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-xs font-medium text-muted-foreground">
-                                    Per page
-                                </label>
-                                <NativeSelect
-                                    value={params.per_page || '10'}
-                                    onChange={(event) => set('per_page', event.target.value)}
-                                    options={[
-                                        { value: '10', label: '10 / page' },
-                                        { value: '25', label: '25 / page' },
-                                        { value: '50', label: '50 / page' },
-                                    ]}
-                                    className="w-32"
-                                />
-                            </div>
                         </div>
 
                         <DataTable
@@ -305,6 +297,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                             onPerPageChange={(perPage) => set('per_page', perPage)}
                             emptyTitle="No organization units"
                             emptyDescription="No organization units match the current filters."
+                            loading={tableProcessing}
                         />
                     </CardContent>
                 </Card>
@@ -373,7 +366,11 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

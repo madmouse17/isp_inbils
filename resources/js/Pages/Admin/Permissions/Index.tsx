@@ -1,11 +1,6 @@
 import { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import {
-    DataTable,
-    type DataTableColumn,
-    DynamicBadge,
-    PageHeader,
-} from '@/Components/composite';
+import { DataTable, type DataTableColumn, DynamicBadge, PageHeader } from '@/Components/composite';
 import { Card, CardContent, Input } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -41,9 +36,7 @@ export default function Index({ permissions, filters }: PermissionsProps) {
                 header: 'Name',
                 sortable: true,
                 sortKey: 'name',
-                cell: (permission) => (
-                    <span className="font-medium">{permission.name}</span>
-                ),
+                cell: (permission) => <span className="font-medium">{permission.name}</span>,
             },
             {
                 key: 'group',

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\UserDeletionGuard;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,8 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        UserDeletionGuard::ensureDeletable($user);
 
         Auth::logout();
 

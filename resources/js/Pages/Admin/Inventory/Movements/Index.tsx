@@ -1,3 +1,4 @@
+import { useState, type FormEvent } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import AppLayout from '@/Layouts/AppLayout';
@@ -6,22 +7,18 @@ import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/Components/ui/Select';
+import { NativeSelect } from '@/Components/ui';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDateTime } from '@/lib/format';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 type MovementRow = {
     id: number;
-    type: string;
+    movement_type: string;
     quantity: number | string;
     reference?: string | null;
-    notes?: string | null;
+    note?: string | null;
     created_at: string | null;
     product?: { id: number; name: string; sku?: string | null } | null;
     from_location?: { id: number; name: string } | null;
@@ -29,55 +26,65 @@ type MovementRow = {
     created_by?: { id: number; name: string } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
-};
+type Paginator<T> = PaginationLike<T>;
 
 type Props = {
     movements: Paginator<MovementRow>;
     filters: {
         search?: string;
-        type?: string;
+        movement_type?: string;
         sort_by?: string;
         sort_dir?: string;
         per_page?: string | number;
+        product_id?: string | number;
+        location_id?: string | number;
+        sort?: string;
+        direction?: string;
     };
     typeOptions?: string[];
+    can: { export?: boolean };
 };
 
-export default function MovementsIndex({ movements, filters, typeOptions = [] }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+const MOVEMENT_TYPES = [
+    'receive',
+    'issue',
+    'transfer',
+    'adjustment',
+    'reserve',
+    'release',
+    'return',
+];
+
+export default function MovementsIndex({ movements, filters, can, typeOptions = [] }: Props) {
+    const pagination = toPagination(movements);
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
-            type: filters.type ?? '',
-            sort_by: filters.sort_by ?? '',
-            sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? movements.per_page,
+            movement_type: filters.movement_type ?? '',
+            product_id: filters.product_id ?? '',
+            location_id: filters.location_id ?? '',
+            sort_by: filters.sort_by ?? filters.sort ?? '',
+            sort_dir: filters.sort_dir ?? filters.direction ?? '',
+            per_page: pagination.per_page,
         },
         { only: ['movements', 'filters'] },
     );
 
+    const [type, setType] = useState(filters.movement_type ?? '');
+
+    const applyFilter = (e: FormEvent) => {
+        e.preventDefault();
+        setMany({ movement_type: type });
+    };
+
     const columns: DataTableColumn<MovementRow>[] = useMemo(
         () => [
             {
-                key: 'type',
+                key: 'movement_type',
                 header: 'Type',
                 sortable: true,
-                sortKey: 'type',
-                cell: (row) => <StatusBadge status={row.type} />,
+                sortKey: 'movement_type',
+                cell: (row) => <StatusBadge status={row.movement_type} />,
             },
             {
                 key: 'product',
@@ -115,6 +122,11 @@ export default function MovementsIndex({ movements, filters, typeOptions = [] }:
                 cell: (row) => row.to_location?.name ?? '—',
             },
             {
+                key: 'note',
+                header: 'Note',
+                cell: (row) => row.note ?? '—',
+            },
+            {
                 key: 'created_at',
                 header: 'Created',
                 sortable: true,
@@ -133,13 +145,24 @@ export default function MovementsIndex({ movements, filters, typeOptions = [] }:
                     title="Stock Movements"
                     description="Inbound, outbound, transfer, and adjustment history."
                     actions={
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={route('admin.inventory.stocks.index')}>Stocks</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.stock-movements.export')}
+                                params={params}
+                                canExport={can.export ?? false}
+                                formats={['csv', 'pdf']}
+                            />
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={route('admin.stocks.index')}>Stocks</Link>
+                            </Button>
+                        </div>
                     }
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                <form
+                    onSubmit={applyFilter}
+                    className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end"
+                >
                     <div className="min-w-[12rem] flex-1 space-y-1">
                         <label
                             className="text-xs font-medium text-muted-foreground"
@@ -151,42 +174,41 @@ export default function MovementsIndex({ movements, filters, typeOptions = [] }:
                             id="mv-search"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Product, reference…"
+                            placeholder="Product, reference..."
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Type</label>
-                        <Select
-                            value={params.type || '__all__'}
-                            onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
-                        >
-                            <SelectTrigger className="w-[10rem]">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                {(typeOptions.length
-                                    ? typeOptions
-                                    : ['in', 'out', 'transfer', 'adjust']
-                                ).map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                        {s}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <NativeSelect
+                            label="Type"
+                            value={type}
+                            onChange={(e) => setType(e.target.value)}
+                            options={[
+                                { value: '', label: 'All' },
+                                ...(typeOptions.length ? typeOptions : MOVEMENT_TYPES).map((t) => ({
+                                    value: t,
+                                    label: t,
+                                })),
+                            ]}
+                            className="w-[10rem]"
+                        />
                     </div>
-                </div>
+                    <div className="self-end">
+                        <Button type="submit" variant="secondary">
+                            Filter
+                        </Button>
+                    </div>
+                </form>
 
                 <DataTable
                     columns={columns}
                     data={movements.data}
                     emptyTitle="No movements"
                     emptyDescription="No stock movements match the current filters."
+                    loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={movements}
+                    pagination={pagination}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(n) => set('per_page', n)}
                 />

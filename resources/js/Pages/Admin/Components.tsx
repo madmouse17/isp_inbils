@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MagnifyingGlassIcon, EllipsisVerticalIcon, InboxIcon } from '@heroicons/react/20/solid';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import { LoadingState, PageHeader } from '@/Components/composite';
 import {
     Button,
     IconButton,
@@ -42,6 +42,7 @@ import {
     Alert,
     EmptyState,
     Spinner,
+    Progress,
     Skeleton,
     useToast,
 } from '@/Components/ui';
@@ -391,7 +392,8 @@ export default function Components() {
                             <CardHeader>
                                 <CardTitle>Feedback</CardTitle>
                                 <CardDescription>
-                                    Alert, toast, spinner, skeleton, empty state.
+                                    Alert, toast, spinner, skeleton, progress, loading state, empty
+                                    state.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
@@ -416,6 +418,8 @@ export default function Components() {
                                     <Skeleton className="h-4 w-48" />
                                     <Skeleton className="h-8 w-8 rounded-full" />
                                 </div>
+                                <Progress label="Mengunggah berkas" value={45} />
+                                <LoadingState variant="rows" rows={2} />
                                 <EmptyState
                                     icon={<InboxIcon className="h-12 w-12" />}
                                     title="No items"

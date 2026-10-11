@@ -1,36 +1,31 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
 import {
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Modal,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
+    DataTable,
+    DataTableActions,
+    type DataTableColumn,
+    PageHeader,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useServerTable } from '@/hooks/useServerTable';
+import { type PaginationLike, toPagination } from '@/lib/pagination';
+import { Button, Card, CardContent, Input, Modal } from '@/Components/ui';
 import type { Unit } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
-    units: {
-        data: Unit[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
-    can: { create: boolean };
+    units: PaginationLike<Unit>;
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { create: boolean; export: boolean };
 }
 
-export default function Index({ units, can }: IndexProps) {
+export default function Index({ units, filters, can }: IndexProps) {
+    const table = useServerTable({
+        url: route('admin.units.index'),
+        filters,
+        only: ['units', 'filters', 'can'],
+    });
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Unit | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -69,9 +64,28 @@ export default function Index({ units, can }: IndexProps) {
         }
     };
 
-    const remove = (u: Unit) => {
-        if (window.confirm(`Delete ${u.name}?`)) router.delete(route('admin.units.destroy', u.id));
-    };
+    const columns: DataTableColumn<Unit>[] = [
+        { key: 'name', header: 'Name', sortable: true, sortKey: 'name' },
+        {
+            key: 'symbol',
+            header: 'Symbol',
+            sortable: true,
+            sortKey: 'symbol',
+            cell: (u) => <span className="font-mono">{u.symbol}</span>,
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            cell: (u) => (
+                <DataTableActions
+                    onEdit={() => openEdit(u)}
+                    deleteHref={route('admin.units.destroy', u.id)}
+                    deleteMessage={`Delete ${u.name}?`}
+                    deleteDescription={`This will permanently remove the unit "${u.name}".`}
+                />
+            ),
+        },
+    ];
 
     return (
         <AdminLayout title="Units">
@@ -80,69 +94,32 @@ export default function Index({ units, can }: IndexProps) {
                     title="Units"
                     subtitle="Manage measurement units."
                     actions={
-                        can.create && (
-                            <Button type="button" onClick={openCreate}>
-                                Create
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.units.export')}
+                                params={table.params}
+                                formats={['csv', 'pdf']}
+                                canExport={can.export}
+                            />
+                            {can.create && (
+                                <Button type="button" variant="success" onClick={openCreate}>
+                                    Create
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Symbol</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {units.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={3}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    units.data.map((u) => (
-                                        <TR key={u.id}>
-                                            <TD>{u.name}</TD>
-                                            <TD className="font-mono">{u.symbol}</TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(u)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(u)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={units.current_page}
-                            lastPage={units.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.units.index'), { page })
-                            }
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(units)}
+                            sortBy={table.sortBy}
+                            sortDir={table.sortDir}
+                            onSort={table.onSort}
+                            onPageChange={table.setPage}
+                            onPerPageChange={table.setPerPage}
+                            loading={table.processing}
                         />
                     </CardContent>
                 </Card>
@@ -176,7 +153,11 @@ export default function Index({ units, can }: IndexProps) {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" loading={processing}>
+                        <Button
+                            type="submit"
+                            variant={editing ? 'default' : 'success'}
+                            loading={processing}
+                        >
                             {editing ? 'Save' : 'Create'}
                         </Button>
                     </div>

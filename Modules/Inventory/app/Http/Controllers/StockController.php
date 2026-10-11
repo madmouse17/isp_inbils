@@ -2,46 +2,65 @@
 
 namespace Modules\Inventory\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Inventory\Http\Requests\ApproveStockAdjustmentRequest;
+use Modules\Inventory\Http\Requests\RejectStockAdjustmentRequest;
+use Modules\Inventory\Http\Requests\StockAdjustDirectRequest;
 use Modules\Inventory\Http\Requests\StockAdjustRequest;
 use Modules\Inventory\Http\Requests\StockIssueRequest;
 use Modules\Inventory\Http\Requests\StockReceiveRequest;
 use Modules\Inventory\Http\Requests\StockTransferRequest;
 use Modules\Inventory\Http\Resources\ProductResource;
+use Modules\Inventory\Http\Resources\StockAdjustmentRequestResource;
 use Modules\Inventory\Http\Resources\StockMovementResource;
 use Modules\Inventory\Http\Resources\StockResource;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
+use Modules\Inventory\Models\StockAdjustmentRequest;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Services\StockService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StockController extends Controller
 {
+    use HasIndexQuery;
+
+    private const STOCK_SORTABLE = ['quantity', 'reserved_quantity', 'created_at'];
+
+    private const MOVEMENT_SORTABLE = ['movement_type', 'quantity', 'created_at'];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('inventory.view');
 
         $stocks = $this->filteredQuery($request)
-            ->paginate(10)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Stocks/Index', [
             'stocks' => StockResource::collection($stocks),
             'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'filters' => $request->only(['location_id', 'product_id', 'low_stock', 'search']),
-            'can' => ['export' => $request->user()?->can('inventory.export') ?? false],
+            'filters' => $request->only(['location_id', 'product_id', 'low_stock', 'search', 'sort_by', 'sort_dir', 'sort', 'direction', 'per_page']),
+            'adjustmentRequests' => StockAdjustmentRequestResource::collection($this->pendingAdjustmentRequests($request)),
+            'can' => [
+                'export' => $request->user()?->can('inventory.export') ?? false,
+                'receive' => $request->user()?->can('inventory.stock.receive') ?? false,
+                'adjust_request' => $request->user()?->can('inventory.stock.adjust.request') ?? false,
+                'adjust_approve' => $request->user()?->can('inventory.stock.adjust.approve') ?? false,
+            ],
         ]);
     }
 
@@ -52,7 +71,7 @@ class StockController extends Controller
         $format = strtolower((string) $request->input('format', 'csv'));
         $stamp = now()->format('Ymd-His');
         $export = ExportQuery::make($this->filteredQuery($request))
-            ->defaultSort('id', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
@@ -83,14 +102,14 @@ class StockController extends Controller
         Gate::authorize('inventory.view');
 
         $movements = $this->filteredMovementsQuery($request)
-            ->paginate(10)
+            ->paginate($this->perPage($request))
             ->withQueryString();
 
         return Inertia::render('Admin/Inventory/Movements/Index', [
             'movements' => StockMovementResource::collection($movements),
             'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'filters' => $request->only(['product_id', 'movement_type', 'location_id', 'search']),
+            'filters' => $request->only(['product_id', 'movement_type', 'location_id', 'search', 'sort_by', 'sort_dir', 'sort', 'direction', 'per_page']),
             'can' => ['export' => $request->user()?->can('inventory.export') ?? false],
         ]);
     }
@@ -143,7 +162,7 @@ class StockController extends Controller
             $request->float('quantity'),
             $request->input('note'),
             $request->input('reference_type'),
-            $request->integer('reference_id'),
+            $request->filled('reference_id') ? $request->integer('reference_id') : null,
         );
 
         return back()->with('success', 'Stock received.');
@@ -158,7 +177,7 @@ class StockController extends Controller
             $request->float('quantity'),
             $request->input('note'),
             $request->input('reference_type'),
-            $request->integer('reference_id'),
+            $request->filled('reference_id') ? $request->integer('reference_id') : null,
         );
 
         return back()->with('success', 'Stock issued.');
@@ -180,15 +199,44 @@ class StockController extends Controller
 
     public function adjust(StockAdjustRequest $request): RedirectResponse
     {
-        Gate::authorize('inventory.stock.adjust');
-        StockService::adjust(
+        Gate::authorize('inventory.stock.adjust.request');
+        StockService::requestAdjustment(
             $request->integer('product_id'),
             $request->integer('location_id'),
             $request->float('new_quantity'),
             $request->input('note'),
         );
 
-        return back()->with('success', 'Stock adjusted.');
+        return back()->with('success', 'Stock adjustment requested; awaiting approval.');
+    }
+
+    /** Admin-only break-glass: applies at once, audited with a break_glass marker. */
+    public function adjustDirect(StockAdjustDirectRequest $request): RedirectResponse
+    {
+        Gate::authorize('inventory.stock.adjust');
+        StockService::adjust(
+            $request->integer('product_id'),
+            $request->integer('location_id'),
+            $request->float('new_quantity'),
+            $request->input('note'),
+            ['break_glass' => true],
+        );
+
+        return back()->with('success', 'Stock adjusted (break-glass).');
+    }
+
+    public function approveAdjustment(ApproveStockAdjustmentRequest $request, StockAdjustmentRequest $adjustment): RedirectResponse
+    {
+        StockService::approveAdjustment($adjustment);
+
+        return back()->with('success', 'Stock adjustment approved.');
+    }
+
+    public function rejectAdjustment(RejectStockAdjustmentRequest $request, StockAdjustmentRequest $adjustment): RedirectResponse
+    {
+        StockService::rejectAdjustment($adjustment, $request->string('rejection_reason')->toString());
+
+        return back()->with('success', 'Stock adjustment rejected.');
     }
 
     public function find(Request $request): InertiaResponse
@@ -223,28 +271,52 @@ class StockController extends Controller
         ]);
     }
 
+    /**
+     * Reviewers see every pending request; requesters only their own.
+     *
+     * @return Collection<int, StockAdjustmentRequest>
+     */
+    private function pendingAdjustmentRequests(Request $request): Collection
+    {
+        $user = $request->user();
+        $canReview = $user?->can('inventory.stock.adjust.approve') ?? false;
+
+        if (! $canReview && ! ($user?->can('inventory.stock.adjust.request') ?? false)) {
+            return new Collection();
+        }
+
+        return StockAdjustmentRequest::query()
+            ->with(['product', 'location', 'requester:id,name'])
+            ->where('status', 'pending')
+            ->when(! $canReview, fn (Builder $q) => $q->where('requested_by', $user->id))
+            ->oldest('id')
+            ->limit(50)
+            ->get();
+    }
+
     /** @return Builder<Stock> */
     private function filteredQuery(Request $request): Builder
     {
-        return Stock::query()
+        $query = Stock::query()
             ->with(['product', 'location'])
             ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where('location_id', $v))
             ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
-            ->when($request->boolean('low_stock'), fn (Builder $q) => $q->whereRaw('quantity <= (SELECT min_stock FROM products WHERE products.id = stocks.product_id)'))
+            ->when($request->boolean('low_stock'), fn (Builder $q) => $q->whereHas('product', fn (Builder $product) => $product->withTrashed()->whereColumn('stocks.quantity', '<=', 'products.min_stock')))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $q) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $q->where(function (Builder $sq) use ($term): void {
                     $sq->whereHas('product', fn (Builder $pq) => $pq->where('name', 'like', $term)->orWhere('sku', 'like', $term))
                         ->orWhereHas('location', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term));
                 });
-            })
-            ->latest();
+            });
+
+        return ExportQuery::applySort($query, $request, self::STOCK_SORTABLE, 'created_at', 'desc');
     }
 
     /** @return Builder<StockMovement> */
     private function filteredMovementsQuery(Request $request): Builder
     {
-        return StockMovement::query()
+        $query = StockMovement::query()
             ->with(['product', 'fromLocation', 'toLocation'])
             ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
             ->when($request->input('movement_type'), fn (Builder $q, $v) => $q->where('movement_type', $v))
@@ -260,7 +332,8 @@ class StockController extends Controller
                         ->orWhereHas('fromLocation', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term))
                         ->orWhereHas('toLocation', fn (Builder $lq) => $lq->where('name', 'like', $term)->orWhere('code', 'like', $term));
                 });
-            })
-            ->latest();
+            });
+
+        return ExportQuery::applySort($query, $request, self::MOVEMENT_SORTABLE, 'created_at', 'desc');
     }
 }

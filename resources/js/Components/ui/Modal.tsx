@@ -19,7 +19,7 @@ interface ModalProps {
 
 export function Modal({ open, onClose, title, size = 'md', children }: ModalProps) {
     return (
-        <Dialog open={open} onClose={onClose} className="relative z-50">
+        <Dialog open={open} onClose={onClose} className="fixed inset-0 z-50">
             <DialogBackdrop
                 transition
                 className="fixed inset-0 bg-black/50 transition-opacity data-[closed]:opacity-0 data-[enter]:duration-200 data-[leave]:duration-150"
@@ -40,7 +40,7 @@ export function Modal({ open, onClose, title, size = 'md', children }: ModalProp
                             <button
                                 onClick={onClose}
                                 className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                                aria-label="Close"
+                                aria-label="Tutup"
                             >
                                 <XMarkIcon className="h-5 w-5" />
                             </button>

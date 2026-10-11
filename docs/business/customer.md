@@ -59,7 +59,7 @@ service_packages ──< service_subscriptions (FK service_package_id)
 customer_addresses ──< service_subscriptions (FK installation_address_id)
 locations ──< service_subscriptions (FK serving_pop_id, type=pop)
 network_assets ──< service_subscriptions (FK ont_asset_id, nullable — ONT at premise)
-users ──< customers (created_by)
+users ──< customers (acquired_by_user_id — nullable, restrict; sales attribution. Tidak ada kolom created_by)
 work_orders ──< service_subscriptions (spk references subscription)
 tickets ──< service_subscriptions (ticket references subscription)
 invoices ──< service_subscriptions (recurring invoice source)
@@ -76,6 +76,10 @@ Skema: `docs/DATABASE.md` Section 5 (Customer).
   area_coverage_id nullable FK→locations.id (region/area service coverage),
   notes text nullable, is_active boolean default true, created_at,
   updated_at, deleted_at.
+- `acquired_by_user_id` nullable FK→users.id (`restrictOnDelete`), setelah `user_id`: pegawai yang
+  dikreditkan sebagai acquirer pelanggan. Bukan mass-assignable (hanya ditulis
+  `AssignCustomerAcquirerAction`). Index `(company_id, acquired_by_user_id)`. Pelanggan lama tetap
+  Unassigned (tanpa backfill).
 - Unique: `(company_id, code)`. Index: `(company_id, name)`,
   `(company_id, email)`. Trait `BelongsToCompany`. Soft delete.
 
@@ -151,6 +155,40 @@ Lihat `docs/WORKFLOW.md` Section 2 (Customer/Subscription). Ringkas:
   pelanggan per wilayah layanan (reporting + routing tiket ke unit
   terkait). Opsional v1.
 
+### Sales attribution (acquired by)
+
+Atribusi level customer: `customers.acquired_by_user_id` menyimpan pegawai yang dikreditkan sebagai
+acquirer. Bukan atribusi subscription/invoice, bukan komisi, bukan KPI (lane `kpi-sales` terpisah dan
+membaca kolom ini).
+
+- **Eligible acquirer** (satu sumber: `App\Queries\Admin\CustomerAcquirerQuery::eligible`): user aktif
+  satu company dengan EmployeeProfile aktif (company sama, tidak soft-deleted) yang memegang
+  `customer.create` (langsung atau lewat role). Admin tanpa EmployeeProfile bukan eligible. Dipakai
+  daftar Create/Edit, rule `IsEligibleCustomerAcquirer`, dan default saat create.
+- **Capability**: `customer.sales.assign` mengisi customer yang masih Unassigned;
+  `customer.sales.correct` mengubah atau mengosongkan acquirer yang sudah ada dan wajib disertai
+  `acquirer_correction_reason` (maks 500 karakter). Seeder: admin dan manager keduanya, staff hanya
+  assign, technician dan customer tidak ada.
+- **Visibility**: kolom Index, filter, display Show, field `CustomerResource`, dan kolom export
+  "Acquired By" hanya untuk pemegang assign atau correct (`CustomerPolicy::viewAcquirer`). Untuk user
+  lain filter `acquired_by` diabaikan sehingga tidak bisa dipakai menebak atribusi.
+- **Create**: key `acquired_by_user_id` dihormati hanya untuk pemegang assign (`null` = Unassigned).
+  Jika key tidak ada (atau pembuat tanpa assign), server mengkredit pembuat bila eligible, selain itu
+  null.
+- **Update**: mengirim ulang nilai yang sama = no-op tanpa audit. Capability yang tidak sesuai
+  (assign-only mengubah acquirer yang ada, correct-only mengisi dari Unassigned) = 403 dan seluruh
+  update dibatalkan. User tanpa kedua capability: key diabaikan diam-diam. Id tidak eligible, milik
+  company lain, atau tidak ada = 422 dengan pesan yang sama (tidak membocorkan user tenant lain).
+- **Audit**: setiap assign/koreksi menulis activity log `customer` (`acquirer_assigned` atau
+  `acquirer_corrected`) berisi `old`, `new`, `reason`, `actor_id`, `company_id`.
+- **Histori**: acquirer yang kemudian nonaktif tetap tampil dengan nama dan penanda Inactive, tidak
+  ditawarkan sebagai pilihan. Acquirer dari company lain tidak pernah di-resolve (tampil Unassigned).
+- **Hapus user**: FK `restrictOnDelete`. `UserController::destroy` menolak menghapus user yang pernah
+  menjadi acquirer (pesan validasi); nonaktifkan akun sebagai gantinya.
+- **Deployment**: setelah `php artisan migrate`, jalankan ulang
+  `php artisan db:seed --class=RolePermissionSeeder --force` (idempotent). Custom role tidak diubah
+  seeder: beri kedua permission lewat layar Roles.
+
 ## Permission
 
 ```
@@ -159,6 +197,8 @@ customer.create
 customer.update
 customer.delete
 customer.address.manage      (address + contact CRUD)
+customer.sales.assign        (set acquirer dari Unassigned; lihat Sales attribution)
+customer.sales.correct       (ubah/kosongkan acquirer + wajib alasan)
 customer.subscription.view
 customer.subscription.manage (create/edit subscription)
 customer.subscription.activate
@@ -195,6 +235,9 @@ Lihat `docs/API.md` Section 2 (Customer group). Ringkas:
 - `POST   /admin/subscriptions/{sub}/reactivate`
 - `POST   /admin/subscriptions/{sub}/terminate` (body: reason, release_ont bool)
 - `GET    /admin/customers/export`
+- `GET    /admin/customers?acquired_by={user_id|unassigned}` (hanya pemegang assign/correct; selain itu diabaikan)
+- `POST   /admin/customers` menerima `acquired_by_user_id` opsional; `PUT /admin/customers/{customer}`
+  menerima `acquired_by_user_id` dan `acquirer_correction_reason` (wajib saat koreksi)
 
 ## Testing Scenario
 

@@ -3,11 +3,20 @@
 namespace Modules\Billing\Console;
 
 use App\Models\Core\Company;
+use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Console\Command;
-use Modules\Billing\Services\BillingService;
+use Illuminate\Support\Facades\Notification;
+use Modules\Billing\Notifications\BillingScheduleFailedNotification;
+use Modules\Billing\Services\BillingScheduleGateway;
 
 class CheckOverdueInvoices extends Command
 {
+    public function __construct(private readonly BillingScheduleGateway $gateway)
+    {
+        parent::__construct();
+    }
+
     protected $signature = 'billing:check-overdue {--company= : Explicit company id for artisan runs}';
 
     protected $description = 'Mark past-due sent/partial invoices as overdue';
@@ -16,12 +25,23 @@ class CheckOverdueInvoices extends Command
     {
         $companyIds = $this->resolveCompanyIds();
 
-        foreach ($companyIds as $companyId) {
-            BillingService::checkOverdue($companyId);
-            $this->info("Overdue check complete for company {$companyId}.");
-        }
+        try {
+            foreach ($companyIds as $companyId) {
+                CompanyService::runAs($companyId, fn () => $this->gateway->checkOverdue($companyId));
+                $this->info("Overdue check complete for company {$companyId}.");
+            }
 
-        return self::SUCCESS;
+            return self::SUCCESS;
+        } catch (\Throwable $e) {
+            $this->error('Overdue check failed: '.$e->getMessage());
+
+            Notification::send(
+                User::where('is_active', true)->role('admin')->get(),
+                new BillingScheduleFailedNotification(command: 'billing:check-overdue'),
+            );
+
+            return self::FAILURE;
+        }
     }
 
     /** @return list<int> */

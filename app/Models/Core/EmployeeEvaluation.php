@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use Database\Factories\EmployeeEvaluationFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,8 @@ class EmployeeEvaluation extends Model
     use HasFactory;
     use LogsActivity;
     use SoftDeletes;
+
+    protected static string $factory = EmployeeEvaluationFactory::class;
 
     protected $fillable = [
         'employee_id', 'reference_type', 'reference_id', 'score',

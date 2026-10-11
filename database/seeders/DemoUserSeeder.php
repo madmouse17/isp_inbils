@@ -5,6 +5,8 @@ namespace Database\Seeders;
 use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
+use App\Services\Core\CompanyMembershipService;
+use App\Services\Core\CompanyService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,6 +25,11 @@ class DemoUserSeeder extends Seeder
 
     public function run(): void
     {
+        // Demo logins use a known password and add a second root company: never on production.
+        if (app()->environment('production')) {
+            throw new \RuntimeException('DemoUserSeeder refuses to run in production.');
+        }
+
         $company = Company::query()->firstOrCreate(
             ['code' => 'DEMO'],
             [
@@ -34,32 +41,36 @@ class DemoUserSeeder extends Seeder
             ],
         );
 
-        (new CompanySeeder())->runFor($company);
-
-        foreach (self::USERS as $role => $demoUser) {
-            $user = User::query()->updateOrCreate(
-                ['email' => $demoUser['email']],
-                [
-                    'name' => $demoUser['name'],
-                    'company_id' => $company->id,
-                    'password' => Hash::make(self::PASSWORD),
-                    'email_verified_at' => now(),
-                    'is_active' => true,
-                ],
-            );
-
-            $user->syncRoles([$role]);
-
-            if ($demoUser['employee']) {
-                EmployeeProfile::query()->firstOrCreate(
-                    ['user_id' => $user->id],
+        // A seeder has no user: it names the company it seeds, so scoped writes act in it.
+        CompanyService::runAs((int) $company->id, function () use ($company): void {
+            foreach (self::USERS as $role => $demoUser) {
+                $user = User::query()->updateOrCreate(
+                    ['email' => $demoUser['email']],
                     [
+                        'name' => $demoUser['name'],
                         'company_id' => $company->id,
-                        'employee_number' => 'DEMO-'.strtoupper($role),
-                        'status' => 'active',
+                        'password' => Hash::make(self::PASSWORD),
+                        'email_verified_at' => now(),
+                        'is_active' => true,
                     ],
                 );
+
+                $user->syncRoles([$role]);
+                app(CompanyMembershipService::class)->grant($user, $company, true);
+
+                if ($demoUser['employee']) {
+                    EmployeeProfile::query()->firstOrCreate(
+                        ['user_id' => $user->id],
+                        [
+                            'company_id' => $company->id,
+                            'employee_number' => 'DEMO-'.strtoupper($role),
+                            'status' => 'active',
+                        ],
+                    );
+                }
             }
-        }
+        });
+
+        (new CompanySeeder())->runFor($company);
     }
 }

@@ -36,7 +36,7 @@ Modules/{Name}/
 | SPK | WorkOrder, WorkOrderItem, WorkOrderAssignment, WorkOrderEvidence | 4 |
 | Billing | Invoice, InvoiceItem, Payment | 5 |
 | Ticketing | Ticket, TicketCategory, TicketComment, TicketAttachment | 6 |
-| Reporting | (none — Query classes only) | 8 |
+| Reporting | SalesCustomer (read-only view of `customers` for the Sales KPI); otherwise Query classes only | 8 |
 
 ## Shared Core (NOT in a module)
 

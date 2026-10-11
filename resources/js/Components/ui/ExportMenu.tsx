@@ -12,9 +12,17 @@ export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export interface ExportMenuProps {
     onExport?: (format: ExportFormat) => void;
+    /** Server export base URL (appends format query). Back-compat with legacy ExportMenu. */
+    exportUrl?: string;
+    /** Query params forwarded to the export URL. Back-compat with legacy ExportMenu. */
+    params?: Record<string, string | number | boolean | null | undefined>;
+    /** Resource key for compatibility with residual consumers. */
+    resource?: string;
     formats?: ExportFormat[];
     disabled?: boolean;
     label?: string;
+    /** Hides the menu entirely when false. Back-compat with legacy ExportMenu. */
+    canExport?: boolean;
     className?: string;
 }
 
@@ -26,11 +34,36 @@ const LABELS: Record<ExportFormat, string> = {
 
 export function ExportMenu({
     onExport,
+    exportUrl,
+    params,
+    resource: _resource,
     formats = ['csv', 'xlsx'],
     disabled = false,
     label = 'Export',
+    canExport = true,
     className,
 }: ExportMenuProps) {
+    const handleExport = (format: ExportFormat) => {
+        if (onExport) {
+            onExport(format);
+            return;
+        }
+        if (exportUrl) {
+            const query = new URLSearchParams();
+            query.set('format', format);
+            for (const [key, value] of Object.entries(params ?? {})) {
+                if (value === undefined || value === null || value === '') continue;
+                query.set(key, String(value));
+            }
+            const url = exportUrl.includes('?')
+                ? `${exportUrl}&${query.toString()}`
+                : `${exportUrl}?${query.toString()}`;
+            window.location.assign(url);
+        }
+    };
+
+    if (!canExport) return null;
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -38,7 +71,7 @@ export function ExportMenu({
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={disabled || !onExport}
+                    disabled={disabled || (!onExport && !exportUrl)}
                     leftIcon={<Download className="h-4 w-4" />}
                     className={className}
                 >
@@ -47,7 +80,7 @@ export function ExportMenu({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
                 {formats.map((format) => (
-                    <DropdownMenuItem key={format} onSelect={() => onExport?.(format)}>
+                    <DropdownMenuItem key={format} onSelect={() => handleExport(format)}>
                         {LABELS[format]}
                     </DropdownMenuItem>
                 ))}

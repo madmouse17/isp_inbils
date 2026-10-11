@@ -1,11 +1,11 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import {
@@ -23,9 +23,8 @@ type Row = {
     id: number;
     name: string;
     code: string;
-    price: number | string;
-    currency?: string;
-    billing_cycle?: string;
+    price_mrc: number | string;
+    price_otc: number | string;
     is_active?: boolean;
     created_at: string | null;
 };
@@ -51,7 +50,7 @@ type Props = {
 };
 
 export default function PackagesIndex({ servicePackages, slaTiers, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.service-packages.index'),
         filters,
         only: ['servicePackages', 'filters', 'can', 'slaTiers'],
@@ -81,19 +80,20 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                 cell: (row) => row.code,
             },
             {
-                key: 'price',
-                header: 'Price',
+                key: 'price_mrc',
+                header: 'Monthly',
                 sortable: true,
-                sortKey: 'price',
+                sortKey: 'price_mrc',
                 className: 'text-right tabular-nums',
-                cell: (row) => formatMoney(row.price, row.currency ?? 'IDR'),
+                cell: (row) => formatMoney(row.price_mrc),
             },
             {
-                key: 'billing_cycle',
-                header: 'Cycle',
+                key: 'price_otc',
+                header: 'One-time',
                 sortable: true,
-                sortKey: 'billing_cycle',
-                cell: (row) => row.billing_cycle ?? '—',
+                sortKey: 'price_otc',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatMoney(row.price_otc),
             },
             {
                 key: 'is_active',
@@ -113,32 +113,13 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                 key: 'actions',
                 header: 'Actions',
                 cell: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={route('admin.service-packages.show', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Show
-                        </Link>
-                        <Link
-                            href={route('admin.service-packages.edit', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Edit
-                        </Link>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (window.confirm(`Delete ${row.name}?`)) {
-                                    router.delete(route('admin.service-packages.destroy', row.id));
-                                }
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        showHref={route('admin.service-packages.show', row.id)}
+                        editHref={route('admin.service-packages.edit', row.id)}
+                        deleteHref={route('admin.service-packages.destroy', row.id)}
+                        deleteMessage={`Delete ${row.name}?`}
+                        deleteDescription={`This will permanently remove the package "${row.name}".`}
+                    />
                 ),
             },
         ],
@@ -162,7 +143,7 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild size="sm">
+                                <Button asChild variant="success" size="sm">
                                     <Link href={route('admin.service-packages.create')}>
                                         <Plus className="size-4" />
                                         New package
@@ -189,14 +170,19 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Active</label>
+                        <label
+                            htmlFor="pkg-active"
+                            className="text-xs font-medium text-muted-foreground"
+                        >
+                            Active
+                        </label>
                         <Select
                             value={params.is_active || '__all__'}
                             onValueChange={(value) =>
                                 set('is_active', value === '__all__' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="w-[8rem]">
+                            <SelectTrigger id="pkg-active" className="w-[8rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -207,7 +193,10 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                         </Select>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">
+                        <label
+                            htmlFor="pkg-sla"
+                            className="text-xs font-medium text-muted-foreground"
+                        >
                             SLA Tier
                         </label>
                         <Select
@@ -216,7 +205,7 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                                 set('sla_tier_id', value === '__all__' ? '' : value)
                             }
                         >
-                            <SelectTrigger className="w-[12rem]">
+                            <SelectTrigger id="pkg-sla" className="w-[12rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -241,7 +230,7 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     emptyTitle="No packages"
                     emptyDescription="No packages match the current filters."
-                    loading={false}
+                    loading={processing}
                 />
             </div>
         </AppLayout>

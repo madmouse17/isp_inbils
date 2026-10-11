@@ -1,10 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
@@ -15,8 +15,8 @@ type Row = {
     id: number;
     name: string;
     code?: string | null;
-    download_kbps?: number | string | null;
-    upload_kbps?: number | string | null;
+    download_mbps?: number | string | null;
+    upload_mbps?: number | string | null;
     is_active?: boolean;
     created_at: string | null;
 };
@@ -39,7 +39,7 @@ type Props = {
 };
 
 export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.bandwidth-profiles.index'),
         filters,
         only: ['bandwidthProfiles', 'filters', 'can'],
@@ -62,20 +62,20 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                 ),
             },
             {
-                key: 'download_kbps',
-                header: 'Download (kbps)',
+                key: 'download_mbps',
+                header: 'Download (Mbps)',
                 sortable: true,
-                sortKey: 'download_kbps',
+                sortKey: 'download_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.download_kbps ?? '—'),
+                cell: (row) => String(row.download_mbps ?? '—'),
             },
             {
-                key: 'upload_kbps',
-                header: 'Upload (kbps)',
+                key: 'upload_mbps',
+                header: 'Upload (Mbps)',
                 sortable: true,
-                sortKey: 'upload_kbps',
+                sortKey: 'upload_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.upload_kbps ?? '—'),
+                cell: (row) => String(row.upload_mbps ?? '—'),
             },
             {
                 key: 'created_at',
@@ -88,27 +88,12 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                 key: 'actions',
                 header: 'Actions',
                 cell: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={route('admin.bandwidth-profiles.edit', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Edit
-                        </Link>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (window.confirm(`Delete ${row.name}?`))
-                                    router.delete(
-                                        route('admin.bandwidth-profiles.destroy', row.id),
-                                    );
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        editHref={route('admin.bandwidth-profiles.edit', row.id)}
+                        deleteHref={route('admin.bandwidth-profiles.destroy', row.id)}
+                        deleteMessage={`Delete ${row.name}?`}
+                        deleteDescription={`This will permanently remove the bandwidth profile "${row.name}".`}
+                    />
                 ),
             },
         ],
@@ -132,7 +117,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild size="sm">
+                                <Button asChild variant="success" size="sm">
                                     <Link href={route('admin.bandwidth-profiles.create')}>
                                         <Plus className="size-4" />
                                         New profile
@@ -170,7 +155,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     emptyTitle="No bandwidth profiles"
                     emptyDescription="No bandwidth profiles match the current filters."
-                    loading={false}
+                    loading={processing}
                 />
             </div>
         </AppLayout>

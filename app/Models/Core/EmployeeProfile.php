@@ -44,6 +44,7 @@ class EmployeeProfile extends Model
         return $this->belongsTo(User::class);
     }
 
+    /** @return BelongsTo<OrganizationUnit, $this> */
     public function organization(): BelongsTo
     {
         return $this->belongsTo(OrganizationUnit::class, 'organization_id');

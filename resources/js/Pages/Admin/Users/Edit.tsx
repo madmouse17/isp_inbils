@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import {
@@ -53,7 +54,20 @@ export default function Edit({ user, roles }: EditProps) {
     return (
         <AdminLayout title="Edit User">
             <div className="space-y-6">
-                <PageHeader title="Edit User" subtitle="Update user profile, status, and roles." />
+                <PageHeader
+                    title="Edit User"
+                    subtitle="Update user profile, status, and roles."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.users.show', user.data.id)}>Back</Link>
+                        </Button>
+                    }
+                />
 
                 <form onSubmit={submit} className="space-y-6">
                     <Card>

@@ -16,8 +16,13 @@ class RolePermissionSeeder extends Seeder
             'roles.manage',
             'roles.export',
             'company.manage',
+            // Switch the active company: needs a membership of the target company on top (CompanyPolicy).
+            'company.switch',
             'system.setting',
             'dashboard.view',
+            // Developer gallery is intentionally admin-only (fail-closed):
+            // seeded only onto the admin role, never onto non-admin roles.
+            'developer.components.view',
             'organization.view',
             'organization.manage',
             'employee.view',
@@ -41,6 +46,10 @@ class RolePermissionSeeder extends Seeder
             'customer.subscription.terminate',
             'customer.export',
             'customer.manage',
+            // Sales attribution (customers.acquired_by_user_id): assign sets it from Unassigned,
+            // correct changes or clears it with a reason. Seen only by holders of either.
+            'customer.sales.assign',
+            'customer.sales.correct',
 
             'service.view',
             'service.create',
@@ -87,12 +96,30 @@ class RolePermissionSeeder extends Seeder
             'inventory.stock.issue',
             'inventory.stock.transfer',
             'inventory.stock.adjust',
+            'inventory.stock.adjust.request',
+            'inventory.stock.adjust.approve',
+
+            'inventory.request.view.own',
+            'inventory.request.view.all',
+            'inventory.request.create',
+            'inventory.request.cancel.own',
+            'inventory.request.approve',
+            'inventory.request.reject',
+            'inventory.request.prepare',
+            'inventory.request.issue',
+            'inventory.request.audit',
+            'inventory.return.view.own',
+            'inventory.return.view.all',
+            'inventory.return.declare',
+            'inventory.return.receive',
+            'inventory.return.resolve',
 
             'spk.view',
             'spk.create',
             'spk.update',
             'spk.delete',
             'spk.assign',
+            'spk.reassign',
             'spk.start',
             'spk.submit',
             'spk.approve',
@@ -109,6 +136,7 @@ class RolePermissionSeeder extends Seeder
             'billing.delete',
             'billing.send',
             'billing.payment.record',
+            'billing.payment.reverse',
             'billing.cancel',
             'billing.suspend',
             'billing.reactivate',
@@ -121,6 +149,7 @@ class RolePermissionSeeder extends Seeder
             'ticket.update',
             'ticket.delete',
             'ticket.assign',
+            'ticket.reassign',
             'ticket.start',
             'ticket.resolve',
             'ticket.close',
@@ -143,7 +172,18 @@ class RolePermissionSeeder extends Seeder
             'evaluation.manage',
 
             'report.view',
+            'report.business.view',
+            'report.asset.view',
+            'report.sla.view',
+            'report.stock_card.view',
+            'report.dictionary.view',
+            'report.sales.view',
+            'report.technician',
             'report.manage',
+            'report.audit.view',
+            'report.export',
+            // Consolidated Business metrics of a Head company over its subsidiaries. Admin only.
+            'report.consolidated.view',
         ];
 
         foreach ($permissions as $permission) {
@@ -156,15 +196,16 @@ class RolePermissionSeeder extends Seeder
         $technician = Role::firstOrCreate(['name' => 'technician'], ['guard_name' => 'web']);
         $customer = Role::firstOrCreate(['name' => 'customer'], ['guard_name' => 'web']);
 
-        $admin->givePermissionTo($permissions);
+        $admin->syncPermissions($permissions);
 
-        $manager->givePermissionTo([
+        $manager->syncPermissions([
             'customer.view', 'customer.create', 'customer.update',
             'customer.address.manage',
             'customer.subscription.view', 'customer.subscription.manage',
             'customer.subscription.activate', 'customer.subscription.suspend',
             'customer.subscription.reactivate', 'customer.subscription.terminate',
             'customer.export', 'customer.manage',
+            'customer.sales.assign', 'customer.sales.correct',
 
             'service.view', 'service.create', 'service.update', 'service.manage',
             'dashboard.view',
@@ -179,57 +220,79 @@ class RolePermissionSeeder extends Seeder
 
             'inventory.view', 'inventory.create', 'inventory.update',
             'inventory.export', 'inventory.manage',
-            'inventory.stock.receive', 'inventory.stock.issue',
-            'inventory.stock.transfer', 'inventory.stock.adjust',
+            'inventory.stock.adjust.approve',
+            'inventory.request.view.all', 'inventory.request.approve', 'inventory.request.reject',
+            'inventory.request.audit',
+            'inventory.return.view.all', 'inventory.return.receive', 'inventory.return.resolve',
 
             'spk.view', 'spk.create', 'spk.update',
-            'spk.assign', 'spk.approve', 'spk.reject', 'spk.cancel',
+            'spk.assign', 'spk.reassign', 'spk.approve', 'spk.reject', 'spk.cancel',
             'spk.export', 'spk.manage',
 
             'billing.view', 'billing.create', 'billing.update',
-            'billing.send', 'billing.payment.record',
+            'billing.send', 'billing.payment.record', 'billing.payment.reverse',
             'billing.cancel', 'billing.suspend', 'billing.reactivate',
             'billing.pdf.view', 'billing.export', 'billing.manage',
 
             'ticket.view', 'ticket.create', 'ticket.update',
-            'ticket.assign', 'ticket.close', 'ticket.spawn_spk',
+            'ticket.assign', 'ticket.reassign', 'ticket.close', 'ticket.spawn_spk',
             'ticket.export', 'ticket.manage',
 
             'evaluation.view', 'evaluation.create', 'evaluation.update',
 
-            'report.view',
+            'report.view', 'report.technician',
+            'report.business.view', 'report.asset.view', 'report.sla.view',
+            'report.stock_card.view', 'report.dictionary.view', 'report.sales.view',
+            'report.export',
+            'company.switch',
         ]);
 
-        $staff->givePermissionTo([
+        // Every demo role lands on /admin/dashboard after login (the auth
+        // controller redirects intended() there), so the dashboard gate must
+        // be open to all of them or post-login navigation 403s.
+        $staff->syncPermissions([
+            'dashboard.view',
             'customer.view', 'customer.create', 'customer.update',
             'customer.address.manage',
             'customer.subscription.view',
+            'customer.sales.assign',
             'service.view',
             'network_asset.view',
             'location.view',
             'inventory.view', 'inventory.create', 'inventory.update',
-            'inventory.stock.receive', 'inventory.stock.issue',
+            'inventory.stock.receive', 'inventory.stock.issue', 'inventory.stock.transfer',
+            'inventory.stock.adjust.request',
+            'inventory.request.view.all',
+            'inventory.request.prepare', 'inventory.request.issue',
+            'inventory.return.view.all', 'inventory.return.receive',
             'spk.view', 'spk.create', 'spk.start', 'spk.submit',
             'billing.view', 'billing.create', 'billing.send', 'billing.payment.record',
             'ticket.view', 'ticket.create', 'ticket.comment.create',
             'ticket.attachment.upload',
             'evaluation.view', 'evaluation.create', 'evaluation.update',
             'report.view',
+            'report.business.view', 'report.asset.view', 'report.sla.view',
+            'report.stock_card.view', 'report.dictionary.view',
         ]);
 
-        $technician->givePermissionTo([
+        $technician->syncPermissions([
+            'dashboard.view',
             'customer.view',
             'network_asset.view',
             'location.view',
             'inventory.view', 'inventory.stock.issue',
+            'inventory.request.view.own', 'inventory.request.create', 'inventory.request.cancel.own',
+            'inventory.return.view.own', 'inventory.return.declare',
             'spk.view', 'spk.start', 'spk.submit',
             'spk.evidence.upload', 'spk.evidence.view',
             'ticket.view', 'ticket.create', 'ticket.start', 'ticket.resolve',
             'ticket.comment.create',
             'evaluation.view.own',
+            'report.technician',
         ]);
 
-        $customer->givePermissionTo([
+        $customer->syncPermissions([
+            'dashboard.view',
             'ticket.view', 'ticket.create', 'ticket.comment.create',
             'evaluation.customer.submit',
         ]);

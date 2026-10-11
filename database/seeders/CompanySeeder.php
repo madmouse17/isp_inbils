@@ -4,25 +4,68 @@ namespace Database\Seeders;
 
 use App\Models\Core\Company;
 use App\Models\Core\Location;
+use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class CompanySeeder extends Seeder
 {
     public function runFor(Company $company): void
     {
-        $this->seedUnits($company);
-        $this->seedTicketCategories($company);
-        $this->seedSlaTiers($company);
-        $this->seedLocations($company);
-        $this->seedBandwidthProfiles($company);
-        $this->seedSpeedProfiles($company);
-        $this->seedServicePackages($company);
-        $this->seedInventoryCategories($company);
-        $this->seedProductStocks($company);
-        $this->seedNetworkAssets($company);
+        $previousUser = Auth::user();
+        $actingUser = ($previousUser?->company_id === (int) $company->id)
+            ? $previousUser
+            : User::query()->where('company_id', $company->id)->first();
+
+        if ($actingUser === null) {
+            // company_id is not mass assignable: unguard so the system user really is homed in the company.
+            $actingUser = User::unguarded(fn () => User::query()->firstOrCreate(
+                ['email' => "system-seed-{$company->id}@inbils.internal"],
+                [
+                    'name' => "System Seed ({$company->name})",
+                    'company_id' => $company->id,
+                    'password' => Hash::make(Str::random(32)),
+                    'email_verified_at' => now(),
+                    'is_active' => true,
+                ]
+            ));
+        }
+
+        if ($actingUser !== null && $actingUser !== $previousUser) {
+            Auth::setUser($actingUser);
+            CompanyService::resetCache();
+        }
+
+        try {
+            // The seeds act in the company they seed, whoever is signed in.
+            CompanyService::runAs((int) $company->id, function () use ($company): void {
+                $this->seedUnits($company);
+                $this->seedTicketCategories($company);
+                $this->seedSlaTiers($company);
+                $this->seedLocations($company);
+                $this->seedBandwidthProfiles($company);
+                $this->seedSpeedProfiles($company);
+                $this->seedServicePackages($company);
+                $this->seedInventoryCategories($company);
+                $this->seedProductStocks($company);
+                $this->seedNetworkAssets($company);
+            });
+        } finally {
+            if ($actingUser !== $previousUser) {
+                if ($previousUser !== null) {
+                    Auth::setUser($previousUser);
+                } else {
+                    Auth::forgetGuards();
+                }
+                CompanyService::resetCache();
+            }
+        }
     }
 
     private function seedUnits(Company $company): void
@@ -71,7 +114,7 @@ class CompanySeeder extends Seeder
         }
 
         foreach ([
-            ['name' => 'Bronze', 'uptime_pct' => 99.00, 'response_time_hours' => 24, 'resolution_time_hours' => 48, 'credit_pct' => 5],
+     ['name' => 'Bronze', 'uptime_pct' => 99.00, 'response_time_hours' => 24, 'resolution_time_hours' => 48, 'credit_pct' => 5],
             ['name' => 'Silver', 'uptime_pct' => 99.50, 'response_time_hours' => 8, 'resolution_time_hours' => 24, 'credit_pct' => 10],
             ['name' => 'Gold', 'uptime_pct' => 99.90, 'response_time_hours' => 4, 'resolution_time_hours' => 12, 'credit_pct' => 15],
         ] as $tier) {
@@ -356,12 +399,16 @@ class CompanySeeder extends Seeder
             ['name' => 'Rack 42U Server', 'asset_type' => 'rack', 'serial_number' => 'RCK-42U-001', 'vendor' => null, 'model' => '42U Standard'],
         ];
 
-        foreach ($assets as $a) {
+        $sequence = (int) DB::table('network_assets')->where('company_id', $company->id)->count();
+
+        foreach ($assets as $index => $a) {
             DB::table('network_assets')->insert([
                 ...$a,
                 'company_id' => $company->id,
                 'product_id' => null,
-                'code' => 'AST-'.date('Y').'-'.str_pad((string) rand(1, 99999), 5, '0', STR_PAD_LEFT),
+                // Sequential per company: random codes collide inside a single seed
+                // run and violate network_assets_company_id_code_unique.
+                'code' => 'AST-'.date('Y').'-'.str_pad((string) ($sequence + $index + 1), 5, '0', STR_PAD_LEFT),
                 'mac_address' => null,
                 'ip_address' => null,
                 'management_ip' => null,

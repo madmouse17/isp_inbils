@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -22,12 +23,17 @@ class ExportQuery
 {
     public const DEFAULT_MAX_ROWS = 100;
 
-    private Builder $query;
+    private const TRUNCATION_NOTICE = '# Export truncated at %d rows. Narrow the filters to export the remaining rows.';
+
+    /** Eloquent source, or already materialised rows (aggregate summaries keyed by column header). */
+    private Builder|array $query;
 
     /** @var array<int|string, mixed> */
     private array $columns = [];
 
     private string $filename = 'export';
+
+    private string $title = 'Export';
 
     private string $format = 'csv';
 
@@ -39,7 +45,8 @@ class ExportQuery
 
     private string $defaultDirection = 'asc';
 
-    private function __construct(Builder $query)
+    /** @param  Builder<*>|list<array<string, mixed>>  $query */
+    private function __construct(Builder|array $query)
     {
         $this->query = $query;
     }
@@ -47,6 +54,17 @@ class ExportQuery
     public static function make(Builder $query): self
     {
         return new self($query);
+    }
+
+    /**
+     * Export of rows that are not an Eloquent query. Shares the CSV (BOM, formula escaping) and
+     * PDF paths with make(); sorting and list constraints apply to queries only.
+     *
+     * @param  list<array<string, mixed>>  $rows  keyed by column header
+     */
+    public static function fromRows(array $rows): self
+    {
+        return new self($rows);
     }
 
     public static function resolveMaxRows(?int $override = null): int
@@ -67,7 +85,7 @@ class ExportQuery
         string $defaultSort = 'id',
         string $defaultDirection = 'asc',
     ): self {
-        self::applySort($this->query, $request, $sortable, $defaultSort, $defaultDirection);
+        self::applySort($this->builder(), $request, $sortable, $defaultSort, $defaultDirection);
         $this->request = $request;
 
         return $this;
@@ -86,7 +104,7 @@ class ExportQuery
         string $defaultSort = 'id',
         string $defaultDirection = 'asc',
     ): self {
-        self::applyListConstraints($this->query, $request, $searchable, $sortable, $defaultSort, $defaultDirection);
+        self::applyListConstraints($this->builder(), $request, $searchable, $sortable, $defaultSort, $defaultDirection);
         $this->request = $request;
 
         return $this;
@@ -198,7 +216,7 @@ class ExportQuery
 
     public function sort(string $column, string $direction = 'asc'): self
     {
-        $query = clone $this->query;
+        $query = clone $this->builder();
         $this->query = $query->reorder()->orderBy($column, strtolower($direction) === 'desc' ? 'desc' : 'asc');
 
         return $this;
@@ -223,8 +241,7 @@ class ExportQuery
      */
     public function streamPdf(string $title, array $columns, callable|array $map, string $filename): StreamedResponse
     {
-        // ponytail: title is kept for signature compatibility; plain-text PDF export does not render it yet.
-        unset($title);
+        $this->title = $title;
 
         return $this->columns($columns)->map(is_array($map) ? $map : $this->normalizeMap($map))->filename($filename)->streamPdfDownload();
     }
@@ -255,15 +272,70 @@ class ExportQuery
         return self::resolveMaxRows($this->maxRows);
     }
 
+    /** @return Builder<*> */
+    private function builder(): Builder
+    {
+        if (! $this->query instanceof Builder) {
+            throw new \LogicException('Sorting and list constraints need an Eloquent query.');
+        }
+
+        return $this->query;
+    }
+
+    /**
+     * cursor() skips eager loading, which would turn every relation into one query per row;
+     * lazy() chunks the query and keeps with().
+     *
+     * @return iterable<int, mixed>
+     */
+    private function rows(): iterable
+    {
+        if (is_array($this->query)) {
+            return $this->query;
+        }
+
+        $query = clone $this->query;
+        if ($query->getEagerLoads() === []) {
+            return $query->cursor();
+        }
+
+        // lazy() pages with LIMIT/OFFSET: a unique final order keeps chunks from repeating or dropping ties.
+        $key = $query->getModel()->getQualifiedKeyName();
+        $orderedColumns = array_column($query->getQuery()->orders ?? [], 'column');
+        if (! in_array($key, $orderedColumns, true) && ! in_array($query->getModel()->getKeyName(), $orderedColumns, true)) {
+            $query->orderBy($key);
+        }
+
+        return $query->lazy(500);
+    }
+
+    private function isTruncated(int $max): bool
+    {
+        if (is_array($this->query)) {
+            return count($this->query) > $max;
+        }
+
+        return (clone $this->query)->toBase()->offset($max)->limit(1)->exists();
+    }
+
+    /** @return array<string, string> */
+    private function downloadHeaders(string $contentType, int $max): array
+    {
+        return [
+            'Content-Type' => $contentType,
+            'X-Export-Truncated' => $this->isTruncated($max) ? '1' : '0',
+            'X-Export-Row-Cap' => (string) $max,
+        ];
+    }
+
     private function streamCsvDownload(): StreamedResponse
     {
         $columns = $this->columns;
         $headers = self::headerRow($columns);
         $filename = self::safeFilename($this->filename, 'csv');
-        $query = clone $this->query;
         $max = $this->maxRowsLimit();
 
-        return response()->streamDownload(function () use ($query, $columns, $headers, $max) {
+        return response()->streamDownload(function () use ($columns, $headers, $max) {
             $out = fopen('php://output', 'w');
             if ($out === false) {
                 return;
@@ -273,8 +345,9 @@ class ExportQuery
             fputcsv($out, $headers);
 
             $count = 0;
-            foreach ($query->cursor() as $row) {
+            foreach ($this->rows() as $row) {
                 if ($count >= $max) {
+                    fputcsv($out, [sprintf(self::TRUNCATION_NOTICE, $max)]);
                     break;
                 }
                 fputcsv($out, array_map(self::escapeCsvCell(...), self::dataRow($row, $columns)));
@@ -282,9 +355,7 @@ class ExportQuery
             }
 
             fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        }, $filename, $this->downloadHeaders('text/csv; charset=UTF-8', $max));
     }
 
     private function streamSpreadsheetDownload(string $ext): StreamedResponse
@@ -293,16 +364,15 @@ class ExportQuery
         $columns = $this->columns;
         $headers = self::headerRow($columns);
         $filename = self::safeFilename($this->filename, $ext);
-        $query = clone $this->query;
         $max = $this->maxRowsLimit();
         $contentType = $ext === 'xlsx'
             ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
             : 'application/octet-stream';
 
-        return response()->streamDownload(function () use ($query, $columns, $headers, $max) {
+        return response()->streamDownload(function () use ($columns, $headers, $max) {
             echo implode("\t", $headers)."\n";
             $count = 0;
-            foreach ($query->cursor() as $row) {
+            foreach ($this->rows() as $row) {
                 if ($count >= $max) {
                     break;
                 }
@@ -313,37 +383,36 @@ class ExportQuery
                 echo implode("\t", $line)."\n";
                 $count++;
             }
-        }, $filename, [
-            'Content-Type' => $contentType,
-        ]);
+        }, $filename, $this->downloadHeaders($contentType, $max));
     }
 
     private function streamPdfDownload(): StreamedResponse
     {
-        // ponytail: pdf is plain-text download until a PDF engine is required
+        $title = $this->title;
         $columns = $this->columns;
         $headers = self::headerRow($columns);
         $filename = self::safeFilename($this->filename, 'pdf');
-        $query = clone $this->query;
         $max = $this->maxRowsLimit();
 
-        return response()->streamDownload(function () use ($query, $columns, $headers, $max) {
-            echo implode(' | ', $headers)."\n";
-            echo str_repeat('-', 80)."\n";
-            $count = 0;
-            foreach ($query->cursor() as $row) {
-                if ($count >= $max) {
+        return response()->streamDownload(function () use ($headers, $max, $title, $columns) {
+            $rows = [];
+            $capped = false;
+            foreach ($this->rows() as $row) {
+                if (count($rows) >= $max) {
+                    $capped = true;
                     break;
                 }
-                echo implode(' | ', array_map(
-                    static fn ($v) => str_replace(["\r", "\n"], ' ', (string) $v),
-                    self::dataRow($row, $columns),
-                ))."\n";
-                $count++;
+                $rows[] = array_combine($headers, self::dataRow($row, $columns));
             }
-        }, $filename, [
-            'Content-Type' => 'application/pdf',
-        ]);
+
+            echo Pdf::loadView('exports.table', [
+                'title' => $title,
+                'headers' => $headers,
+                'rows' => $rows,
+                'capped' => $capped,
+                'maxRows' => $max,
+            ])->setPaper('a4', 'landscape')->setOption('isRemoteEnabled', false)->output();
+        }, $filename, $this->downloadHeaders('application/pdf', $max));
     }
 
     /** @param array<int|string, mixed> $columns @return array<int, string> */
@@ -469,7 +538,7 @@ class ExportQuery
             return $text;
         }
 
-        if (preg_match('/^[=@]/', $text) === 1) {
+        if (preg_match('/^[=@\t\r]/', $text) === 1) {
             return "'".$text;
         }
 
@@ -527,42 +596,13 @@ class ExportQuery
     }
 
     /**
-     * @param  iterable<int, array<string, mixed>>  $rows
-     * @param  array<int, string>|null  $header
-     */
-    public static function streamCsvFromRows(iterable $rows, string $filename, ?array $header = null): StreamedResponse
-    {
-        $filename = self::safeFilename($filename, 'csv');
-
-        return response()->streamDownload(function () use ($rows, $header) {
-            $out = fopen('php://output', 'w');
-            if ($out === false) {
-                return;
-            }
-
-            $headerWritten = false;
-            foreach ($rows as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                if (! $headerWritten) {
-                    fputcsv($out, $header ?? array_keys($row));
-                    $headerWritten = true;
-                }
-                fputcsv($out, array_values($row));
-            }
-
-            if (! $headerWritten && $header !== null) {
-                fputcsv($out, $header);
-            }
-
-            fclose($out);
-        }, $filename, [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
-    }
-
-    /**
+     * Expand a whole-row mapper into per-column resolvers keyed by header label.
+     * The mapper runs once per row; columns read from the memoized result.
+     *
+     * Columns arrive in two shapes, both keyed by the mapper's output key:
+     * `'field' => 'Header'` and `'Header' => 'data.path'`. A value that looks
+     * like a data path keeps the key as the header.
+     *
      * @param  callable|array<int|string, mixed>  $map
      * @return array<int|string, mixed>
      */
@@ -572,9 +612,23 @@ class ExportQuery
             return $map;
         }
 
+        $lastRow = null;
+        $lastValues = [];
+        $resolve = static function (mixed $row) use ($map, &$lastRow, &$lastValues): array {
+            if ($row !== $lastRow) {
+                $lastRow = $row;
+                $lastValues = (array) $map($row);
+            }
+
+            return $lastValues;
+        };
+
         $normalized = [];
-        foreach ($this->columns as $key => $resolver) {
-            $normalized[$key] = $map;
+        foreach ($this->columns as $key => $label) {
+            $field = is_string($key) ? $key : (string) $label;
+            $isDataPath = ! is_string($label) || preg_match('/^[a-z0-9_]+(\.[a-z0-9_]+)*$/', $label) === 1;
+            $header = is_string($key) && $isDataPath ? $key : (string) $label;
+            $normalized[$header] = static fn (mixed $row): mixed => $resolve($row)[$field] ?? null;
         }
 
         return $normalized;

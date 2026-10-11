@@ -28,11 +28,11 @@ class SLATierController extends Controller
     {
         Gate::authorize('viewAny', SLATier::class);
 
-        $slaTiers = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $slaTiers = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/SLATiers/Index', [
             'slaTiers' => SLATierResource::collection($slaTiers),
-            'filters' => $request->only(['search', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),

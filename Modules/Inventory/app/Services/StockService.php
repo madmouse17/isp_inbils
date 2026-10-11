@@ -5,12 +5,16 @@ namespace Modules\Inventory\Services;
 use App\Models\Core\Location;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Exceptions\InsufficientStockException;
+use Modules\Inventory\Models\InventoryRequestItem;
+use Modules\Inventory\Models\MaterialReturnLine;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Stock;
+use Modules\Inventory\Models\StockAdjustmentRequest;
 use Modules\Inventory\Models\StockMovement;
 use Modules\SPK\Models\WorkOrderItem;
 
@@ -25,6 +29,8 @@ class StockService
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'receive', $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, $note);
+
                 return $movement;
             }
 
@@ -65,6 +71,8 @@ class StockService
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'issue', $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, $note);
+
                 return $movement;
             }
 
@@ -152,17 +160,33 @@ class StockService
                 'created_by' => Auth::id(),
             ]);
 
+            AuditService::log('inventory', 'stock_transfer_out', [
+                'product_id' => $productId,
+                'from_location_id' => $fromLocationId,
+                'to_location_id' => $toLocationId,
+                'quantity' => $quantity,
+            ]);
+            AuditService::log('inventory', 'stock_transfer_in', [
+                'product_id' => $productId,
+                'from_location_id' => $fromLocationId,
+                'to_location_id' => $toLocationId,
+                'quantity' => $quantity,
+            ]);
+
             return [$out, $in];
         });
     }
 
-    public static function adjust(int $productId, int $locationId, float $newQuantity, string $note): StockMovement
+    /**
+     * @param  array<string, mixed>  $evidence  Extra audit properties (maker-checker ids, break-glass marker).
+     */
+    public static function adjust(int $productId, int $locationId, float $newQuantity, string $note, array $evidence = []): StockMovement
     {
         abort_if(empty($note), 422, 'Note is required for adjustment.');
         abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
         self::assertProductLocation($productId, $locationId);
 
-        return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note) {
+        return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note, $evidence) {
             self::assertProductLocation($productId, $locationId);
             $stock = self::lockedStock($productId, $locationId);
             if ($newQuantity < (float) $stock->reserved_quantity) {
@@ -170,6 +194,7 @@ class StockService
             }
 
             $delta = $newQuantity - (float) $stock->quantity;
+            $oldQuantity = (float) $stock->quantity;
 
             $stock->quantity = $newQuantity;
             $stock->save();
@@ -186,15 +211,131 @@ class StockService
                 'created_by' => Auth::id(),
             ]);
 
-            AuditService::log('inventory', 'stock_adjusted', [
+            AuditService::log('inventory', 'stock_adjustment', [
                 'product_id' => $productId,
                 'location_id' => $locationId,
+                'old_quantity' => $oldQuantity,
                 'new_quantity' => $newQuantity,
                 'delta' => $delta,
+                'note' => $note,
+                ...$evidence,
             ]);
 
             return $movement;
         });
+    }
+
+    public static function requestAdjustment(int $productId, int $locationId, float $newQuantity, string $reason, ?int $requesterId = null): StockAdjustmentRequest
+    {
+        abort_if(empty($reason), 422, 'Reason is required for adjustment request.');
+        abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
+        self::assertProductLocation($productId, $locationId);
+
+        $requesterId = $requesterId ?? Auth::id();
+        abort_if($requesterId === null, 401, 'Unauthenticated.');
+
+        $companyId = self::companyId();
+        // Read-only snapshot: a request must not create or lock stock rows; approval re-reads under lock.
+        $oldQuantity = (float) Stock::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where('product_id', $productId)
+            ->where('location_id', $locationId)
+            ->value('quantity');
+
+        return DB::transaction(function () use ($companyId, $productId, $locationId, $newQuantity, $reason, $requesterId, $oldQuantity) {
+            $adjustmentRequest = StockAdjustmentRequest::create([
+                'company_id' => $companyId,
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'old_quantity' => $oldQuantity,
+                'new_quantity' => $newQuantity,
+                'delta' => $newQuantity - $oldQuantity,
+                'reason' => $reason,
+                'status' => 'pending',
+                'requested_by' => $requesterId,
+            ]);
+
+            AuditService::log('inventory', 'stock_adjustment_requested', [
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'old_quantity' => $oldQuantity,
+                'new_quantity' => $newQuantity,
+                'reason' => $reason,
+                'requested_by' => $requesterId,
+            ], $adjustmentRequest);
+
+            return $adjustmentRequest;
+        });
+    }
+
+    public static function approveAdjustment(StockAdjustmentRequest $adjustmentRequest, ?int $approverId = null): StockMovement
+    {
+        $approverId = $approverId ?? Auth::id();
+        abort_if($approverId === null, 401, 'Unauthenticated.');
+
+        return DB::transaction(function () use ($adjustmentRequest, $approverId) {
+            $pending = self::lockedPendingAdjustment($adjustmentRequest, (int) $approverId, 'approve');
+
+            $movement = self::adjust(
+                $pending->product_id,
+                $pending->location_id,
+                (float) $pending->new_quantity,
+                $pending->reason,
+                [
+                    'adjustment_request_id' => $pending->id,
+                    'requested_by' => $pending->requested_by,
+                    'approved_by' => $approverId,
+                ],
+            );
+
+            $pending->update([
+                'status' => 'approved',
+                'approved_by' => $approverId,
+                'approved_at' => now(),
+            ]);
+
+            return $movement;
+        });
+    }
+
+    public static function rejectAdjustment(StockAdjustmentRequest $adjustmentRequest, string $rejectionReason, ?int $rejecterId = null): StockAdjustmentRequest
+    {
+        $rejecterId = $rejecterId ?? Auth::id();
+        abort_if($rejecterId === null, 401, 'Unauthenticated.');
+        abort_if(empty($rejectionReason), 422, 'Rejection reason is required.');
+
+        return DB::transaction(function () use ($adjustmentRequest, $rejectionReason, $rejecterId) {
+            $pending = self::lockedPendingAdjustment($adjustmentRequest, (int) $rejecterId, 'reject');
+
+            // shortcut: approved_by/approved_at double as reviewer and time for rejections (status tells which); split into rejected_by/rejected_at if reports need them apart.
+            $pending->update([
+                'status' => 'rejected',
+                'approved_by' => $rejecterId,
+                'approved_at' => now(),
+                'rejection_reason' => $rejectionReason,
+            ]);
+
+            AuditService::log('inventory', 'stock_adjustment_rejected', [
+                'product_id' => $pending->product_id,
+                'location_id' => $pending->location_id,
+                'requested_by' => $pending->requested_by,
+                'rejected_by' => $rejecterId,
+                'rejection_reason' => $rejectionReason,
+            ], $pending);
+
+            return $pending;
+        });
+    }
+
+    /** Re-read under lock so concurrent approve/reject cannot both pass the pending check. */
+    private static function lockedPendingAdjustment(StockAdjustmentRequest $adjustmentRequest, int $actorId, string $verb): StockAdjustmentRequest
+    {
+        $locked = StockAdjustmentRequest::query()->whereKey($adjustmentRequest->getKey())->lockForUpdate()->firstOrFail();
+
+        abort_if($locked->status !== 'pending', 422, 'Adjustment request is not pending.');
+        abort_if((int) $locked->requested_by === $actorId, 422, "Maker-checker: requester cannot {$verb} own stock adjustment request.");
+
+        return $locked;
     }
 
     public static function reserve(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
@@ -206,6 +347,8 @@ class StockService
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'reserve', $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, null);
+
                 return $movement;
             }
 
@@ -243,6 +386,8 @@ class StockService
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'release', $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, null);
+
                 return $movement;
             }
 
@@ -278,6 +423,8 @@ class StockService
             self::assertProductLocation($productId, $locationId);
             self::assertReference($refType, $refId);
             if ($movement = self::existingMovement($productId, $locationId, 'return', $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, $note);
+
                 return $movement;
             }
 
@@ -301,11 +448,109 @@ class StockService
         });
     }
 
+    public static function stockMovement(
+        int $productId,
+        ?int $fromLocationId,
+        ?int $toLocationId,
+        string $movementType,
+        float $quantity,
+        ?string $note = null,
+        ?string $refType = null,
+        ?int $refId = null
+    ): StockMovement {
+        abort_if($quantity <= 0, 422, 'Quantity must be positive for stock movement.');
+        abort_if($fromLocationId === null && $toLocationId === null, 422, 'At least one location must be provided.');
+        abort_if($fromLocationId !== null && $fromLocationId === $toLocationId, 422, 'From and to locations must differ.');
+
+        $signedQuantity = ($fromLocationId !== null && $toLocationId === null) ? -$quantity : $quantity;
+
+        return DB::transaction(function () use (
+            $productId,
+            $fromLocationId,
+            $toLocationId,
+            $movementType,
+            $quantity,
+            $signedQuantity,
+            $note,
+            $refType,
+            $refId
+        ) {
+            if ($fromLocationId !== null) {
+                self::assertProductLocation($productId, $fromLocationId);
+            }
+            if ($toLocationId !== null) {
+                self::assertProductLocation($productId, $toLocationId);
+            }
+            self::assertReference($refType, $refId);
+
+            $primaryLocationId = $toLocationId ?? $fromLocationId;
+            if ($movement = self::existingMovement($productId, $primaryLocationId, $movementType, $refType, $refId)) {
+                self::assertMovementMatches($movement, $quantity, $note);
+
+                return $movement;
+            }
+
+            $locIds = array_values(array_filter([$fromLocationId, $toLocationId]));
+            sort($locIds);
+
+            $stocks = self::lockedStocks($productId, $locIds);
+
+            $balanceAfter = 0.0;
+            $reservedAfter = 0.0;
+
+            if ($fromLocationId !== null) {
+                $fromStock = $stocks[$fromLocationId];
+                $available = (float) $fromStock->quantity - (float) $fromStock->reserved_quantity;
+                if ($available < $quantity) {
+                    throw InsufficientStockException::forIssue($quantity, $available);
+                }
+                $fromStock->quantity -= $quantity;
+                $fromStock->save();
+                $balanceAfter = (float) $fromStock->quantity;
+                $reservedAfter = (float) $fromStock->reserved_quantity;
+            }
+
+            if ($toLocationId !== null) {
+                $toStock = $stocks[$toLocationId];
+                $toStock->quantity += $quantity;
+                $toStock->save();
+                $balanceAfter = (float) $toStock->quantity;
+                $reservedAfter = (float) $toStock->reserved_quantity;
+            }
+
+            $movement = StockMovement::create([
+                'product_id' => $productId,
+                'from_location_id' => $fromLocationId,
+                'to_location_id' => $toLocationId,
+                'movement_type' => $movementType,
+                'quantity' => $signedQuantity,
+                'balance_after' => $balanceAfter,
+                'reserved_after' => $reservedAfter,
+                'reference_type' => $refType,
+                'reference_id' => $refId,
+                'note' => $note,
+                'created_by' => Auth::id(),
+            ]);
+
+            AuditService::log('inventory', 'stock_movement', [
+                'product_id' => $productId,
+                'from_location_id' => $fromLocationId,
+                'to_location_id' => $toLocationId,
+                'movement_type' => $movementType,
+                'quantity' => $quantity,
+            ]);
+
+            return $movement;
+        });
+    }
+
     private static function lockedStock(int $productId, int $locationId): Stock
     {
+        $companyId = self::companyId();
         self::ensureStock($productId, $locationId);
 
-        return Stock::query()
+        return Stock::withoutCompany()
+            ->where('company_id', $companyId)
             ->where('product_id', $productId)
             ->where('location_id', $locationId)
             ->lockForUpdate()
@@ -317,11 +562,13 @@ class StockService
      */
     private static function lockedStocks(int $productId, array $locationIds): array
     {
+        $companyId = self::companyId();
         foreach ($locationIds as $locationId) {
             self::ensureStock($productId, $locationId);
         }
 
-        return Stock::query()
+        return Stock::withoutCompany()
+            ->where('company_id', $companyId)
             ->where('product_id', $productId)
             ->whereIn('location_id', $locationIds)
             ->orderBy('location_id')
@@ -333,13 +580,32 @@ class StockService
 
     private static function ensureStock(int $productId, int $locationId): void
     {
+        $companyId = self::companyId();
+        if (Stock::withoutCompany()->where('company_id', $companyId)->where('product_id', $productId)->where('location_id', $locationId)->exists()) {
+            return;
+        }
+
         try {
-            Stock::query()->firstOrCreate(
-                ['product_id' => $productId, 'location_id' => $locationId],
+            Stock::withoutCompany()->firstOrCreate(
+                ['company_id' => $companyId, 'product_id' => $productId, 'location_id' => $locationId],
                 ['quantity' => 0, 'reserved_quantity' => 0]
             );
         } catch (QueryException) {
             // Concurrent insert won unique race; next locked read owns row.
+        }
+    }
+
+    private static function assertMovementMatches(StockMovement $movement, float $quantity, ?string $note): void
+    {
+        $existingQty = abs((float) $movement->quantity);
+        if (abs($existingQty - $quantity) > 0.0001) {
+            abort(409, "Idempotency conflict: Stock movement already exists with quantity {$existingQty}, but replay requested quantity {$quantity}.");
+        }
+
+        $existingNote = $movement->note !== null ? trim($movement->note) : '';
+        $incomingNote = $note !== null ? trim($note) : '';
+        if ($existingNote !== $incomingNote) {
+            abort(409, 'Idempotency conflict: Stock movement already exists with different note.');
         }
     }
 
@@ -373,22 +639,29 @@ class StockService
         $typeMap = self::referenceTypes();
         abort_unless(isset($typeMap[$refType]), 422, 'Stock reference type is not allowed.');
 
+        /** @var mixed $modelClass */
         $modelClass = $typeMap[$refType];
         abort_unless(
-            $modelClass::withoutCompany()->whereKey($refId)->where('company_id', self::companyId())->lockForUpdate()->first(),
+            (bool) $modelClass::withoutCompany()->whereKey($refId)->where('company_id', self::companyId())->lockForUpdate()->first(),
             422,
             'Stock reference is invalid for this company.'
         );
     }
 
-    /** @return array<string, class-string<WorkOrderItem>> */
+    /** @return array<string, class-string<Model>> */
     private static function referenceTypes(): array
     {
-        $type = (new WorkOrderItem())->getMorphClass();
+        $woType = (new WorkOrderItem())->getMorphClass();
+        $irItemType = (new InventoryRequestItem())->getMorphClass();
+        $mrLineType = (new MaterialReturnLine())->getMorphClass();
 
         return array_unique([
             WorkOrderItem::class => WorkOrderItem::class,
-            $type => WorkOrderItem::class,
+            $woType => WorkOrderItem::class,
+            InventoryRequestItem::class => InventoryRequestItem::class,
+            $irItemType => InventoryRequestItem::class,
+            MaterialReturnLine::class => MaterialReturnLine::class,
+            $mrLineType => MaterialReturnLine::class,
         ]);
     }
 
@@ -404,7 +677,7 @@ class StockService
     {
         $companyId = self::companyId();
 
-        abort_unless(Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid product for this company.');
-        abort_unless(Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid location for this company.');
+        abort_unless((bool) Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid product for this company.');
+        abort_unless((bool) Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid location for this company.');
     }
 }

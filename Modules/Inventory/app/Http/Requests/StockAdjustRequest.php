@@ -10,7 +10,7 @@ class StockAdjustRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('inventory.stock.adjust') ?? false;
+        return $this->user()?->can('inventory.stock.adjust.request') ?? false;
     }
 
     /** @return array<string, mixed> */

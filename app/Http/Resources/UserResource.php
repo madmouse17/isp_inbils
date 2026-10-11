@@ -2,9 +2,13 @@
 
 namespace App\Http\Resources;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin User
+ */
 class UserResource extends JsonResource
 {
     /** @return array<string, mixed> */
@@ -19,6 +23,9 @@ class UserResource extends JsonResource
             'last_login_at' => $this->last_login_at,
             'roles' => $this->roles->pluck('name')->values(),
             'created_at' => $this->created_at,
+            'can' => [
+                'delete' => $request->user()?->can('delete', $this->resource) ?? false,
+            ],
         ];
     }
 }

@@ -34,23 +34,113 @@ const roleExpectations: Record<
 > = {
     admin: {
         allowedPath: '/admin/users',
-        visible: ['Dashboard', 'Users', 'Roles', 'Permissions', 'Customers', 'Billing'],
-        hidden: [],
+        visible: [
+            'Dashboard',
+            'Users',
+            'Roles',
+            'Permissions',
+            'Customers',
+            'Billing',
+            'Organization',
+            'Company',
+            'Documents',
+            'Number Sequences',
+            'Service',
+            'Permintaan Barang',
+            'Approval',
+            'Dispatch',
+            'Technician Performance',
+        ],
+        // APP_ENV=e2e closes the developer gallery, so Komponen is hidden even for admin.
+        // The admin demo user has no employee profile, hence no Pekerjaan Saya.
+        hidden: ['Komponen', 'Pekerjaan Saya'],
     },
     manager: {
         allowedPath: '/admin/customers',
-        visible: ['Dashboard', 'Customers', 'Billing', 'Ticketing', 'Reports'],
-        hidden: ['Users', 'Roles', 'Permissions', 'Employees', 'Vehicles', 'Documents'],
+        visible: [
+            'Dashboard',
+            'Customers',
+            'Billing',
+            'Ticketing',
+            'Reports',
+            'Service',
+            'Permintaan Barang',
+            'Approval',
+            'Dispatch',
+            'Pekerjaan Saya',
+            'Technician Performance',
+        ],
+        hidden: [
+            'Users',
+            'Roles',
+            'Permissions',
+            'Employees',
+            'Vehicles',
+            'Documents',
+            'Number Sequences',
+            'Organization',
+            'Company',
+            'Komponen',
+        ],
     },
     staff: {
         allowedPath: '/admin/stocks',
-        visible: ['Dashboard', 'Customers', 'Inventory', 'Billing', 'Ticketing', 'Reports'],
-        hidden: ['Users', 'Roles', 'Permissions', 'Employees', 'Vehicles'],
+        visible: [
+            'Dashboard',
+            'Customers',
+            'Inventory',
+            'Billing',
+            'Ticketing',
+            'Reports',
+            'Service',
+            'Permintaan Barang',
+            'Pekerjaan Saya',
+        ],
+        hidden: [
+            'Users',
+            'Roles',
+            'Permissions',
+            'Employees',
+            'Vehicles',
+            'Documents',
+            'Number Sequences',
+            'Organization',
+            'Company',
+            // Operator persona (role-persona-sod): staff cannot approve, so the inbox is hidden.
+            'Approval',
+            'Dispatch',
+            'Technician Performance',
+            'Komponen',
+        ],
     },
     technician: {
         allowedPath: '/admin/spk',
-        visible: ['Dashboard', 'Customers', 'Inventory', 'Network Assets', 'SPK', 'Ticketing'],
-        hidden: ['Users', 'Roles', 'Service', 'Billing', 'Reports'],
+        visible: [
+            'Dashboard',
+            'Customers',
+            'Inventory',
+            'Network Assets',
+            'SPK',
+            'Ticketing',
+            'Permintaan Barang',
+            'Pekerjaan Saya',
+            'Evaluations',
+            'Technician Performance',
+        ],
+        hidden: [
+            'Users',
+            'Roles',
+            'Service',
+            'Billing',
+            'Reports',
+            'Documents',
+            'Number Sequences',
+            'Organization',
+            'Company',
+            'Approval',
+            'Dispatch',
+            'Komponen',
+        ],
     },
     customer: {
         allowedPath: '/admin/tickets',
@@ -64,6 +154,13 @@ const roleExpectations: Record<
             'SPK',
             'Billing',
             'Reports',
+            'Service',
+            'Permintaan Barang',
+            'Approval',
+            'Dispatch',
+            'Pekerjaan Saya',
+            'Technician Performance',
+            'Komponen',
         ],
         forbiddenPath: '/admin/customers',
     },
@@ -146,7 +243,8 @@ test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page
     );
 
     await expect(page.locator('html')).not.toHaveClass(/dark/);
-    await page.getByRole('button', { name: 'Toggle dark mode' }).click();
+    await openUserMenu(page);
+    await page.getByRole('menuitem', { name: 'Dark mode', exact: true }).click();
 
     await expect(page.locator('html')).toHaveClass(/dark/);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('darkMode'))).toBe('true');
@@ -165,8 +263,15 @@ async function login(page: Page, demoUser: DemoUser) {
 }
 
 async function logout(page: Page) {
-    await page.getByRole('button', { name: 'Logout' }).click();
+    // AdminLayout moved Logout into the user dropdown menu (Radix), so open
+    // the menu first and activate the menuitem instead of a page-level button.
+    await openUserMenu(page);
+    await page.getByRole('menuitem', { name: 'Logout', exact: true }).click();
     await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
+}
+
+async function openUserMenu(page: Page) {
+    await page.getByRole('button', { name: 'Open user menu' }).click();
 }
 
 async function expectShellFor(page: Page, demoUser: DemoUser) {
@@ -178,12 +283,31 @@ async function expectRoleSidebar(page: Page, role: DemoRole) {
     const sidebar = page.locator('aside');
     const expectation = roleExpectations[role];
 
+    await expandSidebarSections(sidebar);
+
     for (const label of expectation.visible) {
-        await expect(sidebar.getByRole('link', { name: label, exact: true })).toBeVisible();
+        await expect(sidebar.getByRole('link', { name: sidebarLabel(label) })).toBeVisible();
     }
 
     for (const label of expectation.hidden) {
-        await expect(sidebar.getByRole('link', { name: label, exact: true })).toHaveCount(0);
+        await expect(sidebar.getByRole('link', { name: sidebarLabel(label) })).toHaveCount(0);
+    }
+}
+
+// Approval, Dispatch and Pekerjaan Saya append a queue count to the accessible name
+// ("Approval 3"), so a link is matched by its label plus an optional trailing number.
+function sidebarLabel(label: string) {
+    return new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\d*$`);
+}
+
+async function expandSidebarSections(sidebar: ReturnType<Page['locator']>) {
+    // Sidebar sections are collapsible <details> groups (AdminLayout only opens the
+    // section containing the active route), so links outside the active section exist
+    // in the DOM but stay hidden until their <summary> is expanded.
+    const summaries = sidebar.locator('details:not([open]) > summary');
+
+    while ((await summaries.count()) > 0) {
+        await summaries.first().click();
     }
 }
 

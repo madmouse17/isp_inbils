@@ -34,16 +34,20 @@ class DashboardTest extends TestCase
         $this->admin->assignRole('admin');
     }
 
-    public function test_dashboard_returns_real_counts(): void
+    public function test_dashboard_returns_real_counts_in_the_admin_block(): void
     {
         $response = $this->actingAs($this->admin)->get(route('admin.dashboard'));
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
             ->has('company')
-            ->where('userCount', 1)
-            ->where('roleCount', 5)
-            ->has('modules', 7)
+            ->where('admin.userCount', 1)
+            ->where('admin.activeUserCount', 1)
+            ->where('admin.roleCount', 5)
+            ->has('admin.modules', 7)
+            ->missing('userCount')
+            ->missing('roleCount')
+            ->missing('modules')
         );
     }
 
@@ -53,11 +57,11 @@ class DashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => $page
-            ->where('userCount', 1)
-            ->has('modules', 7)
+            ->where('admin.userCount', 1)
+            ->has('admin.modules', 7)
         );
         // Verify Customer module count is 0
-        $modules = $response->inertiaProps()['modules'];
+        $modules = $response->inertiaProps('admin.modules');
         $customerModule = collect($modules)->firstWhere('name', 'Customer');
         $this->assertNotNull($customerModule);
         $this->assertEquals(0, $customerModule['count']);
@@ -71,6 +75,18 @@ class DashboardTest extends TestCase
         $response->assertInertia(fn ($page) => $page
             ->where('company.name', 'Test ISP')
             ->where('company.code', 'TEST')
+        );
+    }
+
+    public function test_dashboard_carries_the_persona_read_model_props(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => $page
+            ->has('sections')
+            ->where('notifications.unreadCount', 0)
+            ->where('notifications.data', [])
         );
     }
 }

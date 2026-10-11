@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Routing\Route;
 use Illuminate\Support\Facades\Validator;
 use Modules\Reporting\Http\Requests\ReportFilterRequest;
 use Tests\TestCase;
@@ -70,5 +71,48 @@ class ReportFilterValidationTest extends TestCase
         $this->get(route('admin.reports.business'))->assertOk();
         $this->get(route('admin.reports.business', ['date_from' => '2026-01-01']))->assertOk();
         $this->get(route('admin.reports.business', ['date_to' => '2026-01-31']))->assertOk();
+    }
+
+    public function test_authorize_follows_the_matched_route_name(): void
+    {
+        $user = new class()
+        {
+            public function can(string $permission): bool
+            {
+                return $permission === 'report.sla.view';
+            }
+        };
+
+        $this->assertTrue($this->filterRequestOnRoute('admin.reports.sla', $user)->authorize());
+        $this->assertFalse($this->filterRequestOnRoute('admin.reports.business', $user)->authorize());
+        $this->assertFalse($this->filterRequestOnRoute('admin.reports.audit-log', $user)->authorize());
+    }
+
+    public function test_requests_without_a_known_report_route_are_denied_even_for_an_all_powerful_user(): void
+    {
+        $superUser = new class()
+        {
+            public function can(string $permission): bool
+            {
+                return true;
+            }
+        };
+
+        $unmatched = ReportFilterRequest::create('/admin/reports/sla', 'GET');
+        $unmatched->setUserResolver(fn () => $superUser);
+        $this->assertFalse($unmatched->authorize());
+
+        $this->assertFalse($this->filterRequestOnRoute('admin.reports.unknown', $superUser)->authorize());
+        $this->assertFalse($this->filterRequestOnRoute('admin.reports.index', $superUser)->authorize());
+    }
+
+    private function filterRequestOnRoute(string $routeName, object $user): ReportFilterRequest
+    {
+        $route = (new Route('GET', '/admin/reports/sla', []))->name($routeName);
+        $request = ReportFilterRequest::create('/admin/reports/sla', 'GET');
+        $request->setRouteResolver(fn () => $route);
+        $request->setUserResolver(fn () => $user);
+
+        return $request;
     }
 }

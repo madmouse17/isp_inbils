@@ -28,11 +28,11 @@ class BandwidthProfileController extends Controller
     {
         Gate::authorize('viewAny', BandwidthProfile::class);
 
-        $bandwidthProfiles = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $bandwidthProfiles = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/BandwidthProfiles/Index', [
             'bandwidthProfiles' => BandwidthProfileResource::collection($bandwidthProfiles),
-            'filters' => $request->only(['search', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),

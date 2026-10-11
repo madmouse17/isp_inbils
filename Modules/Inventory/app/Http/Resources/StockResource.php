@@ -18,6 +18,7 @@ class StockResource extends JsonResource
             'quantity' => $this->quantity,
             'reserved_quantity' => $this->reserved_quantity,
             'available' => $this->available,
+            'product' => new ProductResource($this->whenLoaded('product')),
             'location' => new LocationResource($this->whenLoaded('location')),
         ];
     }

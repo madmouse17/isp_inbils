@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
@@ -13,6 +14,8 @@ use Tests\TestCase;
 
 class BillingFailureNotificationTest extends TestCase
 {
+    use RefreshDatabase;
+
     protected function setUp(): void
     {
         parent::setUp();

@@ -27,6 +27,7 @@ class CustomerService
                 'company_id' => CompanyService::currentId(),
                 'email_verified_at' => now(),
             ])->save();
+            app(CompanyMembershipService::class)->grant($user, CompanyService::current() ?? abort(403), true);
             $user->assignRole('customer');
             $customer->forceFill(['user_id' => $user->id])->save();
 

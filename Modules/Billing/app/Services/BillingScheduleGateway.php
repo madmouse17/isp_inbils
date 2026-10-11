@@ -11,13 +11,13 @@ class BillingScheduleGateway
     /**
      * @return array{created:int, skipped:int, rows:list<array<string, mixed>>}
      */
-    public function generateForPeriod(string $period, bool $dryRun = false): array
+    public function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
-        return BillingService::generateForPeriod($period, $dryRun);
+        return BillingService::generateForPeriod($period, $dryRun, $companyId);
     }
 
-    public function checkOverdue(): void
+    public function checkOverdue(?int $companyId = null): void
     {
-        BillingService::checkOverdue();
+        BillingService::checkOverdue($companyId);
     }
 }

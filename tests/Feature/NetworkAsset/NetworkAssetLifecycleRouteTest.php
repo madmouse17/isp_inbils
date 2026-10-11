@@ -3,12 +3,15 @@
 namespace Tests\Feature\NetworkAsset;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NetworkAssetService;
+use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -35,6 +38,7 @@ class NetworkAssetLifecycleRouteTest extends TestCase
 
         $permissions = [
             'network_asset.create',
+            'network_asset.install',
             'network_asset.maintenance',
             'network_asset.repair',
             'network_asset.retire',
@@ -160,5 +164,75 @@ class NetworkAssetLifecycleRouteTest extends TestCase
 
         $this->post(route('admin.network-assets.remove', $asset), ['reason' => 'not installed'])
             ->assertStatus(422);
+    }
+
+    public function test_install_route_rejects_soft_deleted_location_without_writing(): void
+    {
+        $asset = $this->makeAsset('available');
+        $this->location->delete();
+
+        $this->post(route('admin.network-assets.install', $asset), [
+            'location_id' => $this->location->id,
+        ])->assertSessionHasErrors('location_id');
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_route_rejects_soft_deleted_customer_without_writing(): void
+    {
+        $asset = $this->makeAsset('available');
+        $customer = Customer::factory()->create(['company_id' => $this->company->id]);
+        $customer->delete();
+
+        $this->post(route('admin.network-assets.install', $asset), [
+            'location_id' => $this->location->id,
+            'customer_id' => $customer->id,
+        ])->assertSessionHasErrors('customer_id');
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_route_rejects_soft_deleted_subscription_without_writing(): void
+    {
+        $asset = $this->makeAsset('available');
+        $customer = Customer::factory()->create(['company_id' => $this->company->id]);
+        $subscription = ServiceSubscription::factory()->create([
+            'company_id' => $this->company->id,
+            'customer_id' => $customer->id,
+        ]);
+        $subscription->delete();
+
+        $this->post(route('admin.network-assets.install', $asset), [
+            'location_id' => $this->location->id,
+            'customer_id' => $customer->id,
+            'subscription_id' => $subscription->id,
+        ])->assertSessionHasErrors('subscription_id');
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
+    }
+
+    public function test_install_route_rejects_soft_deleted_work_order_without_writing(): void
+    {
+        $asset = $this->makeAsset('available');
+        $customer = Customer::factory()->create(['company_id' => $this->company->id]);
+        $workOrder = WorkOrderFactory::new()->create([
+            'company_id' => $this->company->id,
+            'customer_id' => $customer->id,
+            'location_id' => $this->location->id,
+            'created_by' => $this->admin->id,
+        ]);
+        $workOrder->delete();
+
+        $this->post(route('admin.network-assets.install', $asset), [
+            'location_id' => $this->location->id,
+            'customer_id' => $customer->id,
+            'spk_id' => $workOrder->id,
+        ])->assertSessionHasErrors('spk_id');
+
+        $this->assertSame('available', $asset->fresh()->status);
+        $this->assertDatabaseMissing('network_asset_installations', ['network_asset_id' => $asset->id]);
     }
 }

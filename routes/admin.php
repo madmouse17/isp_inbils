@@ -1,14 +1,19 @@
 <?php
 
+use App\Http\Controllers\Admin\ApprovalInboxController;
 use App\Http\Controllers\Admin\CompanyController;
+use App\Http\Controllers\Admin\CompanySwitchController;
 use App\Http\Controllers\Admin\CustomerAddressController;
 use App\Http\Controllers\Admin\CustomerContactController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\DispatchQueueController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EmployeeController;
 use App\Http\Controllers\Admin\EvaluationController;
 use App\Http\Controllers\Admin\LocationController;
+use App\Http\Controllers\Admin\MyWorkController;
+use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\NumberSequenceController;
 use App\Http\Controllers\Admin\OrganizationController;
 use App\Http\Controllers\Admin\PermissionController;
@@ -19,13 +24,23 @@ use App\Http\Controllers\Admin\VehicleController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
+
+    Route::get('approvals', [ApprovalInboxController::class, 'index'])->name('approvals.index');
+    Route::get('dispatch', [DispatchQueueController::class, 'index'])->name('dispatch.index');
+    Route::post('dispatch/assign', [DispatchQueueController::class, 'assign'])->name('dispatch.assign');
+    Route::get('my-work', [MyWorkController::class, 'index'])->name('my-work.index');
+
+    Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::patch('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::patch('notifications/{notification}/read', [NotificationController::class, 'read'])->name('notifications.read');
 
     Route::get('company/profile', [CompanyController::class, 'editProfile'])->name('company.profile.edit');
     Route::put('company/profile', [CompanyController::class, 'updateProfile'])->name('company.profile.update');
     Route::get('company/settings', [CompanyController::class, 'editSettings'])->name('company.settings.edit');
     Route::put('company/settings', [CompanyController::class, 'updateSettings'])->name('company.settings.update');
+    Route::post('company/switch', CompanySwitchController::class)->name('company.switch');
 
     Route::get('users/export', [UserController::class, 'export'])->name('users.export');
     Route::resource('users', UserController::class);
@@ -34,7 +49,7 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
 
-    Route::group(['prefix' => 'locations', 'as' => 'locations.'], function () {
+    Route::prefix('locations')->name('locations.')->group(function () {
         Route::get('/', [LocationController::class, 'index'])->name('index');
         Route::post('/', [LocationController::class, 'store'])->name('store');
         Route::put('/{location}', [LocationController::class, 'update'])->name('update');
@@ -43,10 +58,13 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
     });
 
     Route::get('components', function () {
-        abort_unless(app()->isLocal(), 404);
+        // Developer-only gallery. Fail-closed by default: not even an admin
+        // may open it outside a non-production environment. No secrets or
+        // debug payloads live here, so 404 keeps the route obscure.
+        abort_unless(app()->environment(['local', 'testing']), 404);
 
         return Inertia::render('Admin/Components');
-    })->middleware('can:system.setting')->name('components');
+    })->middleware('can:developer.components.view')->name('components');
 
     // Customer management
     Route::get('customers/{customer}/addresses/export', [CustomerAddressController::class, 'export'])->name('customers.addresses.export');
@@ -94,7 +112,7 @@ Route::middleware(['web', 'auth', 'verified', 'require.has.company'])->prefix('a
 
     // Documents (types + media)
     Route::get('documents/export', [DocumentController::class, 'export'])->name('documents.export');
-    Route::resource('documents', DocumentController::class)->except(['create', 'edit', 'show']);
+    Route::resource('documents', DocumentController::class, ['parameters' => ['documents' => 'document_type']])->except(['create', 'edit', 'show']);
     Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
     Route::delete('documents/media/{media}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 });

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Rules\NoSodConflict;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -19,7 +20,7 @@ class UpdateRoleRequest extends FormRequest
 
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('roles', 'name')->where('guard_name', 'web')->ignore($role?->id)],
-            'permissions' => ['array'],
+            'permissions' => ['array', new NoSodConflict($this->user())],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ];
     }

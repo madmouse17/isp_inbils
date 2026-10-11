@@ -1,0 +1,272 @@
+{
+    "destinations": [
+        {
+            "group": null,
+            "label": "Dashboard",
+            "href": "/admin/dashboard",
+            "route": "admin.dashboard",
+            "anyOf": ["dashboard.view"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Organization",
+            "href": "/admin/organizations",
+            "route": "admin.organizations.index",
+            "anyOf": ["organization.view"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Company",
+            "href": "/admin/company/profile",
+            "route": "admin.company.profile.edit",
+            "anyOf": ["company.manage"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Users",
+            "href": "/admin/users",
+            "route": "admin.users.index",
+            "anyOf": ["users.manage"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Roles",
+            "href": "/admin/roles",
+            "route": "admin.roles.index",
+            "anyOf": ["roles.manage"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Permissions",
+            "href": "/admin/permissions",
+            "route": "admin.permissions.index",
+            "anyOf": ["users.manage"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Documents",
+            "href": "/admin/documents",
+            "route": "admin.documents.index",
+            "anyOf": ["system.setting"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Number Sequences",
+            "href": "/admin/number-sequences",
+            "route": "admin.number-sequences.index",
+            "anyOf": ["system.setting"]
+        },
+        {
+            "group": "Company/Admin",
+            "label": "Komponen",
+            "href": "/admin/components",
+            "route": "admin.components",
+            "anyOf": ["developer.components.view"],
+            "flag": "developerGalleryEnabled"
+        },
+        {
+            "group": "CRM/Operations",
+            "label": "Customers",
+            "href": "/admin/customers",
+            "route": "admin.customers.index",
+            "anyOf": ["customer.view"]
+        },
+        {
+            "group": "CRM/Operations",
+            "label": "Locations",
+            "href": "/admin/locations",
+            "route": "admin.locations.index",
+            "anyOf": ["location.view"]
+        },
+        {
+            "group": "CRM/Operations",
+            "label": "Employees",
+            "href": "/admin/employees",
+            "route": "admin.employees.index",
+            "anyOf": ["employee.view"]
+        },
+        {
+            "group": "CRM/Operations",
+            "label": "Vehicles",
+            "href": "/admin/vehicles",
+            "route": "admin.vehicles.index",
+            "anyOf": ["vehicle.view"]
+        },
+        {
+            "group": "Service",
+            "label": "Service",
+            "href": "/admin/service-packages",
+            "route": "admin.service-packages.index",
+            "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Service",
+            "label": "Bandwidth Profiles",
+            "href": "/admin/bandwidth-profiles",
+            "route": "admin.bandwidth-profiles.index",
+            "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Service",
+            "label": "Speed Profiles",
+            "href": "/admin/speed-profiles",
+            "route": "admin.speed-profiles.index",
+            "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Service",
+            "label": "SLA Tiers",
+            "href": "/admin/sla-tiers",
+            "route": "admin.sla-tiers.index",
+            "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Permintaan Barang",
+            "href": "/admin/inventory/requests",
+            "route": "admin.inventory.requests.index",
+            "anyOf": ["inventory.request.view.own", "inventory.request.view.all"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Inventory",
+            "href": "/admin/products",
+            "route": "admin.products.index",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Categories",
+            "href": "/admin/categories",
+            "route": "admin.categories.index",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Units",
+            "href": "/admin/units",
+            "route": "admin.units.index",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Stocks",
+            "href": "/admin/stocks",
+            "route": "admin.stocks.index",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Item Finder",
+            "href": "/admin/inventory/find",
+            "route": "admin.inventory.find",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Inventory",
+            "label": "Stock Movements",
+            "href": "/admin/stock-movements",
+            "route": "admin.stock-movements.index",
+            "anyOf": ["inventory.view"]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "Network Assets",
+            "href": "/admin/network-assets",
+            "route": "admin.network-assets.index",
+            "anyOf": ["network_asset.view"]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "SPK",
+            "href": "/admin/spk",
+            "route": "admin.spk.index",
+            "anyOf": ["spk.view"]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "Approval",
+            "href": "/admin/approvals",
+            "route": "admin.approvals.index",
+            "anyOf": [
+                "spk.approve",
+                "spk.reject",
+                "inventory.request.approve",
+                "inventory.request.reject"
+            ]
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "Dispatch",
+            "href": "/admin/dispatch",
+            "route": "admin.dispatch.index",
+            "anyOf": ["ticket.assign", "ticket.reassign", "spk.assign", "spk.reassign"],
+            "flag": "isActiveUser"
+        },
+        {
+            "group": "Network/Work Orders",
+            "label": "Pekerjaan Saya",
+            "href": "/admin/my-work",
+            "route": "admin.my-work.index",
+            "anyOf": [],
+            "flag": "canMyWork"
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Billing",
+            "href": "/admin/invoices",
+            "route": "admin.invoices.index",
+            "anyOf": ["billing.view"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Tunggakan",
+            "href": "/admin/billing/receivables",
+            "route": "admin.billing.receivables",
+            "anyOf": ["billing.view"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Ticketing",
+            "href": "/admin/tickets",
+            "route": "admin.tickets.index",
+            "anyOf": ["ticket.view"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Evaluations",
+            "href": "/admin/evaluations",
+            "route": "admin.evaluations.index",
+            "anyOf": ["evaluation.view", "evaluation.view.own"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Reports",
+            "href": "/admin/reports",
+            "route": "admin.reports.index",
+            "anyOf": ["report.view"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Technician Performance",
+            "href": "/admin/reports/technician",
+            "route": "admin.reports.technician",
+            "anyOf": ["report.technician"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Sales KPI",
+            "href": "/admin/reports/sales",
+            "route": "admin.reports.sales",
+            "anyOf": ["report.sales.view"]
+        },
+        {
+            "group": "Finance/Reports",
+            "label": "Consolidated Metrics",
+            "href": "/admin/reports/consolidated",
+            "route": "admin.reports.consolidated",
+            "anyOf": ["report.consolidated.view"],
+            "flag": "canConsolidate"
+        }
+    ]
+}

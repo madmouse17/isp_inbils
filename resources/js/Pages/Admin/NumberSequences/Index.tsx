@@ -1,6 +1,6 @@
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import { LoadingState, PageHeader } from '@/Components/composite';
 import {
     Badge,
     Card,
@@ -13,6 +13,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { useVisitPending } from '@/hooks/useVisitPending';
 
 interface SeqRow {
     id: number;
@@ -28,6 +29,8 @@ interface IndexProps extends Record<string, unknown> {
 }
 
 export default function Index({ sequences }: IndexProps) {
+    const { pending, callbacks } = useVisitPending();
+
     return (
         <AdminLayout title="Number Sequences">
             <div className="space-y-6">
@@ -37,46 +40,55 @@ export default function Index({ sequences }: IndexProps) {
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Entity</TH>
-                                    <TH>Prefix</TH>
-                                    <TH>Next #</TH>
-                                    <TH>Padding</TH>
-                                    <TH>Year</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {sequences.data.length === 0 ? (
+                        {pending ? (
+                            <LoadingState variant="rows" />
+                        ) : (
+                            <Table>
+                                <THead>
                                     <TR>
-                                        <TD
-                                            colSpan={5}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
+                                        <TH>Entity</TH>
+                                        <TH>Prefix</TH>
+                                        <TH>Next #</TH>
+                                        <TH>Padding</TH>
+                                        <TH>Year</TH>
                                     </TR>
-                                ) : (
-                                    sequences.data.map((s) => (
-                                        <TR key={s.id}>
-                                            <TD>
-                                                <Badge variant="neutral">{s.entity_type}</Badge>
+                                </THead>
+                                <TBody>
+                                    {sequences.data.length === 0 ? (
+                                        <TR>
+                                            <TD
+                                                colSpan={5}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No data found.
                                             </TD>
-                                            <TD className="font-mono">{s.prefix}</TD>
-                                            <TD>{s.next_number}</TD>
-                                            <TD>{s.padding}</TD>
-                                            <TD>{s.year_suffix ? 'Yes' : 'No'}</TD>
                                         </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
+                                    ) : (
+                                        sequences.data.map((s) => (
+                                            <TR key={s.id}>
+                                                <TD>
+                                                    <Badge variant="neutral">{s.entity_type}</Badge>
+                                                </TD>
+                                                <TD className="font-mono">{s.prefix}</TD>
+                                                <TD>{s.next_number}</TD>
+                                                <TD>{s.padding}</TD>
+                                                <TD>{s.year_suffix ? 'Yes' : 'No'}</TD>
+                                            </TR>
+                                        ))
+                                    )}
+                                </TBody>
+                            </Table>
+                        )}
                         <Pagination
                             currentPage={sequences.current_page}
                             lastPage={sequences.last_page}
+                            disabled={pending}
                             onPageChange={(page) =>
-                                router.get(route('admin.number-sequences.index'), { page })
+                                router.get(
+                                    route('admin.number-sequences.index'),
+                                    { page },
+                                    { preserveState: true, ...callbacks },
+                                )
                             }
                         />
                     </CardContent>

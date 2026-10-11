@@ -383,7 +383,7 @@ function TreeItem({
                     {can.update && (
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="warning"
                             size="sm"
                             onClick={() => onEdit(location)}
                         >

@@ -18,6 +18,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { ArrowLeft } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
 
 interface InstallRow {
@@ -99,13 +100,23 @@ export default function Show({ asset, locations }: ShowProps) {
                     title={a.name}
                     subtitle={`${a.code} · ${a.status}`}
                     actions={
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => router.get(route('admin.network-assets.index'))}
-                        >
-                            Back
-                        </Button>
+                        <>
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.network-assets.index')}>Back</Link>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => router.get(route('admin.network-assets.edit', a.id))}
+                            >
+                                Edit
+                            </Button>
+                        </>
                     }
                 />
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">

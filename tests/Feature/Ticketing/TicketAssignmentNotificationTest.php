@@ -41,7 +41,7 @@ class TicketAssignmentNotificationTest extends TestCase
 
         $ticket = $this->makeOpenTicket($admin, 'TKT-2026-00001');
 
-        TicketService::assign($ticket, $handler->id, $admin->id);
+        TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
 
         Notification::assertSentTo($handler, TicketAssignedNotification::class, function ($n) use ($ticket) {
             return $n->ticketId === $ticket->id;
@@ -63,12 +63,13 @@ class TicketAssignmentNotificationTest extends TestCase
         $handler->assignRole('technician');
 
         $ticket = $this->makeOpenTicket($admin, 'TKT-2026-00002');
-        TicketService::assign($ticket, $handler->id, $admin->id);
+        TicketService::assign($ticket, $handler->id, $admin->id, null, $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
 
         Notification::fake();
         // Force open again with same handler already set — no re-notify when assignee unchanged.
         $ticket->update(['status' => 'open', 'assigned_to' => $handler->id]);
-        TicketService::assign($ticket->fresh(), $handler->id, $admin->id);
+        $ticket = $ticket->fresh();
+        TicketService::assign($ticket, $handler->id, $admin->id, $handler->id, $ticket->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'));
 
         Notification::assertNothingSent();
     }

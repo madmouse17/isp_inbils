@@ -10,6 +10,8 @@
  *   - /ready exposes only the scheduler smoke state
  *   - former scaffold API paths return 404 for guest and auth
  * - Scheduler heartbeat state setup: ReadinessEndpointTest::test_scheduler_heartbeat_command_makes_ready_probe_report_ok
+ * - Scheduler overlap protection: SchedulerLockTest::test_billing_schedules_use_without_overlapping
+ * - Former API containment: ApiExposureTest (guest/auth, all HTTP methods, member, query, trailing-slash variants)
  *
  * Run only this manifest with `npm run test:e2e:ops-smoke`.
  * The guarded E2E reset owns data cleanup; unique() isolates records within the one-worker run.
@@ -48,6 +50,13 @@ export const datatableCustomerNames = [
     'Axiom Fiber',
     'Bima Fiber',
 ] as const;
+
+export const receivableCustomerNames = datatableCustomerNames;
+
+export const receivableGrandTotal = receivableCustomerNames.reduce(
+    (total, _name, index) => total + (index + 1) * 10000,
+    120000,
+);
 
 export function unique(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -101,7 +110,43 @@ export async function loginAs(page: Page, role: DemoRole = 'admin') {
 }
 
 export async function logout(page: Page) {
-    await page.goto('/logout');
+    await page.context().clearCookies();
+    await page.goto('/login');
+}
+
+/**
+ * Resolve the current session CSRF token for raw `page.request` posts.
+ * The app renders no `meta[name="csrf-token"]` tag (Laravel issues the
+ * `XSRF-TOKEN` cookie instead), so read that cookie from the browser context
+ * and URL-decode it.
+ *
+ * IMPORTANT: send the decoded value via the `X-XSRF-TOKEN` header, NOT
+ * `X-CSRF-TOKEN`. Laravel's `VerifyCsrfToken::getTokenFromRequest()` only
+ * *decrypts* the `X-XSRF-TOKEN` header before comparing it to the session
+ * token; `X-CSRF-TOKEN` is compared raw and the cookie value is encrypted, so
+ * `X-CSRF-TOKEN` always mismatches and surfaces as 419. Verified empirically:
+ * `X-XSRF-TOKEN` + decoded cookie yields the expected 403 on a denied route.
+ */
+export async function csrfToken(page: Page) {
+    const cookies = await page.context().cookies();
+    const raw = cookies.find((cookie) => cookie.name === 'XSRF-TOKEN')?.value;
+    if (!raw) {
+        throw new Error('No XSRF-TOKEN cookie in the current browser context');
+    }
+    return decodeURIComponent(raw);
+}
+
+/**
+ * `page.request` (APIRequestContext) shares the browser context's cookie jar:
+ * the response's session/XSRF Set-Cookie headers are applied synchronously, so
+ * after a real GET the freshly-read `csrfToken()` matches the live session.
+ * Call this between a login switch and a raw POST that asserts on 403 — a 419
+ * there means the token is stale, not that authorization failed.
+ */
+export async function refreshSession(page: Page, url = '/admin/stocks') {
+    const response = await page.request.get(url);
+    expect([200, 403]).toContain(response.status());
+    return csrfToken(page);
 }
 
 export const PNG_1X1 = Buffer.from(
@@ -175,4 +220,24 @@ export async function technicianUserId(page: Page) {
         throw new Error('Could not resolve Demo Technician user id');
     }
     return id;
+}
+
+/**
+ * Fetch a page via the request context (inherits the browser session) and return
+ * its decoded Inertia page object. Lets specs resolve real record ids from
+ * server-rendered props instead of hard-coding fixed IDs.
+ */
+export async function inertiaProps(page: Page, url: string) {
+    const resp = await page.request.get(url, { headers: { Accept: 'text/html' } });
+    const html = await resp.text();
+    const match = html.match(/data-page="([^"]*)"/);
+    if (!match) throw new Error(`No Inertia data-page on ${url}`);
+    const json = match[1]
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return JSON.parse(json) as { props?: Record<string, any> };
 }

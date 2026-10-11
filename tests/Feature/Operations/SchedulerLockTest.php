@@ -17,12 +17,12 @@ class SchedulerLockTest extends TestCase
 
         $generate = $events->first(fn (Event $e) => str_contains($e->command ?? $e->description ?? '', 'billing:generate'));
         $overdue = $events->first(fn (Event $e) => str_contains($e->command ?? $e->description ?? '', 'billing:check-overdue'));
-        $sla = $events->first(fn (Event $e) => str_contains($e->command ?? $e->description ?? '', 'tickets:check-sla'));
+        $sla = $events->first(fn (Event $e) => str_contains($e->command ?? $e->description ?? '', 'tickets:sla'));
         $heartbeat = $events->first(fn (Event $e) => str_contains($e->command ?? $e->description ?? '', 'ops:scheduler-heartbeat'));
 
         $this->assertNotNull($generate, 'billing:generate schedule missing');
         $this->assertNotNull($overdue, 'billing:check-overdue schedule missing');
-        $this->assertNotNull($sla, 'tickets:check-sla schedule missing');
+        $this->assertNotNull($sla, 'tickets:sla schedule missing');
         $this->assertNotNull($heartbeat, 'ops:scheduler-heartbeat schedule missing');
 
         $this->assertTrue(
@@ -35,7 +35,7 @@ class SchedulerLockTest extends TestCase
         );
         $this->assertTrue(
             $this->eventHasWithoutOverlapping($sla),
-            'tickets:check-sla must use withoutOverlapping()'
+            'tickets:sla must use withoutOverlapping()'
         );
     }
 

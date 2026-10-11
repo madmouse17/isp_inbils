@@ -35,7 +35,7 @@ class CustomerContactFactory extends Factory
 
             $customer = $contact->relationLoaded('customer')
                 ? $contact->customer
-                : Customer::query()->find($contact->customer_id);
+                : Customer::withoutCompany()->find($contact->customer_id);
 
             // If customer_id is still a factory instance unresolved, create it now.
             if (! $customer && $contact->customer_id) {

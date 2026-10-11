@@ -5,7 +5,8 @@ import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import {
@@ -18,6 +19,7 @@ import {
 import { useCan } from '@/hooks/useCan';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate } from '@/lib/format';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 type AssetRow = {
     id: number;
@@ -31,28 +33,11 @@ type AssetRow = {
     parent?: { id: number; name: string; code?: string } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
-};
-
 type Props = {
-    assets: Paginator<AssetRow>;
+    assets: PaginationLike<AssetRow>;
     filters: {
         search?: string;
-        type?: string;
+        asset_type?: string;
         status?: string;
         sort_by?: string;
         sort_dir?: string;
@@ -69,14 +54,15 @@ export default function NetworkAssetsIndex({
     statusOptions = [],
 }: Props) {
     const can = useCan();
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+    const pagination = toPagination(assets);
+    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
-            type: filters.type ?? '',
+            asset_type: filters.asset_type ?? '',
             status: filters.status ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? assets.per_page,
+            per_page: filters.per_page ?? pagination.per_page,
         },
         { only: ['assets', 'filters'] },
     );
@@ -112,6 +98,16 @@ export default function NetworkAssetsIndex({
                 cell: (row) => row.asset_type,
             },
             {
+                key: 'serial_number',
+                header: 'Serial',
+                cell: (row) =>
+                    row.serial_number ? (
+                        <span className="font-mono text-sm">{row.serial_number}</span>
+                    ) : (
+                        '—'
+                    ),
+            },
+            {
                 key: 'status',
                 header: 'Status',
                 sortable: true,
@@ -130,6 +126,14 @@ export default function NetworkAssetsIndex({
                 sortKey: 'created_at',
                 cell: (row) => formatDate(row.created_at),
             },
+            {
+                key: 'actions',
+                header: 'Actions',
+                className: 'text-right',
+                cell: (row) => (
+                    <DataTableActions showHref={route('admin.network-assets.show', row.id)} />
+                ),
+            },
         ],
         [],
     );
@@ -147,9 +151,10 @@ export default function NetworkAssetsIndex({
                                 exportUrl={route('admin.network-assets.export')}
                                 params={params}
                                 canExport={can('network_asset.export')}
+                                formats={['csv', 'pdf']}
                             />
                             {can('network_asset.create') && (
-                                <Button asChild size="sm">
+                                <Button asChild size="sm" variant="success">
                                     <Link href={route('admin.network-assets.create')}>
                                         <Plus className="size-4" />
                                         New asset
@@ -178,10 +183,10 @@ export default function NetworkAssetsIndex({
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-muted-foreground">Type</label>
                         <Select
-                            value={params.type || '__all__'}
-                            onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
+                            value={params.asset_type || '__all__'}
+                            onValueChange={(v) => set('asset_type', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Type" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -200,7 +205,7 @@ export default function NetworkAssetsIndex({
                             value={params.status || '__all__'}
                             onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Status" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -220,10 +225,11 @@ export default function NetworkAssetsIndex({
                     data={assets.data}
                     emptyTitle="No network assets"
                     emptyDescription="No assets match the current filters."
+                    loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={assets}
+                    pagination={pagination}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(n) => set('per_page', n)}
                 />

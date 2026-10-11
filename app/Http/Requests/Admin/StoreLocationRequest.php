@@ -22,10 +22,42 @@ class StoreLocationRequest extends FormRequest
             'code' => ['required', 'string', 'max:50', Rule::unique('locations', 'code')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['region', 'area', 'pop', 'rack', 'site'])],
-            'parent_id' => ['nullable', 'required_unless:type,region', 'prohibited_if:type,region', Rule::exists('locations', 'id')->where('company_id', $companyId)],
+            'parent_id' => [
+                'nullable',
+                Rule::exists('locations', 'id')
+                    ->where('company_id', $companyId)
+                    ->whereNull('deleted_at'),
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $type = $this->input('type');
+
+                    if ($type === 'region') {
+                        if (! blank($value)) {
+                            $fail('Region location cannot have parent.');
+                        }
+
+                        return;
+                    }
+
+                    if (blank($value)) {
+                        $fail('Parent location is required for non-region location.');
+                    }
+                },
+            ],
             'address' => ['nullable', 'string'],
-            'lat' => ['nullable', 'numeric', 'between:-90,90'],
-            'lng' => ['nullable', 'numeric', 'between:-180,180'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($this->filled('lat') === $this->filled('lng')) {
+                    return;
+                }
+
+                $fail('Latitude and longitude must be provided together.');
+            }],
+            'lng' => ['nullable', 'numeric', 'between:-180,180', function (string $attribute, mixed $value, \Closure $fail): void {
+                if ($this->filled('lat') === $this->filled('lng')) {
+                    return;
+                }
+
+                $fail('Latitude and longitude must be provided together.');
+            }],
             'is_active' => ['boolean'],
         ];
     }

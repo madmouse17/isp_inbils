@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Location extends Model
@@ -76,5 +77,25 @@ class Location extends Model
             ->logFillable()
             ->logOnlyDirty()
             ->dontSubmitEmptyLogs();
+    }
+
+    public function tapActivity(Activity $activity, string $eventName): void
+    {
+        if ($eventName !== 'updated') {
+            return;
+        }
+
+        $properties = $activity->properties?->toArray() ?? [];
+        if (! isset($properties['attributes'])) {
+            return;
+        }
+
+        $attributes = $properties['attributes'];
+        $old = $properties['old'] ?? [];
+
+        $activity->properties = collect([
+            'old' => $old,
+            'new' => $attributes,
+        ])->merge(collect($properties)->except(['attributes', 'old']));
     }
 }

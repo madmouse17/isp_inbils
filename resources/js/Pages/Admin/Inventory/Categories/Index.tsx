@@ -1,8 +1,16 @@
 ﻿import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import {
+    DataTable,
+    DataTableActions,
+    type DataTableColumn,
+    PageHeader,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useServerTable } from '@/hooks/useServerTable';
+import { type PaginationLike, toPagination } from '@/lib/pagination';
 import {
     Badge,
     Button,
@@ -10,33 +18,26 @@ import {
     CardContent,
     Input,
     Modal,
-    Pagination,
     SearchSelect,
     Switch,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
     Textarea,
 } from '@/Components/ui';
 import type { Category, Unit } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
-    categories: {
-        data: Category[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
+    categories: PaginationLike<Category>;
     units: { data: Unit[] };
-    can: { create: boolean };
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { create: boolean; export: boolean };
 }
 
-export default function Index({ categories, units, can }: IndexProps) {
-    const [search, setSearch] = useState('');
+export default function Index({ categories, units, filters, can }: IndexProps) {
+    const [search, setSearch] = useState(filters.search ?? '');
+    const table = useServerTable({
+        url: route('admin.categories.index'),
+        filters,
+        only: ['categories', 'filters', 'can'],
+    });
     const [modalOpen, setModalOpen] = useState(false);
     const [editing, setEditing] = useState<Category | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm({
@@ -55,7 +56,7 @@ export default function Index({ categories, units, can }: IndexProps) {
 
     const submitFilter = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('admin.categories.index'), { search }, { preserveState: true });
+        table.visit({ search });
     };
 
     const openCreate = () => {
@@ -96,11 +97,47 @@ export default function Index({ categories, units, can }: IndexProps) {
         }
     };
 
-    const remove = (c: Category) => {
-        if (window.confirm(`Delete ${c.name}?`)) {
-            router.delete(route('admin.categories.destroy', c.id));
-        }
-    };
+    const columns: DataTableColumn<Category>[] = [
+        {
+            key: 'code',
+            header: 'Code',
+            sortable: true,
+            sortKey: 'code',
+            cell: (c) => <span className="font-mono text-sm">{c.code}</span>,
+        },
+        { key: 'name', header: 'Name', sortable: true, sortKey: 'name' },
+        {
+            key: 'unit',
+            header: 'Unit',
+            cell: (c) => (c.unit ? `${c.unit.name} (${c.unit.symbol})` : '—'),
+        },
+        {
+            key: 'children_count',
+            header: 'Children',
+            cell: (c) => Number(c.children_count ?? 0) || 0,
+        },
+        {
+            key: 'is_active',
+            header: 'Status',
+            cell: (c) => (
+                <Badge variant={c.is_active ? 'success' : 'danger'}>
+                    {c.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            cell: (c) => (
+                <DataTableActions
+                    onEdit={() => openEdit(c)}
+                    deleteHref={route('admin.categories.destroy', c.id)}
+                    deleteMessage={`Delete ${c.name}?`}
+                    deleteDescription={`This will permanently remove the category "${c.name}".`}
+                />
+            ),
+        },
+    ];
 
     return (
         <AdminLayout title="Categories">
@@ -109,11 +146,19 @@ export default function Index({ categories, units, can }: IndexProps) {
                     title="Categories"
                     subtitle="Manage product categories and default unit."
                     actions={
-                        can.create && (
-                            <Button type="button" onClick={openCreate}>
-                                Create
-                            </Button>
-                        )
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.categories.export')}
+                                params={table.params}
+                                formats={['csv', 'pdf']}
+                                canExport={can.export}
+                            />
+                            {can.create && (
+                                <Button type="button" variant="success" onClick={openCreate}>
+                                    Create
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
                 <Card>
@@ -131,72 +176,15 @@ export default function Index({ categories, units, can }: IndexProps) {
                                 </Button>
                             </div>
                         </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Code</TH>
-                                    <TH>Name</TH>
-                                    <TH>Unit</TH>
-                                    <TH>Children</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {categories.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    categories.data.map((c) => (
-                                        <TR key={c.id}>
-                                            <TD className="font-mono text-sm">{c.code}</TD>
-                                            <TD>{c.name}</TD>
-                                            <TD>
-                                                {c.unit ? `${c.unit.name} (${c.unit.symbol})` : '—'}
-                                            </TD>
-                                            <TD>{Number(c.children_count ?? 0) || 0}</TD>
-                                            <TD>
-                                                <Badge variant={c.is_active ? 'success' : 'danger'}>
-                                                    {c.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(c)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(c)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={categories.current_page}
-                            lastPage={categories.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.categories.index'), { page })
-                            }
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(categories)}
+                            sortBy={table.sortBy}
+                            sortDir={table.sortDir}
+                            onSort={table.onSort}
+                            onPageChange={table.setPage}
+                            onPerPageChange={table.setPerPage}
+                            loading={table.processing}
                         />
                     </CardContent>
                 </Card>
@@ -259,7 +247,11 @@ export default function Index({ categories, units, can }: IndexProps) {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" loading={processing}>
+                        <Button
+                            type="submit"
+                            variant={editing ? 'default' : 'success'}
+                            loading={processing}
+                        >
                             {editing ? 'Save' : 'Create'}
                         </Button>
                     </div>

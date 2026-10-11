@@ -1,4 +1,5 @@
-﻿import { router } from '@inertiajs/react';
+﻿import { Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -33,20 +34,21 @@ export default function Show({ servicePackage }: ShowProps) {
                     actions={
                         <>
                             <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.service-packages.index')}>Back</Link>
+                            </Button>
+                            <Button
                                 type="button"
-                                variant="secondary"
+                                variant="warning"
                                 onClick={() =>
                                     router.get(route('admin.service-packages.edit', p.id))
                                 }
                             >
                                 Edit
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => router.get(route('admin.service-packages.index'))}
-                            >
-                                Back
                             </Button>
                         </>
                     }

@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+import { LoadingState, PageHeader, StatusBadge } from '@/Components/composite';
+import { useVisitPending } from '@/hooks/useVisitPending';
 
 interface TraceResult {
     id: number;
@@ -25,10 +26,15 @@ interface TraceProps extends Record<string, unknown> {
 
 export default function Trace({ results, search }: TraceProps) {
     const [query, setQuery] = useState(search);
+    const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(route('admin.network-assets.trace'), { search: query }, { preserveState: true });
+        router.get(
+            route('admin.network-assets.trace'),
+            { search: query },
+            { preserveState: true, ...callbacks },
+        );
     };
 
     return (
@@ -45,68 +51,74 @@ export default function Trace({ results, search }: TraceProps) {
                                 placeholder="Serial, MAC, IP, code"
                             />
                             <div className="self-end">
-                                <Button type="submit">Trace</Button>
+                                <Button type="submit" loading={pending}>
+                                    Trace
+                                </Button>
                             </div>
                         </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Name</TH>
-                                    <TH>Code</TH>
-                                    <TH>Type</TH>
-                                    <TH>Serial</TH>
-                                    <TH>Status</TH>
-                                    <TH>Location</TH>
-                                    <TH>Path</TH>
-                                    <TH>Customer</TH>
-                                    <TH>Subscription</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {results.length === 0 ? (
+                        {pending ? (
+                            <LoadingState variant="rows" />
+                        ) : (
+                            <Table>
+                                <THead>
                                     <TR>
-                                        <TD
-                                            colSpan={9}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
+                                        <TH>Name</TH>
+                                        <TH>Code</TH>
+                                        <TH>Type</TH>
+                                        <TH>Serial</TH>
+                                        <TH>Status</TH>
+                                        <TH>Location</TH>
+                                        <TH>Path</TH>
+                                        <TH>Customer</TH>
+                                        <TH>Subscription</TH>
                                     </TR>
-                                ) : (
-                                    results.map((r) => (
-                                        <TR key={r.id}>
-                                            <TD>{r.name}</TD>
-                                            <TD className="font-mono text-sm">{r.code}</TD>
-                                            <TD>{r.asset_type}</TD>
-                                            <TD className="font-mono text-sm">
-                                                {r.serial_number ?? '-'}
+                                </THead>
+                                <TBody>
+                                    {results.length === 0 ? (
+                                        <TR>
+                                            <TD
+                                                colSpan={9}
+                                                className="py-10 text-center text-muted-foreground"
+                                            >
+                                                No data found.
                                             </TD>
-                                            <TD>
-                                                <StatusBadge
-                                                    variant={
-                                                        r.status === 'available'
-                                                            ? 'success'
-                                                            : r.status === 'installed'
-                                                              ? 'info'
-                                                              : r.status === 'maintenance'
-                                                                ? 'warning'
-                                                                : r.status === 'damaged'
-                                                                  ? 'danger'
-                                                                  : 'muted'
-                                                    }
-                                                >
-                                                    {r.status}
-                                                </StatusBadge>
-                                            </TD>
-                                            <TD>{r.location?.name ?? '-'}</TD>
-                                            <TD>{r.location?.path ?? '-'}</TD>
-                                            <TD>{r.customer?.name ?? '-'}</TD>
-                                            <TD>{r.subscription?.code ?? '-'}</TD>
                                         </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
+                                    ) : (
+                                        results.map((r) => (
+                                            <TR key={r.id}>
+                                                <TD>{r.name}</TD>
+                                                <TD className="font-mono text-sm">{r.code}</TD>
+                                                <TD>{r.asset_type}</TD>
+                                                <TD className="font-mono text-sm">
+                                                    {r.serial_number ?? '-'}
+                                                </TD>
+                                                <TD>
+                                                    <StatusBadge
+                                                        variant={
+                                                            r.status === 'available'
+                                                                ? 'success'
+                                                                : r.status === 'installed'
+                                                                  ? 'info'
+                                                                  : r.status === 'maintenance'
+                                                                    ? 'warning'
+                                                                    : r.status === 'damaged'
+                                                                      ? 'danger'
+                                                                      : 'muted'
+                                                        }
+                                                    >
+                                                        {r.status}
+                                                    </StatusBadge>
+                                                </TD>
+                                                <TD>{r.location?.name ?? '-'}</TD>
+                                                <TD>{r.location?.path ?? '-'}</TD>
+                                                <TD>{r.customer?.name ?? '-'}</TD>
+                                                <TD>{r.subscription?.code ?? '-'}</TD>
+                                            </TR>
+                                        ))
+                                    )}
+                                </TBody>
+                            </Table>
+                        )}
                     </CardContent>
                 </Card>
             </div>

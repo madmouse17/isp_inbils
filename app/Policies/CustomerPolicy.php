@@ -41,4 +41,22 @@ class CustomerPolicy
     {
         return $user->can('customer.delete');
     }
+
+    /** Attribution (column, filter, display, export) is visible only to holders of assign or correct. */
+    public function viewAcquirer(User $user): bool
+    {
+        return $this->assignAcquirer($user) || $this->correctAcquirer($user);
+    }
+
+    /** Set the acquirer of an Unassigned customer (and, on create, pick a non-default one). */
+    public function assignAcquirer(User $user): bool
+    {
+        return $user->can('customer.sales.assign');
+    }
+
+    /** Change or clear an existing acquirer; the caller must also record a reason. */
+    public function correctAcquirer(User $user): bool
+    {
+        return $user->can('customer.sales.correct');
+    }
 }

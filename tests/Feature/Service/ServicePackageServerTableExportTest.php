@@ -8,6 +8,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\SLATier;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -86,6 +87,71 @@ class ServicePackageServerTableExportTest extends TestCase
                 ->where('filters.sort', 'code')
                 ->where('filters.direction', 'asc')
             );
+    }
+
+    public function test_index_and_export_preserve_filtered_page_size_and_sorted_boundaries(): void
+    {
+        $tier = SLATier::factory()->create(['company_id' => $this->admin->company_id, 'name' => 'Contract SLA']);
+        $otherTier = SLATier::factory()->create(['company_id' => $this->admin->company_id, 'name' => 'Excluded SLA']);
+        $attributes = ['company_id' => $this->admin->company_id, 'is_active' => false, 'sla_tier_id' => $tier->id];
+        foreach (range(1, 26) as $number) {
+            ServicePackage::factory()->create(array_merge($attributes, [
+                'code' => sprintf('MATCH-%02d', $number), 'name' => sprintf('Contract %02d', $number),
+            ]));
+        }
+        foreach ([
+            ['code' => 'SKIP-ACTIVE', 'is_active' => true],
+            ['code' => 'SKIP-TIER', 'sla_tier_id' => $otherTier->id],
+            ['code' => 'SKIP-SEARCH', 'name' => 'Unrelated'],
+            ['code' => 'SKIP-TENANT', 'company_id' => $this->otherCompany->id],
+        ] as $overrides) {
+            ServicePackage::factory()->create(array_merge($attributes, ['name' => 'Contract Distractor'], $overrides));
+        }
+        $filters = [
+            'search' => 'Contract', 'is_active' => '0', 'sla_tier_id' => $tier->id,
+            'sort' => 'code', 'direction' => 'desc', 'per_page' => 25,
+        ];
+
+        $this->actingAs($this->admin)->get(route('admin.service-packages.index', $filters))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('servicePackages.data', 25)
+            ->where('servicePackages.meta.total', 26)
+            ->where('servicePackages.meta.per_page', 25)
+            ->where('servicePackages.data.0.code', 'MATCH-26')
+            ->where('servicePackages.data.24.code', 'MATCH-02')
+            ->where('filters.per_page', '25')
+            ->where('filters.is_active', '0')
+            ->where('filters.sla_tier_id', (string) $tier->id)
+            ->where('filters.search', 'Contract')
+            ->where('filters.sort', 'code')
+            ->where('filters.direction', 'desc')
+            ->where('servicePackages.links.next', function ($url) use ($filters): bool {
+                parse_str(parse_url($url, PHP_URL_QUERY), $query);
+
+                return $query == array_merge($filters, ['page' => 2]);
+            })
+            );
+        $this->get(route('admin.service-packages.index', array_merge($filters, ['page' => 2])))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('servicePackages.data', 1)
+            ->where('servicePackages.data.0.code', 'MATCH-01')
+            ->where('servicePackages.meta.current_page', 2)
+            );
+        $this->get(route('admin.service-packages.index', array_merge($filters, ['per_page' => 7])))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('servicePackages.data', 10)
+            ->where('servicePackages.meta.per_page', 10)
+            ->where('servicePackages.data.9.code', 'MATCH-17')
+            );
+        $content = $this->get(route('admin.service-packages.export', array_merge($filters, ['format' => 'csv', 'page' => 2])))
+            ->assertOk()->streamedContent();
+        foreach (range(1, 26) as $number) {
+            $this->assertStringContainsString(sprintf('MATCH-%02d', $number), $content);
+        }
+        foreach (['SKIP-ACTIVE', 'SKIP-TIER', 'SKIP-SEARCH', 'SKIP-TENANT'] as $code) {
+            $this->assertStringNotContainsString($code, $content);
+        }
+        $this->assertLessThan(strpos($content, 'MATCH-01'), strpos($content, 'MATCH-26'));
     }
 
     public function test_export_csv_streams_filtered_packages(): void

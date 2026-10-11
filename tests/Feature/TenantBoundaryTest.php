@@ -8,17 +8,22 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Category;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
+use Modules\NetworkAsset\Models\NetworkAssetInstallation;
+use Modules\NetworkAsset\Services\NetworkAssetService;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class TenantBoundaryTest extends TestCase
@@ -278,6 +283,84 @@ class TenantBoundaryTest extends TestCase
             'product_id' => $product->id,
             'location_id' => $location->id,
         ]);
+    }
+
+    public function test_network_asset_install_rejects_subscription_without_customer_and_writes_nothing(): void
+    {
+        $company = Company::query()->findOrFail($this->admin->company_id);
+        $companyLocation = $this->location($company, 'LOCAL-INSTALL-LOC');
+        $asset = NetworkAssetFactory::new()->create(['company_id' => $company->id]);
+        $customer = Customer::factory()->create(['company_id' => $company->id]);
+        $subscription = ServiceSubscription::factory()->create([
+            'company_id' => $company->id,
+            'customer_id' => $customer->id,
+        ]);
+
+        Auth::logout();
+        CompanyService::resetCache();
+
+        try {
+            NetworkAssetService::install(
+                $asset,
+                $companyLocation->id,
+                null,
+                $subscription->id,
+                null,
+            );
+            $this->fail('Expected HttpException');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $asset->refresh();
+        $this->assertSame('available', $asset->status);
+        $this->assertNull($asset->customer_id);
+        $this->assertNull($asset->subscription_id);
+        $this->assertSame(0, NetworkAssetInstallation::query()->where('network_asset_id', $asset->id)->count());
+    }
+
+    public function test_network_asset_install_rejects_cross_tenant_customer_subscription_and_spk(): void
+    {
+        $companyLocation = $this->location(Company::query()->findOrFail($this->admin->company_id), 'LOCAL-INSTALL-LOC');
+        $asset = NetworkAssetFactory::new()->create(['company_id' => $this->admin->company_id]);
+        $foreignCustomer = Customer::factory()->create(['company_id' => $this->otherCompany->id]);
+        $foreignSubscription = ServiceSubscription::factory()->create([
+            'company_id' => $this->otherCompany->id,
+            'customer_id' => $foreignCustomer->id,
+        ]);
+        $foreignWorkOrder = WorkOrder::withoutCompany()->forceCreate([
+            'company_id' => $this->otherCompany->id,
+            'code' => 'SPK-XTENANT-INSTALL',
+            'type' => 'installation',
+            'title' => 'Other install work order',
+            'status' => 'draft',
+            'source' => 'manual',
+            'priority' => 'medium',
+            'location_id' => $this->location($this->otherCompany, 'OTHER-INSTALL-LOC')->id,
+            'customer_id' => $foreignCustomer->id,
+            'subscription_id' => $foreignSubscription->id,
+            'created_by' => $this->admin->id,
+        ]);
+
+        CompanyService::useCompanyForTests((int) $this->admin->company_id);
+
+        try {
+            NetworkAssetService::install(
+                $asset,
+                $companyLocation->id,
+                $foreignCustomer->id,
+                $foreignSubscription->id,
+                $foreignWorkOrder->id,
+            );
+            $this->fail('Expected HttpException');
+        } catch (HttpException $e) {
+            $this->assertSame(404, $e->getStatusCode());
+        }
+
+        $this->assertDatabaseMissing('network_asset_installations', [
+            'network_asset_id' => $asset->id,
+        ]);
+        $this->assertSame('available', $asset->fresh()->status);
     }
 
     private function location(Company $company, string $code): Location

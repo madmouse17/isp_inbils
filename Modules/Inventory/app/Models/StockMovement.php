@@ -8,7 +8,23 @@ use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $product_id
+ * @property ?int $from_location_id
+ * @property ?int $to_location_id
+ * @property string $movement_type
+ * @property float|string $quantity
+ * @property float|string $balance_after
+ * @property float|string $reserved_after
+ * @property ?string $reference_type
+ * @property ?int $reference_id
+ * @property ?string $note
+ * @property ?int $created_by
+ */
 class StockMovement extends Model
 {
     use BelongsToCompany;
@@ -35,6 +51,17 @@ class StockMovement extends Model
     ];
 
     public $timestamps = true;
+
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new LogicException('StockMovement ledger entries are immutable and cannot be updated.');
+        });
+
+        static::deleting(function () {
+            throw new LogicException('StockMovement ledger entries are immutable and cannot be deleted.');
+        });
+    }
 
     public function product(): BelongsTo
     {

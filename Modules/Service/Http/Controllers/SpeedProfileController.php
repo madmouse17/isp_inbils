@@ -28,11 +28,11 @@ class SpeedProfileController extends Controller
     {
         Gate::authorize('viewAny', SpeedProfile::class);
 
-        $speedProfiles = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $speedProfiles = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/SpeedProfiles/Index', [
             'speedProfiles' => SpeedProfileResource::collection($speedProfiles),
-            'filters' => $request->only(['search', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),

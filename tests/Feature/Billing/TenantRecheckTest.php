@@ -5,23 +5,26 @@ declare(strict_types=1);
 namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
-use App\Models\Inventory\Item;
-use App\Models\Inventory\ItemCategory;
+use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\ServiceSubscription;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
-use Modules\Billing\Jobs\CheckOverdueInvoices;
-use Modules\Billing\Jobs\GenerateRecurringInvoices;
 use Modules\Billing\Models\Invoice;
-use Modules\Billing\Models\RecurringInvoice;
-use Modules\Billing\Models\RecurringInvoiceItem;
 use Modules\Billing\Services\BillingService;
+use Modules\Service\Models\BandwidthProfile;
+use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\SLATier;
+use Modules\Service\Models\SpeedProfile;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Tests\TestCase;
+use Tests\Traits\CreatesCompanyUser;
 
 class TenantRecheckTest extends TestCase
 {
+    use CreatesCompanyUser;
     use RefreshDatabase;
 
     // ── cancel() tenant recheck ─────────────────────────────────────
@@ -34,7 +37,7 @@ class TenantRecheckTest extends TestCase
         $userB = User::factory()->create(['company_id' => $companyB->id]);
 
         Auth::login($userB);
-        $invoiceB = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
+        $invoiceB = Invoice::factory()->create(['company_id' => $companyB->id, 'type' => 'one_time', 'source' => 'manual']);
 
         Auth::login($userA);
         $this->expectException(NotFoundHttpException::class);
@@ -47,7 +50,7 @@ class TenantRecheckTest extends TestCase
         $userA = User::factory()->create(['company_id' => $companyA->id]);
 
         Auth::login($userA);
-        $invoice = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
+        $invoice = Invoice::factory()->create(['company_id' => $companyA->id, 'type' => 'one_time', 'source' => 'manual']);
         $result = BillingService::cancel($invoice, 'valid reason');
 
         $this->assertEquals('cancelled', $result->status);
@@ -63,17 +66,11 @@ class TenantRecheckTest extends TestCase
         $userB = User::factory()->create(['company_id' => $companyB->id]);
 
         Auth::login($userB);
-        $category = ItemCategory::factory()->create(['company_id' => $companyB->id]);
-        $item = Item::factory()->create([
-            'company_id' => $companyB->id,
-            'category_id' => $category->id,
-            'unit_price' => 100.00,
-        ]);
-        $invoiceB = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
+        $invoiceB = Invoice::factory()->create(['company_id' => $companyB->id, 'type' => 'one_time', 'source' => 'manual']);
 
         Auth::login($userA);
         $this->expectException(NotFoundHttpException::class);
-        BillingService::addItem($invoiceB, $item, 1);
+        BillingService::addItem($invoiceB, ['description' => 'Test', 'quantity' => 1, 'unit_price' => 100]);
     }
 
     // ── send() tenant recheck ────────────────────────────────────────
@@ -86,155 +83,134 @@ class TenantRecheckTest extends TestCase
         $userB = User::factory()->create(['company_id' => $companyB->id]);
 
         Auth::login($userB);
-        $category = ItemCategory::factory()->create(['company_id' => $companyB->id]);
-        $item = Item::factory()->create([
-            'company_id' => $companyB->id,
-            'category_id' => $category->id,
-            'unit_price' => 50.00,
-        ]);
-        $invoiceB = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
-        BillingService::addItem($invoiceB, $item, 2);
+        $invoiceB = Invoice::factory()->create(['company_id' => $companyB->id, 'type' => 'one_time', 'source' => 'manual']);
+        BillingService::addItem($invoiceB, ['description' => 'Test', 'quantity' => 2, 'unit_price' => 50]);
 
         Auth::login($userA);
         $this->expectException(NotFoundHttpException::class);
         BillingService::send($invoiceB);
     }
 
-    // ── Billing commands iterate all active companies ────────────────
+    // ── Billing artisan commands: gateway path via resolveCompanyIds ──
 
-    public function test_generate_recurring_command_processes_all_active_companies(): void
+    public function test_generate_command_creates_for_all_active_companies(): void
     {
-        Carbon::setTestNow('2026-03-15');
-
         $companyA = Company::factory()->create(['is_active' => true]);
         $companyB = Company::factory()->create(['is_active' => true]);
-        $userA = User::factory()->create(['company_id' => $companyA->id]);
-        $userB = User::factory()->create(['company_id' => $companyB->id]);
 
-        // Set up recurring invoice for company A
-        Auth::login($userA);
-        $categoryA = ItemCategory::factory()->create(['company_id' => $companyA->id]);
-        $itemA = Item::factory()->create([
-            'company_id' => $companyA->id,
-            'category_id' => $categoryA->id,
-            'unit_price' => 100.00,
-        ]);
-        $recurringA = RecurringInvoice::factory()->create([
-            'company_id' => $companyA->id,
-            'is_active' => true,
-            'next_run_date' => '2026-03-15',
-            'start_date' => '2026-01-01',
-            'interval' => 'monthly',
-            'interval_count' => 1,
-        ]);
-        RecurringInvoiceItem::factory()->create([
-            'recurring_invoice_id' => $recurringA->id,
-            'item_id' => $itemA->id,
-            'description' => 'Service A',
-            'quantity' => 1,
-            'unit_price' => 100.00,
-            'sort_order' => 1,
-        ]);
+        $createSubscriptionForCompany = function (Company $company, string $code, string $mrc): ServiceSubscription {
+            $user = User::factory()->create(['company_id' => $company->id]);
+            $this->actingAs($user);
 
-        // Set up recurring invoice for company B
-        Auth::login($userB);
-        $categoryB = ItemCategory::factory()->create(['company_id' => $companyB->id]);
-        $itemB = Item::factory()->create([
-            'company_id' => $companyB->id,
-            'category_id' => $categoryB->id,
-            'unit_price' => 200.00,
-        ]);
-        $recurringB = RecurringInvoice::factory()->create([
-            'company_id' => $companyB->id,
-            'is_active' => true,
-            'next_run_date' => '2026-03-15',
-            'start_date' => '2026-01-01',
-            'interval' => 'monthly',
-            'interval_count' => 1,
-        ]);
-        RecurringInvoiceItem::factory()->create([
-            'recurring_invoice_id' => $recurringB->id,
-            'item_id' => $itemB->id,
-            'description' => 'Service B',
-            'quantity' => 1,
-            'unit_price' => 200.00,
-            'sort_order' => 1,
-        ]);
+            $customer = Customer::factory()->create([
+                'company_id' => $company->id,
+                'code' => 'CUS-'.$company->id.'-'.fake()->unique()->numberBetween(1000, 9999),
+            ]);
 
-        // Run the job without a specific company (should process all active)
-        $job = new GenerateRecurringInvoices();
-        $job->handle();
+            $address = CustomerAddress::factory()->create([
+                'company_id' => $company->id,
+                'customer_id' => $customer->id,
+            ]);
 
-        // Both companies should have generated invoices
-        $invoicesA = Invoice::withoutCompany()->where('company_id', $companyA->id)->get();
-        $invoicesB = Invoice::withoutCompany()->where('company_id', $companyB->id)->get();
+            $bandwidthProfile = BandwidthProfile::query()->where('company_id', $company->id)->first()
+                ?? BandwidthProfile::factory()->create([
+                    'company_id' => $company->id,
+                    'name' => 'BW-'.$company->id.'-'.fake()->unique()->numberBetween(100, 999),
+                ]);
 
-        $this->assertCount(1, $invoicesA, 'Company A should have 1 generated invoice');
-        $this->assertCount(1, $invoicesB, 'Company B should have 1 generated invoice');
+            $speedProfile = SpeedProfile::query()->where('company_id', $company->id)->first()
+                ?? SpeedProfile::factory()->create([
+                    'company_id' => $company->id,
+                    'name' => 'SPD-'.$company->id.'-'.fake()->unique()->numberBetween(100, 999),
+                ]);
 
-        // Verify the recurring invoices were advanced
-        $recurringA->refresh();
-        $recurringB->refresh();
-        $this->assertEquals('2026-04-15', $recurringA->next_run_date->toDateString());
-        $this->assertEquals('2026-04-15', $recurringB->next_run_date->toDateString());
+            $slaTier = SLATier::query()->where('company_id', $company->id)->first()
+                ?? SLATier::factory()->create([
+                    'company_id' => $company->id,
+                    'name' => 'SLA-'.$company->id.'-'.fake()->unique()->numberBetween(100, 999),
+                ]);
+
+            $package = ServicePackage::factory()->create([
+                'company_id' => $company->id,
+                'bandwidth_profile_id' => $bandwidthProfile->id,
+                'speed_profile_id' => $speedProfile->id,
+                'sla_tier_id' => $slaTier->id,
+                'code' => 'PKG-'.$company->id.'-'.fake()->unique()->numberBetween(1000, 9999),
+            ]);
+
+            return ServiceSubscription::factory()->create([
+                'company_id' => $company->id,
+                'customer_id' => $customer->id,
+                'service_package_id' => $package->id,
+                'installation_address_id' => $address->id,
+                'code' => $code,
+                'status' => 'active',
+                'activation_date' => '2026-02-10',
+                'mrc_amount' => $mrc,
+            ]);
+        };
+
+        $createSubscriptionForCompany($companyA, 'SUB-TENANT-A', '50000');
+        $createSubscriptionForCompany($companyB, 'SUB-TENANT-B', '75000');
+
+        // Logout to simulate Artisan context (no auth user)
+        Auth::logout();
+        CompanyService::resetCache();
+
+        $this->artisan('billing:generate', ['--period' => '2026-03'])
+            ->assertExitCode(0);
+
+        // Verify both companies each received exactly 1 generated invoice
+        $countA = Invoice::withoutCompany()->where('company_id', $companyA->id)->where('type', 'recurring')->count();
+        $countB = Invoice::withoutCompany()->where('company_id', $companyB->id)->where('type', 'recurring')->count();
+
+        $this->assertSame(1, $countA, 'Company A should have exactly 1 generated invoice');
+        $this->assertSame(1, $countB, 'Company B should have exactly 1 generated invoice');
     }
 
-    public function test_check_overdue_command_processes_all_active_companies(): void
+    public function test_check_overdue_command_marks_all_active_companies(): void
     {
-        Carbon::setTestNow('2026-03-15');
-
         $companyA = Company::factory()->create(['is_active' => true]);
         $companyB = Company::factory()->create(['is_active' => true]);
-        $userA = User::factory()->create(['company_id' => $companyA->id]);
-        $userB = User::factory()->create(['company_id' => $companyB->id]);
 
-        // Create overdue invoice for company A
-        Auth::login($userA);
-        $invoiceA = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
-        $invoiceA->update(['status' => 'sent', 'due_date' => '2026-03-01', 'total' => 100]);
+        $invoiceA = Invoice::factory()->create(['company_id' => $companyA->id, 'type' => 'one_time', 'source' => 'manual']);
+        $invoiceA->update(['status' => 'sent', 'due_date' => now()->subDays(5)->toDateString(), 'total' => 100]);
 
-        // Create overdue invoice for company B
-        Auth::login($userB);
-        $invoiceB = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
-        $invoiceB->update(['status' => 'sent', 'due_date' => '2026-03-01', 'total' => 200]);
+        $invoiceB = Invoice::factory()->create(['company_id' => $companyB->id, 'type' => 'one_time', 'source' => 'manual']);
+        $invoiceB->update(['status' => 'sent', 'due_date' => now()->subDays(5)->toDateString(), 'total' => 200]);
 
-        // Run the job without a specific company
-        $job = new CheckOverdueInvoices();
-        $job->handle();
+        // Logout to simulate Artisan context
+        Auth::logout();
+        CompanyService::resetCache();
 
-        // Both should be marked overdue
-        $invoiceA->refresh();
-        $invoiceB->refresh();
-        $this->assertEquals('overdue', $invoiceA->status);
-        $this->assertEquals('overdue', $invoiceB->status);
-    }
-
-    public function test_check_overdue_command_with_specific_company_only_processes_that_company(): void
-    {
-        Carbon::setTestNow('2026-03-15');
-
-        $companyA = Company::factory()->create(['is_active' => true]);
-        $companyB = Company::factory()->create(['is_active' => true]);
-        $userA = User::factory()->create(['company_id' => $companyA->id]);
-        $userB = User::factory()->create(['company_id' => $companyB->id]);
-
-        // Create overdue invoice for company A
-        Auth::login($userA);
-        $invoiceA = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
-        $invoiceA->update(['status' => 'sent', 'due_date' => '2026-03-01', 'total' => 100]);
-
-        // Create overdue invoice for company B
-        Auth::login($userB);
-        $invoiceB = BillingService::createInvoice(['type' => 'invoice', 'issue_date' => '2026-01-01']);
-        $invoiceB->update(['status' => 'sent', 'due_date' => '2026-03-01', 'total' => 200]);
-
-        // Run the job for company A only
-        $job = new CheckOverdueInvoices($companyA->id);
-        $job->handle();
+        $this->artisan('billing:check-overdue')->assertExitCode(0);
 
         $invoiceA->refresh();
         $invoiceB->refresh();
-        $this->assertEquals('overdue', $invoiceA->status);
-        $this->assertEquals('sent', $invoiceB->status, 'Company B invoice should not be processed');
+        $this->assertEquals('overdue', $invoiceA->status, 'Company A invoice should be overdue');
+        $this->assertEquals('overdue', $invoiceB->status, 'Company B invoice should be overdue');
+    }
+
+    public function test_check_overdue_command_with_company_option(): void
+    {
+        $companyA = Company::factory()->create(['is_active' => true]);
+        $companyB = Company::factory()->create(['is_active' => true]);
+
+        $invoiceA = Invoice::factory()->create(['company_id' => $companyA->id, 'type' => 'one_time', 'source' => 'manual']);
+        $invoiceA->update(['status' => 'sent', 'due_date' => now()->subDays(5)->toDateString(), 'total' => 100]);
+
+        $invoiceB = Invoice::factory()->create(['company_id' => $companyB->id, 'type' => 'one_time', 'source' => 'manual']);
+        $invoiceB->update(['status' => 'sent', 'due_date' => now()->subDays(5)->toDateString(), 'total' => 200]);
+
+        // Logout to simulate Artisan context
+        Auth::logout();
+        CompanyService::resetCache();
+
+        $this->artisan('billing:check-overdue', ['--company' => $companyA->id])->assertExitCode(0);
+
+        $invoiceA->refresh();
+        $invoiceB->refresh();
+        $this->assertEquals('overdue', $invoiceA->status, 'Company A invoice should be overdue');
+        $this->assertEquals('sent', $invoiceB->status, 'Company B invoice should NOT be processed');
     }
 }

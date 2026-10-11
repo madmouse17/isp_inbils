@@ -93,11 +93,22 @@ class AdminRouteTest extends TestCase
         $response->assertOk();
     }
 
-    public function test_admin_dashboard_uses_web_session_middleware(): void
+    public function test_admin_dashboard_uses_web_session_middleware_once_from_loader(): void
     {
         $middleware = app('router')->getRoutes()->getByName('admin.dashboard')->gatherMiddleware();
 
-        $this->assertContains('web', $middleware);
+        $this->assertSame(1, count(array_filter($middleware, static fn (string $name): bool => $name === 'web')));
+        $this->assertContains('auth', $middleware);
+        $this->assertContains('verified', $middleware);
+        $this->assertContains('require.has.company', $middleware);
+
+        $adminRoutes = file_get_contents(base_path('routes/admin.php'));
+
+        $this->assertIsString($adminRoutes);
+        $this->assertDoesNotMatchRegularExpression(
+            "/Route::middleware\\(\\[\\s*['\"]web['\"]/",
+            $adminRoutes,
+        );
     }
 
     public function test_logged_in_user_can_reach_admin_dashboard_after_login(): void

@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Button,
@@ -49,6 +50,16 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                 <PageHeader
                     title="Edit Bandwidth Profile"
                     subtitle="Fill required fields, then save."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.bandwidth-profiles.index')}>Back</Link>
+                        </Button>
+                    }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>

@@ -9,8 +9,12 @@ namespace App\Support;
  */
 final class Money
 {
-    /** Internal working scale (headroom before rounding to cents). */
-    private const SCALE = 4;
+    /**
+     * Internal working scale. Must be high enough that intermediate
+     * division (e.g. proration 20/30) does not truncate before the final
+     * mul + round-to-cents. 10 gives ample headroom for any money ratio.
+     */
+    private const SCALE = 10;
 
     public static function add(string|int|float $a, string|int|float $b): string
     {

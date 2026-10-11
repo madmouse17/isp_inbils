@@ -1,0 +1,127 @@
+<?php
+
+namespace App\Http\Resources;
+
+use App\Services\Core\CompanyService;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Gate;
+use Modules\Ticketing\Models\Ticket;
+
+/**
+ * @mixin DatabaseNotification
+ */
+class NotificationResource extends JsonResource
+{
+    /** @var list<string> */
+    private const LINKABLE_TYPES = ['ticket_assigned', 'ticket_sla_breached'];
+
+    /** @return array<string, mixed> */
+    public function toArray(Request $request): array
+    {
+        $data = $this->getAttribute('data');
+        $data = is_array($data) ? $data : [];
+        $type = is_string($data['type'] ?? null) ? $data['type'] : 'unknown';
+        $ticketCode = is_string($data['ticket_code'] ?? null) ? $data['ticket_code'] : null;
+
+        return [
+            'id' => (string) $this->id,
+            'type' => $type,
+            'title' => $this->title($type),
+            'message' => $this->message($type, $ticketCode, $data),
+            'created_at' => $this->created_at,
+            'read_at' => $this->read_at,
+            'detail_url' => $this->detailUrl($request, $type, $data),
+        ];
+    }
+
+    private function title(string $type): string
+    {
+        return match ($type) {
+            'ticket_assigned' => 'Ticket assigned',
+            'ticket_sla_breached' => 'Ticket SLA breached',
+            'billing_schedule_failed' => 'Billing schedule failed',
+            'inventory_request_submitted' => 'Inventory request submitted',
+            'inventory_request_approved' => 'Inventory request approved',
+            'inventory_request_ready' => 'Inventory request ready for pickup',
+            'inventory_request_rejected' => 'Inventory request rejected',
+            'material_return_declared' => 'Material return declared',
+            'material_return_exception' => 'Material return exception',
+            'material_return_rejected' => 'Material return rejected',
+            default => 'New notification',
+        };
+    }
+
+    /** @param array<string, mixed> $data */
+    private function message(string $type, ?string $ticketCode, array $data): string
+    {
+        $requestCode = is_string($data['request_code'] ?? null) ? $data['request_code'] : null;
+        $caseId = $data['case_id'] ?? null;
+        $caseId = is_int($caseId) || (is_string($caseId) && ctype_digit($caseId)) ? (int) $caseId : null;
+
+        return match ($type) {
+            'ticket_assigned' => $ticketCode
+                ? "Ticket {$ticketCode} has been assigned to you."
+                : 'A ticket has been assigned to you.',
+            'ticket_sla_breached' => $ticketCode
+                ? "Ticket {$ticketCode} has breached its SLA."
+                : 'A ticket has breached its SLA.',
+            'billing_schedule_failed' => 'A scheduled billing operation failed. Check the application logs.',
+            'inventory_request_submitted' => $requestCode
+                ? "Request {$requestCode} is waiting for warehouse review."
+                : 'An inventory request is waiting for warehouse review.',
+            'inventory_request_approved' => $requestCode
+                ? "Request {$requestCode} was approved and its stock is reserved."
+                : 'An inventory request was approved and its stock is reserved.',
+            'inventory_request_ready' => $requestCode
+                ? "Request {$requestCode} is ready for pickup."
+                : 'An inventory request is ready for pickup.',
+            'inventory_request_rejected' => $requestCode
+                ? "Request {$requestCode} was rejected."
+                : 'An inventory request was rejected.',
+            'material_return_declared' => $caseId !== null
+                ? "Return case #{$caseId} was declared and awaits warehouse receipt."
+                : 'A material return was declared and awaits warehouse receipt.',
+            'material_return_exception' => $caseId !== null
+                ? "Return case #{$caseId} has a discrepancy that needs resolution."
+                : 'A material return has a discrepancy that needs resolution.',
+            'material_return_rejected' => $caseId !== null
+                ? "Return case #{$caseId} handover was rejected. Review the declaration."
+                : 'A material return handover was rejected. Review the declaration.',
+            default => 'This notification is available in your inbox.',
+        };
+    }
+
+    /** @param array<string, mixed> $data */
+    private function detailUrl(Request $request, string $type, array $data): ?string
+    {
+        if (! in_array($type, self::LINKABLE_TYPES, true)) {
+            return null;
+        }
+
+        $ticketId = $data['ticket_id'] ?? null;
+        $payloadCompanyId = $data['company_id'] ?? null;
+        $user = $request->user();
+        if (! is_int($ticketId) && ! (is_string($ticketId) && ctype_digit($ticketId))) {
+            return null;
+        }
+        if (! is_int($payloadCompanyId) && ! (is_string($payloadCompanyId) && ctype_digit($payloadCompanyId))) {
+            return null;
+        }
+        $companyId = $user === null ? null : CompanyService::idFor($user);
+        if ($companyId === null || (int) $payloadCompanyId !== $companyId) {
+            return null;
+        }
+
+        $ticket = Ticket::withoutCompany()
+            ->where('company_id', $companyId)
+            ->find((int) $ticketId);
+
+        if ($ticket === null || ! Gate::forUser($user)->allows('view', $ticket)) {
+            return null;
+        }
+
+        return route('admin.tickets.show', ['ticket' => $ticket]);
+    }
+}

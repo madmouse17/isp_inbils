@@ -1,23 +1,47 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import { DataTable, type DataTableColumn, PageHeader } from '@/Components/composite';
+import { Tabs, TabList, Tab, TabPanel } from '@/Components/ui/Tabs';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-    Input,
-    NativeSelect,
-    Textarea,
-} from '@/Components/ui';
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/Components/ui/alert-dialog';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/Components/ui/dialog';
+import { buttonVariants } from '@/Components/ui/Button';
+import { Spinner } from '@/Components/ui/Spinner';
+import { cn } from '@/lib/utils';
+import { Badge, Button, Card, CardContent, Input, NativeSelect, Textarea } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import type { Paginated } from '@/types';
+import {
+    LocationsMapView,
+    type MapMarker,
+} from '@/Components/composite/locations/LocationsMapView';
+import {
+    type LocationNode,
+    type LocationType,
+    locationTypeOptions,
+} from '@/Components/composite/locations/LocationShowSections';
 
-type LocationType = 'region' | 'area' | 'pop' | 'rack' | 'site';
+/* ---------- Page props ---------- */
 
-interface LocationNode {
+interface LocationRow {
     id: number;
     parent_id: number | null;
     code: string;
@@ -28,26 +52,31 @@ interface LocationNode {
     lat: string | null;
     lng: string | null;
     is_active: boolean;
-    children: LocationNode[];
+    children: LocationRow[];
 }
 
 interface LocationsProps {
-    locations: { data: LocationNode[] } | LocationNode[];
-    can: { create: boolean; update: boolean; delete: boolean };
+    locations: Paginated<LocationRow>;
+    tree?: { data: LocationNode[] } | LocationNode[];
+    markers: MapMarker[];
+    filters: {
+        search?: string | null;
+        type?: string | null;
+        status?: string | null;
+        sort?: string | null;
+        direction?: string | null;
+        per_page?: string | number | null;
+        page?: string | number | null;
+    };
+    can: { create: boolean; update: boolean; move: boolean; delete: boolean };
 }
 
-const typeOptions = [
-    { value: 'region', label: 'Region' },
-    { value: 'area', label: 'Area' },
-    { value: 'pop', label: 'POP' },
-    { value: 'rack', label: 'Rack' },
-    { value: 'site', label: 'Site' },
-];
+/* ---------- Form defaults ---------- */
 
 const emptyLocation = {
     code: '',
     name: '',
-    type: 'region' as LocationType,
+    type: 'pop' as LocationType,
     parent_id: '',
     address: '',
     lat: '',
@@ -55,82 +84,271 @@ const emptyLocation = {
     is_active: true,
 };
 
-export default function Index({ locations, can }: LocationsProps) {
-    const tree = Array.isArray(locations) ? locations : locations.data;
-    const flat = flatten(tree);
-    const [open, setOpen] = useState<Set<number>>(
-        () => new Set(flat.map((location) => location.id)),
+const typeFilterOptions = [
+    { value: '', label: 'Semua tipe' },
+    { value: 'region', label: 'Region' },
+    { value: 'area', label: 'Area' },
+    { value: 'pop', label: 'POP' },
+    { value: 'rack', label: 'Rack' },
+    { value: 'site', label: 'Site' },
+];
+
+const statusFilterOptions = [
+    { value: '', label: 'Semua status' },
+    { value: 'active', label: 'Active' },
+    { value: 'inactive', label: 'Inactive' },
+];
+
+/* ---------- Page component ---------- */
+
+export default function Index({
+    locations,
+    tree: treeProp,
+    markers,
+    filters,
+    can,
+}: LocationsProps) {
+    /* -- View tab -- */
+    const [viewTab, setViewTab] = useState<string>('map');
+
+    /* -- Server table for list view -- */
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+        url: route('admin.locations.index'),
+        filters,
+        only: ['locations', 'tree', 'markers', 'filters', 'can'],
+    });
+
+    /* -- Flatten tree for parent options -- */
+    const treeSource = treeProp ?? locations;
+    const tree = Array.isArray(treeSource) ? treeSource : treeSource.data;
+    const flat = useMemo(() => flatten(tree), [tree]);
+
+    const parentOptions = useMemo(
+        () => [
+            { value: '', label: 'No parent (region)' },
+            ...flat.map((loc) => ({
+                value: String(loc.id),
+                label: loc.path ?? loc.code,
+            })),
+        ],
+        [flat],
     );
-    const [editing, setEditing] = useState<LocationNode | null>(null);
-    const [moving, setMoving] = useState<LocationNode | null>(null);
+
+    /* -- Create dialog -- */
+    const [createOpen, setCreateOpen] = useState(false);
+    const [createDraftCoords, setCreateDraftCoords] = useState<{
+        lat: string;
+        lng: string;
+        type: LocationType;
+    } | null>(null);
     const createForm = useForm(emptyLocation);
+
+    const openCreate = (draftType?: LocationType, lat?: string, lng?: string) => {
+        createForm.reset();
+        if (draftType) createForm.setData('type', draftType);
+        if (lat) createForm.setData('lat', lat);
+        if (lng) createForm.setData('lng', lng);
+        setCreateDraftCoords(lat && lng ? { lat, lng, type: draftType ?? 'pop' } : null);
+        setCreateOpen(true);
+    };
+
+    const submitCreate = (e: FormEvent) => {
+        e.preventDefault();
+        createForm.post(route('admin.locations.store'), {
+            onSuccess: () => {
+                createForm.reset();
+                setCreateOpen(false);
+                setCreateDraftCoords(null);
+            },
+        });
+    };
+
+    /* -- Edit dialog -- */
+    const [editTarget, setEditTarget] = useState<LocationRow | null>(null);
     const editForm = useForm(emptyLocation);
+    const [editOrigCoords, setEditOrigCoords] = useState<{ lat: string; lng: string } | null>(null);
+
+    const startEdit = (row: LocationRow) => {
+        setEditTarget(row);
+        setEditOrigCoords({
+            lat: String(row.lat ?? ''),
+            lng: String(row.lng ?? ''),
+        });
+        editForm.setData({
+            code: row.code,
+            name: row.name,
+            type: row.type,
+            parent_id: row.parent_id ? String(row.parent_id) : '',
+            address: row.address ?? '',
+            lat: row.lat != null ? String(row.lat) : '',
+            lng: row.lng != null ? String(row.lng) : '',
+            is_active: row.is_active,
+        });
+    };
+
+    const submitEdit = (e: FormEvent) => {
+        e.preventDefault();
+        if (!editTarget) return;
+        editForm.put(route('admin.locations.update', editTarget.id), {
+            onSuccess: () => {
+                setEditTarget(null);
+                setEditOrigCoords(null);
+            },
+        });
+    };
+
+    const coordsChanged =
+        editOrigCoords &&
+        (editForm.data.lat !== editOrigCoords.lat || editForm.data.lng !== editOrigCoords.lng);
+
+    /* -- Move dialog -- */
+    const [moveTarget, setMoveTarget] = useState<LocationRow | null>(null);
     const moveForm = useForm({ new_parent_id: '' });
 
-    const parentOptions = [
-        { value: '', label: 'No parent (region)' },
-        ...flat.map((location) => ({
-            value: String(location.id),
-            label: location.path ?? location.code,
-        })),
-    ];
-
-    const submitCreate = (event: FormEvent) => {
-        event.preventDefault();
-        createForm.post(route('admin.locations.store'), { onSuccess: () => createForm.reset() });
-    };
-
-    const startEdit = (location: LocationNode) => {
-        setEditing(location);
-        editForm.setData({
-            code: location.code,
-            name: location.name,
-            type: location.type,
-            parent_id: location.parent_id ? String(location.parent_id) : '',
-            address: location.address ?? '',
-            lat: location.lat ?? '',
-            lng: location.lng ?? '',
-            is_active: location.is_active,
+    const submitMove = (e: FormEvent) => {
+        e.preventDefault();
+        if (!moveTarget) return;
+        moveForm.post(route('admin.locations.move', moveTarget.id), {
+            onSuccess: () => setMoveTarget(null),
         });
     };
 
-    const submitEdit = (event: FormEvent) => {
-        event.preventDefault();
-        if (!editing) return;
-        editForm.put(route('admin.locations.update', editing.id), {
-            onSuccess: () => setEditing(null),
+    /* -- Delete dialog -- */
+    const [deleteTarget, setDeleteTarget] = useState<LocationRow | MapMarker | null>(null);
+    const [deleteProcessing, setDeleteProcessing] = useState(false);
+    const deleteInFlight = useRef(false);
+
+    const confirmDelete = () => {
+        if (!deleteTarget || deleteInFlight.current) return;
+        deleteInFlight.current = true;
+        setDeleteProcessing(true);
+        router.delete(route('admin.locations.destroy', deleteTarget.id), {
+            preserveScroll: true,
+            onFinish: () => {
+                deleteInFlight.current = false;
+                setDeleteProcessing(false);
+            },
+            onSuccess: () => {
+                setDeleteTarget(null);
+            },
         });
     };
 
-    const startMove = (location: LocationNode) => {
-        setMoving(location);
-        moveForm.setData('new_parent_id', '');
+    /* -- Map callbacks -- */
+    const handleMapClick = (lat: number, lng: number, type: 'pop' | 'site') => {
+        openCreate(type, lat.toFixed(7), lng.toFixed(7));
     };
 
-    const submitMove = (event: FormEvent) => {
-        event.preventDefault();
-        if (!moving) return;
-        moveForm.post(route('admin.locations.move', moving.id), {
-            onSuccess: () => setMoving(null),
-        });
+    const handleMarkerEdit = (marker: MapMarker) => {
+        const row = flat.find((location) => location.id === marker.id);
+        if (!row) return;
+
+        startEdit(row);
     };
 
-    const remove = (location: LocationNode) => {
-        if (window.confirm(`Delete ${location.code}?`))
-            router.delete(route('admin.locations.destroy', location.id));
+    const handleMarkerDelete = (marker: MapMarker) => {
+        setDeleteTarget(marker);
     };
 
-    const toggle = (id: number) => {
-        setOpen((current) => {
-            const next = new Set(current);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    };
+    /* -- DataTable columns -- */
+    const columns: DataTableColumn<LocationRow>[] = useMemo(
+        () => [
+            {
+                key: 'code',
+                header: 'Code',
+                sortable: true,
+                sortKey: 'code',
+                cell: (row) => <span className="font-semibold text-foreground">{row.code}</span>,
+            },
+            {
+                key: 'name',
+                header: 'Name',
+                sortable: true,
+                sortKey: 'name',
+            },
+            {
+                key: 'type',
+                header: 'Type',
+                sortable: true,
+                sortKey: 'type',
+                cell: (row) => <Badge>{row.type.toUpperCase()}</Badge>,
+            },
+            {
+                key: 'path',
+                header: 'Path',
+                sortable: true,
+                sortKey: 'path',
+                className: 'max-w-[12rem] truncate text-xs text-muted-foreground',
+            },
+            {
+                key: 'is_active',
+                header: 'Status',
+                sortable: true,
+                sortKey: 'is_active',
+                cell: (row) => (
+                    <Badge variant={row.is_active ? 'success' : 'warning'}>
+                        {row.is_active ? 'Active' : 'Inactive'}
+                    </Badge>
+                ),
+            },
+            {
+                key: 'coordinates',
+                header: 'Coordinates',
+                cell: (row) =>
+                    row.lat && row.lng ? (
+                        <span className="text-xs text-muted-foreground">
+                            {Number(row.lat).toFixed(4)}, {Number(row.lng).toFixed(4)}
+                        </span>
+                    ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                    ),
+            },
+            {
+                key: 'actions',
+                header: 'Actions',
+                cell: (row) => (
+                    <div className="flex flex-wrap gap-1">
+                        {can.update && (
+                            <Button
+                                type="button"
+                                variant="warning"
+                                size="sm"
+                                onClick={() => startEdit(row)}
+                            >
+                                Edit
+                            </Button>
+                        )}
+                        {can.move && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                    setMoveTarget(row);
+                                    moveForm.setData('new_parent_id', '');
+                                }}
+                            >
+                                Move
+                            </Button>
+                        )}
+                        {can.delete && (
+                            <Button
+                                type="button"
+                                variant="danger"
+                                size="sm"
+                                onClick={() => setDeleteTarget(row)}
+                                disabled={row.children.length > 0}
+                            >
+                                Delete
+                            </Button>
+                        )}
+                    </div>
+                ),
+            },
+        ],
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- startEdit/moveForm are stable enough; including them causes unnecessary re-renders
+        [can],
+    );
 
     return (
         <AdminLayout title="Locations">
@@ -138,328 +356,376 @@ export default function Index({ locations, can }: LocationsProps) {
                 <PageHeader
                     title="Locations"
                     subtitle="Region, area, POP, rack, and site topology."
+                    actions={
+                        can.create ? (
+                            <Button type="button" variant="success" onClick={() => openCreate()}>
+                                Tambah Lokasi
+                            </Button>
+                        ) : undefined
+                    }
                 />
 
-                {can.create && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Create Location</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={submitCreate} className="grid gap-4 lg:grid-cols-4">
-                                <Input
-                                    label="Code"
-                                    value={createForm.data.code}
-                                    onChange={(e) => createForm.setData('code', e.target.value)}
-                                    error={createForm.errors.code}
-                                    required
-                                />
-                                <Input
-                                    label="Name"
-                                    value={createForm.data.name}
-                                    onChange={(e) => createForm.setData('name', e.target.value)}
-                                    error={createForm.errors.name}
-                                    required
-                                />
-                                <NativeSelect
-                                    label="Type"
-                                    value={createForm.data.type}
-                                    onChange={(e) =>
-                                        createForm.setData('type', e.target.value as LocationType)
-                                    }
-                                    options={typeOptions}
-                                    error={createForm.errors.type}
-                                    required
-                                />
-                                <NativeSelect
-                                    label="Parent"
-                                    value={createForm.data.parent_id}
-                                    onChange={(e) =>
-                                        createForm.setData('parent_id', e.target.value)
-                                    }
-                                    options={parentOptions}
-                                    error={createForm.errors.parent_id}
-                                />
-                                <Textarea
-                                    label="Address"
-                                    value={createForm.data.address}
-                                    onChange={(e) => createForm.setData('address', e.target.value)}
-                                    error={createForm.errors.address}
-                                    className="lg:col-span-2"
-                                />
-                                <Input
-                                    label="Latitude"
-                                    value={createForm.data.lat}
-                                    onChange={(e) => createForm.setData('lat', e.target.value)}
-                                    error={createForm.errors.lat}
-                                />
-                                <Input
-                                    label="Longitude"
-                                    value={createForm.data.lng}
-                                    onChange={(e) => createForm.setData('lng', e.target.value)}
-                                    error={createForm.errors.lng}
-                                />
-                                <div className="lg:col-span-4">
-                                    <Button type="submit" loading={createForm.processing}>
-                                        Create
-                                    </Button>
+                {/* View switcher */}
+                <Tabs value={viewTab} onValueChange={setViewTab}>
+                    <TabList aria-label="Location view mode">
+                        <Tab value="map">Peta</Tab>
+                        <Tab value="table">Tabel</Tab>
+                    </TabList>
+
+                    {/* MAP TAB */}
+                    <TabPanel value="map">
+                        <LocationsMapView
+                            markers={markers}
+                            can={can}
+                            onMarkerEdit={handleMarkerEdit}
+                            onMarkerDelete={handleMarkerDelete}
+                            onMapClick={can.create ? handleMapClick : undefined}
+                        />
+                    </TabPanel>
+
+                    {/* TABLE TAB */}
+                    <TabPanel value="table">
+                        <Card>
+                            <CardContent className="space-y-4 pt-6">
+                                {/* Filter bar */}
+                                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
+                                    <div className="min-w-[12rem] flex-1">
+                                        <Input
+                                            label="Cari"
+                                            value={params.search ?? ''}
+                                            onChange={(e) => set('search', e.target.value)}
+                                            placeholder="Code, name, path, address"
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-40">
+                                        <NativeSelect
+                                            label="Type"
+                                            value={params.type ?? ''}
+                                            onChange={(e) => set('type', e.target.value)}
+                                            options={typeFilterOptions}
+                                        />
+                                    </div>
+                                    <div className="w-full md:w-40">
+                                        <NativeSelect
+                                            label="Status"
+                                            value={params.status ?? ''}
+                                            onChange={(e) => set('status', e.target.value)}
+                                            options={statusFilterOptions}
+                                        />
+                                    </div>
                                 </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Topology Tree</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {tree.length === 0 ? (
-                            <p className="text-sm text-surface-500 dark:text-surface-400">
-                                No locations yet.
-                            </p>
-                        ) : (
-                            <ul className="space-y-2">
-                                {tree.map((location) => (
-                                    <TreeItem
-                                        key={location.id}
-                                        location={location}
-                                        open={open}
-                                        toggle={toggle}
-                                        can={can}
-                                        onEdit={startEdit}
-                                        onMove={startMove}
-                                        onDelete={remove}
-                                    />
-                                ))}
-                            </ul>
-                        )}
-                    </CardContent>
-                </Card>
+                                <DataTable
+                                    columns={columns}
+                                    pagination={toPagination(locations)}
+                                    sortBy={sortBy}
+                                    sortDir={sortDir}
+                                    onSort={onSort}
+                                    onPageChange={(page) => set('page', page)}
+                                    onPerPageChange={(perPage) => set('per_page', perPage)}
+                                    emptyTitle="Tidak ada lokasi"
+                                    emptyDescription="Tidak ada lokasi yang sesuai dengan filter."
+                                    loading={processing}
+                                />
+                            </CardContent>
+                        </Card>
+                    </TabPanel>
+                </Tabs>
 
-                {editing && can.update && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Edit {editing.code}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form onSubmit={submitEdit} className="grid gap-4 lg:grid-cols-4">
-                                <Input
-                                    label="Code"
-                                    value={editForm.data.code}
-                                    onChange={(e) => editForm.setData('code', e.target.value)}
-                                    error={editForm.errors.code}
-                                    required
-                                />
-                                <Input
-                                    label="Name"
-                                    value={editForm.data.name}
-                                    onChange={(e) => editForm.setData('name', e.target.value)}
-                                    error={editForm.errors.name}
-                                    required
-                                />
-                                <NativeSelect
-                                    label="Type"
-                                    value={editForm.data.type}
-                                    onChange={(e) =>
-                                        editForm.setData('type', e.target.value as LocationType)
-                                    }
-                                    options={typeOptions}
-                                    error={editForm.errors.type}
-                                    required
-                                />
-                                <NativeSelect
-                                    label="Parent"
-                                    value={editForm.data.parent_id}
-                                    onChange={(e) => editForm.setData('parent_id', e.target.value)}
-                                    options={parentOptions.filter(
-                                        (option) => option.value !== String(editing.id),
-                                    )}
-                                    error={editForm.errors.parent_id}
-                                />
-                                <Textarea
-                                    label="Address"
-                                    value={editForm.data.address}
-                                    onChange={(e) => editForm.setData('address', e.target.value)}
-                                    error={editForm.errors.address}
-                                    className="lg:col-span-2"
-                                />
-                                <Input
-                                    label="Latitude"
-                                    value={editForm.data.lat}
-                                    onChange={(e) => editForm.setData('lat', e.target.value)}
-                                    error={editForm.errors.lat}
-                                />
-                                <Input
-                                    label="Longitude"
-                                    value={editForm.data.lng}
-                                    onChange={(e) => editForm.setData('lng', e.target.value)}
-                                    error={editForm.errors.lng}
-                                />
-                                <div className="flex gap-2 lg:col-span-4">
-                                    <Button type="submit" loading={editForm.processing}>
-                                        Save
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => setEditing(null)}
-                                    >
-                                        Cancel
-                                    </Button>
+                {/* ---- CREATE DIALOG ---- */}
+                <Dialog
+                    open={createOpen}
+                    onOpenChange={(open) => {
+                        if (!open && !createForm.processing) {
+                            setCreateOpen(false);
+                            setCreateDraftCoords(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Tambah Lokasi</DialogTitle>
+                            <DialogDescription>
+                                {createDraftCoords
+                                    ? `Koordinat: ${createDraftCoords.lat}, ${createDraftCoords.lng}`
+                                    : 'Isi data lokasi baru.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={submitCreate} className="grid gap-4 lg:grid-cols-2">
+                            <Input
+                                label="Code"
+                                value={createForm.data.code}
+                                onChange={(e) => createForm.setData('code', e.target.value)}
+                                error={createForm.errors.code}
+                                required
+                                autoFocus
+                            />
+                            <Input
+                                label="Name"
+                                value={createForm.data.name}
+                                onChange={(e) => createForm.setData('name', e.target.value)}
+                                error={createForm.errors.name}
+                                required
+                            />
+                            <NativeSelect
+                                label="Type"
+                                value={createForm.data.type}
+                                onChange={(e) =>
+                                    createForm.setData('type', e.target.value as LocationType)
+                                }
+                                options={locationTypeOptions}
+                                error={createForm.errors.type}
+                                required
+                            />
+                            <NativeSelect
+                                label="Parent"
+                                value={createForm.data.parent_id}
+                                onChange={(e) => createForm.setData('parent_id', e.target.value)}
+                                options={parentOptions}
+                                error={createForm.errors.parent_id}
+                            />
+                            <Textarea
+                                label="Address"
+                                value={createForm.data.address}
+                                onChange={(e) => createForm.setData('address', e.target.value)}
+                                error={createForm.errors.address}
+                                className="lg:col-span-2"
+                            />
+                            <Input
+                                label="Latitude"
+                                value={createForm.data.lat}
+                                onChange={(e) => createForm.setData('lat', e.target.value)}
+                                error={createForm.errors.lat}
+                                inputMode="decimal"
+                            />
+                            <Input
+                                label="Longitude"
+                                value={createForm.data.lng}
+                                onChange={(e) => createForm.setData('lng', e.target.value)}
+                                error={createForm.errors.lng}
+                                inputMode="decimal"
+                            />
+                            <DialogFooter className="lg:col-span-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setCreateOpen(false);
+                                        setCreateDraftCoords(null);
+                                    }}
+                                    disabled={createForm.processing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    variant="success"
+                                    loading={createForm.processing}
+                                >
+                                    Create
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* ---- EDIT DIALOG ---- */}
+                <Dialog
+                    open={editTarget !== null}
+                    onOpenChange={(open) => {
+                        if (!open && !editForm.processing) {
+                            setEditTarget(null);
+                            setEditOrigCoords(null);
+                        }
+                    }}
+                >
+                    <DialogContent className="max-w-2xl">
+                        <DialogHeader>
+                            <DialogTitle>Edit {editTarget?.code ?? 'Location'}</DialogTitle>
+                            <DialogDescription>
+                                Update data lokasi. Perubahan berlaku setelah disimpan.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={submitEdit} className="grid gap-4 lg:grid-cols-2">
+                            <Input
+                                label="Code"
+                                value={editForm.data.code}
+                                onChange={(e) => editForm.setData('code', e.target.value)}
+                                error={editForm.errors.code}
+                                required
+                            />
+                            <Input
+                                label="Name"
+                                value={editForm.data.name}
+                                onChange={(e) => editForm.setData('name', e.target.value)}
+                                error={editForm.errors.name}
+                                required
+                            />
+                            <NativeSelect
+                                label="Type"
+                                value={editForm.data.type}
+                                onChange={(e) =>
+                                    editForm.setData('type', e.target.value as LocationType)
+                                }
+                                options={locationTypeOptions}
+                                error={editForm.errors.type}
+                                required
+                            />
+                            <NativeSelect
+                                label="Parent"
+                                value={editForm.data.parent_id}
+                                onChange={(e) => editForm.setData('parent_id', e.target.value)}
+                                options={parentOptions.filter(
+                                    (opt) => opt.value !== String(editTarget?.id),
+                                )}
+                                error={editForm.errors.parent_id}
+                            />
+                            <Textarea
+                                label="Address"
+                                value={editForm.data.address}
+                                onChange={(e) => editForm.setData('address', e.target.value)}
+                                error={editForm.errors.address}
+                                className="lg:col-span-2"
+                            />
+                            <Input
+                                label="Latitude"
+                                value={editForm.data.lat}
+                                onChange={(e) => editForm.setData('lat', e.target.value)}
+                                error={editForm.errors.lat}
+                                inputMode="decimal"
+                            />
+                            <Input
+                                label="Longitude"
+                                value={editForm.data.lng}
+                                onChange={(e) => editForm.setData('lng', e.target.value)}
+                                error={editForm.errors.lng}
+                                inputMode="decimal"
+                            />
+
+                            {/* Coordinate change confirmation */}
+                            {coordsChanged && (
+                                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm dark:border-amber-700 dark:bg-amber-950 lg:col-span-2">
+                                    <p className="font-medium text-amber-800 dark:text-amber-200">
+                                        Koordinat berubah
+                                    </p>
+                                    <p className="mt-1 text-amber-700 dark:text-amber-300">
+                                        Lama: {editOrigCoords?.lat || '—'},{' '}
+                                        {editOrigCoords?.lng || '—'}
+                                    </p>
+                                    <p className="text-amber-700 dark:text-amber-300">
+                                        Baru: {editForm.data.lat || '—'}, {editForm.data.lng || '—'}
+                                    </p>
                                 </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
+                            )}
 
-                {moving && can.update && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Move {moving.code}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <form
-                                onSubmit={submitMove}
-                                className="flex flex-col gap-4 sm:flex-row sm:items-end"
+                            <DialogFooter className="lg:col-span-2">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setEditTarget(null);
+                                        setEditOrigCoords(null);
+                                    }}
+                                    disabled={editForm.processing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" loading={editForm.processing}>
+                                    {coordsChanged ? 'Simpan & Konfirmasi Koordinat' : 'Simpan'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* ---- MOVE DIALOG ---- */}
+                <Dialog
+                    open={moveTarget !== null}
+                    onOpenChange={(open) => {
+                        if (!open && !moveForm.processing) {
+                            setMoveTarget(null);
+                        }
+                    }}
+                >
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Pindah {moveTarget?.code ?? 'Location'}</DialogTitle>
+                            <DialogDescription>
+                                Pilih parent baru untuk lokasi ini.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={submitMove}>
+                            <NativeSelect
+                                label="New parent"
+                                value={moveForm.data.new_parent_id}
+                                onChange={(e) => moveForm.setData('new_parent_id', e.target.value)}
+                                options={parentOptions.filter(
+                                    (opt) =>
+                                        opt.value !== '' && opt.value !== String(moveTarget?.id),
+                                )}
+                                error={moveForm.errors.new_parent_id}
+                                required
+                            />
+                            <DialogFooter className="mt-4">
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => setMoveTarget(null)}
+                                    disabled={moveForm.processing}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button type="submit" loading={moveForm.processing}>
+                                    Pindah
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* ---- DELETE DIALOG ---- */}
+                <AlertDialog
+                    open={deleteTarget !== null}
+                    onOpenChange={(open) => {
+                        if (deleteInFlight.current && !open) return;
+                        if (!open) setDeleteTarget(null);
+                    }}
+                >
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>
+                                Hapus {deleteTarget?.code ?? 'location'}?
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Lokasi &quot;{deleteTarget?.name}&quot; akan dihapus permanen.
+                                Tindakan ini tidak dapat dibatalkan.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel disabled={deleteProcessing}>
+                                Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    confirmDelete();
+                                }}
+                                disabled={deleteProcessing}
                             >
-                                <NativeSelect
-                                    label="New parent"
-                                    value={moveForm.data.new_parent_id}
-                                    onChange={(e) =>
-                                        moveForm.setData('new_parent_id', e.target.value)
-                                    }
-                                    options={parentOptions.filter(
-                                        (option) =>
-                                            option.value !== '' &&
-                                            option.value !== String(moving.id),
-                                    )}
-                                    error={moveForm.errors.new_parent_id}
-                                    required
-                                />
-                                <div className="flex gap-2">
-                                    <Button type="submit" loading={moveForm.processing}>
-                                        Move
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => setMoving(null)}
-                                    >
-                                        Cancel
-                                    </Button>
-                                </div>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
+                                {deleteProcessing ? <Spinner size="sm" /> : null}
+                                Hapus
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </AdminLayout>
     );
 }
 
-function TreeItem({
-    location,
-    open,
-    toggle,
-    can,
-    onEdit,
-    onMove,
-    onDelete,
-}: {
-    location: LocationNode;
-    open: Set<number>;
-    toggle: (id: number) => void;
-    can: LocationsProps['can'];
-    onEdit: (location: LocationNode) => void;
-    onMove: (location: LocationNode) => void;
-    onDelete: (location: LocationNode) => void;
-}) {
-    const hasChildren = location.children.length > 0;
+/* ---------- Helpers ---------- */
 
-    return (
-        <li>
-            <div className="flex flex-col gap-3 rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-800 dark:bg-surface-950 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggle(location.id)}
-                        disabled={!hasChildren}
-                        aria-label={open.has(location.id) ? 'Collapse location' : 'Expand location'}
-                    >
-                        {hasChildren ? (open.has(location.id) ? '-' : '+') : ' '}
-                    </Button>
-                    <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="font-semibold text-surface-900 dark:text-surface-100">
-                                {location.code}
-                            </span>
-                            <span className="text-surface-700 dark:text-surface-300">
-                                {location.name}
-                            </span>
-                            <Badge>{location.type}</Badge>
-                            {!location.is_active && <Badge variant="warning">Inactive</Badge>}
-                        </div>
-                        <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-                            {location.path}
-                        </p>
-                    </div>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                    {can.update && (
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onEdit(location)}
-                        >
-                            Edit
-                        </Button>
-                    )}
-                    {can.update && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onMove(location)}
-                        >
-                            Move
-                        </Button>
-                    )}
-                    {can.delete && (
-                        <Button
-                            type="button"
-                            variant="danger"
-                            size="sm"
-                            onClick={() => onDelete(location)}
-                        >
-                            Delete
-                        </Button>
-                    )}
-                </div>
-            </div>
-            {hasChildren && open.has(location.id) && (
-                <ul className="ml-5 mt-2 space-y-2 border-l border-surface-200 pl-4 dark:border-surface-800">
-                    {location.children.map((child) => (
-                        <TreeItem
-                            key={child.id}
-                            location={child}
-                            open={open}
-                            toggle={toggle}
-                            can={can}
-                            onEdit={onEdit}
-                            onMove={onMove}
-                            onDelete={onDelete}
-                        />
-                    ))}
-                </ul>
-            )}
-        </li>
-    );
-}
-
-function flatten(locations: LocationNode[]): LocationNode[] {
-    return locations.flatMap((location) => [location, ...flatten(location.children)]);
+function flatten(locations: LocationRow[]): LocationRow[] {
+    return locations.flatMap((loc) => [loc, ...flatten(loc.children)]);
 }

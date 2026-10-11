@@ -1,0 +1,107 @@
+import { useState } from 'react';
+import { router, usePage } from '@inertiajs/react';
+import { BuildingOffice2Icon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
+import { Button } from '@/Components/ui';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
+import type { PageProps } from '@/types';
+
+interface CompanySwitcherProps {
+    /** Runs once the switch went through, so a mobile drawer can close itself. */
+    onSwitched?: () => void;
+}
+
+/**
+ * The companies the user may act in. The server decides who gets one (`canSwitch`) and what each
+ * entry is; the POST is checked again there, so a forged id changes nothing.
+ */
+export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
+    const { canSwitch, companies = [] } = usePage<PageProps>().props;
+    const [switching, setSwitching] = useState(false);
+    const current = companies.find((company) => company.is_current);
+
+    if (!canSwitch || !current) {
+        return null;
+    }
+
+    const switchTo = (companyId: string) => {
+        if (Number(companyId) === current.id) {
+            return;
+        }
+
+        router.post(
+            route('admin.company.switch'),
+            { company_id: Number(companyId) },
+            {
+                onStart: () => setSwitching(true),
+                onFinish: () => setSwitching(false),
+                onSuccess: () => onSwitched?.(),
+            },
+        );
+    };
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button
+                    type="button"
+                    variant="outline"
+                    loading={switching}
+                    leftIcon={
+                        <BuildingOffice2Icon
+                            className="h-5 w-5 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    }
+                    rightIcon={
+                        <ChevronUpDownIcon
+                            className="h-4 w-4 shrink-0 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    }
+                    aria-label={`Switch company, current: ${current.name}`}
+                    className="h-auto min-h-11 w-full justify-start gap-3 px-3 py-2 text-left font-normal"
+                >
+                    <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{current.name}</span>
+                        <span className="block text-xs text-muted-foreground">Switch company</span>
+                    </span>
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+                align="start"
+                className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-[14rem]"
+            >
+                <DropdownMenuLabel>Switch company</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuRadioGroup
+                    aria-label="Companies"
+                    value={String(current.id)}
+                    onValueChange={switchTo}
+                >
+                    {companies.map((company) => (
+                        <DropdownMenuRadioItem
+                            key={company.id}
+                            value={String(company.id)}
+                            className="min-h-11 py-2 data-[highlighted]:ring-2 data-[highlighted]:ring-inset data-[highlighted]:ring-ring"
+                        >
+                            <span className="flex min-w-0 flex-col">
+                                <span className="truncate font-medium">{company.name}</span>
+                                <span className="truncate text-xs text-muted-foreground">
+                                    {company.is_default ? `${company.code}, default` : company.code}
+                                </span>
+                            </span>
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}

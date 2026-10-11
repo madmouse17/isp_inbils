@@ -2,8 +2,14 @@
 
 namespace Modules\NetworkAsset\Services;
 
+use App\Models\Core\Customer;
+use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Models\NetworkAsset;
@@ -13,9 +19,49 @@ class NetworkAssetService
 {
     public static function install(NetworkAsset $asset, int $locationId, ?int $customerId = null, ?int $subscriptionId = null, ?int $spkId = null): NetworkAsset
     {
+        abort_unless(CompanyService::currentId() !== null, 403, 'Company context is required to install a network asset.');
+
         return DB::transaction(function () use ($asset, $locationId, $customerId, $subscriptionId, $spkId) {
-            $asset = NetworkAsset::withoutCompany()->lockForUpdate()->findOrFail($asset->id);
+            $asset = self::lockAsset($asset);
             abort_if($asset->getAttribute('status') !== 'available', 422, 'Asset must be available to install.');
+
+            $location = self::lockCompanyModel(Location::query(), $locationId, 'location');
+            abort_unless((int) $location->company_id === (int) $asset->company_id, 422, 'Location must belong to the same company as the asset.');
+
+            abort_unless($subscriptionId === null || $customerId !== null, 422, 'Customer is required when installing with a subscription.');
+
+            $customer = null;
+            if ($customerId !== null) {
+                $customer = self::lockCompanyModel(Customer::query(), $customerId, 'customer');
+                abort_unless((int) $customer->company_id === (int) $asset->company_id, 422, 'Customer must belong to the same company as the asset.');
+            }
+
+            $subscription = null;
+            if ($subscriptionId !== null) {
+                $subscription = self::lockCompanyModel(ServiceSubscription::query(), $subscriptionId, 'subscription');
+                abort_unless((int) $subscription->company_id === (int) $asset->company_id, 422, 'Subscription must belong to the same company as the asset.');
+            }
+
+            $workOrder = null;
+            if ($spkId !== null) {
+                $workOrder = DB::table('work_orders')
+                    ->whereNull('deleted_at')
+                    ->where('id', $spkId)
+                    ->lockForUpdate()
+                    ->first();
+                abort_unless($workOrder !== null, 404, 'Work order not found.');
+                abort_unless((int) $workOrder->company_id === (int) $asset->company_id, 404, 'Work order not found.');
+            }
+
+            if ($customer !== null && $subscription !== null && (int) $subscription->customer_id !== (int) $customer->id) {
+                abort(422, 'Subscription must belong to the selected customer.');
+            }
+
+            if ($workOrder !== null) {
+                abort_unless($customer === null || (int) $workOrder->customer_id === (int) $customer->id, 422, 'Customer does not match the selected SPK.');
+                abort_unless($subscription === null || (int) $workOrder->subscription_id === (int) $subscription->id, 422, 'Subscription does not match the selected SPK.');
+                abort_unless((int) $workOrder->location_id === (int) $location->id, 422, 'Location does not match the selected SPK.');
+            }
 
             $activeInstall = NetworkAssetInstallation::query()
                 ->where('network_asset_id', $asset->getAttribute('id'))
@@ -34,6 +80,8 @@ class NetworkAssetService
 
             NetworkAssetInstallation::create([
                 'network_asset_id' => $asset->getAttribute('id'),
+                'asset_code_snapshot' => $asset->code,
+                'asset_serial_snapshot' => $asset->serial_number,
                 'location_id' => $locationId,
                 'customer_id' => $customerId,
                 'subscription_id' => $subscriptionId,
@@ -184,10 +232,37 @@ class NetworkAssetService
 
     private static function lockAsset(NetworkAsset $asset): NetworkAsset
     {
+        $companyId = CompanyService::currentId();
+
         /** @var NetworkAsset $locked */
         $locked = NetworkAsset::withoutCompany()->lockForUpdate()->findOrFail($asset->id);
 
+        if ($companyId !== null) {
+            abort_unless((int) $locked->company_id === (int) $companyId, 404, 'Network asset not found.');
+        }
+
         return $locked;
+    }
+
+    /**
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return TModel
+     */
+    private static function lockCompanyModel(Builder $query, int $id, string $label): Model
+    {
+        $companyId = CompanyService::currentId();
+
+        $model = $query->whereKey($id)->lockForUpdate()->first();
+
+        abort_unless($model !== null, 404, ucfirst($label).' not found.');
+
+        if ($companyId !== null) {
+            abort_unless((int) $model->getAttribute('company_id') === (int) $companyId, 404, ucfirst($label).' not found.');
+        }
+
+        return $model;
     }
 
     /**

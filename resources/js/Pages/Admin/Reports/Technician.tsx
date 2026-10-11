@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { useEffect } from 'react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import {
@@ -12,8 +12,11 @@ import {
     Input,
     NativeSelect,
 } from '@/Components/ui';
+import { DrillLink, type DrillLinks } from './components/DrillLink';
+import { ReportExportMenu } from './components/ReportExportMenu';
 
 interface TechData extends Record<string, unknown> {
+    technician_id?: number;
     spk_completed?: number;
     tickets_resolved?: number;
     avg_spk_minutes?: number | null;
@@ -31,23 +34,81 @@ interface TechRow {
 }
 
 interface Props extends Record<string, unknown> {
-    data?: TechData;
-    technicians: { data: TechRow[] };
+    data?: TechData | null;
+    technicians?: { data?: unknown } | null;
     filters: { technician_id?: string; date_from?: string; date_to?: string };
+    can: { export: boolean };
+    drill: DrillLinks;
 }
 
-export default function Technician({ data, technicians, filters }: Props) {
-    const [techId, setTechId] = useState(filters.technician_id ?? '');
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+export default function Technician({ data, technicians, filters, can, drill }: Props) {
+    const isSelf =
+        typeof data?.technician_id === 'number' &&
+        Number.isFinite(data.technician_id) &&
+        filters.technician_id === undefined;
+    const eligibleTechnicians: TechRow[] = (() => {
+        if (!Array.isArray(technicians?.data)) return [];
+
+        return technicians.data.filter(
+            (row: unknown): row is TechRow =>
+                typeof row === 'object' &&
+                row !== null &&
+                typeof (row as TechRow).id === 'number' &&
+                Number.isFinite((row as TechRow).id) &&
+                (row as TechRow).id > 0 &&
+                typeof (row as TechRow).name === 'string' &&
+                (row as TechRow).name.trim().length > 0,
+        );
+    })();
+    const serverTarget = eligibleTechnicians.find(
+        (row) => String(row.id) === String(filters.technician_id),
+    )?.id;
+    const {
+        data: formData,
+        setData,
+        transform,
+        get,
+        processing,
+        errors,
+    } = useForm({
+        technician_id: serverTarget === undefined ? '' : String(serverTarget),
+        date_from: filters.date_from ?? '',
+        date_to: filters.date_to ?? '',
+    });
+
+    useEffect(() => {
+        setData({
+            technician_id: serverTarget === undefined ? '' : String(serverTarget),
+            date_from: filters.date_from ?? '',
+            date_to: filters.date_to ?? '',
+        });
+    }, [filters.technician_id, filters.date_from, filters.date_to, serverTarget, setData]);
+
+    const selectedTarget = eligibleTechnicians.find(
+        (row) => String(row.id) === formData.technician_id,
+    )?.id;
+    const showMetrics = Boolean(
+        data &&
+        (isSelf ||
+            (serverTarget !== undefined &&
+                data.technician_id === serverTarget &&
+                formData.technician_id === String(serverTarget))),
+    );
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(
-            route('admin.reports.technician'),
-            { technician_id: techId, date_from: dateFrom, date_to: dateTo },
-            { preserveState: true },
+        if (!isSelf && selectedTarget === undefined) return;
+
+        transform((values) =>
+            isSelf
+                ? { date_from: values.date_from, date_to: values.date_to }
+                : {
+                      technician_id: selectedTarget,
+                      date_from: values.date_from,
+                      date_to: values.date_to,
+                  },
         );
+        get(route('admin.reports.technician'), { preserveState: true });
     };
 
     return (
@@ -56,41 +117,68 @@ export default function Technician({ data, technicians, filters }: Props) {
                 <PageHeader
                     title="Technician Performance"
                     subtitle="SPK/ticket counts, avg completion, SLA, rating, and FRT."
+                    actions={
+                        showMetrics && data ? (
+                            <ReportExportMenu
+                                url={route('admin.reports.technician.export')}
+                                params={filters}
+                                canExport={can.export}
+                            />
+                        ) : undefined
+                    }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <NativeSelect
-                                label="Technician"
-                                value={techId}
-                                onChange={(e) => setTechId(e.target.value)}
-                            >
-                                <option value="">Select...</option>
-                                {technicians.data.map((t) => (
-                                    <option key={t.id} value={t.id}>
-                                        {t.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <Input
-                                label="From"
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                            />
-                            <Input
-                                label="To"
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => setDateTo(e.target.value)}
-                            />
-                            <div className="self-end">
-                                <Button type="submit">Run</Button>
+                        <form
+                            onSubmit={submit}
+                            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+                        >
+                            {!isSelf && (
+                                <div className="w-full min-w-0 sm:w-48">
+                                    <NativeSelect
+                                        label="Technician"
+                                        value={formData.technician_id}
+                                        onChange={(e) => setData('technician_id', e.target.value)}
+                                        error={errors.technician_id}
+                                    >
+                                        <option value="">Select...</option>
+                                        {eligibleTechnicians.map((row) => (
+                                            <option key={row.id} value={row.id}>
+                                                {row.name}
+                                            </option>
+                                        ))}
+                                    </NativeSelect>
+                                </div>
+                            )}
+                            <div className="w-full min-w-0 sm:w-48">
+                                <Input
+                                    label="From"
+                                    type="date"
+                                    value={formData.date_from}
+                                    onChange={(e) => setData('date_from', e.target.value)}
+                                    error={errors.date_from}
+                                />
                             </div>
+                            <div className="w-full min-w-0 sm:w-48">
+                                <Input
+                                    label="To"
+                                    type="date"
+                                    value={formData.date_to}
+                                    onChange={(e) => setData('date_to', e.target.value)}
+                                    error={errors.date_to}
+                                />
+                            </div>
+                            <Button
+                                type="submit"
+                                loading={processing}
+                                disabled={!isSelf && selectedTarget === undefined}
+                            >
+                                Run
+                            </Button>
                         </form>
                     </CardContent>
                 </Card>
-                {data && (
+                {showMetrics && data ? (
                     <div className="grid gap-4 md:grid-cols-3">
                         <Card>
                             <CardHeader>
@@ -98,6 +186,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">{data.spk_completed ?? 0}</p>
+                                <DrillLink href={drill.spk_completed} label="SPK Completed" />
                             </CardContent>
                         </Card>
                         <Card>
@@ -106,6 +195,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">{data.tickets_resolved ?? 0}</p>
+                                <DrillLink href={drill.tickets_resolved} label="Tickets Resolved" />
                             </CardContent>
                         </Card>
                         <Card>
@@ -116,6 +206,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                                 <p className="text-2xl font-bold">
                                     {data.sla_compliance_pct ?? 0}%
                                 </p>
+                                <DrillLink href={drill.sla_compliance_pct} label="SLA Compliance" />
                             </CardContent>
                         </Card>
                         <Card>
@@ -124,6 +215,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">{data.avg_score ?? '-'}</p>
+                                <DrillLink href={drill.avg_score} label="Avg Score" />
                             </CardContent>
                         </Card>
                         <Card>
@@ -132,6 +224,7 @@ export default function Technician({ data, technicians, filters }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">{data.avg_frt_minutes ?? '-'}</p>
+                                <DrillLink href={drill.avg_frt_minutes} label="Avg FRT" />
                             </CardContent>
                         </Card>
                         <Card>
@@ -140,9 +233,25 @@ export default function Technician({ data, technicians, filters }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <p className="text-2xl font-bold">{data.active_workload ?? 0}</p>
+                                <DrillLink
+                                    href={drill.active_workload_spk}
+                                    label="Active Workload SPK"
+                                />
+                                <DrillLink
+                                    href={drill.active_workload_tickets}
+                                    label="Active Workload tickets"
+                                />
                             </CardContent>
                         </Card>
                     </div>
+                ) : (
+                    !isSelf && (
+                        <p className="text-sm text-muted-foreground">
+                            {eligibleTechnicians.length === 0
+                                ? 'Tidak ada teknisi yang dapat dipilih.'
+                                : 'Pilih teknisi untuk melihat laporan.'}
+                        </p>
+                    )
                 )}
             </div>
         </AdminLayout>

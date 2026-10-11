@@ -7,7 +7,7 @@ import {
     type DataTableColumn,
     PageHeader,
 } from '@/Components/composite';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge, Button, Card, CardContent, Input } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';

@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Badge,
@@ -13,6 +14,7 @@ import {
     Input,
     Modal,
     NativeSelect,
+    Progress,
     Textarea,
     useToast,
 } from '@/Components/ui';
@@ -75,6 +77,8 @@ export default function Show({ ticket }: ShowProps) {
         'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
     >(null);
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadPercentage, setUploadPercentage] = useState(0);
     const { data, setData, post, processing, reset } = useForm({
         handler_id: '',
         resolution_note: '',
@@ -102,13 +106,16 @@ export default function Show({ ticket }: ShowProps) {
 
     const uploadAttachment = (e: FormEvent) => {
         e.preventDefault();
-        if (!attachmentFile) return;
+        if (!attachmentFile || uploading) return;
 
         const formData = new FormData();
         formData.append('file', attachmentFile);
 
+        setUploading(true);
+        setUploadPercentage(0);
         router.post(route('admin.tickets.attachments.store', t.id), formData, {
             forceFormData: true,
+            onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
             onSuccess: () => {
                 setAttachmentFile(null);
                 toast({ title: 'Attachment uploaded.', variant: 'success' });
@@ -119,6 +126,7 @@ export default function Show({ ticket }: ShowProps) {
                     description: 'Check allowed file type and max 10 MB size.',
                     variant: 'danger',
                 }),
+            onFinish: () => setUploading(false),
         });
     };
 
@@ -130,11 +138,12 @@ export default function Show({ ticket }: ShowProps) {
                     subtitle="Record details and related activity."
                     actions={
                         <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => router.get(route('admin.tickets.index'))}
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            Back
+                            <Link href={route('admin.tickets.index')}>Back</Link>
                         </Button>
                     }
                 />
@@ -338,10 +347,21 @@ export default function Show({ ticket }: ShowProps) {
                                 required
                             />
                             <div className="self-end">
-                                <Button type="submit" disabled={!attachmentFile}>
+                                <Button
+                                    type="submit"
+                                    disabled={!attachmentFile || uploading}
+                                    loading={uploading}
+                                >
                                     Upload
                                 </Button>
                             </div>
+                            {uploading && (
+                                <Progress
+                                    className="sm:col-span-2"
+                                    label="Mengunggah lampiran"
+                                    value={uploadPercentage}
+                                />
+                            )}
                         </form>
                         <div className="grid gap-2 sm:grid-cols-2">
                             {(t.attachments ?? []).map((a) => (

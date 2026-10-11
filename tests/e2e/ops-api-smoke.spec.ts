@@ -3,17 +3,15 @@
  */
 import { expect, test } from './support/fixtures';
 import { loginAs } from './support/demo';
+import { FORMER_SCAFFOLD_API_PATHS } from './support/former-api-paths';
 
-const FORMER_SCAFFOLD_API_PATHS = [
-    '/api/v1/billings',
-    '/api/v1/customers',
-    '/api/v1/inventories',
-    '/api/v1/networkassets',
-    '/api/v1/reportings',
-    '/api/v1/services',
-    '/api/v1/spks',
-    '/api/v1/ticketings',
-];
+/**
+ * Disable trace/video/screenshot for this file: the former scaffold API paths
+ * are actual request URLs that would be recorded in HAR entries inside
+ * trace.zip, violating the "retained diagnostics" non-disclosure clause.
+ * Other test files retain their normal failure-only diagnostics.
+ */
+test.use({ trace: 'off', video: 'off', screenshot: 'off' });
 
 test.describe('@smoke ops and api containment', () => {
     test('/up liveness contract', async ({ page }) => {
@@ -71,12 +69,14 @@ test.describe('@smoke ops and api containment', () => {
 
     test('former scaffold API paths return 404 for guest and auth', async ({ page }) => {
         for (const path of FORMER_SCAFFOLD_API_PATHS) {
-            expect((await page.request.get(path)).status(), path).toBe(404);
+            const response = await page.request.get(path);
+            expect(response.status()).toBe(404);
         }
 
         await loginAs(page, 'admin');
         for (const path of FORMER_SCAFFOLD_API_PATHS) {
-            expect((await page.request.get(path)).status(), `auth ${path}`).toBe(404);
+            const response = await page.request.get(path);
+            expect(response.status()).toBe(404);
         }
     });
 });

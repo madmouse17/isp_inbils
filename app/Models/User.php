@@ -9,6 +9,7 @@ use App\Models\Core\EmployeeProfile;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -61,9 +62,21 @@ class User extends Authenticatable
         ];
     }
 
+    /** The home company: where the user lands at login. Membership grants access to others. */
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    /**
+     * Companies the user was granted membership of. The home company counts as a member even
+     * without a row here; CompanyService::isActiveMember() is the authority.
+     *
+     * @return BelongsToMany<Company, $this>
+     */
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class)->withPivot('is_default')->withTimestamps();
     }
 
     public function employeeProfile(): HasOne

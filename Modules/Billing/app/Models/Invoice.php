@@ -17,6 +17,22 @@ use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property string $number
+ * @property string $type
+ * @property string $source
+ * @property int $customer_id
+ * @property ?int $work_order_id
+ * @property ?int $subscription_id
+ * @property string $status
+ * @property string $subtotal
+ * @property string $tax_amount
+ * @property string $discount_amount
+ * @property string $total
+ * @property string $paid_amount
+ */
 class Invoice extends Model
 {
     use BelongsToCompany;
@@ -28,7 +44,7 @@ class Invoice extends Model
         'company_id', 'number', 'type', 'source', 'customer_id', 'subscription_id', 'work_order_id',
         'issue_date', 'due_date', 'billing_period_start', 'billing_period_end',
         'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount',
-        'notes', 'created_by', 'sent_at', 'cancelled_at', 'cancel_reason',
+        'notes', 'created_by', 'sent_at', 'cancelled_at', 'cancel_reason', 'cancelled_by',
     ];
 
     protected $casts = [
@@ -63,6 +79,11 @@ class Invoice extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function canceller(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by');
     }
 
     public function items(): HasMany

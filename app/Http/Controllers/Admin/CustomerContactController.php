@@ -46,12 +46,23 @@ class CustomerContactController extends Controller
         Gate::authorize('customer.address.manage');
 
         $data = $request->validated();
+        $data['role'] = $data['position'] ?? null;
+        unset($data['position']);
 
         DB::transaction(function () use ($customer, $data) {
-            if (($data['is_primary'] ?? false) === true) {
+            $customer->contacts()->lockForUpdate()->get();
+
+            if (! $customer->contacts()->exists()) {
+                // First contact must satisfy invariant A: exactly one primary.
+                $data['is_primary'] = true;
+            } elseif (($data['is_primary'] ?? false) === true) {
                 CustomerContact::query()->where('customer_id', $customer->id)->update(['is_primary' => false]);
             }
-            CustomerContact::query()->where('customer_id', $customer->id)->create($data);
+
+            CustomerContact::query()->where('customer_id', $customer->id)->create([
+                ...$data,
+                'customer_id' => $customer->id,
+            ]);
         });
 
         return back()->with('success', 'Contact added.');
@@ -64,12 +75,29 @@ class CustomerContactController extends Controller
         Gate::authorize('customer.address.manage');
 
         $data = $request->validated();
+        $data['role'] = $data['position'] ?? null;
+        unset($data['position']);
 
         DB::transaction(function () use ($customer, $contact, $data) {
-            if (($data['is_primary'] ?? false) === true && ! $contact->is_primary) {
+            $customer->contacts()->lockForUpdate()->get();
+
+            if (($data['is_primary'] ?? false) === true) {
                 CustomerContact::query()->where('customer_id', $customer->id)->where('id', '!=', $contact->id)->update(['is_primary' => false]);
             }
+
             $contact->update($data);
+
+            // Invariant A: a non-empty collection must keep exactly one primary.
+            $contact->refresh();
+            $siblings = $customer->contacts()->where('id', '!=', $contact->id)->get(['id', 'is_primary']);
+
+            if (! $contact->is_primary && $siblings->where('is_primary', true)->isEmpty()) {
+                if ($siblings->isEmpty()) {
+                    $contact->update(['is_primary' => true]);
+                } else {
+                    $customer->contacts()->whereKey($siblings->first()->id)->update(['is_primary' => true]);
+                }
+            }
         });
 
         return back()->with('success', 'Contact updated.');
@@ -81,7 +109,20 @@ class CustomerContactController extends Controller
         abort_unless($contact->customer_id === $customer->id, 404);
         Gate::authorize('customer.address.manage');
 
-        $contact->delete();
+        DB::transaction(function () use ($customer, $contact) {
+            $customer->contacts()->lockForUpdate()->get();
+
+            $wasPrimary = $contact->is_primary;
+            $contact->delete();
+
+            // Invariant A: promote the earliest remaining contact so a non-empty
+            // collection keeps exactly one primary.
+            $remaining = $customer->contacts()->orderBy('id')->get();
+
+            if ($remaining->isNotEmpty() && $wasPrimary && $remaining->where('is_primary', true)->isEmpty()) {
+                $customer->contacts()->whereKey($remaining->first()->id)->update(['is_primary' => true]);
+            }
+        });
 
         return back()->with('success', 'Contact deleted.');
     }

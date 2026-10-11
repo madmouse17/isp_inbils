@@ -2,7 +2,12 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import {
+    FormulaVersionLabel,
+    LoadingState,
+    MetricDefinitionNote,
+    PageHeader,
+} from '@/Components/composite';
 import {
     Button,
     Card,
@@ -16,6 +21,13 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { useVisitPending } from '@/hooks/useVisitPending';
+import type { ReportMeta } from '@/types';
+import { DrillLink, type DrillLinks } from './components/DrillLink';
+import { ReportExportMenu } from './components/ReportExportMenu';
+
+type AssetMetricKey =
+    'installation_count' | 'customer_linked_count' | 'retired_count' | 'status_distribution';
 
 interface AssetData extends Record<string, unknown> {
     status_distribution?: Record<string, number>;
@@ -27,20 +39,24 @@ interface AssetData extends Record<string, unknown> {
 
 interface Props extends Record<string, unknown> {
     data?: AssetData;
-    filters: { asset_type?: string; date_from?: string; date_to?: string };
+    filters: { asset_type?: string; location_id?: string; date_from?: string; date_to?: string };
+    meta: ReportMeta<AssetMetricKey>;
+    can: { export: boolean };
+    drill: DrillLinks;
 }
 
-export default function Asset({ data, filters }: Props) {
+export default function Asset({ data, filters, meta, can, drill }: Props) {
     const [assetType, setAssetType] = useState(filters.asset_type ?? '');
     const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
     const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.reports.asset'),
             { asset_type: assetType, date_from: dateFrom, date_to: dateTo },
-            { preserveState: true },
+            { preserveState: true, ...callbacks },
         );
     };
 
@@ -50,6 +66,16 @@ export default function Asset({ data, filters }: Props) {
                 <PageHeader
                     title="Asset Utilization"
                     subtitle="Status distribution, per-location, and installation history."
+                    actions={
+                        <>
+                            <FormulaVersionLabel version={meta.formula_version} />
+                            <ReportExportMenu
+                                url={route('admin.reports.asset.export')}
+                                params={filters}
+                                canExport={can.export}
+                            />
+                        </>
+                    }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
@@ -80,40 +106,74 @@ export default function Asset({ data, filters }: Props) {
                                 onChange={(e) => setDateTo(e.target.value)}
                             />
                             <div className="self-end">
-                                <Button type="submit">Run</Button>
+                                <Button type="submit" loading={pending}>
+                                    Run
+                                </Button>
                             </div>
                         </form>
                     </CardContent>
                 </Card>
-                {data && (
+                {pending && <LoadingState variant="section" />}
+                {!pending && data && (
                     <div className="space-y-4">
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">Installations</p>
+                                    <p className="text-sm text-surface-500">
+                                        {meta.metrics.installation_count.label}
+                                    </p>
                                     <p className="text-2xl font-bold">
                                         {data.installation_count ?? 0}
                                     </p>
+                                    <DrillLink
+                                        href={drill.installation_count}
+                                        label={meta.metrics.installation_count.label}
+                                    />
+                                    <MetricDefinitionNote
+                                        definition={meta.metrics.installation_count}
+                                    />
                                 </CardContent>
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">Customer-Linked</p>
+                                    <p className="text-sm text-surface-500">
+                                        {meta.metrics.customer_linked_count.label}
+                                    </p>
                                     <p className="text-2xl font-bold">
                                         {data.customer_linked_count ?? 0}
                                     </p>
+                                    <DrillLink
+                                        href={drill.customer_linked_count}
+                                        label={meta.metrics.customer_linked_count.label}
+                                    />
+                                    <MetricDefinitionNote
+                                        definition={meta.metrics.customer_linked_count}
+                                    />
                                 </CardContent>
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">Retired</p>
+                                    <p className="text-sm text-surface-500">
+                                        {meta.metrics.retired_count.label}
+                                    </p>
                                     <p className="text-2xl font-bold">{data.retired_count ?? 0}</p>
+                                    <DrillLink
+                                        href={drill.retired_count}
+                                        label={meta.metrics.retired_count.label}
+                                    />
+                                    <MetricDefinitionNote definition={meta.metrics.retired_count} />
                                 </CardContent>
                             </Card>
                         </div>
                         <Card>
                             <CardContent>
-                                <p className="mb-2 font-medium">Status Distribution</p>
+                                <p className="mb-2 font-medium">
+                                    {meta.metrics.status_distribution.label}
+                                </p>
+                                <MetricDefinitionNote
+                                    definition={meta.metrics.status_distribution}
+                                    className="mb-4 mt-0 border-t-0 pt-0"
+                                />
                                 <Table>
                                     <THead>
                                         <TR>
@@ -137,7 +197,14 @@ export default function Asset({ data, filters }: Props) {
                                                 ([s, c]) => (
                                                     <TR key={s}>
                                                         <TD>{s}</TD>
-                                                        <TD>{c}</TD>
+                                                        <TD>
+                                                            {c}
+                                                            <DrillLink
+                                                                href={drill.status_distribution}
+                                                                label={`${s} assets`}
+                                                                group={s}
+                                                            />
+                                                        </TD>
                                                     </TR>
                                                 ),
                                             )

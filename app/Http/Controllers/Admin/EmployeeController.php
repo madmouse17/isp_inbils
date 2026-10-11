@@ -14,6 +14,7 @@ use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
 use App\Models\Core\Vehicle;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -46,7 +47,7 @@ class EmployeeController extends Controller
             'employees' => EmployeeResource::collection($employees),
             'organizations' => OrganizationResource::collection(OrganizationUnit::query()->where('is_active', true)->orderBy('code')->get()),
             'vehicles' => VehicleResource::collection(Vehicle::query()->where('is_active', true)->orderBy('plate_number')->get()),
-            'users' => UserResource::collection(User::query()->where('is_active', true)->whereDoesntHave('employeeProfile')->orderBy('name')->get()),
+            'users' => UserResource::collection(User::query()->where('company_id', CompanyService::currentId())->where('is_active', true)->whereDoesntHave('employeeProfile')->orderBy('name')->get()),
             'filters' => $request->only(['search', 'organization_id', 'status', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('employee.manage') ?? false,

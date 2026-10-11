@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Badge,
@@ -20,6 +21,7 @@ import {
     TR,
 } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
+import { usePermission } from '@/hooks/usePermission';
 
 interface InvData {
     id: number;
@@ -77,9 +79,11 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
 
 export default function Show({ invoice }: ShowProps) {
     const inv = invoice.data;
+    const { can } = usePermission();
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
+    const [reverseTarget, setReverseTarget] = useState<number | null>(null);
     const { data, setData, post, processing, reset } = useForm({
         amount: '',
         method: 'cash',
@@ -123,6 +127,17 @@ export default function Show({ invoice }: ShowProps) {
         });
     };
 
+    const submitReverse = (e: FormEvent) => {
+        e.preventDefault();
+        if (reverseTarget === null) return;
+        post(route('admin.invoices.payments.reverse', [inv.id, reverseTarget]), {
+            onSuccess: () => {
+                setReverseTarget(null);
+                reset();
+            },
+        });
+    };
+
     return (
         <AdminLayout title={`Invoice ${inv.number}`}>
             <div className="space-y-6">
@@ -132,6 +147,14 @@ export default function Show({ invoice }: ShowProps) {
                     actions={
                         <>
                             <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.invoices.index')}>Back</Link>
+                            </Button>
+                            <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() =>
@@ -139,13 +162,6 @@ export default function Show({ invoice }: ShowProps) {
                                 }
                             >
                                 Download PDF
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => router.get(route('admin.invoices.index'))}
-                            >
-                                Back
                             </Button>
                         </>
                     }
@@ -253,7 +269,7 @@ export default function Show({ invoice }: ShowProps) {
                             {inv.status === 'draft' && (
                                 <Button
                                     type="button"
-                                    variant="secondary"
+                                    variant="success"
                                     onClick={() => setItemModal(true)}
                                 >
                                     Add Item
@@ -334,13 +350,14 @@ export default function Show({ invoice }: ShowProps) {
                                     <TH>Reference</TH>
                                     <TH>Paid At</TH>
                                     <TH>Status</TH>
+                                    <TH></TH>
                                 </TR>
                             </THead>
                             <TBody>
                                 {(inv.payments ?? []).length === 0 ? (
                                     <TR>
                                         <TD
-                                            colSpan={5}
+                                            colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
                                             No payments.
@@ -361,6 +378,19 @@ export default function Show({ invoice }: ShowProps) {
                                                 ) : (
                                                     <Badge variant="success">Active</Badge>
                                                 )}
+                                            </TD>
+                                            <TD>
+                                                {!p.cancelled_at &&
+                                                    can('billing.payment.reverse') && (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => setReverseTarget(p.id)}
+                                                        >
+                                                            Reverse
+                                                        </Button>
+                                                    )}
                                             </TD>
                                         </TR>
                                     ))
@@ -413,7 +443,7 @@ export default function Show({ invoice }: ShowProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button type="submit" variant="success" loading={processing}>
                                 Record
                             </Button>
                         </div>
@@ -468,7 +498,7 @@ export default function Show({ invoice }: ShowProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button type="submit" variant="success" loading={processing}>
                                 Add
                             </Button>
                         </div>
@@ -497,6 +527,37 @@ export default function Show({ invoice }: ShowProps) {
                             </Button>
                             <Button type="submit" variant="danger" loading={processing}>
                                 Confirm Cancel
+                            </Button>
+                        </div>
+                    </form>
+                </Modal>
+
+                <Modal
+                    open={reverseTarget !== null}
+                    onClose={() => setReverseTarget(null)}
+                    title="Reverse Payment"
+                >
+                    <form onSubmit={submitReverse} className="space-y-4">
+                        <div className="text-sm text-muted-foreground">
+                            Reversing a payment decrements the invoice paid amount and re-derives
+                            its status. The payment is marked cancelled with the actor recorded.
+                        </div>
+                        <Input
+                            label="Reason"
+                            value={data.reason}
+                            onChange={(e) => setData('reason', e.target.value)}
+                            required
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setReverseTarget(null)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" variant="danger" loading={processing}>
+                                Confirm Reverse
                             </Button>
                         </div>
                     </form>

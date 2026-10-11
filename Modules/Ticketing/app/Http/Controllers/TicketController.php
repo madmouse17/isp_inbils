@@ -24,17 +24,20 @@ use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Ticketing\Http\Requests\AssignTicketRequest;
+use Modules\Ticketing\Http\Requests\ResolveTicketRequest;
+use Modules\Ticketing\Http\Requests\StoreTicketCommentRequest;
 use Modules\Ticketing\Http\Requests\StoreTicketRequest;
 use Modules\Ticketing\Http\Requests\UpdateTicketRequest;
+use Modules\Ticketing\Http\Requests\UploadTicketAttachmentRequest;
 use Modules\Ticketing\Http\Resources\TicketCategoryResource;
 use Modules\Ticketing\Http\Resources\TicketResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
-use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class TicketController extends Controller
 {
@@ -53,12 +56,20 @@ class TicketController extends Controller
 
         return Inertia::render('Admin/Tickets/Index', [
             'tickets' => TicketResource::collection($tickets),
+            'priorityOptions' => ['low', 'medium', 'high', 'urgent'],
+            'statusOptions' => ['open', 'assigned', 'on_progress', 'resolved', 'closed'],
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
             'handlers' => UserResource::collection(
-                User::query()->whereHas('roles', fn ($q) => $q->whereIn('name', ['admin', 'manager', 'noc', 'staff', 'technician']))
-                    ->where('is_active', true)->orderBy('name')->get()
+                User::query()
+                    ->where('company_id', CompanyService::currentId())
+                    ->where('is_active', true)
+                    ->where(function ($query) {
+                        $query->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']))
+                            ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']));
+                    })
+                    ->orderBy('name')->get()
             ),
-            'filters' => $request->only(['search', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
+            'filters' => $request->only(['search', 'priority', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('ticket.create') ?? false,
                 'export' => $request->user()?->can('ticket.export') ?? false,
@@ -74,14 +85,8 @@ class TicketController extends Controller
 
         $query = $this->filteredQuery($request)->with(['customer:id,code,name']);
 
-        $export = ExportQuery::make($query)
-            ->for(
-                $request,
-                self::SORTABLE,
-                ['code', 'title'],
-                'created_at',
-                'desc'
-            )
+        $export = ExportQuery::make($this->applySort($query, $request, 'created_at', 'desc'))
+            ->defaultSort('created_at', 'desc')
             ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
 
         $columns = [
@@ -99,7 +104,7 @@ class TicketController extends Controller
                 'Title' => $ticket->title,
                 'Priority' => $ticket->priority,
                 'Status' => $ticket->status,
-                'Customer' => $ticket->customer?->name,
+                'Customer' => data_get($ticket, 'customer.name', ''),
                 'Created' => optional($ticket->created_at)?->toDateTimeString(),
             ];
         };
@@ -119,6 +124,7 @@ class TicketController extends Controller
     {
         $query = Ticket::query()
             ->with(['category', 'customer', 'assignee'])
+            ->when($request->input('priority'), fn (Builder $q, string $v) => $q->where('priority', $v))
             ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
             ->when($request->input('source'), fn (Builder $q, string $v) => $q->where('source', $v))
             ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', $v))
@@ -138,7 +144,17 @@ class TicketController extends Controller
                 });
             });
 
-        return $this->applySort($query, $request, 'created_at', 'desc');
+        if (($user = request()->user()) !== null
+            && ($user->can('ticket.start') || $user->can('ticket.resolve') || $user->can('ticket.close'))
+            && ! $user->can('ticket.assign')) {
+            if (! $user->is_active) {
+                $query->whereIn('id', []);
+            } else {
+                $query->where('assigned_to', $user->id);
+            }
+        }
+
+        return $query;
     }
 
     public function create(Request $request): InertiaResponse
@@ -149,7 +165,14 @@ class TicketController extends Controller
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->orderBy('code')->get()),
-            'assets' => NetworkAssetResource::collection(NetworkAsset::query()->orderBy('code')->get()),
+            'assets' => NetworkAssetResource::collection(
+                NetworkAsset::query()
+                    ->whereNotIn('status', ['retired', 'decommissioned'])
+                    ->whereNull('retired_at')
+                    ->orderBy('code')
+                    ->limit(100)
+                    ->get()
+            ),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
         ]);
     }
@@ -215,9 +238,28 @@ class TicketController extends Controller
     public function assign(AssignTicketRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.assign');
+        Gate::authorize('assign', $ticket);
 
-        TicketService::assign($ticket, $request->integer('handler_id'), $request->user()->id);
+        $expectedAssignedTo = $request->input('expected_assigned_to') !== null
+            ? (int) $request->input('expected_assigned_to')
+            : null;
+        $expectedUpdatedAt = (string) $request->input('expected_updated_at');
+
+        try {
+            TicketService::assign(
+                $ticket,
+                $request->integer('handler_id'),
+                $request->user()->id,
+                $expectedAssignedTo,
+                $expectedUpdatedAt
+            );
+        } catch (HttpException $exception) {
+            if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'Ticket assigned.');
     }
@@ -225,19 +267,35 @@ class TicketController extends Controller
     public function start(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.start');
-        TicketService::startWork($ticket);
+        Gate::authorize('start', $ticket);
+
+        try {
+            TicketService::startWork($ticket);
+        } catch (HttpException $exception) {
+            if (request()->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'Ticket started.');
     }
 
-    public function resolve(Request $request, Ticket $ticket): RedirectResponse
+    public function resolve(ResolveTicketRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.resolve');
+        Gate::authorize('resolve', $ticket);
 
-        $request->validate(['resolution_note' => ['required', 'string', 'max:1000']]);
-        TicketService::resolve($ticket, $request->input('resolution_note'));
+        try {
+            TicketService::resolve($ticket, $request->input('resolution_note'));
+        } catch (HttpException $exception) {
+            if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'Ticket resolved.');
     }
@@ -245,8 +303,16 @@ class TicketController extends Controller
     public function close(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.close');
-        TicketService::close($ticket);
+        Gate::authorize('close', $ticket);
+        try {
+            TicketService::close($ticket);
+        } catch (HttpException $exception) {
+            if (request()->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                return back()->withErrors(['conflict' => $exception->getMessage()]);
+            }
+
+            throw $exception;
+        }
 
         return back()->with('success', 'Ticket closed.');
     }
@@ -254,42 +320,26 @@ class TicketController extends Controller
     public function spawnSpk(Request $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.spawn_spk');
+        Gate::authorize('spawnSpk', $ticket);
 
-        TicketService::spawnSpk($ticket);
+        $workOrder = TicketService::spawnSpk($ticket);
 
-        return redirect()->route('admin.spk.index')
+        return redirect()->route('admin.spk.show', $workOrder)
             ->with('success', 'SPK spawned from ticket.');
     }
 
-    public function addComment(Request $request, Ticket $ticket): RedirectResponse
+    public function addComment(StoreTicketCommentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.comment.create');
 
-        $request->validate([
-            'body' => ['required', 'string', 'max:2000'],
-            'is_internal' => ['boolean'],
-        ]);
-
-        TicketComment::create([
-            'ticket_id' => $ticket->id,
-            'author_id' => $request->user()->id,
-            'body' => $request->input('body'),
-            'is_internal' => $request->boolean('is_internal'),
-        ]);
+        TicketService::addComment($ticket, $request->validated(), $request->user()->id);
 
         return back()->with('success', 'Comment added.');
     }
 
-    public function uploadAttachment(Request $request, Ticket $ticket): RedirectResponse
+    public function uploadAttachment(UploadTicketAttachmentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('ticket.attachment.upload');
-
-        $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:jpg,jpeg,png,pdf,doc,docx,txt', 'mimetypes:image/jpeg,image/png,application/pdf,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-        ]);
 
         $file = $request->file('file');
         $this->storeMedia($ticket, $file, 'attachments', [

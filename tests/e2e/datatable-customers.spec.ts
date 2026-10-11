@@ -22,11 +22,15 @@ test('@kanban-t_41ed9a9c customers index renders DataTable with rows, sort, filt
 
     await page.getByRole('button', { name: 'Name' }).click();
     await expect(page).toHaveURL(/sort=name/);
-    await expect(page.locator('tbody tr').filter({ hasText: datatableCustomerNames[0] }).first()).toBeVisible();
+    await expect(
+        page.locator('tbody tr').filter({ hasText: datatableCustomerNames[0] }).first(),
+    ).toBeVisible();
 
     await page.getByRole('button', { name: 'Next page' }).click();
     await expect(page).toHaveURL(/page=2/);
-    await expect(page.locator('tbody tr').filter({ hasText: datatableCustomerNames[10] }).first()).toBeVisible({
+    await expect(
+        page.locator('tbody tr').filter({ hasText: datatableCustomerNames[10] }).first(),
+    ).toBeVisible({
         timeout: 15_000,
     });
 });

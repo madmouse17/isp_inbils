@@ -10,3 +10,7 @@ Schedule::command('billing:check-overdue')->dailyAt('03:00')->withoutOverlapping
 // SLA checks run per-company via CheckTicketSlaBreachesJob; the command
 // iterates active companies and dispatches one job per tenant.
 Schedule::command('tickets:sla')->everyFifteenMinutes()->withoutOverlapping();
+
+// Scheduler heartbeat — keeps the /ready scheduler probe green.
+// Run every 5 minutes so the 300-second HEARTBEAT_MAX_AGE window is never missed.
+Schedule::command('ops:scheduler-heartbeat')->everyFiveMinutes();

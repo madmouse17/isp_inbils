@@ -2,6 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Core\Customer;
+use App\Queries\Admin\CustomerAcquirerQuery;
+use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -78,7 +81,24 @@ class StoreCustomerRequest extends FormRequest
             'subscription.otc_installation_fee' => ['nullable', 'numeric', 'min:0'],
             'subscription.contract_months' => ['nullable', 'integer', 'min:1'],
             'subscription.notes' => ['nullable', 'string'],
+            ...$this->acquirerRules(),
         ];
+    }
+
+    /**
+     * The acquirer key is validated only for holders of customer.sales.assign; for everyone else it is
+     * never validated and never reaches validated(), so a forged value is ignored and the server
+     * default applies.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function acquirerRules(): array
+    {
+        if (! ($this->user()?->can('assignAcquirer', Customer::class) ?? false)) {
+            return [];
+        }
+
+        return ['acquired_by_user_id' => ['nullable', 'bail', CustomerAcquirerQuery::idRule(), new IsEligibleCustomerAcquirer()]];
     }
 
     /** @return array<int, callable(Validator): void> */

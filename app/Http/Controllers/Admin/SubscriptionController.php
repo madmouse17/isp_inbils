@@ -12,18 +12,17 @@ use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SubscriptionService;
-use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\Service\Http\Resources\ServicePackageResource;
 use Modules\Service\Models\ServicePackage;
-use Modules\SPK\Models\WorkOrder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriptionController extends Controller
@@ -99,7 +98,7 @@ class SubscriptionController extends Controller
                 if ($generatedSpk) {
                     $generatedSpk->update([
                         'subscription_id' => $subscription->id,
-                        'title' => 'Installation '. $subscription->code .' - '. ($subscription->customer?->name ?? ''),
+                        'title' => 'Installation '.$subscription->code.' - '.($subscription->customer->name ?? ''),
                     ]);
                 }
             }
@@ -177,7 +176,7 @@ class SubscriptionController extends Controller
         ];
         $map = static fn (ServiceSubscription $subscription): array => [
             'code' => $subscription->code,
-            'service_package' => $subscription->servicePackage?->name ?? '-',
+            'service_package' => $subscription->servicePackage->name ?? '-',
             'status' => $subscription->status,
             'billing_day' => $subscription->billing_day,
             'mrc_amount' => $subscription->mrc_amount,
@@ -197,6 +196,7 @@ class SubscriptionController extends Controller
     private function filteredQuery(Customer $customer, Request $request): Builder
     {
         $query = $customer->subscriptions()
+            ->getQuery()
             ->with(['servicePackage', 'installationAddress', 'servingPop'])
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';

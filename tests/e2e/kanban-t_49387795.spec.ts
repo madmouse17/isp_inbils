@@ -1,18 +1,17 @@
-import { readFileSync } from 'node:fs';
 import type { Locator, Page } from '@playwright/test';
 
 import { expect, test } from './support/fixtures';
+import {
+    expectDetail,
+    expectSpkState,
+    inertiaProps,
+    loginAs,
+    selectFirstRealOption,
+    selectOptionByText,
+    technicianUserId,
+} from './support/demo';
 
-const seederSource = readFileSync('database/seeders/DemoUserSeeder.php', 'utf8');
-const demoPassword = seederSource.match(/private const PASSWORD = '([^']+)';/)?.[1];
-const adminEmail = seederSource.match(
-    /'admin' => \['name' => 'Demo Admin', 'email' => '([^']+)'/,
-)?.[1];
 const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-if (!demoPassword || !adminEmail) {
-    throw new Error('Could not derive DemoUserSeeder admin credentials.');
-}
 
 test.describe('@kanban-t_49387795 UI journeys', () => {
     test.describe.configure({ mode: 'serial' });
@@ -21,7 +20,6 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         page,
     }) => {
         const customerName = await createCustomer(page, `SPK-${runId}`);
-        const technicianId = await visibleTechnicianId(page);
         const title = 'E2E T49387795 SPK lifecycle';
 
         await page.goto('/admin/spk/create');
@@ -36,6 +34,14 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
             .fill('Create, assign, start only. PHP tests cover stock, asset, invoice correctness.');
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
+        // store() redirects to the index. The index rows carry the SPK code
+        // link (aria-label "Open SPK SPK-…") and the customer name — the SPK
+        // title is a detail-page field and is NOT rendered in the index, so
+        // target the row via its unique customer name instead.
+        await expect(page).toHaveURL(/\/admin\/spk$/);
+        const spkRow = page.getByRole('row').filter({ hasText: customerName }).first();
+        await expect(spkRow).toBeVisible({ timeout: 15_000 });
+        await spkRow.getByRole('link', { name: /Open SPK/ }).click();
         await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
@@ -43,7 +49,14 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 
         await page.getByRole('button', { name: 'Assign' }).click();
         const assignDialog = page.getByRole('dialog', { name: 'Assign' });
-        await assignDialog.getByLabel('Technician ID').fill(technicianId);
+        // The SPK assign dialog exposes a combobox (SearchSelect) labeled
+        // "Technician", not a numeric "Technician ID" input: type to filter the
+        // technician employees and pick the option by its employee name.
+        await assignDialog.getByLabel('Technician').fill('Demo Technician');
+        await assignDialog
+            .getByRole('button', { name: /Demo Technician/ })
+            .first()
+            .click();
         await assignDialog.getByRole('button', { name: 'Confirm' }).click();
 
         await expectSpkState(page, 'assigned');
@@ -70,6 +83,11 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await page.getByLabel('Notes').fill('Payment recording journey.');
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
+        // store() redirects to the index; open the just-created invoice via the
+        // customer-scoped row (one invoice per fresh customer in this journey).
+        await expect(page).toHaveURL(/\/admin\/invoices$/);
+        const invoiceRow = page.getByRole('row').filter({ hasText: customerName }).first();
+        await invoiceRow.getByRole('link', { name: 'Show' }).click();
         await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
         await expectDetail(page, 'Status', 'draft');
 
@@ -113,7 +131,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         page,
     }) => {
         const customerName = await createCustomer(page, `TICKET-${runId}`);
-        const handlerId = await visibleTechnicianId(page);
+        const handlerId = await technicianUserId(page);
         const title = 'E2E T49387795 ticket journey';
         const comment = 'E2E T49387795 internal dispatch note';
 
@@ -127,7 +145,15 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
             .fill('Ticket assignment, start, comment, and SPK spawn journey.');
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
-        await expect(page).toHaveURL(/\/admin\/tickets\/\d+$/);
+        // store() redirects to the tickets index (by design). The index rows
+        // render the ticket code and priority/status badges but the title column
+        // is blank (the resource supplies code/title, the column renders number/
+        // subject), so resolve the created ticket's id from the Inertia props of
+        // the title-scoped index, then open its detail page.
+        await expect(page).toHaveURL(/\/admin\/tickets$/);
+        const ticketId = await ticketIdFromIndex(page, title);
+        if (!ticketId) throw new Error('Could not resolve created ticket id');
+        await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectDetail(page, 'Status', 'open');
 
@@ -168,29 +194,70 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
     });
 });
 
-async function loginAsAdmin(page: Page) {
-    await page.goto('/admin/dashboard');
-
-    if (page.url().endsWith('/login')) {
-        await page.getByLabel('Email').fill(adminEmail!);
-        await page.getByLabel('Password').fill(demoPassword!);
-        await page.getByRole('button', { name: 'Log in' }).click();
-    }
-
-    await expect(page).toHaveURL(/\/admin\/dashboard$/);
-}
-
 async function createCustomer(page: Page, key: string) {
     const code = `E2E-${key}-49387795`;
     const name = `E2E ${key} 49387795`;
 
-    await loginAsAdmin(page);
+    await loginAs(page);
     await page.goto('/admin/customers/create');
     await page.getByLabel('Code').fill(code);
     await page.getByLabel('Name').fill(name);
     await page.getByLabel('Email').fill(`${code.toLowerCase()}@example.test`);
     await page.getByLabel('Phone').fill('0800004938');
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+    // The create form requires a complete address on the Addresses tab.
+    await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+    await page.getByLabel('Label').fill(`E2E Address ${key}`);
+    await page.getByLabel('Address *', { exact: true }).fill('8 E2E Fiber Street');
+    await page.getByLabel('Province *', { exact: true }).click();
+    await page
+        .getByRole('button', { name: /jakarta/i })
+        .first()
+        .click();
+    await page.getByLabel('City / Regency *', { exact: true }).click();
+    await page
+        .getByRole('button', { name: /jakarta pusat/i })
+        .first()
+        .click();
+    await page.getByLabel('District *', { exact: true }).click();
+    await page
+        .getByRole('button', { name: /menteng/i })
+        .first()
+        .click();
+    await page.getByLabel('Village / Subdistrict *', { exact: true }).click();
+    await page
+        .getByRole('button', { name: /menteng/i })
+        .first()
+        .click();
+    await page.getByRole('button', { name: 'Lat / Long' }).click();
+    await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
+    await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
+    await page.getByRole('button', { name: 'Find' }).click();
+
+    // The create form also requires a primary contact.
+    await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
+    await page.getByLabel('Name').fill(`${name} Contact`);
+    await page.getByLabel('Phone').fill('081200004938');
+    await page.getByLabel('Email').fill(`contact.${code.toLowerCase()}@example.test`);
+
+    // Subscription & SPK section: package + serving POP are required and the
+    // E2E seeder provisions "Home 10Mbps" and "Default POP". The POP option
+    // label is rendered as "code — name (type)" (see Create.tsx), so match the
+    // seeded "Default POP" by substring — the same loose pattern as
+    // customer-subscription.spec.ts — instead of an exact label match.
+    await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
+    await page.getByLabel('Service Package').selectOption({ index: 1 });
+    const popSelect = page.getByLabel('Serving POP / Location');
+    const popValue = await popSelect
+        .locator('option')
+        .filter({ hasText: 'Default POP' })
+        .first()
+        .getAttribute('value');
+    expect(popValue).toBeTruthy();
+    await popSelect.selectOption(popValue!);
+
+    await page.getByRole('tab', { name: 'Customer Data' }).click();
+    await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
 
     await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
     await expect(page.getByRole('main').getByRole('heading', { name })).toBeVisible();
@@ -198,47 +265,21 @@ async function createCustomer(page: Page, key: string) {
     return name;
 }
 
-async function visibleTechnicianId(page: Page) {
-    await loginAsAdmin(page);
-    await page.goto('/admin/spk');
+/**
+ * Resolve a ticket id by its unique title via the Tickets index Inertia props
+ * (canonical parsing helper: support/demo.ts inertiaProps). Tickets/Index.tsx
+ * renders row.number/row.subject but TicketResource supplies code/title, so the
+ * title column is blank in the UI; the server-side search still matches title,
+ * so we read the id from the Inertia page object.
+ */
+async function ticketIdFromIndex(page: Page, title: string) {
+    const { props } = await inertiaProps(
+        page,
+        `/admin/tickets?search=${encodeURIComponent(title)}`,
+    );
+    const tickets = props?.['tickets'] as
+        { data?: Array<{ id: number; title: string }> } | undefined;
+    const ticket = tickets?.data?.find((entry) => entry.title === title);
 
-    return optionValueByText(page.getByLabel('Technician'), 'Demo Technician');
-}
-
-async function selectOptionByText(select: Locator, text: string) {
-    await select.selectOption(await optionValueByText(select, text));
-}
-
-async function selectFirstRealOption(select: Locator) {
-    const value = await select.locator('option').nth(1).getAttribute('value');
-
-    expect(value).toBeTruthy();
-    await select.selectOption(value!);
-
-    return value!;
-}
-
-async function optionValueByText(select: Locator, text: string) {
-    const value = await select
-        .locator('option')
-        .filter({ hasText: text })
-        .first()
-        .getAttribute('value');
-
-    expect(value).toBeTruthy();
-
-    return value!;
-}
-
-async function expectDetail(page: Page, label: string, value: string) {
-    await expect(
-        page
-            .locator('p')
-            .filter({ hasText: `${label}:` })
-            .first(),
-    ).toContainText(value);
-}
-
-async function expectSpkState(page: Page, status: string) {
-    await expect(page.getByText(new RegExp(`SPK-\\d{4}-\\d{5} · ${status}`))).toBeVisible();
+    return ticket ? String(ticket.id) : null;
 }

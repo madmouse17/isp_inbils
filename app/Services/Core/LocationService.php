@@ -11,9 +11,47 @@ use Illuminate\Validation\ValidationException;
 
 class LocationService
 {
+    /**
+     * @var array<string, string>
+     */
+    private const REQUIRED_PARENT_TYPES = [
+        'area' => 'region',
+        'pop' => 'area',
+        'rack' => 'pop',
+        'site' => 'rack',
+    ];
+
     public static function create(array $data): Location
     {
-        return DB::transaction(function () use ($data) {
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        return DB::transaction(function () use ($data, $companyId) {
+            $data['company_id'] = $companyId;
+            unset($data['path']);
+
+            $effectiveType = $data['type'] ?? null;
+            self::assertValidType($effectiveType);
+            $requestedParentId = $data['parent_id'] ?? null;
+
+            if ($effectiveType === 'region') {
+                if (! blank($requestedParentId)) {
+                    throw ValidationException::withMessages(['parent_id' => 'Region location cannot have a parent.']);
+                }
+
+                $data['parent_id'] = null;
+            } else {
+                if (blank($requestedParentId)) {
+                    throw ValidationException::withMessages(['parent_id' => 'Parent location is required for non-region location.']);
+                }
+
+                $data['parent_id'] = self::assertParentValidAndWithinCompany(
+                    (int) $requestedParentId,
+                    $companyId,
+                    $effectiveType
+                )->id;
+            }
+
             $location = Location::query()->create($data);
             self::recomputePath($location);
 
@@ -23,12 +61,52 @@ class LocationService
 
     public static function update(Location $location, array $data): Location
     {
-        return DB::transaction(function () use ($location, $data) {
-            $pathChanged = array_key_exists('code', $data) || array_key_exists('parent_id', $data);
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
 
-            if (array_key_exists('parent_id', $data) && $data['parent_id'] !== null && self::hasCycle($location, (int) $data['parent_id'])) {
-                throw ValidationException::withMessages(['parent_id' => 'Location cannot be moved below itself.']);
+        return DB::transaction(function () use ($location, $data, $companyId) {
+            $location = Location::withoutCompany()
+                ->whereKey($location->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            self::assertCompany($location, $companyId);
+
+            unset($data['company_id'], $data['path']);
+
+            $effectiveType = $data['type'] ?? $location->type;
+            self::assertValidType($effectiveType);
+
+            if ($effectiveType !== $location->type) {
+                self::assertChildrenAcceptParentType($location, $effectiveType);
             }
+
+            $requestedParentId = $data['parent_id'] ?? null;
+
+            if ($effectiveType === 'region') {
+                if (! blank($requestedParentId)) {
+                    throw ValidationException::withMessages(['parent_id' => 'Region location cannot have a parent.']);
+                }
+
+                $data['parent_id'] = null;
+            } else {
+                $newParentId = blank($requestedParentId) ? $location->parent_id : $requestedParentId;
+
+                if (blank($newParentId)) {
+                    throw ValidationException::withMessages(['parent_id' => 'Parent location is required for non-region location.']);
+                }
+
+                $newParentId = (int) $newParentId;
+                self::assertParentValidAndWithinCompany($newParentId, $companyId, $effectiveType);
+
+                if (self::hasCycle($location, $newParentId)) {
+                    throw ValidationException::withMessages(['parent_id' => 'Location cannot be moved below itself.']);
+                }
+
+                $data['parent_id'] = $newParentId;
+            }
+
+            $pathChanged = array_key_exists('code', $data) || array_key_exists('parent_id', $data);
 
             $location->update($data);
 
@@ -43,63 +121,186 @@ class LocationService
 
     public static function move(Location $location, int $newParentId): Location
     {
-        if (self::hasCycle($location, $newParentId)) {
-            throw ValidationException::withMessages(['new_parent_id' => 'Location cannot be moved below itself.']);
-        }
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
 
-        return self::update($location, ['parent_id' => $newParentId]);
+        return DB::transaction(function () use ($location, $newParentId, $companyId) {
+            $location = Location::withoutCompany()
+                ->whereKey($location->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            self::assertCompany($location, $companyId);
+
+            if ($location->type === 'region') {
+                throw ValidationException::withMessages(['new_parent_id' => 'Region location cannot have a parent.']);
+            }
+
+            self::assertParentValidAndWithinCompany($newParentId, $companyId, $location->type, 'new_parent_id');
+
+            if (self::hasCycle($location, $newParentId)) {
+                throw ValidationException::withMessages(['new_parent_id' => 'Location cannot be moved below itself.']);
+            }
+
+            return self::update($location, ['parent_id' => $newParentId]);
+        });
     }
 
     public static function delete(Location $location): bool
     {
-        if ($location->children()->exists()) {
-            throw ValidationException::withMessages(['location' => 'Location still has children.']);
-        }
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
 
-        if (self::hasActiveReference('network_assets', $location->id) || self::hasActiveReference('stocks', $location->id)) {
-            throw ValidationException::withMessages(['location' => 'Location still has active references.']);
-        }
+        return DB::transaction(function () use ($location, $companyId) {
+            $location = Location::withoutCompany()
+                ->whereKey($location->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return (bool) $location->delete();
+            self::assertCompany($location, $companyId);
+
+            if ($location->children()->exists()) {
+                throw ValidationException::withMessages(['location' => 'Location still has children.']);
+            }
+
+            if (self::hasActiveReference('network_assets', $location->id) || self::hasActiveReference('stocks', $location->id)) {
+                throw ValidationException::withMessages(['location' => 'Location still has active references.']);
+            }
+
+            return (bool) $location->delete();
+        });
     }
 
     public static function tree(): Collection
     {
-        $locations = Location::query()->orderBy('path')->get();
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        $locations = Location::query()
+            ->where('company_id', $companyId)
+            ->orderBy('path')
+            ->get();
 
         return self::nest($locations);
     }
 
     public static function recomputePath(Location $location): string
     {
-        $parentPath = $location->parent_id ? Location::query()->find($location->parent_id)?->path : null;
+        $parentPath = $location->parent_id
+            ? Location::withoutCompany()
+                ->where('company_id', $location->company_id)
+                ->find($location->parent_id)?->path
+            : null;
+
         $location->path = $parentPath ? $parentPath.' > '.$location->code : $location->code;
-        $location->save();
+        $location->saveQuietly();
 
         return $location->path;
     }
 
     public static function recurseChildrenPath(Location $location): void
     {
-        $location->children()->orderBy('code')->get()->each(function (Location $child) {
-            self::recomputePath($child);
-            self::recurseChildrenPath($child);
-        });
+        Location::withoutCompany()
+            ->where('parent_id', $location->id)
+            ->where('company_id', $location->company_id)
+            ->orderBy('code')
+            ->get()
+            ->each(function (Location $child): void {
+                self::recomputePath($child);
+                self::recurseChildrenPath($child);
+            });
     }
 
     public static function hasCycle(Location $location, int $newParentId): bool
     {
-        $parent = Location::query()->find($newParentId);
+        $parent = Location::withoutCompany()
+            ->where('company_id', $location->company_id)
+            ->find($newParentId);
 
         while ($parent !== null) {
             if ($parent->id === $location->id) {
                 return true;
             }
 
-            $parent = $parent->parent;
+            $parent = $parent->parent_id
+                ? Location::withoutCompany()
+                    ->where('company_id', $location->company_id)
+                    ->find($parent->parent_id)
+                : null;
         }
 
         return false;
+    }
+
+    private static function assertCompany(Location $location, int $expectedCompanyId): void
+    {
+        $companyId = $location->getAttribute('company_id');
+
+        abort_unless(
+            $companyId !== null && (int) $companyId === (int) $expectedCompanyId,
+            404,
+            'Location not found.'
+        );
+    }
+
+    private static function assertParentValidAndWithinCompany(
+        int $parentId,
+        int $expectedCompanyId,
+        string $childType,
+        string $attribute = 'parent_id'
+    ): Location {
+        $parent = Location::withoutCompany()
+            ->whereKey($parentId)
+            ->where('company_id', $expectedCompanyId)
+            ->whereNull('deleted_at')
+            ->lockForUpdate()
+            ->first();
+
+        abort_unless($parent instanceof Location, 404, 'Parent location not found or invalid.');
+
+        $requiredParentType = self::REQUIRED_PARENT_TYPES[$childType] ?? null;
+        if ($requiredParentType !== null && $parent->type !== $requiredParentType) {
+            throw ValidationException::withMessages([
+                $attribute => sprintf(
+                    'A %s location must have a %s parent.',
+                    $childType,
+                    $requiredParentType
+                ),
+            ]);
+        }
+
+        return $parent;
+    }
+
+    private static function assertValidType(string $type): void
+    {
+        if ($type !== 'region' && ! array_key_exists($type, self::REQUIRED_PARENT_TYPES)) {
+            throw ValidationException::withMessages(['type' => 'Location type is invalid.']);
+        }
+    }
+
+    private static function assertChildrenAcceptParentType(Location $location, string $newParentType): void
+    {
+        $children = Location::withoutCompany()
+            ->where('company_id', $location->company_id)
+            ->where('parent_id', $location->id)
+            ->whereNull('deleted_at')
+            ->lockForUpdate()
+            ->get(['id', 'type']);
+
+        foreach ($children as $child) {
+            $requiredParentType = self::REQUIRED_PARENT_TYPES[$child->type] ?? null;
+
+            if ($requiredParentType === null || $requiredParentType !== $newParentType) {
+                throw ValidationException::withMessages([
+                    'type' => sprintf(
+                        'A %s location cannot have a %s parent.',
+                        $child->type,
+                        $newParentType
+                    ),
+                ]);
+            }
+        }
     }
 
     private static function hasActiveReference(string $table, int $locationId): bool
@@ -130,10 +331,12 @@ class LocationService
         return $locations
             ->where('parent_id', $parentId)
             ->values()
-            ->map(function (Location $location) use ($locations) {
-                $location->setRelation('children', self::nest($locations, $location->id));
+            ->map(function (mixed $location) use ($locations): Location {
+                /** @var Location $loc */
+                $loc = $location;
+                $loc->setRelation('children', self::nest($locations, $loc->id));
 
-                return $location;
+                return $loc;
             });
     }
 }

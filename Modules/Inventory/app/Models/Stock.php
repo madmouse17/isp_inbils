@@ -8,12 +8,24 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property int $product_id
+ * @property int $location_id
+ * @property float|string $quantity
+ * @property float|string $reserved_quantity
+ * @property-read Product|null $product
+ * @property-read Location|null $location
+ * @property-read float $available
+ */
 class Stock extends Model
 {
     use BelongsToCompany;
     use HasFactory;
 
     protected $fillable = [
+        'company_id',
         'product_id',
         'location_id',
         'quantity',

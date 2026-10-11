@@ -1,62 +1,254 @@
-import { Head, Link } from '@inertiajs/react';
-import { useMemo } from 'react';
-import AppLayout from '@/Layouts/AppLayout';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { Badge } from '@/Components/ui/Badge';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
+import { Modal } from '@/Components/ui/Modal';
+import { Textarea } from '@/Components/ui/Textarea';
+import { NativeSelect } from '@/Components/ui';
+import AppLayout from '@/Layouts/AppLayout';
 import { useTableQuery } from '@/hooks/useTableQuery';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { formatNumber } from '@/lib/format';
+import { Head, useForm, usePage } from '@inertiajs/react';
+import { useMemo, useRef, useState, type FormEvent } from 'react';
 
 type StockRow = {
     id: number;
+    product_id?: number | null;
+    product?: { id: number; name: string } | null;
+    location_id?: number | null;
     quantity: number | string;
-    reserved_quantity?: number | string;
-    available_quantity?: number | string;
-    min_quantity?: number | string | null;
-    product?: { id: number; name: string; sku?: string | null } | null;
-    location?: { id: number; name: string } | null;
-    updated_at?: string | null;
+    reserved_quantity?: number | string | null;
+    available?: number | string | null;
+    location?: { id: number; name: string; code?: string | null } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
+type ProductOption = {
+    id: number;
+    name: string;
+    sku?: string | null;
 };
+
+type LocationOption = {
+    id: number;
+    name: string;
+    code?: string | null;
+};
+
+type AdjustmentRequestRow = {
+    id: number;
+    old_quantity: number | string;
+    new_quantity: number | string;
+    delta: number | string;
+    reason: string;
+    product?: { id: number; name: string } | null;
+    location?: { id: number; name: string; code?: string | null } | null;
+    requester?: { id: number; name: string } | null;
+    can: { approve: boolean; reject: boolean };
+};
+
+type Paginator<T> = PaginationLike<T>;
+
+type MaybeWrapped<T> = T[] | { data?: T[] };
 
 type Props = {
     stocks: Paginator<StockRow>;
+    products: MaybeWrapped<ProductOption>;
+    locations: MaybeWrapped<LocationOption>;
+    adjustmentRequests: MaybeWrapped<AdjustmentRequestRow>;
     filters: {
         search?: string;
-        location_id?: string;
+        location_id?: string | number;
+        product_id?: string | number;
+        low_stock?: string | number | boolean;
         sort_by?: string;
         sort_dir?: string;
-        per_page?: string | number;
+        sort?: string;
+        direction?: string;
+        per_page?: number;
     };
-    locations?: { id: number; name: string }[];
+    can: {
+        export?: boolean;
+        receive?: boolean;
+        adjust_request?: boolean;
+        adjust_approve?: boolean;
+    };
+    [key: string]: unknown;
 };
 
-export default function StocksIndex({ stocks, filters, locations = [] }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+type ReceiveFormData = {
+    product_id: number;
+    location_id: number;
+    quantity: string;
+    note: string;
+};
+
+type AdjustFormData = {
+    product_id: number;
+    location_id: number;
+    new_quantity: string;
+    note: string;
+};
+
+type DecisionState = { row: AdjustmentRequestRow; mode: 'approve' | 'reject' };
+
+const locationLabel = (location?: { name: string; code?: string | null } | null) =>
+    location ? `${location.name}${location.code ? ` (${location.code})` : ''}` : '—';
+
+const signed = (value: number | string) => {
+    const number = Number(value);
+    return `${number > 0 ? '+' : ''}${formatNumber(number)}`;
+};
+
+export default function StockIndex({
+    stocks,
+    products,
+    locations,
+    adjustmentRequests,
+    filters,
+    can,
+}: Props) {
+    const { errors } = usePage().props;
+    const receiveErrors = errors as Partial<Record<keyof ReceiveFormData, string>>;
+    const canReceive = can.receive ?? false;
+    const pagination = toPagination(stocks);
+    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
             location_id: filters.location_id ?? '',
-            sort_by: filters.sort_by ?? '',
-            sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? stocks.per_page,
+            product_id: filters.product_id ?? '',
+            low_stock: String(filters.low_stock ?? ''),
+            sort_by: filters.sort_by ?? filters.sort ?? '',
+            sort_dir: filters.sort_dir ?? filters.direction ?? '',
+            per_page: pagination.per_page,
         },
         { only: ['stocks', 'filters'] },
+    );
+
+    const [receiveOpen, setReceiveOpen] = useState(false);
+    const [formError, setFormError] = useState<string | null>(null);
+    const productSelectRef = useRef<HTMLSelectElement>(null);
+
+    const form = useForm<ReceiveFormData>({
+        product_id: 0,
+        location_id: 0,
+        quantity: '1',
+        note: '',
+    });
+
+    const openReceive = () => {
+        form.reset();
+        form.clearErrors();
+        setFormError(null);
+        setReceiveOpen(true);
+    };
+
+    const closeReceive = () => {
+        setReceiveOpen(false);
+        form.reset();
+        form.clearErrors();
+        setFormError(null);
+    };
+
+    const submit = (e: FormEvent) => {
+        e.preventDefault();
+        const quantity = Number(form.data.quantity);
+        if (form.data.product_id <= 0 || form.data.location_id <= 0 || !(quantity > 0)) {
+            setFormError('Produk, lokasi, dan jumlah (> 0) wajib diisi.');
+            return;
+        }
+        setFormError(null);
+        form.transform((data) => ({
+            product_id: data.product_id,
+            location_id: data.location_id,
+            quantity,
+            note: data.note || null,
+        }));
+        form.post(route('admin.stocks.receive'), {
+            preserveScroll: true,
+            onSuccess: () => closeReceive(),
+        });
+    };
+
+    const canAdjustRequest = can.adjust_request ?? false;
+    const [adjustOpen, setAdjustOpen] = useState(false);
+    const adjustForm = useForm<AdjustFormData>({
+        product_id: 0,
+        location_id: 0,
+        new_quantity: '',
+        note: '',
+    });
+
+    const openAdjust = () => {
+        adjustForm.reset();
+        adjustForm.clearErrors();
+        setAdjustOpen(true);
+    };
+
+    const closeAdjust = () => {
+        setAdjustOpen(false);
+        adjustForm.reset();
+        adjustForm.clearErrors();
+    };
+
+    const submitAdjust = (e: FormEvent) => {
+        e.preventDefault();
+        adjustForm.transform((data) => ({ ...data, new_quantity: Number(data.new_quantity) }));
+        adjustForm.post(route('admin.stocks.adjust'), {
+            preserveScroll: true,
+            onSuccess: () => closeAdjust(),
+        });
+    };
+
+    const [decision, setDecision] = useState<DecisionState | null>(null);
+    const decisionForm = useForm<{ rejection_reason: string }>({ rejection_reason: '' });
+    const decisionError = (decisionForm.errors as Record<string, string | undefined>).error;
+
+    const openDecision = (row: AdjustmentRequestRow, mode: DecisionState['mode']) => {
+        decisionForm.reset();
+        decisionForm.clearErrors();
+        setDecision({ row, mode });
+    };
+
+    const closeDecision = () => {
+        setDecision(null);
+        decisionForm.reset();
+        decisionForm.clearErrors();
+    };
+
+    const submitDecision = (e: FormEvent) => {
+        e.preventDefault();
+        if (!decision) return;
+        const { row, mode } = decision;
+        decisionForm.transform((data) => (mode === 'approve' ? {} : data));
+        decisionForm.post(
+            route(
+                mode === 'approve'
+                    ? 'admin.stocks.adjustments.approve'
+                    : 'admin.stocks.adjustments.reject',
+                row.id,
+            ),
+            { preserveScroll: true, onSuccess: () => closeDecision() },
+        );
+    };
+
+    const pendingRows = useMemo(
+        () =>
+            Array.isArray(adjustmentRequests)
+                ? adjustmentRequests
+                : (adjustmentRequests?.data ?? []),
+        [adjustmentRequests],
+    );
+
+    const productOptions = useMemo(
+        () => (Array.isArray(products) ? products : (products?.data ?? [])),
+        [products],
+    );
+    const locationOptions = useMemo(
+        () => (Array.isArray(locations) ? locations : (locations?.data ?? [])),
+        [locations],
     );
 
     const columns: DataTableColumn<StockRow>[] = useMemo(
@@ -64,30 +256,20 @@ export default function StocksIndex({ stocks, filters, locations = [] }: Props) 
             {
                 key: 'product',
                 header: 'Product',
-                cell: (row) =>
-                    row.product ? (
-                        <div>
-                            <div className="font-medium">{row.product.name}</div>
-                            {row.product.sku ? (
-                                <div className="text-xs text-muted-foreground">
-                                    {row.product.sku}
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : (
-                        '—'
-                    ),
+                cell: (row) => <span className="font-medium">{row.product?.name ?? '—'}</span>,
             },
             {
                 key: 'location',
                 header: 'Location',
-                cell: (row) => row.location?.name ?? '—',
+                cell: (row) =>
+                    row.location
+                        ? `${row.location.name}${row.location.code ? ` (${row.location.code})` : ''}`
+                        : '—',
             },
             {
                 key: 'quantity',
-                header: 'On hand',
+                header: 'Quantity',
                 sortable: true,
-                sortKey: 'quantity',
                 className: 'text-right tabular-nums',
                 cell: (row) => String(row.quantity ?? '—'),
             },
@@ -95,21 +277,77 @@ export default function StocksIndex({ stocks, filters, locations = [] }: Props) 
                 key: 'reserved_quantity',
                 header: 'Reserved',
                 sortable: true,
-                sortKey: 'reserved_quantity',
                 className: 'text-right tabular-nums',
                 cell: (row) => String(row.reserved_quantity ?? '—'),
             },
             {
-                key: 'available_quantity',
+                key: 'available',
                 header: 'Available',
-                sortable: true,
-                sortKey: 'available_quantity',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.available_quantity ?? '—'),
+                cell: (row) => String(row.available ?? '—'),
             },
         ],
         [],
     );
+
+    const adjustmentColumns: DataTableColumn<AdjustmentRequestRow>[] = [
+        {
+            key: 'product',
+            header: 'Produk',
+            cell: (row) => <span className="font-medium">{row.product?.name ?? '—'}</span>,
+        },
+        { key: 'location', header: 'Lokasi', cell: (row) => locationLabel(row.location) },
+        {
+            key: 'quantity',
+            header: 'Stok',
+            className: 'text-right tabular-nums',
+            cell: (row) => `${formatNumber(row.old_quantity)} → ${formatNumber(row.new_quantity)}`,
+        },
+        {
+            key: 'delta',
+            header: 'Selisih',
+            className: 'text-right',
+            cell: (row) => (
+                <Badge variant={Number(row.delta) < 0 ? 'warning' : 'info'}>
+                    {signed(row.delta)}
+                </Badge>
+            ),
+        },
+        { key: 'reason', header: 'Alasan', cell: (row) => row.reason },
+        { key: 'requester', header: 'Pemohon', cell: (row) => row.requester?.name ?? '—' },
+        {
+            key: 'actions',
+            header: 'Aksi',
+            cell: (row) =>
+                row.can.approve || row.can.reject ? (
+                    <div className="flex gap-2">
+                        {row.can.approve && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() => openDecision(row, 'approve')}
+                                aria-haspopup="dialog"
+                            >
+                                Setujui
+                            </Button>
+                        )}
+                        {row.can.reject && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openDecision(row, 'reject')}
+                                aria-haspopup="dialog"
+                            >
+                                Tolak
+                            </Button>
+                        )}
+                    </div>
+                ) : (
+                    <span className="text-xs text-muted-foreground">Menunggu penyetujuan</span>
+                ),
+        },
+    ];
 
     return (
         <AppLayout>
@@ -117,27 +355,106 @@ export default function StocksIndex({ stocks, filters, locations = [] }: Props) 
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Stocks"
-                    description="On-hand balances by product and location."
+                    description="Current stock per product and location."
                     actions={
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={route('admin.inventory.movements.index')}>Movements</Link>
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <ExportMenu
+                                exportUrl={route('admin.stocks.export')}
+                                params={params}
+                                canExport={can.export ?? false}
+                                formats={['csv', 'pdf']}
+                            />
+                            {canReceive && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={openReceive}
+                                    aria-haspopup="dialog"
+                                >
+                                    Terima Barang
+                                </Button>
+                            )}
+                            {canAdjustRequest && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={openAdjust}
+                                    aria-haspopup="dialog"
+                                >
+                                    Ajukan Penyesuaian
+                                </Button>
+                            )}
+                        </div>
                     }
                 />
+
+                {pendingRows.length > 0 && (
+                    <section
+                        aria-labelledby="adjustment-requests-heading"
+                        className="space-y-3 rounded-lg border bg-card p-4"
+                    >
+                        <div>
+                            <h2
+                                id="adjustment-requests-heading"
+                                className="text-base font-semibold"
+                            >
+                                Penyesuaian stok menunggu persetujuan
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Perubahan stok baru berlaku setelah disetujui orang lain, bukan
+                                pemohon.
+                            </p>
+                        </div>
+                        <DataTable columns={adjustmentColumns} data={pendingRows} />
+                    </section>
+                )}
 
                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
                     <div className="min-w-[12rem] flex-1 space-y-1">
                         <label
                             className="text-xs font-medium text-muted-foreground"
-                            htmlFor="st-search"
+                            htmlFor="stock-search"
                         >
                             Search
                         </label>
                         <Input
-                            id="st-search"
+                            id="stock-search"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Product or SKU…"
+                            placeholder="Product, SKU, location..."
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <NativeSelect
+                            id="stock-location"
+                            label="Location"
+                            value={params.location_id ?? ''}
+                            onChange={(e) => set('location_id', e.target.value)}
+                            options={[
+                                { value: '', label: 'All' },
+                                ...locationOptions.map((l) => ({
+                                    value: String(l.id),
+                                    label: l.code ? `${l.name} (${l.code})` : l.name,
+                                })),
+                            ]}
+                            className="w-[12rem]"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <NativeSelect
+                            id="stock-product"
+                            label="Product"
+                            value={params.product_id ?? ''}
+                            onChange={(e) => set('product_id', e.target.value)}
+                            options={[
+                                { value: '', label: 'All' },
+                                ...productOptions.map((p) => ({
+                                    value: String(p.id),
+                                    label: p.sku ? `${p.name} (${p.sku})` : p.name,
+                                })),
+                            ]}
+                            className="w-[14rem]"
                         />
                     </div>
                 </div>
@@ -145,16 +462,232 @@ export default function StocksIndex({ stocks, filters, locations = [] }: Props) 
                 <DataTable
                     columns={columns}
                     data={stocks.data}
-                    emptyTitle="No stock rows"
-                    emptyDescription="No stock balances match the current filters."
+                    emptyTitle="No stocks"
+                    emptyDescription="No stock records match the current filters."
+                    loading={processing}
+                    pagination={pagination}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={stocks}
+                    onPerPageChange={(size) => set('per_page', size)}
                     onPageChange={(page) => set('page', page)}
-                    onPerPageChange={(n) => set('per_page', n)}
                 />
             </div>
+
+            <Modal
+                open={canReceive && receiveOpen}
+                onClose={closeReceive}
+                title="Terima Barang"
+                size="lg"
+            >
+                <form onSubmit={submit} className="space-y-4">
+                    <NativeSelect
+                        id="receive-product"
+                        label="Produk"
+                        required
+                        autoFocus
+                        ref={productSelectRef}
+                        value={form.data.product_id > 0 ? String(form.data.product_id) : ''}
+                        onChange={(e) => form.setData('product_id', Number(e.target.value) || 0)}
+                        options={[
+                            { value: '', label: 'Pilih produk' },
+                            ...productOptions.map((p) => ({
+                                value: String(p.id),
+                                label: p.sku ? `${p.name} (${p.sku})` : p.name,
+                            })),
+                        ]}
+                        error={receiveErrors.product_id}
+                    />
+                    <NativeSelect
+                        id="receive-location"
+                        label="Lokasi"
+                        required
+                        value={form.data.location_id > 0 ? String(form.data.location_id) : ''}
+                        onChange={(e) => form.setData('location_id', Number(e.target.value) || 0)}
+                        options={[
+                            { value: '', label: 'Pilih lokasi' },
+                            ...locationOptions.map((l) => ({
+                                value: String(l.id),
+                                label: l.code ? `${l.name} (${l.code})` : l.name,
+                            })),
+                        ]}
+                        error={receiveErrors.location_id}
+                    />
+                    <Input
+                        id="receive-quantity"
+                        type="number"
+                        min={0.01}
+                        step="any"
+                        label="Jumlah"
+                        required
+                        value={form.data.quantity}
+                        onChange={(e) => form.setData('quantity', e.target.value)}
+                        error={receiveErrors.quantity}
+                    />
+                    <Textarea
+                        id="receive-note"
+                        label="Catatan"
+                        value={form.data.note}
+                        onChange={(e) => form.setData('note', e.target.value)}
+                        rows={3}
+                        maxLength={500}
+                        error={receiveErrors.note}
+                    />
+                    {formError && <p className="text-sm text-destructive">{formError}</p>}
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={closeReceive}>
+                            Batal
+                        </Button>
+                        <Button type="submit" disabled={form.processing} loading={form.processing}>
+                            {form.processing ? 'Menyimpan...' : 'Simpan'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal
+                open={canAdjustRequest && adjustOpen}
+                onClose={closeAdjust}
+                title="Ajukan Penyesuaian Stok"
+                size="lg"
+            >
+                <form onSubmit={submitAdjust} className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Stok baru berubah setelah pengguna lain yang berwenang menyetujui.
+                    </p>
+                    <NativeSelect
+                        id="adjust-product"
+                        label="Produk"
+                        required
+                        value={
+                            adjustForm.data.product_id > 0 ? String(adjustForm.data.product_id) : ''
+                        }
+                        onChange={(e) =>
+                            adjustForm.setData('product_id', Number(e.target.value) || 0)
+                        }
+                        options={[
+                            { value: '', label: 'Pilih produk' },
+                            ...productOptions.map((p) => ({
+                                value: String(p.id),
+                                label: p.sku ? `${p.name} (${p.sku})` : p.name,
+                            })),
+                        ]}
+                        error={adjustForm.errors.product_id}
+                    />
+                    <NativeSelect
+                        id="adjust-location"
+                        label="Lokasi"
+                        required
+                        value={
+                            adjustForm.data.location_id > 0
+                                ? String(adjustForm.data.location_id)
+                                : ''
+                        }
+                        onChange={(e) =>
+                            adjustForm.setData('location_id', Number(e.target.value) || 0)
+                        }
+                        options={[
+                            { value: '', label: 'Pilih lokasi' },
+                            ...locationOptions.map((l) => ({
+                                value: String(l.id),
+                                label: l.code ? `${l.name} (${l.code})` : l.name,
+                            })),
+                        ]}
+                        error={adjustForm.errors.location_id}
+                    />
+                    <Input
+                        id="adjust-quantity"
+                        type="number"
+                        min={0}
+                        step="any"
+                        label="Jumlah Baru (hasil hitung fisik)"
+                        required
+                        value={adjustForm.data.new_quantity}
+                        onChange={(e) => adjustForm.setData('new_quantity', e.target.value)}
+                        error={adjustForm.errors.new_quantity}
+                    />
+                    <Textarea
+                        id="adjust-note"
+                        label="Alasan"
+                        required
+                        value={adjustForm.data.note}
+                        onChange={(e) => adjustForm.setData('note', e.target.value)}
+                        rows={3}
+                        maxLength={500}
+                        error={adjustForm.errors.note}
+                    />
+                    <div className="flex justify-end gap-3 pt-4">
+                        <Button type="button" variant="outline" onClick={closeAdjust}>
+                            Batal
+                        </Button>
+                        <Button
+                            type="submit"
+                            disabled={adjustForm.processing}
+                            loading={adjustForm.processing}
+                        >
+                            {adjustForm.processing ? 'Mengirim...' : 'Ajukan'}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal
+                open={decision !== null}
+                onClose={closeDecision}
+                title={
+                    decision?.mode === 'reject'
+                        ? 'Tolak Penyesuaian Stok'
+                        : 'Setujui Penyesuaian Stok'
+                }
+                size="lg"
+            >
+                {decision && (
+                    <form onSubmit={submitDecision} className="space-y-4">
+                        <p className="text-sm">
+                            <span className="font-medium">{decision.row.product?.name ?? '—'}</span>{' '}
+                            di {locationLabel(decision.row.location)}:{' '}
+                            {formatNumber(decision.row.old_quantity)} →{' '}
+                            {formatNumber(decision.row.new_quantity)}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                            Alasan pemohon: {decision.row.reason}
+                        </p>
+                        {decision.mode === 'reject' && (
+                            <Textarea
+                                id="decision-reason"
+                                label="Alasan Penolakan"
+                                required
+                                minLength={3}
+                                maxLength={500}
+                                rows={3}
+                                value={decisionForm.data.rejection_reason}
+                                onChange={(e) =>
+                                    decisionForm.setData('rejection_reason', e.target.value)
+                                }
+                                error={decisionForm.errors.rejection_reason}
+                            />
+                        )}
+                        {decisionError && (
+                            <p role="alert" className="text-sm text-destructive">
+                                {decisionError}
+                            </p>
+                        )}
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button type="button" variant="outline" onClick={closeDecision}>
+                                Batal
+                            </Button>
+                            <Button
+                                type="submit"
+                                variant={decision.mode === 'reject' ? 'danger' : 'default'}
+                                disabled={decisionForm.processing}
+                                loading={decisionForm.processing}
+                            >
+                                {decision.mode === 'reject' ? 'Tolak' : 'Setujui'}
+                            </Button>
+                        </div>
+                    </form>
+                )}
+            </Modal>
         </AppLayout>
     );
 }

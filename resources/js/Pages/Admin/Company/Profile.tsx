@@ -11,6 +11,7 @@ import {
     FileUpload,
     Input,
     PhoneInput,
+    Progress,
     Textarea,
     useToast,
 } from '@/Components/ui';
@@ -24,7 +25,7 @@ interface ProfileProps {
 
 export default function Profile({ company, can }: ProfileProps) {
     const { toast } = useToast();
-    const { data, setData, post, processing, errors, reset } = useForm({
+    const { data, setData, post, processing, progress, errors, reset } = useForm({
         _method: 'put',
         name: company.data.name ?? '',
         code: company.data.code ?? '',
@@ -139,6 +140,13 @@ export default function Profile({ company, can }: ProfileProps) {
                                 error={errors.address}
                                 disabled={!can.update}
                             />
+                            {processing && data.logo !== null && (
+                                <Progress
+                                    className="md:col-span-2"
+                                    label="Mengunggah logo"
+                                    value={progress?.percentage ?? 0}
+                                />
+                            )}
                         </CardContent>
                         {can.update && (
                             <CardFooter className="justify-end">

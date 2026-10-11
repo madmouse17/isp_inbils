@@ -22,6 +22,7 @@ class ServicePackageResource extends JsonResource
             'contract_min_months' => $this->contract_min_months,
             'description' => $this->description,
             'is_active' => $this->is_active,
+            'created_at' => $this->created_at,
             'bandwidth_profile' => new BandwidthProfileResource($this->whenLoaded('bandwidthProfile')),
             'speed_profile' => new SpeedProfileResource($this->whenLoaded('speedProfile')),
             'sla_tier' => new SLATierResource($this->whenLoaded('slaTier')),

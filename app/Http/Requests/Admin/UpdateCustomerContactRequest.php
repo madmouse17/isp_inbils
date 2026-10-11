@@ -17,7 +17,7 @@ class UpdateCustomerContactRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'position' => ['nullable', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:50'],
+            'phone' => ['nullable', 'string', 'max:50', 'regex:/^[0-9()+-]+$/'],
             'email' => ['nullable', 'email', 'max:255'],
             'is_primary' => ['boolean'],
             'notes' => ['nullable', 'string'],

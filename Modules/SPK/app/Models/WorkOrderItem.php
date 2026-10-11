@@ -24,7 +24,7 @@ class WorkOrderItem extends Model
     use HasFactory;
 
     protected $fillable = [
-        'work_order_id', 'product_id', 'network_asset_id', 'quantity_reserved', 'quantity_used', 'note',
+        'company_id', 'work_order_id', 'product_id', 'network_asset_id', 'quantity_reserved', 'quantity_used', 'note',
     ];
 
     protected $casts = [

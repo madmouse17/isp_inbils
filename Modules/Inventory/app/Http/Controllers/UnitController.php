@@ -35,7 +35,10 @@ class UnitController extends Controller
         return Inertia::render('Admin/Inventory/Units/Index', [
             'units' => UnitResource::collection($units),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
-            'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
+            'can' => [
+                'create' => $request->user()?->can('inventory.create') ?? false,
+                'export' => $request->user()?->can('inventory.export') ?? false,
+            ],
         ]);
     }
 

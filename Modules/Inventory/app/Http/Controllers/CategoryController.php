@@ -40,7 +40,10 @@ class CategoryController extends Controller
             'categories' => CategoryResource::collection($categories),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
-            'can' => ['create' => $request->user()?->can('inventory.create') ?? false],
+            'can' => [
+                'create' => $request->user()?->can('inventory.create') ?? false,
+                'export' => $request->user()?->can('inventory.export') ?? false,
+            ],
         ]);
     }
 

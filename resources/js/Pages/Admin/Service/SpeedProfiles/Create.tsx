@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -26,6 +27,16 @@ export default function Create() {
                 <PageHeader
                     title="Create Speed Profile"
                     subtitle="Fill required fields, then save."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.speed-profiles.index')}>Back</Link>
+                        </Button>
+                    }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
@@ -93,7 +104,7 @@ export default function Create() {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" loading={processing}>
+                        <Button type="submit" variant="success" loading={processing}>
                             Create
                         </Button>
                     </div>

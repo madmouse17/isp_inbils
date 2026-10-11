@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import { Button } from '@/Components/ui/Button';
 import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
@@ -98,7 +98,9 @@ export default function UpdatePasswordForm({ className = '' }: { className?: str
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <PrimaryButton disabled={processing}>Save</PrimaryButton>
+                    <Button type="submit" loading={processing}>
+                        Save
+                    </Button>
 
                     <Transition
                         show={recentlySuccessful}

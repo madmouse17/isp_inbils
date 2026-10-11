@@ -24,6 +24,7 @@ import {
 const runId = unique('SPK');
 
 test.describe('@lifecycle SPK installation', () => {
+    // Test 2-3 tetap serial dan bergantung pada hasil test pertama.
     test.describe.configure({ mode: 'serial' });
 
     let spkUrl = '';
@@ -40,7 +41,9 @@ test.describe('@lifecycle SPK installation', () => {
         await selectFirstRealOption(page.getByLabel('Location'));
         await page.getByLabel('Priority').selectOption('high');
         await page.getByLabel('Scheduled Date').fill('2026-07-20');
-        await page.getByLabel('Description').fill('P1-C SPK lifecycle with item + evidence + approve.');
+        await page
+            .getByLabel('Description')
+            .fill('P1-C SPK lifecycle with item + evidence + approve.');
         await page.getByRole('button', { name: 'Create', exact: true }).click();
 
         await expect(page).toHaveURL(/\/admin\/spk$/);
@@ -58,7 +61,18 @@ test.describe('@lifecycle SPK installation', () => {
         await page.getByRole('button', { name: 'Add Item' }).click();
         const itemDialog = page.getByRole('dialog', { name: 'AddItem' });
         // Modal title is "AddItem" from actionModal casing — tolerate "Add Item" if UI normalizes later.
-        const dialog = (await itemDialog.count()) > 0 ? itemDialog : page.getByRole('dialog').last();
+        const dialog =
+            (await itemDialog.count()) > 0 ? itemDialog : page.getByRole('dialog').last();
+        // Item memakai product NON-asset (E2E-STOCK-PRODUCT) agar deterministik
+        // terhadap state inbils_test kumulatif: asset serial E2E-SERIALIZED-ASSET
+        // hanya available saat fresh seed (WorkOrderController::networkAssets()
+        // memfilter status=available), sehingga run kedua+ tanpa reset DB selalu
+        // kekurangan opsi asset dan test timeout. Network Asset picker memang
+        // hanya dirender untuk product type=asset dan WAJIB memilih asset
+        // available terikat product — kondisi yang mustahil dipenuhi setelah asset
+        // serial terpakai. Lifecycle SPK (item → assign → start → evidence →
+        // reject/approve) tidak bergantung pada asset; jalur asset penuh tetap
+        // diuji oleh stock-asset.spec.ts.
         await selectSearchOption(page, 'Product', /E2E-STOCK-PRODUCT/);
         await dialog.getByLabel(/Quantity Reserved/).fill('1');
         await dialog.getByLabel(/Quantity Used/).fill('0');
@@ -69,7 +83,10 @@ test.describe('@lifecycle SPK installation', () => {
 
         await page.getByRole('button', { name: 'Assign' }).click();
         await selectSearchOption(page, 'Technician', 'Demo Technician');
-        await page.getByRole('dialog', { name: 'Assign' }).getByRole('button', { name: 'Confirm' }).click();
+        await page
+            .getByRole('dialog', { name: 'Assign' })
+            .getByRole('button', { name: 'Confirm' })
+            .click();
 
         await expectSpkState(page, 'assigned');
         await expectDetail(page, 'Technician', 'Demo Technician');
@@ -84,7 +101,10 @@ test.describe('@lifecycle SPK installation', () => {
         await expectSpkState(page, 'assigned');
 
         await page.getByRole('button', { name: 'Start' }).click();
-        await page.getByRole('dialog', { name: 'Start' }).getByRole('button', { name: 'Confirm' }).click();
+        await page
+            .getByRole('dialog', { name: 'Start' })
+            .getByRole('button', { name: 'Confirm' })
+            .click();
         await expectSpkState(page, 'in_progress');
 
         await page.locator('input[type="file"]').setInputFiles({
@@ -97,7 +117,10 @@ test.describe('@lifecycle SPK installation', () => {
         await expect(page.getByText(`caption-${runId}`)).toBeVisible();
 
         await page.getByRole('button', { name: 'Submit for Review' }).click();
-        await page.getByRole('dialog', { name: 'Submit' }).getByRole('button', { name: 'Confirm' }).click();
+        await page
+            .getByRole('dialog', { name: 'Submit' })
+            .getByRole('button', { name: 'Confirm' })
+            .click();
         await expectSpkState(page, 'waiting_review');
     });
 
@@ -126,7 +149,10 @@ test.describe('@lifecycle SPK installation', () => {
         await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Reject' })).toBeVisible();
         await page.getByRole('button', { name: 'Approve' }).click();
-        await page.getByRole('dialog', { name: 'Approve' }).getByRole('button', { name: 'Confirm' }).click();
+        await page
+            .getByRole('dialog', { name: 'Approve' })
+            .getByRole('button', { name: 'Confirm' })
+            .click();
         await expectSpkState(page, 'completed');
     });
 });
@@ -156,16 +182,21 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
     await expectSpkState(page, 'draft');
     await expectDetail(page, 'Customer', customer);
 
-
     await page.getByRole('button', { name: 'Assign' }).click();
     await selectSearchOption(page, 'Technician', 'Demo Technician');
-    await page.getByRole('dialog', { name: 'Assign' }).getByRole('button', { name: 'Confirm' }).click();
+    await page
+        .getByRole('dialog', { name: 'Assign' })
+        .getByRole('button', { name: 'Confirm' })
+        .click();
 
     await expectSpkState(page, 'assigned');
     await expectDetail(page, 'Technician', 'Demo Technician');
 
     await page.getByRole('button', { name: 'Start' }).click();
-    await page.getByRole('dialog', { name: 'Start' }).getByRole('button', { name: 'Confirm' }).click();
+    await page
+        .getByRole('dialog', { name: 'Start' })
+        .getByRole('button', { name: 'Confirm' })
+        .click();
     await expectSpkState(page, 'in_progress');
 
     await page.locator('input[type="file"]').setInputFiles({
@@ -178,7 +209,10 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
     await expect(page.getByText(`caption-${runId}`)).toBeVisible();
 
     await page.getByRole('button', { name: 'Submit for Review' }).click();
-    await page.getByRole('dialog', { name: 'Submit' }).getByRole('button', { name: 'Confirm' }).click();
+    await page
+        .getByRole('dialog', { name: 'Submit' })
+        .getByRole('button', { name: 'Confirm' })
+        .click();
     await expectSpkState(page, 'waiting_review');
 
     return page.url();
@@ -186,7 +220,11 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
 
 async function selectOptionByTextLoose(page: Page, label: string, text: string) {
     const select = page.getByLabel(label);
-    const value = await select.locator('option').filter({ hasText: text }).first().getAttribute('value');
+    const value = await select
+        .locator('option')
+        .filter({ hasText: text })
+        .first()
+        .getAttribute('value');
     expect(value).toBeTruthy();
     await select.selectOption(value!);
 }

@@ -119,7 +119,10 @@ class DocumentController extends Controller
             'collection' => ['nullable', 'string'],
         ]);
 
-        $model = $request->input('model_type')::findOrFail($request->integer('model_id'));
+        $model = DocumentService::resolveUploadTarget(
+            (string) $request->input('model_type'),
+            $request->integer('model_id'),
+        );
 
         DocumentService::upload(
             $model,

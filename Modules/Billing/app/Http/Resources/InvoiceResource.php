@@ -35,6 +35,7 @@ class InvoiceResource extends JsonResource
             'sent_at' => $this->sent_at,
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
+            'cancelled_by' => $this->cancelled_by,
             'created_at' => $this->created_at,
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),

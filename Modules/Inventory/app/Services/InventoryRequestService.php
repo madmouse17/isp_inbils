@@ -1,0 +1,577 @@
+<?php
+
+namespace Modules\Inventory\Services;
+
+use App\Models\User;
+use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Models\InventoryRequestItem;
+use Modules\Inventory\Models\Product;
+use Modules\Inventory\Models\Stock;
+use Modules\Inventory\Notifications\InventoryRequestApprovedNotification;
+use Modules\Inventory\Notifications\InventoryRequestReadyNotification;
+use Modules\Inventory\Notifications\InventoryRequestRejectedNotification;
+use Modules\Inventory\Notifications\InventoryRequestSubmittedNotification;
+
+class InventoryRequestService
+{
+    /**
+     * Server-side paginator for Inventory Requests with role/permission & tab support.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    public static function paginate(User $user, array $filters = []): LengthAwarePaginator
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($user);
+        $tab = $filters['tab'] ?? 'all'; // 'my' or 'warehouse' or 'all'
+
+        $query = InventoryRequest::withoutCompany()
+            ->where('company_id', $companyId)
+            ->with(['requester', 'approver', 'warehouseLocation', 'items.product', 'items.sourceLocation']);
+
+        // Scope based on permissions and requested tab
+        if (! $user->hasPermissionTo('inventory.request.view.all')) {
+            // Can only view own
+            $query->where('requested_by', $user->id);
+        } else {
+            if ($tab === 'my') {
+                $query->where('requested_by', $user->id);
+            } elseif ($tab === 'warehouse') {
+                // Active warehouse queue statuses
+                $query->whereIn('status', ['submitted', 'approved_reserved', 'preparing', 'ready_for_pickup']);
+            }
+        }
+
+        if (! empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (! empty($filters['requester_id'])) {
+            $query->where('requested_by', $filters['requester_id']);
+        }
+
+        if (! empty($filters['warehouse_location_id'])) {
+            $query->where('warehouse_location_id', $filters['warehouse_location_id']);
+        }
+
+        if (! empty($filters['needed_from'])) {
+            $query->whereDate('needed_at', '>=', $filters['needed_from']);
+        }
+
+        if (! empty($filters['needed_to'])) {
+            $query->whereDate('needed_at', '<=', $filters['needed_to']);
+        }
+
+        if (! empty($filters['search'])) {
+            $search = '%'.$filters['search'].'%';
+            $query->where(function (Builder $q) use ($search) {
+                $q->where('code', 'like', $search)
+                    ->orWhere('reason', 'like', $search)
+                    ->orWhereHas('requester', fn ($uq) => $uq->where('name', 'like', $search));
+            });
+        }
+
+        $sortField = $filters['sort'] ?? 'created_at';
+        $sortDirection = strtolower($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
+
+        $allowedSorts = ['id', 'code', 'status', 'needed_at', 'created_at'];
+        if (! in_array($sortField, $allowedSorts, true)) {
+            $sortField = 'created_at';
+        }
+
+        $query->orderBy($sortField, $sortDirection);
+
+        $perPage = min(max((int) ($filters['per_page'] ?? 15), 5), 100);
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Get badge counts for user actionable tabs without leaking cross-tenant data.
+     *
+     * @return array<string, int|null>
+     */
+    public static function getBadgeCounts(User $user): array
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($user);
+
+        $myCount = InventoryRequest::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where('requested_by', $user->id)
+            ->whereIn('status', ['draft', 'ready_for_pickup'])
+            ->count();
+
+        $warehouseQueueCount = null;
+        if ($user->hasPermissionTo('inventory.request.approve') || $user->hasPermissionTo('inventory.request.prepare') || $user->hasPermissionTo('inventory.request.issue')) {
+            $warehouseQueueCount = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->whereIn('status', ['submitted', 'approved_reserved', 'preparing', 'ready_for_pickup'])
+                ->count();
+        }
+
+        return [
+            'my_requests' => $myCount,
+            'warehouse_queue' => $warehouseQueueCount,
+        ];
+    }
+
+    /**
+     * Create a new Inventory Request (draft or submitted).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function create(User $requester, array $data): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($requester);
+
+        return DB::transaction(function () use ($requester, $data, $companyId) {
+            $code = self::generateCode($companyId);
+            $submitImmediately = ! empty($data['submit']);
+
+            $reason = trim((string) ($data['reason'] ?? ''));
+            if ($reason === '') {
+                $sourceType = $data['source_type'] ?? null;
+                $sourceId = $data['source_id'] ?? null;
+                $reason = $sourceType && $sourceId
+                    ? "Permintaan material untuk {$sourceType} #{$sourceId}"
+                    : 'Permintaan material inventory';
+            }
+
+            $request = InventoryRequest::create([
+                'company_id' => $companyId,
+                'code' => $code,
+                'requested_by' => $requester->id,
+                'warehouse_location_id' => $data['warehouse_location_id'] ?? null,
+                'source_type' => $data['source_type'] ?? null,
+                'source_id' => $data['source_id'] ?? null,
+                'status' => $submitImmediately ? 'submitted' : 'draft',
+                'needed_at' => $data['needed_at'] ?? null,
+                'reason' => $reason,
+                'submitted_at' => $submitImmediately ? now() : null,
+            ]);
+
+            foreach ($data['items'] as $itemData) {
+                // Ensure product belongs to company and is not serialized asset in phase 1 bulk
+                $product = Product::withoutCompany()
+                    ->where('company_id', $companyId)
+                    ->lockForUpdate()
+                    ->findOrFail($itemData['product_id']);
+
+                abort_if($product->type === 'asset', 422, 'Produk tipe asset serial belum didukung pada permintaan barang massal.');
+
+                $itemSourceLocationId = $itemData['source_location_id'] ?? $request->warehouse_location_id;
+
+                InventoryRequestItem::create([
+                    'company_id' => $companyId,
+                    'inventory_request_id' => $request->id,
+                    'product_id' => $product->id,
+                    'source_location_id' => $itemSourceLocationId,
+                    'quantity_requested' => $itemData['quantity_requested'],
+                    'note' => $itemData['note'] ?? null,
+                ]);
+            }
+
+            AuditService::log('inventory_request', $submitImmediately ? 'created_and_submitted' : 'created_draft', [
+                'code' => $request->code,
+                'items_count' => count($data['items']),
+                'submit' => $submitImmediately,
+            ], $request);
+
+            if ($submitImmediately) {
+                DB::afterCommit(function () use ($request) {
+                    self::notifyWarehouseOfSubmission($request);
+                });
+            }
+
+            return $request->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation']);
+        });
+    }
+
+    /**
+     * Submit a draft Inventory Request.
+     */
+    public static function submit(InventoryRequest $request, User $actor): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($actor);
+
+        return DB::transaction(function () use ($request, $actor, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'draft', 422, 'Hanya permintaan berstatus draft yang dapat diajukan.');
+            abort_unless((int) $req->requested_by === (int) $actor->id, 403, 'Anda bukan pembuat permintaan barang ini.');
+
+            $itemsCount = $req->items()->count();
+            abort_if($itemsCount === 0, 422, 'Permintaan barang tidak memiliki item barang.');
+
+            $req->update([
+                'status' => 'submitted',
+                'submitted_at' => now(),
+            ]);
+
+            AuditService::log('inventory_request', 'submitted', [
+                'code' => $req->code,
+                'items_count' => $itemsCount,
+            ], $req);
+
+            DB::afterCommit(function () use ($req) {
+                self::notifyWarehouseOfSubmission($req);
+            });
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation']);
+        });
+    }
+
+    /**
+     * Approve and atomically reserve stock for each item.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function approve(InventoryRequest $request, User $approver, array $data = []): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($approver);
+
+        return DB::transaction(function () use ($request, $approver, $data, $companyId) {
+            // Lock request header
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'submitted', 422, 'Permintaan barang bukan berstatus submitted.');
+            abort_if((int) $req->requested_by === (int) $approver->id, 403, 'Maker-checker: pemohon tidak boleh menyetujui permintaan sendiri.');
+
+            $warehouseLocationId = $data['warehouse_location_id'] ?? $req->warehouse_location_id;
+            if ($warehouseLocationId) {
+                $req->warehouse_location_id = $warehouseLocationId;
+            }
+
+            // Lock all items
+            /** @var Collection<int, InventoryRequestItem> $items */
+            $items = $req->items()->lockForUpdate()->get();
+            abort_if($items->isEmpty(), 422, 'Permintaan barang tidak memiliki item.');
+
+            $overrideItemsData = collect($data['items'] ?? [])->keyBy('id');
+
+            foreach ($items as $item) {
+                $approvedQty = $item->quantity_requested;
+                $sourceLocationId = $item->source_location_id ?? $req->warehouse_location_id;
+
+                if ($overrideItemsData->has($item->id)) {
+                    $itemOverride = $overrideItemsData->get($item->id);
+                    $approvedQty = (float) $itemOverride['quantity_approved'];
+                    if (! empty($itemOverride['source_location_id'])) {
+                        $sourceLocationId = (int) $itemOverride['source_location_id'];
+                    }
+                }
+
+                abort_if($approvedQty <= 0, 422, 'Jumlah barang yang disetujui harus lebih besar dari 0.');
+                abort_if(
+                    $approvedQty > (float) $item->quantity_requested,
+                    422,
+                    "Jumlah barang yang disetujui ({$approvedQty}) tidak boleh melampaui jumlah yang diminta ({$item->quantity_requested})."
+                );
+                abort_unless(! empty($sourceLocationId), 422, 'Lokasi gudang sumber wajib ditentukan untuk reservasi.');
+
+                // Check available stock with lock
+                $stock = Stock::withoutCompany()
+                    ->where('company_id', $companyId)
+                    ->where('product_id', $item->product_id)
+                    ->where('location_id', $sourceLocationId)
+                    ->lockForUpdate()
+                    ->first();
+
+                $available = $stock ? ((float) $stock->quantity - (float) $stock->reserved_quantity) : 0;
+                abort_if(
+                    $available < $approvedQty,
+                    422,
+                    "Stok tidak mencukupi untuk produk ID {$item->product_id} di lokasi ID {$sourceLocationId}. Tersedia: {$available}, Diminta: {$approvedQty}."
+                );
+
+                // Reserve using StockService
+                StockService::reserve(
+                    $item->product_id,
+                    $sourceLocationId,
+                    $approvedQty,
+                    InventoryRequestItem::class,
+                    $item->id
+                );
+
+                $item->update([
+                    'source_location_id' => $sourceLocationId,
+                    'quantity_approved' => $approvedQty,
+                ]);
+            }
+
+            $req->update([
+                'status' => 'approved_reserved',
+                'approved_by' => $approver->id,
+                'approved_at' => now(),
+                'approval_note' => $data['approval_note'] ?? null,
+            ]);
+
+            AuditService::log('inventory_request', 'approved_reserved', [
+                'code' => $req->code,
+                'approved_by' => $approver->id,
+                'items_count' => $items->count(),
+            ], $req);
+
+            // Notify requester
+            DB::afterCommit(function () use ($req, $companyId) {
+                if ($req->requester) {
+                    $req->requester->notify(new InventoryRequestApprovedNotification($req->id, $req->code, $companyId));
+                }
+            });
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'approver']);
+        });
+    }
+
+    /**
+     * Mark request as preparing (warehouse is packing/picking the items).
+     */
+    public static function prepare(InventoryRequest $request, User $preparer): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($preparer);
+
+        return DB::transaction(function () use ($request, $preparer, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'approved_reserved', 422, 'Hanya permintaan berstatus disetujui (stok direservasi) yang dapat mulai disiapkan.');
+            abort_if((int) $req->approved_by === (int) $preparer->id, 403, 'Maker-checker: penyetujui tidak boleh menyiapkan barang.');
+
+            $req->update([
+                'status' => 'preparing',
+                'prepared_by' => $preparer->id,
+                'prepared_at' => now(),
+            ]);
+
+            AuditService::log('inventory_request', 'preparing', [
+                'code' => $req->code,
+                'prepared_by' => $preparer->id,
+            ], $req);
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'preparer']);
+        });
+    }
+
+    /**
+     * Mark request as ready for pickup.
+     */
+    public static function markReady(InventoryRequest $request, User $actor): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($actor);
+
+        return DB::transaction(function () use ($request, $actor, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'preparing', 422, 'Hanya permintaan yang sedang disiapkan yang dapat ditandai siap diambil.');
+
+            $req->update([
+                'status' => 'ready_for_pickup',
+                'ready_by' => $actor->id,
+                'ready_at' => now(),
+            ]);
+
+            AuditService::log('inventory_request', 'ready_for_pickup', [
+                'code' => $req->code,
+                'ready_by' => $actor->id,
+            ], $req);
+
+            // Notify requester
+            DB::afterCommit(function () use ($req, $companyId) {
+                if ($req->requester) {
+                    $req->requester->notify(new InventoryRequestReadyNotification($req->id, $req->code, $companyId));
+                }
+            });
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'readyUser']);
+        });
+    }
+
+    /**
+     * Issue/Handover items to technician atomically:
+     * Releases reservation and issues stock via StockService.
+     */
+    public static function issue(InventoryRequest $request, User $issuer): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($issuer);
+
+        return DB::transaction(function () use ($request, $issuer, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'ready_for_pickup', 422, 'Hanya permintaan berstatus siap diambil (ready for pickup) yang dapat diserahterimakan.');
+            abort_if((int) $req->requested_by === (int) $issuer->id, 403, 'Maker-checker: pemohon tidak boleh melakukan serah terima (issue) barang kepada dirinya sendiri.');
+            abort_if((int) $req->approved_by === (int) $issuer->id, 403, 'Maker-checker: penyetujui tidak boleh melakukan serah terima (issue) barang.');
+
+            /** @var Collection<int, InventoryRequestItem> $items */
+            $items = $req->items()->lockForUpdate()->get();
+            abort_if($items->isEmpty(), 422, 'Permintaan barang tidak memiliki item.');
+
+            foreach ($items as $item) {
+                $qtyToIssue = (float) $item->quantity_approved;
+                abort_if($qtyToIssue <= 0, 422, "Jumlah disetujui tidak valid untuk item ID {$item->id}.");
+
+                $locationId = $item->source_location_id ?? $req->warehouse_location_id;
+                abort_unless(! empty($locationId), 422, "Lokasi gudang tidak ditemukan untuk item ID {$item->id}.");
+
+                // Atomically release reservation first
+                StockService::release(
+                    $item->product_id,
+                    $locationId,
+                    $qtyToIssue,
+                    InventoryRequestItem::class,
+                    $item->id
+                );
+
+                // Issue stock atomically
+                StockService::issue(
+                    $item->product_id,
+                    $locationId,
+                    $qtyToIssue,
+                    'Penyerahan Permintaan Barang: '.$req->code,
+                    InventoryRequestItem::class,
+                    $item->id
+                );
+
+                $item->update([
+                    'quantity_issued' => $qtyToIssue,
+                ]);
+            }
+
+            $req->update([
+                'status' => 'issued',
+                'issued_by' => $issuer->id,
+                'issued_at' => now(),
+            ]);
+
+            MaterialReturnService::createForIssuedRequest($req);
+
+            AuditService::log('inventory_request', 'issued', [
+                'code' => $req->code,
+                'issued_by' => $issuer->id,
+                'items_count' => $items->count(),
+            ], $req);
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'issuer']);
+        });
+    }
+
+    /**
+     * Reject a submitted Inventory Request.
+     */
+    public static function reject(InventoryRequest $request, User $rejecter, string $reason): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($rejecter);
+
+        return DB::transaction(function () use ($request, $rejecter, $reason, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless($req->status === 'submitted', 422, 'Hanya permintaan berstatus submitted yang dapat ditolak.');
+            abort_if((int) $req->requested_by === (int) $rejecter->id, 403, 'Maker-checker: pemohon tidak boleh menolak permintaan sendiri.');
+
+            $req->update([
+                'status' => 'rejected',
+                'rejected_by' => $rejecter->id,
+                'rejected_at' => now(),
+                'rejection_reason' => $reason,
+            ]);
+
+            AuditService::log('inventory_request', 'rejected', [
+                'code' => $req->code,
+                'rejected_by' => $rejecter->id,
+                'reason' => $reason,
+            ], $req);
+
+            DB::afterCommit(function () use ($req, $reason, $companyId) {
+                if ($req->requester) {
+                    $req->requester->notify(new InventoryRequestRejectedNotification($req->id, $req->code, $reason, $companyId));
+                }
+            });
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'rejecter']);
+        });
+    }
+
+    /**
+     * Cancel an Inventory Request (only draft or submitted).
+     */
+    public static function cancel(InventoryRequest $request, User $canceller, ?string $reason = null): InventoryRequest
+    {
+        $companyId = CompanyService::currentId() ?? CompanyService::idFor($canceller);
+
+        return DB::transaction(function () use ($request, $canceller, $reason, $companyId) {
+            $req = InventoryRequest::withoutCompany()
+                ->where('company_id', $companyId)
+                ->lockForUpdate()
+                ->findOrFail($request->id);
+
+            abort_unless(in_array($req->status, ['draft', 'submitted'], true), 422, 'Permintaan yang sudah disetujui atau diproses tidak dapat dibatalkan melalui alur ini.');
+
+            $req->update([
+                'status' => 'cancelled',
+                'cancelled_by' => $canceller->id,
+                'cancelled_at' => now(),
+                'cancellation_reason' => $reason,
+            ]);
+
+            AuditService::log('inventory_request', 'cancelled', [
+                'code' => $req->code,
+                'cancelled_by' => $canceller->id,
+                'reason' => $reason,
+            ], $req);
+
+            return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'canceller']);
+        });
+    }
+
+    private static function generateCode(int $companyId): string
+    {
+        $prefix = 'REQ-'.date('Ymd').'-';
+        $latest = InventoryRequest::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where('code', 'like', $prefix.'%')
+            ->latest('id')
+            ->value('code');
+
+        if ($latest) {
+            $num = (int) substr($latest, -4) + 1;
+        } else {
+            $num = 1;
+        }
+
+        return $prefix.str_pad((string) $num, 4, '0', STR_PAD_LEFT);
+    }
+
+    private static function notifyWarehouseOfSubmission(InventoryRequest $request): void
+    {
+        // Find users in same company with 'inventory.request.approve' permission
+        $approvers = User::where('company_id', $request->company_id)
+            ->permission('inventory.request.approve')
+            ->get();
+
+        if ($approvers->isNotEmpty()) {
+            Notification::send($approvers, new InventoryRequestSubmittedNotification($request->id, $request->code, $request->company_id));
+        }
+    }
+}

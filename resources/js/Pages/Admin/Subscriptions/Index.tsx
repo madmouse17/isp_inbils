@@ -1,10 +1,12 @@
 import type { FormEvent } from 'react';
 import { useMemo, useState } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { DataTableActions } from '@/Components/composite/DataTableActions';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Modal } from '@/Components/ui/Modal';
@@ -54,7 +56,14 @@ export default function Index({
         notes: '',
     });
 
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const {
+        params,
+        set,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
         url: route('admin.customers.subscriptions.index', customer.id),
         filters,
         only: ['subscriptions', 'filters', 'can', 'packages', 'addresses'],
@@ -101,14 +110,7 @@ export default function Index({
                 key: 'actions',
                 header: 'Actions',
                 cell: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={route('admin.subscriptions.show', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Show
-                        </Link>
-                    </div>
+                    <DataTableActions showHref={route('admin.subscriptions.show', row.id)} />
                 ),
             },
         ],
@@ -141,15 +143,18 @@ export default function Index({
                                 />
                             ) : null}
                             <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() =>
-                                    router.get(route('admin.customers.show', customer.id))
-                                }
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                Back
+                                <Link href={route('admin.customers.show', customer.id)}>Back</Link>
                             </Button>
-                            <Button type="button" onClick={() => setModalOpen(true)}>
+                            <Button
+                                type="button"
+                                variant="success"
+                                onClick={() => setModalOpen(true)}
+                            >
                                 Create Subscription
                             </Button>
                         </div>
@@ -218,6 +223,7 @@ export default function Index({
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     emptyTitle="No subscriptions"
                     emptyDescription="No subscriptions match the current filters."
+                    loading={tableProcessing}
                 />
 
                 <Modal
@@ -294,7 +300,7 @@ export default function Index({
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button type="submit" variant="success" loading={processing}>
                                 Create
                             </Button>
                         </div>

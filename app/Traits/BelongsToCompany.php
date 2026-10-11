@@ -13,19 +13,30 @@ trait BelongsToCompany
     public static function bootBelongsToCompany(): void
     {
         static::addGlobalScope('company', function (Builder $builder) {
+            $column = $builder->getModel()->getTable().'.company_id';
             $companyId = CompanyService::currentId();
 
-            if ($companyId !== null) {
-                $builder->where($builder->getModel()->getTable().'.company_id', $companyId);
+            // Fail closed: without a company context nothing matches. Cross-company code must say so
+            // with withoutCompany(), forCompany() or CompanyService::runAs().
+            if ($companyId === null) {
+                $builder->whereIn($column, []);
+
+                return;
             }
+
+            $builder->where($column, $companyId);
         });
 
         static::creating(function (Model $model) {
+            if ($model->getAttribute('company_id') !== null) {
+                return;
+            }
+
             $companyId = CompanyService::currentId();
 
-            if ($companyId !== null && $model->getAttribute('company_id') === null) {
-                $model->setAttribute('company_id', $companyId);
-            }
+            abort_if($companyId === null, 403, 'Company context is required.');
+
+            $model->setAttribute('company_id', $companyId);
         });
     }
 
@@ -53,5 +64,13 @@ trait BelongsToCompany
         abort_if($companyId === null, 403, 'Company context is required.');
 
         return $query->forCompany($companyId);
+    }
+
+    public function tapActivity(\Spatie\Activitylog\Contracts\Activity $activity, string $eventName): void
+    {
+        $companyId = $this->getAttribute('company_id') ?? CompanyService::currentId();
+        if ($companyId !== null) {
+            $activity->company_id = (int) $companyId;
+        }
     }
 }

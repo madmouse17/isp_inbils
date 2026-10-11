@@ -3,6 +3,7 @@
 namespace App\Actions;
 
 use App\Models\Core\Customer;
+use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\CustomerService;
@@ -15,12 +16,15 @@ use Modules\SPK\Models\WorkOrder;
 class CreateCustomerOnboardingAction
 {
     /** @param array<string, mixed> $data */
-    public static function execute(array $data, int $createdBy): Customer
+    public static function execute(array $data, User $creator): Customer
     {
-        return DB::transaction(function () use ($data, $createdBy): Customer {
+        return DB::transaction(function () use ($data, $creator): Customer {
             $subscriptionData = Arr::pull($data, 'subscription');
+            $acquirerInput = Arr::only($data, ['acquired_by_user_id']);
+            unset($data['acquired_by_user_id']);
 
             $customer = CustomerService::createWithUser($data);
+            AssignCustomerAcquirerAction::onCreate($customer, $creator, $acquirerInput);
             $installationAddress = $customer->addresses()->where('is_installation_point', true)->firstOrFail();
             $subscription = SubscriptionService::create([
                 ...$subscriptionData,
@@ -39,7 +43,7 @@ class CreateCustomerOnboardingAction
                 'location_id' => $subscription->serving_pop_id,
                 'source' => 'subscription',
                 'priority' => 'medium',
-                'created_by' => $createdBy,
+                'created_by' => $creator->id,
             ]);
 
             AuditService::log('customer', 'onboarded', [

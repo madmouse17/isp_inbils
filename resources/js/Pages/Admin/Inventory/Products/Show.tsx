@@ -1,4 +1,5 @@
-import { Link } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, StatusBadge } from '@/Components/composite';
 import {
@@ -40,11 +41,12 @@ export default function Show({ product }: ShowProps) {
                                 {p.is_active ? 'Active' : 'Inactive'}
                             </Badge>
                             <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => history.back()}
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                Back
+                                <Link href={route('admin.products.index')}>Back</Link>
                             </Button>
                             <Button
                                 type="button"

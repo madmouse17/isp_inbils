@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\ServiceSubscription;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Reporting\Queries\BusinessMetricsQuery;
@@ -44,11 +46,21 @@ class ReportQueryTest extends TestCase
     {
         $admin = $this->createCompanyUser();
         $this->actingAs($admin);
+        $technician = User::factory()->create([
+            'company_id' => $admin->company_id,
+            'is_active' => true,
+        ]);
+        $technician->assignRole('technician');
+        EmployeeProfile::factory()->create([
+            'company_id' => $admin->company_id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
 
         Carbon::setTestNow(Carbon::parse('2026-01-15 09:00:00'));
 
         WorkOrderFactory::new()->create([
-            'assigned_to' => $admin->id,
+            'assigned_to' => $technician->id,
             'created_by' => $admin->id,
             'status' => 'completed',
             'started_at' => null,
@@ -56,7 +68,7 @@ class ReportQueryTest extends TestCase
         ]);
 
         WorkOrderFactory::new()->create([
-            'assigned_to' => $admin->id,
+            'assigned_to' => $technician->id,
             'created_by' => $admin->id,
             'status' => 'completed',
             'started_at' => Carbon::parse('2026-01-15 08:00:00'),
@@ -65,7 +77,7 @@ class ReportQueryTest extends TestCase
 
         Carbon::setTestNow();
 
-        $metrics = TechnicianPerformanceQuery::execute($admin->id, '2026-01-01', '2026-01-31');
+        $metrics = TechnicianPerformanceQuery::execute($technician->id, '2026-01-01', '2026-01-31');
 
         $this->assertSame(2, $metrics['spk_completed']);
         $this->assertEquals(20, $metrics['avg_spk_minutes']);

@@ -86,6 +86,8 @@ export { Tabs, TabList, Tab, TabPanel } from './Tabs';
 export { Tooltip } from './Tooltip';
 export { ToastProvider, useToast } from './Toast';
 export { Spinner } from './Spinner';
+export { Progress } from './Progress';
+export type { ProgressProps } from './Progress';
 export { IconButton } from './IconButton';
 export { Avatar } from './Avatar';
 export { Breadcrumb } from './Breadcrumb';

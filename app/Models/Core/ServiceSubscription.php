@@ -52,11 +52,13 @@ class ServiceSubscription extends Model
         'terminated_at' => 'datetime',
     ];
 
+    /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
     }
 
+    /** @return BelongsTo<ServicePackage, $this> */
     public function servicePackage(): BelongsTo
     {
         return $this->belongsTo(ServicePackage::class);

@@ -12,6 +12,21 @@ use Modules\Inventory\Database\Factories\ProductFactory;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property int $id
+ * @property int $company_id
+ * @property ?int $category_id
+ * @property ?int $unit_id
+ * @property string $sku
+ * @property string $name
+ * @property ?string $description
+ * @property string $type
+ * @property bool $track_stock
+ * @property string $sell_price
+ * @property string $cost_price
+ * @property string $min_stock
+ * @property bool $is_active
+ */
 class Product extends Model
 {
     use BelongsToCompany;

@@ -2,7 +2,9 @@
 
 namespace Modules\SPK\Policies;
 
+use App\Models\Core\EmployeeProfile;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Modules\SPK\Models\WorkOrder;
 
 class WorkOrderPolicy
@@ -14,11 +16,15 @@ class WorkOrderPolicy
 
     public function view(User $user, WorkOrder $wo): bool
     {
-        if ($user->hasRole('technician')) {
-            return $wo->assigned_to === $user->id;
+        if (! $this->sameCompany($user, $wo)) {
+            return false;
         }
 
-        return $user->can('spk.view');
+        if (! $user->can('spk.view')) {
+            return $this->canActOnCurrentStatus($user, $wo);
+        }
+
+        return true;
     }
 
     public function create(User $user): bool
@@ -43,6 +49,91 @@ class WorkOrderPolicy
 
     public function delete(User $user, WorkOrder $wo): bool
     {
-        return $user->can('spk.delete');
+        return $this->sameCompany($user, $wo) && $user->can('spk.delete');
+    }
+
+    public function assign(User $user, WorkOrder $wo): bool
+    {
+        if (! $user->is_active || ! $this->sameCompany($user, $wo)) {
+            return false;
+        }
+
+        if ($wo->assigned_to !== null) {
+            return $user->can('spk.reassign');
+        }
+
+        return $user->can('spk.assign');
+    }
+
+    public function reassign(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo)
+            && $wo->assigned_to !== null
+            && $user->can('spk.reassign');
+    }
+
+    public function start(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo)
+            && $wo->status === 'assigned'
+            && $user->can('spk.start')
+            && $this->isAssignedTechnician($user, $wo, 'spk.start');
+    }
+
+    public function submit(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo)
+            && $wo->status === 'in_progress'
+            && $user->can('spk.submit')
+            && $this->isAssignedTechnician($user, $wo, 'spk.submit');
+    }
+
+    public function approve(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo) && $user->can('spk.approve');
+    }
+
+    public function reject(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo) && $user->can('spk.reject');
+    }
+
+    public function cancel(User $user, WorkOrder $wo): bool
+    {
+        return $this->sameCompany($user, $wo) && $user->can('spk.cancel');
+    }
+
+    private function sameCompany(User $user, WorkOrder $wo): bool
+    {
+        $companyId = CompanyService::idFor($user);
+
+        return $companyId !== null && $companyId === (int) $wo->company_id;
+    }
+
+    private function isAssignedTechnician(User $user, WorkOrder $wo, string $ability): bool
+    {
+        $profile = $user->relationLoaded('employeeProfile')
+            ? $user->getRelation('employeeProfile')
+            : EmployeeProfile::query()
+                ->where('company_id', $wo->company_id)
+                ->where('user_id', $user->id)
+                ->first();
+
+        return $user->is_active
+            && $wo->assigned_to !== null
+            && (int) $wo->assigned_to === (int) $user->id
+            && $user->can($ability)
+            && $profile !== null
+            && (int) $profile->company_id === (int) $wo->company_id
+            && $profile->status === 'active';
+    }
+
+    private function canActOnCurrentStatus(User $user, WorkOrder $wo): bool
+    {
+        return match ($wo->status) {
+            'assigned' => $this->start($user, $wo),
+            'in_progress' => $this->submit($user, $wo),
+            default => false,
+        };
     }
 }

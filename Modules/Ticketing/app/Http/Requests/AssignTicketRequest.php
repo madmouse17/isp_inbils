@@ -6,11 +6,17 @@ use App\Rules\HasAnyActiveRole;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Ticketing\Models\Ticket;
 
 class AssignTicketRequest extends FormRequest
 {
     public function authorize(): bool
     {
+        $ticket = $this->route('ticket');
+        if ($ticket instanceof Ticket && $ticket->assigned_to !== null) {
+            return $this->user()?->can('ticket.reassign') ?? false;
+        }
+
         return $this->user()?->can('ticket.assign') ?? false;
     }
 
@@ -25,6 +31,8 @@ class AssignTicketRequest extends FormRequest
                 Rule::exists('users', 'id')->where('company_id', $companyId),
                 new HasAnyActiveRole(['admin', 'manager', 'noc', 'staff', 'technician']),
             ],
+            'expected_assigned_to' => ['present', 'nullable', 'integer'],
+            'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],
         ];
     }
 }

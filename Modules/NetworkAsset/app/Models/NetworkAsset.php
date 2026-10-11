@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use LogicException;
 use Modules\Inventory\Models\Product;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -19,6 +20,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 /**
  * @property int $id
  * @property int $company_id
+ * @property ?int $product_id
  * @property string $code
  * @property string $name
  * @property string $asset_type
@@ -68,6 +70,15 @@ class NetworkAsset extends Model
         'installed_at' => 'datetime',
         'retired_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::deleting(function (NetworkAsset $asset) {
+            if ($asset->isForceDeleting() && $asset->installations()->exists()) {
+                throw new LogicException('Cannot hard delete network asset with installation history.');
+            }
+        });
+    }
 
     public function product(): BelongsTo
     {

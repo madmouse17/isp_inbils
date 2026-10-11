@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -225,8 +226,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
         [],
     );
 
-    const hasHistoryAccess =
-        historyAccess.billing || historyAccess.tickets || historyAccess.spk;
+    const hasHistoryAccess = historyAccess.billing || historyAccess.tickets || historyAccess.spk;
 
     return (
         <AdminLayout title="User Detail">
@@ -235,14 +235,23 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                     title={user.data.name}
                     subtitle={user.data.email}
                     actions={
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className="bg-warning text-white hover:bg-warning/90 hover:text-white"
-                            onClick={() => router.get(route('admin.users.edit', user.data.id))}
-                        >
-                            Edit
-                        </Button>
+                        <>
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.users.index')}>Back</Link>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="warning"
+                                onClick={() => router.get(route('admin.users.edit', user.data.id))}
+                            >
+                                Edit
+                            </Button>
+                        </>
                     }
                 />
 

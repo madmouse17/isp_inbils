@@ -28,6 +28,8 @@ use App\Policies\RolePolicy;
 use App\Policies\SubscriptionPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\VehiclePolicy;
+use App\Services\Core\AuditService;
+use App\Services\Core\CompanyService;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -36,9 +38,13 @@ use Illuminate\Support\ServiceProvider;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Policies\CategoryPolicy;
+use Modules\Inventory\Policies\InventoryRequestPolicy;
+use Modules\Inventory\Policies\MaterialReturnCasePolicy;
 use Modules\Inventory\Policies\ProductPolicy;
 use Modules\Inventory\Policies\UnitPolicy;
 use Modules\NetworkAsset\Models\NetworkAsset;
@@ -55,6 +61,7 @@ use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Policies\WorkOrderPolicy;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Policies\TicketPolicy;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -83,6 +90,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SLATier::class, SLATierPolicy::class);
         Gate::policy(ServicePackage::class, ServicePackagePolicy::class);
         Gate::policy(Category::class, CategoryPolicy::class);
+        Gate::policy(InventoryRequest::class, InventoryRequestPolicy::class);
+        Gate::policy(MaterialReturnCase::class, MaterialReturnCasePolicy::class);
         Gate::policy(Product::class, ProductPolicy::class);
         Gate::policy(Unit::class, UnitPolicy::class);
         Gate::policy(NetworkAsset::class, NetworkAssetPolicy::class);
@@ -98,6 +107,42 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
+
+        Activity::saving(function (Activity $activity) {
+            $subject = $activity->relationLoaded('subject')
+                ? $activity->getRelation('subject')
+                : $activity->subject;
+
+            $causer = $activity->relationLoaded('causer')
+                ? $activity->getRelation('causer')
+                : $activity->causer;
+
+            $resolvedCompanyId = AuditService::resolveCompanyId(
+                subject: $subject,
+                properties: $activity->properties?->toArray() ?? [],
+                explicitCompanyId: $activity->getAttribute('company_id') ? (int) $activity->getAttribute('company_id') : null
+            );
+
+            if ($resolvedCompanyId === null && $causer instanceof User) {
+                $resolvedCompanyId = CompanyService::idFor($causer);
+            }
+
+            if ($resolvedCompanyId !== null) {
+                $activity->setAttribute('company_id', $resolvedCompanyId);
+                if ($activity->properties) {
+                    $props = $activity->properties->toArray();
+                    $props['company_id'] = $resolvedCompanyId;
+                    $activity->properties = collect($props);
+                }
+            } else {
+                $activity->setAttribute('company_id', null);
+                if ($activity->properties && isset($activity->properties['company_id'])) {
+                    $props = $activity->properties->toArray();
+                    unset($props['company_id']);
+                    $activity->properties = collect($props);
+                }
+            }
+        });
 
         if (! $this->app->environment('e2e')) {
             Vite::prefetch(concurrency: 3);

@@ -89,6 +89,26 @@ class ReadinessEndpointTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase('secret', $body);
     }
 
+    public function test_backup_probe_is_unknown_without_marker(): void
+    {
+        Cache::forget(ReadinessChecker::BACKUP_HEARTBEAT_KEY);
+
+        $this->getJson('/ready')
+            ->assertOk()
+            ->assertJsonPath('checks.backup', 'unknown');
+    }
+
+    public function test_backup_heartbeat_command_makes_ready_probe_report_ok(): void
+    {
+        Cache::forget(ReadinessChecker::BACKUP_HEARTBEAT_KEY);
+
+        $this->artisan('ops:backup-heartbeat')->assertSuccessful();
+
+        $this->getJson('/ready')
+            ->assertOk()
+            ->assertJsonPath('checks.backup', 'ok');
+    }
+
     public function test_ready_degraded_when_cache_fails_but_db_ok(): void
     {
         Cache::shouldReceive('put')->andThrow(new \RuntimeException('cache write failed host=redis'));

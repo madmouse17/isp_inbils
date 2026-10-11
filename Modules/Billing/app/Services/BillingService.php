@@ -21,11 +21,11 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class BillingService
 {
-    public static function taxRateFor(int $companyId): string
+    public static function taxRateFor(int $companyId): float
     {
         $settings = Company::find($companyId)?->settings ?? [];
 
-        return (string) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
+        return (float) ($settings['tax_ppn_rate'] ?? SettingService::get('default_tax_ppn_rate', 11));
     }
 
     public static function dueDaysFor(int $companyId): int
@@ -202,12 +202,12 @@ class BillingService
 
     public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
-        abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
+        abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
         abort_if(Money::compare($amount, '0') <= 0, 422, 'Payment amount must be positive.');
 
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
-            abort_unless($invoice->company_id === (int) Auth::user()?->company_id, 404);
+            abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
             abort_if(Money::gt($amount, $invoice->sisa), 422, 'Payment amount exceeds remaining balance.');
             abort_if(
                 $reference && Payment::withoutCompany()
@@ -253,16 +253,60 @@ class BillingService
             self::assertCompanyId($invoice->company_id);
             abort_if($invoice->status === 'cancelled', 422, 'Invoice already cancelled.');
             abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Cannot cancel invoice with active payments. Reverse payments first.');
+            abort_if($invoice->created_by && (int) Auth::id() === (int) $invoice->created_by, 422, 'Cannot cancel own created invoice.');
 
             $invoice->update([
                 'status' => 'cancelled',
                 'cancelled_at' => now(),
                 'cancel_reason' => $reason,
+                'cancelled_by' => Auth::id(),
             ]);
 
             AuditService::log('invoice', 'cancelled', ['number' => $invoice->number, 'reason' => $reason], $invoice);
 
             return $invoice->fresh();
+        });
+    }
+
+    /**
+     * Reverse a recorded payment: mark it cancelled and decrement the invoice
+     * paid amount. Maker/checker: the user who recorded the payment cannot
+     * reverse it. Tenant + already-cancelled guards run both before and inside
+     * the locked transaction (defense in depth).
+     */
+    public static function reversePayment(Payment $payment, string $reason): Payment
+    {
+        abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
+        abort_if($payment->cancelled_at !== null, 422, 'Payment already cancelled.');
+        abort_if(Auth::id() === $payment->received_by, 422, 'Cannot reverse own recorded payment.');
+
+        return DB::transaction(function () use ($payment, $reason) {
+            $payment = Payment::withoutCompany()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
+            abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
+            abort_if($payment->cancelled_at !== null, 422, 'Payment already cancelled.');
+            abort_if(Auth::id() === $payment->received_by, 422, 'Cannot reverse own recorded payment.');
+
+            $invoice = Invoice::withoutCompany()->whereKey($payment->invoice_id)->lockForUpdate()->firstOrFail();
+
+            Payment::executeInCanonicalReversal(function () use ($payment, $reason) {
+                $payment->update([
+                    'cancelled_at' => now(),
+                    'cancel_reason' => $reason,
+                    'cancelled_by' => Auth::id(),
+                ]);
+            });
+
+            $newPaid = Money::sub($invoice->paid_amount, $payment->amount);
+            $newStatus = Money::compare($newPaid, '0') <= 0
+                ? 'sent'
+                : (Money::compare($newPaid, $invoice->total) >= 0 ? 'paid' : 'partial');
+            $invoice->update(['paid_amount' => Money::round($newPaid), 'status' => $newStatus]);
+
+            AuditService::log('invoice', 'payment_reversed', [
+                'number' => $invoice->number, 'amount' => $payment->amount, 'reason' => $reason,
+            ], $invoice);
+
+            return $payment->fresh();
         });
     }
 

@@ -10,15 +10,16 @@
         "typecheck": "tsc --noEmit",
         "format": "prettier --write \"resources/js/**/*.{ts,tsx,css}\"",
         "format:check": "prettier --check \"resources/js/**/*.{ts,tsx,css}\"",
-        "test:e2e": "node scripts/e2e-guard-matrix.mjs && php tests/e2e/setup.php && node scripts/e2e-run.mjs",
-        "test:e2e:smoke": "node scripts/e2e-guard-matrix.mjs && php tests/e2e/setup.php && node scripts/e2e-run.mjs --grep @smoke",
-        "test:e2e:ops-smoke": "php artisan test --compact tests/Feature/Operations/ReadinessEndpointTest.php --filter=test_scheduler_heartbeat_command_makes_ready_probe_report_ok && npm run test:e2e -- tests/e2e/ops-api-smoke.spec.ts"
+        "test:e2e": "node scripts/e2e-canonical.mjs",
+        "test:e2e:smoke": "node scripts/e2e-canonical.mjs --grep @smoke",
+        "test:e2e:ops-smoke": "node scripts/e2e-canonical.mjs --ops-smoke tests/e2e/ops-api-smoke.spec.ts"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@headlessui/react": "^2.0.0",
         "@inertiajs/react": "^2.0.0",
         "@playwright/test": "^1.61.1",
+        "@prettier/plugin-php": "^0.25.0",
         "@tailwindcss/forms": "^0.5.3",
         "@types/node": "^22.0.0",
         "@types/react": "^18.0.28",

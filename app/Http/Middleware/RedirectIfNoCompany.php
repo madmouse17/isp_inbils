@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\Core\Company;
+use App\Services\Core\CompanyService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -17,7 +18,7 @@ class RedirectIfNoCompany
 
         $user = $request->user();
 
-        if ($user && (Company::query()->count() === 0 || $user->company_id === null)) {
+        if ($user && (Company::query()->count() === 0 || CompanyService::idFor($user) === null)) {
             return redirect('/setup');
         }
 

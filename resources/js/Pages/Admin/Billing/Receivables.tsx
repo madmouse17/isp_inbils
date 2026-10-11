@@ -1,25 +1,17 @@
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import {
-    Button,
-    Card,
-    CardContent,
-    Textarea,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
+import { Button, Card, CardContent, Modal, Textarea } from '@/Components/ui';
+import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 interface SubRef {
     id: number;
     code: string;
     status: string;
 }
+
 interface Row {
     customer_id: number;
     customer: string;
@@ -33,6 +25,12 @@ interface Row {
     subscriptions: SubRef[];
 }
 
+interface Filters {
+    sort_by: string;
+    sort_dir: 'asc' | 'desc';
+    per_page: number;
+}
+
 const idr = (n: number) =>
     n > 0
         ? new Intl.NumberFormat('id-ID', {
@@ -42,9 +40,41 @@ const idr = (n: number) =>
           }).format(n)
         : '-';
 
-export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend: boolean } }) {
+export default function Receivables({
+    rows,
+    totals,
+    filters,
+    can,
+}: {
+    rows: PaginationLike<Row>;
+    totals: Omit<Row, 'customer_id' | 'customer' | 'subscriptions'>;
+    filters: Filters;
+    can: { suspend: boolean };
+}) {
     const [suspending, setSuspending] = useState<SubRef | null>(null);
     const [reason, setReason] = useState('');
+    const pagination = toPagination(rows);
+    const table = useServerTable({
+        url: route('admin.billing.receivables'),
+        filters: {
+            sort: filters.sort_by,
+            direction: filters.sort_dir,
+            per_page: pagination.per_page,
+        },
+        only: ['rows', 'totals', 'filters'],
+    });
+
+    const closeSuspend = () => {
+        setSuspending(null);
+        setReason('');
+    };
+
+    const onSort = (field: string, direction?: 'asc' | 'desc') => {
+        table.onSort(field, direction);
+    };
+
+    const onPageChange = (page: number) => table.visit({ page });
+    const onPerPageChange = (perPage: number) => table.visit({ per_page: perPage, page: 1 });
 
     const suspend = () => {
         if (!suspending) return;
@@ -60,6 +90,90 @@ export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend
         );
     };
 
+    const columns: DataTableColumn<Row>[] = [
+        {
+            key: 'customer',
+            header: 'Pelanggan',
+            sortable: true,
+            cell: (row) => (
+                <>
+                    <Link
+                        className="text-brand-600 hover:underline"
+                        href={route('admin.invoices.index', { customer_id: row.customer_id })}
+                    >
+                        {row.customer}
+                    </Link>
+                    <span className="ml-1 text-surface-400">({row.invoice_count} invoice)</span>
+                </>
+            ),
+        },
+        {
+            key: 'current',
+            header: 'Belum Jatuh Tempo',
+            sortable: true,
+            className: 'text-right',
+            cell: (row) => idr(row.current),
+        },
+        {
+            key: 'b1_30',
+            header: '1–30 hari',
+            sortable: true,
+            className: 'text-right',
+            cell: (row) => idr(row.b1_30),
+        },
+        {
+            key: 'b31_60',
+            header: '31–60 hari',
+            sortable: true,
+            className: 'text-right',
+            cell: (row) => idr(row.b31_60),
+        },
+        {
+            key: 'b61_90',
+            header: '61–90 hari',
+            sortable: true,
+            className: 'text-right',
+            cell: (row) => idr(row.b61_90),
+        },
+        {
+            key: 'b90_plus',
+            header: '>90 hari',
+            sortable: true,
+            className: 'text-right font-semibold text-red-600',
+            cell: (row) => idr(row.b90_plus),
+        },
+        {
+            key: 'total',
+            header: 'Total',
+            sortable: true,
+            className: 'text-right font-semibold',
+            cell: (row) => idr(row.total),
+        },
+        {
+            key: 'actions',
+            header: 'Tindakan',
+            cell: (row) => (
+                <div className="flex flex-wrap justify-end gap-2">
+                    {can.suspend &&
+                        row.subscriptions.map((subscription) => (
+                            <Button
+                                key={subscription.id}
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => {
+                                    setReason('');
+                                    setSuspending(subscription);
+                                }}
+                            >
+                                Isolir {subscription.code}
+                            </Button>
+                        ))}
+                </div>
+            ),
+        },
+    ];
+
     return (
         <AdminLayout title="Tunggakan">
             <div className="space-y-6">
@@ -67,111 +181,69 @@ export default function Receivables({ rows, can }: { rows: Row[]; can: { suspend
                     title="Tunggakan"
                     subtitle="Pantau umur piutang pelanggan dan tindakan isolir."
                 />
-                <Card>
-                    <CardContent className="space-y-4 overflow-x-auto pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Pelanggan</TH>
-                                    <TH className="text-right">Belum Jatuh Tempo</TH>
-                                    <TH className="text-right">1–30 hari</TH>
-                                    <TH className="text-right">31–60 hari</TH>
-                                    <TH className="text-right">61–90 hari</TH>
-                                    <TH className="text-right">&gt;90 hari</TH>
-                                    <TH className="text-right">Total</TH>
-                                    <TH />
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {rows.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={8}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            Tidak ada tunggakan.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    rows.map((r) => (
-                                        <TR key={r.customer_id}>
-                                            <TD>
-                                                <Link
-                                                    className="text-brand-600 hover:underline"
-                                                    href={route('admin.invoices.index', {
-                                                        customer_id: r.customer_id,
-                                                    })}
-                                                >
-                                                    {r.customer}
-                                                </Link>
-                                                <span className="ml-1 text-surface-400">
-                                                    ({r.invoice_count} invoice)
-                                                </span>
-                                            </TD>
-                                            <TD className="text-right">{idr(r.current)}</TD>
-                                            <TD className="text-right">{idr(r.b1_30)}</TD>
-                                            <TD className="text-right">{idr(r.b31_60)}</TD>
-                                            <TD className="text-right">{idr(r.b61_90)}</TD>
-                                            <TD className="text-right font-semibold text-red-600">
-                                                {idr(r.b90_plus)}
-                                            </TD>
-                                            <TD className="text-right font-semibold">
-                                                {idr(r.total)}
-                                            </TD>
-                                            <TD className="text-right">
-                                                {can.suspend &&
-                                                    r.subscriptions.map((s) => (
-                                                        <Button
-                                                            key={s.id}
-                                                            type="button"
-                                                            variant="secondary"
-                                                            size="sm"
-                                                            onClick={() => setSuspending(s)}
-                                                        >
-                                                            Isolir {s.code}
-                                                        </Button>
-                                                    ))}
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-
-                {suspending && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                        <Card className="w-full max-w-md">
-                            <CardContent className="space-y-4 pt-6">
-                                <p>
-                                    Isolir subscription <strong>{suspending.code}</strong>?
-                                </p>
-                                <Textarea
-                                    placeholder="Alasan isolir (wajib)"
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                />
-                                <div className="flex justify-end gap-2">
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => setSuspending(null)}
-                                    >
-                                        Batal
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={suspend}
-                                        disabled={!reason.trim()}
-                                    >
-                                        Isolir
-                                    </Button>
-                                </div>
+                <section
+                    aria-label="Total piutang perusahaan"
+                    className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                >
+                    {[
+                        ['Belum jatuh tempo', totals.current],
+                        ['1–30 hari', totals.b1_30],
+                        ['31–60 hari', totals.b31_60],
+                        ['61–90 hari', totals.b61_90],
+                        ['>90 hari', totals.b90_plus],
+                        ['Total piutang', totals.total],
+                    ].map(([label, value]) => (
+                        <Card key={label}>
+                            <CardContent className="pt-4">
+                                <p className="text-sm text-muted-foreground">{label}</p>
+                                <p className="mt-1 font-semibold">{idr(Number(value))}</p>
                             </CardContent>
                         </Card>
+                    ))}
+                </section>
+                <Card>
+                    <CardContent className="pt-6">
+                        <DataTable
+                            columns={columns}
+                            rows={pagination.data ?? []}
+                            pagination={pagination}
+                            rowKey="customer_id"
+                            sort={filters.sort_by}
+                            direction={filters.sort_dir}
+                            onSort={onSort}
+                            onPageChange={onPageChange}
+                            onPerPageChange={onPerPageChange}
+                            loading={table.processing}
+                            emptyTitle="Tidak ada tunggakan"
+                            emptyDescription="Invoice yang belum lunas di perusahaan ini akan muncul di sini."
+                        />
+                    </CardContent>
+                </Card>
+                <Modal
+                    open={suspending !== null}
+                    onClose={closeSuspend}
+                    title={suspending ? `Isolir subscription ${suspending.code}?` : undefined}
+                >
+                    <div className="space-y-4">
+                        <label htmlFor="suspend-reason" className="block text-sm font-medium">
+                            Alasan isolir (wajib)
+                        </label>
+                        <Textarea
+                            id="suspend-reason"
+                            placeholder="Tuliskan alasan isolir"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                        />
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="secondary" onClick={closeSuspend}>
+                                Batal
+                            </Button>
+                            <Button type="button" onClick={suspend} disabled={!reason.trim()}>
+                                Isolir
+                            </Button>
+                        </div>
                     </div>
-                )}
+                </Modal>
             </div>
         </AdminLayout>
     );

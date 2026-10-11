@@ -3,16 +3,19 @@ import { useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    CustomerAcquirerValue,
     DataTable,
     DataTableActions,
     type DataTableColumn,
     PageHeader,
 } from '@/Components/composite';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
+import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
+import type { AcquirerOption, CustomerAcquirer } from '@/types/models';
 
 interface CustomerRow {
     id: number;
@@ -23,6 +26,8 @@ interface CustomerRow {
     is_active: boolean;
     addresses_count?: number;
     subscriptions_count?: number;
+    acquired_by_user_id?: number | null;
+    acquirer?: CustomerAcquirer | null;
 }
 
 interface IndexProps {
@@ -30,22 +35,31 @@ interface IndexProps {
     filters: {
         type?: string;
         status?: string;
+        acquired_by?: string;
         search?: string;
         sort?: string;
         direction?: string;
         per_page?: string | number;
     };
-    can: { create: boolean; export: boolean; update: boolean; delete: boolean };
+    acquirerOptions: AcquirerOption[];
+    can: {
+        create: boolean;
+        export: boolean;
+        update: boolean;
+        delete: boolean;
+        viewAcquirer: boolean;
+    };
 }
 
-export default function Index({ customers, filters, can }: IndexProps) {
+export default function Index({ customers, filters, acquirerOptions, can }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const [type, setType] = useState(filters.type ?? '');
     const [status, setStatus] = useState(filters.status ?? '');
+    const [acquiredBy, setAcquiredBy] = useState(filters.acquired_by ?? '');
     const { params, visit, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.customers.index'),
         filters,
-        only: ['customers', 'filters', 'can'],
+        only: ['customers', 'filters', 'can', 'acquirerOptions'],
     });
 
     const columns: DataTableColumn<CustomerRow>[] = useMemo(
@@ -93,6 +107,17 @@ export default function Index({ customers, filters, can }: IndexProps) {
                     </Badge>
                 ),
             },
+            ...(can.viewAcquirer
+                ? [
+                      {
+                          key: 'acquirer',
+                          header: 'Acquired by',
+                          cell: (customer: CustomerRow) => (
+                              <CustomerAcquirerValue acquirer={customer.acquirer} />
+                          ),
+                      },
+                  ]
+                : []),
             {
                 key: 'addresses_count',
                 header: 'Addresses',
@@ -109,7 +134,9 @@ export default function Index({ customers, filters, can }: IndexProps) {
                 cell: (customer) => (
                     <DataTableActions
                         showHref={route('admin.customers.show', customer.id)}
-                        editHref={can.update ? route('admin.customers.edit', customer.id) : undefined}
+                        editHref={
+                            can.update ? route('admin.customers.edit', customer.id) : undefined
+                        }
                         deleteHref={
                             can.delete ? route('admin.customers.destroy', customer.id) : undefined
                         }
@@ -118,12 +145,12 @@ export default function Index({ customers, filters, can }: IndexProps) {
                 ),
             },
         ],
-        [can.delete, can.update],
+        [can.delete, can.update, can.viewAcquirer],
     );
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        visit({ search, type, status });
+        visit({ search, type, status, ...(can.viewAcquirer ? { acquired_by: acquiredBy } : {}) });
     };
 
     return (
@@ -159,7 +186,12 @@ export default function Index({ customers, filters, can }: IndexProps) {
                     <CardContent className="space-y-4 pt-6">
                         <form
                             onSubmit={submit}
-                            className="grid gap-3 rounded-lg border bg-card p-3 md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_auto] md:items-end"
+                            className={cn(
+                                'grid gap-3 rounded-lg border bg-card p-3 md:items-end',
+                                can.viewAcquirer
+                                    ? 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_12rem_auto]'
+                                    : 'md:grid-cols-[minmax(12rem,1fr)_12rem_12rem_auto]',
+                            )}
                         >
                             <Input
                                 label="Search"
@@ -187,7 +219,26 @@ export default function Index({ customers, filters, can }: IndexProps) {
                                     { value: 'inactive', label: 'Inactive' },
                                 ]}
                             />
-                            <Button type="submit" variant="secondary">Filter</Button>
+                            {can.viewAcquirer ? (
+                                <NativeSelect
+                                    label="Acquired by"
+                                    value={acquiredBy}
+                                    onChange={(event) => setAcquiredBy(event.target.value)}
+                                    options={[
+                                        { value: '', label: 'All acquirers' },
+                                        { value: 'unassigned', label: 'Unassigned' },
+                                        ...acquirerOptions.map((option) => ({
+                                            value: String(option.id),
+                                            label: option.is_active
+                                                ? option.name
+                                                : `${option.name} (inactive)`,
+                                        })),
+                                    ]}
+                                />
+                            ) : null}
+                            <Button type="submit" variant="secondary">
+                                Filter
+                            </Button>
                         </form>
 
                         <DataTable

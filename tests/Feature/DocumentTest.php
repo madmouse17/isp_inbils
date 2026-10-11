@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\DocumentType;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\DocumentService;
@@ -77,27 +78,26 @@ class DocumentTest extends TestCase
         $otherCustomer = Customer::factory()->create(['company_id' => $otherCompany->id]);
         $file = UploadedFile::fake()->create('secret.pdf', 100, 'application/pdf');
 
-        // Upload from other company context
+        // Upload dari konteks perusahaan lain.
         $otherAdmin = User::factory()->create([
             'company_id' => $otherCompany->id,
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
+        $otherAdmin->assignRole('admin');
         $this->actingAs($otherAdmin);
         CompanyService::resetCache();
         $media = DocumentService::upload($otherCustomer, $file);
 
-        // Admin from company A tries to delete media from company B
+        // Admin perusahaan A mencoba menghapus media perusahaan B.
         $this->actingAs($this->admin);
         CompanyService::resetCache();
 
         try {
             DocumentService::delete($media);
-            // If no exception, check it wasn't deleted
             $this->assertDatabaseHas('media', ['id' => $media->id]);
         } catch (HttpException $e) {
-            // 403 thrown — correct behavior
-            $this->assertEquals(403, $e->getStatusCode());
+            $this->assertContains($e->getStatusCode(), [403, 404]);
         }
     }
 
@@ -105,5 +105,199 @@ class DocumentTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('admin.documents.index'));
         $response->assertOk();
+    }
+
+    public function test_document_upload_rejects_foreign_model_type(): void
+    {
+        $otherCompany = Company::factory()->create();
+        $foreignCustomer = Customer::factory()->create(['company_id' => $otherCompany->id]);
+        $file = UploadedFile::fake()->create('ktp.jpg', 500, 'image/jpeg');
+
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => DocumentType::class,
+            'model_id' => $foreignCustomer->id,
+            'file' => $file,
+            'collection' => 'documents',
+        ]);
+
+        $response->assertNotFound();
+        $this->assertDatabaseMissing('media', ['model_id' => $foreignCustomer->id, 'file_name' => 'ktp.jpg']);
+    }
+
+    public function test_document_upload_rejects_non_customer_model_type(): void
+    {
+        $file = UploadedFile::fake()->create('ktp.jpg', 500, 'image/jpeg');
+
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Company::class,
+            'model_id' => $this->admin->company_id,
+            'file' => $file,
+            'collection' => 'documents',
+        ]);
+
+        $response->assertNotFound();
+        $this->assertDatabaseMissing('media', ['model_type' => Company::class, 'model_id' => $this->admin->company_id]);
+    }
+
+    public function test_document_delete_rejects_foreign_tenant_media(): void
+    {
+        $otherCompany = Company::factory()->create();
+        $otherCustomer = Customer::factory()->create(['company_id' => $otherCompany->id]);
+        $otherAdmin = User::factory()->create([
+            'company_id' => $otherCompany->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $otherAdmin->assignRole('admin');
+        $this->actingAs($otherAdmin);
+        CompanyService::resetCache();
+        $media = DocumentService::upload($otherCustomer, UploadedFile::fake()->create('owner.pdf', 120, 'application/pdf'));
+
+        $this->actingAs($this->admin);
+        CompanyService::resetCache();
+        $response = $this->delete(route('admin.documents.media.destroy', $media));
+
+        $response->assertNotFound();
+        $this->assertDatabaseHas('media', ['id' => $media->id]);
+    }
+
+    public function test_document_delete_removes_owned_media(): void
+    {
+        $this->actingAs($this->admin);
+        CompanyService::resetCache();
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $media = DocumentService::upload($customer, UploadedFile::fake()->create('owned.pdf', 120, 'application/pdf'));
+
+        $response = $this->delete(route('admin.documents.media.destroy', $media));
+
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('media', ['id' => $media->id]);
+    }
+
+    public function test_document_upload_stores_owned_media(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->id,
+            'file' => UploadedFile::fake()->create('valid.pdf', 120, 'application/pdf'),
+            'document_type_code' => null,
+            'collection' => 'documents',
+        ]);
+
+        $response->assertRedirect();
+        $this->assertDatabaseHas('media', [
+            'model_type' => Customer::class,
+            'model_id' => $customer->id,
+            'file_name' => 'valid.pdf',
+        ]);
+    }
+
+    public function test_document_upload_rejects_without_permission(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $noPermUser = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($noPermUser)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->id,
+            'file' => UploadedFile::fake()->create('denied.pdf', 120, 'application/pdf'),
+            'collection' => 'documents',
+        ]);
+
+        $response->assertForbidden();
+        $this->assertDatabaseMissing('media', ['file_name' => 'denied.pdf']);
+    }
+
+    public function test_document_upload_rejects_invalid_collection(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $file = UploadedFile::fake()->create('owner.pdf', 120, 'application/pdf');
+
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => $customer->id,
+            'file' => $file,
+            'collection' => 'invoices',
+        ]);
+
+        $response->assertNotFound();
+        $this->assertDatabaseMissing('media', ['model_type' => Customer::class, 'model_id' => $customer->id, 'file_name' => 'owner.pdf']);
+    }
+
+    public function test_document_upload_rejects_missing_customer_id(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
+            'model_type' => Customer::class,
+            'model_id' => 999999,
+            'file' => UploadedFile::fake()->create('missing.pdf', 120, 'application/pdf'),
+            'collection' => 'documents',
+        ]);
+
+        $response->assertNotFound();
+        $this->assertDatabaseMissing('media', ['file_name' => 'missing.pdf']);
+    }
+
+    public function test_document_type_delete_removes_record(): void
+    {
+        $response = $this->actingAs($this->admin)->post(route('admin.documents.store'), [
+            'name' => 'Delete Me',
+            'code' => 'DEL-TEST',
+            'applies_to' => 'Customer',
+            'is_required' => false,
+        ]);
+        $response->assertRedirect();
+        $this->assertDatabaseHas('document_types', ['code' => 'DEL-TEST']);
+
+        $id = DocumentType::withoutCompany()->where('code', 'DEL-TEST')->first()->id;
+
+        $response = $this->actingAs($this->admin)->delete(route('admin.documents.destroy', $id));
+        $response->assertRedirect();
+        $this->assertDatabaseMissing('document_types', ['id' => $id, 'deleted_at' => null]);
+    }
+
+    public function test_document_type_delete_rejects_unauthorized_user(): void
+    {
+        $dt = DocumentType::withoutCompany()->forceCreate([
+            'company_id' => $this->admin->company_id,
+            'name' => 'Foreign Doc Type',
+            'code' => 'FD-001',
+        ]);
+
+        $otherCompany = Company::factory()->create();
+        $otherAdmin = User::factory()->create([
+            'company_id' => $otherCompany->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($otherAdmin)->delete(route('admin.documents.destroy', $dt->id));
+        $response->assertNotFound();
+        $this->assertDatabaseHas('document_types', ['id' => $dt->id, 'deleted_at' => null]);
+    }
+
+    public function test_document_type_delete_rejects_same_company_without_permission(): void
+    {
+        $dt = DocumentType::withoutCompany()->forceCreate([
+            'company_id' => $this->admin->company_id,
+            'name' => 'Needs Setting',
+            'code' => 'NS-001',
+        ]);
+
+        // Same company user, no admin role → no system.setting permission.
+        $noPermUser = User::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($noPermUser)->delete(route('admin.documents.destroy', $dt->id));
+        $response->assertForbidden();
+        $this->assertDatabaseHas('document_types', ['id' => $dt->id, 'deleted_at' => null]);
     }
 }

@@ -6,6 +6,8 @@ use App\Models\User;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -50,6 +52,39 @@ class Company extends Model implements HasMedia
     public function users(): HasMany
     {
         return $this->hasMany(User::class);
+    }
+
+    /**
+     * The Head of this subsidiary. Not mass assignable: CompanyHierarchyService owns the hierarchy.
+     *
+     * @return BelongsTo<Company, $this>
+     */
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_company_id');
+    }
+
+    /** @return HasMany<Company, $this> */
+    public function children(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_company_id');
+    }
+
+    /**
+     * Users that may act in this company: the home-company memberships and the granted ones.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function members(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class)->withPivot('is_default')->withTimestamps();
+    }
+
+    /** A Head is a company without a parent that has at least one subsidiary. */
+    public function isHead(): bool
+    {
+        // Only active subsidiaries count: a Head without one has nothing to consolidate.
+        return $this->parent_company_id === null && $this->children()->where('is_active', true)->exists();
     }
 
     public function getActivitylogOptions(): LogOptions

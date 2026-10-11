@@ -48,8 +48,12 @@ export function IndonesiaRegionFields({
     idPrefix = 'indonesia-region',
 }: IndonesiaRegionFieldsProps) {
     const cities = options.cities.filter((city) => city.province_code === value.province_code);
-    const districts = options.districts.filter((district) => district.city_code === value.city_code);
-    const villages = options.villages.filter((village) => village.district_code === value.district_code);
+    const districts = options.districts.filter(
+        (district) => district.city_code === value.city_code,
+    );
+    const villages = options.villages.filter(
+        (village) => village.district_code === value.district_code,
+    );
 
     return (
         <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
@@ -71,7 +75,10 @@ export function IndonesiaRegionFields({
                         city: '',
                     })
                 }
-                options={options.provinces.map((province) => ({ value: province.code, label: province.name }))}
+                options={options.provinces.map((province) => ({
+                    value: province.code,
+                    label: province.name,
+                }))}
             />
             <SearchSelect
                 id={`${idPrefix}-city`}
@@ -105,7 +112,10 @@ export function IndonesiaRegionFields({
                 onChange={(districtCode) =>
                     onChange({ ...value, district_code: districtCode, village_code: '' })
                 }
-                options={districts.map((district) => ({ value: district.code, label: district.name }))}
+                options={districts.map((district) => ({
+                    value: district.code,
+                    label: district.name,
+                }))}
             />
             <SearchSelect
                 id={`${idPrefix}-village`}

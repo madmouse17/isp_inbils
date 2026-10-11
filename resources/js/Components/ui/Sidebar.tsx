@@ -1,6 +1,6 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Link } from '@inertiajs/react';
-import { useState } from 'react';
+import { Children, useState } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SidebarItemProps {
@@ -48,6 +48,11 @@ export function SidebarSection({
     defaultOpen = true,
 }: SidebarSectionProps) {
     const [expanded, setExpanded] = useState(defaultOpen);
+
+    // A section whose items were all gated off must not leave an empty header behind.
+    if (Children.toArray(children).length === 0) {
+        return null;
+    }
 
     if (!title) {
         return (

@@ -35,6 +35,8 @@ void createInertiaApp({
         );
     },
     progress: {
-        color: '#4B5563',
+        // Theme token, so the bar follows light/dark: 5.2:1 on light and 5.4:1 on dark backgrounds.
+        // The former fixed #4B5563 measured 2.65:1 on the dark background, below the 3:1 non-text minimum.
+        color: 'hsl(var(--primary))',
     },
 });

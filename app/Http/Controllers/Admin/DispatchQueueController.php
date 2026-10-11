@@ -1,0 +1,144 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Http\Resources\DispatchItemResource;
+use App\Http\Resources\MyWorkItemResource;
+use App\Queries\Admin\DispatchQueueQuery;
+use App\Queries\Admin\MyWorkQuery;
+use App\Services\Core\CompanyService;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
+use Inertia\Inertia;
+use Inertia\Response;
+use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Services\SpkService;
+use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Services\TicketService;
+use Symfony\Component\HttpKernel\Exception\HttpException;
+
+class DispatchQueueController extends Controller
+{
+    public function index(Request $request): Response|RedirectResponse
+    {
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        $user = $request->user();
+
+        if (! DispatchQueueQuery::isEligible($user)) {
+            if (MyWorkQuery::isEligible($user)) {
+                return redirect()->route('admin.my-work.index');
+            }
+            abort(403, 'No dispatch permission for any domain.');
+        }
+
+        $activeTab = $request->input('tab', 'dispatch');
+
+        if ($activeTab === 'my_work' && MyWorkQuery::isEligible($user)) {
+            $unified = MyWorkQuery::filtered($request);
+            $perPage = MyWorkQuery::perPage($request);
+            $items = $unified->paginate($perPage)->withQueryString();
+
+            return Inertia::render('Admin/Dispatch/Index', [
+                'items' => MyWorkItemResource::collection($items),
+                'summary' => DispatchQueueQuery::summary($request),
+                'myWorkSummary' => MyWorkQuery::summary($request),
+                'activeTab' => 'my_work',
+                'filters' => $request->only([
+                    'domain', 'status', 'priority', 'search',
+                    'date_from', 'date_to', 'sort', 'direction', 'per_page', 'tab',
+                ]),
+                'domains' => MyWorkQuery::domainOptions($request),
+                'handlers' => DispatchQueueQuery::eligibleHandlers($request),
+                'technicians' => DispatchQueueQuery::eligibleTechnicians($request),
+                'canDispatch' => true,
+                'canMyWork' => true,
+            ]);
+        }
+
+        $unified = DispatchQueueQuery::filtered($request);
+        $perPage = DispatchQueueQuery::perPage($request);
+        $items = $unified->paginate($perPage)->withQueryString();
+
+        return Inertia::render('Admin/Dispatch/Index', [
+            'items' => DispatchItemResource::collection($items),
+            'summary' => DispatchQueueQuery::summary($request),
+            'myWorkSummary' => MyWorkQuery::isEligible($user) ? MyWorkQuery::summary($request) : null,
+            'activeTab' => 'dispatch',
+            'filters' => $request->only([
+                'domain', 'status', 'priority', 'search',
+                'date_from', 'date_to', 'sort', 'direction', 'per_page', 'tab',
+            ]),
+            'domains' => DispatchQueueQuery::domainOptions($request),
+            'handlers' => DispatchQueueQuery::eligibleHandlers($request),
+            'technicians' => DispatchQueueQuery::eligibleTechnicians($request),
+            'canDispatch' => true,
+            'canMyWork' => MyWorkQuery::isEligible($user),
+        ]);
+    }
+
+    public function assign(Request $request): RedirectResponse
+    {
+        $companyId = CompanyService::currentId();
+        abort_if($companyId === null, 403, 'Company context is required.');
+
+        $user = $request->user();
+        abort_unless(DispatchQueueQuery::isEligible($user), 403, 'No dispatch permission for any domain.');
+
+        $request->validate([
+            'domain' => ['required', 'string', 'in:ticket,spk'],
+            'id' => ['required', 'integer'],
+            'assignee_id' => ['nullable', 'integer'],
+            'handler_id' => ['nullable', 'integer'],
+            'technician_id' => ['nullable', 'integer'],
+            'expected_assigned_to' => ['present', 'nullable', 'integer'],
+            'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],
+        ]);
+
+        $domain = $request->input('domain');
+        $id = (int) $request->input('id');
+        $assigneeId = (int) ($request->input('assignee_id') ?? $request->input('handler_id') ?? $request->input('technician_id'));
+        abort_if($assigneeId <= 0, 422, 'Assignee is required.');
+
+        $expectedAssignedTo = $request->has('expected_assigned_to') && $request->input('expected_assigned_to') !== null
+            ? (int) $request->input('expected_assigned_to')
+            : null;
+        $expectedUpdatedAt = $request->input('expected_updated_at');
+
+        if ($domain === 'ticket') {
+            $ticket = Ticket::forCompany($companyId)->findOrFail($id);
+            Gate::authorize('assign', $ticket);
+            try {
+                TicketService::assign($ticket, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt);
+            } catch (HttpException $exception) {
+                if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                    throw ValidationException::withMessages(['conflict' => $exception->getMessage()]);
+                }
+                throw $exception;
+            }
+
+            return back()->with('success', "Tiket {$ticket->code} berhasil ditugaskan.");
+        }
+
+        if ($domain === 'spk') {
+            $wo = WorkOrder::forCompany($companyId)->findOrFail($id);
+            Gate::authorize('assign', $wo);
+            try {
+                SpkService::assign($wo, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt);
+            } catch (HttpException $exception) {
+                if ($request->header('X-Inertia') && $exception->getStatusCode() === 409) {
+                    throw ValidationException::withMessages(['conflict' => $exception->getMessage()]);
+                }
+                throw $exception;
+            }
+
+            return back()->with('success', "SPK {$wo->code} berhasil ditugaskan.");
+        }
+
+        abort(422, 'Invalid domain.');
+    }
+}

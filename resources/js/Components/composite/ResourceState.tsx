@@ -20,13 +20,23 @@ type LoadingStateProps = {
     /** full = page block; section = compact; rows = table-ish */
     variant?: 'full' | 'section' | 'rows';
     rows?: number;
+    /** Announced to assistive technology while the skeleton shows. Say what is loading when it is not generic data. */
+    label?: string;
     className?: string;
 };
 
-export function LoadingState({ variant = 'section', rows = 5, className }: LoadingStateProps) {
+export function LoadingState({
+    variant = 'section',
+    rows = 5,
+    label = 'Memuat data…',
+    className,
+}: LoadingStateProps) {
+    // The label comes last so the skeleton keeps its first-child spacing.
+    const announcement = <span className="sr-only">{label}</span>;
+
     if (variant === 'rows') {
         return (
-            <div className={cn('space-y-3', className)} role="status" aria-label="Loading">
+            <div className={cn('space-y-3', className)} role="status" aria-live="polite">
                 {Array.from({ length: rows }, (_, i) => (
                     <div key={i} className="flex items-center gap-3">
                         <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
@@ -36,6 +46,7 @@ export function LoadingState({ variant = 'section', rows = 5, className }: Loadi
                         </div>
                     </div>
                 ))}
+                {announcement}
             </div>
         );
     }
@@ -48,7 +59,7 @@ export function LoadingState({ variant = 'section', rows = 5, className }: Loadi
                     className,
                 )}
                 role="status"
-                aria-label="Loading"
+                aria-live="polite"
             >
                 <div className="w-full max-w-md space-y-3">
                     <Skeleton className="mx-auto h-8 w-1/2" />
@@ -59,15 +70,17 @@ export function LoadingState({ variant = 'section', rows = 5, className }: Loadi
                         <Skeleton className="h-9 flex-1" />
                     </div>
                 </div>
+                {announcement}
             </div>
         );
     }
 
     return (
-        <div className={cn('space-y-3 py-6', className)} role="status" aria-label="Loading">
+        <div className={cn('space-y-3 py-6', className)} role="status" aria-live="polite">
             <Skeleton className="h-6 w-1/3" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-24 w-full" />
+            {announcement}
         </div>
     );
 }

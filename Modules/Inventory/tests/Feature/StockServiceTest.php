@@ -164,6 +164,213 @@ class StockServiceTest extends TestCase
         ]);
     }
 
+    public function test_receive_reference_rejects_replay_with_different_quantity(): void
+    {
+        $item = $this->workOrderItem();
+        StockService::receive($this->productId, $this->locationId, 10, refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::receive($this->productId, $this->locationId, 15, refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying receive reference with different quantity must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_issue_reference_rejects_replay_with_different_quantity(): void
+    {
+        StockService::receive($this->productId, $this->locationId, 50);
+        $item = $this->workOrderItem();
+        StockService::issue($this->productId, $this->locationId, 10, refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::issue($this->productId, $this->locationId, 15, refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying issue reference with different quantity must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_reserve_reference_rejects_replay_with_different_quantity(): void
+    {
+        StockService::receive($this->productId, $this->locationId, 50);
+        $item = $this->workOrderItem();
+        StockService::reserve($this->productId, $this->locationId, 10, refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::reserve($this->productId, $this->locationId, 15, refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying reserve reference with different quantity must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_release_reference_rejects_replay_with_different_quantity(): void
+    {
+        StockService::receive($this->productId, $this->locationId, 50);
+        StockService::reserve($this->productId, $this->locationId, 25);
+        $item = $this->workOrderItem();
+        StockService::release($this->productId, $this->locationId, 10, refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::release($this->productId, $this->locationId, 15, refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying release reference with different quantity must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_return_reference_rejects_replay_with_different_quantity(): void
+    {
+        $item = $this->workOrderItem();
+        StockService::returnStock($this->productId, $this->locationId, 10, refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::returnStock($this->productId, $this->locationId, 15, refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying return reference with different quantity must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_reference_rejects_replay_with_different_note(): void
+    {
+        $item = $this->workOrderItem();
+        StockService::receive($this->productId, $this->locationId, 10, note: 'Initial receipt', refType: WorkOrderItem::class, refId: $item->id);
+
+        try {
+            StockService::receive($this->productId, $this->locationId, 10, note: 'Changed receipt note', refType: WorkOrderItem::class, refId: $item->id);
+            $this->fail('Replaying reference with different note must be rejected.');
+        } catch (HttpException $e) {
+            $this->assertSame(409, $e->getStatusCode());
+        }
+    }
+
+    public function test_stock_movement_executes_atomic_balance_update_and_ledger_write(): void
+    {
+        $receiveMovement = StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: null,
+            toLocationId: $this->locationId,
+            movementType: 'receive',
+            quantity: 15,
+            note: 'Initial batch'
+        );
+
+        $this->assertEquals(15.00, (float) $receiveMovement->balance_after);
+        $this->assertEquals(15.00, (float) Stock::query()->where('product_id', $this->productId)->where('location_id', $this->locationId)->firstOrFail()->quantity);
+
+        $issueMovement = StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: $this->locationId,
+            toLocationId: null,
+            movementType: 'issue',
+            quantity: 5,
+            note: 'Dispatched to job'
+        );
+
+        $this->assertEquals(10.00, (float) $issueMovement->balance_after);
+        $this->assertEquals(10.00, (float) Stock::query()->where('product_id', $this->productId)->where('location_id', $this->locationId)->firstOrFail()->quantity);
+        $this->assertSame(2, StockMovement::query()->where('product_id', $this->productId)->count());
+    }
+
+    public function test_stock_movement_supports_idempotency_via_reference(): void
+    {
+        $item = $this->workOrderItem();
+
+        $first = StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: null,
+            toLocationId: $this->locationId,
+            movementType: 'receive',
+            quantity: 12,
+            note: 'Idempotent in',
+            refType: WorkOrderItem::class,
+            refId: $item->id
+        );
+
+        $second = StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: null,
+            toLocationId: $this->locationId,
+            movementType: 'receive',
+            quantity: 12,
+            note: 'Idempotent in',
+            refType: WorkOrderItem::class,
+            refId: $item->id
+        );
+
+        $this->assertTrue($first->is($second));
+        $this->assertSame(1, StockMovement::query()->where('product_id', $this->productId)->count());
+        $this->assertEquals(12.00, (float) Stock::query()->where('product_id', $this->productId)->where('location_id', $this->locationId)->firstOrFail()->quantity);
+    }
+
+    public function test_stock_movement_reference_rejects_replay_with_different_quantity(): void
+    {
+        $item = $this->workOrderItem();
+
+        StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: null,
+            toLocationId: $this->locationId,
+            movementType: 'receive',
+            quantity: 12,
+            note: 'Idempotent in',
+            refType: WorkOrderItem::class,
+            refId: $item->id
+        );
+
+        try {
+            StockService::stockMovement(
+                productId: $this->productId,
+                fromLocationId: null,
+                toLocationId: $this->locationId,
+                movementType: 'receive',
+                quantity: 15,
+                note: 'Idempotent in',
+                refType: WorkOrderItem::class,
+                refId: $item->id
+            );
+            $this->fail('Replaying stock movement with different quantity must abort 409.');
+        } catch (HttpException $e) {
+            $this->assertEquals(409, $e->getStatusCode());
+            $this->assertStringContainsString('Idempotency conflict', $e->getMessage());
+        }
+    }
+
+    public function test_stock_movement_reference_rejects_replay_with_different_note(): void
+    {
+        $item = $this->workOrderItem();
+
+        StockService::stockMovement(
+            productId: $this->productId,
+            fromLocationId: null,
+            toLocationId: $this->locationId,
+            movementType: 'receive',
+            quantity: 12,
+            note: 'Original note',
+            refType: WorkOrderItem::class,
+            refId: $item->id
+        );
+
+        try {
+            StockService::stockMovement(
+                productId: $this->productId,
+                fromLocationId: null,
+                toLocationId: $this->locationId,
+                movementType: 'receive',
+                quantity: 12,
+                note: 'Tampered note',
+                refType: WorkOrderItem::class,
+                refId: $item->id
+            );
+            $this->fail('Replaying stock movement with different note must abort 409.');
+        } catch (HttpException $e) {
+            $this->assertEquals(409, $e->getStatusCode());
+            $this->assertStringContainsString('Idempotency conflict', $e->getMessage());
+        }
+    }
+
     private function workOrderItem(?int $companyId = null): WorkOrderItem
     {
         $companyId ??= auth()->user()->company_id;

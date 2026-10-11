@@ -8,7 +8,7 @@ import {
     PageHeader,
     RoleBadge,
 } from '@/Components/composite';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -20,6 +20,9 @@ interface UserRow {
     email: string;
     roles: string[];
     is_active: boolean;
+    can?: {
+        delete?: boolean;
+    };
 }
 
 interface UsersProps {
@@ -84,7 +87,9 @@ export default function Index({ users, filters, can }: UsersProps) {
                     <DataTableActions
                         showHref={route('admin.users.show', user.id)}
                         editHref={route('admin.users.edit', user.id)}
-                        deleteHref={route('admin.users.destroy', user.id)}
+                        deleteHref={
+                            user.can?.delete ? route('admin.users.destroy', user.id) : undefined
+                        }
                         deleteMessage={`Delete ${user.name}?`}
                     />
                 ),

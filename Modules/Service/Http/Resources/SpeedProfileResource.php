@@ -19,6 +19,7 @@ class SpeedProfileResource extends JsonResource
             'burst_upload_mbps' => $this->burst_upload_mbps,
             'radius_profile_name' => $this->radius_profile_name,
             'is_active' => $this->is_active,
+            'created_at' => $this->created_at,
         ];
     }
 }

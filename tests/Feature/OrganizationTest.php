@@ -11,6 +11,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class OrganizationTest extends TestCase
@@ -51,6 +52,8 @@ class OrganizationTest extends TestCase
 
     public function test_organization_path_computed_via_service(): void
     {
+        CompanyService::useCompanyForTests((int) $this->admin->company_id);
+
         $parent = OrganizationService::create([
             'company_id' => $this->admin->company_id,
             'code' => 'BRANCH',
@@ -99,6 +102,9 @@ class OrganizationTest extends TestCase
 
     public function test_cycle_prevention(): void
     {
+        $this->actingAs($this->admin);
+        CompanyService::useCompanyForTests((int) $this->admin->company_id);
+
         $parent = OrganizationService::create([
             'company_id' => $this->admin->company_id,
             'code' => 'P1', 'name' => 'P1', 'type' => 'branch', 'is_active' => true,
@@ -109,14 +115,41 @@ class OrganizationTest extends TestCase
             'parent_id' => $parent->id, 'is_active' => true,
         ]);
 
-        $this->actingAs($this->admin);
-
         try {
             OrganizationService::move($parent, $child->id);
             $this->fail('Should have thrown cycle exception');
         } catch (ValidationException $e) {
             $this->assertArrayHasKey('parent_id', $e->errors());
         }
+    }
+
+    public function test_move_rejects_foreign_tenant_parent(): void
+    {
+        CompanyService::useCompanyForTests((int) $this->admin->company_id);
+
+        $child = OrganizationService::create([
+            'company_id' => $this->admin->company_id,
+            'code' => 'LOCAL',
+            'name' => 'Local',
+            'type' => 'branch',
+            'is_active' => true,
+        ]);
+        $foreignParent = OrganizationUnit::withoutCompany()->create([
+            'company_id' => Company::factory()->create(['is_active' => true])->id,
+            'code' => 'FOREIGN',
+            'name' => 'Foreign',
+            'type' => 'branch',
+            'is_active' => true,
+        ]);
+
+        try {
+            OrganizationService::move($child, $foreignParent->id);
+            $this->fail('Should have thrown HttpException');
+        } catch (HttpException $e) {
+            $this->assertSame(404, $e->getStatusCode());
+        }
+
+        $this->assertSame(null, $child->fresh()->parent_id);
     }
 
     public function test_delete_unit_with_children_fails(): void

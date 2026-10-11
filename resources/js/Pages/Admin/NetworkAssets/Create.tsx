@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Button,
@@ -73,6 +74,16 @@ export default function Create({ locations, products }: CreateProps) {
                 <PageHeader
                     title="Create Network Asset"
                     subtitle="Fill required fields, then save."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.network-assets.index')}>Back</Link>
+                        </Button>
+                    }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
@@ -209,7 +220,7 @@ export default function Create({ locations, products }: CreateProps) {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" loading={processing}>
+                        <Button type="submit" variant="success" loading={processing}>
                             Create
                         </Button>
                     </div>

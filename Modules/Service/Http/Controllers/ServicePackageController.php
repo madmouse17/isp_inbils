@@ -35,12 +35,12 @@ class ServicePackageController extends Controller
     {
         Gate::authorize('viewAny', ServicePackage::class);
 
-        $packages = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $packages = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Service/Packages/Index', [
             'servicePackages' => ServicePackageResource::collection($packages),
             'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->get()),
-            'filters' => $request->only(['is_active', 'sla_tier_id', 'search', 'sort', 'direction']),
+            'filters' => $request->only(['is_active', 'sla_tier_id', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),

@@ -3,6 +3,7 @@
 namespace App\Queries\Admin;
 
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -15,7 +16,7 @@ class UserIndexQuery
      */
     public static function make(Request $request): Builder
     {
-        $companyId = $request->user()?->company_id;
+        $companyId = CompanyService::currentId();
 
         return User::query()
             ->where('company_id', $companyId)

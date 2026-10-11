@@ -12,6 +12,7 @@ use Modules\Service\Database\Factories\ServicePackageFactory;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/** @property string $name */
 class ServicePackage extends Model
 {
     use BelongsToCompany;

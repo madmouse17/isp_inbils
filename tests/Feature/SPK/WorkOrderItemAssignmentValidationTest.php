@@ -31,6 +31,69 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         app()['cache']->forget('spatie.permission.cache');
     }
 
+    public function test_direct_service_assign_requires_expected_assignment_state(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $technician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin);
+        try {
+            SpkService::assign($workOrder, $technician->id, $admin->id);
+            $this->fail('Missing assignment state must be rejected.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+        }
+    }
+
+    public function test_direct_service_assign_accepts_explicit_unassigned_state(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $technician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin);
+        SpkService::assign(
+            $workOrder,
+            $technician->id,
+            $admin->id,
+            null,
+            $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z')
+        );
+
+        $this->assertSame($technician->id, $workOrder->fresh()->assigned_to);
+    }
+
+    public function test_direct_service_assign_rejects_stale_assignment_state(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $technician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin);
+        $this->expectException(HttpException::class);
+        $this->expectExceptionCode(409);
+        SpkService::assign($workOrder, $technician->id, $admin->id, null, now()->subMinute()->utc()->format('Y-m-d\\TH:i:s.v\\Z'));
+    }
+
     public function test_add_item_rejects_network_asset_with_mismatched_product(): void
     {
         $admin = $this->user('admin');
@@ -112,7 +175,11 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $admin = $this->user('admin');
         $company = $admin->company;
         $workOrder = $this->workOrder($company, $admin, 'generated');
-        $nonTechnician = $this->user('admin', $company);
+        $nonTechnician = User::factory()->create([
+            'company_id' => $company->id,
+            'is_active' => true,
+            'email_verified_at' => now(),
+        ]);
         EmployeeProfile::factory()->create([
             'company_id' => $company->id,
             'user_id' => $nonTechnician->id,
@@ -122,6 +189,55 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $this->actingAs($admin)
             ->postJson(route('admin.spk.assign', $workOrder), [
                 'technician_id' => $nonTechnician->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('technician_id');
+    }
+
+    public function test_assign_rejects_role_only_employee_without_spk_capability(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $roleOnly = $this->user('admin', $company);
+        $roleOnly->syncRoles([Role::firstOrCreate(['name' => 'role-only-technician', 'guard_name' => 'web'])]);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $roleOnly->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $roleOnly->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('technician_id');
+    }
+
+    public function test_assign_rejects_active_capable_user_with_malformed_foreign_profile(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $foreignCompany = Company::factory()->create(['is_active' => true]);
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $malformed = $this->user('admin', $company);
+        $malformed->givePermissionTo('spk.start');
+        EmployeeProfile::factory()->create([
+            'company_id' => $foreignCompany->id,
+            'user_id' => $malformed->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->postJson(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $malformed->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('technician_id');
@@ -142,6 +258,8 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.spk.assign', $workOrder), [
                 'technician_id' => $technician->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
             ->assertRedirect();
 
@@ -150,6 +268,81 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
             'status' => 'assigned',
             'assigned_to' => $technician->id,
         ]);
+    }
+
+    public function test_assign_accepts_active_employee_with_lifecycle_capability(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+        $operatorRole = Role::firstOrCreate(['name' => 'field-operator', 'guard_name' => 'web']);
+        $operatorRole->givePermissionTo(['spk.start', 'spk.submit']);
+        $operator = $this->user('admin', $company);
+        $operator->syncRoles([$operatorRole]);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $operator->id,
+            'status' => 'active',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $operator->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($operator)
+            ->post(route('admin.spk.start', $workOrder))
+            ->assertRedirect();
+
+        $this->assertSame('in_progress', $workOrder->fresh()->status);
+    }
+
+    public function test_spk_start_requires_assigned_technician(): void
+    {
+        $admin = $this->user('admin');
+        $workOrder = $this->workOrder($admin->company, $admin, 'generated');
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.start', $workOrder))
+            ->assertStatus(403);
+
+        $this->assertSame('generated', $workOrder->fresh()->status);
+    }
+
+    public function test_spk_start_rejects_other_assignee(): void
+    {
+        $admin = $this->user('admin');
+        $company = $admin->company;
+        $technician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $technician->id,
+            'status' => 'active',
+        ]);
+        $otherTechnician = $this->user('technician', $company);
+        EmployeeProfile::factory()->create([
+            'company_id' => $company->id,
+            'user_id' => $otherTechnician->id,
+            'status' => 'active',
+        ]);
+        $workOrder = $this->workOrder($company, $admin, 'generated');
+
+        $this->actingAs($admin)
+            ->post(route('admin.spk.assign', $workOrder), [
+                'technician_id' => $technician->id,
+                'expected_assigned_to' => null,
+                'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+            ])
+            ->assertRedirect();
+
+        $this->actingAs($otherTechnician)
+            ->post(route('admin.spk.start', $workOrder))
+            ->assertStatus(403);
+
+        $this->assertSame('assigned', $workOrder->fresh()->status);
     }
 
     private function user(string $roleName, ?Company $company = null): User
@@ -181,10 +374,10 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
     private function product(Company $company, string $sku, ?Product $reuse = null): Product
     {
         $unit = $reuse?->unit_id
-            ? Unit::query()->findOrFail($reuse->unit_id)
+            ? Unit::withoutCompany()->findOrFail($reuse->unit_id)
             : Unit::forceCreate(['company_id' => $company->id, 'name' => 'Piece', 'symbol' => 'pcs']);
         $category = $reuse?->category_id
-            ? Category::query()->findOrFail($reuse->category_id)
+            ? Category::withoutCompany()->findOrFail($reuse->category_id)
             : Category::forceCreate([
                 'company_id' => $company->id,
                 'unit_id' => $unit->id,

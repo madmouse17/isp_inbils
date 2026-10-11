@@ -1,8 +1,10 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
+    DataTableActions,
     IndonesiaRegionFields,
     PageHeader,
     type IndonesiaRegionOptions,
@@ -153,11 +155,6 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
         }
     };
 
-    const remove = (a: CustomerAddress) => {
-        if (window.confirm(`Delete ${a.label}?`))
-            router.delete(route('admin.customers.addresses.destroy', [customer.id, a.id]));
-    };
-
     return (
         <AdminLayout title="Customer Addresses">
             <div className="space-y-6">
@@ -168,14 +165,16 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                         <>
                             <Button
                                 type="button"
-                                variant="secondary"
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
                                 onClick={() =>
                                     router.get(route('admin.customers.show', customer.id))
                                 }
                             >
                                 Back
                             </Button>
-                            <Button type="button" onClick={openCreate}>
+                            <Button type="button" variant="success" onClick={openCreate}>
                                 Add Address
                             </Button>
                         </>
@@ -228,24 +227,15 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                                                 )}
                                             </TD>
                                             <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(a)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(a)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
+                                                <DataTableActions
+                                                    onEdit={() => openEdit(a)}
+                                                    deleteHref={route(
+                                                        'admin.customers.addresses.destroy',
+                                                        [customer.id, a.id],
+                                                    )}
+                                                    deleteMessage={`Delete ${a.label}?`}
+                                                    deleteDescription={`This will permanently remove the address "${a.label}".`}
+                                                />
                                             </TD>
                                         </TR>
                                     ))
@@ -344,7 +334,11 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

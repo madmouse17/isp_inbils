@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use App\Traits\BelongsToCompany;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -41,8 +42,10 @@ class Customer extends Model implements HasMedia
 
     protected $casts = [
         'is_active' => 'boolean',
+        'acquired_by_user_id' => 'integer',
     ];
 
+    /** @return HasMany<CustomerAddress, $this> */
     public function addresses(): HasMany
     {
         return $this->hasMany(CustomerAddress::class);
@@ -53,6 +56,7 @@ class Customer extends Model implements HasMedia
         return $this->hasMany(CustomerContact::class);
     }
 
+    /** @return HasMany<ServiceSubscription, $this> */
     public function subscriptions(): HasMany
     {
         return $this->hasMany(ServiceSubscription::class);
@@ -61,6 +65,21 @@ class Customer extends Model implements HasMedia
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * The employee credited with acquiring the customer. Not mass assignable: written only by
+     * AssignCustomerAcquirerAction. User has no company global scope, so the relation is scoped
+     * here and a stray foreign user id never resolves.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function acquirer(): BelongsTo
+    {
+        $relation = $this->belongsTo(User::class, 'acquired_by_user_id');
+        $companyId = CompanyService::currentId();
+
+        return $companyId === null ? $relation : $relation->where('users.company_id', $companyId);
     }
 
     public function areaCoverage(): BelongsTo

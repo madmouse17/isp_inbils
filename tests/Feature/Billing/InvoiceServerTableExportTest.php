@@ -101,6 +101,163 @@ class InvoiceServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('INV-CSV-OTHER', $content);
     }
 
+    public function test_export_csv_writes_one_cell_per_labelled_column(): void
+    {
+        $customer = Customer::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'name' => 'Column Customer',
+        ]);
+        $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-COLUMNS-1');
+
+        $content = $this->actingAs($this->admin)
+            ->get(route('admin.invoices.export', ['format' => 'csv', 'search' => 'INV-COLUMNS-1']))
+            ->assertOk()
+            ->streamedContent();
+
+        $lines = preg_split('/\r?\n/', trim(ltrim($content, "\xEF\xBB\xBF")));
+        $this->assertSame(
+            ['Number', 'Customer', 'Status', 'Total', 'Issue Date', 'Due Date', 'Created'],
+            str_getcsv($lines[0]),
+        );
+        $row = str_getcsv($lines[1]);
+        $this->assertCount(7, $row);
+        $this->assertSame('INV-COLUMNS-1', $row[0]);
+        $this->assertSame('Column Customer', $row[1]);
+        $this->assertSame('draft', $row[2]);
+    }
+
+    public function test_index_honors_page_size_and_preserves_filters_across_sorted_boundaries(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        foreach (range(1, 26) as $number) {
+            $this->makeInvoice((int) $this->admin->company_id, $customer, sprintf('INV-PAGE-%02d', $number))
+                ->update(['issue_date' => '2026-09-15']);
+        }
+        $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-OUTSIDE')
+            ->update(['issue_date' => '2026-09-15']);
+        $filters = [
+            'search' => 'INV-PAGE', 'status' => 'draft', 'source' => 'manual',
+            'customer_id' => $customer->id, 'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
+            'sort_by' => 'number', 'sort_dir' => 'desc', 'per_page' => 25,
+        ];
+
+        $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 25)
+            ->where('invoices.meta.total', 26)
+            ->where('invoices.meta.per_page', 25)
+            ->where('invoices.data.0.number', 'INV-PAGE-26')
+            ->where('invoices.data.24.number', 'INV-PAGE-02')
+            ->where('invoices.links.next', function ($url) use ($filters): bool {
+                parse_str(parse_url($url, PHP_URL_QUERY), $query);
+
+                return $query == array_merge($filters, ['page' => 2]);
+            })
+            );
+        $this->get(route('admin.invoices.index', array_merge($filters, ['page' => 2])))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 1)
+            ->where('invoices.data.0.number', 'INV-PAGE-01')
+            ->where('invoices.meta.current_page', 2)
+            ->where('filters.date_from', '2026-09-01')
+            ->where('filters.date_to', '2026-09-30')
+            );
+        $this->get(route('admin.invoices.index', array_merge($filters, ['per_page' => 7])))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 10)
+            ->where('invoices.meta.per_page', 10)
+            ->where('invoices.data.9.number', 'INV-PAGE-17')
+            );
+    }
+
+    public function test_index_and_export_share_filters_with_independent_distractors(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id, 'name' => 'Contract Customer']);
+        $anotherCustomer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $foreignCustomer = Customer::factory()->create(['company_id' => $this->otherCompany->id]);
+        $attributes = [
+            'company_id' => $this->admin->company_id,
+            'customer_id' => $customer->id,
+            'type' => 'one_time',
+            'source' => 'manual',
+            'status' => 'draft',
+            'issue_date' => '2026-09-15',
+        ];
+        $matches = [];
+        foreach (['2026-09-01', '2026-09-30'] as $index => $date) {
+            $matches[] = Invoice::factory()->create(array_merge($attributes, [
+                'number' => 'INV-MATCH-'.($index + 1), 'issue_date' => $date,
+            ]));
+        }
+        $distractors = [
+            ['source' => 'subscription'],
+            ['customer_id' => $anotherCustomer->id],
+            ['status' => 'paid'],
+            ['issue_date' => '2026-08-31'],
+            ['issue_date' => '2026-10-01'],
+            ['type' => 'recurring'],
+            ['number' => 'INV-UNRELATED'],
+            ['company_id' => $this->otherCompany->id, 'customer_id' => $foreignCustomer->id],
+        ];
+        $excluded = [];
+        foreach ($distractors as $index => $overrides) {
+            $excluded[] = Invoice::factory()->create(array_merge($attributes, [
+                'number' => 'INV-MATCH-SKIP-'.$index,
+            ], $overrides));
+        }
+        $filters = [
+            'search' => 'INV-MATCH', 'type' => 'one_time', 'source' => 'manual',
+            'customer_id' => $customer->id, 'status' => 'draft',
+            'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
+            'sort_by' => 'number', 'sort_dir' => 'desc', 'per_page' => 25,
+        ];
+
+        $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 2)
+            ->where('invoices.data.0.id', $matches[1]->id)
+            ->where('invoices.data.1.id', $matches[0]->id)
+            ->where('invoices.meta.per_page', 25)
+            ->where('filters.date_from', '2026-09-01')
+            ->where('filters.date_to', '2026-09-30')
+            ->where('filters.search', 'INV-MATCH')
+            ->where('filters.source', 'manual')
+            ->where('filters.status', 'draft')
+            ->where('filters.customer_id', (string) $customer->id)
+            ->where('filters.sort_by', 'number')
+            ->where('filters.sort_dir', 'desc')
+            );
+        $response = $this->get(route('admin.invoices.export', array_merge($filters, ['format' => 'csv'])))->assertOk();
+        $content = $response->streamedContent();
+        foreach ($matches as $invoice) {
+            $this->assertStringContainsString($invoice->number, $content);
+        }
+        foreach ($excluded as $invoice) {
+            $this->assertStringNotContainsString($invoice->number, $content);
+        }
+        $this->assertLessThan(strpos($content, $matches[0]->number), strpos($content, $matches[1]->number));
+    }
+
+    public function test_customer_search_matches_index_and_export_without_bypassing_status_or_tenant(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id, 'name' => 'Needle Customer']);
+        $otherCustomer = Customer::factory()->create(['company_id' => $this->otherCompany->id, 'name' => 'Needle Foreign']);
+        $match = $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-CUSTOMER-HIT');
+        $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-CUSTOMER-PAID', 'paid');
+        $this->makeInvoice((int) $this->otherCompany->id, $otherCustomer, 'INV-CUSTOMER-FOREIGN');
+        $filters = ['search' => 'Needle', 'status' => 'draft'];
+
+        $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 1)->where('invoices.data.0.id', $match->id)
+            );
+        $content = $this->get(route('admin.invoices.export', array_merge($filters, ['format' => 'csv'])))
+            ->assertOk()->streamedContent();
+        $this->assertStringContainsString('INV-CUSTOMER-HIT', $content);
+        $this->assertStringNotContainsString('INV-CUSTOMER-PAID', $content);
+        $this->assertStringNotContainsString('INV-CUSTOMER-FOREIGN', $content);
+    }
+
     public function test_export_forbidden_without_permission(): void
     {
         $user = User::factory()->create([

@@ -1,5 +1,6 @@
 import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useListVisitState } from './useListVisitState';
 
 export type ServerTableFilterValue = string | number | boolean | null | undefined;
 export type ServerTableFilters = Record<string, ServerTableFilterValue>;
@@ -33,8 +34,13 @@ export type UseServerTableResult = {
     setFilters: (patch: ServerTableFilters) => void;
     /** Immediate visit with optional patch (no debounce). */
     visit: (patch?: ServerTableFilters) => void;
-    /** True while an Inertia visit from this table is in flight. */
+    /**
+     * True from the first keystroke or filter change until the resulting visit finishes,
+     * debounce window included. Feed it to DataTable `loading`; do not use it to disable inputs.
+     */
     processing: boolean;
+    /** True only while an Inertia visit from this table is in flight. Safe for `disabled`. */
+    visiting: boolean;
     sortBy: string;
     sortDir: 'asc' | 'desc';
     onSort: (field: string, direction?: 'asc' | 'desc') => void;
@@ -96,7 +102,7 @@ export function useServerTable({
     const [filters, setFiltersState] = useState<ServerTableFilters>(() => ({
         ...mergedInitialFilters,
     }));
-    const [processing, setProcessing] = useState(false);
+    const { processing, visiting, queue, begin } = useListVisitState();
     const filtersRef = useRef(filters);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -115,16 +121,15 @@ export function useServerTable({
 
     const visitNow = useCallback(
         (next: ServerTableFilters) => {
-            setProcessing(true);
             router.get(targetUrl, toQuery(next), {
                 preserveState,
                 preserveScroll,
                 replace: true,
                 ...(only ? { only } : {}),
-                onFinish: () => setProcessing(false),
+                onFinish: begin(),
             });
         },
-        [only, preserveScroll, preserveState, targetUrl],
+        [begin, only, preserveScroll, preserveState, targetUrl],
     );
 
     const apply = useCallback(
@@ -135,12 +140,13 @@ export function useServerTable({
 
             clearTimer();
             if (debounce) {
+                queue();
                 timerRef.current = setTimeout(() => visitNow(next), debounceMs);
                 return;
             }
             visitNow(next);
         },
-        [clearTimer, debounceMs, visitNow],
+        [clearTimer, debounceMs, queue, visitNow],
     );
 
     const visit = useCallback(
@@ -231,6 +237,7 @@ export function useServerTable({
         setFilters,
         visit,
         processing,
+        visiting,
         sortBy,
         sortDir,
         onSort,

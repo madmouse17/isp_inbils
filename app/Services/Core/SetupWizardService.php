@@ -27,7 +27,7 @@ class SetupWizardService
                 'website' => $data['website'] ?? null,
                 'timezone' => $data['timezone'],
                 'currency' => $data['currency'],
-                'settings' => $this->settings($data),
+                'settings' => self::defaultSettings($data['currency'], $data['date_format'], $data['datetime_format']),
                 'is_active' => true,
             ]));
 
@@ -40,6 +40,7 @@ class SetupWizardService
                 'name' => $data['admin_name'] ?? $user->name,
                 'company_id' => $company->id,
             ])->save();
+            app(CompanyMembershipService::class)->grant($user, $company, true);
 
             AuditService::log('company', 'company_created', ['company_id' => $company->id], $company);
             AuditService::log('auth', 'admin_role_assigned', ['user_id' => $user->id, 'company_id' => $company->id], $user);
@@ -56,18 +57,19 @@ class SetupWizardService
         return Company::query()->count() === 0;
     }
 
-    private function settings(array $data): array
+    /** The operational defaults of a new company, shared by the Setup Wizard and subsidiary creation. */
+    public static function defaultSettings(string $currency, string $dateFormat, string $datetimeFormat): array
     {
         return [
-            'currency_symbol' => match ($data['currency']) {
+            'currency_symbol' => match ($currency) {
                 'USD' => '$',
                 'SGD' => 'S$',
                 'EUR' => '€',
                 default => 'Rp',
             },
             'currency_position' => 'before',
-            'date_format' => $data['date_format'],
-            'datetime_format' => $data['datetime_format'],
+            'date_format' => $dateFormat,
+            'datetime_format' => $datetimeFormat,
             'tax_enabled' => true,
             'tax_ppn_rate' => 11,
             'spk_auto_invoice' => false,

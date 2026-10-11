@@ -5,7 +5,7 @@ import AppLayout from '@/Layouts/AppLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import {
@@ -17,38 +17,22 @@ import {
 } from '@/Components/ui/Select';
 import { useCan } from '@/hooks/useCan';
 import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatDate, formatDateTime } from '@/lib/format';
+import { formatDate } from '@/lib/format';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 type Row = {
     id: number;
     code: string;
     type: string;
     status: string;
-    scheduled_at?: string | null;
+    scheduled_date?: string | null;
     created_at: string | null;
     customer?: { id: number; name: string } | null;
     assignee?: { id: number; name: string } | null;
 };
 
-type PaginatorLink = { url: string | null; label: string; active: boolean };
-type Paginator<T> = {
-    data: T[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    from: number | null;
-    to: number | null;
-    path?: string;
-    links?: PaginatorLink[];
-    first_page_url?: string;
-    last_page_url?: string;
-    next_page_url?: string | null;
-    prev_page_url?: string | null;
-};
-
 type Props = {
-    workOrders: Paginator<Row>;
+    workOrders: PaginationLike<Row>;
     filters: {
         search?: string;
         type?: string;
@@ -68,14 +52,16 @@ export default function SpkIndex({
     statusOptions = [],
 }: Props) {
     const can = useCan();
-    const { params, set, sortBy, sortDir, onSort } = useTableQuery(
+    const pagination = toPagination(workOrders);
+    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
+            ...filters,
             search: filters.search ?? '',
             type: filters.type ?? '',
             status: filters.status ?? '',
             sort_by: filters.sort_by ?? '',
             sort_dir: filters.sort_dir ?? '',
-            per_page: filters.per_page ?? workOrders.per_page,
+            per_page: filters.per_page ?? pagination.per_page,
         },
         { only: ['workOrders', 'filters'] },
     );
@@ -117,11 +103,11 @@ export default function SpkIndex({
                 cell: (row) => row.customer?.name ?? '—',
             },
             {
-                key: 'scheduled_at',
+                key: 'scheduled_date',
                 header: 'Scheduled',
                 sortable: true,
-                sortKey: 'scheduled_at',
-                cell: (row) => formatDateTime(row.scheduled_at ?? null),
+                sortKey: 'scheduled_date',
+                cell: (row) => formatDate(row.scheduled_date ?? null),
             },
             {
                 key: 'created_at',
@@ -147,9 +133,10 @@ export default function SpkIndex({
                                 exportUrl={route('admin.spk.export')}
                                 params={params}
                                 canExport={can('spk.export')}
+                                formats={['csv', 'pdf']}
                             />
                             {can('spk.create') && (
-                                <Button asChild size="sm">
+                                <Button asChild size="sm" variant="success">
                                     <Link href={route('admin.spk.create')}>
                                         <Plus className="size-4" />
                                         New SPK
@@ -172,7 +159,7 @@ export default function SpkIndex({
                             id="spk-search"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Number or customer…"
+                            placeholder="Number or title…"
                         />
                     </div>
                     <div className="space-y-1">
@@ -181,7 +168,7 @@ export default function SpkIndex({
                             value={params.type || '__all__'}
                             onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Type" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -200,7 +187,7 @@ export default function SpkIndex({
                             value={params.status || '__all__'}
                             onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
                         >
-                            <SelectTrigger className="w-[10rem]">
+                            <SelectTrigger aria-label="Status" className="w-[10rem]">
                                 <SelectValue placeholder="All" />
                             </SelectTrigger>
                             <SelectContent>
@@ -220,10 +207,11 @@ export default function SpkIndex({
                     data={workOrders.data}
                     emptyTitle="No work orders"
                     emptyDescription="No SPK/work orders match the current filters."
+                    loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}
                     onSort={onSort}
-                    pagination={workOrders}
+                    pagination={pagination}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(n) => set('per_page', n)}
                 />

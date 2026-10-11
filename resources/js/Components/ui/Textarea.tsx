@@ -20,7 +20,12 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                     >
                         {label}
-                        {props.required ? <span className="text-destructive"> *</span> : null}
+                        {props.required ? (
+                            <span aria-hidden="true" className="text-destructive">
+                                {' '}
+                                *
+                            </span>
+                        ) : null}
                     </label>
                 ) : null}
                 <textarea

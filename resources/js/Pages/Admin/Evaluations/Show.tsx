@@ -1,4 +1,5 @@
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -33,18 +34,19 @@ export default function Show({ evaluation }: ShowProps) {
                     actions={
                         <>
                             <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => router.get(route('admin.evaluations.edit', ev.id))}
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                Edit
+                                <Link href={route('admin.evaluations.index')}>Back</Link>
                             </Button>
                             <Button
                                 type="button"
-                                variant="secondary"
-                                onClick={() => router.get(route('admin.evaluations.index'))}
+                                variant="warning"
+                                onClick={() => router.get(route('admin.evaluations.edit', ev.id))}
                             >
-                                Back
+                                Edit
                             </Button>
                         </>
                     }

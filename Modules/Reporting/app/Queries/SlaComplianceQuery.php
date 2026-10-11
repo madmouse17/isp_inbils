@@ -3,34 +3,30 @@
 namespace Modules\Reporting\Queries;
 
 use Illuminate\Support\Facades\DB;
-use Modules\Reporting\Queries\Concerns\AppliesDateRange;
-use Modules\Ticketing\Models\Ticket;
+use Modules\Reporting\Queries\Sources\SlaSources;
 
 class SlaComplianceQuery
 {
-    use AppliesDateRange;
-
-    public static function execute(?string $dateFrom = null, ?string $dateTo = null, ?int $categoryId = null): array
+    /**
+     * Every figure reads the builders of SlaSources, the same ones the drill-down lists use.
+     * Without a company id the ambient tenant scope of the authenticated user applies.
+     */
+    public static function execute(?string $dateFrom = null, ?string $dateTo = null, ?int $categoryId = null, ?int $companyId = null): array
     {
-        $query = Ticket::query()->whereNotNull('resolved_at');
-        self::applyDateRange($query, 'resolved_at', $dateFrom, $dateTo);
-        if ($categoryId) {
-            $query->where('category_id', $categoryId);
-        }
+        $query = SlaSources::resolved($companyId, $dateFrom, $dateTo, $categoryId);
 
         $total = $query->count();
-        $compliant = (clone $query)->whereColumn('resolved_at', '<=', 'sla_deadline')->count();
+        $compliant = SlaSources::onTime(clone $query)->count();
         $rate = $total > 0 ? round(($compliant / $total) * 100, 1) : 0;
 
         $avgResolution = (clone $query)
             ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at)) as avg')->value('avg');
-        $avgFrt = (clone $query)->whereNotNull('first_response_at')
+        $avgFrt = SlaSources::withFirstResponse(clone $query)
             ->selectRaw('AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at)) as avg')->value('avg');
 
-        $breachCount = (clone $query)->whereColumn('resolved_at', '>', 'sla_deadline')->count();
+        $breachCount = SlaSources::breached(clone $query)->count();
 
-        $byCategory = Ticket::query()->whereNotNull('resolved_at')
-            ->join('ticket_categories', 'tickets.category_id', '=', 'ticket_categories.id')
+        $byCategory = SlaSources::resolvedByCategory($companyId)
             ->select('ticket_categories.name',
                 DB::raw('count(*) as total'),
                 DB::raw('SUM(CASE WHEN tickets.resolved_at <= tickets.sla_deadline THEN 1 ELSE 0 END) as compliant'))

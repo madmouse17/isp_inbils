@@ -1,10 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
@@ -15,8 +15,8 @@ type Row = {
     id: number;
     name: string;
     code?: string | null;
-    download_mbps?: number | string | null;
-    upload_mbps?: number | string | null;
+    download_max_mbps?: number | string | null;
+    upload_max_mbps?: number | string | null;
     created_at: string | null;
 };
 
@@ -38,7 +38,7 @@ type Props = {
 };
 
 export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.speed-profiles.index'),
         filters,
         only: ['speedProfiles', 'filters', 'can'],
@@ -61,20 +61,20 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                 ),
             },
             {
-                key: 'download_mbps',
+                key: 'download_max_mbps',
                 header: 'Download (Mbps)',
                 sortable: true,
-                sortKey: 'download_mbps',
+                sortKey: 'download_max_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.download_mbps ?? '—'),
+                cell: (row) => String(row.download_max_mbps ?? '—'),
             },
             {
-                key: 'upload_mbps',
+                key: 'upload_max_mbps',
                 header: 'Upload (Mbps)',
                 sortable: true,
-                sortKey: 'upload_mbps',
+                sortKey: 'upload_max_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.upload_mbps ?? '—'),
+                cell: (row) => String(row.upload_max_mbps ?? '—'),
             },
             {
                 key: 'created_at',
@@ -87,25 +87,12 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                 key: 'actions',
                 header: 'Actions',
                 cell: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={route('admin.speed-profiles.edit', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Edit
-                        </Link>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (window.confirm(`Delete ${row.name}?`))
-                                    router.delete(route('admin.speed-profiles.destroy', row.id));
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        editHref={route('admin.speed-profiles.edit', row.id)}
+                        deleteHref={route('admin.speed-profiles.destroy', row.id)}
+                        deleteMessage={`Delete ${row.name}?`}
+                        deleteDescription={`This will permanently remove the speed profile "${row.name}".`}
+                    />
                 ),
             },
         ],
@@ -129,7 +116,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild size="sm">
+                                <Button asChild variant="success" size="sm">
                                     <Link href={route('admin.speed-profiles.create')}>
                                         <Plus className="size-4" />
                                         New profile
@@ -167,7 +154,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     emptyTitle="No speed profiles"
                     emptyDescription="No speed profiles match the current filters."
-                    loading={false}
+                    loading={processing}
                 />
             </div>
         </AppLayout>

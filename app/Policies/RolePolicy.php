@@ -2,7 +2,9 @@
 
 namespace App\Policies;
 
+use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Spatie\Permission\Models\Role;
 
 class RolePolicy
@@ -21,7 +23,7 @@ class RolePolicy
 
     public function create(User $user): bool
     {
-        return $user->can('roles.manage');
+        return $user->can('roles.manage') && $this->ownsRoleDefinitions($user);
     }
 
     public function store(User $user): bool
@@ -31,6 +33,14 @@ class RolePolicy
 
     public function update(User $user, Role $role): bool
     {
+        if (! $this->ownsRoleDefinitions($user)) {
+            return false;
+        }
+
+        if (in_array($role->name, self::PROTECTED_ROLES, true)) {
+            return $user->hasRole('admin');
+        }
+
         return $user->can('roles.manage');
     }
 
@@ -41,6 +51,21 @@ class RolePolicy
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can('roles.manage') && ! in_array($role->name, self::PROTECTED_ROLES, true);
+        return $user->can('roles.manage')
+            && $this->ownsRoleDefinitions($user)
+            && ! in_array($role->name, self::PROTECTED_ROLES, true);
+    }
+
+    /**
+     * Roles are global (teams=false): one change reaches the users of every company. So only an actor
+     * acting in a top-level company (a Head or a standalone company) may change them, never one
+     * acting in a subsidiary.
+     */
+    private function ownsRoleDefinitions(User $user): bool
+    {
+        $companyId = CompanyService::idFor($user);
+
+        return $companyId !== null
+            && Company::query()->whereKey($companyId)->whereNull('parent_company_id')->exists();
     }
 }

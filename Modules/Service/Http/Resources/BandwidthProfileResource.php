@@ -18,6 +18,7 @@ class BandwidthProfileResource extends JsonResource
             'type' => $this->type,
             'contention_ratio' => $this->contention_ratio,
             'is_active' => $this->is_active,
+            'created_at' => $this->created_at,
         ];
     }
 }

@@ -8,6 +8,7 @@ use App\Traits\BelongsToCompany;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 
 class BelongsToCompanyTraitTest extends TestCase
@@ -71,13 +72,35 @@ class BelongsToCompanyTraitTest extends TestCase
         $this->assertSame(['B'], TenantTestModel::forCompany($companyB->id)->pluck('name')->all());
     }
 
-    public function test_no_filter_when_current_company_is_null(): void
+    public function test_null_company_context_fails_closed(): void
     {
         [$companyA, $companyB] = $this->companies();
         TenantTestModel::query()->create(['company_id' => $companyA->id, 'name' => 'A']);
         TenantTestModel::query()->create(['company_id' => $companyB->id, 'name' => 'B']);
 
-        $this->assertSame(['A', 'B'], TenantTestModel::query()->orderBy('name')->pluck('name')->all());
+        $this->assertSame([], TenantTestModel::query()->pluck('name')->all());
+        $this->assertSame(['A', 'B'], TenantTestModel::withoutCompany()->orderBy('name')->pluck('name')->all());
+    }
+
+    public function test_creating_without_a_company_id_or_context_aborts_403(): void
+    {
+        try {
+            TenantTestModel::query()->create(['name' => 'Orphan']);
+            $this->fail('A tenant row was created without any company context.');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+
+        $this->assertSame(0, TenantTestModel::withoutCompany()->count());
+    }
+
+    public function test_an_explicit_company_id_is_kept_without_a_context(): void
+    {
+        [$companyA] = $this->companies();
+
+        $model = TenantTestModel::query()->create(['company_id' => $companyA->id, 'name' => 'A']);
+
+        $this->assertSame($companyA->id, $model->company_id);
     }
 
     /**

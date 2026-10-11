@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\StoreRoleRequest;
 use App\Http\Requests\Admin\UpdateRoleRequest;
 use App\Http\Resources\PermissionResource;
 use App\Http\Resources\RoleResource;
+use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +39,7 @@ class RoleController extends Controller
             'roles' => RoleResource::collection($roles),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
-                'create' => $request->user()?->can('roles.manage') ?? false,
+                'create' => $request->user()?->can('create', Role::class) ?? false,
                 'export' => $request->user()?->can('roles.export') ?? false,
             ],
         ]);
@@ -74,7 +75,7 @@ class RoleController extends Controller
         Gate::authorize('edit', $role);
 
         return Inertia::render('Admin/Roles/Edit', [
-            'role' => new RoleResource($role->load('permissions')->loadCount('users')),
+            'role' => new RoleResource($role->load('permissions')->loadCount(['users' => fn (Builder $users) => $users->where('users.company_id', CompanyService::currentId())])),
             'permissions' => PermissionResource::collection(Permission::query()->orderBy('name')->get()),
         ]);
     }
@@ -135,7 +136,7 @@ class RoleController extends Controller
     {
         $query = Role::query()
             ->with('permissions')
-            ->withCount(['permissions', 'users'])
+            ->withCount(['permissions', 'users' => fn (Builder $users) => $users->where('users.company_id', CompanyService::currentId())])
             ->when($request->input('search'), function (Builder $query, string $value): void {
                 $term = trim($value);
 

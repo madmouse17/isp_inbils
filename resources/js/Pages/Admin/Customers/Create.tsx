@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     Button,
@@ -22,10 +23,13 @@ import {
 } from '@/Components/ui';
 import {
     IndonesiaRegionFields,
+    CustomerAcquirerField,
+    CustomerDataFields,
     PageHeader,
     type IndonesiaRegionOptions,
     type IndonesiaRegionValue,
 } from '@/Components/composite';
+import type { AcquirerOption } from '@/types/models';
 
 interface AddressInput {
     label: string;
@@ -78,6 +82,8 @@ interface CustomerForm {
     contact_person: string;
     notes: string;
     is_active: boolean;
+    /** Local select state; sent as `acquired_by_user_id` only with the assign capability. */
+    acquirer_id: string;
     addresses: AddressInput[];
     contacts: ContactInput[];
     subscription: {
@@ -97,6 +103,9 @@ interface CreateProps {
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
+    can: { assignAcquirer: boolean };
+    acquirerOptions: AcquirerOption[];
+    acquirerDefaultId: number | null;
 }
 
 const emptyAddress = (): AddressInput => ({
@@ -128,12 +137,15 @@ export default function Create({
     packages,
     locations,
     regions,
+    can,
+    acquirerOptions,
+    acquirerDefaultId,
     geocodeResults = [],
     geocodeIndex,
 }: CreateProps) {
     const [tab, setTab] = useState('customer');
     const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
-    const { data, setData, post, processing, errors } = useForm<CustomerForm>({
+    const { data, setData, post, transform, processing, errors } = useForm<CustomerForm>({
         code: '',
         name: '',
         type: 'Individual',
@@ -143,6 +155,7 @@ export default function Create({
         contact_person: '',
         notes: '',
         is_active: true,
+        acquirer_id: acquirerDefaultId === null ? '' : String(acquirerDefaultId),
         addresses: [
             {
                 ...emptyAddress(),
@@ -163,6 +176,20 @@ export default function Create({
         },
     });
     const formErrors = errors as Record<string, string | undefined>;
+    const customerErrors = formErrors as Partial<
+        Record<
+            | 'code'
+            | 'name'
+            | 'type'
+            | 'email'
+            | 'phone'
+            | 'tax_id'
+            | 'contact_person'
+            | 'notes'
+            | 'is_active',
+            string
+        >
+    >;
 
     const reloadRegions = (addresses: AddressInput[]) => {
         router.get(
@@ -313,14 +340,20 @@ export default function Create({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+        transform(({ acquirer_id, ...values }) =>
+            can.assignAcquirer
+                ? {
+                      ...values,
+                      acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id),
+                  }
+                : values,
+        );
         post(route('admin.customers.store'), {
             onError: (validationErrors) => {
                 const keys = Object.keys(validationErrors);
                 if (keys.some((key) => key === 'addresses' || key.startsWith('addresses.'))) {
                     setTab('addresses');
-                } else if (
-                    keys.some((key) => key === 'contacts' || key.startsWith('contacts.'))
-                ) {
+                } else if (keys.some((key) => key === 'contacts' || key.startsWith('contacts.'))) {
                     setTab('contacts');
                 } else if (keys.some((key) => key.startsWith('subscription.'))) {
                     setTab('subscription');
@@ -337,6 +370,16 @@ export default function Create({
                 <PageHeader
                     title="Create Customer"
                     subtitle="Create customer, addresses, contacts, subscription, and installation SPK in one submission."
+                    actions={
+                        <Button
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
+                        >
+                            <Link href={route('admin.customers.index')}>Back</Link>
+                        </Button>
+                    }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
@@ -350,20 +393,24 @@ export default function Create({
                                 </TabList>
 
                                 <TabPanel value="customer">
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <Input label="Code" value={data.code} onChange={(event) => setData('code', event.target.value)} error={errors.code} required placeholder="CUS-2026-00001" />
-                                        <Input label="Name" value={data.name} onChange={(event) => setData('name', event.target.value)} error={errors.name} required />
-                                        <NativeSelect label="Type" value={data.type} onChange={(event) => setData('type', event.target.value as CustomerForm['type'])} error={errors.type}>
-                                            <option value="Individual">Individual</option>
-                                            <option value="Company">Company</option>
-                                        </NativeSelect>
-                                        <Input label="Email" type="email" value={data.email} onChange={(event) => setData('email', event.target.value)} error={errors.email} required />
-                                        <PhoneInput label="Phone" value={data.phone} onChange={(value) => setData('phone', value)} error={errors.phone} hint="Password user customer sama dengan nomor phone." required />
-                                        <Input label="Tax ID (NPWP)" value={data.tax_id} onChange={(event) => setData('tax_id', event.target.value)} error={errors.tax_id} required={data.type === 'Company'} />
-                                        <Input label="Contact Person" value={data.contact_person} onChange={(event) => setData('contact_person', event.target.value)} error={errors.contact_person} required={data.type === 'Company'} />
-                                        <div className="flex items-end"><Switch label="Active" checked={data.is_active} onCheckedChange={(checked) => setData('is_active', checked)} /></div>
-                                        <Textarea className="md:col-span-2" label="Notes" value={data.notes} onChange={(event) => setData('notes', event.target.value)} error={errors.notes} rows={3} />
-                                    </div>
+                                    <CustomerDataFields
+                                        value={data}
+                                        onChange={(key, value) => setData(key, value as never)}
+                                        errors={customerErrors}
+                                        phoneHint="Password user customer sama dengan nomor phone."
+                                    />
+                                    {can.assignAcquirer ? (
+                                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                                            <CustomerAcquirerField
+                                                options={acquirerOptions}
+                                                value={data.acquirer_id}
+                                                onChange={(value) => setData('acquirer_id', value)}
+                                                error={formErrors.acquired_by_user_id}
+                                                hint="Defaults to you when you are an eligible employee."
+                                                disabled={processing}
+                                            />
+                                        </div>
+                                    ) : null}
                                 </TabPanel>
 
                                 <TabPanel value="addresses">
@@ -372,7 +419,8 @@ export default function Create({
                                             <div>
                                                 <p className="font-medium">Customer Addresses</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    Select exactly one primary and one installation address.
+                                                    Select exactly one primary and one installation
+                                                    address.
                                                 </p>
                                             </div>
                                             <Button
@@ -420,7 +468,9 @@ export default function Create({
                                                                 event.target.value,
                                                             )
                                                         }
-                                                        error={formErrors[`addresses.${index}.label`]}
+                                                        error={
+                                                            formErrors[`addresses.${index}.label`]
+                                                        }
                                                         required
                                                     />
                                                     <MapPicker
@@ -440,10 +490,14 @@ export default function Create({
                                                             formErrors[`addresses.${index}.lng`]
                                                         }
                                                         searchResults={
-                                                            geocodeIndex === index ? geocodeResults : []
+                                                            geocodeIndex === index
+                                                                ? geocodeResults
+                                                                : []
                                                         }
                                                         searching={geocodeSearchingIndex === index}
-                                                        onSearch={(query) => searchAddress(index, query)}
+                                                        onSearch={(query) =>
+                                                            searchAddress(index, query)
+                                                        }
                                                         onSelectSearchResult={(result) =>
                                                             selectGeocodeResult(index, result)
                                                         }
@@ -456,10 +510,22 @@ export default function Create({
                                                             updateAddressRegion(index, region)
                                                         }
                                                         errors={{
-                                                            province_code: formErrors[`addresses.${index}.province_code`],
-                                                            city_code: formErrors[`addresses.${index}.city_code`],
-                                                            district_code: formErrors[`addresses.${index}.district_code`],
-                                                            village_code: formErrors[`addresses.${index}.village_code`],
+                                                            province_code:
+                                                                formErrors[
+                                                                    `addresses.${index}.province_code`
+                                                                ],
+                                                            city_code:
+                                                                formErrors[
+                                                                    `addresses.${index}.city_code`
+                                                                ],
+                                                            district_code:
+                                                                formErrors[
+                                                                    `addresses.${index}.district_code`
+                                                                ],
+                                                            village_code:
+                                                                formErrors[
+                                                                    `addresses.${index}.village_code`
+                                                                ],
                                                         }}
                                                     />
                                                     <Textarea
@@ -473,7 +539,9 @@ export default function Create({
                                                                 event.target.value,
                                                             )
                                                         }
-                                                        error={formErrors[`addresses.${index}.address`]}
+                                                        error={
+                                                            formErrors[`addresses.${index}.address`]
+                                                        }
                                                         required
                                                         rows={3}
                                                     />
@@ -499,7 +567,10 @@ export default function Create({
                                                             checked={address.is_primary}
                                                             onCheckedChange={(checked) => {
                                                                 if (checked) {
-                                                                    selectAddress(index, 'is_primary');
+                                                                    selectAddress(
+                                                                        index,
+                                                                        'is_primary',
+                                                                    );
                                                                 }
                                                             }}
                                                         />
@@ -527,7 +598,9 @@ export default function Create({
                                                                 event.target.value,
                                                             )
                                                         }
-                                                        error={formErrors[`addresses.${index}.notes`]}
+                                                        error={
+                                                            formErrors[`addresses.${index}.notes`]
+                                                        }
                                                         rows={2}
                                                     />
                                                 </CardContent>
@@ -611,7 +684,9 @@ export default function Create({
                                                         onChange={(value) =>
                                                             updateContact(index, 'phone', value)
                                                         }
-                                                        error={formErrors[`contacts.${index}.phone`]}
+                                                        error={
+                                                            formErrors[`contacts.${index}.phone`]
+                                                        }
                                                         required
                                                     />
                                                     <Input
@@ -625,14 +700,17 @@ export default function Create({
                                                                 event.target.value,
                                                             )
                                                         }
-                                                        error={formErrors[`contacts.${index}.email`]}
+                                                        error={
+                                                            formErrors[`contacts.${index}.email`]
+                                                        }
                                                         required
                                                     />
                                                     <Switch
                                                         label="Primary contact"
                                                         checked={contact.is_primary}
                                                         onCheckedChange={(checked) => {
-                                                            if (checked) selectPrimaryContact(index);
+                                                            if (checked)
+                                                                selectPrimaryContact(index);
                                                         }}
                                                     />
                                                     <Textarea
@@ -646,7 +724,9 @@ export default function Create({
                                                                 event.target.value,
                                                             )
                                                         }
-                                                        error={formErrors[`contacts.${index}.notes`]}
+                                                        error={
+                                                            formErrors[`contacts.${index}.notes`]
+                                                        }
                                                         rows={2}
                                                     />
                                                 </CardContent>
@@ -657,9 +737,12 @@ export default function Create({
                                 <TabPanel value="subscription">
                                     <div className="space-y-4">
                                         <div>
-                                            <p className="font-medium">Subscription & Installation SPK</p>
+                                            <p className="font-medium">
+                                                Subscription & Installation SPK
+                                            </p>
                                             <p className="text-sm text-muted-foreground">
-                                                A pending subscription and generated installation SPK will be created automatically.
+                                                A pending subscription and generated installation
+                                                SPK will be created automatically.
                                             </p>
                                         </div>
                                         <NativeSelect
@@ -751,9 +834,7 @@ export default function Create({
                                                     })
                                                 }
                                                 error={
-                                                    formErrors[
-                                                        'subscription.otc_installation_fee'
-                                                    ]
+                                                    formErrors['subscription.otc_installation_fee']
                                                 }
                                                 placeholder="Auto from package"
                                             />
@@ -794,8 +875,16 @@ export default function Create({
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => router.get(route('admin.customers.index'))}>Cancel</Button>
-                        <Button type="submit" variant="success" loading={processing}>Create Customer & SPK</Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => router.get(route('admin.customers.index'))}
+                        >
+                            Cancel
+                        </Button>
+                        <Button type="submit" variant="success" loading={processing}>
+                            Create Customer & SPK
+                        </Button>
                     </div>
                 </form>
             </div>

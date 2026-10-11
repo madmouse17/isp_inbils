@@ -15,8 +15,15 @@ final class ReadinessChecker
 {
     public const SCHEDULER_HEARTBEAT_KEY = 'ops:scheduler:heartbeat_at';
 
+    public const BACKUP_HEARTBEAT_KEY = 'ops:backup:heartbeat_at';
+
     /** Heartbeat older than this → degraded (seconds). */
     private const HEARTBEAT_MAX_AGE = 300;
+
+    /**
+     * Backup marker age limit (seconds) = 24h RPO + grace, provisional until owner approval.
+     */
+    private const BACKUP_HEARTBEAT_MAX_AGE = 90000;
 
     /**
      * @return array{status: string, checks: array<string, string>}
@@ -137,7 +144,22 @@ final class ReadinessChecker
 
     private function backup(): string
     {
-        // ponytail: no app-owned backup marker path yet → unknown, never fake green
-        return 'unknown';
+        try {
+            $at = Cache::get(self::BACKUP_HEARTBEAT_KEY);
+            if (! is_string($at) || $at === '') {
+                return 'unknown';
+            }
+
+            $ts = strtotime($at);
+            if ($ts === false) {
+                return 'unknown';
+            }
+
+            $age = time() - $ts;
+
+            return $age <= self::BACKUP_HEARTBEAT_MAX_AGE ? 'ok' : 'fail';
+        } catch (Throwable) {
+            return 'unknown';
+        }
     }
 }

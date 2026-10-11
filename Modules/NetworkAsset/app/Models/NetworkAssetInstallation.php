@@ -11,10 +11,13 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use LogicException;
 
 /**
  * @property int $id
  * @property int $network_asset_id
+ * @property ?string $asset_code_snapshot
+ * @property ?string $asset_serial_snapshot
  * @property ?int $location_id
  * @property ?int $customer_id
  * @property ?int $subscription_id
@@ -22,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property ?int $installed_by
  * @property ?CarbonInterface $installed_at
  * @property ?CarbonInterface $removed_at
+ * @property ?string $removal_reason
  */
 class NetworkAssetInstallation extends Model
 {
@@ -32,6 +36,8 @@ class NetworkAssetInstallation extends Model
 
     protected $fillable = [
         'network_asset_id',
+        'asset_code_snapshot',
+        'asset_serial_snapshot',
         'location_id',
         'customer_id',
         'subscription_id',
@@ -47,9 +53,37 @@ class NetworkAssetInstallation extends Model
         'removed_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function () {
+            throw new LogicException('NetworkAssetInstallation history cannot be deleted.');
+        });
+
+        static::updating(function (NetworkAssetInstallation $installation) {
+            if ($installation->getOriginal('removed_at') !== null) {
+                throw new LogicException('Closed installation record is immutable and cannot be updated.');
+            }
+
+            if ($installation->isDirty([
+                'network_asset_id',
+                'company_id',
+                'location_id',
+                'customer_id',
+                'subscription_id',
+                'spk_id',
+                'installed_by',
+                'installed_at',
+                'asset_code_snapshot',
+                'asset_serial_snapshot',
+            ])) {
+                throw new LogicException('Installation history immutable details cannot be modified.');
+            }
+        });
+    }
+
     public function asset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class, 'network_asset_id');
+        return $this->belongsTo(NetworkAsset::class, 'network_asset_id')->withTrashed();
     }
 
     public function location(): BelongsTo

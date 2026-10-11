@@ -1,56 +1,87 @@
 ﻿import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    Pagination,
-    NativeSelect,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
+    DataTable,
+    DataTableActions,
+    PageHeader,
+    type DataTableColumn,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
 import type { Category, Product } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
-    products: {
-        data: Product[];
-        current_page: number;
-        last_page: number;
-        per_page: number;
-        total: number;
-    };
+    products: PaginationLike<Product>;
     categories: { data: Category[] };
-    filters: { category_id?: string; is_active?: string; search?: string };
-    can: { create: boolean };
+    filters: {
+        category_id?: string;
+        is_active?: string;
+        search?: string;
+        sort?: string;
+        direction?: string;
+        per_page?: number;
+    };
+    can: { create: boolean; export: boolean };
 }
 
 export default function Index({ products, categories, filters, can }: IndexProps) {
+    const pagination = toPagination(products);
+    const table = useServerTable({
+        url: route('admin.products.index'),
+        filters: { ...filters, per_page: pagination.per_page },
+        only: ['products', 'filters'],
+    });
     const [search, setSearch] = useState(filters.search ?? '');
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
     const [isActive, setIsActive] = useState(filters.is_active ?? '');
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.get(
-            route('admin.products.index'),
-            { search, category_id: categoryId, is_active: isActive },
-            { preserveState: true },
-        );
+        table.visit({ search, category_id: categoryId, is_active: isActive });
     };
 
-    const remove = (p: Product) => {
-        if (window.confirm(`Delete ${p.name}?`))
-            router.delete(route('admin.products.destroy', p.id));
-    };
+    const columns: DataTableColumn<Product>[] = [
+        {
+            key: 'sku',
+            header: 'SKU',
+            sortable: true,
+            cell: (p) => <span className="font-mono text-sm">{p.sku}</span>,
+        },
+        { key: 'name', header: 'Name', sortable: true },
+        { key: 'category', header: 'Category', cell: (p) => p.category?.name ?? '-' },
+        {
+            key: 'unit',
+            header: 'Unit',
+            cell: (p) => (p.unit ? `${p.unit.name} (${p.unit.symbol})` : '-'),
+        },
+        { key: 'sell_price', header: 'Sell Price', cell: (p) => p.sell_price ?? '-' },
+        {
+            key: 'is_active',
+            header: 'Status',
+            cell: (p) => (
+                <Badge variant={p.is_active ? 'success' : 'danger'}>
+                    {p.is_active ? 'Active' : 'Inactive'}
+                </Badge>
+            ),
+        },
+        {
+            key: 'actions',
+            header: 'Actions',
+            cell: (p) => (
+                <DataTableActions
+                    showHref={route('admin.products.show', p.id)}
+                    editHref={route('admin.products.edit', p.id)}
+                    deleteHref={route('admin.products.destroy', p.id)}
+                    deleteMessage={`Delete ${p.name}?`}
+                    deleteDescription={`This will permanently remove the product "${p.name}".`}
+                />
+            ),
+        },
+    ];
 
     return (
         <AdminLayout title="Products">
@@ -60,16 +91,16 @@ export default function Index({ products, categories, filters, can }: IndexProps
                     subtitle="Manage product master data."
                     actions={
                         <>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.get(route('admin.products.export'))}
-                            >
-                                Export
-                            </Button>
+                            <ExportMenu
+                                exportUrl={route('admin.products.export')}
+                                params={table.params}
+                                canExport={can.export}
+                                formats={['csv', 'pdf']}
+                            />
                             {can.create && (
                                 <Button
                                     type="button"
+                                    variant="success"
                                     onClick={() => router.get(route('admin.products.create'))}
                                 >
                                     Create Product
@@ -115,78 +146,16 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                 </Button>
                             </div>
                         </form>
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>SKU</TH>
-                                    <TH>Name</TH>
-                                    <TH>Category</TH>
-                                    <TH>Unit</TH>
-                                    <TH>Sell Price</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {products.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={7}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    products.data.map((p) => (
-                                        <TR key={p.id}>
-                                            <TD className="font-mono text-sm">{p.sku}</TD>
-                                            <TD>{p.name}</TD>
-                                            <TD>{p.category?.name ?? '-'}</TD>
-                                            <TD>
-                                                {p.unit ? `${p.unit.name} (${p.unit.symbol})` : '-'}
-                                            </TD>
-                                            <TD>{p.sell_price ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant={p.is_active ? 'success' : 'danger'}>
-                                                    {p.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Link
-                                                        href={route('admin.products.show', p.id)}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Show
-                                                    </Link>
-                                                    <Link
-                                                        href={route('admin.products.edit', p.id)}
-                                                        className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                                                    >
-                                                        Edit
-                                                    </Link>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(p)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
-                        <Pagination
-                            currentPage={products.current_page}
-                            lastPage={products.last_page}
-                            onPageChange={(page) =>
-                                router.get(route('admin.products.index'), { page })
-                            }
+                        <DataTable
+                            columns={columns}
+                            data={products.data}
+                            pagination={pagination}
+                            loading={table.processing}
+                            sortBy={table.sortBy}
+                            sortDir={table.sortDir}
+                            onSort={table.onSort}
+                            onPageChange={table.setPage}
+                            onPerPageChange={table.setPerPage}
                         />
                     </CardContent>
                 </Card>

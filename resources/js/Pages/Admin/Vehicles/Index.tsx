@@ -1,8 +1,8 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import {
     Badge,
     Button,
@@ -67,10 +67,6 @@ export default function Index({ vehicles }: IndexProps) {
             post(route('admin.vehicles.store'), { onSuccess: () => setModalOpen(false) });
         }
     };
-    const remove = (v: VehRow) => {
-        if (window.confirm(`Delete ${v.plate_number}?`))
-            router.delete(route('admin.vehicles.destroy', v.id));
-    };
 
     return (
         <AdminLayout title="Vehicles">
@@ -79,7 +75,7 @@ export default function Index({ vehicles }: IndexProps) {
                     title="Vehicles"
                     subtitle="Technician transport."
                     actions={
-                        <Button type="button" onClick={openCreate}>
+                        <Button type="button" variant="success" onClick={openCreate}>
                             Add Vehicle
                         </Button>
                     }
@@ -120,24 +116,15 @@ export default function Index({ vehicles }: IndexProps) {
                                                 </Badge>
                                             </TD>
                                             <TD>
-                                                <div className="flex gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => openEdit(v)}
-                                                    >
-                                                        Edit
-                                                    </Button>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => remove(v)}
-                                                    >
-                                                        Delete
-                                                    </Button>
-                                                </div>
+                                                <DataTableActions
+                                                    onEdit={() => openEdit(v)}
+                                                    deleteHref={route(
+                                                        'admin.vehicles.destroy',
+                                                        v.id,
+                                                    )}
+                                                    deleteMessage={`Delete ${v.plate_number}?`}
+                                                    deleteDescription={`This will permanently remove the vehicle "${v.plate_number}".`}
+                                                />
                                             </TD>
                                         </TR>
                                     ))
@@ -198,7 +185,11 @@ export default function Index({ vehicles }: IndexProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={editId ? 'default' : 'success'}
+                                loading={processing}
+                            >
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

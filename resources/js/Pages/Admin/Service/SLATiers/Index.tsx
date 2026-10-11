@@ -1,10 +1,10 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
+import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ExportMenu';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
@@ -15,8 +15,8 @@ type Row = {
     id: number;
     name: string;
     code?: string | null;
-    response_minutes?: number | string | null;
-    resolve_minutes?: number | string | null;
+    response_time_hours?: number | string | null;
+    resolution_time_hours?: number | string | null;
     created_at: string | null;
 };
 
@@ -38,7 +38,7 @@ type Props = {
 };
 
 export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort } = useServerTable({
+    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.sla-tiers.index'),
         filters,
         only: ['slaTiers', 'filters', 'can'],
@@ -61,20 +61,20 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 ),
             },
             {
-                key: 'response_minutes',
-                header: 'Response (min)',
+                key: 'response_time_hours',
+                header: 'Response (h)',
                 sortable: true,
-                sortKey: 'response_minutes',
+                sortKey: 'response_time_hours',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.response_minutes ?? '—'),
+                cell: (row) => String(row.response_time_hours ?? '—'),
             },
             {
-                key: 'resolve_minutes',
-                header: 'Resolve (min)',
+                key: 'resolution_time_hours',
+                header: 'Resolution (h)',
                 sortable: true,
-                sortKey: 'resolve_minutes',
+                sortKey: 'resolution_time_hours',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.resolve_minutes ?? '—'),
+                cell: (row) => String(row.resolution_time_hours ?? '—'),
             },
             {
                 key: 'created_at',
@@ -87,26 +87,12 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 key: 'actions',
                 header: 'Actions',
                 cell: (row) => (
-                    <div className="flex flex-wrap gap-2">
-                        <Link
-                            href={route('admin.sla-tiers.edit', row.id)}
-                            className="text-sm font-medium text-primary hover:underline"
-                        >
-                            Edit
-                        </Link>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                                if (window.confirm(`Delete ${row.name}?`)) {
-                                    router.delete(route('admin.sla-tiers.destroy', row.id));
-                                }
-                            }}
-                        >
-                            Delete
-                        </Button>
-                    </div>
+                    <DataTableActions
+                        editHref={route('admin.sla-tiers.edit', row.id)}
+                        deleteHref={route('admin.sla-tiers.destroy', row.id)}
+                        deleteMessage={`Delete ${row.name}?`}
+                        deleteDescription={`This will permanently remove the SLA tier "${row.name}".`}
+                    />
                 ),
             },
         ],
@@ -130,7 +116,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild size="sm">
+                                <Button asChild variant="success" size="sm">
                                     <Link href={route('admin.sla-tiers.create')}>
                                         <Plus className="size-4" />
                                         New tier
@@ -168,7 +154,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     emptyTitle="No SLA tiers"
                     emptyDescription="No SLA tiers match the current filters."
-                    loading={false}
+                    loading={processing}
                 />
             </div>
         </AppLayout>

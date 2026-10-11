@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { usePermission } from '@/hooks/usePermission';
 import {
@@ -13,6 +14,7 @@ import {
     FileUpload,
     Input,
     Modal,
+    Progress,
     SearchSelect,
     Table,
     TBody,
@@ -83,7 +85,7 @@ interface NetworkAssetRow {
     code: string;
     name: string;
     status: string;
-    product_id: number;
+    product_id?: number | null;
     product?: {
         id: number;
         sku: string;
@@ -128,6 +130,8 @@ export default function Show({ workOrder, technicians, products, networkAssets }
     >(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
     const [evidenceCaption, setEvidenceCaption] = useState('');
+    const [uploading, setUploading] = useState(false);
+    const [uploadPercentage, setUploadPercentage] = useState(0);
     const { data, setData, post, processing, errors, reset } = useForm({
         technician_id: '',
         reason: '',
@@ -155,15 +159,21 @@ export default function Show({ workOrder, technicians, products, networkAssets }
             .filter(Boolean)
             .join(' - '),
     }));
-    const networkAssetOptions = networkAssets.data.map((asset) => ({
-        value: String(asset.id),
-        label: `${asset.code} - ${asset.name}`,
-        description: asset.product ? `${asset.product.sku} - ${asset.product.name}` : undefined,
-    }));
     const selectedProduct = products.data.find((product) => String(product.id) === data.product_id);
     const selectedNetworkAsset = networkAssets.data.find(
         (asset) => String(asset.id) === data.network_asset_id,
     );
+    const isAssetProduct = selectedProduct?.type === 'asset';
+    const networkAssetOptions = networkAssets.data
+        .filter(
+            (asset) =>
+                selectedProduct != null && Number(asset.product_id) === Number(selectedProduct.id),
+        )
+        .map((asset) => ({
+            value: String(asset.id),
+            label: `${asset.code} - ${asset.name}`,
+            description: asset.product ? `${asset.product.sku} - ${asset.product.name}` : undefined,
+        }));
     const selectedUnit = selectedProduct?.unit
         ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
         : null;
@@ -196,19 +206,38 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                 }
                 setActionModal(null);
             },
+            onError: (formErrors) => {
+                // Pertahankan draft di modal addItem saat validasi server (422) gagal;
+                // modal hanya ditutup bila error tidak terkait field add-item.
+                if (actionModal === 'addItem') {
+                    const addItemKeys = [
+                        'product_id',
+                        'network_asset_id',
+                        'quantity_reserved',
+                        'quantity_used',
+                        'note',
+                    ];
+                    if (!addItemKeys.some((key) => key in formErrors)) {
+                        setActionModal(null);
+                    }
+                }
+            },
         });
     };
 
     const uploadEvidence = (e: FormEvent) => {
         e.preventDefault();
-        if (!evidenceFile) return;
+        if (!evidenceFile || uploading) return;
 
         const formData = new FormData();
         formData.append('file', evidenceFile);
         formData.append('caption', evidenceCaption);
 
+        setUploading(true);
+        setUploadPercentage(0);
         router.post(route('admin.spk.evidence.store', w.id), formData, {
             forceFormData: true,
+            onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
             onSuccess: () => {
                 setEvidenceFile(null);
                 setEvidenceCaption('');
@@ -220,6 +249,7 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                     description: 'Check allowed file type and max 10 MB size.',
                     variant: 'danger',
                 }),
+            onFinish: () => setUploading(false),
         });
     };
 
@@ -231,11 +261,12 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                     subtitle={`${w.code} · ${w.status}`}
                     actions={
                         <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => router.get(route('admin.spk.index'))}
+                            asChild
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            Back
+                            <Link href={route('admin.spk.index')}>Back</Link>
                         </Button>
                     }
                 />
@@ -488,10 +519,21 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 placeholder="Optional caption"
                             />
                             <div className="self-end">
-                                <Button type="submit" disabled={!evidenceFile}>
+                                <Button
+                                    type="submit"
+                                    disabled={!evidenceFile || uploading}
+                                    loading={uploading}
+                                >
                                     Upload
                                 </Button>
                             </div>
+                            {uploading && (
+                                <Progress
+                                    className="lg:col-span-3"
+                                    label="Mengunggah bukti"
+                                    value={uploadPercentage}
+                                />
+                            )}
                         </form>
                         <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
                             {(w.evidence ?? []).map((ev) => (
@@ -580,29 +622,40 @@ export default function Show({ workOrder, technicians, products, networkAssets }
                                 <SearchSelect
                                     label="Product"
                                     value={data.product_id}
-                                    onChange={(value) => setData('product_id', value)}
+                                    onChange={(value) => {
+                                        setData((previous) => ({
+                                            ...previous,
+                                            product_id: value,
+                                            // Asset terikat pada produk; reset saat produk berubah
+                                            // agar pasangan tidak valid tidak terkirim.
+                                            network_asset_id: '',
+                                        }));
+                                    }}
                                     options={productOptions}
                                     placeholder="Search product"
                                     emptyText="No active products found."
                                     error={errors.product_id}
                                     required
                                 />
-                                <SearchSelect
-                                    label="Network Asset"
-                                    value={data.network_asset_id}
-                                    onChange={(value) => setData('network_asset_id', value)}
-                                    options={networkAssetOptions}
-                                    placeholder="Search available asset"
-                                    emptyText="No available network assets found."
-                                    hint={
-                                        selectedAssetLabel
-                                            ? `Selected: ${selectedAssetLabel}`
-                                            : selectedAssetUnit
-                                              ? `Asset product unit: ${selectedAssetUnit}`
-                                              : undefined
-                                    }
-                                    required
-                                />
+                                {isAssetProduct && (
+                                    <SearchSelect
+                                        label="Network Asset"
+                                        value={data.network_asset_id}
+                                        onChange={(value) => setData('network_asset_id', value)}
+                                        options={networkAssetOptions}
+                                        placeholder="Search available asset"
+                                        emptyText="No available network assets found."
+                                        error={errors.network_asset_id}
+                                        hint={
+                                            selectedAssetLabel
+                                                ? `Selected: ${selectedAssetLabel}`
+                                                : selectedAssetUnit
+                                                  ? `Asset product unit: ${selectedAssetUnit}`
+                                                  : undefined
+                                        }
+                                        required
+                                    />
+                                )}
                                 <Input
                                     label={
                                         selectedUnit

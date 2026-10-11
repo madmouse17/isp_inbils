@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Core\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,6 +30,16 @@ class CustomerResource extends JsonResource
             'contacts' => CustomerContactResource::collection($this->whenLoaded('contacts')),
             'subscriptions' => SubscriptionResource::collection($this->whenLoaded('subscriptions')),
             'created_at' => $this->created_at,
+            // Only the customer pages load the relation, and only for holders of customer.sales.assign or
+            // customer.sales.correct; other resources embedding a customer never carry attribution.
+            $this->mergeWhen($this->relationLoaded('acquirer') && ($request->user()?->can('viewAcquirer', Customer::class) ?? false), fn (): array => [
+                'acquired_by_user_id' => $this->acquired_by_user_id,
+                'acquirer' => $this->acquirer === null ? null : [
+                    'id' => $this->acquirer->id,
+                    'name' => $this->acquirer->name,
+                    'is_active' => (bool) $this->acquirer->is_active,
+                ],
+            ]),
         ];
     }
 }
