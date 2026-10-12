@@ -31,7 +31,15 @@ use App\Policies\VehiclePolicy;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\Operation;
+use Dedoc\Scramble\Support\Generator\SecurityScheme;
+use Dedoc\Scramble\Support\Generator\Server;
+use Dedoc\Scramble\Support\Generator\Types\StringType;
+use Dedoc\Scramble\Support\RouteInfo;
 use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
 use Illuminate\Http\Request;
@@ -129,6 +137,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
         $this->registerWhatsAppRateLimiters();
         $this->registerApiRateLimiters();
+        $this->configureApiDocumentation();
 
         Activity::saving(function (Activity $activity) {
             $subject = $activity->relationLoaded('subject')
@@ -192,6 +201,43 @@ class AppServiceProvider extends ServiceProvider
 
             return $valid ? Limit::none() : Limit::perMinute(30)->by($request->ip());
         });
+    }
+
+    /**
+     * Bearer security for the OpenAPI export of the mobile API (config/scramble.php holds the rest). Scramble is a
+     * dev dependency, so production (composer install --no-dev) skips this.
+     */
+    private function configureApiDocumentation(): void
+    {
+        if (! class_exists(Scramble::class)) {
+            return;
+        }
+
+        Scramble::configure()
+            ->withDocumentTransformers(function (OpenApi $openApi): void {
+                $openApi->secure(SecurityScheme::http('bearer'));
+                // Relative, so the export does not change with APP_URL.
+                $openApi->servers = [Server::make('/api/v1')];
+
+                // Scramble documents Laravel's {message, errors} shape; RenderApiError adds a stable code to every error.
+                foreach ($openApi->components->responses as $response) {
+                    $response->getContent('application/json')->type
+                        ->addProperty('code', (new StringType())->setDescription('Stable error code; see the API description.'))
+                        ->addRequired(['code']);
+                }
+            })
+            ->withOperationTransformers(function (Operation $operation, RouteInfo $routeInfo): void {
+                // The route's own middleware list holds the group names (api.any, ...); the resolved list holds auth:sanctum.
+                $guarded = in_array(
+                    Authenticate::class.':sanctum',
+                    app('router')->gatherRouteMiddleware($routeInfo->route),
+                    true,
+                );
+
+                if (! $guarded) {
+                    $operation->security = [];
+                }
+            });
     }
 
     /**

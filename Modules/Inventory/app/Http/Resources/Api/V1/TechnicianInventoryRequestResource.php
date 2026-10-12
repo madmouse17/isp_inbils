@@ -26,11 +26,14 @@ class TechnicianInventoryRequestResource extends JsonResource
             'code' => $inventoryRequest->code,
             'status' => $inventoryRequest->status,
             'items' => $inventoryRequest->items->map(fn (InventoryRequestItem $item): array => [
+                /** @var string|null */
                 'product_name' => data_get($item, 'product.name'),
+                /** @var string|null */
                 'unit' => data_get($item, 'product.unit.symbol') ?? data_get($item, 'product.unit.name'),
                 'quantity' => (float) $item->quantity_requested,
             ])->values()->all(),
             'work_order' => $source instanceof WorkOrder ? ['id' => $source->id, 'code' => $source->code] : null,
+            /** @var string|null */
             'updated_at' => $inventoryRequest->getAttribute('updated_at'),
         ];
     }

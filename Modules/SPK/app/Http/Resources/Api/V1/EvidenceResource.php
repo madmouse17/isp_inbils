@@ -50,10 +50,13 @@ class EvidenceResource extends JsonResource
 
         return [
             'id' => $this->id,
+            /** @var string|null */
             'type' => $this->getCustomProperty('type'),
+            /** @var string|null */
             'caption' => $this->getCustomProperty('caption'),
             'mime_type' => $this->mime_type,
             'size' => $this->size,
+            /** @var string|null */
             'captured_at' => $this->getCustomProperty('captured_at'),
             'uploaded_by' => $uploadedBy === null ? null : [
                 'id' => (int) $uploadedBy,

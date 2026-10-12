@@ -24,6 +24,7 @@
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {
+        "dedoc/scramble": "^0.13",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.0",
         "laravel/boost": "^2.4",

@@ -43,7 +43,11 @@ class MeResource extends JsonResource
             'email' => $user->email,
             'app' => $this->app,
             'two_factor_enabled' => $user->hasTwoFactorEnabled(),
-            'company' => ['id' => $user->company_id, 'name' => $user->company?->getAttribute('name')],
+            'company' => [
+                'id' => $user->company_id,
+                /** @var string|null */
+                'name' => $user->company?->getAttribute('name'),
+            ],
             'customer' => $customer === null ? null : ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => $profile === null ? null : ['name' => $user->name, 'phone' => $profile->phone],
         ];

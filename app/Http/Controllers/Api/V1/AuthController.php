@@ -108,6 +108,7 @@ class AuthController extends Controller
             'token' => $token->plainTextToken,
             'token_type' => 'Bearer',
             'expires_at' => $token->accessToken->expires_at,
+            /** @var MeResource */
             'user' => (new MeResource($user, $app))->resolve(),
         ]]);
     }

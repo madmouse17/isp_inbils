@@ -79,6 +79,9 @@ docs/standards/*
 docs/agents/*
 !docs/agents/issue-tracker.md
 !docs/agents/domain.md
+!docs/api/
+docs/api/*
+!docs/api/mobile-v1.openapi.json
 !docs/ui/
 docs/ui/*
 !docs/ui/design-system.md

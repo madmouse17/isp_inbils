@@ -14,6 +14,7 @@ class CustomerTicketCommentResource extends JsonResource
         $author = $this->resource->relationLoaded('author') ? $this->resource->getRelation('author') : null;
 
         return [
+            /** @var int */
             'id' => $this->resource->getKey(),
             'body' => $this->resource->getAttribute('body'),
             'author' => $author instanceof User ? ['name' => $author->name] : null,

@@ -47,6 +47,7 @@ class TechnicianMaterialReturnResource extends JsonResource
                     'id' => $line->product_id,
                     'name' => $line->product->name,
                     'sku' => $line->product->sku,
+                    /** @var string|null */
                     'unit' => data_get($line, 'product.unit.symbol') ?? data_get($line, 'product.unit.name'),
                 ],
                 'issued_qty' => (float) $line->issued_qty,

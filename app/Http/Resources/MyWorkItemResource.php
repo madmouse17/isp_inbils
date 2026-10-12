@@ -10,7 +10,7 @@ use Modules\Ticketing\Models\Ticket;
 class MyWorkItemResource extends JsonResource
 {
     /**
-     * @return array<string, mixed>
+     * @return array{id: int, domain: 'ticket', composite_id: string, code: string, title: string, priority: string, status: string, customer: array{id: int, name: string, code: string}|null, assigned_to: int|null, submitted_at: string|null, age_seconds: int|null, due_at: string|null, sla_breached: bool, updated_at: string|null, summary: array{category: string|null, customer_name: string|null, sla_deadline: string|null}, actions: array{start: bool, resolve: bool, close: bool, view: bool, can_view: bool}, detail_url: string|null}|array{id: int, domain: 'spk', composite_id: string, code: string, type: string, title: string, priority: string, status: string, customer: array{id: int, name: string, code: string}|null, assigned_to: int|null, submitted_at: string|null, age_seconds: int|null, scheduled_date: string|null, updated_at: string|null, summary: array{type: string, customer_name: string|null, scheduled_date: string|null, items_count: int}, actions: array{start: bool, submit: bool, view: bool, can_view: bool}, detail_url: string|null}
      */
     public function toArray(Request $request): array
     {

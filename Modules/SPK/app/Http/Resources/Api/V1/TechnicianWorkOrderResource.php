@@ -52,7 +52,9 @@ class TechnicianWorkOrderResource extends JsonResource
             'site' => $this->siteBlock(),
             'items' => $wo->items->map(fn (WorkOrderItem $item): array => [
                 'id' => $item->id,
+                /** @var string|null */
                 'product_name' => data_get($item, 'product.name'),
+                /** @var string|null */
                 'unit' => data_get($item, 'product.unit.symbol') ?? data_get($item, 'product.unit.name'),
                 'quantity_reserved' => (float) $item->quantity_reserved,
                 'quantity_used' => (float) $item->quantity_used,
