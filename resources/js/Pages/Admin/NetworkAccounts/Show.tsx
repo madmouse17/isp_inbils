@@ -33,22 +33,26 @@ import {
     SyncStatusBadge,
 } from '@/Components/composite/NetworkAccessBadges';
 import { ToneBadge, type BadgeTone } from '@/Components/composite/ToneBadge';
-import { usePermission } from '@/hooks/usePermission';
 import { formatDateTime } from '@/lib/format';
 import type {
-    NasOption,
     NetworkAccount,
     NetworkAccountSubscription,
     NetworkDesiredState,
+    RadiusSession,
     NetworkServiceType,
 } from '@/types/network-asset';
 
 interface ShowProps extends Record<string, unknown> {
     subscription: NetworkAccountSubscription;
+    /** Lower-cased company code; null when it cannot be used as a RADIUS realm. */
+    realm: string | null;
     account: NetworkAccount | null;
+    /** Null while RADIUS is off or unreachable, or when the subscriber is offline. */
+    session: RadiusSession | null;
+    usage: { month: string; input_octets: number; output_octets: number } | null;
     desiredState: NetworkDesiredState;
-    nasOptions: NasOption[];
-    installEnabled: boolean;
+    isolatedBecause: ('suspended' | 'blocked')[];
+    radiusEnabled: boolean;
     can: { manage: boolean; reveal: boolean };
     errors?: Record<string, string | undefined>;
 }
@@ -65,11 +69,11 @@ const serviceTypeOptions = (Object.keys(serviceTypeLabel) as NetworkServiceType[
     label: serviceTypeLabel[value],
 }));
 
-/** Reads the one-time password out of the flash data of a visit; the shape is fixed by NetworkAccountController. */
-function passwordFrom(flash: Record<string, unknown>): string | null {
-    const sent = flash.network_account as { password?: string } | undefined;
+/** Reads the one-time secret out of the flash data of a visit; the shape is fixed by NetworkAccountController. */
+function secretFrom(flash: Record<string, unknown>): string | null {
+    const sent = flash.network_account as { secret?: string } | undefined;
 
-    return sent?.password ?? null;
+    return sent?.secret ?? null;
 }
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -81,56 +85,100 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
-function routerOptions(nasOptions: NasOption[]) {
-    return nasOptions.map((option) => ({
-        value: String(option.id),
-        label: option.suggested ? `${option.label} (suggested: same POP)` : option.label,
-    }));
+const BYTE_UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+function formatBytes(bytes: number): string {
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < BYTE_UNITS.length - 1) {
+        value /= 1024;
+        unit += 1;
+    }
+
+    return `${unit === 0 ? value : value.toFixed(2)} ${BYTE_UNITS[unit]}`;
 }
 
-/** The suggested router (same POP) or the only router; otherwise the user chooses. */
-function defaultRouterId(nasOptions: NasOption[]): string {
-    const preselected = nasOptions.find((option) => option.suggested) ?? nasOptions[0];
+/** The username is `local@realm`; staff edit the local part, the realm is fixed by the company. */
+function localPart(username: string, realm: string | null): string {
+    const suffix = realm ? `@${realm}` : '';
 
-    return preselected && (preselected.suggested || nasOptions.length === 1)
-        ? String(preselected.id)
-        : '';
+    return suffix && username.endsWith(suffix) ? username.slice(0, -suffix.length) : username;
+}
+
+function UsernameField({
+    value,
+    realm,
+    error,
+    onChange,
+}: {
+    value: string;
+    realm: string;
+    error?: string;
+    onChange: (value: string) => void;
+}) {
+    const describedBy = error ? 'account-username-error' : 'account-username-hint';
+
+    return (
+        <div className="space-y-1.5">
+            <label htmlFor="account-username" className="text-sm leading-none font-medium">
+                Username
+                <span aria-hidden="true" className="text-destructive">
+                    {' '}
+                    *
+                </span>
+            </label>
+            <div className="flex items-center gap-2">
+                <Input
+                    id="account-username"
+                    value={value}
+                    onChange={(event) => onChange(event.target.value)}
+                    autoComplete="off"
+                    aria-describedby={describedBy}
+                    aria-invalid={error ? true : undefined}
+                    required
+                />
+                <span className="font-mono text-sm break-all text-muted-foreground">@{realm}</span>
+            </div>
+            {error ? (
+                <p id="account-username-error" className="text-sm text-red-700 dark:text-red-400">
+                    {error}
+                </p>
+            ) : (
+                <p id="account-username-hint" className="text-sm text-muted-foreground">
+                    3 to 40 lower case letters, digits, dots, dashes or underscores.
+                </p>
+            )}
+        </div>
+    );
 }
 
 function CreateAccountCard({
     subscriptionId,
-    nasOptions,
-    onPassword,
+    realm,
+    onSecret,
 }: {
     subscriptionId: number;
-    nasOptions: NasOption[];
-    onPassword: (password: string) => void;
+    realm: string | null;
+    onSecret: (secret: string) => void;
 }) {
-    const can = usePermission();
     const { data, setData, post, processing, errors } = useForm({
-        nas_device_id: defaultRouterId(nasOptions),
         service_type: 'pppoe' as NetworkServiceType,
         username: '',
         password: '',
     });
 
-    if (nasOptions.length === 0) {
+    if (realm === null) {
         return (
             <Card>
                 <CardHeader>
                     <CardTitle>Create network account</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Alert variant="info">
-                        <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <span>No NAS router is registered yet.</span>
-                            {can('network_asset.nas.manage') && (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={route('admin.nas-devices.create')}>
-                                        Register a NAS router
-                                    </Link>
-                                </Button>
-                            )}
+                    <Alert variant="warning">
+                        <AlertDescription>
+                            The company code cannot be used as a RADIUS realm (lower case letters,
+                            digits and hyphens, up to 24 characters). Change the company code before
+                            creating network accounts.
                         </AlertDescription>
                     </Alert>
                 </CardContent>
@@ -143,9 +191,10 @@ function CreateAccountCard({
         post(route('admin.subscriptions.network-account.store', subscriptionId), {
             preserveScroll: true,
             onFlash: (flash) => {
-                const password = passwordFrom(flash);
-                if (password) onPassword(password);
+                const secret = secretFrom(flash);
+                if (secret) onSecret(secret);
             },
+            onFinish: () => setData('password', ''),
         });
     };
 
@@ -157,19 +206,6 @@ function CreateAccountCard({
             <CardContent>
                 <form onSubmit={submit} className="space-y-4">
                     <NativeSelect
-                        label="NAS router"
-                        value={data.nas_device_id}
-                        onChange={(event) => setData('nas_device_id', event.target.value)}
-                        options={[
-                            ...(data.nas_device_id === ''
-                                ? [{ value: '', label: 'Select a NAS router' }]
-                                : []),
-                            ...routerOptions(nasOptions),
-                        ]}
-                        error={errors.nas_device_id}
-                        required
-                    />
-                    <NativeSelect
                         label="Service type"
                         value={data.service_type}
                         onChange={(event) =>
@@ -179,21 +215,19 @@ function CreateAccountCard({
                         error={errors.service_type}
                         required
                     />
-                    <Input
-                        label="Username"
+                    <UsernameField
                         value={data.username}
-                        onChange={(event) => setData('username', event.target.value)}
-                        hint="3 to 64 letters, digits, dots, dashes, underscores or @."
+                        realm={realm}
                         error={errors.username}
-                        required
+                        onChange={(value) => setData('username', value)}
                     />
                     <Input
-                        label="Password"
+                        label="Secret"
                         type="password"
                         autoComplete="new-password"
                         value={data.password}
                         onChange={(event) => setData('password', event.target.value)}
-                        hint="Leave blank to generate a password."
+                        hint="6 to 64 characters without spaces. Leave blank to generate one."
                         error={errors.password}
                     />
                     <Button
@@ -213,17 +247,16 @@ function CreateAccountCard({
 function EditAccountCard({
     subscription,
     account,
-    nasOptions,
+    realm,
 }: {
     subscription: NetworkAccountSubscription;
     account: NetworkAccount;
-    nasOptions: NasOption[];
+    realm: string;
 }) {
     const terminated = subscription.status === 'terminated';
     const { data, setData, put, processing, errors, reset } = useForm({
-        nas_device_id: String(account.nas_device_id),
         service_type: account.service_type,
-        username: account.username,
+        username: localPart(account.username, realm),
         password: '',
     });
 
@@ -251,14 +284,6 @@ function EditAccountCard({
                 <form onSubmit={submit} className="space-y-4">
                     <fieldset disabled={terminated} className="space-y-4 min-w-0">
                         <NativeSelect
-                            label="NAS router"
-                            value={data.nas_device_id}
-                            onChange={(event) => setData('nas_device_id', event.target.value)}
-                            options={routerOptions(nasOptions)}
-                            error={errors.nas_device_id}
-                            required
-                        />
-                        <NativeSelect
                             label="Service type"
                             value={data.service_type}
                             onChange={(event) =>
@@ -268,21 +293,19 @@ function EditAccountCard({
                             error={errors.service_type}
                             required
                         />
-                        <Input
-                            label="Username"
+                        <UsernameField
                             value={data.username}
-                            onChange={(event) => setData('username', event.target.value)}
-                            hint="3 to 64 letters, digits, dots, dashes, underscores or @."
+                            realm={realm}
                             error={errors.username}
-                            required
+                            onChange={(value) => setData('username', value)}
                         />
                         <Input
-                            label="Password"
+                            label="Secret"
                             type="password"
                             autoComplete="new-password"
                             value={data.password}
                             onChange={(event) => setData('password', event.target.value)}
-                            hint="Leave blank to keep the current password."
+                            hint="Leave blank to keep the current secret."
                             error={errors.password}
                         />
                         <Button
@@ -304,14 +327,17 @@ export default function Show({
     subscription,
     account,
     desiredState,
-    nasOptions,
-    installEnabled,
+    realm,
+    session,
+    usage,
+    isolatedBecause,
+    radiusEnabled,
     can,
     errors = {},
 }: ShowProps) {
-    // The password comes as flash data, in no prop, so the page keeps it only until it is dismissed or
+    // The secret comes as flash data, in no prop, so the page keeps it only until it is dismissed or
     // replaced. Nothing else ever receives it.
-    const [password, setPassword] = useState<string | null>(null);
+    const [secret, setSecret] = useState<string | null>(null);
     const [revealing, setRevealing] = useState(false);
     const [confirmingReveal, setConfirmingReveal] = useState(false);
     const [resyncing, setResyncing] = useState(false);
@@ -323,7 +349,7 @@ export default function Show({
             {},
             {
                 preserveScroll: true,
-                onFlash: (flash) => setPassword(passwordFrom(flash) ?? null),
+                onFlash: (flash) => setSecret(secretFrom(flash) ?? null),
                 onFinish: () => {
                     setRevealing(false);
                     setConfirmingReveal(false);
@@ -379,36 +405,36 @@ export default function Show({
                                     size="sm"
                                     onClick={() => setConfirmingReveal(true)}
                                 >
-                                    Reveal password
+                                    Reveal secret
                                 </Button>
                             ) : null}
                         </>
                     }
                 />
 
-                {!installEnabled && (
+                {!radiusEnabled && (
                     <Alert variant="warning">
                         <AlertDescription>
-                            Provisioning is switched off for this installation. Changes are saved
-                            but not sent to routers.
+                            RADIUS is switched off for this installation. Changes are saved but not
+                            sent to FreeRADIUS, and online status and usage are not available.
                         </AlertDescription>
                     </Alert>
                 )}
 
-                {password !== null && (
+                {secret !== null && (
                     <Alert variant="warning">
-                        <AlertTitle>Password shown once</AlertTitle>
+                        <AlertTitle>Secret shown once</AlertTitle>
                         <AlertDescription className="space-y-3">
                             <div className="flex flex-wrap items-center gap-2">
                                 <code className="rounded-md bg-muted px-2 py-1 font-mono text-base break-all text-foreground select-all">
-                                    {password}
+                                    {secret}
                                 </code>
-                                <CopyButton value={password} label="Copy password" />
+                                <CopyButton value={secret} label="Copy secret" />
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setPassword(null)}
+                                    onClick={() => setSecret(null)}
                                 >
                                     Dismiss
                                 </Button>
@@ -421,10 +447,10 @@ export default function Show({
                     </Alert>
                 )}
 
-                {errors.subscription && (
+                {(errors.subscription || errors.realm) && (
                     <Alert variant="danger">
                         <AlertDescription className="text-red-700 dark:text-red-400">
-                            {errors.subscription}
+                            {errors.subscription ?? errors.realm}
                         </AlertDescription>
                     </Alert>
                 )}
@@ -467,7 +493,7 @@ export default function Show({
                                         <>
                                             {speedProfile.name}
                                             {speedProfile.radius_profile_name
-                                                ? `, router profile ${speedProfile.radius_profile_name}`
+                                                ? `, RADIUS group ${speedProfile.radius_profile_name}`
                                                 : ''}
                                         </>
                                     ) : (
@@ -479,6 +505,19 @@ export default function Show({
                                 </Row>
                                 <Row label="Desired state">
                                     <DesiredStateBadge state={desiredState} />
+                                    {isolatedBecause.length > 0 ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Isolated because{' '}
+                                            {isolatedBecause
+                                                .map((reason) =>
+                                                    reason === 'suspended'
+                                                        ? 'Suspended'
+                                                        : 'Blocked',
+                                                )
+                                                .join(' and ')}
+                                            .
+                                        </p>
+                                    ) : null}
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {desiredStateExplanation[desiredState]}
                                     </p>
@@ -487,7 +526,7 @@ export default function Show({
                             {!speedProfile?.radius_profile_name && (
                                 <Alert variant="warning" className="mt-4">
                                     <AlertDescription>
-                                        The speed profile of this package has no router profile
+                                        The speed profile of this package has no RADIUS profile
                                         name. Set one on the speed profile before creating a network
                                         account.
                                     </AlertDescription>
@@ -503,7 +542,6 @@ export default function Show({
                             </CardHeader>
                             <CardContent>
                                 <dl className="space-y-3 text-sm">
-                                    <Row label="NAS router">{account.nas_label}</Row>
                                     <Row label="Service type">
                                         {serviceTypeLabel[account.service_type]}
                                     </Row>
@@ -525,27 +563,41 @@ export default function Show({
                                                 {account.last_error}
                                             </p>
                                         )}
-                                    </Row>
-                                    <Row label="Provisioned profile">
-                                        {account.provisioned_profile
-                                            ? `${account.provisioned_profile} since ${formatDateTime(account.provisioned_at)}`
-                                            : 'Not on the router yet'}
-                                    </Row>
-                                    <Row label="Online">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <OnlineBadge account={account} />
-                                            {account.current_address && (
-                                                <span className="font-mono text-xs break-all">
-                                                    {account.current_address}
-                                                </span>
-                                            )}
-                                        </div>
-                                        {account.last_online_at && (
+                                        {account.disconnect_pending && (
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                Last seen online{' '}
-                                                {formatDateTime(account.last_online_at)}
+                                                A disconnect of the open session is still owed.
                                             </p>
                                         )}
+                                    </Row>
+                                    <Row label="RADIUS group">
+                                        {account.provisioned_group
+                                            ? `${account.provisioned_group} since ${formatDateTime(account.provisioned_at)}`
+                                            : 'Not in RADIUS yet'}
+                                    </Row>
+                                    <Row label="Online">
+                                        <OnlineBadge online={session !== null} />
+                                    </Row>
+                                    {session && (
+                                        <>
+                                            <Row label="Address">
+                                                <span className="font-mono break-all">
+                                                    {session.framed_ip ?? '—'}
+                                                </span>
+                                            </Row>
+                                            <Row label="NAS">
+                                                {session.nas_label ?? session.nas_ip}
+                                            </Row>
+                                            <Row label="Session start">
+                                                {formatDateTime(session.started_at)}
+                                            </Row>
+                                        </>
+                                    )}
+                                    <Row label="This month">
+                                        {usage
+                                            ? `Upload ${formatBytes(usage.input_octets)}, download ${formatBytes(usage.output_octets)}`
+                                            : radiusEnabled
+                                              ? 'Usage is not available right now. RADIUS did not answer.'
+                                              : '—'}
                                     </Row>
                                 </dl>
                             </CardContent>
@@ -553,20 +605,20 @@ export default function Show({
                     )}
                 </div>
 
-                {account && can.manage && (
+                {account && can.manage && realm !== null && (
                     <EditAccountCard
                         key={account.id}
                         subscription={subscription}
                         account={account}
-                        nasOptions={nasOptions}
+                        realm={realm}
                     />
                 )}
 
                 {!account && can.manage && (
                     <CreateAccountCard
                         subscriptionId={subscription.id}
-                        nasOptions={nasOptions}
-                        onPassword={setPassword}
+                        realm={realm}
+                        onSecret={setSecret}
                     />
                 )}
 
@@ -585,10 +637,10 @@ export default function Show({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Reveal password?</AlertDialogTitle>
+                        <AlertDialogTitle>Reveal secret?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The password is shown once on this page and the reveal is recorded in
-                            the audit log.
+                            The secret is shown once on this page and the reveal is recorded in the
+                            audit log.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

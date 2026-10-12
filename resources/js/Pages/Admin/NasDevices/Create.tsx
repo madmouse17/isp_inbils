@@ -13,14 +13,14 @@ import {
     CardTitle,
     Input,
     NativeSelect,
-    Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
-import { NAS_API_PROTOCOLS, portAfterProtocolChange } from '@/lib/nasApiProtocol';
-import type { NasApiProtocol, RouterAssetOption } from '@/types/network-asset';
+import type { RouterAssetOption } from '@/types/network-asset';
 
 interface CreateProps extends Record<string, unknown> {
     routerAssets: RouterAssetOption[];
+    /** Lower-cased company code; null when it cannot be used as a RADIUS realm. */
+    realm: string | null;
 }
 
 const assetOptionLabel = (asset: RouterAssetOption) =>
@@ -28,20 +28,30 @@ const assetOptionLabel = (asset: RouterAssetOption) =>
         asset.location_name ? ` - ${asset.location_name}` : ''
     }`;
 
-export default function Create({ routerAssets }: CreateProps) {
-    const { data, setData, post, processing, errors } = useForm({
+export default function Create({ routerAssets, realm }: CreateProps) {
+    const { data, setData, post, processing, errors, reset } = useForm({
         network_asset_id: '',
-        api_protocol: 'rest' as NasApiProtocol,
-        api_port: '443',
-        api_username: '',
-        api_password: '',
-        isolir_profile: 'isolir',
-        provisioning_enabled: false,
+        nasname: '',
+        coa_port: '1700',
+        radius_secret: '',
     });
+
+    const selectAsset = (assetId: string) => {
+        const asset = routerAssets.find((option) => String(option.id) === assetId);
+        setData((current) => ({
+            ...current,
+            network_asset_id: assetId,
+            nasname: asset?.management_ip ?? current.nasname,
+        }));
+    };
+
+    const realmError = (errors as Record<string, string | undefined>).realm;
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        post(route('admin.nas-devices.store'));
+        post(route('admin.nas-devices.store'), {
+            onFinish: () => reset('radius_secret'),
+        });
     };
 
     return (
@@ -49,7 +59,7 @@ export default function Create({ routerAssets }: CreateProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Register NAS router"
-                    subtitle="Inbils reaches the router over its API: REST over HTTPS (RouterOS 7.1 or later) or the binary API (RouterOS 6 or 7)."
+                    subtitle="The router becomes a FreeRADIUS client with its own shared secret."
                     actions={
                         <Button
                             asChild
@@ -62,7 +72,15 @@ export default function Create({ routerAssets }: CreateProps) {
                     }
                 />
 
-                {routerAssets.length === 0 ? (
+                {realm === null ? (
+                    <Alert variant="warning">
+                        <AlertDescription>
+                            The company code cannot be used as a RADIUS realm (lower case letters,
+                            digits and hyphens, up to 24 characters). Change the company code before
+                            registering a router.
+                        </AlertDescription>
+                    </Alert>
+                ) : routerAssets.length === 0 ? (
                     <Alert variant="info">
                         <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <span>
@@ -86,9 +104,7 @@ export default function Create({ routerAssets }: CreateProps) {
                                 <NativeSelect
                                     label="Router asset"
                                     value={data.network_asset_id}
-                                    onChange={(event) =>
-                                        setData('network_asset_id', event.target.value)
-                                    }
+                                    onChange={(event) => selectAsset(event.target.value)}
                                     error={errors.network_asset_id}
                                     required
                                 >
@@ -99,91 +115,56 @@ export default function Create({ routerAssets }: CreateProps) {
                                         </option>
                                     ))}
                                 </NativeSelect>
-                                <NativeSelect
-                                    label="API protocol"
-                                    value={data.api_protocol}
-                                    onChange={(event) => {
-                                        const protocol = event.target.value as NasApiProtocol;
-                                        setData((current) => ({
-                                            ...current,
-                                            api_protocol: protocol,
-                                            api_port: portAfterProtocolChange(
-                                                current.api_port,
-                                                protocol,
-                                            ),
-                                        }));
-                                    }}
-                                    hint={
-                                        NAS_API_PROTOCOLS.find(
-                                            (option) => option.value === data.api_protocol,
-                                        )?.hint
-                                    }
-                                    error={errors.api_protocol}
-                                >
-                                    {NAS_API_PROTOCOLS.map((option) => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </NativeSelect>
+                                {realmError ? (
+                                    <p
+                                        role="alert"
+                                        className="text-sm text-red-700 dark:text-red-400"
+                                    >
+                                        {realmError}
+                                    </p>
+                                ) : null}
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     <Input
-                                        label="API port"
+                                        label="NAS address"
+                                        value={data.nasname}
+                                        onChange={(event) => setData('nasname', event.target.value)}
+                                        hint="The IPv4 address FreeRADIUS sees the router's requests come from."
+                                        error={errors.nasname}
+                                        inputMode="decimal"
+                                        required
+                                    />
+                                    <Input
+                                        label="CoA port"
                                         type="number"
                                         min={1}
                                         max={65535}
-                                        value={data.api_port}
+                                        value={data.coa_port}
                                         onChange={(event) =>
-                                            setData('api_port', event.target.value)
+                                            setData('coa_port', event.target.value)
                                         }
-                                        error={errors.api_port}
-                                        required
-                                    />
-                                    <Input
-                                        label="API username"
-                                        value={data.api_username}
-                                        onChange={(event) =>
-                                            setData('api_username', event.target.value)
-                                        }
-                                        error={errors.api_username}
+                                        hint="MikroTik /radius incoming port"
+                                        error={errors.coa_port}
                                         required
                                     />
                                 </div>
                                 <Input
-                                    label="API password"
+                                    label="RADIUS secret"
                                     type="password"
-                                    autoComplete="new-password"
-                                    value={data.api_password}
+                                    autoComplete="off"
+                                    value={data.radius_secret}
                                     onChange={(event) =>
-                                        setData('api_password', event.target.value)
+                                        setData('radius_secret', event.target.value)
                                     }
-                                    hint="Stored encrypted. Inbils never shows it again."
-                                    error={errors.api_password}
+                                    hint="Same value as the secret on the router. Stored encrypted. Inbils never shows it again."
+                                    error={errors.radius_secret}
                                     required
                                 />
                                 <Input
-                                    label="Isolir profile"
-                                    value={data.isolir_profile}
-                                    onChange={(event) =>
-                                        setData('isolir_profile', event.target.value)
-                                    }
-                                    hint="Profile on the router that isolated subscribers are moved to (PPP profile and hotspot user profile)."
-                                    error={errors.isolir_profile}
+                                    label="Realm"
+                                    value={realm}
+                                    readOnly
+                                    hint="The company code. Subscribers log in as name@realm."
                                 />
-                                <div className="space-y-2">
-                                    <Switch
-                                        label="Allow Inbils to write to this router"
-                                        checked={data.provisioning_enabled}
-                                        onCheckedChange={(checked) =>
-                                            setData('provisioning_enabled', checked)
-                                        }
-                                    />
-                                    <p className="text-sm text-amber-700 dark:text-amber-400">
-                                        Writes change the router: Inbils creates, updates, isolates
-                                        and removes PPPoE secrets and hotspot users on it. Keep this
-                                        off until a check shows the router is reachable.
-                                    </p>
-                                </div>
                             </CardContent>
                             <CardFooter className="justify-end gap-2">
                                 <Button

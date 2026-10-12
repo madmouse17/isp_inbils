@@ -3,6 +3,7 @@ import { Link, router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, Modal, Textarea } from '@/Components/ui';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
+import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 
@@ -10,6 +11,7 @@ interface SubRef {
     id: number;
     code: string;
     status: string;
+    blocked_at: string | null;
 }
 
 interface Row {
@@ -49,9 +51,10 @@ export default function Receivables({
     rows: PaginationLike<Row>;
     totals: Omit<Row, 'customer_id' | 'customer' | 'subscriptions'>;
     filters: Filters;
-    can: { suspend: boolean };
+    can: { suspend: boolean; block: boolean };
 }) {
     const [suspending, setSuspending] = useState<SubRef | null>(null);
+    const [blocking, setBlocking] = useState<SubRef | null>(null);
     const [reason, setReason] = useState('');
     const pagination = toPagination(rows);
     const table = useServerTable({
@@ -154,21 +157,35 @@ export default function Receivables({
             header: 'Tindakan',
             cell: (row) => (
                 <div className="flex flex-wrap justify-end gap-2">
-                    {can.suspend &&
-                        row.subscriptions.map((subscription) => (
-                            <Button
-                                key={subscription.id}
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => {
-                                    setReason('');
-                                    setSuspending(subscription);
-                                }}
-                            >
-                                Isolir {subscription.code}
-                            </Button>
-                        ))}
+                    {row.subscriptions.map((subscription) => (
+                        <div key={subscription.id} className="flex flex-wrap items-center gap-2">
+                            {subscription.blocked_at && <BlockedBadge />}
+                            {can.suspend && (
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                        setReason('');
+                                        setSuspending(subscription);
+                                    }}
+                                >
+                                    Isolir {subscription.code}
+                                </Button>
+                            )}
+                            {can.block && (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => setBlocking(subscription)}
+                                >
+                                    {subscription.blocked_at ? 'Unblock' : 'Block'}{' '}
+                                    {subscription.code}
+                                </Button>
+                            )}
+                        </div>
+                    ))}
                 </div>
             ),
         },
@@ -219,6 +236,7 @@ export default function Receivables({
                         />
                     </CardContent>
                 </Card>
+                <SubscriptionBlockModal target={blocking} onClose={() => setBlocking(null)} />
                 <Modal
                     open={suspending !== null}
                     onClose={closeSuspend}

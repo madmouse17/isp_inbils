@@ -56,6 +56,9 @@ export type ServiceSubscription = {
     next_invoice_date?: string | null;
     terminated_at?: string | null;
     terminated_reason?: string | null;
+    blocked_at?: string | null;
+    block_reason?: string | null;
+    blocked_by?: { id: number; name: string } | null;
     [key: string]: unknown;
 };
 

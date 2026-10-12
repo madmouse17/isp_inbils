@@ -8,10 +8,8 @@ import {
     PageHeader,
     type DataTableColumn,
 } from '@/Components/composite';
-import { NasStatusBadge, WritesBadge } from '@/Components/composite/NetworkAccessBadges';
-import { ToneBadge } from '@/Components/composite/ToneBadge';
+import { NasStatusBadge } from '@/Components/composite/NetworkAccessBadges';
 import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatDateTime } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import type { NasDevice } from '@/types/network-asset';
 
@@ -67,50 +65,19 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                 cell: (row) => row.network_asset?.location?.name ?? '—',
             },
             {
-                key: 'management_ip',
-                header: 'Management IP',
-                cell: (row) => (
-                    <span className="font-mono text-sm">
-                        {row.network_asset?.management_ip ?? '—'}
-                    </span>
-                ),
+                key: 'nasname',
+                header: 'NAS address',
+                cell: (row) => <span className="font-mono text-sm">{row.nasname}</span>,
             },
             {
-                key: 'provisioning_enabled',
-                header: 'Writes',
-                cell: (row) => <WritesBadge enabled={row.provisioning_enabled} />,
+                key: 'coa_port',
+                header: 'CoA port',
+                cell: (row) => row.coa_port,
             },
             {
                 key: 'status',
-                header: 'Status',
+                header: 'RADIUS',
                 cell: (row) => <NasStatusBadge nas={row} />,
-            },
-            {
-                key: 'routeros_version',
-                header: 'RouterOS',
-                sortable: true,
-                sortKey: 'routeros_version',
-                cell: (row) => row.routeros_version ?? '—',
-            },
-            {
-                key: 'accounts_count',
-                header: 'Accounts',
-                cell: (row) => (
-                    <div className="flex items-center gap-2">
-                        <span>{row.accounts_count}</span>
-                        {row.accounts_failed_count > 0 ? (
-                            <ToneBadge tone="danger">{row.accounts_failed_count} failed</ToneBadge>
-                        ) : null}
-                    </div>
-                ),
-            },
-            {
-                key: 'last_checked_at',
-                header: 'Last check',
-                sortable: true,
-                sortKey: 'last_checked_at',
-                cell: (row) =>
-                    row.last_checked_at ? formatDateTime(row.last_checked_at) : 'Never',
             },
             {
                 key: 'actions',
@@ -138,7 +105,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="NAS Routers"
-                    subtitle="MikroTik routers Inbils provisions PPPoE and hotspot accounts on."
+                    subtitle="Routers that authenticate subscribers against FreeRADIUS."
                     actions={can.create ? registerLink : undefined}
                 />
 
@@ -150,7 +117,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                                 label="Search"
                                 value={params.search ?? ''}
                                 onChange={(event) => set('search', event.target.value)}
-                                placeholder="Code, name or management IP"
+                                placeholder="Code, name or NAS address"
                             />
                         </div>
                     </CardContent>
@@ -162,7 +129,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                     emptyTitle={
                         params.search ? 'No NAS routers match your search' : 'No NAS routers'
                     }
-                    emptyDescription="Register a router asset to provision PPPoE and hotspot accounts on it."
+                    emptyDescription="Register a router as a RADIUS client so FreeRADIUS accepts its requests."
                     emptyAction={can.create && !params.search ? registerLink : undefined}
                     loading={processing}
                     sortBy={sortBy}

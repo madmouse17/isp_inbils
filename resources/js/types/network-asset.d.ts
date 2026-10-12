@@ -55,15 +55,12 @@ export interface NetworkAsset {
     installations?: NetworkAssetInstallation[];
 }
 
-/* NAS routers and network accounts (MikroTik provisioning). Shapes follow the props contract in
- * .scratch/mikrotik-radius/spec.md. No type here can hold a router or subscriber password. */
+/* RADIUS NAS clients and network accounts. Shapes follow the props contract in
+ * .scratch/freeradius/spec.md. No type here can hold a RADIUS shared secret or a subscriber secret. */
 
 export type NetworkServiceType = 'pppoe' | 'hotspot';
 export type NetworkSyncStatus = 'pending' | 'synced' | 'failed';
 export type NetworkDesiredState = 'absent' | 'enabled' | 'isolated';
-
-/** rest = RouterOS 7.1+ REST over HTTPS; binary = the API service of RouterOS 6 and 7. */
-export type NasApiProtocol = 'rest' | 'binary';
 
 export interface NasDevice {
     id: number;
@@ -75,41 +72,41 @@ export interface NasDevice {
         management_ip: string | null;
         location: { id: number; name: string; type: string } | null;
     } | null;
-    api_protocol: NasApiProtocol;
-    api_port: number;
-    api_username: string;
-    has_api_password: boolean;
-    isolir_profile: string;
-    /** The per-router write flag: off = probes and reads only. */
-    provisioning_enabled: boolean;
-    routeros_version: string | null;
-    last_checked_at: string | null;
-    last_seen_at: string | null;
-    unreachable_since: string | null;
+    /** Source address FreeRADIUS sees (`nas.nasname`). */
+    nasname: string;
+    /** The company realm, written to `nas.shortname`. */
+    shortname: string;
+    coa_port: number;
+    has_radius_secret: boolean;
+    radius_synced_at: string | null;
     last_error: string | null;
-    unmanaged_count: number;
-    accounts_count: number;
-    accounts_failed_count: number;
+}
+
+export interface RadiusSession {
+    session_id: string;
+    nas_ip: string;
+    nas_label: string | null;
+    framed_ip: string | null;
+    started_at: string;
+    updated_at: string | null;
+}
+
+/** An open session on the NAS router page, with the account it belongs to when Inbils knows it. */
+export interface NasDeviceSession extends RadiusSession {
+    username: string;
+    subscription: { id: number; code: string } | null;
 }
 
 export interface NetworkAccount {
     id: number;
-    nas_device_id: number;
-    nas_label: string;
     service_type: NetworkServiceType;
+    /** Full RADIUS username, `local@realm`. */
     username: string;
     sync_status: NetworkSyncStatus;
     last_error: string | null;
-    provisioned_profile: string | null;
+    provisioned_group: string | null;
     provisioned_at: string | null;
-    online: boolean;
-    last_online_at: string | null;
-    current_address: string | null;
-}
-
-/** A network account row on the NAS router page (the resource adds its subscription). */
-export interface NasDeviceAccount extends NetworkAccount {
-    subscription: { id: number; code: string; customer_name: string | null };
+    disconnect_pending: boolean;
 }
 
 export interface RouterAssetOption {
@@ -120,17 +117,11 @@ export interface RouterAssetOption {
     location_name: string | null;
 }
 
-/** `suggested`: the router at the subscription's serving POP. */
-export interface NasOption {
-    id: number;
-    label: string;
-    suggested: boolean;
-}
-
 export interface NetworkAccountSubscription {
     id: number;
     code: string;
     status: string;
+    blocked_at: string | null;
     customer: { id: number; name: string } | null;
     speed_profile: { name: string; radius_profile_name: string | null } | null;
     serving_pop: { id: number; name: string } | null;

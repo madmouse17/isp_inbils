@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Modal } from '@/Components/ui';
 import { PageHeader, StatusBadge } from '@/Components/composite';
+import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
+import { formatDateTime } from '@/lib/format';
 import type { ServiceSubscription } from '@/types/models';
 import { SubscriptionNetworkPanels } from '@/Components/composite/SubscriptionNetworkPanels';
 import type { DropPort, DropPortOption, StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
@@ -18,7 +20,7 @@ interface ShowProps extends Record<string, unknown> {
     dropPort: DropPort | null;
     /** Free ODP ports; delivered by a partial reload that asks for them (odn.assign only). */
     dropPortOptions?: DropPortOption[];
-    can: { assignIp: boolean; assignDrop: boolean };
+    can: { assignIp: boolean; assignDrop: boolean; block: boolean };
 }
 
 export default function Show({
@@ -27,11 +29,12 @@ export default function Show({
     staticPools,
     dropPort,
     dropPortOptions,
-    can: assignable,
+    can: { block: canBlock, ...assignable },
 }: ShowProps) {
     const s = subscription.data;
     const can = usePermission();
     const [actionModal, setActionModal] = useState<'suspend' | 'terminate' | null>(null);
+    const [blockOpen, setBlockOpen] = useState(false);
     const { data, setData, post, processing } = useForm({ reason: '', release_ont: false });
 
     const doAction = (e: FormEvent) => {
@@ -138,6 +141,24 @@ export default function Show({
                                 <span className="text-muted-foreground">Status: </span>
                                 <StatusBadge variant={status}>{s.status}</StatusBadge>
                             </p>
+                            {s.blocked_at && (
+                                <div className="space-y-1">
+                                    <p>
+                                        <span className="text-muted-foreground">Internet: </span>
+                                        <BlockedBadge />
+                                    </p>
+                                    <p>
+                                        <span className="text-muted-foreground">
+                                            Block reason:{' '}
+                                        </span>
+                                        {s.block_reason ?? '-'}
+                                    </p>
+                                    <p>
+                                        <span className="text-muted-foreground">Blocked by: </span>
+                                        {s.blocked_by?.name ?? '-'}, {formatDateTime(s.blocked_at)}
+                                    </p>
+                                </div>
+                            )}
                             <p>
                                 <span className="text-muted-foreground">Activation Date: </span>
                                 {s.activation_date ?? '-'}
@@ -224,6 +245,15 @@ export default function Show({
                                     Terminate
                                 </Button>
                             )}
+                            {canBlock && s.status !== 'terminated' && (
+                                <Button
+                                    type="button"
+                                    variant={s.blocked_at ? 'outline' : 'danger'}
+                                    onClick={() => setBlockOpen(true)}
+                                >
+                                    {s.blocked_at ? 'Unblock' : 'Block internet'}
+                                </Button>
+                            )}
                             {can('network_asset.account.view') && (
                                 <Button asChild variant="outline">
                                     <Link
@@ -239,6 +269,20 @@ export default function Show({
                         </div>
                     </CardContent>
                 </Card>
+
+                <SubscriptionBlockModal
+                    target={
+                        blockOpen
+                            ? {
+                                  id: Number(s.id),
+                                  code: s.code ?? '',
+                                  status: s.status ?? '',
+                                  blocked_at: s.blocked_at ?? null,
+                              }
+                            : null
+                    }
+                    onClose={() => setBlockOpen(false)}
+                />
 
                 <Modal
                     open={actionModal !== null}
