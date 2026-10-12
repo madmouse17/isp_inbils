@@ -4,7 +4,7 @@
 - active_phase: none; all nine recovery lanes closed (2026-10-11)
 - active_card: none;
 - next_gate: Each lane closes only after focused gate on `inbils_test`, independent QA PASS and reviewer APPROVED; then the next lane starts.
-- phase_boundary: Owner approved (2026-10-10, "Ya, lane aman saja") the recommended option of every Owner decision in `.scratch/<lane>/spec.md` for the six lanes above. `head-company`, `p2-export-drilldown`, `role-persona-sod` stay `needs_recovery` and unauthorized. Reporting P1 boundaries still apply except where an approved V2/KPI decision explicitly changes them (no exports in any approved lane).
+- phase_boundary: Owner approved (2026-10-10, "Ya, lane aman saja") the recommended option of every Owner decision in `.scratch/<lane>/spec.md` for all nine recovery lanes, including `head-company`, `p2-export-drilldown` and `role-persona-sod` (closed 2026-10-10/11, see the closure sections below). Every card in this ledger is `done` or `superseded`; none is `needs_recovery`.
 - single_writer: periksa claim/run Hermes dan proses sebelum tiap edit; hentikan source edit bila writer lain aktif.
 - database_gate: MySQL `inbils_test` eksklusif untuk QA/PHPUnit/E2E, serial; jangan gunakan `inbils`.
 - source: [`INBILS_OMP_SOURCE.json`](INBILS_OMP_SOURCE.json), snapshot impor immutable (110 tasks termasuk 18 ancestors, 93 internal links; board seluruhnya 377 links).
@@ -15,7 +15,7 @@
 
 Technician `t_da288dbd` APPROVED; Location `t_b64f8b75` APPROVED; DataTable A–E closed under approved replacement contracts.
 Reporting P1 closed 2026-10-07 under the replacement contract: `t_316be420`, `t_fefb9a68`, `t_a7a1bda9`, `t_ecc8a59f`, `t_9e203f31` all `done`. The original Reporting acceptance remains unrecovered; approval replaced scope only.
-Recovery lanes approved 2026-10-10 (recommended options): `reporting-v2`, `sales-attribution-base`, `kpi-sales`, `sidebar-ia`, `loading-progress`, `p2-persona-dashboard` — 29 cards moved `needs_recovery` → `pending`. Held: `head-company`, `p2-export-drilldown`, `role-persona-sod` (16 cards).
+Recovery lanes approved 2026-10-10 (recommended options): `reporting-v2`, `sales-attribution-base`, `kpi-sales`, `sidebar-ia`, `loading-progress`, `p2-persona-dashboard`, then `head-company`, `p2-export-drilldown`, `role-persona-sod` (16 cards); all closed `done` (one planner card `superseded` by contract).
 
 Reporting contract: preserve existing filters, formulas, and visuals across all six report surfaces. Stock Card changes only the existing stock-movement ledger to server pagination and sorting; no opening balance or reconciliation feature. Audit Log changes only the empty-scope guard from raw SQL to Eloquent and retains its canonical DataTable. Existing SQL aggregates remain unchanged. No new exports. Technician Performance is complete and excluded from code changes.
 
