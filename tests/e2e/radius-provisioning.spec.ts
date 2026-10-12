@@ -15,15 +15,16 @@
  *    Preconditions:
  *      - lab up: `docker compose ps` in ~/labs/freeradius shows radlab-freeradius, radlab-db, radlab-nas-sim healthy;
  *      - light reset from the lab README (and no leftover `e2e-lab@demo` rows in the lab database);
- *      - a local, gitignored .env.e2e with RADIUS_ENABLED=true, RADIUS_DB_HOST=127.0.0.1, RADIUS_DB_PORT=13306 and the
- *        RADIUS_DB_DATABASE/USERNAME/PASSWORD of the lab, typed by the operator from ~/labs/freeradius/.env and
- *        never printed or committed, plus QUEUE_CONNECTION=sync (already there);
- *      - `E2E_RADIUS_LAB=1` in the shell (the runner allowlists it, LAB_RADIUS_SECRET and LAB_USER_SECRET) or the same
- *        line in .env.e2e;
+ *      - the served app needs RADIUS_ENABLED=true and RADIUS_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD of the lab (host
+ *        127.0.0.1, port 13306) plus QUEUE_CONNECTION=sync (already in .env.e2e). The runner below exports them from
+ *        ~/labs/freeradius/.env, never printing them; scripts/e2e-server-env.mjs forwards them only while
+ *        E2E_RADIUS_LAB=1. The local .env.e2e needs no RADIUS lines (without them the NAS page says "Not written");
+ *      - `E2E_RADIUS_LAB=1` (set by the runner; the server env builder also allowlists LAB_RADIUS_SECRET and
+ *        LAB_USER_SECRET) or the same line in .env.e2e;
  *      - LAB_RADIUS_SECRET (shared secret) and LAB_USER_SECRET (secret of the lab users) are read at run time from the
  *        process env, else from ~/labs/freeradius/.env (RADIUS_SECRET, LAB_USER_PASSWORD), typed on steps with
  *        trace/screenshot/video off and never logged.
- *    Run: flock /tmp/inbils-e2e.lock sh -c 'php tests/e2e/setup.php && npm run test:e2e -- tests/e2e/radius-provisioning.spec.ts --project=chromium --workers=1'
+ *    Run: scripts/e2e-radius-lab.sh   (docker context `default`: the lab runs under the root dockerd, not Docker Desktop)
  *
  * Fake credentials only in this file; nothing here is a real router address, shared secret or subscriber secret.
  */
