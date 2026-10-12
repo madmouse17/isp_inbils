@@ -1,6 +1,6 @@
 # Flutter technician app (Android) — my work, SPK execution, evidence with offline queue, tickets, materials
 
-Status: ready-for-agent
+Status: in-progress (tickets 01-09 and 11 done; 10 release waits on the owner: upload key, HTTPS hosts, brand icons, Play answers)
 Ledger: none yet (new lane; owner request 2026-10-11)
 Source: owner request 2026-10-11 (a separate technician app; technicians lose signal in the field, so evidence uploads must queue); earlier draft `docs/MOBILE_TASK_PLAN.md` §4.1 and §6 (local, git-ignored).
 Depends on: `.scratch/mobile-api/` (contract) and `.scratch/flutter-customer/` tickets 01, 02 and 06 (workspace, `inbils_core`, shared auth and inbox).

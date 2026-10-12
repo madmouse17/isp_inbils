@@ -1,6 +1,6 @@
 # Flutter customer app (Android) — invoices, online payment, tickets, notifications
 
-Status: ready-for-agent
+Status: in-progress (tickets 01-07 done; 08 release waits on the owner: upload key, HTTPS hosts, brand icons, Play answers)
 Ledger: none yet (new lane; owner request 2026-10-11)
 Source: owner request 2026-10-11 (two separate Flutter apps, Android first, built after the web work); earlier draft `docs/MOBILE_TASK_PLAN.md` §3 and §5 (local, git-ignored).
 Depends on: `.scratch/mobile-api/` (the API contract this app consumes). Sibling: `.scratch/flutter-technician/`, which inherits the shared decisions Q1-Q6 and Q8-Q17 below.
