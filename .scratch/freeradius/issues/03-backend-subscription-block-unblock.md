@@ -1,6 +1,6 @@
 # BACKEND: manual block/unblock per subscription (Core + Receivables data)
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: none
 Card: none (new lane; no Hermes card)

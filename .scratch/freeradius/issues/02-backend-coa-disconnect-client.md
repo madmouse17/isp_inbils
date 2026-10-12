@@ -1,6 +1,6 @@
 # BACKEND: RFC 5176 Disconnect-Request sender (no dependency)
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: none
 Card: none (new lane; no Hermes card)

@@ -1,6 +1,6 @@
 # BACKEND: remove RouterOS provisioning and cut every caller over to RADIUS
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: 01, 02, 03
 Card: none (new lane; no Hermes card)

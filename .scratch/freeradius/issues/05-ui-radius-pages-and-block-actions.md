@@ -1,6 +1,6 @@
 # UI: RADIUS NAS and account pages, block/unblock on Subscriptions/Show and Receivables
 
-Status: ready-for-agent
+Status: done
 Role: frontend
 Blocked by: 03, 04
 Card: none (new lane; no Hermes card)

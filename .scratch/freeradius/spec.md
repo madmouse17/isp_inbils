@@ -1,6 +1,6 @@
 # FreeRADIUS provisioning and customer block/unblock (replaces MikroTik RouterOS API provisioning)
 
-Status: ready-for-agent
+Status: done (lab-proven; production RADIUS_ENABLED stays false until routers move one at a time)
 Ledger: none yet (lane replaces `.scratch/mikrotik-radius`; add the ledger entry when work starts)
 Source: owner change 2026-10-15: stop direct MikroTik RouterOS API provisioning, move to RADIUS (FreeRADIUS), add customer block/unblock.
 Supersedes: `.scratch/mikrotik-radius` (Q2 "RouterOS API direct" and Q3 are reversed; its billing work, Q7, Q9, Q16 and the isolir page stay).

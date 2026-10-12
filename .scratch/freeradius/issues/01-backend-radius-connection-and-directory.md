@@ -1,6 +1,6 @@
 # BACKEND: `radius` connection, switch and RadiusDirectory (RADIUS tables read/write)
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: none
 Card: none (new lane; no Hermes card)

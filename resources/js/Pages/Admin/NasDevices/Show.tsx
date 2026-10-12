@@ -125,8 +125,8 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
 
                 <Alert variant="info">
                     <AlertDescription>
-                        Reload FreeRADIUS after adding this NAS or changing its secret. FreeRADIUS
-                        reads its clients only at start and on reload.
+                        Restart FreeRADIUS after adding this NAS or changing its secret. FreeRADIUS
+                        reads its clients only at start (a reload signal is not enough).
                     </AlertDescription>
                 </Alert>
 

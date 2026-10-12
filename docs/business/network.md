@@ -288,8 +288,8 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
 - **Simpan NAS**: baris Inbils disimpan lebih dulu, lalu (setelah transaksi) `putNas`. Kegagalan RADIUS tidak
   pernah menjadi 500: `radius_synced_at` kosong, `last_error` terisi, flash `warning`, sync mengulang.
   Alamat berubah → baris `nas` lama dihapus. Baris `nas` yang tidak ditulis Inbils (mis. `127.0.0.1` lab) tidak pernah
-  disentuh. **Setelah mendaftarkan NAS atau mengganti secret-nya, NOC me-reload FreeRADIUS** (klien dibaca dari `nas`
-  saat start); Inbils tidak mengendalikan proses FreeRADIUS.
+  disentuh. **Setelah mendaftarkan NAS atau mengganti secret-nya, NOC me-restart FreeRADIUS** (klien dibaca dari `nas`
+  hanya saat start; `kill -HUP` tidak cukup); Inbils tidak mengendalikan proses FreeRADIUS.
 - **Online dan pemakaian**: halaman account dan halaman NAS membaca `radacct` langsung (sesi terbuka =
   `acctstoptime IS NULL` dan update atau mulai dalam 15 menit; octet bulan kalender berjalan). Tidak ada salinan di
   Inbils. Saat saklar mati atau RADIUS tak terjangkau, `session`/`usage` null dan `sessions` kosong; halaman tetap tampil.
@@ -314,21 +314,25 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
    memigrasikannya. User database Inbils: `SELECT, INSERT, UPDATE, DELETE` pada `radcheck`, `radreply`,
    `radusergroup`, `radgroupreply`, `nas` dan `SELECT` pada `radacct` saja. FreeRADIUS memakai user sendiri dan
    tidak pernah melihat tabel Inbils. Database ini berisi password cleartext: batasi jaringan, tanpa backup tak terenkripsi.
-2. **FreeRADIUS** (`mods-enabled/sql`): `read_clients = yes`, `client_table = "nas"`. Setelah NAS didaftarkan atau
-   secret-nya diganti: reload FreeRADIUS (mis. `kill -HUP` proses `radiusd`).
+2. **FreeRADIUS** (`mods-enabled/sql`): `read_clients = yes`, `client_table = "nas"`. Klien dibaca dari `nas` hanya saat
+   proses start: setelah NAS didaftarkan atau secret-nya diganti, **restart** FreeRADIUS. Terbukti di lab (3.2.10): `kill -HUP`
+   tidak memuat baris `nas` baru.
 3. **Kebijakan realm** (Q4: satu company tidak boleh mengautentikasi subscriber company lain). Simpan sebagai
-   `policy.d/inbils_realm` dan panggil sebelum `sql` di `authorize` pada `sites-enabled/default`. Cuplikan ini
-   ditulis dari dokumentasi unlang dan **dibuktikan di lab oleh tiket 06** (`.scratch/freeradius`); koreksi di
-   sini bila hasil lab berbeda.
+   `policy.d/inbils_realm` dan panggil di `authorize` pada `sites-enabled/default`. Cuplikan ini **dibuktikan di lab**
+   (tiket 06, FreeRADIUS 3.2.10): `zed@acme` lewat klien dengan `shortname=demo` → Access-Reject; setelah `shortname=acme`
+   → Access-Accept, dan `e2e-lab@demo` ditolak.
 
    ```
    # policy.d/inbils_realm
    # Tolak bila realm di User-Name berbeda dari nas.shortname (realm company) milik klien pengirim.
    inbils_realm {
-       if (&User-Name =~ /^[^@]+@([a-z0-9-]+)$/i) {
+       if (&User-Name =~ / /) {
+           reject
+       }
+       if (&User-Name =~ /^[^@\s]+@([a-z0-9-]+)$/i) {
            if ("%{tolower:%{1}}" != "%{tolower:%{client:shortname}}") {
                update reply {
-                   Reply-Message := "Realm is not served by this NAS"
+                   &Reply-Message := "Realm is not served by this NAS"
                }
                reject
            }
@@ -340,11 +344,11 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
    }
    ```
 
-   Di `sites-enabled/default`, bagian `authorize { ... }`:
+   Di `sites-enabled/default`, bagian `authorize { ... }`, **ganti** `filter_username` bawaan dengan `inbils_realm`: filter
+   bawaan menolak `user@demo` ("Realm does not have at least one dot separator") karena realm Inbils tidak memakai titik.
 
    ```
    authorize {
-       filter_username
        inbils_realm
        preprocess
        sql
@@ -352,8 +356,7 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
    }
    ```
 
-   Alternatif bila `%{client:shortname}` tidak terbaca di versi yang dipakai: bandingkan dengan
-   `&request:Client-Shortname`. `shortname` adalah realm company (varchar 32; realm paling panjang 24 karakter).
+   `%{client:shortname}` terbaca di 3.2.10. `shortname` adalah realm company (varchar 32; realm paling panjang 24 karakter).
 4. **MikroTik** (per router, secret = `radius_secret` NAS itu):
    - `/radius add service=ppp,hotspot address=<IP FreeRADIUS> secret=<secret per NAS>`
    - `/ppp aaa set use-radius=yes accounting=yes interim-update=5m`
@@ -363,7 +366,7 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
      per `radius_profile_name` hanya bila rate tidak dikirim lewat `Mikrotik-Rate-Limit` (RADIUS menimpa rate profil PPP).
    - walled garden untuk host Inbils dan host Midtrans (halaman isolir dan pembayaran).
 5. **Onboarding**: `RADIUS_ENABLED=false` → isi env koneksi `radius` → daftarkan NAS (flash peringatan sampai tertulis)
-   → reload FreeRADIUS → buat account → `RADIUS_ENABLED=true` → `php artisan network:sync` → terakhir
+   → restart FreeRADIUS → buat account → `RADIUS_ENABLED=true` → `php artisan network:sync` → terakhir
    `auto_suspend_enabled` per company. Worker queue dan scheduler harus jalan (tanpa keduanya account tetap `pending`).
 6. **Rollback**: `RADIUS_ENABLED=false` (RADIUS menyimpan baris terakhir, sesi berjalan tetap hidup, tanpa
    Disconnect) → bila perlu router kembali ke secret lokal secara manual → migrasi down (kolom yang diubah kembali

@@ -1,6 +1,6 @@
 # SECURITY REVIEW: RADIUS credentials, Disconnect channel, tenancy, block/unblock
 
-Status: ready-for-agent
+Status: done
 Role: security-reviewer
 Blocked by: 06
 Card: none (new lane; no Hermes card)
