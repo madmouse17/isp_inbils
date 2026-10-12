@@ -74,7 +74,7 @@ async function odpCounts(page: Page) {
 async function openNetworkGroup(page: Page) {
     const group = page
         .locator('aside details')
-        .filter({ has: page.locator('summary', { hasText: 'Network/Work Orders' }) });
+        .filter({ has: page.locator('summary', { hasText: 'Network' }) });
 
     if (!(await group.evaluate((details: HTMLDetailsElement) => details.open))) {
         await group.locator('summary').click();

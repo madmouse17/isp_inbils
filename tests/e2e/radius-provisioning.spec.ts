@@ -671,7 +671,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(navLink).toHaveCount(1);
         await page
             .locator('aside details')
-            .filter({ has: page.locator('summary', { hasText: 'Network/Work Orders' }) })
+            .filter({ has: page.locator('summary', { hasText: 'Network' }) })
             .locator('summary')
             .click();
         await expect(navLink).toBeVisible();

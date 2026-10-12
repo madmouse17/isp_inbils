@@ -8,117 +8,123 @@
             "anyOf": ["dashboard.view"]
         },
         {
-            "group": "Company/Admin",
-            "label": "Organization",
-            "href": "/admin/organizations",
-            "route": "admin.organizations.index",
-            "anyOf": ["organization.view"]
+            "group": "Operations",
+            "label": "Pekerjaan Saya",
+            "href": "/admin/my-work",
+            "route": "admin.my-work.index",
+            "anyOf": [],
+            "flag": "canMyWork"
         },
         {
-            "group": "Company/Admin",
-            "label": "Company",
-            "href": "/admin/company/profile",
-            "route": "admin.company.profile.edit",
-            "anyOf": ["company.manage"]
+            "group": "Operations",
+            "label": "Dispatch",
+            "href": "/admin/dispatch",
+            "route": "admin.dispatch.index",
+            "anyOf": ["ticket.assign", "ticket.reassign", "spk.assign", "spk.reassign"],
+            "flag": "isActiveUser"
         },
         {
-            "group": "Company/Admin",
-            "label": "Users",
-            "href": "/admin/users",
-            "route": "admin.users.index",
-            "anyOf": ["users.manage"]
+            "group": "Operations",
+            "label": "Approval",
+            "href": "/admin/approvals",
+            "route": "admin.approvals.index",
+            "anyOf": [
+                "spk.approve",
+                "spk.reject",
+                "inventory.request.approve",
+                "inventory.request.reject"
+            ]
         },
         {
-            "group": "Company/Admin",
-            "label": "Roles",
-            "href": "/admin/roles",
-            "route": "admin.roles.index",
-            "anyOf": ["roles.manage"]
+            "group": "Operations",
+            "label": "SPK",
+            "href": "/admin/spk",
+            "route": "admin.spk.index",
+            "anyOf": ["spk.view"]
         },
         {
-            "group": "Company/Admin",
-            "label": "Permissions",
-            "href": "/admin/permissions",
-            "route": "admin.permissions.index",
-            "anyOf": ["users.manage"]
+            "group": "Operations",
+            "label": "Ticketing",
+            "href": "/admin/tickets",
+            "route": "admin.tickets.index",
+            "anyOf": ["ticket.view"]
         },
         {
-            "group": "Company/Admin",
-            "label": "Documents",
-            "href": "/admin/documents",
-            "route": "admin.documents.index",
-            "anyOf": ["system.setting"]
+            "group": "Operations",
+            "label": "Evaluations",
+            "href": "/admin/evaluations",
+            "route": "admin.evaluations.index",
+            "anyOf": ["evaluation.view", "evaluation.view.own"]
         },
         {
-            "group": "Company/Admin",
-            "label": "Number Sequences",
-            "href": "/admin/number-sequences",
-            "route": "admin.number-sequences.index",
-            "anyOf": ["system.setting"]
-        },
-        {
-            "group": "Company/Admin",
-            "label": "Komponen",
-            "href": "/admin/components",
-            "route": "admin.components",
-            "anyOf": ["developer.components.view"],
-            "flag": "developerGalleryEnabled"
-        },
-        {
-            "group": "CRM/Operations",
+            "group": "Customers & Services",
             "label": "Customers",
             "href": "/admin/customers",
             "route": "admin.customers.index",
             "anyOf": ["customer.view"]
         },
         {
-            "group": "CRM/Operations",
-            "label": "Locations",
-            "href": "/admin/locations",
-            "route": "admin.locations.index",
-            "anyOf": ["location.view"]
-        },
-        {
-            "group": "CRM/Operations",
-            "label": "Employees",
-            "href": "/admin/employees",
-            "route": "admin.employees.index",
-            "anyOf": ["employee.view"]
-        },
-        {
-            "group": "CRM/Operations",
-            "label": "Vehicles",
-            "href": "/admin/vehicles",
-            "route": "admin.vehicles.index",
-            "anyOf": ["vehicle.view"]
-        },
-        {
-            "group": "Service",
+            "group": "Customers & Services",
             "label": "Service",
             "href": "/admin/service-packages",
             "route": "admin.service-packages.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Service",
+            "group": "Customers & Services",
             "label": "Bandwidth Profiles",
             "href": "/admin/bandwidth-profiles",
             "route": "admin.bandwidth-profiles.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Service",
+            "group": "Customers & Services",
             "label": "Speed Profiles",
             "href": "/admin/speed-profiles",
             "route": "admin.speed-profiles.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Service",
+            "group": "Customers & Services",
             "label": "SLA Tiers",
             "href": "/admin/sla-tiers",
             "route": "admin.sla-tiers.index",
             "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Network",
+            "label": "Locations",
+            "href": "/admin/locations",
+            "route": "admin.locations.index",
+            "anyOf": ["location.view"]
+        },
+        {
+            "group": "Network",
+            "label": "Network Assets",
+            "href": "/admin/network-assets",
+            "route": "admin.network-assets.index",
+            "anyOf": ["network_asset.view"]
+        },
+        {
+            "group": "Network",
+            "label": "NAS Routers",
+            "href": "/admin/nas-devices",
+            "route": "admin.nas-devices.index",
+            "anyOf": ["network_asset.nas.view"]
+        },
+        {
+            "group": "Network",
+            "label": "IP Addresses",
+            "href": "/admin/ipam/prefixes",
+            "route": "admin.ipam.prefixes.index",
+            "anyOf": ["ipam.view"]
+        },
+        {
+            "group": "Network",
+            "label": "ODN",
+            "href": "/admin/odn",
+            "route": "admin.odn.index",
+            "anyOf": ["odn.view"]
         },
         {
             "group": "Inventory",
@@ -170,131 +176,125 @@
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Network/Work Orders",
-            "label": "Network Assets",
-            "href": "/admin/network-assets",
-            "route": "admin.network-assets.index",
-            "anyOf": ["network_asset.view"]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "NAS Routers",
-            "href": "/admin/nas-devices",
-            "route": "admin.nas-devices.index",
-            "anyOf": ["network_asset.nas.view"]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "IP Addresses",
-            "href": "/admin/ipam/prefixes",
-            "route": "admin.ipam.prefixes.index",
-            "anyOf": ["ipam.view"]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "ODN",
-            "href": "/admin/odn",
-            "route": "admin.odn.index",
-            "anyOf": ["odn.view"]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "SPK",
-            "href": "/admin/spk",
-            "route": "admin.spk.index",
-            "anyOf": ["spk.view"]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "Approval",
-            "href": "/admin/approvals",
-            "route": "admin.approvals.index",
-            "anyOf": [
-                "spk.approve",
-                "spk.reject",
-                "inventory.request.approve",
-                "inventory.request.reject"
-            ]
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "Dispatch",
-            "href": "/admin/dispatch",
-            "route": "admin.dispatch.index",
-            "anyOf": ["ticket.assign", "ticket.reassign", "spk.assign", "spk.reassign"],
-            "flag": "isActiveUser"
-        },
-        {
-            "group": "Network/Work Orders",
-            "label": "Pekerjaan Saya",
-            "href": "/admin/my-work",
-            "route": "admin.my-work.index",
-            "anyOf": [],
-            "flag": "canMyWork"
-        },
-        {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Billing",
             "href": "/admin/invoices",
             "route": "admin.invoices.index",
             "anyOf": ["billing.view"]
         },
         {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Tunggakan",
             "href": "/admin/billing/receivables",
             "route": "admin.billing.receivables",
             "anyOf": ["billing.view"]
         },
         {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Tagihan Saya",
             "href": "/portal/invoices",
             "route": "portal.invoices.index",
             "anyOf": ["portal.invoice.view"]
         },
         {
-            "group": "Finance/Reports",
-            "label": "Ticketing",
-            "href": "/admin/tickets",
-            "route": "admin.tickets.index",
-            "anyOf": ["ticket.view"]
-        },
-        {
-            "group": "Finance/Reports",
-            "label": "Evaluations",
-            "href": "/admin/evaluations",
-            "route": "admin.evaluations.index",
-            "anyOf": ["evaluation.view", "evaluation.view.own"]
-        },
-        {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Reports",
             "href": "/admin/reports",
             "route": "admin.reports.index",
             "anyOf": ["report.view"]
         },
         {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Technician Performance",
             "href": "/admin/reports/technician",
             "route": "admin.reports.technician",
             "anyOf": ["report.technician"]
         },
         {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Sales KPI",
             "href": "/admin/reports/sales",
             "route": "admin.reports.sales",
             "anyOf": ["report.sales.view"]
         },
         {
-            "group": "Finance/Reports",
+            "group": "Finance & Reports",
             "label": "Consolidated Metrics",
             "href": "/admin/reports/consolidated",
             "route": "admin.reports.consolidated",
             "anyOf": ["report.consolidated.view"],
             "flag": "canConsolidate"
+        },
+        {
+            "group": "Administration",
+            "label": "Company",
+            "href": "/admin/company/profile",
+            "route": "admin.company.profile.edit",
+            "anyOf": ["company.manage"]
+        },
+        {
+            "group": "Administration",
+            "label": "Organization",
+            "href": "/admin/organizations",
+            "route": "admin.organizations.index",
+            "anyOf": ["organization.view"]
+        },
+        {
+            "group": "Administration",
+            "label": "Employees",
+            "href": "/admin/employees",
+            "route": "admin.employees.index",
+            "anyOf": ["employee.view"]
+        },
+        {
+            "group": "Administration",
+            "label": "Vehicles",
+            "href": "/admin/vehicles",
+            "route": "admin.vehicles.index",
+            "anyOf": ["vehicle.view"]
+        },
+        {
+            "group": "Administration",
+            "label": "Users",
+            "href": "/admin/users",
+            "route": "admin.users.index",
+            "anyOf": ["users.manage"]
+        },
+        {
+            "group": "Administration",
+            "label": "Roles",
+            "href": "/admin/roles",
+            "route": "admin.roles.index",
+            "anyOf": ["roles.manage"]
+        },
+        {
+            "group": "Administration",
+            "label": "Permissions",
+            "href": "/admin/permissions",
+            "route": "admin.permissions.index",
+            "anyOf": ["users.manage"]
+        },
+        {
+            "group": "Administration",
+            "label": "Documents",
+            "href": "/admin/documents",
+            "route": "admin.documents.index",
+            "anyOf": ["system.setting"]
+        },
+        {
+            "group": "Administration",
+            "label": "Number Sequences",
+            "href": "/admin/number-sequences",
+            "route": "admin.number-sequences.index",
+            "anyOf": ["system.setting"]
+        },
+        {
+            "group": "Administration",
+            "label": "Komponen",
+            "href": "/admin/components",
+            "route": "admin.components",
+            "anyOf": ["developer.components.view"],
+            "flag": "developerGalleryEnabled"
         }
     ]
 }

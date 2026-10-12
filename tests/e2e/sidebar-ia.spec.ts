@@ -10,12 +10,12 @@ import { expect, test } from './support/fixtures';
  */
 
 const groupTitles = [
-    'Company/Admin',
-    'CRM/Operations',
-    'Service',
+    'Operations',
+    'Customers & Services',
+    'Network',
     'Inventory',
-    'Network/Work Orders',
-    'Finance/Reports',
+    'Finance & Reports',
+    'Administration',
 ] as const;
 
 type GroupTitle = (typeof groupTitles)[number];
@@ -41,14 +41,7 @@ const inventoryLinks = [
     'Item Finder',
     'Stock Movements',
 ];
-const reportLinks = [
-    'Billing',
-    'Tunggakan',
-    'Ticketing',
-    'Evaluations',
-    'Reports',
-    'Technician Performance',
-];
+const financeLinks = ['Billing', 'Tunggakan', 'Reports', 'Technician Performance'];
 // IPAM and ODN are readable by every staff-side role (Q14 of .scratch/ipam-odn/spec.md); NAS routers
 // need their own read permission, which the technician lacks.
 const networkRegisterLinks = ['IP Addresses', 'ODN'];
@@ -70,92 +63,64 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
     admin: {
         groups: groupTitles,
         placed: {
-            'Company/Admin': [
-                'Organization',
+            Operations: ['SPK', 'Approval', 'Dispatch', 'Ticketing', 'Evaluations'],
+            'Customers & Services': ['Customers', ...serviceLinks],
+            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
+            Inventory: inventoryLinks,
+            'Finance & Reports': financeLinks,
+            Administration: [
                 'Company',
+                'Organization',
+                'Employees',
+                'Vehicles',
                 'Users',
                 'Roles',
                 'Permissions',
                 'Documents',
                 'Number Sequences',
             ],
-            'CRM/Operations': ['Customers', 'Locations', 'Employees', 'Vehicles'],
-            Service: serviceLinks,
-            Inventory: inventoryLinks,
-            'Network/Work Orders': [
-                'Network Assets',
-                'NAS Routers',
-                ...networkRegisterLinks,
-                'SPK',
-                'Approval',
-                'Dispatch',
-            ],
-            'Finance/Reports': reportLinks,
         },
         // The admin demo user has no employee profile, hence no Pekerjaan Saya.
         absent: ['Komponen', 'Pekerjaan Saya'],
     },
     manager: {
-        groups: [
-            'CRM/Operations',
-            'Service',
-            'Inventory',
-            'Network/Work Orders',
-            'Finance/Reports',
-        ],
+        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
         placed: {
-            'CRM/Operations': ['Customers', 'Locations'],
-            Service: serviceLinks,
-            Inventory: inventoryLinks,
-            'Network/Work Orders': [
-                'Network Assets',
-                'NAS Routers',
-                ...networkRegisterLinks,
-                'SPK',
-                'Approval',
-                'Dispatch',
+            Operations: [
                 'Pekerjaan Saya',
+                'Dispatch',
+                'Approval',
+                'SPK',
+                'Ticketing',
+                'Evaluations',
             ],
-            'Finance/Reports': reportLinks,
+            'Customers & Services': ['Customers', ...serviceLinks],
+            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
+            Inventory: inventoryLinks,
+            'Finance & Reports': financeLinks,
         },
         absent: [...adminOnlyLinks, 'Komponen'],
     },
     staff: {
-        groups: [
-            'CRM/Operations',
-            'Service',
-            'Inventory',
-            'Network/Work Orders',
-            'Finance/Reports',
-        ],
+        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
         placed: {
-            'CRM/Operations': ['Customers', 'Locations'],
-            Service: serviceLinks,
+            Operations: ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations'],
+            'Customers & Services': ['Customers', ...serviceLinks],
+            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
             Inventory: inventoryLinks,
-            'Network/Work Orders': [
-                'Network Assets',
-                'NAS Routers',
-                ...networkRegisterLinks,
-                'SPK',
-                'Pekerjaan Saya',
-            ],
-            'Finance/Reports': ['Billing', 'Tunggakan', 'Ticketing', 'Evaluations', 'Reports'],
+            'Finance & Reports': ['Billing', 'Tunggakan', 'Reports'],
         },
         // Staff is the operator persona (role-persona-sod): no approve/reject, so no Approval inbox.
         absent: [...adminOnlyLinks, 'Approval', 'Dispatch', 'Technician Performance', 'Komponen'],
     },
     technician: {
-        groups: ['CRM/Operations', 'Inventory', 'Network/Work Orders', 'Finance/Reports'],
+        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
         placed: {
-            'CRM/Operations': ['Customers', 'Locations'],
+            Operations: ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations'],
+            'Customers & Services': ['Customers'],
+            Network: ['Locations', 'Network Assets', ...networkRegisterLinks],
             Inventory: inventoryLinks,
-            'Network/Work Orders': [
-                'Network Assets',
-                ...networkRegisterLinks,
-                'SPK',
-                'Pekerjaan Saya',
-            ],
-            'Finance/Reports': ['Ticketing', 'Evaluations', 'Technician Performance'],
+            'Finance & Reports': ['Technician Performance'],
         },
         absent: [
             'Users',
@@ -176,10 +141,10 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
         ],
     },
     customer: {
-        groups: ['Finance/Reports'],
-        placed: { 'Finance/Reports': ['Tagihan Saya', 'Ticketing'] },
+        groups: ['Operations', 'Finance & Reports'],
+        placed: { Operations: ['Ticketing'], 'Finance & Reports': ['Tagihan Saya'] },
         absent: ['Komponen'],
-        onlyLinks: ['Dashboard', 'Tagihan Saya', 'Ticketing'],
+        onlyLinks: ['Dashboard', 'Ticketing', 'Tagihan Saya'],
     },
 };
 
@@ -271,12 +236,12 @@ test('@sidebar-ia active link and default-open group follow the route', async ({
         { path: '/admin/dashboard', open: [], current: 'Dashboard' },
         {
             path: '/admin/reports/technician',
-            open: ['Finance/Reports'],
+            open: ['Finance & Reports'],
             current: 'Technician Performance',
         },
-        { path: '/admin/reports', open: ['Finance/Reports'], current: 'Reports' },
-        { path: '/admin/reports/business', open: ['Finance/Reports'], current: 'Reports' },
-        { path: '/admin/users', open: ['Company/Admin'], current: 'Users' },
+        { path: '/admin/reports', open: ['Finance & Reports'], current: 'Reports' },
+        { path: '/admin/reports/business', open: ['Finance & Reports'], current: 'Reports' },
+        { path: '/admin/users', open: ['Administration'], current: 'Users' },
     ];
 
     await loginAs(page, 'admin');
@@ -307,7 +272,7 @@ test('@sidebar-ia keyboard opens a group, reaches its link and navigates', async
 
     const group = page
         .locator('aside details')
-        .filter({ has: page.locator('summary', { hasText: 'CRM/Operations' }) });
+        .filter({ has: page.locator('summary', { hasText: 'Customers & Services' }) });
     const summary = group.locator('summary');
 
     await expect(group).toHaveJSProperty('open', false);
@@ -366,7 +331,7 @@ for (const dark of [false, true]) {
         // Following a link closes the drawer on the next page.
         await toggle.click();
         await expect(aside).toBeInViewport();
-        await openGroup(page, 'CRM/Operations');
+        await openGroup(page, 'Customers & Services');
         await aside.getByRole('link', { name: sidebarLabel('Customers') }).click();
         await expect(page).toHaveURL(/\/admin\/customers$/);
         await expect(aside).not.toBeInViewport();

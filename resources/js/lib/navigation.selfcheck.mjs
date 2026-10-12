@@ -68,12 +68,12 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
         navGroups.map((group) => group.title ?? null),
         [
             null,
-            'Company/Admin',
-            'CRM/Operations',
-            'Service',
+            'Operations',
+            'Customers & Services',
+            'Network',
             'Inventory',
-            'Network/Work Orders',
-            'Finance/Reports',
+            'Finance & Reports',
+            'Administration',
         ],
     );
     assert.deepEqual(
@@ -92,7 +92,7 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
 
 test('a user with nothing sees nothing, and no group header outlives its items', () => {
     assert.deepEqual(view([]), []);
-    assert.deepEqual(outline(view(['ticket.view'])), [['Finance/Reports', ['Ticketing']]]);
+    assert.deepEqual(outline(view(['ticket.view'])), [['Operations', ['Ticketing']]]);
 });
 
 test('dashboard needs dashboard.view (decision 3a)', () => {
@@ -112,11 +112,12 @@ test('customer sees Dashboard, Tagihan Saya and Ticketing only', () => {
 
     assert.deepEqual(outline(view(customer)), [
         [null, ['Dashboard']],
-        ['Finance/Reports', ['Tagihan Saya', 'Ticketing']],
+        ['Operations', ['Ticketing']],
+        ['Finance & Reports', ['Tagihan Saya']],
     ]);
 });
 
-test('technician sees no Company/Admin or Service group', () => {
+test('technician sees no Administration group and no service items', () => {
     const technician = [
         'dashboard.view',
         'customer.view',
@@ -136,13 +137,11 @@ test('technician sees no Company/Admin or Service group', () => {
 
     assert.deepEqual(outline(view(technician, { canMyWork: true })), [
         [null, ['Dashboard']],
-        ['CRM/Operations', ['Customers', 'Locations']],
+        ['Operations', ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations']],
+        ['Customers & Services', ['Customers']],
+        ['Network', ['Locations', 'Network Assets', 'IP Addresses', 'ODN']],
         ['Inventory', inventoryItems],
-        [
-            'Network/Work Orders',
-            ['Network Assets', 'IP Addresses', 'ODN', 'SPK', 'Pekerjaan Saya'],
-        ],
-        ['Finance/Reports', ['Ticketing', 'Evaluations', 'Technician Performance']],
+        ['Finance & Reports', ['Technician Performance']],
     ]);
 });
 
@@ -170,7 +169,7 @@ test('manager keeps Approval and Dispatch but no administration (story 4)', () =
     const titles = view(manager).map((group) => group.title);
     const labels = view(manager).flatMap((group) => group.items.map((item) => item.label));
 
-    assert.ok(!titles.includes('Company/Admin'));
+    assert.ok(!titles.includes('Administration'));
     assert.ok(['Approval', 'Dispatch', 'Service'].every((label) => labels.includes(label)));
     assert.ok(
         ['Users', 'Roles', 'Permissions', 'Employees', 'Vehicles', 'Documents'].every(
@@ -189,15 +188,15 @@ test('Permintaan Barang needs a request capability, inventory.view alone is not 
     ]);
 });
 
-test('service.manage alone opens every Service item (6a)', () => {
+test('service.manage alone opens every service item (6a)', () => {
     assert.deepEqual(outline(view(['service.manage'])), [
-        ['Service', ['Service', 'Bandwidth Profiles', 'Speed Profiles', 'SLA Tiers']],
+        ['Customers & Services', ['Service', 'Bandwidth Profiles', 'Speed Profiles', 'SLA Tiers']],
     ]);
 });
 
-test('system.setting puts Documents and Number Sequences under Company/Admin only (7a)', () => {
+test('system.setting puts Documents and Number Sequences under Administration only (7a)', () => {
     assert.deepEqual(outline(view(['system.setting'])), [
-        ['Company/Admin', ['Documents', 'Number Sequences']],
+        ['Administration', ['Documents', 'Number Sequences']],
     ]);
 });
 
@@ -207,31 +206,27 @@ test('Komponen needs the permission and the environment flag (2a)', () => {
     assert.deepEqual(view(component), []);
     assert.deepEqual(view([], { developerGalleryEnabled: true }), []);
     assert.deepEqual(outline(view(component, { developerGalleryEnabled: true })), [
-        ['Company/Admin', ['Komponen']],
+        ['Administration', ['Komponen']],
     ]);
 });
 
 test('IP Addresses, ODN and NAS Routers each follow their own view permission', () => {
-    assert.deepEqual(outline(view(['ipam.view'])), [['Network/Work Orders', ['IP Addresses']]]);
-    assert.deepEqual(outline(view(['odn.view'])), [['Network/Work Orders', ['ODN']]]);
-    assert.deepEqual(outline(view(['network_asset.nas.view'])), [
-        ['Network/Work Orders', ['NAS Routers']],
-    ]);
+    assert.deepEqual(outline(view(['ipam.view'])), [['Network', ['IP Addresses']]]);
+    assert.deepEqual(outline(view(['odn.view'])), [['Network', ['ODN']]]);
+    assert.deepEqual(outline(view(['network_asset.nas.view'])), [['Network', ['NAS Routers']]]);
     // Managing or assigning alone opens no page: the pages are gated by view.
     assert.deepEqual(view(['ipam.manage', 'ipam.assign', 'odn.manage', 'odn.assign']), []);
 });
 
 test('Dispatch follows assign or reassign for an active user', () => {
     for (const permission of ['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign']) {
-        assert.deepEqual(outline(view([permission])), [['Network/Work Orders', ['Dispatch']]]);
+        assert.deepEqual(outline(view([permission])), [['Operations', ['Dispatch']]]);
     }
     assert.deepEqual(view(['ticket.assign'], { isActiveUser: false }), []);
 });
 
 test('Pekerjaan Saya follows the server flag, not a permission', () => {
-    assert.deepEqual(outline(view([], { canMyWork: true })), [
-        ['Network/Work Orders', ['Pekerjaan Saya']],
-    ]);
+    assert.deepEqual(outline(view([], { canMyWork: true })), [['Operations', ['Pekerjaan Saya']]]);
     assert.deepEqual(view(['spk.start', 'ticket.start']), []);
 });
 
@@ -242,14 +237,12 @@ test('Approval is offered for any approve or reject capability', () => {
         'inventory.request.approve',
         'inventory.request.reject',
     ]) {
-        assert.deepEqual(outline(view([permission])), [['Network/Work Orders', ['Approval']]]);
+        assert.deepEqual(outline(view([permission])), [['Operations', ['Approval']]]);
     }
 });
 
 test('Evaluations accepts the own-scope capability', () => {
-    assert.deepEqual(outline(view(['evaluation.view.own'])), [
-        ['Finance/Reports', ['Evaluations']],
-    ]);
+    assert.deepEqual(outline(view(['evaluation.view.own'])), [['Operations', ['Evaluations']]]);
 });
 
 test('Consolidated Metrics needs the permission and a Head company, which only the server knows', () => {
@@ -258,7 +251,7 @@ test('Consolidated Metrics needs the permission and a Head company, which only t
     assert.deepEqual(view(consolidate), []);
     assert.deepEqual(view([], { canConsolidate: true }), []);
     assert.deepEqual(outline(view(consolidate, { canConsolidate: true })), [
-        ['Finance/Reports', ['Consolidated Metrics']],
+        ['Finance & Reports', ['Consolidated Metrics']],
     ]);
 });
 

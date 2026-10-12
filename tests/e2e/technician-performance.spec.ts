@@ -157,7 +157,7 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await loginAs(page, 'technician');
         await page
             .locator('details')
-            .filter({ has: page.locator('summary', { hasText: 'Finance/Reports' }) })
+            .filter({ has: page.locator('summary', { hasText: 'Finance & Reports' }) })
             .locator('summary')
             .click();
         await expect(page.getByRole('link', { name: 'Technician Performance' })).toBeVisible();
@@ -197,7 +197,7 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await expect(
             sidebar
                 .locator('details')
-                .filter({ has: page.locator('summary', { hasText: 'Finance/Reports' }) }),
+                .filter({ has: page.locator('summary', { hasText: 'Finance & Reports' }) }),
         ).toHaveJSProperty('open', true);
         await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled();
         await expect(

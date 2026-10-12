@@ -265,7 +265,7 @@ class AdminMenuAuthorizationTest extends TestCase
     {
         $this->actingAs($this->userWithRole('customer'));
 
-        $this->assertSame(['Dashboard', 'Tagihan Saya', 'Ticketing'], $this->shownSidebarLabels());
+        $this->assertSame(['Dashboard', 'Ticketing', 'Tagihan Saya'], $this->shownSidebarLabels());
     }
 
     public function test_seeded_roles_get_the_network_register_entries_their_permissions_give_them(): void

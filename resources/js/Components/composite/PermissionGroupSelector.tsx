@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Badge, Checkbox } from '@/Components/ui';
 import { cn } from '@/lib/utils';
 import {
     groupPermissions,
+    permissionGroupSection,
     setGroupPermissions,
     setPermission,
     type PermissionOption,
@@ -23,7 +24,7 @@ export function PermissionGroupSelector({
 }: PermissionGroupSelectorProps) {
     const grouped = useMemo(() => groupPermissions(permissions), [permissions]);
     const groups = Object.entries(grouped);
-    const [activeGroup, setActiveGroup] = useState(permissions[0]?.group ?? '');
+    const [activeGroup, setActiveGroup] = useState(groups[0]?.[0] ?? '');
     const currentGroup = grouped[activeGroup] ? activeGroup : (groups[0]?.[0] ?? '');
     const currentPermissions = grouped[currentGroup] ?? [];
 
@@ -34,43 +35,54 @@ export function PermissionGroupSelector({
             </p>
             <div className="grid overflow-hidden rounded-lg border border-border md:grid-cols-[17rem_1fr]">
                 <div className="max-h-120 overflow-y-auto border-b border-border bg-muted/20 md:border-r md:border-b-0">
-                    {groups.map(([group, items]) => {
+                    {groups.map(([group, items], index) => {
                         const selectedCount = items.filter((item) =>
                             value.includes(item.name),
                         ).length;
                         const allSelected = selectedCount === items.length;
+                        const section = permissionGroupSection(group);
+                        const showSection =
+                            section !== null &&
+                            (index === 0 ||
+                                section !== permissionGroupSection(groups[index - 1][0]));
 
                         return (
-                            <div
-                                key={group}
-                                className={cn(
-                                    'flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0',
-                                    currentGroup === group && 'bg-muted',
-                                )}
-                            >
-                                <Checkbox
-                                    aria-label={`Select all ${formatGroup(group)} permissions`}
-                                    checked={allSelected}
-                                    indeterminate={selectedCount > 0 && !allSelected}
-                                    onCheckedChange={(checked) =>
-                                        onChange(
-                                            setGroupPermissions(value, items, checked === true),
-                                        )
-                                    }
-                                />
-                                <button
-                                    type="button"
-                                    className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
-                                    onClick={() => setActiveGroup(group)}
+                            <Fragment key={group}>
+                                {showSection ? (
+                                    <p className="px-3 pt-3 pb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                        {section}
+                                    </p>
+                                ) : null}
+                                <div
+                                    className={cn(
+                                        'flex items-center gap-3 border-b border-border px-3 py-2 last:border-b-0',
+                                        currentGroup === group && 'bg-muted',
+                                    )}
                                 >
-                                    <span className="truncate text-sm font-medium">
-                                        {formatGroup(group)}
-                                    </span>
-                                    <Badge variant={allSelected ? 'success' : 'secondary'}>
-                                        {selectedCount}/{items.length}
-                                    </Badge>
-                                </button>
-                            </div>
+                                    <Checkbox
+                                        aria-label={`Select all ${formatGroup(group)} permissions`}
+                                        checked={allSelected}
+                                        indeterminate={selectedCount > 0 && !allSelected}
+                                        onCheckedChange={(checked) =>
+                                            onChange(
+                                                setGroupPermissions(value, items, checked === true),
+                                            )
+                                        }
+                                    />
+                                    <button
+                                        type="button"
+                                        className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                                        onClick={() => setActiveGroup(group)}
+                                    >
+                                        <span className="truncate text-sm font-medium">
+                                            {formatGroup(group)}
+                                        </span>
+                                        <Badge variant={allSelected ? 'success' : 'secondary'}>
+                                            {selectedCount}/{items.length}
+                                        </Badge>
+                                    </button>
+                                </div>
+                            </Fragment>
                         );
                     })}
                 </div>

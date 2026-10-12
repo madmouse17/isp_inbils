@@ -4,6 +4,10 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Sidebar regrouped by domain (2026-10-12)
+
+- The admin sidebar is regrouped into a standalone Dashboard plus six domain groups: Operations (Pekerjaan Saya, Dispatch, Approval, SPK, Ticketing, Evaluations), Customers & Services (Customers, service catalogue), Network (Locations, Network Assets, NAS Routers, IP Addresses, ODN), Inventory, Finance & Reports and Administration. Labels, links, icons and gates are unchanged, so the same roles see the same items. The role permission editor now lists permission categories in the same order as the sidebar, under the sidebar group title as a section heading, and opens on the first category; `user` (2FA reset) sits with Users and `document` (export) with the system settings, and a selfcheck fails if a seeded permission category has no sidebar section.
+
 ### Changed - Receivables unblock, Indonesian notification text, E2E lab env (2026-10-14)
 
 - Receivables lists a `suspended` subscription while it is blocked (`blocked_at` set), so staff with `customer.subscription.block` can Unblock there; Isolir shows for `active` subscriptions only. A suspended subscription that is not blocked stays out.

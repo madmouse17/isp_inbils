@@ -1,31 +1,50 @@
+import { navGroups } from '@/lib/navigation';
+
 export interface PermissionOption {
     id: number;
     name: string;
     group: string;
 }
 
-// ponytail: mirrors AdminLayout menu order; move both to shared navigation metadata when the sidebar becomes data-driven
-const permissionGroupOrder = [
-    'dashboard',
-    'organization',
-    'company',
-    'users',
-    'roles',
-    'customer',
-    'location',
-    'employee',
-    'vehicle',
-    'document',
-    'system',
-    'service',
-    'inventory',
-    'network_asset',
-    'spk',
-    'billing',
-    'ticket',
-    'evaluation',
-    'report',
-];
+const OTHER_SECTION = 'Other';
+
+/**
+ * Permission groups whose page is gated by another group's permission: they sit right after that group.
+ * `user.two_factor.reset` is used on the Users pages, `document.export` on the Documents page (`system.setting`).
+ */
+const companionGroups: Record<string, readonly string[]> = {
+    users: ['user'],
+    system: ['document'],
+};
+
+/**
+ * Permission groups in sidebar order, each tied to the sidebar group that first reaches it.
+ * An item contributes the prefix of its first `anyOf` permission, then that prefix's companion groups;
+ * flag-only items contribute none.
+ * A standalone sidebar entry has no title, so its section is `null`: the editor shows no heading.
+ */
+const sidebarSections = new Map<string, string | null>();
+
+for (const navGroup of navGroups) {
+    for (const item of navGroup.items) {
+        const prefix = item.anyOf?.[0].split('.')[0];
+
+        if (!prefix || sidebarSections.has(prefix)) {
+            continue;
+        }
+
+        for (const group of [prefix, ...(companionGroups[prefix] ?? [])]) {
+            sidebarSections.set(group, navGroup.title ?? null);
+        }
+    }
+}
+
+const permissionGroupOrder = [...sidebarSections.keys()];
+
+/** Heading shown above a permission group in the editor: its sidebar group title, `null` for none. */
+export function permissionGroupSection(group: string): string | null {
+    return sidebarSections.has(group) ? (sidebarSections.get(group) ?? null) : OTHER_SECTION;
+}
 
 export function groupPermissions(permissions: PermissionOption[]) {
     const grouped = permissions.reduce<Record<string, PermissionOption[]>>((groups, permission) => {

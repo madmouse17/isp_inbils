@@ -88,64 +88,64 @@ export const navGroups: readonly NavGroup[] = [
         ],
     },
     {
-        id: 'company-admin',
-        title: 'Company/Admin',
+        id: 'operations',
+        title: 'Operations',
         items: [
             {
-                label: 'Organization',
-                href: '/admin/organizations',
-                icon: BuildingOfficeIcon,
-                anyOf: ['organization.view'],
+                // MyWorkQuery::isEligible: work permissions plus an active employee profile.
+                label: 'Pekerjaan Saya',
+                href: '/admin/my-work',
+                icon: WrenchScrewdriverIcon,
+                flag: 'canMyWork',
+                badge: ({ workQueues }) =>
+                    workQueues.myWorkEligible === true
+                        ? positive(workQueues.myWorkPending)
+                        : undefined,
             },
             {
-                label: 'Company',
-                href: '/admin/company/profile',
-                icon: BuildingOfficeIcon,
-                anyOf: ['company.manage'],
+                // DispatchQueueQuery::isEligible also requires an active user.
+                label: 'Dispatch',
+                href: '/admin/dispatch',
+                icon: BriefcaseIcon,
+                anyOf: ['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign'],
+                flag: 'isActiveUser',
+                badge: ({ workQueues }) => positive(workQueues.dispatchUnassigned),
             },
             {
-                label: 'Users',
-                href: '/admin/users',
-                icon: UsersIcon,
-                anyOf: ['users.manage'],
+                label: 'Approval',
+                href: '/admin/approvals',
+                icon: ClipboardDocumentCheckIcon,
+                anyOf: [
+                    'spk.approve',
+                    'spk.reject',
+                    'inventory.request.approve',
+                    'inventory.request.reject',
+                ],
+                badge: ({ workQueues }) => positive(workQueues.approvalPending),
             },
             {
-                label: 'Roles',
-                href: '/admin/roles',
-                icon: ShieldCheckIcon,
-                anyOf: ['roles.manage'],
+                label: 'SPK',
+                href: '/admin/spk',
+                icon: ClipboardDocumentListIcon,
+                anyOf: ['spk.view'],
             },
             {
-                label: 'Permissions',
-                href: '/admin/permissions',
-                icon: KeyIcon,
-                anyOf: ['users.manage'],
+                label: 'Ticketing',
+                href: '/admin/tickets',
+                icon: ChatBubbleLeftRightIcon,
+                anyOf: ['ticket.view'],
             },
             {
-                label: 'Documents',
-                href: '/admin/documents',
-                icon: ClipboardDocumentIcon,
-                anyOf: ['system.setting'],
-            },
-            {
-                label: 'Number Sequences',
-                href: '/admin/number-sequences',
-                icon: KeyIcon,
-                anyOf: ['system.setting'],
-            },
-            {
-                // The route answers 404 outside local/testing, which only the server knows.
-                label: 'Komponen',
-                href: '/admin/components',
-                icon: Squares2X2Icon,
-                anyOf: ['developer.components.view'],
-                flag: 'developerGalleryEnabled',
+                label: 'Evaluations',
+                href: '/admin/evaluations',
+                icon: ClipboardDocumentListIcon,
+                anyOf: ['evaluation.view', 'evaluation.view.own'],
             },
         ],
     },
     {
-        id: 'crm-operations',
-        title: 'CRM/Operations',
+        id: 'customers-services',
+        title: 'Customers & Services',
         items: [
             {
                 label: 'Customers',
@@ -153,31 +153,7 @@ export const navGroups: readonly NavGroup[] = [
                 icon: BriefcaseIcon,
                 anyOf: ['customer.view'],
             },
-            {
-                label: 'Locations',
-                href: '/admin/locations',
-                icon: MapPinIcon,
-                anyOf: ['location.view'],
-            },
-            {
-                label: 'Employees',
-                href: '/admin/employees',
-                icon: UsersIcon,
-                anyOf: ['employee.view'],
-            },
-            {
-                label: 'Vehicles',
-                href: '/admin/vehicles',
-                icon: TruckIcon,
-                anyOf: ['vehicle.view'],
-            },
-        ],
-    },
-    {
-        id: 'service',
-        title: 'Service',
-        // The four service policies accept `service.manage` as well as `service.view`.
-        items: [
+            // The four service policies accept `service.manage` as well as `service.view`.
             {
                 label: 'Service',
                 href: '/admin/service-packages',
@@ -201,6 +177,42 @@ export const navGroups: readonly NavGroup[] = [
                 href: '/admin/sla-tiers',
                 icon: WrenchScrewdriverIcon,
                 anyOf: ['service.view', 'service.manage'],
+            },
+        ],
+    },
+    {
+        id: 'network',
+        title: 'Network',
+        items: [
+            {
+                label: 'Locations',
+                href: '/admin/locations',
+                icon: MapPinIcon,
+                anyOf: ['location.view'],
+            },
+            {
+                label: 'Network Assets',
+                href: '/admin/network-assets',
+                icon: ServerStackIcon,
+                anyOf: ['network_asset.view'],
+            },
+            {
+                label: 'NAS Routers',
+                href: '/admin/nas-devices',
+                icon: ServerStackIcon,
+                anyOf: ['network_asset.nas.view'],
+            },
+            {
+                label: 'IP Addresses',
+                href: '/admin/ipam/prefixes',
+                icon: GlobeAltIcon,
+                anyOf: ['ipam.view'],
+            },
+            {
+                label: 'ODN',
+                href: '/admin/odn',
+                icon: ShareIcon,
+                anyOf: ['odn.view'],
             },
         ],
     },
@@ -254,76 +266,8 @@ export const navGroups: readonly NavGroup[] = [
         ],
     },
     {
-        id: 'network-work-orders',
-        title: 'Network/Work Orders',
-        items: [
-            {
-                label: 'Network Assets',
-                href: '/admin/network-assets',
-                icon: ServerStackIcon,
-                anyOf: ['network_asset.view'],
-            },
-            {
-                label: 'NAS Routers',
-                href: '/admin/nas-devices',
-                icon: ServerStackIcon,
-                anyOf: ['network_asset.nas.view'],
-            },
-            {
-                label: 'IP Addresses',
-                href: '/admin/ipam/prefixes',
-                icon: GlobeAltIcon,
-                anyOf: ['ipam.view'],
-            },
-            {
-                label: 'ODN',
-                href: '/admin/odn',
-                icon: ShareIcon,
-                anyOf: ['odn.view'],
-            },
-            {
-                label: 'SPK',
-                href: '/admin/spk',
-                icon: ClipboardDocumentListIcon,
-                anyOf: ['spk.view'],
-            },
-            {
-                label: 'Approval',
-                href: '/admin/approvals',
-                icon: ClipboardDocumentCheckIcon,
-                anyOf: [
-                    'spk.approve',
-                    'spk.reject',
-                    'inventory.request.approve',
-                    'inventory.request.reject',
-                ],
-                badge: ({ workQueues }) => positive(workQueues.approvalPending),
-            },
-            {
-                // DispatchQueueQuery::isEligible also requires an active user.
-                label: 'Dispatch',
-                href: '/admin/dispatch',
-                icon: BriefcaseIcon,
-                anyOf: ['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign'],
-                flag: 'isActiveUser',
-                badge: ({ workQueues }) => positive(workQueues.dispatchUnassigned),
-            },
-            {
-                // MyWorkQuery::isEligible: work permissions plus an active employee profile.
-                label: 'Pekerjaan Saya',
-                href: '/admin/my-work',
-                icon: WrenchScrewdriverIcon,
-                flag: 'canMyWork',
-                badge: ({ workQueues }) =>
-                    workQueues.myWorkEligible === true
-                        ? positive(workQueues.myWorkPending)
-                        : undefined,
-            },
-        ],
-    },
-    {
         id: 'finance-reports',
-        title: 'Finance/Reports',
+        title: 'Finance & Reports',
         items: [
             {
                 label: 'Billing',
@@ -342,18 +286,6 @@ export const navGroups: readonly NavGroup[] = [
                 href: '/portal/invoices',
                 icon: BanknotesIcon,
                 anyOf: ['portal.invoice.view'],
-            },
-            {
-                label: 'Ticketing',
-                href: '/admin/tickets',
-                icon: ChatBubbleLeftRightIcon,
-                anyOf: ['ticket.view'],
-            },
-            {
-                label: 'Evaluations',
-                href: '/admin/evaluations',
-                icon: ClipboardDocumentListIcon,
-                anyOf: ['evaluation.view', 'evaluation.view.own'],
             },
             {
                 label: 'Reports',
@@ -383,6 +315,74 @@ export const navGroups: readonly NavGroup[] = [
                 icon: ChartBarIcon,
                 anyOf: ['report.consolidated.view'],
                 flag: 'canConsolidate',
+            },
+        ],
+    },
+    {
+        id: 'administration',
+        title: 'Administration',
+        items: [
+            {
+                label: 'Company',
+                href: '/admin/company/profile',
+                icon: BuildingOfficeIcon,
+                anyOf: ['company.manage'],
+            },
+            {
+                label: 'Organization',
+                href: '/admin/organizations',
+                icon: BuildingOfficeIcon,
+                anyOf: ['organization.view'],
+            },
+            {
+                label: 'Employees',
+                href: '/admin/employees',
+                icon: UsersIcon,
+                anyOf: ['employee.view'],
+            },
+            {
+                label: 'Vehicles',
+                href: '/admin/vehicles',
+                icon: TruckIcon,
+                anyOf: ['vehicle.view'],
+            },
+            {
+                label: 'Users',
+                href: '/admin/users',
+                icon: UsersIcon,
+                anyOf: ['users.manage'],
+            },
+            {
+                label: 'Roles',
+                href: '/admin/roles',
+                icon: ShieldCheckIcon,
+                anyOf: ['roles.manage'],
+            },
+            {
+                label: 'Permissions',
+                href: '/admin/permissions',
+                icon: KeyIcon,
+                anyOf: ['users.manage'],
+            },
+            {
+                label: 'Documents',
+                href: '/admin/documents',
+                icon: ClipboardDocumentIcon,
+                anyOf: ['system.setting'],
+            },
+            {
+                label: 'Number Sequences',
+                href: '/admin/number-sequences',
+                icon: KeyIcon,
+                anyOf: ['system.setting'],
+            },
+            {
+                // The route answers 404 outside local/testing, which only the server knows.
+                label: 'Komponen',
+                href: '/admin/components',
+                icon: Squares2X2Icon,
+                anyOf: ['developer.components.view'],
+                flag: 'developerGalleryEnabled',
             },
         ],
     },
