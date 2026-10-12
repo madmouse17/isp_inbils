@@ -86,6 +86,12 @@ const child = spawn(php, args, {
     windowsHide: true,
 });
 
+// Forward termination to PHP and keep the mutex until it has exited (close fires), so an interrupted reset
+// never keeps writing after the lock looks free.
+for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => child.kill(signal));
+}
+
 child.once('error', (error) => {
     console.error(error);
     finish(1);
