@@ -5,6 +5,12 @@
 # The lab runs under the root dockerd, hence --context default (the shell default may be Docker Desktop).
 set -eu
 
+# One critical section: reset, nas-sim restart, setup and Playwright all run under the shared e2e lock, so two
+# lab runs (or a lab run and any other e2e run) can never reset each other mid-test.
+if [ "${INBILS_E2E_LOCK_HELD:-}" != 1 ]; then
+    INBILS_E2E_LOCK_HELD=1 exec flock /tmp/inbils-e2e.lock sh "$0" "$@"
+fi
+
 lab_dir="$HOME/labs/freeradius"
 lab_value() { grep "^$1=" "$lab_dir/.env" | cut -d= -f2-; }
 
@@ -28,5 +34,5 @@ RADIUS_DB_PORT=13306 \
 RADIUS_DB_DATABASE="$(lab_value RADIUS_DB_NAME)" \
 RADIUS_DB_USERNAME="$(lab_value RADIUS_DB_USER)" \
 RADIUS_DB_PASSWORD="$(lab_value RADIUS_DB_PASSWORD)" \
-exec flock /tmp/inbils-e2e.lock sh -c \
+exec sh -c \
     'php tests/e2e/setup.php && npm run test:e2e -- tests/e2e/radius-provisioning.spec.ts --project=chromium --workers=1 "$@"' sh "$@"
