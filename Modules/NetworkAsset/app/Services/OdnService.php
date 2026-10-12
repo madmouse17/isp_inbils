@@ -360,7 +360,7 @@ class OdnService
         $locationId = $odp->location_id;
         $seen = [];
 
-        // A parent_id cycle in bad data ends the walk (refused below) instead of looping.
+        // The visited set stops a parent_id cycle in bad data from looping forever (not reachable over HTTP).
         while ($locationId !== null && ! isset($seen[(int) $locationId])) {
             $seen[(int) $locationId] = true;
             $locationId = Location::query()->whereKey($locationId)->value('parent_id');
