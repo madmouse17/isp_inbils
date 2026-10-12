@@ -138,3 +138,12 @@ Commit in `inbils-mobile` (not pushed): `fix(technician): material row semantics
 - **Flake root cause:** the test, not the app. `pumpEventQueue()` gives a fixed number of event-loop turns, but the drain does real sqlite and file IO before each upload, so the second gate sometimes was not open yet. The test now waits until each upload has started.
 - **Checks:** `dart format`, `flutter analyze` 0 issues in inbils_core, customer and technician; `flutter test`: 224, 113, 170 passed; `evidence_queue_test.dart` 5 runs all green (14 each); device suite on `emulator-5554` (dev flavor): `+84: All tests passed!`. Emulator stopped.
 - Not visually re-checked at 200% on the device (the 200% overflow tests pass; the screenshots were not retaken).
+
+### 2026-10-12: F5 and the F4 leftover (agent TechnicianF5Fix)
+
+Commit in `inbils-mobile`, pushed to `main`: `d890598 fix(technician): floating short capture snackbar and distinct photo labels`.
+
+- **F5 fixed.** The capture snackbars ("Foto masuk antrean unggah.", "Foto tidak dapat diproses. Coba lagi.") are `SnackBarBehavior.floating`, last 2 s (was the 4 s default) and replace the one on screen (`hideCurrentSnackBar`), in `evidence_actions.dart`. The app theme was already floating, so the Scaffold lifts it above the bottom action bar; I could not reproduce a cover on the host, only confirm the position. Test `the snackbar floats above the action bar and Mulai stays tappable` (snackbar bottom above the bar top, then a real tap on "Mulai" opens "Mulai SPK ini?") and `the snackbar leaves on its own within a few seconds`. The tab bar is not shown on the SPK detail (it is a root route), so nothing there to cover.
+- **F4 leftover fixed.** A photo with no caption now reads "Buka foto layar penuh: Foto bukti 2 dari 5, 12 Okt 2026 14:30" and "Hapus: Foto bukti 2 dari 5, ..." (time = `captured_at`, else `created_at`; `Evidence` got both fields, `evidencePhotoOf` in the ARB). Test `each uncaptioned photo has its own label`.
+- **Checks:** `dart format` 0 changed, `flutter analyze technician` 0 issues, `flutter test` in technician 173 passed.
+- **Device smoke** (AVD `inbils_pixel_api35`, a throwaway integration test with the fake adapter, deleted after): after a capture the snackbar sat above "Kirim untuk review", fully visible, nothing covered. Screenshot checked and deleted, emulator killed. Not done: the live API run of ticket 09 (no server this time).
