@@ -8,15 +8,17 @@ set -eu
 lab_dir="$HOME/labs/freeradius"
 lab_value() { grep "^$1=" "$lab_dir/.env" | cut -d= -f2-; }
 
-# Light reset: the spec leaves its NAS row, account rows and sessions behind, and a leftover NAS row makes the
-# next run report "Not written" (the writer never overwrites a row it did not create).
-docker --context default compose -f "$lab_dir/compose.yaml" exec -T radius-db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" radius -e "
-    delete from nas where nasname = \"172.30.77.20\";
-    delete from radcheck where username like \"e2e-lab@%\";
-    delete from radreply where username like \"e2e-lab@%\";
-    delete from radusergroup where username like \"e2e-lab@%\";
-    delete from radacct; delete from radpostauth;
-    update radusergroup set groupname = \"10M\" where username = \"lab-ok\";"' 2>&1 | grep -v 'Using a password' || true
+# Light reset of rows THIS spec owns only (user e2e-lab@demo, the demo-realm NAS at 172.30.77.20): a leftover NAS
+# row makes the next run report "Not written" (the writer never overwrites a row it did not create). Other lab
+# users, sessions and NAS rows are left alone. A failed reset stops the run.
+lab_user='e2e-lab@demo'
+docker --context default compose -f "$lab_dir/compose.yaml" exec -T radius-db sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot radius -e "
+    delete from nas where nasname = \"172.30.77.20\" and shortname = \"demo\";
+    delete from radcheck where username = \"'"$lab_user"'\";
+    delete from radreply where username = \"'"$lab_user"'\";
+    delete from radusergroup where username = \"'"$lab_user"'\";
+    delete from radacct where username = \"'"$lab_user"'\";
+    delete from radpostauth where username = \"'"$lab_user"'\";"'
 docker --context default compose -f "$lab_dir/compose.yaml" restart nas-sim >/dev/null
 
 E2E_RADIUS_LAB=1 \
