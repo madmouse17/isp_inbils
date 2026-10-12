@@ -104,7 +104,7 @@ async function tabTo(page: Page, control: Locator) {
 
 function article(page: Page, ticket: Ticket) {
     return page.getByRole('article').filter({
-        has: page.getByText(`Ticket ${ticket.code} has been assigned to you.`, { exact: true }),
+        has: page.getByText(`Tiket ${ticket.code} sudah ditugaskan kepada Anda.`, { exact: true }),
     });
 }
 
@@ -115,7 +115,7 @@ async function clearOwnedUnread(page: Page, owned: Ticket[], deleted = false) {
         result = await inbox(page, pageNumber);
         for (const row of result.data.filter((row) =>
             owned.some(
-                (ticket) => row.message === `Ticket ${ticket.code} has been assigned to you.`,
+                (ticket) => row.message === `Tiket ${ticket.code} sudah ditugaskan kepada Anda.`,
             ),
         )) {
             if (deleted) expect(row.detail_url).toBeNull();
@@ -192,7 +192,7 @@ test('@notification-center owned assignments persist reads and fail closed after
             expect(matches, `Notification for ${ticket.code}`).toHaveLength(1);
             expect(matches[0]).toMatchObject({
                 type: 'ticket_assigned',
-                title: 'Ticket assigned',
+                title: 'Tiket ditugaskan',
                 read_at: null,
             });
             notificationIds.push(matches[0].id);

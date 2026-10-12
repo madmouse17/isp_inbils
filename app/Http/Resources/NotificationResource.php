@@ -46,20 +46,20 @@ class NotificationResource extends JsonResource
             'invoice_reminder' => 'Pengingat jatuh tempo',
             'payment_received' => 'Pembayaran diterima',
             'ticket_created' => 'Tiket dibuat',
-            'ticket_assigned' => $customerNotification ? 'Tiket mulai ditangani' : 'Ticket assigned',
+            'ticket_assigned' => $customerNotification ? 'Tiket mulai ditangani' : 'Tiket ditugaskan',
             'ticket_resolved' => 'Tiket selesai',
-            'ticket_sla_breached' => 'Ticket SLA breached',
+            'ticket_sla_breached' => 'SLA tiket terlampaui',
             'spk_scheduled' => 'SPK baru ditugaskan',
             'spk_scheduled_customer' => 'Jadwal kunjungan teknisi',
-            'billing_schedule_failed' => 'Billing schedule failed',
-            'inventory_request_submitted' => 'Inventory request submitted',
-            'inventory_request_approved' => 'Inventory request approved',
-            'inventory_request_ready' => 'Inventory request ready for pickup',
-            'inventory_request_rejected' => 'Inventory request rejected',
-            'material_return_declared' => 'Material return declared',
-            'material_return_exception' => 'Material return exception',
-            'material_return_rejected' => 'Material return rejected',
-            default => 'New notification',
+            'billing_schedule_failed' => 'Jadwal penagihan gagal',
+            'inventory_request_submitted' => 'Permintaan barang diajukan',
+            'inventory_request_approved' => 'Permintaan barang disetujui',
+            'inventory_request_ready' => 'Permintaan barang siap diambil',
+            'inventory_request_rejected' => 'Permintaan barang ditolak',
+            'material_return_declared' => 'Pengembalian material dideklarasikan',
+            'material_return_exception' => 'Pengembalian material bermasalah',
+            'material_return_rejected' => 'Pengembalian material ditolak',
+            default => 'Notifikasi baru',
         };
     }
 
@@ -77,36 +77,36 @@ class NotificationResource extends JsonResource
             'ticket_created' => 'Tiket Anda sudah tercatat dan menunggu penanganan.',
             'ticket_assigned' => $customerNotification
                 ? 'Tiket Anda sudah mulai ditangani petugas kami.'
-                : ($ticketCode ? "Ticket {$ticketCode} has been assigned to you." : 'A ticket has been assigned to you.'),
+                : ($ticketCode ? "Tiket {$ticketCode} sudah ditugaskan kepada Anda." : 'Sebuah tiket sudah ditugaskan kepada Anda.'),
             'ticket_resolved' => 'Tiket Anda sudah diselesaikan.',
             'ticket_sla_breached' => $ticketCode
-                ? "Ticket {$ticketCode} has breached its SLA."
-                : 'A ticket has breached its SLA.',
+                ? "Tiket {$ticketCode} melewati batas SLA."
+                : 'Sebuah tiket melewati batas SLA.',
             'spk_scheduled' => 'SPK baru sudah ditugaskan kepada Anda.',
             'spk_scheduled_customer' => 'Kunjungan teknisi untuk layanan Anda sudah dijadwalkan.',
-            'billing_schedule_failed' => 'A scheduled billing operation failed. Check the application logs.',
+            'billing_schedule_failed' => 'Operasi penagihan terjadwal gagal. Periksa log aplikasi.',
             'inventory_request_submitted' => $requestCode
-                ? "Request {$requestCode} is waiting for warehouse review."
-                : 'An inventory request is waiting for warehouse review.',
+                ? "Permintaan {$requestCode} menunggu tinjauan gudang."
+                : 'Sebuah permintaan barang menunggu tinjauan gudang.',
             'inventory_request_approved' => $requestCode
-                ? "Request {$requestCode} was approved and its stock is reserved."
-                : 'An inventory request was approved and its stock is reserved.',
+                ? "Permintaan {$requestCode} disetujui dan stoknya sudah dicadangkan."
+                : 'Sebuah permintaan barang disetujui dan stoknya sudah dicadangkan.',
             'inventory_request_ready' => $requestCode
-                ? "Request {$requestCode} is ready for pickup."
-                : 'An inventory request is ready for pickup.',
+                ? "Permintaan {$requestCode} siap diambil."
+                : 'Sebuah permintaan barang siap diambil.',
             'inventory_request_rejected' => $requestCode
-                ? "Request {$requestCode} was rejected."
-                : 'An inventory request was rejected.',
+                ? "Permintaan {$requestCode} ditolak."
+                : 'Sebuah permintaan barang ditolak.',
             'material_return_declared' => $caseId !== null
-                ? "Return case #{$caseId} was declared and awaits warehouse receipt."
-                : 'A material return was declared and awaits warehouse receipt.',
+                ? "Kasus pengembalian #{$caseId} sudah dideklarasikan dan menunggu penerimaan gudang."
+                : 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.',
             'material_return_exception' => $caseId !== null
-                ? "Return case #{$caseId} has a discrepancy that needs resolution."
-                : 'A material return has a discrepancy that needs resolution.',
+                ? "Kasus pengembalian #{$caseId} memiliki selisih yang perlu diselesaikan."
+                : 'Pengembalian material memiliki selisih yang perlu diselesaikan.',
             'material_return_rejected' => $caseId !== null
-                ? "Return case #{$caseId} handover was rejected. Review the declaration."
-                : 'A material return handover was rejected. Review the declaration.',
-            default => 'This notification is available in your inbox.',
+                ? "Serah terima kasus pengembalian #{$caseId} ditolak. Periksa kembali deklarasinya."
+                : 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.',
+            default => 'Notifikasi ini tersedia di kotak masuk Anda.',
         };
     }
 

@@ -4,6 +4,12 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Receivables unblock, Indonesian notification text, E2E lab env (2026-10-14)
+
+- Receivables lists a `suspended` subscription while it is blocked (`blocked_at` set), so staff with `customer.subscription.block` can Unblock there; Isolir shows for `active` subscriptions only. A suspended subscription that is not blocked stays out.
+- Mobile/web notification inbox: `NotificationResource` title and message for `ticket_assigned` (staff), `ticket_sla_breached`, `billing_schedule_failed`, `inventory_request_*`, `material_return_*` and the fallback are now Indonesian. Keys and `type` values are unchanged. `docs/api/mobile-v1.openapi.json` title enum updated.
+- `scripts/e2e-server-env.mjs` allowlists `E2E_RADIUS_LAB`, `LAB_RADIUS_SECRET` and `LAB_USER_SECRET` (selfcheck added); the `.env.e2e` and lab `.env` fallbacks still work.
+
 ### Changed - FreeRADIUS replaces MikroTik RouterOS API provisioning (2026-10-16)
 
 - Inbils no longer talks to routers. Subscribers authenticate against FreeRADIUS 3.2 (stock MySQL schema, separate `radius` database connection); Inbils writes `radcheck`/`radusergroup`/`radgroupreply`/`nas` through `RadiusDirectory`, reads `radacct` live (online state, session, month usage on the account page, open sessions on the NAS page) and sends RFC 5176 Disconnect-Requests with its own encoder (no new dependency). Usernames are `local@realm` (realm = lower-cased company code, unique across companies); speed groups are `<realm>/<radius_profile_name>`; isolated subscribers (suspended or blocked) go to `<realm>/isolir`. Runbook with the FreeRADIUS realm policy and the MikroTik settings: `docs/business/network.md`.

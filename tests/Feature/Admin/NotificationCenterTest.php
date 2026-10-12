@@ -194,13 +194,13 @@ class NotificationCenterTest extends TestCase
     public static function inventoryNotificationTypes(): array
     {
         return [
-            'request submitted' => ['inventory_request_submitted', 'Inventory request submitted', 'Request REQ-9 is waiting for warehouse review.', 'An inventory request is waiting for warehouse review.'],
-            'request approved' => ['inventory_request_approved', 'Inventory request approved', 'Request REQ-9 was approved and its stock is reserved.', 'An inventory request was approved and its stock is reserved.'],
-            'request ready' => ['inventory_request_ready', 'Inventory request ready for pickup', 'Request REQ-9 is ready for pickup.', 'An inventory request is ready for pickup.'],
-            'request rejected' => ['inventory_request_rejected', 'Inventory request rejected', 'Request REQ-9 was rejected.', 'An inventory request was rejected.'],
-            'return declared' => ['material_return_declared', 'Material return declared', 'Return case #12 was declared and awaits warehouse receipt.', 'A material return was declared and awaits warehouse receipt.'],
-            'return exception' => ['material_return_exception', 'Material return exception', 'Return case #12 has a discrepancy that needs resolution.', 'A material return has a discrepancy that needs resolution.'],
-            'return rejected' => ['material_return_rejected', 'Material return rejected', 'Return case #12 handover was rejected. Review the declaration.', 'A material return handover was rejected. Review the declaration.'],
+            'request submitted' => ['inventory_request_submitted', 'Permintaan barang diajukan', 'Permintaan REQ-9 menunggu tinjauan gudang.', 'Sebuah permintaan barang menunggu tinjauan gudang.'],
+            'request approved' => ['inventory_request_approved', 'Permintaan barang disetujui', 'Permintaan REQ-9 disetujui dan stoknya sudah dicadangkan.', 'Sebuah permintaan barang disetujui dan stoknya sudah dicadangkan.'],
+            'request ready' => ['inventory_request_ready', 'Permintaan barang siap diambil', 'Permintaan REQ-9 siap diambil.', 'Sebuah permintaan barang siap diambil.'],
+            'request rejected' => ['inventory_request_rejected', 'Permintaan barang ditolak', 'Permintaan REQ-9 ditolak.', 'Sebuah permintaan barang ditolak.'],
+            'return declared' => ['material_return_declared', 'Pengembalian material dideklarasikan', 'Kasus pengembalian #12 sudah dideklarasikan dan menunggu penerimaan gudang.', 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.'],
+            'return exception' => ['material_return_exception', 'Pengembalian material bermasalah', 'Kasus pengembalian #12 memiliki selisih yang perlu diselesaikan.', 'Pengembalian material memiliki selisih yang perlu diselesaikan.'],
+            'return rejected' => ['material_return_rejected', 'Pengembalian material ditolak', 'Serah terima kasus pengembalian #12 ditolak. Periksa kembali deklarasinya.', 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.'],
         ];
     }
 

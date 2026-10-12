@@ -385,7 +385,7 @@ class DashboardPersonaTest extends TestCase
             ->has('notifications.data', 5)
             ->has('notifications.data.0', fn (Assert $item) => $item
                 ->where('type', 'billing_schedule_failed')
-                ->where('title', 'Billing schedule failed')
+                ->where('title', 'Jadwal penagihan gagal')
                 ->where('read_at', null)
                 ->where('detail_url', null)
                 ->where('subject', null)
@@ -415,7 +415,7 @@ class DashboardPersonaTest extends TestCase
         $this->dashboard($manager)
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('notifications.data.0.title', 'Ticket SLA breached')
+                ->where('notifications.data.0.title', 'SLA tiket terlampaui')
                 ->where('notifications.data.0.detail_url', route('admin.tickets.show', $ticket))
             );
     }
@@ -424,11 +424,11 @@ class DashboardPersonaTest extends TestCase
     {
         $staff = $this->userWithRole($this->makeCompany(), 'staff');
         $types = [
-            'inventory_request_approved' => 'Inventory request approved',
-            'inventory_request_ready' => 'Inventory request ready for pickup',
-            'inventory_request_rejected' => 'Inventory request rejected',
-            'material_return_declared' => 'Material return declared',
-            'material_return_exception' => 'Material return exception',
+            'inventory_request_approved' => 'Permintaan barang disetujui',
+            'inventory_request_ready' => 'Permintaan barang siap diambil',
+            'inventory_request_rejected' => 'Permintaan barang ditolak',
+            'material_return_declared' => 'Pengembalian material dideklarasikan',
+            'material_return_exception' => 'Pengembalian material bermasalah',
         ];
         $minutesAgo = count($types);
         foreach (array_keys($types) as $type) {
