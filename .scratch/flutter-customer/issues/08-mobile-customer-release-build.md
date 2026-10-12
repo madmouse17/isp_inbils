@@ -31,7 +31,7 @@ Non-goals: CI signing, iOS, uploading to Play on the owner's behalf.
 ## Acceptance criteria
 
 - [ ] With no `key.properties`, `flutter build appbundle --flavor prod --release …` fails with the documented message. With the owner's file present, the owner's run produces `app-prod-release.aab`, and `jarsigner -verify` (or `apksigner` on a universal APK) shows the upload certificate, not the debug one. The owner pastes the output; no secret goes in the comment.
-- [x] `git status` and `git check-ignore` confirm `key.properties`, `*.jks` and `*.keystore` are ignored, and a grep for `storePassword` with a value finds nothing in the repo.
+- [x] `git status` and `git check-ignore` confirm `key.properties`, `*.jks` and `*.keystore` are ignored, and no literal credential is in the repo (the only `storePassword` grep hit is the `key("storePassword")` property lookup).
 - [x] The merged release manifest shows `targetSdkVersion 36`, no cleartext permission, `allowBackup=false` and the release app id `id.inbils.customer`.
 - [ ] The release AAB installs on the AVD through `bundletool` (universal APK) and the smoke flow from ticket 07 passes against staging. Recorded as seen.
 - [ ] The Play prerequisites checklist is complete, and items still waiting on the owner are listed as blockers, not guessed.
