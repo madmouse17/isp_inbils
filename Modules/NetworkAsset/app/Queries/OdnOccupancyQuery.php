@@ -387,8 +387,8 @@ final class OdnOccupancyQuery
         $found = [];
         $level = [$popId];
 
-        // The bound stops a parent_id cycle in bad data; real trees are a handful of levels deep.
-        for ($depth = 0; $level !== [] && $depth < 32; $depth++) {
+        // Each level skips ids already found, so a parent_id cycle in bad data ends the walk; no depth cut-off.
+        while ($level !== []) {
             $level = array_values(array_diff(
                 Location::query()->whereIn('parent_id', $level)->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
                 $found,

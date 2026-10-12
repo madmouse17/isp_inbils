@@ -358,9 +358,11 @@ class OdnService
         }
 
         $locationId = $odp->location_id;
+        $seen = [];
 
-        // The bound stops a parent_id cycle in bad data; real trees are a handful of levels deep.
-        for ($hop = 0; $locationId !== null && $hop < 32; $hop++) {
+        // A parent_id cycle in bad data ends the walk (refused below) instead of looping.
+        while ($locationId !== null && ! isset($seen[(int) $locationId])) {
+            $seen[(int) $locationId] = true;
             $locationId = Location::query()->whereKey($locationId)->value('parent_id');
 
             if ($locationId !== null && (int) $locationId === (int) $subscription->serving_pop_id) {

@@ -316,6 +316,7 @@ class LocationContractTest extends TestCase
         }
 
         $this->assertSame(0, Location::query()->where('code', 'like', '%>%')->count());
+        $this->assertSame('ROOT-1', $location->fresh()->code, 'a refused update leaves the row alone');
     }
 
     public function test_update_on_other_company_location_returns_404(): void
