@@ -42,7 +42,7 @@ final class OdnOccupancyQuery
             ->selectSub(self::outputCount(false), 'capacity')
             ->selectSub(self::outputCount(true), 'used');
 
-        self::underPop($inner, $filters['pop_id'] ?? null, 'l.path');
+        self::underPop($inner, $filters['pop_id'] ?? null, 'a.location_id');
         self::search($inner, $filters['search'] ?? null, ['a.code', 'a.name']);
 
         $minPercent = $filters['min_percent'] ?? null;
@@ -89,7 +89,7 @@ final class OdnOccupancyQuery
             ->orderBy('a.code')
             ->orderBy('p.number');
 
-        self::underPop($query, $filters['pop_id'] ?? null, 'l.path');
+        self::underPop($query, $filters['pop_id'] ?? null, 'a.location_id');
         self::search($query, $filters['search'] ?? null, ['a.code', 'a.name', 'p.label']);
 
         $page = $query->paginate($perPage, ['*'], 'ports_page')->withQueryString();
@@ -112,7 +112,7 @@ final class OdnOccupancyQuery
      */
     public static function unmapped(array $filters, int $perPage = 25): LengthAwarePaginator
     {
-        $search = trim((string) ($filters['search'] ?? ''));
+        $search = is_string($filters['search'] ?? null) ? trim($filters['search']) : '';
 
         return ServiceSubscription::query()
             ->where('status', 'active')
@@ -174,8 +174,8 @@ final class OdnOccupancyQuery
     }
 
     /**
-     * Free ODP output ports under a POP (the ODP's location path starts with the POP's path and " > "), for the
-     * drop picker at onboarding and on the subscription page. Full ODPs never appear.
+     * Free ODP output ports under a POP (the ODP's location descends from the POP by parent_id), for the drop
+     * picker at onboarding and on the subscription page. Full ODPs never appear.
      *
      * @return list<array{port_id: int, label: string, odp_code: string, location_path: string, free_count: int}>
      */
@@ -185,13 +185,12 @@ final class OdnOccupancyQuery
             return [];
         }
 
-        $popPath = Location::query()->whereKey($popId)->value('path');
+        $underPop = self::locationIdsUnder($popId);
 
-        if (! is_string($popPath)) {
+        if ($underPop === null || $underPop === []) {
             return [];
         }
 
-        $prefix = $popPath.' > ';
         $free = DB::table('odn_ports as p')
             ->join('odn_splitters as s', 's.id', '=', 'p.odn_splitter_id')
             ->join('network_assets as a', 'a.id', '=', 'p.network_asset_id')
@@ -202,7 +201,7 @@ final class OdnOccupancyQuery
             ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('odn_splitters as f')->whereColumn('f.input_port_id', 'p.id'))
             ->where('a.asset_type', 'odp')
             ->whereNull('a.deleted_at')
-            ->whereRaw('left(l.path, ?) = ?', [mb_strlen($prefix), $prefix]);
+            ->whereIn('a.location_id', $underPop);
 
         $freeCounts = (clone $free)->groupBy('a.id')->selectRaw('a.id as asset_id, count(*) as free_count')->pluck('free_count', 'asset_id');
 
@@ -364,28 +363,47 @@ final class OdnOccupancyQuery
     }
 
     /** Keeps rows whose location lies strictly under the POP; an unknown POP keeps nothing. */
-    private static function underPop(Builder $query, mixed $popId, string $pathColumn): void
+    private static function underPop(Builder $query, mixed $popId, string $locationColumn): void
     {
         if (! is_numeric($popId)) {
             return;
         }
 
-        $popPath = Location::query()->whereKey((int) $popId)->value('path');
+        $query->whereIn($locationColumn, self::locationIdsUnder((int) $popId) ?? []);
+    }
 
-        if (! is_string($popPath)) {
-            $query->whereRaw('1 = 0');
-
-            return;
+    /**
+     * Ids of every location strictly under the POP, found by parent_id (never by the path string, which a code
+     * containing " > " could fake); null when the POP is not a location of the current company.
+     *
+     * @return list<int>|null
+     */
+    private static function locationIdsUnder(int $popId): ?array
+    {
+        if (! Location::query()->whereKey($popId)->exists()) {
+            return null;
         }
 
-        $prefix = $popPath.' > ';
-        $query->whereRaw("left({$pathColumn}, ?) = ?", [mb_strlen($prefix), $prefix]);
+        $found = [];
+        $level = [$popId];
+
+        // The bound stops a parent_id cycle in bad data; real trees are a handful of levels deep.
+        for ($depth = 0; $level !== [] && $depth < 32; $depth++) {
+            $level = array_values(array_diff(
+                Location::query()->whereIn('parent_id', $level)->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+                $found,
+                [$popId],
+            ));
+            $found = [...$found, ...$level];
+        }
+
+        return $found;
     }
 
     /** @param list<string> $columns */
     private static function search(Builder $query, mixed $term, array $columns): void
     {
-        $term = trim((string) $term);
+        $term = is_string($term) ? trim($term) : '';
 
         if ($term === '') {
             return;

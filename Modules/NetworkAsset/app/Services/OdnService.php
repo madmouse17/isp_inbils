@@ -347,19 +347,28 @@ class OdnService
         ], $port);
     }
 
-    /** The ODP must sit under the subscription's serving POP: its location path starts with the POP's path and " > ". */
+    /**
+     * The ODP must sit strictly under the subscription's serving POP. Walks parent_id, not the path string: a
+     * location code containing the " > " separator (legacy row, import, factory) would fake a path prefix.
+     */
     private static function assertUnderServingPop(ServiceSubscription $subscription, NetworkAsset $odp, string $portField): void
     {
         if ($subscription->serving_pop_id === null) {
             return;
         }
 
-        $popPath = Location::query()->whereKey($subscription->serving_pop_id)->value('path');
-        $odpPath = $odp->location_id === null ? null : Location::query()->whereKey($odp->location_id)->value('path');
+        $locationId = $odp->location_id;
 
-        if (! is_string($popPath) || ! is_string($odpPath) || ! str_starts_with($odpPath, $popPath.' > ')) {
-            throw ValidationException::withMessages([$portField => "This ODP is not under the serving POP of subscription {$subscription->code}."]);
+        // The bound stops a parent_id cycle in bad data; real trees are a handful of levels deep.
+        for ($hop = 0; $locationId !== null && $hop < 32; $hop++) {
+            $locationId = Location::query()->whereKey($locationId)->value('parent_id');
+
+            if ($locationId !== null && (int) $locationId === (int) $subscription->serving_pop_id) {
+                return;
+            }
         }
+
+        throw ValidationException::withMessages([$portField => "This ODP is not under the serving POP of subscription {$subscription->code}."]);
     }
 
     /**

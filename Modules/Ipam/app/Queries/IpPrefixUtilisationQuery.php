@@ -113,7 +113,7 @@ final class IpPrefixUtilisationQuery
     {
         $family = (int) ($filters['family'] ?? 0);
         $usage = $filters['usage'] ?? null;
-        $search = trim((string) ($filters['search'] ?? ''));
+        $search = is_string($filters['search'] ?? null) ? trim($filters['search']) : '';
 
         return $query
             ->when(in_array($family, [4, 6], true), fn (Builder $q) => $q->where('family', $family))

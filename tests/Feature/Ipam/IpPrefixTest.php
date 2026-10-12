@@ -302,6 +302,15 @@ class IpPrefixTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1)->where('prefixes.0.cidr', '2001:db8::/48'));
     }
 
+    public function test_an_array_search_is_ignored_instead_of_failing(): void
+    {
+        $this->register('10.20.0.0/24');
+
+        $this->get(route('admin.ipam.prefixes.index', ['search' => ['10.20']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1));
+    }
+
     public function test_the_index_hides_another_companys_prefixes(): void
     {
         $other = $this->otherCompany();

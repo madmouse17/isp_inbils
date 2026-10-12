@@ -15,6 +15,7 @@ use Modules\Ipam\Models\IpAddress;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Models\OdnPort;
+use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
@@ -149,6 +150,25 @@ class IpamOdnLifecycleTest extends TestCase
         $this->onboard(['odn_port_id' => $otherOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
 
         $this->assertSame($before, $this->onboardingFootprint());
+    }
+
+    public function test_a_location_code_faking_the_pop_path_does_not_pass_as_under_the_pop(): void
+    {
+        // A legacy or imported row bypasses the HTTP code rule: its path "POP-A > SPOOF" looks like a child of POP-A.
+        $spoof = $this->makeLocation($this->company, $this->net['pop']->code.' > SPOOF', 'site');
+        $odp = $this->odpAt($this->company, $spoof, 'ODP-SPOOF');
+        [, $spoofOutputs] = $this->splitter($odp, 4);
+        $before = $this->onboardingFootprint();
+
+        $this->onboard(['odn_port_id' => $spoofOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
+        $this->assertSame($before, $this->onboardingFootprint());
+
+        $offered = array_column(OdnOccupancyQuery::freePortOptions($this->net['pop']->id), 'odp_code');
+        $this->assertNotContains('ODP-SPOOF', $offered, 'the drop picker must not offer it either');
+        $this->assertContains($this->net['odp']->code, $offered);
+
+        $listed = collect($this->get(route('admin.odn.index', ['pop_id' => $this->net['pop']->id]))->viewData('page')['props']['odps']['data'])->pluck('code');
+        $this->assertNotContains('ODP-SPOOF', $listed->all());
     }
 
     public function test_a_user_without_the_drop_permission_cannot_pick_a_port(): void

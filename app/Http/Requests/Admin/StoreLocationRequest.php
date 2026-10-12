@@ -19,7 +19,8 @@ class StoreLocationRequest extends FormRequest
         $companyId = CompanyService::currentId();
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('locations', 'code')->where('company_id', $companyId)],
+            // ">" builds the " > " path separator; a code containing it would fake ancestry in the path string.
+            'code' => ['required', 'string', 'max:50', 'not_regex:/>/', Rule::unique('locations', 'code')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', Rule::in(['region', 'area', 'pop', 'rack', 'site'])],
             'parent_id' => [

@@ -81,7 +81,7 @@ class RolePermissionSeeder extends Seeder
             'network_asset.retire',
             'network_asset.export',
             'network_asset.manage',
-            // Router provisioning (MikroTik): manage = admin only, reveal is audited.
+            // RADIUS access (NAS routers and network accounts): manage = admin only, reveal is audited.
             'network_asset.nas.view',
             'network_asset.nas.manage',
             'network_asset.account.view',

@@ -281,6 +281,15 @@ class OdnOccupancyTest extends TestCase
         $this->assertSame([], $codes(['pop_id' => 987654]));
     }
 
+    public function test_an_array_search_is_ignored_instead_of_failing(): void
+    {
+        $this->splitter($this->net['odp'], 4);
+
+        $this->get(route('admin.odn.index', ['search' => ['A11']]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('odps.data.0.code', 'ODP-A11'));
+    }
+
     public function test_the_asset_page_for_an_olt_lists_pon_ports_with_subscribers(): void
     {
         $pon = $this->ponPorts($this->net['olt'], 2);

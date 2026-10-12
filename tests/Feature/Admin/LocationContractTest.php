@@ -302,6 +302,22 @@ class LocationContractTest extends TestCase
         ]);
     }
 
+    public function test_a_code_containing_the_path_separator_is_refused_so_it_cannot_fake_ancestry(): void
+    {
+        $location = Location::factory()->create(['company_id' => $this->company->id, 'code' => 'ROOT-1', 'type' => 'region']);
+
+        foreach (['POP-A > X', 'POP-A >'] as $code) {
+            $this->actingAs($this->admin)
+                ->post(route('admin.locations.store'), ['code' => $code, 'name' => 'Fake child', 'type' => 'region'])
+                ->assertSessionHasErrors('code');
+            $this->actingAs($this->admin)
+                ->put(route('admin.locations.update', $location), ['code' => $code, 'name' => 'Fake child', 'type' => 'region'])
+                ->assertSessionHasErrors('code');
+        }
+
+        $this->assertSame(0, Location::query()->where('code', 'like', '%>%')->count());
+    }
+
     public function test_update_on_other_company_location_returns_404(): void
     {
         $foreign = $this->location([

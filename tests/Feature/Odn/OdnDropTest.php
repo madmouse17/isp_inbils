@@ -136,7 +136,7 @@ class OdnDropTest extends TestCase
         $this->drop($floatingOutputs[0], $withoutPop->id)->assertRedirect();
     }
 
-    public function test_the_pop_match_is_by_path_prefix_not_by_code_prefix(): void
+    public function test_the_pop_match_is_by_ancestry_not_by_code_prefix(): void
     {
         $lookalike = $this->makeLocation($this->company, 'POP-A2', 'pop');
         $rack = $this->makeLocation($this->company, 'RACK-A21', 'rack', $lookalike);
