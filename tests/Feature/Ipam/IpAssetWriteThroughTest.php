@@ -110,6 +110,23 @@ class IpAssetWriteThroughTest extends TestCase
         $this->assertDatabaseMissing('network_assets', ['name' => 'Second']);
     }
 
+    public function test_an_address_another_company_holds_is_neither_blocked_nor_touched(): void
+    {
+        $other = $this->otherCompany();
+        $foreign = $this->inCompany($other, function () use ($other): NetworkAsset {
+            $asset = $this->makeAsset($other, 'router', null, ['ip_address' => '10.80.11.1']);
+            IpAssignmentService::syncAssetAddresses($asset);
+
+            return $asset;
+        });
+
+        $this->createAsset(['ip_address' => '10.80.11.1'])->assertRedirect();
+
+        $this->assertSame(['10.80.11.1'], $this->heldBy(NetworkAsset::query()->firstOrFail()), 'addresses are unique per company');
+        $foreignRow = IpAddress::withoutCompany()->where('company_id', $other->id)->where('address', '10.80.11.1')->firstOrFail();
+        $this->assertSame($foreign->id, $foreignRow->network_asset_id, 'the other company keeps its holder');
+    }
+
     public function test_an_asset_cannot_claim_a_reserved_address(): void
     {
         $prefix = IpPrefixService::create(['cidr' => '10.80.4.0/24', 'usage' => 'infrastructure']);
