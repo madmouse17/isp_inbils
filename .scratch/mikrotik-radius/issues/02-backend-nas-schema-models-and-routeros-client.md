@@ -1,6 +1,6 @@
 # BACKEND: NAS router and network account schema, encrypted models, RouterOS REST client, permissions
 
-Status: in-progress
+Status: superseded (schema and models delivered; the RouterOS client was removed by `.scratch/freeradius` ticket 04)
 Role: backend
 Blocked by: none (starts only after the owner approves `../spec.md` Q1-Q6, Q13 and Q15; under Q2 b/c or Q3 b this ticket is rewritten first)
 Card: none (new lane; no Hermes card)

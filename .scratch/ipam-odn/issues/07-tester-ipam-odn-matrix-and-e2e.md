@@ -21,7 +21,7 @@ Mutation checks (revert byte-for-byte after each): remove the `(company_id, addr
 - [x] Every matrix row in the spec maps to a named, green test on MySQL `inbils_test` via the PHPUnit command in `../spec.md`. The role × route matrices (403) were already in `IpamPermissionTest` / `OdnPermissionTest`; the new files add the route-table-driven completeness, 404, permission-floor and cross-company-body tests (9 tests, 116 assertions green). A foreign `odn_port_id` at onboarding stays covered by `IpamOdnLifecycleTest::test_another_companys_port_is_refused_and_nothing_is_created`.
 - [x] Mutation results recorded (docblock of `IpamTenantAndPermissionMatrixTest`): unique removed 3 failed of 12; `FOR UPDATE` removed 1 failed of 2; serving-POP check removed 4 failed of 44; terminate release removed 3 failed of 23. Every file reverted byte-for-byte (md5 checked).
 - [x] E2E green on the canonical run: `ipam-odn.spec.ts` + `customer-subscription.spec.ts` + `sidebar-ia.spec.ts` in one invocation, 20 passed.
-- [ ] Full isolated PHPUnit suite green before handing to ticket 08. Not run by this agent: other lanes are still landing, so the lead runs it once after every ticket is in.
+- [x] Full isolated PHPUnit suite green before handing to ticket 08: run by the lead on 2026-10-12 after every lane landed, `Tests: 2819 passed (30673 assertions)` on `inbils_test` (see ticket 08).
 
 ## Comments
 

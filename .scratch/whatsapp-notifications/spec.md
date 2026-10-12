@@ -1,6 +1,6 @@
 # WhatsApp notifications — billing, tickets, SPK and access link
 
-Status: ready-for-agent
+Status: done (tickets 01-09 done; live delivery waits on Meta Business verification, approved templates and host credentials)
 Ledger: none yet (new lane promoted from `.scratch/isp-roadmap/spec.md` item 3, "WhatsApp notification gateway")
 Source: `.scratch/isp-roadmap/spec.md:12`, owner request 2026-10-11 (events: invoice issued, due-date reminders H-3/H-1/H+1, payment received, ticket created/assigned/resolved, SPK schedule to customer/technician, customer access link).
 

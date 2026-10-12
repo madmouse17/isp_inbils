@@ -1126,13 +1126,16 @@ Ledger tetap otoritatif; saat Owner menyetujui sebuah lane, tambahkan kartu/entr
 
 ## ISP roadmap lanes (2026-10-12)
 
-Owner picked from `.scratch/isp-roadmap/spec.md`; specs written by architect, all tickets `needs-owner-approval` until the owner answers each spec's Owner decisions.
+Owner picked from `.scratch/isp-roadmap/spec.md`; specs written by architect. Owner approved every recommended option (2026-10-12/13); statuses reconciled 2026-10-12 against `.scratch` tickets.
 
 | Lane (`.scratch/<slug>/`) | Tiket | Status | Catatan |
 | --- | --- | --- | --- |
-| `mikrotik-radius` | 8 | approved (ready-for-agent) | PPPoE secrets, isolir otomatis saat overdue, reconnect saat bayar; Q3 butuh fakta: semua router RouterOS ≥ 7.1? |
-| `whatsapp-notifications` | 9 | approved (ready-for-agent) | WhatsApp Cloud API resmi (rekomendasi), consent, quiet hours, kuota per company. |
-| `ipam-odn` | 8 | approved (ready-for-agent) | IPAM (`Modules/Ipam`, mlocati/ip-lib) + ODN port register di NetworkAsset; antarmuka ke mikrotik-radius disepakati. |
+| `mikrotik-radius` | 9 | superseded by `freeradius` | Ticket 01 (auto-isolir, reconnect on payment) and the isolir page stay; RouterOS API provisioning removed. |
+| `freeradius` | 7 | done | FreeRADIUS SQL + RFC 5176 Disconnect, block/unblock; lab E2E 4/4. Production `RADIUS_ENABLED=false` until the owner installs `inbils_realm` and moves routers. |
+| `whatsapp-notifications` | 9 | done | WhatsApp Cloud API resmi, consent, quiet hours, kuota per company. Live delivery waits on Meta Business verification, approved templates and host credentials. |
+| `ipam-odn` | 8 | done | IPAM (`Modules/Ipam`, mlocati/ip-lib) + ODN port register; security review APPROVED 2026-10-12 (ticket 08). |
+| `mobile-api` | 9 | done | Sanctum `/api/v1` for the two apps; security review APPROVED. |
+| `flutter-customer` / `flutter-technician` | 8 / 11 | done except release (08 / 10) | Play Store release waits on the owner's signing key and a public HTTPS host. Repo `madmouse17/inbils-mobile`. |
 
-Urutan tabrakan file: `SubscriptionService.php`, `BillingService::recordPayment`, `routes/console.php`, `RolePermissionSeeder.php`, `navigation.ts` disentuh lebih dari satu lane, jadi lane tersebut dikerjakan berurutan (ipam-odn 01 → mikrotik-radius → whatsapp).
+Urutan tabrakan file saat lane berjalan (historis): `SubscriptionService.php`, `BillingService::recordPayment`, `routes/console.php`, `RolePermissionSeeder.php`, `navigation.ts` disentuh lebih dari satu lane, jadi lane tersebut dikerjakan berurutan (ipam-odn 01 → mikrotik-radius → whatsapp; kemudian freeradius menggantikan mikrotik-radius).
 

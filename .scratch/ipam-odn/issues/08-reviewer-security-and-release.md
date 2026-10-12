@@ -1,6 +1,6 @@
 # REVIEWER: security review, dependency audit and release readiness
 
-Status: ready-for-agent
+Status: done
 Role: reviewer
 Blocked by: 07
 Card: none (new lane; no Hermes card)
@@ -16,8 +16,18 @@ Card: none (new lane; no Hermes card)
 
 ## Acceptance criteria
 
-- [ ] Verdict APPROVED or BLOCKED with file:line findings.
-- [ ] Audit output pasted with every advisory listed (or "0 advisories").
-- [ ] Release notes and rollback precondition recorded.
+- [x] Verdict APPROVED or BLOCKED with file:line findings.
+- [x] Audit output pasted with every advisory listed (or "0 advisories").
+- [x] Release notes and rollback precondition recorded.
 
 ## Comments
+
+- 2026-10-12 (orchestrator + `IpamOdnSecReview`, security-reviewer): **APPROVED**, no blocking finding. All 13 `admin.ipam.*` and 9 `admin.odn.*` routes run `auth, verified, require.has.company` plus a policy or Form Request `authorize()`; route-model binding goes through the fail-closed `BelongsToCompany` scope (cross-company 404). Every id in the Form Requests is `Rule::exists(...)->where('company_id', CompanyService::currentId())`. Raw SQL is constant or bound; CIDR/address text is stored only as ip-lib output. No `/api/*` route (`php artisan route:list --path=api` lists none for ipam/odn). Asset write-through (`IpAssignmentService::syncAssetAddresses`) refuses another holder's address with 422 and writes nothing; onboarding with a foreign, occupied, non-ODP or out-of-POP `odn_port_id` raises before any write and rolls back.
+- Three low/info findings fixed red-first: (1) the serving-POP check and the drop picker compared location path strings, so a location `code` containing `>` (`"POP-A > X"`, or `"POP-A >"`) could fake being under a POP. Fixed twice: `StoreLocationRequest`/`UpdateLocationRequest` refuse `>` in a code (`LocationContractTest::test_a_code_containing_the_path_separator_is_refused_so_it_cannot_fake_ancestry`), and, for legacy or imported rows, `OdnService::assertUnderServingPop` walks `parent_id` and `OdnOccupancyQuery::underPop`/`freePortOptions` filter by the POP's descendant location ids (parent_id BFS); no path-prefix comparison remains (`IpamOdnLifecycleTest::test_a_location_code_faking_the_pop_path_does_not_pass_as_under_the_pop` fails on HEAD with 302 instead of 422, passes now); (2) `?search[]=x` cast an array to string on the IPAM prefix index and the ODN index; `is_string` guards added (`IpPrefixTest`/`OdnOccupancyTest::test_an_array_search_is_ignored_instead_of_failing`; with fixes 1-2 reverted the three new tests failed); (3) the seeder comment on the NAS/account permissions now says RADIUS instead of MikroTik. Read-only check of the dev database `inbils`: 0 of 40 location codes contain `" > "`.
+- Cross-lane: `SubscriptionService.php` (suspend source, block/unblock, terminate releases static IP and drop port), `RolePermissionSeeder.php` (`customer.subscription.block`, `network_asset.nas.*`/`account.*`, six IPAM/ODN permissions and role grants), `navigation.ts` (NAS Routers, IP Addresses, ODN) and `Modules/NetworkAsset/routes/web.php` (NAS, network accounts, isolir, ODN group; `check` route removed by the FreeRADIUS lane) all carry both lanes intact.
+- Dependency audit: `composer audit` → "No security vulnerability advisories found."; `npm audit` → "found 0 vulnerabilities" (0 advisories). `mlocati/ip-lib` 1.22.1, MIT, no runtime dependencies.
+- Full isolated PHPUnit on `inbils_test` before the fixes: `Tests: 2819 passed (30673 assertions)`, 1711.95 s.
+- Release notes: `composer install`; `php artisan migrate --force`; `php artisan db:seed --class=RolePermissionSeeder --force`; per company `php artisan ipam:import-asset-ips --company=<id> --dry-run`, review the reported duplicates with the owner, then the real run.
+- Rollback: export `ip_addresses`, `ip_prefixes`, `vlans`, `odn_ports`, `odn_splitters` first (rollback loses the registers); then migrations down in reverse order (`ip_addresses`, `ip_prefixes`, `vlans`, then `odn_ports`/`odn_splitters`); remove `mlocati/ip-lib` and the `Ipam` entry in `modules_statuses.json`.
+- Remaining test gaps noted by the reviewer (safe by code, not pinned): a cross-company asset write-through of an address another company holds; IPAM/ODN grants in `tests/Unit/RolePermissionSeederTest.php` (covered indirectly by the permission matrix tests).
+- Final gate after the fixes: reviewer recheck **SIGNED** (parent_id walk, descendant-id filter, `not_regex:/>/`); focused PHPUnit `LocationContractTest`, `tests/Feature/Ipam`, `tests/Feature/Odn`, `IpamOdnLifecycleTest`, `RolePermissionSeederTest`, `tests/Feature/NetworkAsset`, `CustomerPageTest` → `Tests: 616 passed (4618 assertions)`; Larastan on changed files: no errors; canonical E2E `ipam-odn.spec.ts` + `customer-subscription.spec.ts` → 6 passed, exit 0.

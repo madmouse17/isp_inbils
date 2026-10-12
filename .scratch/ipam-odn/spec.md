@@ -1,6 +1,6 @@
 # IPAM and ODN port hierarchy
 
-Status: ready-for-agent
+Status: done (tickets 01-08 done; security review APPROVED 2026-10-12)
 Ledger: none yet (new lane promoted from `.scratch/isp-roadmap/spec.md` items 5 and 6)
 Source: `.scratch/isp-roadmap/spec.md` rows 5 (IPAM) and 6 (ODN port hierarchy), re-verified 2026-10-11 against the working tree.
 

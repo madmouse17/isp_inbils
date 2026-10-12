@@ -1,6 +1,6 @@
 # Mobile API v1 — Sanctum token API for the Inbils customer and technician apps
 
-Status: ready-for-agent
+Status: done (tickets 01-09 done; release waits on a public HTTPS host, see the Flutter lanes)
 Ledger: none yet (new lane; owner request 2026-10-11: two Android Flutter apps, built after the current web work)
 Source: owner request 2026-10-11; earlier draft plan `docs/MOBILE_TASK_PLAN.md` (2026-07-14). That file is local only: `docs/*` is git-ignored (`.gitignore:36`) and it is not on the allowlist (`.gitignore:40-100`).
 Consumers: `.scratch/flutter-customer/` and `.scratch/flutter-technician/`. Both lanes are blocked by this one (order in Further Notes).

@@ -2,7 +2,7 @@
 
 > **SUPERSEDED 2026-10-15 by `.scratch/freeradius/spec.md`.** Owner change: direct MikroTik RouterOS API provisioning stops; subscribers authenticate through FreeRADIUS, and customer block/unblock is added. The RouterOS clients, fakes, tests, `evilfreelancer/routeros-api-php`, `ext-sockets` and `ROUTEROS_*` are removed there (ticket 04); the NAS registry, network accounts, apply job, `network:sync`, observer, pages and permissions are repurposed for RADIUS. Still valid from this lane: ticket 01 (`billing:suspend-overdue`, `suspension_source`, `suspended_at`, Q7, Q9, Q16, `PaymentRecorded` reconnect) and the public isolir page (Q8). Tickets 08 and 09 are superseded. Do not start new work from this file.
 
-Status: ready-for-agent
+Status: superseded (by `.scratch/freeradius/spec.md`; tickets 01 and 03-07 done, 09 delivered then removed with the RouterOS code, 02 and 08 superseded)
 Ledger: none yet (new lane promoted from the ISP roadmap; add the ledger entry when the owner approves)
 Source: `.scratch/isp-roadmap/spec.md` rows 1 "MikroTik / RouterOS provisioning" and 2 "RADIUS / NAS integration", plus its note that auto-suspend on overdue and auto-reactivate on payment belong with items 1-2.
 Optional upstream: `.scratch/ipam-odn/` (static IPv4 per subscription). Not needed for v1, see Further Notes.

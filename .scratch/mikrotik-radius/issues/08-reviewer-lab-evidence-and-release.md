@@ -1,6 +1,6 @@
 # REVIEWER: lab evidence on a CHR router, release readiness, rollback rehearsal
 
-Status: ready-for-agent
+Status: superseded (by `.scratch/freeradius`; the FreeRADIUS lab e2e replaces the CHR lab run)
 Role: reviewer
 Blocked by: 07
 Card: none (new lane; no Hermes card)
