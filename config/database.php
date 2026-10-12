@@ -64,6 +64,27 @@ return [
             ]) : [],
         ],
 
+        // Stock FreeRADIUS 3.2 schema in its own database; Inbils never migrates it.
+        // The driver is overridable only so tests can point it at SQLite (:memory:).
+        'radius' => [
+            'driver' => env('RADIUS_DB_DRIVER', 'mysql'),
+            'host' => env('RADIUS_DB_HOST') ?: '127.0.0.1',
+            'port' => env('RADIUS_DB_PORT') ?: '3306',
+            'database' => env('RADIUS_DB_DATABASE') ?: 'radius',
+            'username' => env('RADIUS_DB_USERNAME', ''),
+            'password' => env('RADIUS_DB_PASSWORD', ''),
+            'unix_socket' => '',
+            'charset' => env('DB_CHARSET', 'utf8mb4'),
+            'collation' => env('DB_COLLATION', 'utf8mb4_unicode_ci'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'strict' => true,
+            'engine' => null,
+            'options' => extension_loaded('pdo_mysql') ? array_filter([
+                (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+            ]) : [],
+        ],
+
         'mariadb' => [
             'driver' => 'mariadb',
             'url' => env('DB_URL'),

@@ -82,18 +82,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | MikroTik RouterOS provisioning (REST API, RouterOS 7.1+)
+    | FreeRADIUS provisioning
     |--------------------------------------------------------------------------
     |
-    | `enabled` is the installation switch: while false no request ever leaves for a router, reads
-    | included. Router API credentials live encrypted in nas_devices, never here. `ca_bundle` is the
-    | path of the NOC's internal CA (PEM); empty uses the system CA store. The router certificate is
-    | always verified: there is no switch that skips it.
+    | `enabled` is the installation switch: while false nothing is read from or written to the
+    | RADIUS database and no Disconnect-Request is sent. `coa_timeout` is the seconds to wait for
+    | a Disconnect answer. RADIUS shared secrets live encrypted in nas_devices, never here.
     |
     */
-    'routeros' => [
-        'enabled' => (bool) env('ROUTEROS_PROVISIONING_ENABLED', false),
-        'ca_bundle' => env('ROUTEROS_CA_BUNDLE') ?: null,
+    'radius' => [
+        'enabled' => (bool) env('RADIUS_ENABLED', false),
+        'coa_timeout' => 3,
     ],
 
 ];
