@@ -26,9 +26,9 @@ Non-goals: production code changes, a real router (ticket 08).
 
 - [x] Every matrix row in `../spec.md` maps to a named test (list it in `## Comments`), green on MySQL `inbils_test`.
 - [x] Each mutation fails at least one test; counts recorded; every mutation reverted (diff empty afterwards).
-- [ ] E2E passes on the canonical single-worker run three times in a row.
+- [x] E2E passes on the canonical single-worker run three times in a row. (2026-10-12: `tests/e2e/mikrotik-provisioning.spec.ts`, build + `setup.php` + `--project=chromium --workers=1`, three consecutive runs: 12 passed each, 52.1s / 36.8s / 36.6s.)
 - [x] Grep of `tests/` and the repo finds no real credential, router address or subscriber password.
-- [ ] Full isolated PHPUnit run green before handing over to ticket 07 (command and summary pasted).
+- [x] Full isolated PHPUnit run green before handing over to ticket 07 (command and summary pasted). (2026-10-12, sail + flock, full suite: Tests: 2807 passed (31074 assertions), 1697.95s; affected dirs 1171 passed.)
 
 ## Commands
 

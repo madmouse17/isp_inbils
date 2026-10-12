@@ -4,17 +4,17 @@ Status: RECOVERED AUDIT — current working tree, 2026-07-15
 
 Target: single-company ISP operations pilot/production baseline, medium scale
 
-Excluded: full telco OSS/BSS, multi-company activation, customer mobile app, FreeRADIUS/RADIUS accounting, multi-vendor NMS, public partner API, production payment-gateway go-live. Owner decision 2026-10-12: MikroTik NAS provisioning and isolir over the RouterOS REST API is a **lab pilot** (CHR first, one production router per maintenance window after the lab evidence of `.scratch/mikrotik-radius` ticket 08; installation switch `ROUTEROS_PROVISIONING_ENABLED` default off, per-router write flag default off); see `docs/business/network.md`. Owner decision 2026-10-11: a Midtrans Snap **sandbox pilot** (webhook, reconciliation) and a minimal customer invoice portal are in scope; see `docs/business/billing.md` ("Pembayaran online"). Owner decision 2026-10-12: an IP address register (IPAM: prefixes, addresses, VLANs) and an ODN port register (PON ports, splitters, customer drop ports) are in scope as **passive registers**: staff record the facts, nothing polls a device or pushes configuration, which keeps them clear of the NMS and topology-discovery exclusions; see `docs/business/network.md` ("IPAM dan ODN").
+Excluded: full telco OSS/BSS, multi-company activation, FreeRADIUS/RADIUS accounting, multi-vendor NMS, public partner API, production payment-gateway go-live. Owner decision 2026-10-13 (Q1, `.scratch/mobile-api/spec.md`): the customer and technician mobile apps are in scope as the only consumers of the first-party API v1; see section 4.9. Owner decision 2026-10-12: MikroTik NAS provisioning and isolir over the RouterOS REST API is a **lab pilot** (CHR first, one production router per maintenance window after the lab evidence of `.scratch/mikrotik-radius` ticket 08; installation switch `ROUTEROS_PROVISIONING_ENABLED` default off, per-router write flag default off); see `docs/business/network.md`. Owner decision 2026-10-11: a Midtrans Snap **sandbox pilot** (webhook, reconciliation) and a minimal customer invoice portal are in scope; see `docs/business/billing.md` ("Pembayaran online"). Owner decision 2026-10-12: an IP address register (IPAM: prefixes, addresses, VLANs) and an ODN port register (PON ports, splitters, customer drop ports) are in scope as **passive registers**: staff record the facts, nothing polls a device or pushes configuration, which keeps them clear of the NMS and topology-discovery exclusions; see `docs/business/network.md` ("IPAM dan ODN").
 
 ## 1. Executive verdict
 
 **Verdict: DEMO-READY, not pilot-ready. Weighted readiness: 55/100.**
 
-Application has broad ISP CRUD and useful transactional slices: company-scoped reads, RBAC permissions, customer/subscription workflow, SPK orchestration, stock row locking and DB constraints, payment reconciliation, tickets, network assets, reports, and deterministic Chromium harness. It cannot be promoted to production pilot while tenant-unsafe write references, wrong-asset auto-selection, broad SoD roles, exposed scaffold API routes, and missing production recovery/deployment controls remain.
+Application has broad ISP CRUD and useful transactional slices: company-scoped reads, RBAC permissions, customer/subscription workflow, SPK orchestration, stock row locking and DB constraints, payment reconciliation, tickets, network assets, reports, and deterministic Chromium harness. It cannot be promoted to production pilot while tenant-unsafe write references, wrong-asset auto-selection, broad SoD roles, exposed scaffold API routes (since removed, section 4.9), and missing production recovery/deployment controls remain.
 
 Mandatory closure:
 
-- **P0 application safety:** tenant-scope every write reference; make SPK asset selection explicit; enforce action-level separation for SPK approval, stock adjustment, invoice cancellation, and payment recording; disable scaffold APIs.
+- **P0 application safety:** tenant-scope every write reference; make SPK asset selection explicit; enforce action-level separation for SPK approval, stock adjustment, invoice cancellation, and payment recording; disable scaffold APIs (done).
 - **P0 operations:** production deploy/rollback runbook; supervised queue worker and scheduler; encrypted off-host backup plus successful restore drill with stated RPO/RTO.
 - **P1 confidence/operations:** metrics, alerts, centralized exception reporting; complete lifecycle E2E for SPK approval side effects, ticket resolve/close, recurring billing/reconciliation, API non-exposure/contract.
 
@@ -46,7 +46,7 @@ Runtime evidence available from latest QA closure, not rerun by this document re
 
 - Policy suite 10/10, Vite environment tests 2/2, full Chromium 12/12 (`QA_REPORT.md:23-26`, `QA_REPORT.md:64-77`).
 - `npm run format:check` had one unrelated dirty-tree failure (`QA_REPORT.md:78`).
-- Current module inventory: eight enabled modules. Current route inventory exposes 40 `/api/v1/*` routes.
+- Current module inventory: eight enabled modules. Current route inventory exposes 38 `/api/v1/*` routes, all of them the mobile API v1 (section 4.9).
 
 ## 3. Weighted readiness score
 
@@ -62,7 +62,7 @@ Runtime evidence available from latest QA closure, not rerun by this document re
 | Approval/SoD | 5 | 2 | PARTIAL | SPK approval exists; high-risk duties remain combined and durable approver fields are incomplete. |
 | Queues/notifications/idempotency | 6 | 1 | PARTIAL: WhatsApp channel | Scheduler entries exist; the WhatsApp channel (queued template notifications for billing, tickets, SPK and the portal access link, idempotent dedupe key, retry/backoff, signed delivery webhook) is shipped; staff alerts (SLA breach, failed jobs) and production worker supervision incl. the `whatsapp` queue are not. |
 | Reporting | 5 | 3 | PARTIAL | Six live query classes exist; unit report/export and metric correctness coverage incomplete. |
-| API/integration contracts | 5 | 0 | CONTRADICTED | Authenticated routes expose HTML scaffold/empty writes, not JSON contracts. |
+| API/integration contracts | 5 | 0 | CONTRADICTED | Scaffold routes removed; mobile API v1 has JSON contracts (section 4.9). Score not re-run. |
 | Deploy/backup/restore/observability | 9 | 1 | MISSING | Framework `/up` exists; deploy, backup restore, supervision, metrics, alerts absent. |
 | Deterministic PHP/browser E2E | 8 | 6 | PARTIAL | Fail-closed deterministic harness passes; required domain closure paths remain partial. |
 | **Total** | **100** | **55** | **DEMO-READY** | P0 safety and operations block pilot. |
@@ -197,16 +197,13 @@ Gaps:
 - Current business spec calls for seven reports including unit performance and exports (`docs/business/reporting.md:31-110`, `164-191`); no `UnitPerformanceQuery` found and export contract is absent.
 - Metric formula/date-boundary tests are insufficient for decision-grade reporting. Reporting can remain P1 after transactional P0 closure.
 
-### 4.9 API/integrations — CONTRADICTED, P0
+### 4.9 API/integrations — IMPLEMENTED for the two first-party mobile apps, 2026-10-13
 
-- Every module provider maps `/api` routes (`Modules/Billing/app/Providers/RouteServiceProvider.php:46-49` representative).
-- Eight module route files register authenticated `apiResource`; Billing example: `Modules/Billing/routes/api.php:6-8`.
-- Route inventory exposes 40 `/api/v1/*` endpoints.
-- Scaffold controllers return HTML module views and contain empty writes; Customer example `Modules/Customer/app/Http/Controllers/CustomerController.php:13-55`, Billing example `Modules/Billing/app/Http/Controllers/BillingController.php:13-55`, Reporting example `Modules/Reporting/app/Http/Controllers/ReportingController.php:13-55`.
+- The old module `/api` scaffold (eight `apiResource` route files returning HTML or empty writes) is gone. Only four modules keep a `routes/api.php` (Billing, Inventory, SPK, Ticketing), each mapped by its provider under `api/v1`; Core routes live in `routes/api.php`.
+- Mobile API v1 (`.scratch/mobile-api`): 38 routes under `/api/v1` for the customer and technician apps, Sanctum per-device bearer tokens (90 days customer, 30 days technician, revoked on logout, password change, deactivation and 2FA change), the JSON error envelope `{message, code, errors?}`, a mandatory `Idempotency-Key` on every mutation, API Resources and Form Requests, and policies shared with the web (`docs/SECURITY.md` section 4).
+- Contract: `docs/api/mobile-v1.openapi.json`, generated by `dedoc/scramble` (dev dependency) and pinned by `tests/Feature/Api/V1/OpenApiContractTest.php`, which fails when a route, request or resource changes without a fresh export (`docs/operations/DEPLOYMENT.md`, "Mobile API contract").
 
-`auth:sanctum` provides authentication only. It does not make these JSON contracts. No API Resources/FormRequests/policies/versioned error schema/OpenAPI/idempotency/contract tests support exposed routes.
-
-**P0 decision:** disable module API route mapping for pilot. Build real public/partner API later only after approved consumer contract. Do not repair eight speculative CRUD APIs now.
+**Q1 decision (owner, 2026-10-13):** the customer app and the technician app are the approved consumer contract of API v1. Still out of scope: a public or partner API, push notifications and any third consumer. Before a release the API needs a public HTTPS host and the `security-reviewer` verdict in `.scratch/mobile-api/issues/09-security-review-mobile-api.md`.
 
 ### 4.10 Queues, notifications, resilience — MISSING/PARTIAL, P0/P1
 
@@ -242,7 +239,7 @@ Mandatory P1 additions: SPK evidence-submit-approve with stock/asset/subscriptio
 |---|---|---|---|
 | R1 | P0 | Unscoped write references | Cross-company foreign-key injection and data contamination. |
 | R2 | P0 | First-available asset auto-install | Wrong serialized customer equipment assigned during SPK completion. |
-| R3 | P0 | Exposed scaffold APIs | Authenticated callers receive HTML/empty writes from routes presented as CRUD contracts. |
+| R3 | P0 | Exposed scaffold APIs | Closed 2026-10-13: the scaffold routes are removed and `OpenApiContractTest` pins the mobile API v1 contract. |
 | R4 | P0 | No restore-tested backup | Data loss cannot be recovered within known RPO/RTO. |
 | R5 | P0 | No deploy/rollback or worker/scheduler supervision | Recurring billing and queued work silently stop or unsafe migration blocks recovery. |
 | R6 | P0 | Broad manager high-risk permissions | Same actor can adjust stock, approve work, and create/record/cancel money movements. |
@@ -258,7 +255,7 @@ Mandatory P1 additions: SPK evidence-submit-approve with stock/asset/subscriptio
 1. Tenant-safe write references and service-level same-company assertions across Core, Service, Inventory, NetworkAsset, SPK, Billing, Ticketing.
 2. Explicit SPK serialized asset selection, compatibility check, row lock, unique active installation invariant.
 3. Action-level RBAC plus maker/checker separation and durable actor evidence for stock adjustment, SPK approval, payment/reversal, invoice cancellation.
-4. Disable all scaffold `/api/v1/*` module routes.
+4. ~~Disable all scaffold `/api/v1/*` module routes.~~ Done: the scaffold is removed; only the mobile API v1 remains.
 5. Production deployment/rollback/migration runbook and supervised scheduler/queue workers.
 6. Encrypted off-host backup, retention, restore procedure, successful restore drill, stated RPO/RTO.
 7. Reconcile critical untracked artifacts into reviewable repository changes before release.
@@ -274,12 +271,12 @@ Mandatory P1 additions: SPK evidence-submit-approve with stock/asset/subscriptio
 ### P2/P3, YAGNI, or external dependency
 
 - Multi-company activation and cross-company administration.
-- Customer mobile app. The minimal web invoice portal is a sandbox pilot (owner decision 2026-10-11).
+- Anything beyond the two first-party mobile apps (customer, technician). The minimal web invoice portal is a sandbox pilot (owner decision 2026-10-11).
 - Payment gateway production go-live: needs a real merchant account, a public HTTPS notification URL, production keys set only on the host, and a signed security review. The Midtrans Snap sandbox pilot is implemented.
 - RADIUS accounting and FreeRADIUS integration; MikroTik NAS provisioning and suspension automation runs as a lab pilot (see Excluded above), production per router only after the lab evidence.
 - Multi-vendor NMS, SNMP polling, topology discovery, outage correlation.
 - S3/object storage migration unless backup/attachment volume requires it.
-- Public/partner API beyond an approved consumer contract.
+- Public/partner API beyond the approved consumer contract (the two mobile apps).
 - Rule-engine auto-assignment, omnichannel messaging, full accounting/general ledger.
 
 These require product decision, credentials, vendor/hardware access, or measured scale. None blocks bounded internal pilot once P0/P1 gates pass.

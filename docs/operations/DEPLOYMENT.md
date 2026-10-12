@@ -154,6 +154,32 @@ Before any production migration:
 7. **Verify**: run `php artisan migrate:status` and check `/ready`.
 8. **Release**: `php artisan up`
 
+## Mobile API (`/api/v1`)
+
+- **Migration**: `php artisan migrate --force` creates `personal_access_tokens`. Rolling it back signs every phone out.
+- **Schedule**: `sanctum:prune-expired --hours=24` runs daily from `routes/console.php`; it appears in `php artisan schedule:list` once the scheduler owner is running the new release.
+- **Dependencies**: `composer install --no-dev` (step 1) leaves out `dedoc/scramble`, so no `docs/api` or `docs/api.json` route exists in production. Check with `php artisan route:list --path=docs`: it must print no routes.
+- **Environment**: no new `.env` value. Tokens expire after 90 days (customer) or 30 days (technician), set in `config/sanctum.php`.
+- **Host**: the apps need a public HTTPS host for `/api/v1`; the app never sends a token over plain HTTP.
+- **Queue**: the existing workers (`default,whatsapp`) serve it; the API adds no queue.
+
+### Mobile API contract
+
+`docs/api/mobile-v1.openapi.json` is generated from the routes, requests and resources and committed. `tests/Feature/Api/V1/OpenApiContractTest.php` fails when a fresh export differs from it, so regenerate and commit the file in the same change as any `api/v1` route, request, resource or PHPDoc hint change.
+
+The export reads column types from the database, so run it against a migrated one: the Sail database after `./vendor/bin/sail artisan migrate`, or the test schema (RefreshDatabase has migrated `inbils_test` after any test run):
+
+```bash
+./vendor/bin/sail artisan scramble:export
+# or, against the test schema:
+./vendor/bin/sail exec -e DB_DATABASE=inbils_test -e DB_USERNAME=inbils -e DB_PASSWORD=inbils_local_change_me laravel.test php artisan scramble:export
+
+# then confirm it is stable and the contract test is green
+./vendor/bin/sail exec laravel.test flock /tmp/inbils-phpunit.lock php -d memory_limit=1G artisan test --compact tests/Feature/Api/V1/OpenApiContractTest.php
+```
+
+The path comes from `config/scramble.php` (`export_path`). The export prints 5 known warnings (two `Rule::in(self::STATUSES)` that cannot be evaluated, three resources without a model); they do not mean drift. Without a migrated database it prints one warning per model and the file changes, so check `git diff` before committing. Where inference is wrong the code carries a PHPDoc hint (`@var` on an array key, `@response` on `InvoiceController::show`, `@return` on the ticket comment resources and `MyWorkItemResource`).
+
 ## Health and readiness
 
 - `/up` is the liveness endpoint.

@@ -99,9 +99,50 @@ Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder 
 - With `SESSION_DRIVER=file` or `redis`, turning two-factor on does not end the user's other sessions (only remember-me cookies and, in the profile actions, the acting session); they last until idle expiry (`SESSION_LIFETIME`, 120 min by default).
 - The password step still counts failures after the check (Breeze's pattern, 5 per minute per email and IP), so a burst of parallel wrong passwords can exceed it. Not changed in this lane.
 - The one-time flash carrying the setup key or recovery codes sits in the session store, in clear unless `SESSION_ENCRYPT=true`, from the POST response until the following request (the redirected page load) completes; a user who never follows the redirect leaves it there until the session expires. Production deployments that keep sessions in a store others can read should turn session encryption on.
-- There is no token-issuing endpoint yet (`laravel/sanctum` is installed but unused). A future mobile or API login must call `TwoFactorService::verifyChallenge()` before it issues a token.
+- The mobile API issues tokens only after `TwoFactorService::verifyChallenge()` passes (section 4.3).
 
 ### 3.6 Related login controls
 - **Step-up throttle**: `POST /confirm-password`, the gate in front of two-factor management and password changes, allows 5 wrong passwords per minute per user and IP, counted before the password is checked: the 6th attempt is refused even with the right password, and the right password clears the count.
-- **Inactive users**: `users.is_active` is part of the credentials lookup (`LoginRequest::validateCredentials`), so an inactive user gets exactly the wrong-password message and no session. A user deactivated between the password step and the challenge is sent back to the login without the code being checked. Sessions and remember-me cookies that exist when a user is deactivated are *not* ended: there is no per-request check yet.
+- **Inactive users**: `users.is_active` is part of the credentials lookup (`LoginRequest::validateCredentials`), so an inactive user gets exactly the wrong-password message and no session. A user deactivated between the password step and the challenge is sent back to the login without the code being checked. Sessions and remember-me cookies that exist when a user is deactivated are *not* ended: there is no per-request check for web sessions yet. API tokens are different (section 4.2).
 - **Forgot password**: `POST /forgot-password` is limited to 6 per minute per address and always answers with the same status ("If an account exists for that email address, we have emailed a password reset link."), whether or not the address has an account, and also inside the broker's 60 s wait time. The link is sent after the response (`Illuminate\Support\defer`), so the time it takes does not say either; a mail transport failure is reported to the log, not to the visitor.
+
+## 4. Mobile API (customer and technician apps)
+
+`/api/v1`, Laravel Sanctum bearer tokens, no session and no cookies (`statefulApi()` stays off). Specification and decisions: `.scratch/mobile-api/spec.md`; contract: `docs/api/mobile-v1.openapi.json`. Nothing in this section reaches the browser UI.
+
+### 4.1 Tokens
+- One personal access token per app install, named after the device (at most 100 characters) and carrying exactly one ability, `customer` or `technician`. Routes require the ability, so a customer token never reaches a technician route. A user who holds both roles holds two tokens.
+- Lifetime is absolute and set when the token is issued: 90 days for a customer token, 30 days for a technician token (`sanctum.app_token_days`). `POST /api/v1/auth/token/refresh` swaps the token for a new one in one transaction and deletes the old one; the app refreshes when fewer than 7 days remain. Any 401 means "sign in again". There are no OAuth refresh tokens.
+- `sanctum:prune-expired --hours=24` runs daily (`routes/console.php`). The token text is shown once, in the login response; it is never logged, audited or stored in clear (Sanctum stores its SHA-256).
+- Audit (log `activity_log`, ids and reasons only, never a token): `api.token_issued` (app, device name, IP) and `api.tokens_revoked` (reason).
+
+### 4.2 Revocation
+Every one of these deletes all of the user's tokens, so the next call is 401:
+- the password changes by any path (reset, profile, admin edit);
+- the user is deactivated (`is_active` false) or deleted;
+- two-factor is enabled, disabled, its recovery codes are regenerated, or an admin resets it (`TwoFactorService::endOtherLogins`).
+
+The hooks sit on the `User` model, so every writer is covered. Also: logout deletes the current token; `DELETE /api/v1/devices/{id}` deletes one of the user's own other tokens (a lost phone); an inactive user is refused on every request with 401 `account_inactive` and the token is deleted.
+
+### 4.3 Who may use which app
+- **Customer app**: the web portal rule, role `customer` plus a `customers.user_id` link (`EnsureCustomerAccess::customerFor`). Inactive or terminated customers keep access to their old invoices, as on the web.
+- **Technician app**: the web "My work" rule, `MyWorkQuery::isEligible` (`spk.start|spk.submit` or `ticket.start|resolve|close`, plus an active employee profile in the company).
+- Both apps also need an active user, a verified e-mail and a company. This is checked at login and on every request; a failure is 403 `app_not_allowed`. The company is always the user's home company (`users.company_id`).
+- A user with `must_change_password` set is refused with 403 `password_reset_required` and resets the password on the web through the e-mailed link (`POST auth/forgot-password`, always 202, same body for every address).
+- Second factor: a user with confirmed two-factor gets a server-side challenge (cache, 300 s, at most 5 attempts) from `POST auth/login` and no token until `POST auth/two-factor` verifies a TOTP or recovery code. Limits and limiter keys are shared with the web challenge (3.1). Managing two-factor stays on the web.
+- Throttles: 120 requests per minute per token; 20 sign-ins per minute per IP plus the web's 5 per e-mail and IP; 6 password-reset requests per minute per IP; 6 payment starts and 30 uploads per minute per user.
+
+### 4.4 Evidence policy (SPK photos and documents)
+Web and API call the same `SpkService::addEvidence` and `removeEvidence`, guarded by `WorkOrderPolicy`:
+- Upload: the SPK is not `completed` or `cancelled`, and the user has `spk.update`, or is the assigned active technician with `spk.evidence.upload` while the SPK is `in_progress`.
+- Remove: the same status rule, and `spk.update`, or the uploader while the SPK is `in_progress`.
+- One file per request, at most 10 MB, `jpg,jpeg,png,pdf,doc,docx` checked by extension and MIME type, caption at most 255 characters, optional `captured_at` between 30 days ago and 5 minutes ahead. Files go to the private disk and download through `GET /api/v1/media/{media}`, which is fenced by the token's app. A technician reads an SPK only when assigned to it.
+- Until 2026-10-11 any technician of the company could add or delete evidence on any SPK in any status; `tests/Feature/SPK/EvidenceAuthorizationTest.php` pins the fix.
+
+### 4.5 Request integrity
+- Every `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key` (a UUID). For 24 hours the response is stored per user and key: a replay returns the stored response, the key with another request is 422 `idempotency_conflict`, a parallel duplicate is 409 `idempotency_in_progress`. 5xx and 429 are not stored.
+- Every error under `api/*` is JSON `{message, code, errors?}` whatever `Accept` says, with no exception class, SQL or trace even when `APP_DEBUG` is true.
+- Responses use allow-list resources, never the admin ones: no payment gateway token, order id, notification payload, `received_by`, internal note or network credential appears (the recursive key check in `tests/Feature/Api/V1/Customer/PayTest.php`).
+
+### 4.6 Dependencies
+`dedoc/scramble` (MIT) is a dev dependency used only to generate the OpenAPI export. Production installs with `composer install --no-dev`, so no docs route (`docs/api`) exists there; locally Scramble's default `viewApiDocs` gate allows it in the `local` environment only.
