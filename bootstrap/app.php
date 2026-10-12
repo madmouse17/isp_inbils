@@ -70,9 +70,9 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // The router API password is a secret that Laravel's default list does not know: a failed form must not
+        // The RADIUS shared secret is a secret that Laravel's default list does not know: a failed form must not
         // flash it into the session as old input.
-        $exceptions->dontFlash(['api_password']);
+        $exceptions->dontFlash(['radius_secret']);
         // Every error under api/* is JSON {message, code, errors?}. Registered first: the web renderers below
         // answer a 409 or an InsufficientStockException with a redirect or a differently shaped body.
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());

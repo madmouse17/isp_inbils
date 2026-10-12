@@ -14,55 +14,56 @@ use Modules\Service\Database\Factories\SpeedProfileFactory;
 use Modules\Service\Models\ServicePackage;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use Tests\Support\FakeRouterOs;
 
 /**
- * NAS routers, packages with a router profile name and network accounts, built for one explicit company.
- * Use together with InteractsWithRouterOs (and BuildsSubscriptionBilling for the subscriptions).
+ * NAS clients, packages with a RADIUS profile name and network accounts, built for one explicit company.
+ * Use together with InteractsWithRadius and InteractsWithNasCoa (and BuildsSubscriptionBilling for the subscriptions).
  */
 trait BuildsNetworkFixtures
 {
-    /** A package whose speed profile names the given router profile (null = none, so it cannot be applied). */
-    protected function packageWithRouterProfile(Company $company, ?string $routerProfile = 'home-20m'): ServicePackage
+    /** A package whose speed profile names the given RADIUS profile (null = none, so it cannot be applied). */
+    protected function packageWithRadiusProfile(Company $company, ?string $radiusProfile = 'home-20m', int $down = 20, int $up = 10): ServicePackage
     {
-        $speed = SpeedProfileFactory::new()->create(['company_id' => $company->id, 'name' => 'Speed '.Str::random(10), 'radius_profile_name' => $routerProfile]);
+        $speed = SpeedProfileFactory::new()->create([
+            'company_id' => $company->id,
+            'name' => 'Speed '.Str::random(10),
+            'radius_profile_name' => $radiusProfile,
+            'download_max_mbps' => $down,
+            'upload_max_mbps' => $up,
+        ]);
 
         return ServicePackageFactory::new()->create(['company_id' => $company->id, 'name' => 'Package '.Str::random(10), 'speed_profile_id' => $speed->id]);
     }
 
-    /**
-     * A NAS router (writes on by default) with its in-memory router, which already holds the given profiles.
-     *
-     * @param  list<string>  $profiles
-     * @return array{0: NasDevice, 1: FakeRouterOs}
-     */
-    protected function nasRouter(Company $company, array $profiles = ['home-20m', 'home-50m', 'isolir'], bool $writable = true): array
+    /** A registered NAS client of the company (RADIUS row not written yet) at an address of its own. */
+    protected function nasClient(Company $company, ?string $nasname = null): NasDevice
     {
-        $nas = NasDevice::factory()->create(['company_id' => $company->id, 'provisioning_enabled' => $writable]);
+        return NasDevice::factory()->create(['company_id' => $company->id] + ($nasname === null ? [] : ['nasname' => $nasname]));
+    }
 
-        return [$nas, $this->routerFor($nas)->profile(...$profiles)];
+    /** The realm of a company, as the engine derives it. */
+    protected function realmOf(Company $company): string
+    {
+        return strtolower($company->code);
     }
 
     /** @param  array<string, mixed>  $attributes */
-    protected function networkAccountFor(ServiceSubscription $subscription, NasDevice $nas, array $attributes = []): NetworkAccount
+    protected function networkAccountFor(ServiceSubscription $subscription, array $attributes = []): NetworkAccount
     {
+        $realm = $this->realmOf(Company::query()->findOrFail($subscription->company_id));
+
         return NetworkAccount::factory()->create($attributes + [
             'company_id' => $subscription->company_id,
             'subscription_id' => $subscription->id,
-            'nas_device_id' => $nas->id,
-            'username' => 'alice',
+            'username' => 'alice@'.$realm,
             'password' => 'fake-subscriber-secret',
         ]);
     }
 
-    /**
-     * What saving or resyncing an account does: queue the apply job (the sync queue runs it at once in tests).
-     * By default as an administrator would (network_asset.nas.manage): the job carries the approval of the target as
-     * it is stored now, so taking over an existing secret is allowed. Pass false for what the sync or a plain staff save does.
-     */
-    protected function applyAccount(NetworkAccount $account, bool $mayAdopt = true): void
+    /** What saving or resyncing an account does: queue the apply job (the sync queue runs it at once in tests). */
+    protected function applyAccount(NetworkAccount $account): void
     {
-        ApplyNetworkAccountJob::dispatch((int) $account->company_id, $account->id, $mayAdopt ? ApplyNetworkAccountJob::adoptionApprovalFor($account->fresh()) : null);
+        ApplyNetworkAccountJob::dispatch((int) $account->company_id, $account->id);
     }
 
     /** @return list<string> */

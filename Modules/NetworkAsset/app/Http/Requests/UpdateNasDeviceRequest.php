@@ -2,11 +2,14 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Services\Core\CompanyService;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Services\Radius\Realm;
 
-/** The router asset itself cannot change. A blank API password keeps the stored one. */
+/** The router asset itself cannot change. A blank RADIUS secret keeps the stored one. */
 class UpdateNasDeviceRequest extends FormRequest
 {
     public function authorize(): bool
@@ -17,13 +20,13 @@ class UpdateNasDeviceRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
+        /** @var NasDevice $nas */
+        $nas = $this->route('nasDevice');
+
         return [
-            'api_protocol' => ['sometimes', Rule::in(NasDevice::API_PROTOCOLS)],
-            'api_port' => ['sometimes', 'required', 'integer', 'between:1,65535'],
-            'api_username' => ['sometimes', 'required', 'string', 'max:64'],
-            'api_password' => ['nullable', 'string', 'max:128'],
-            'isolir_profile' => ['sometimes', 'required', 'string', 'regex:/^[A-Za-z0-9._-]{1,64}$/'],
-            'provisioning_enabled' => ['sometimes', 'boolean'],
+            'nasname' => ['sometimes', 'required', 'ipv4', Rule::unique('nas_devices', 'nasname')->ignore($nas->id)],
+            'coa_port' => ['sometimes', 'required', 'integer', 'between:1,65535'],
+            'radius_secret' => ['nullable', 'string', 'min:8', 'max:60', 'regex:/^[\x21-\x7E]+$/'],
         ];
     }
 
@@ -31,7 +34,18 @@ class UpdateNasDeviceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'isolir_profile.regex' => 'Use only letters, digits, dots, dashes and underscores (up to 64 characters).',
+            'nasname.unique' => 'This address is not available.',
+            'radius_secret.regex' => 'Use printable characters without spaces.',
         ];
+    }
+
+    /** @return array<int, callable(Validator): void> */
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            if (Realm::forCompany((int) CompanyService::currentId()) === null) {
+                $validator->errors()->add('realm', 'The company code cannot be used as a RADIUS realm: use 1 to 24 letters, digits or dashes.');
+            }
+        }];
     }
 }

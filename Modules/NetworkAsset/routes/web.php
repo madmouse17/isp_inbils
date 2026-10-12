@@ -23,9 +23,8 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::post('network-assets/{asset}/repair', [NetworkAssetController::class, 'repair'])->name('network-assets.repair');
     Route::post('network-assets/{asset}/retire', [NetworkAssetController::class, 'retire'])->name('network-assets.retire');
 
-    // NAS routers (MikroTik provisioning). Writes to routers go through the queue, never through these requests.
+    // NAS routers (FreeRADIUS clients). RADIUS writes are best effort after the save and retried by network:sync.
     Route::resource('nas-devices', NasDeviceController::class)->parameters(['nas-devices' => 'nasDevice']);
-    Route::post('nas-devices/{nasDevice}/check', [NasDeviceController::class, 'check'])->middleware('throttle:6,1')->name('nas-devices.check');
 
     Route::get('subscriptions/{subscription}/network-account', [NetworkAccountController::class, 'show'])->name('subscriptions.network-account.show');
     Route::post('subscriptions/{subscription}/network-account', [NetworkAccountController::class, 'store'])->name('subscriptions.network-account.store');

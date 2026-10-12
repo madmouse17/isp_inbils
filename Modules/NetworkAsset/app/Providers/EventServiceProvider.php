@@ -4,9 +4,9 @@ namespace Modules\NetworkAsset\Providers;
 
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
-use Modules\NetworkAsset\Models\NetworkAsset;
-use Modules\NetworkAsset\Observers\NetworkAssetEndpointObserver;
 use Modules\NetworkAsset\Observers\ServiceSubscriptionNetworkObserver;
+use Modules\NetworkAsset\Observers\SpeedProfileRadiusObserver;
+use Modules\Service\Models\SpeedProfile;
 
 class EventServiceProvider extends ServiceProvider
 {
@@ -18,13 +18,13 @@ class EventServiceProvider extends ServiceProvider
     protected $listen = [];
 
     /**
-     * Core never calls the network: the module observes the shared subscription model.
+     * Core never calls the network: the module observes the shared subscription model and the speed profile.
      *
      * @var array<class-string, class-string|array<int, class-string>>
      */
     protected $observers = [
         ServiceSubscription::class => [ServiceSubscriptionNetworkObserver::class],
-        NetworkAsset::class => [NetworkAssetEndpointObserver::class],
+        SpeedProfile::class => [SpeedProfileRadiusObserver::class],
     ];
 
     /**

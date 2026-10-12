@@ -7,10 +7,10 @@ use App\Models\Core\Location;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\NetworkAsset\Database\Factories\NetworkAssetFactory;
-use Modules\NetworkAsset\Jobs\SyncNasDeviceJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Spatie\Activitylog\Models\Activity;
@@ -18,19 +18,23 @@ use Tests\TestCase;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
-use Tests\Traits\InteractsWithRouterOs;
+use Tests\Traits\InteractsWithNasCoa;
+use Tests\Traits\InteractsWithRadius;
 
 class NasDeviceHttpTest extends TestCase
 {
     use BuildsNetworkFixtures;
     use BuildsSubscriptionBilling;
     use CreatesCompanyUser;
-    use InteractsWithRouterOs;
+    use InteractsWithNasCoa;
+    use InteractsWithRadius;
     use RefreshDatabase;
 
     private User $admin;
 
     private Company $company;
+
+    private string $realm;
 
     protected function setUp(): void
     {
@@ -39,8 +43,9 @@ class NasDeviceHttpTest extends TestCase
         $this->withoutVite();
         $this->admin = $this->createCompanyUser();
         $this->company = $this->admin->company;
+        $this->realm = $this->realmOf($this->company);
         $this->grantNetworkPermissionsToAdminRole();
-        $this->fakeRouterOs();
+        $this->fakeRadius();
         $this->actingAs($this->admin);
     }
 
@@ -61,10 +66,9 @@ class NasDeviceHttpTest extends TestCase
     {
         return $overrides + [
             'network_asset_id' => $asset->id,
-            'api_port' => 443,
-            'api_username' => 'inbils-api',
-            'api_password' => 'fake-router-secret-1',
-            'isolir_profile' => 'isolir',
+            'nasname' => '198.51.100.'.(100 + $asset->id % 100),
+            'coa_port' => 1700,
+            'radius_secret' => 'fake-radius-secret-1',
         ];
     }
 
@@ -76,51 +80,28 @@ class NasDeviceHttpTest extends TestCase
     /** @return list<string> */
     private function contractKeys(): array
     {
-        return ['id', 'network_asset', 'api_protocol', 'api_port', 'api_username', 'has_api_password', 'isolir_profile', 'provisioning_enabled', 'routeros_version', 'last_checked_at', 'last_seen_at', 'unreachable_since', 'last_error', 'unmanaged_count', 'accounts_count', 'accounts_failed_count'];
+        return ['id', 'network_asset', 'nasname', 'shortname', 'coa_port', 'has_radius_secret', 'radius_synced_at', 'last_error'];
     }
 
-    public function test_index_lists_only_this_companys_routers_with_the_contract_shape_and_no_password(): void
+    public function test_index_lists_only_this_companys_nas_rows_with_the_contract_shape_and_no_secret(): void
     {
         $mine = $this->nasDevice();
         $this->nasDevice(Company::factory()->create(['is_active' => true]));
-        $this->networkAccountFor($this->subscriptionIn($this->company), $mine);
 
         $response = $this->get(route('admin.nas-devices.index'));
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
             ->has('nasDevices.data', 1)
             ->where('nasDevices.data.0.id', $mine->id)
-            ->where('nasDevices.data.0.accounts_count', 1)
-            ->where('nasDevices.data.0.accounts_failed_count', 0)
-            ->where('nasDevices.data.0.has_api_password', true)
+            ->where('nasDevices.data.0.nasname', $mine->nasname)
+            ->where('nasDevices.data.0.shortname', $this->realm)
+            ->where('nasDevices.data.0.coa_port', 1700)
+            ->where('nasDevices.data.0.has_radius_secret', true)
             ->where('nasDevices.data.0.network_asset.code', $mine->networkAsset->code)
             ->where('can.create', true)
             ->has('filters'));
         $this->assertSame($this->contractKeys(), array_keys($response->inertiaProps()['nasDevices']['data'][0]));
-        $this->assertStringNotContainsString('fake-router-api-password', json_encode($response->inertiaProps()));
-    }
-
-    public function test_store_defaults_to_rest_on_443_and_binary_defaults_to_the_tls_port(): void
-    {
-        $rest = $this->routerAsset();
-        $binary = $this->routerAsset();
-        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $rest->id, 'api_username' => 'u', 'api_password' => 'fake-pass'])->assertRedirect();
-        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $binary->id, 'api_protocol' => 'binary', 'api_username' => 'u', 'api_password' => 'fake-pass'])->assertRedirect();
-
-        $this->assertSame(['rest', 443], [NasDevice::query()->where('network_asset_id', $rest->id)->value('api_protocol'), NasDevice::query()->where('network_asset_id', $rest->id)->value('api_port')]);
-        $this->assertSame(['binary', 8729], [NasDevice::query()->where('network_asset_id', $binary->id)->value('api_protocol'), NasDevice::query()->where('network_asset_id', $binary->id)->value('api_port')]);
-    }
-
-    public function test_an_unknown_api_protocol_is_refused_on_store_and_update(): void
-    {
-        $asset = $this->routerAsset();
-
-        $this->postJson(route('admin.nas-devices.store'), $this->payload($asset, ['api_protocol' => 'telnet']))->assertUnprocessable()->assertJsonValidationErrors('api_protocol');
-        $nas = $this->nasDevice();
-        $this->putJson(route('admin.nas-devices.update', $nas), ['api_protocol' => 'ssh'])->assertUnprocessable()->assertJsonValidationErrors('api_protocol');
-        $this->putJson(route('admin.nas-devices.update', $nas), ['api_protocol' => 'binary', 'api_port' => 8728])->assertRedirect();
-
-        $this->assertSame(['binary', 8728], [$nas->fresh()->api_protocol, $nas->fresh()->api_port]);
+        $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($response->inertiaProps()));
     }
 
     public function test_index_searches_by_asset_code_name_or_address_and_sorts_by_asset_code(): void
@@ -129,10 +110,13 @@ class NasDeviceHttpTest extends TestCase
         $second = $this->nasDevice();
         $first->networkAsset->update(['code' => 'AST-ZZZ', 'name' => 'Core router']);
         $second->networkAsset->update(['code' => 'AST-AAA', 'name' => 'Edge router']);
+        $second->forceFill(['nasname' => '203.0.113.77'])->save();
 
         $this->get(route('admin.nas-devices.index', ['search' => 'zzz']))
             ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $first->id));
         $this->get(route('admin.nas-devices.index', ['search' => 'Edge']))
+            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->id));
+        $this->get(route('admin.nas-devices.index', ['search' => '203.0.113']))
             ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->id));
         $this->get(route('admin.nas-devices.index', ['sort_by' => 'code', 'sort_dir' => 'asc']))
             ->assertInertia(fn (Assert $page) => $page->where('nasDevices.data.0.id', $second->id)->where('nasDevices.data.1.id', $first->id));
@@ -140,7 +124,7 @@ class NasDeviceHttpTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 0));
     }
 
-    public function test_create_offers_only_router_assets_with_an_address_that_are_not_registered_yet(): void
+    public function test_create_offers_only_unregistered_router_assets_with_an_address_and_the_realm(): void
     {
         $pop = Location::factory()->create(['company_id' => $this->company->id, 'name' => 'POP Dago']);
         $free = $this->routerAsset(attributes: ['location_id' => $pop->id]);
@@ -149,62 +133,120 @@ class NasDeviceHttpTest extends TestCase
         $this->routerAsset(attributes: ['asset_type' => 'switch']);
         $this->routerAsset(Company::factory()->create(['is_active' => true]));
 
-        $this->get(route('admin.nas-devices.create'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('routerAssets', 1)
-                ->where('routerAssets.0', ['id' => $free->id, 'code' => $free->code, 'name' => $free->name, 'management_ip' => $free->management_ip, 'location_name' => 'POP Dago']));
-        $this->assertNotContains($registered->id, collect($this->get(route('admin.nas-devices.create'))->inertiaProps()['routerAssets'])->pluck('id')->all());
+        $response = $this->get(route('admin.nas-devices.create'));
+
+        $response->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('routerAssets', 1)
+            ->where('routerAssets.0', ['id' => $free->id, 'code' => $free->code, 'name' => $free->name, 'management_ip' => $free->management_ip, 'location_name' => 'POP Dago'])
+            ->where('realm', $this->realm));
+        $this->assertNotContains($registered->id, collect($response->inertiaProps()['routerAssets'])->pluck('id')->all());
     }
 
-    public function test_store_registers_the_router_with_writes_off_encrypts_the_password_and_audits_without_it(): void
+    public function test_create_has_no_realm_while_the_company_code_cannot_be_one(): void
+    {
+        $this->company->update(['code' => 'ACME_BAD CODE']);
+
+        $this->get(route('admin.nas-devices.create'))->assertInertia(fn (Assert $page) => $page->where('realm', null));
+    }
+
+    public function test_store_registers_the_client_in_radius_encrypts_the_secret_and_audits_without_it(): void
     {
         $asset = $this->routerAsset();
+        $this->radiusConnection()->table('nas')->insert(['nasname' => '127.0.0.1', 'shortname' => 'lab', 'secret' => 'fake-lab-secret']);
 
-        $this->post(route('admin.nas-devices.store'), $this->payload($asset, ['api_port' => 8729]))
-            ->assertRedirect(route('admin.nas-devices.show', NasDevice::query()->firstOrFail()));
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset, ['nasname' => '198.51.100.20', 'coa_port' => 13799]))
+            ->assertRedirect(route('admin.nas-devices.show', NasDevice::query()->firstOrFail()))
+            ->assertSessionHas('success')
+            ->assertSessionMissing('warning');
 
         $nas = NasDevice::query()->firstOrFail();
-        $this->assertSame($asset->id, $nas->network_asset_id);
-        $this->assertSame(8729, $nas->api_port);
-        $this->assertFalse($nas->provisioning_enabled);
-        $this->assertSame('fake-router-secret-1', $nas->api_password);
-        $this->assertStringNotContainsString('fake-router-secret-1', (string) DB::table('nas_devices')->value('api_password'));
+        $this->assertSame([$asset->id, '198.51.100.20', 13799, 'fake-radius-secret-1'], [$nas->network_asset_id, $nas->nasname, $nas->coa_port, $nas->radius_secret]);
+        $this->assertStringNotContainsString('fake-radius-secret-1', (string) DB::table('nas_devices')->value('radius_secret'));
+        $this->assertSame('198.51.100.20', $nas->radius_nasname);
+        $this->assertNotNull($nas->radius_synced_at);
+        $this->assertNull($nas->last_error);
+
+        $row = $this->radiusRows('nas', ['nasname' => '198.51.100.20']);
+        $this->assertCount(1, $row);
+        $this->assertSame([$this->realm, 'fake-radius-secret-1'], [$row[0]['shortname'], $row[0]['secret']]);
+        $this->assertCount(1, $this->radiusRows('nas', ['nasname' => '127.0.0.1']), 'rows Inbils did not write stay');
+
         $audit = Activity::query()->where('log_name', 'nas_device')->where('description', 'created')->firstOrFail();
         $this->assertSame($this->admin->id, $audit->causer_id);
-        $this->assertStringNotContainsString('fake-router-secret-1', json_encode($audit->properties));
+        $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'radius_written')->count());
+        foreach (Activity::query()->get() as $entry) {
+            $this->assertStringNotContainsString('fake-radius-secret-1', json_encode($entry->properties));
+        }
     }
 
-    public function test_store_defaults_the_port_and_the_isolir_profile(): void
+    public function test_store_defaults_the_address_to_the_management_ip_and_the_port_to_1700(): void
     {
         $asset = $this->routerAsset();
 
-        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->id, 'api_username' => 'u', 'api_password' => 'fake-pass'])->assertRedirect();
+        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->id, 'radius_secret' => 'fake-radius-secret-2'])->assertRedirect();
 
         $nas = NasDevice::query()->firstOrFail();
-        $this->assertSame(443, $nas->api_port);
-        $this->assertSame('isolir', $nas->isolir_profile);
+        $this->assertSame([$asset->management_ip, 1700], [$nas->nasname, $nas->coa_port]);
     }
 
-    public function test_store_validation_refuses_what_a_router_must_not_be(): void
+    public function test_store_with_the_switch_off_saves_the_row_writes_nothing_and_warns(): void
     {
-        $registered = $this->nasDevice()->networkAsset;
+        config(['services.radius.enabled' => false]);
+        $asset = $this->routerAsset();
+
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset))->assertRedirect()->assertSessionHas('warning');
+
+        $nas = NasDevice::query()->firstOrFail();
+        $this->assertNull($nas->radius_synced_at);
+        $this->assertNotNull($nas->last_error);
+        $this->assertSame([], $this->radiusRows('nas'));
+    }
+
+    public function test_store_while_radius_is_down_never_fails_and_leaves_the_row_for_the_sync(): void
+    {
+        Schema::connection('radius')->drop('nas');
+        $asset = $this->routerAsset();
+
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset))->assertRedirect()->assertSessionHas('warning');
+
+        $nas = NasDevice::query()->firstOrFail();
+        $this->assertNull($nas->radius_synced_at);
+        $this->assertSame('The RADIUS database is unavailable.', $nas->last_error);
+        $this->assertSame(1, Activity::query()->where('description', 'radius_failed')->count());
+    }
+
+    public function test_store_refuses_a_company_whose_code_cannot_be_a_realm(): void
+    {
+        $this->company->update(['code' => 'ACME_BAD CODE']);
+
+        $this->postJson(route('admin.nas-devices.store'), $this->payload($this->routerAsset()))->assertUnprocessable()->assertJsonValidationErrors('realm');
+
+        $this->assertSame(0, NasDevice::query()->count());
+        $this->assertSame([], $this->radiusRows('nas'));
+    }
+
+    public function test_store_validation_refuses_what_a_nas_must_not_be(): void
+    {
+        $registered = $this->nasDevice();
         $foreign = $this->routerAsset(Company::factory()->create(['is_active' => true]));
+        $foreignNas = $this->nasDevice(Company::factory()->create(['is_active' => true]));
         $cases = [
             'a switch' => [$this->payload($this->routerAsset(attributes: ['asset_type' => 'switch'])), 'network_asset_id'],
             "another company's asset" => [$this->payload($foreign), 'network_asset_id'],
             'no management ip' => [$this->payload($this->routerAsset(attributes: ['management_ip' => null])), 'network_asset_id'],
-            'already registered' => [$this->payload($registered), 'network_asset_id'],
-            'unknown asset' => [$this->payload($registered, ['network_asset_id' => 999999]), 'network_asset_id'],
-            'port 0' => [$this->payload($this->routerAsset(), ['api_port' => 0]), 'api_port'],
-            'port 70000' => [$this->payload($this->routerAsset(), ['api_port' => 70000]), 'api_port'],
-            'port text' => [$this->payload($this->routerAsset(), ['api_port' => 'abc']), 'api_port'],
-            'isolir profile with spaces' => [$this->payload($this->routerAsset(), ['isolir_profile' => 'bad profile!']), 'isolir_profile'],
-            'isolir profile too long' => [$this->payload($this->routerAsset(), ['isolir_profile' => str_repeat('a', 65)]), 'isolir_profile'],
-            'no username' => [$this->payload($this->routerAsset(), ['api_username' => '']), 'api_username'],
-            'long username' => [$this->payload($this->routerAsset(), ['api_username' => str_repeat('u', 65)]), 'api_username'],
-            'no password' => [$this->payload($this->routerAsset(), ['api_password' => '']), 'api_password'],
-            'long password' => [$this->payload($this->routerAsset(), ['api_password' => str_repeat('p', 129)]), 'api_password'],
+            'already registered' => [$this->payload($registered->networkAsset), 'network_asset_id'],
+            'unknown asset' => [$this->payload($registered->networkAsset, ['network_asset_id' => 999999]), 'network_asset_id'],
+            'address not an IPv4' => [$this->payload($this->routerAsset(), ['nasname' => 'router.example.net']), 'nasname'],
+            'address is IPv6' => [$this->payload($this->routerAsset(), ['nasname' => '2001:db8::1']), 'nasname'],
+            'address used here' => [$this->payload($this->routerAsset(), ['nasname' => $registered->nasname]), 'nasname'],
+            'address used by another company' => [$this->payload($this->routerAsset(), ['nasname' => $foreignNas->nasname]), 'nasname'],
+            'port 0' => [$this->payload($this->routerAsset(), ['coa_port' => 0]), 'coa_port'],
+            'port 70000' => [$this->payload($this->routerAsset(), ['coa_port' => 70000]), 'coa_port'],
+            'port text' => [$this->payload($this->routerAsset(), ['coa_port' => 'abc']), 'coa_port'],
+            'no secret' => [$this->payload($this->routerAsset(), ['radius_secret' => '']), 'radius_secret'],
+            'short secret' => [$this->payload($this->routerAsset(), ['radius_secret' => 'short']), 'radius_secret'],
+            'long secret' => [$this->payload($this->routerAsset(), ['radius_secret' => str_repeat('s', 61)]), 'radius_secret'],
+            'secret with a space' => [$this->payload($this->routerAsset(), ['radius_secret' => 'fake secret 123']), 'radius_secret'],
         ];
 
         foreach ($cases as $name => [$payload, $field]) {
@@ -214,44 +256,60 @@ class NasDeviceHttpTest extends TestCase
         }
 
         $this->assertSame(1, NasDevice::query()->count());
+        $this->assertSame([], $this->radiusRows('nas'));
     }
 
-    public function test_show_has_the_contract_props(): void
+    public function test_an_address_taken_by_another_company_is_refused_without_saying_so(): void
+    {
+        $foreignNas = $this->nasDevice(Company::factory()->create(['is_active' => true]));
+
+        $response = $this->postJson(route('admin.nas-devices.store'), $this->payload($this->routerAsset(), ['nasname' => $foreignNas->nasname]));
+
+        $response->assertJsonValidationErrors('nasname');
+        $this->assertSame('This address is not available.', $response->json('errors.nasname.0'));
+    }
+
+    public function test_show_has_the_contract_props_and_the_sessions_open_on_the_router(): void
     {
         $nas = $this->nasDevice();
-        $nas->forceFill(['unmanaged_count' => 2, 'unmanaged_usernames' => ['stray-1', 'stray-2'], 'routeros_version' => '7.16.2 (stable)'])->save();
-        $account = $this->networkAccountFor($this->subscriptionIn($this->company), $nas);
+        $subscription = $this->subscriptionIn($this->company);
+        $this->networkAccountFor($subscription, ['username' => "alice@{$this->realm}"]);
+        $this->seedRadiusSession(['username' => "alice@{$this->realm}", 'nasipaddress' => $nas->nasname]);
+        $this->seedRadiusSession(['username' => "ghost@{$this->realm}", 'nasipaddress' => $nas->nasname]);
+        $this->seedRadiusSession(['username' => "elsewhere@{$this->realm}", 'nasipaddress' => '203.0.113.9']);
+        $this->seedRadiusSession(['username' => "old@{$this->realm}", 'nasipaddress' => $nas->nasname, 'acctstoptime' => now()->format('Y-m-d H:i:s')]);
 
         $response = $this->get(route('admin.nas-devices.show', $nas));
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('nasDevice.id', $nas->id)
-            ->where('nasDevice.routeros_version', '7.16.2 (stable)')
-            ->where('nasDevice.accounts_count', 1)
-            ->has('accounts.data', 1)
-            ->where('accounts.data.0.id', $account->id)
-            ->where('accounts.data.0.subscription.code', $account->subscription->code)
-            ->where('accounts.data.0.subscription.customer_name', $account->subscription->customer->name)
-            ->where('unmanagedUsernames', ['stray-1', 'stray-2'])
+            ->has('sessions', 2)
             ->where('isolirUrl', route('isolir.show', $this->company->code))
-            ->where('installEnabled', true)
-            ->where('can', ['update' => true, 'check' => true]));
-        $this->assertSame($this->contractKeys(), array_keys($response->inertiaProps()['nasDevice']));
-        $this->assertSame(['id', 'nas_device_id', 'nas_label', 'service_type', 'username', 'sync_status', 'last_error', 'provisioned_profile', 'provisioned_at', 'online', 'last_online_at', 'current_address', 'subscription'], array_keys($response->inertiaProps()['accounts']['data'][0]));
-        $encoded = json_encode($response->inertiaProps());
-        $this->assertStringNotContainsString('fake-router-api-password', $encoded);
-        $this->assertStringNotContainsString('fake-subscriber-secret', $encoded);
+            ->where('radiusEnabled', true)
+            ->where('can', ['update' => true]));
+        $props = $response->inertiaProps();
+        $this->assertSame($this->contractKeys(), array_keys($props['nasDevice']));
+        $byUser = collect($props['sessions'])->keyBy('username');
+        $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'updated_at', 'username', 'subscription'], array_keys($byUser["alice@{$this->realm}"]));
+        $this->assertSame(['id' => $subscription->id, 'code' => $subscription->code], $byUser["alice@{$this->realm}"]['subscription']);
+        $this->assertNull($byUser["ghost@{$this->realm}"]['subscription']);
+        $this->assertSame($nas->networkAsset->code.' - '.$nas->networkAsset->name, $byUser["alice@{$this->realm}"]['nas_label']);
+        $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($props));
     }
 
-    public function test_show_tells_whether_the_installation_switch_is_off(): void
+    public function test_show_has_no_sessions_while_the_switch_is_off_or_radius_is_down(): void
     {
-        $this->disableRouterOs();
+        $nas = $this->nasDevice();
+        $this->seedRadiusSession(['nasipaddress' => $nas->nasname]);
 
-        $this->get(route('admin.nas-devices.show', $this->nasDevice()))
-            ->assertInertia(fn (Assert $page) => $page->where('installEnabled', false));
+        Schema::connection('radius')->drop('radacct');
+        $this->get(route('admin.nas-devices.show', $nas))->assertOk()->assertInertia(fn (Assert $page) => $page->where('sessions', [])->where('radiusEnabled', true));
+
+        config(['services.radius.enabled' => false]);
+        $this->get(route('admin.nas-devices.show', $nas))->assertOk()->assertInertia(fn (Assert $page) => $page->where('sessions', [])->where('radiusEnabled', false));
     }
 
-    public function test_edit_has_the_router_asset_and_never_the_password(): void
+    public function test_edit_has_the_router_asset_the_realm_and_never_the_secret(): void
     {
         $nas = $this->nasDevice();
 
@@ -259,111 +317,133 @@ class NasDeviceHttpTest extends TestCase
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('nasDevice.id', $nas->id)
-            ->where('nasDevice.has_api_password', true)
+            ->where('nasDevice.has_radius_secret', true)
+            ->where('realm', $this->realm)
             ->has('routerAssets', 1)
             ->where('routerAssets.0.id', $nas->network_asset_id));
-        $this->assertStringNotContainsString('fake-router-api-password', json_encode($response->inertiaProps()));
+        $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($response->inertiaProps()));
     }
 
-    public function test_update_keeps_the_stored_password_when_it_is_blank(): void
+    public function test_update_keeps_the_stored_secret_when_it_is_blank(): void
     {
         $nas = $this->nasDevice();
 
         foreach ([null, ''] as $blank) {
-            $this->put(route('admin.nas-devices.update', $nas), ['api_port' => 8729, 'api_password' => $blank, 'provisioning_enabled' => true])
+            $this->put(route('admin.nas-devices.update', $nas), ['coa_port' => 13799, 'radius_secret' => $blank])
                 ->assertRedirect(route('admin.nas-devices.show', $nas));
         }
 
         $nas = $nas->fresh();
-        $this->assertSame('fake-router-api-password', $nas->api_password);
-        $this->assertSame(8729, $nas->api_port);
-        $this->assertTrue($nas->provisioning_enabled);
+        $this->assertSame('fake-radius-shared-secret', $nas->radius_secret);
+        $this->assertSame(13799, $nas->coa_port);
     }
 
-    public function test_update_replaces_the_password_and_audits_only_credentials_changed(): void
+    public function test_update_replaces_the_secret_in_radius_and_audits_secret_changed_without_it(): void
     {
         $nas = $this->nasDevice();
+        $this->post(route('admin.nas-devices.update', $nas), ['_method' => 'PUT', 'radius_secret' => 'fake-first-secret-1'])->assertRedirect();
 
-        $this->put(route('admin.nas-devices.update', $nas), ['api_username' => 'new-user', 'api_password' => 'fake-new-router-pass', 'isolir_profile' => 'blocked'])->assertRedirect();
+        $this->put(route('admin.nas-devices.update', $nas), ['radius_secret' => 'fake-new-radius-secret'])->assertRedirect()->assertSessionMissing('warning');
 
-        $this->assertSame('fake-new-router-pass', $nas->fresh()->api_password);
+        $this->assertSame('fake-new-radius-secret', $nas->fresh()->radius_secret);
+        $this->assertSame('fake-new-radius-secret', $this->radiusRows('nas', ['nasname' => $nas->nasname])[0]['secret']);
+        $this->assertSame(2, Activity::query()->where('log_name', 'nas_device')->where('description', 'secret_changed')->count());
+        foreach (Activity::query()->get() as $entry) {
+            $this->assertStringNotContainsString('fake-new-radius-secret', json_encode($entry->properties));
+            $this->assertStringNotContainsString('fake-first-secret-1', json_encode($entry->properties));
+            $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($entry->properties));
+        }
+    }
+
+    public function test_update_of_the_address_writes_the_new_client_and_removes_the_old_one(): void
+    {
+        $nas = $this->nasDevice();
+        $this->put(route('admin.nas-devices.update', $nas), ['coa_port' => 1700])->assertRedirect();
+        $old = $nas->nasname;
+        $this->radiusConnection()->table('nas')->insert(['nasname' => '127.0.0.1', 'shortname' => 'lab', 'secret' => 'fake-lab-secret']);
+        $nas->forceFill(['radius_nasname' => $old])->save();
+        $this->radiusConnection()->table('nas')->insert(['nasname' => $old, 'shortname' => $this->realm, 'secret' => 'fake-radius-shared-secret']);
+
+        $this->put(route('admin.nas-devices.update', $nas), ['nasname' => '203.0.113.50'])->assertRedirect();
+
+        $this->assertSame([], $this->radiusRows('nas', ['nasname' => $old]));
+        $this->assertCount(1, $this->radiusRows('nas', ['nasname' => '203.0.113.50']));
+        $this->assertCount(1, $this->radiusRows('nas', ['nasname' => '127.0.0.1']));
+        $this->assertSame('203.0.113.50', $nas->fresh()->radius_nasname);
         $audit = Activity::query()->where('log_name', 'nas_device')->where('description', 'updated')->firstOrFail();
-        $this->assertTrue($audit->properties['credentials_changed']);
-        $this->assertEqualsCanonicalizing(['api_username', 'isolir_profile'], $audit->properties['changed']);
-        $this->assertStringNotContainsString('fake-new-router-pass', json_encode($audit->properties));
-        $this->assertStringNotContainsString('fake-router-api-password', json_encode($audit->properties));
+        $this->assertSame(['nasname'], $audit->properties['changed']);
     }
 
-    public function test_update_that_changes_nothing_writes_no_audit_entry(): void
+    public function test_update_that_changes_nothing_writes_no_audit_entry_and_no_radius_row(): void
     {
         $nas = $this->nasDevice();
 
-        $this->put(route('admin.nas-devices.update', $nas), ['api_port' => 443, 'isolir_profile' => 'isolir'])->assertRedirect();
+        $this->put(route('admin.nas-devices.update', $nas), ['coa_port' => 1700, 'nasname' => $nas->nasname])->assertRedirect();
 
-        $this->assertSame(0, Activity::query()->where('log_name', 'nas_device')->where('description', 'updated')->count());
+        $this->assertSame(0, Activity::query()->where('log_name', 'nas_device')->count());
+        $this->assertSame([], $this->radiusRows('nas'));
+    }
+
+    public function test_update_while_radius_is_down_keeps_the_change_and_marks_the_row_unsynced(): void
+    {
+        $nas = $this->nasDevice();
+        Schema::connection('radius')->drop('nas');
+
+        $this->put(route('admin.nas-devices.update', $nas), ['radius_secret' => 'fake-new-radius-secret'])->assertRedirect()->assertSessionHas('warning');
+
+        $nas = $nas->fresh();
+        $this->assertSame('fake-new-radius-secret', $nas->radius_secret);
+        $this->assertNull($nas->radius_synced_at);
+        $this->assertNotNull($nas->last_error);
     }
 
     public function test_update_validates_and_never_changes_the_router_asset(): void
     {
         $nas = $this->nasDevice();
-        $other = $this->routerAsset();
+        $other = $this->nasDevice();
+        $asset = $this->routerAsset();
 
-        $this->putJson(route('admin.nas-devices.update', $nas), ['api_port' => 70000, 'isolir_profile' => 'bad profile'])
-            ->assertUnprocessable()->assertJsonValidationErrors(['api_port', 'isolir_profile']);
-        $this->put(route('admin.nas-devices.update', $nas), ['network_asset_id' => $other->id, 'api_port' => 8729])->assertRedirect();
+        $this->putJson(route('admin.nas-devices.update', $nas), ['coa_port' => 70000, 'radius_secret' => 'short', 'nasname' => $other->nasname])
+            ->assertUnprocessable()->assertJsonValidationErrors(['coa_port', 'radius_secret', 'nasname']);
+        $this->put(route('admin.nas-devices.update', $nas), ['network_asset_id' => $asset->id, 'coa_port' => 13799])->assertRedirect();
 
-        $this->assertNotSame($other->id, $nas->fresh()->network_asset_id);
+        $this->assertNotSame($asset->id, $nas->fresh()->network_asset_id);
     }
 
-    public function test_a_router_with_network_accounts_cannot_be_deleted_and_one_without_can(): void
+    public function test_delete_removes_the_radius_client_even_while_accounts_exist(): void
     {
-        $used = $this->nasDevice();
-        $this->networkAccountFor($this->subscriptionIn($this->company), $used);
-        $free = $this->nasDevice();
+        $nas = $this->nasDevice();
+        $this->put(route('admin.nas-devices.update', $nas), ['coa_port' => 13799])->assertRedirect();
+        $this->radiusConnection()->table('nas')->insert(['nasname' => '127.0.0.1', 'shortname' => 'lab', 'secret' => 'fake-lab-secret']);
+        $this->radiusConnection()->table('nas')->insert(['nasname' => $nas->nasname, 'shortname' => $this->realm, 'secret' => 'fake-radius-shared-secret']);
+        $nas->forceFill(['radius_nasname' => $nas->nasname])->save();
+        $account = $this->networkAccountFor($this->subscriptionIn($this->company));
 
-        $this->deleteJson(route('admin.nas-devices.destroy', $used))->assertUnprocessable()->assertJsonValidationErrors('nas_device');
-        $this->assertNotNull($used->fresh());
+        $this->delete(route('admin.nas-devices.destroy', $nas))->assertRedirect(route('admin.nas-devices.index'))->assertSessionMissing('warning');
 
-        $this->delete(route('admin.nas-devices.destroy', $free))->assertRedirect(route('admin.nas-devices.index'));
-        $this->assertNull(NasDevice::query()->find($free->id));
+        $this->assertNull(NasDevice::query()->find($nas->id));
+        $this->assertSame([], $this->radiusRows('nas', ['nasname' => $nas->nasname]));
+        $this->assertCount(1, $this->radiusRows('nas', ['nasname' => '127.0.0.1']));
+        $this->assertNotNull($account->fresh());
+        $this->assertNotNull($nas->networkAsset->fresh());
         $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'deleted')->count());
-        $this->assertNotNull($free->networkAsset->fresh());
     }
 
-    public function test_check_queues_exactly_one_sync_job_for_that_router(): void
+    public function test_delete_never_fails_when_radius_cannot_be_reached(): void
     {
-        Queue::fake();
         $nas = $this->nasDevice();
+        $nas->forceFill(['radius_nasname' => $nas->nasname])->save();
+        Schema::connection('radius')->drop('nas');
 
-        $this->post(route('admin.nas-devices.check', $nas))->assertRedirect()->assertSessionHas('success');
+        $this->delete(route('admin.nas-devices.destroy', $nas))->assertRedirect(route('admin.nas-devices.index'))->assertSessionHas('warning');
 
-        Queue::assertPushed(SyncNasDeviceJob::class, 1);
-        Queue::assertPushed(SyncNasDeviceJob::class, fn (SyncNasDeviceJob $job): bool => $job->nasDeviceId === $nas->id && $job->companyId === $this->company->id);
+        $this->assertNull(NasDevice::query()->find($nas->id));
     }
 
-    public function test_check_runs_the_probe_and_the_router_page_shows_the_result(): void
+    public function test_the_reachability_check_route_is_gone(): void
     {
-        $nas = $this->nasDevice();
-        $this->routerFor($nas);
-
-        $this->post(route('admin.nas-devices.check', $nas))->assertRedirect();
-
-        $this->get(route('admin.nas-devices.show', $nas))
-            ->assertInertia(fn (Assert $page) => $page->where('nasDevice.routeros_version', '7.16.2 (stable)')->where('nasDevice.last_error', null));
-    }
-
-    public function test_check_is_throttled_to_six_a_minute(): void
-    {
-        Queue::fake();
-        $nas = $this->nasDevice();
-
-        foreach (range(1, 6) as $_) {
-            $this->post(route('admin.nas-devices.check', $nas))->assertRedirect();
-        }
-
-        $this->post(route('admin.nas-devices.check', $nas))->assertStatus(429);
-        // Unique until processing: the five repeats while one check is still queued are dropped, not piled up.
-        Queue::assertPushed(SyncNasDeviceJob::class, 1);
+        $this->assertFalse(Route::has('admin.nas-devices.check'));
+        $this->post('/admin/nas-devices/'.$this->nasDevice()->id.'/check')->assertNotFound();
     }
 
     public function test_every_route_needs_its_permission(): void
@@ -377,9 +457,8 @@ class NasDeviceHttpTest extends TestCase
             'create' => [fn () => $this->get(route('admin.nas-devices.create')), true],
             'store' => [fn () => $this->postJson(route('admin.nas-devices.store'), $this->payload($this->routerAsset())), true],
             'edit' => [fn () => $this->get(route('admin.nas-devices.edit', $nas)), true],
-            'update' => [fn () => $this->putJson(route('admin.nas-devices.update', $nas), ['api_port' => 8729]), true],
+            'update' => [fn () => $this->putJson(route('admin.nas-devices.update', $nas), ['coa_port' => 13799]), true],
             'destroy' => [fn () => $this->deleteJson(route('admin.nas-devices.destroy', $nas)), true],
-            'check' => [fn () => $this->postJson(route('admin.nas-devices.check', $nas)), true],
         ];
 
         foreach ($calls as $name => [$call, $needsManage]) {
@@ -393,6 +472,7 @@ class NasDeviceHttpTest extends TestCase
         }
 
         $this->assertNotNull($nas->fresh());
+        $this->assertSame([], $this->radiusRows('nas'));
     }
 
     public function test_another_companys_router_is_a_404_on_every_route_that_names_it(): void
@@ -401,11 +481,22 @@ class NasDeviceHttpTest extends TestCase
 
         $this->get(route('admin.nas-devices.show', $foreign))->assertNotFound();
         $this->get(route('admin.nas-devices.edit', $foreign))->assertNotFound();
-        $this->put(route('admin.nas-devices.update', $foreign), ['api_port' => 8729])->assertNotFound();
+        $this->put(route('admin.nas-devices.update', $foreign), ['coa_port' => 13799])->assertNotFound();
         $this->delete(route('admin.nas-devices.destroy', $foreign))->assertNotFound();
-        $this->post(route('admin.nas-devices.check', $foreign))->assertNotFound();
-        $this->assertNotNull(NasDevice::withoutCompany()->find($foreign->id));
-        $this->assertSame(443, NasDevice::withoutCompany()->find($foreign->id)->api_port);
+        $this->assertSame(1700, NasDevice::withoutCompany()->find($foreign->id)->coa_port);
+    }
+
+    public function test_a_failed_form_never_flashes_the_radius_secret_into_the_session(): void
+    {
+        $asset = $this->routerAsset();
+
+        $this->post(route('admin.nas-devices.store'), $this->payload($asset, ['coa_port' => 70000, 'radius_secret' => 'fake-flash-me-1']))
+            ->assertSessionHasErrors('coa_port');
+        $this->assertNull(session('_old_input.radius_secret'));
+
+        $this->put(route('admin.nas-devices.update', $this->nasDevice()), ['coa_port' => 70000, 'radius_secret' => 'fake-flash-me-2'])
+            ->assertSessionHasErrors('coa_port');
+        $this->assertStringNotContainsString('fake-flash-me', json_encode(session()->all()));
     }
 
     public function test_guests_are_sent_to_the_login(): void

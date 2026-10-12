@@ -239,111 +239,141 @@ Lihat `docs/API.md` Section 4 (NetworkAsset + Location group). Ringkas:
 - `DELETE /admin/locations/{loc}` (soft delete — restrict if children/assets/stocks)
 - `POST   /admin/locations/{loc}/move` (body: new_parent_id)
 
-## NAS router dan network account (MikroTik provisioning, lab pilot)
+## NAS router dan network account (FreeRADIUS, lab pilot)
 
-Keputusan owner 2026-10-12 (`.scratch/mikrotik-radius/spec.md`, "setuju rekomendasi"): **lab pilot**, RouterOS
-API langsung (REST, RouterOS 7.1+; RouterOS 6 lewat API biner, dipilih per router, tiket `09`), bukan FreeRADIUS. Tanpa
-accounting; tidak ada router bersama antar company.
+Keputusan owner 2026-10-15 (`.scratch/freeradius/spec.md`, "rekomendasi tiap keputusan"): Inbils **tidak lagi
+memprovisioning router lewat RouterOS API**. Router MikroTik mengautentikasi subscriber ke FreeRADIUS 3.2; Inbils
+mengelola isi database RADIUS (user, grup kecepatan, klien NAS) dan mengirim Disconnect-Request (RFC 5176) agar
+perubahan grup berlaku seketika. Ini lab pilot: tanpa NAS bersama antar company, tanpa burst, tanpa IP static
+lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; riwayatnya ada di `CHANGELOG.md`.
 
-- **NAS router** (`nas_devices`, `Modules/NetworkAsset`): satu per aset `router` (alamat = `management_ip` aset,
-  tidak disalin), `api_protocol` (`rest` default | `binary`), `api_port` (443 untuk REST; 8729 default untuk biner), `api_username`, `api_password` (cast `encrypted`, tersembunyi, tidak pernah
-  di resource/audit/log), `isolir_profile` (default `isolir`), `provisioning_enabled` (saklar tulis per router,
-  default off), hasil cek terakhir (`routeros_version`, `last_checked_at`, `last_seen_at`, `unreachable_since`,
-  `last_error`) dan daftar secret asing (`unmanaged_count`, `unmanaged_usernames` maks 100). Hapus ditolak (422)
-  selama masih ada network account.
-- **Network account** (`network_accounts`): PPPoE secret (`/ppp/secret`) atau hotspot user (`/ip/hotspot/user`)
-  milik satu subscription; username unik per company; password terenkripsi, tampil sekali (flash) setelah dibuat
-  atau lewat reveal beraudit. Tanpa `LogsActivity` (audit eksplisit, tanpa password).
-- **Desired state** (dihitung saat job jalan, tidak disimpan): `pending|active` → enabled dengan profil
-  `speed_profiles.radius_profile_name`; `suspended` → isolated (profil `isolir_profile` router, sesi aktif
-  diputus); `terminated`/dihapus → absent (secret dihapus, sesi diputus). Paket tanpa `radius_profile_name`
-  tidak bisa punya network account.
-- **Pemicu**: observer `ServiceSubscription` (status/paket berubah, delete; setelah commit), simpan atau "resync"
-  network account, dan sync 15 menit. Semuanya memanggil `ApplyNetworkAccountJob` (unik per account, `tries` 5,
-  backoff 30/120/300/900 detik, `timeout` 60). Error transport/server → retry dan account tetap `pending`;
-  error 4xx/401/403 → `failed` seketika dengan pesan RouterOS. Aksi bisnis tidak pernah menunggu router.
-- **Sync** `network:sync {--company=} {--nas=}` (tiap 15 menit, `SyncNasDeviceJob` per router): probe versi,
-  online/alamat (bulk), drift (profil beda, nonaktif, hilang) diperbaiki lewat apply, secret asing dicacah.
-  Router tidak terjangkau: `unreachable_since` + satu notifikasi (mail + database) per transisi bagi pemegang
-  `network_asset.nas.manage`; job lain untuk router itu dilewati 2 menit; pulih → audit `recovered`.
-- **Saklar**: `ROUTEROS_PROVISIONING_ENABLED` (default false) mematikan semua lalu lintas router, termasuk baca.
-  Saklar tulis per router mati → hanya baca (probe, online, secret asing). `ROUTEROS_CA_BUNDLE` = CA internal
-  NOC; sertifikat router selalu diverifikasi, tidak ada opsi skip.
-- **Kredensial mengikuti alamat** (review keamanan MIKROTIK-07-001): mengubah `management_ip` aset yang sudah
-  terdaftar sebagai NAS router butuh `network_asset.nas.manage` (editor aset biasa ditolak 422) dan mematikan
-  saklar tulis router itu (audit `nas_device` `endpoint_changed`). Admin harus menyimpan ulang router dengan tulis
-  on setelah memastikan alamat baru benar.
-- **Adopsi secret yang sudah ada** (MIKROTIK-07-006): hanya secret PPPoE (`service` = `pppoe` atau `any`, yang
-  dipersempit menjadi `pppoe`) yang diambil alih; secret `l2tp`/`pptp`/`ovpn`/`sstp`/`async`/`isdn` ditolak
-  (account `failed`). Mengambil alih secret tanpa komentar `inbils:` butuh `network_asset.nas.manage`: simpan atau
-  Resync oleh pemegang izin itu yang mengadopsi; simpan oleh staf tanpa izin itu membuat account `pending`
-  ("administrator adopts it with Resync") dan router tidak disentuh.
-  Persetujuan itu terikat pada target yang dilihat administrator saat menyimpan atau Resync (MIKROTIK-07-011, review
-  ulang): router, tipe layanan, username dan password, dibawa job sebagai hash HMAC berbasis `APP_KEY` (id dan hash
-  tak bermakna, tanpa rahasia). Saat job jalan, hash dihitung ulang dari account saat itu. Jika staf (`account.manage`
-  tanpa `nas.manage`) sempat mengubah salah satunya, job berjalan sebagai job biasa: account `pending` dengan pesan
-  yang sama dan secret yang kini dituju tidak disentuh. Persetujuan untuk target baru antri di samping yang lama
-  (unique id memuat hash itu), tidak dibuang sebagai duplikat. Setelah rotasi `APP_KEY` persetujuan yang masih antri
-  tidak berlaku lagi: administrator menekan Resync sekali lagi.
-- **Sesi tidak boleh lolos** (MIKROTIK-07-004): sesi aktif diputus berdasarkan state tercatat, bukan hanya tulis
-  pada run ini; catatan `provisioned_*` baru maju setelah pemutusan sesi berhasil, jadi gagal di antara tulis dan
-  pemutusan dicoba lagi sampai selesai.
-  Kasus yang tidak terbaca dari catatan (koreksi drift saat catatan sudah sama dengan profil isolir, adopsi pertama
-  saat `provisioned_profile` masih kosong, secret berkomentar `inbils:` yang tidak pernah tercatat lalu dihapus)
-  memakai penanda `network_accounts.pending_disconnect_at` (MIKROTIK-07-004, review ulang). Penanda ditulis SEBELUM
-  router disentuh oleh tulis yang butuh pemutusan sesi (ganti profil, hapus secret, kontak pertama ke isolir) dan
-  dikosongkan bersama kemajuan catatan setelah semua pemutusan berhasil. Retry menyelesaikan pemutusan itu walau
-  profil router, catatan dan state yang diinginkan sudah sama; `SyncNasDeviceJob` memasukkan ulang account yang
-  membawa penanda apa pun statusnya (juga `failed` yang sedang menunggu satu jam). Pindah router, username atau tipe
-  membereskannya di target lama (clean-up memutus sesi di sana). Penanda tidak menyimpan target, jadi selama penanda
-  ada dan belum ada catatan target (adopsi pertama yang pemutusannya gagal), `NetworkAccountService::update` menolak
-  perubahan router, username atau tipe (validasi 422) sampai retry menyelesaikan pemutusan. Penanda tidak pernah masuk
-  resource atau props.
-- **Rahasia dan session**: password API router tidak pernah di-flash ke session (`dontFlash`); password satu kali
-  (dibuat atau reveal) disimpan tersegel (`Crypt`) di session dan dibuka hanya saat halaman dibangun, jadi tidak
-  ada teks asli di tabel `sessions`. Rotasi `APP_KEY`: simpan kunci lama di `APP_PREVIOUS_KEYS`; tanpa itu semua
-  password API router dan password subscriber tidak terbaca (job apply gagal, reveal error) dan harus diisi
-  ulang; setelah rotasi setiap account mendorong ulang passwordnya sekali (sidik jari HMAC berbasis `APP_KEY`).
-  Request GET Inertia dengan `X-Inertia-Version` basi (mis. setelah deploy aset) dijawab middleware dengan 409 dan
-  me-reflash seluruh session (MIKROTIK-07-005, review ulang): pada request itu `show()` tidak membuka password, jadi
-  yang terbawa ke request berikutnya hanya ciphertext, dan password tampil tepat sekali pada muat halaman valid
-  berikutnya.
-- **Permission**: `network_asset.nas.view`, `network_asset.nas.manage`, `network_asset.account.view`,
-  `network_asset.account.manage`, `network_asset.account.reveal`. Usulan: admin semua; manager dan staff
-  `nas.view` + semua `account.*`; teknisi tidak ada; `nas.manage` hanya admin.
+### Model
+
+- **Realm** = kode company huruf kecil. Username RADIUS selalu `local@realm` (FreeRADIUS mencari user hanya
+  dari `User-Name`, jadi realm menjaga antar company tidak bertabrakan). Staf mengetik bagian lokal
+  (`[a-z0-9._-]{3,40}`); Inbils menyimpan dan menampilkan username penuh, unik **lintas company**; pesan duplikat
+  selalu "This username is not available." (tidak menyebut pemiliknya). Company yang kodenya tidak cocok
+  `^[a-z0-9-]{1,24}$` belum bisa mendaftarkan NAS atau account (422 pada field `realm`) sampai kodenya diubah.
+- **NAS router** (`nas_devices`): satu per aset `router`; `nasname` (IPv4 yang dilihat FreeRADIUS sebagai sumber
+  paket, default `management_ip` aset, unik global), `coa_port` (default 1700, port `/radius incoming` MikroTik),
+  `radius_secret` (shared secret per NAS, cast `encrypted`, tersembunyi, 8-60 karakter ASCII tercetak tanpa spasi
+  karena `nas.secret` varchar(60); tidak pernah di resource, audit, log atau flash), bookkeeping `radius_nasname`,
+  `radius_synced_at`, `last_error`. Setiap baris menjadi satu baris `nas` di database RADIUS
+  (`shortname` = realm company). Alamat CoA = `management_ip` aset : `coa_port`. Hapus NAS diizinkan walau masih ada
+  account atau sesi (router mengakhiri sesinya sendiri) dan menghapus baris `nas` yang pernah ditulis Inbils.
+- **Network account** (`network_accounts`): user RADIUS satu subscription (`radcheck` `Cleartext-Password :=` dan
+  `radusergroup`). Subscriber boleh login di NAS mana pun milik company-nya; tidak ada tautan akun ke satu NAS.
+  Secret subscriber terenkripsi di Inbils (sumber kebenaran), cleartext hanya di database RADIUS (CHAP dan MS-CHAP
+  butuh cleartext; database RADIUS adalah proyeksi yang bisa dibangun ulang oleh `network:sync`). Tampil sekali
+  (flash `network_account.secret`) setelah dibuat atau lewat reveal beraudit; tanpa `LogsActivity`.
+- **Grup kecepatan** `<realm>/<radius_profile_name>`: `Mikrotik-Group := <radius_profile_name>`,
+  `Mikrotik-Rate-Limit := <upload>M/<download>M`, `Acct-Interim-Interval := 300`. Diubah saat speed profile berubah
+  (login baru memakai kecepatan baru; sesi berjalan memakai yang lama sampai putus atau Resync). Paket tanpa
+  `radius_profile_name` tidak bisa punya account. **Grup isolir** `<realm>/isolir`: `Mikrotik-Group := isolir`,
+  `Mikrotik-Address-List := isolir`, `Acct-Interim-Interval := 300`.
+- **Desired state** (dihitung saat job jalan): `pending|active` tidak diblokir → user ada, grup kecepatan;
+  `suspended` atau status apa pun selain terminated dengan `blocked_at` → user ada, grup isolir; `terminated` atau
+  dihapus → user dihapus. Suspend dan blokir adalah dua hal berbeda; halaman account menampilkan
+  `isolatedBecause` (`suspended`, `blocked` atau keduanya).
+- **Disconnect**: dikirim ke NAS tempat sesi terbuka (`radacct.nasipaddress` dicocokkan dengan `nasname` NAS company
+  itu) bila grup berubah, user dihapus atau di-rename, atau staf menekan Resync; perubahan secret saja tidak memutus
+  sesi. ACK atau NAK `Session-Context-Not-Found` (503) dianggap selesai; timeout atau NAK lain → retry (`pending`);
+  sesi di alamat yang bukan NAS company → dicatat di `last_error`, tidak dikirim, tidak diulang.
+- **Pemicu**: observer `ServiceSubscription` (`status`, `service_package_id`, `blocked_at`, delete; setelah commit),
+  simpan atau Resync account, perubahan `SpeedProfile`, dan `network:sync {--company=}` tiap 15 menit (account
+  `pending`, utang Disconnect, `failed` lebih dari sejam, drift via `hasUser`, dan baris NAS yang belum tertulis).
+  Job `ApplyNetworkAccountJob`: unik per account sampai diproses, `tries` 5, backoff 30/120/300/900 detik, `timeout`
+  60. Galat database RADIUS dan timeout Disconnect → retry dan account `pending`; input yang tidak bisa disimpan
+  (tanpa nama profil, realm tak valid) → `failed` seketika. Aksi bisnis tidak pernah menunggu RADIUS.
+- **Simpan NAS**: baris Inbils disimpan lebih dulu, lalu (setelah transaksi) `putNas`. Kegagalan RADIUS tidak
+  pernah menjadi 500: `radius_synced_at` kosong, `last_error` terisi, flash `warning`, sync mengulang.
+  Alamat berubah → baris `nas` lama dihapus. Baris `nas` yang tidak ditulis Inbils (mis. `127.0.0.1` lab) tidak pernah
+  disentuh. **Setelah mendaftarkan NAS atau mengganti secret-nya, NOC me-reload FreeRADIUS** (klien dibaca dari `nas`
+  saat start); Inbils tidak mengendalikan proses FreeRADIUS.
+- **Online dan pemakaian**: halaman account dan halaman NAS membaca `radacct` langsung (sesi terbuka =
+  `acctstoptime IS NULL` dan update atau mulai dalam 15 menit; octet bulan kalender berjalan). Tidak ada salinan di
+  Inbils. Saat saklar mati atau RADIUS tak terjangkau, `session`/`usage` null dan `sessions` kosong; halaman tetap tampil.
+- **Saklar**: `RADIUS_ENABLED` (default `false`) mematikan semua baca/tulis database RADIUS dan semua Disconnect.
+  Account tetap `pending` dengan alasannya.
+- **Rahasia**: `radius_secret` tidak pernah di-flash ke session (`dontFlash`); secret satu kali disimpan tersegel
+  (`Crypt`) di session dan dibuka hanya saat halaman dibangun, termasuk saat respons Inertia 409 (versi aset basi)
+  me-reflash session. Rotasi `APP_KEY`: simpan kunci lama di `APP_PREVIOUS_KEYS`, kalau tidak semua secret tak terbaca.
+- **Audit** (tanpa secret): `nas_device` `created|updated|deleted|secret_changed|radius_written|radius_failed`;
+  `network_account` `created|updated|secret_changed|secret_revealed|provisioned|provision_failed|disconnected|drift_corrected`.
+- **Permission**: `network_asset.nas.view|manage`, `network_asset.account.view|manage|reveal`; blokir pelanggan
+  memakai `customer.subscription.block` (lihat `docs/business/customer.md`). Mengubah `management_ip` aset tidak
+  lagi urusan kredensial: secret RADIUS tidak pernah dikirim ke alamat aset.
 - **Halaman isolir publik**: `GET /isolir/{kode company}`: nama, telepon, email, website company dan link login;
   tidak ada data pelanggan. Kode tak dikenal atau company nonaktif → 404. Throttle `isolir` (limiter bernama):
-  600/menit per alamat + kode (banyak subscriber di balik satu NAT tetap terlayani), 20/menit per alamat untuk
-  tebakan kode (hanya permintaan 404 yang menghabiskan jatah ketat itu).
-- **Router runbook** (sebelum tulis diaktifkan): grup user RouterOS khusus API dengan policy minimal untuk REST
-  (tanpa `sensitive`; set pasti dikonfirmasi di lab, tiket 02/08); service `www-ssl` dengan sertifikat dari CA
-  NOC; profil PPP `isolir` (dan profil hotspot bila dipakai) dengan address list, redirect HTTP ke
-  `/isolir/{kode company}`, walled garden untuk host Inbils dan host Midtrans; satu profil PPP per nama
-  `radius_profile_name` di tiap router. Urutan onboarding: daftar router (tulis off) → Check now → tinjau daftar
-  secret asing → hubungkan subscriber yang sudah ada (adopsi per username) → tulis on → terakhir
-  `auto_suspend_enabled` per company.
-- **API biner (RouterOS 6, atau 7 tanpa REST)**: pilih "Binary API" di form router. Pustaka
-  `evilfreelancer/routeros-api-php` 1.7.1 (butuh `ext-sockets`, ada di image produksi), satu koneksi per panggilan,
-  selalu ditutup. Di router: `/ip service enable api-ssl` (port 8729, sertifikat dari CA NOC yang ditandatangani
-  untuk IP manajemen router, terverifikasi seperti REST: `ROUTEROS_CA_BUNDLE` atau store sistem, tanpa saklar
-  lewati verifikasi) (port lain selain 8728 juga TLS terverifikasi; port teks polos kustom tidak didukung) atau `/ip service enable api` (port 8728, **teks polos**: password API dan semua perintah
-  terbaca di jaringan; hanya untuk jaringan manajemen tepercaya, dan hanya bila owner memilih port itu).
-  Batasi dengan `/ip service set api-ssl address=<IP server Inbils>`. Grup user API: titik awal policy `api`,
-  `read`, `write` (RouterOS tidak punya policy `ppp`; tanpa `sensitive`, `ftp`, `ssh`, `reboot`, `winbox`,
-  `policy`); himpunan minimal BELUM dikonfirmasi di router nyata, uji di lab CHR 6.49 sebelum tulis diaktifkan.
-  Satu router tidak pernah
-  mencampur protokol; pergantian protokol = ubah form router (port ikut disarankan). Nama menu sama dengan REST
-  (`/ppp/secret`, `/ppp/active`, `/ip/hotspot/user`, `/ip/hotspot/active`, `/system/resource`). Jenis error sama
-  (`unreachable|tls|auth|rejected|server`); pesan `!trap` dibatasi 255 karakter tanpa karakter kontrol; `no such
-  item` saat hapus dianggap sudah terhapus.
-- **Rollback**: tulis off per router → saklar instalasi off → NOC memulihkan subscriber terisolir secara manual
-  (account dengan `provisioned_profile` = profil isolir) → migrasi down.
+  600/menit per alamat + kode, 20/menit per alamat untuk tebakan kode (hanya permintaan 404 yang menghabiskan jatah ketat itu).
+
+### Runbook FreeRADIUS dan MikroTik
+
+1. **Database RADIUS terpisah** (koneksi `radius`, env `RADIUS_DB_HOST|PORT|DATABASE|USERNAME|PASSWORD`; nilai hanya di
+   host): skema bawaan FreeRADIUS 3.2 (`schema.sql` dari FreeRADIUS) di database sendiri; Inbils tidak pernah
+   memigrasikannya. User database Inbils: `SELECT, INSERT, UPDATE, DELETE` pada `radcheck`, `radreply`,
+   `radusergroup`, `radgroupreply`, `nas` dan `SELECT` pada `radacct` saja. FreeRADIUS memakai user sendiri dan
+   tidak pernah melihat tabel Inbils. Database ini berisi password cleartext: batasi jaringan, tanpa backup tak terenkripsi.
+2. **FreeRADIUS** (`mods-enabled/sql`): `read_clients = yes`, `client_table = "nas"`. Setelah NAS didaftarkan atau
+   secret-nya diganti: reload FreeRADIUS (mis. `kill -HUP` proses `radiusd`).
+3. **Kebijakan realm** (Q4: satu company tidak boleh mengautentikasi subscriber company lain). Simpan sebagai
+   `policy.d/inbils_realm` dan panggil sebelum `sql` di `authorize` pada `sites-enabled/default`. Cuplikan ini
+   ditulis dari dokumentasi unlang dan **dibuktikan di lab oleh tiket 06** (`.scratch/freeradius`); koreksi di
+   sini bila hasil lab berbeda.
+
+   ```
+   # policy.d/inbils_realm
+   # Tolak bila realm di User-Name berbeda dari nas.shortname (realm company) milik klien pengirim.
+   inbils_realm {
+       if (&User-Name =~ /^[^@]+@([a-z0-9-]+)$/i) {
+           if ("%{tolower:%{1}}" != "%{tolower:%{client:shortname}}") {
+               update reply {
+                   Reply-Message := "Realm is not served by this NAS"
+               }
+               reject
+           }
+       }
+       else {
+           # Semua user Inbils berbentuk local@realm.
+           reject
+       }
+   }
+   ```
+
+   Di `sites-enabled/default`, bagian `authorize { ... }`:
+
+   ```
+   authorize {
+       filter_username
+       inbils_realm
+       preprocess
+       sql
+       ...
+   }
+   ```
+
+   Alternatif bila `%{client:shortname}` tidak terbaca di versi yang dipakai: bandingkan dengan
+   `&request:Client-Shortname`. `shortname` adalah realm company (varchar 32; realm paling panjang 24 karakter).
+4. **MikroTik** (per router, secret = `radius_secret` NAS itu):
+   - `/radius add service=ppp,hotspot address=<IP FreeRADIUS> secret=<secret per NAS>`
+   - `/ppp aaa set use-radius=yes accounting=yes interim-update=5m`
+   - `/radius incoming set accept=yes port=1700` (sama dengan `coa_port` di Inbils; Inbils mengirim Disconnect ke
+     `management_ip`:`coa_port`)
+   - profil PPP `isolir` dengan address list `isolir` dan redirect HTTP ke `/isolir/{kode company}`; satu profil PPP
+     per `radius_profile_name` hanya bila rate tidak dikirim lewat `Mikrotik-Rate-Limit` (RADIUS menimpa rate profil PPP).
+   - walled garden untuk host Inbils dan host Midtrans (halaman isolir dan pembayaran).
+5. **Onboarding**: `RADIUS_ENABLED=false` → isi env koneksi `radius` → daftarkan NAS (flash peringatan sampai tertulis)
+   → reload FreeRADIUS → buat account → `RADIUS_ENABLED=true` → `php artisan network:sync` → terakhir
+   `auto_suspend_enabled` per company. Worker queue dan scheduler harus jalan (tanpa keduanya account tetap `pending`).
+6. **Rollback**: `RADIUS_ENABLED=false` (RADIUS menyimpan baris terakhir, sesi berjalan tetap hidup, tanpa
+   Disconnect) → bila perlu router kembali ke secret lokal secara manual → migrasi down (kolom yang diubah kembali
+   kosong; kolom blokir hilang bersama datanya).
 
 ## IPAM dan ODN (register pasif)
 
 Keputusan owner 2026-10-12 (`.scratch/ipam-odn/spec.md`, "setuju rekomendasi"): dua **register pasif**. Staff
 mencatat prefix, alamat, VLAN, port dan splitter; sistem tidak polling perangkat dan tidak push konfigurasi.
-Jalur fiber/IP untuk otomasi MikroTik/RADIUS dibaca dari sini lewat satu service, bukan dari asset.
+Jalur fiber/IP untuk otomasi RADIUS dibaca dari sini lewat satu service, bukan dari asset.
 
 ### IPAM (`Modules/Ipam`, tanpa route API)
 

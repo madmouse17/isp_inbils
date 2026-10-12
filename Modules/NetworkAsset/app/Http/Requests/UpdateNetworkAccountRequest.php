@@ -8,8 +8,10 @@ use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Services\NetworkAccountService;
+use Modules\NetworkAsset\Services\Radius\Realm;
 
-/** A blank password keeps the stored one. */
+/** A blank secret keeps the stored one. `username` is the local part, as on create. */
 class UpdateNetworkAccountRequest extends FormRequest
 {
     public function authorize(): bool
@@ -20,19 +22,9 @@ class UpdateNetworkAccountRequest extends FormRequest
     /** @return array<string, mixed> */
     public function rules(): array
     {
-        $companyId = CompanyService::currentId();
-        $accountId = NetworkAccount::query()->where('subscription_id', $this->subscription()->id)->value('id');
-
         return [
-            'nas_device_id' => ['sometimes', 'required', 'integer', Rule::exists('nas_devices', 'id')->where('company_id', $companyId)],
             'service_type' => ['sometimes', 'required', Rule::in(['pppoe', 'hotspot'])],
-            'username' => [
-                'sometimes',
-                'required',
-                'string',
-                'regex:/^[A-Za-z0-9._@-]{3,64}$/',
-                Rule::unique('network_accounts', 'username')->where('company_id', $companyId)->ignore($accountId),
-            ],
+            'username' => ['sometimes', 'bail', 'required', 'string', 'regex:'.NetworkAccountService::LOCAL_PART_PATTERN, $this->usernameIsFree(...)],
             'password' => ['nullable', 'string', 'min:6', 'max:64', 'regex:/^\S+$/'],
         ];
     }
@@ -41,10 +33,8 @@ class UpdateNetworkAccountRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nas_device_id.exists' => 'Choose a NAS router of this company.',
-            'username.regex' => 'Use 3 to 64 letters, digits, dots, dashes, underscores or @.',
-            'username.unique' => 'This username is already used by another network account.',
-            'password.regex' => 'The password cannot contain spaces.',
+            'username.regex' => 'Use 3 to 40 lower-case letters, digits, dots, dashes or underscores.',
+            'password.regex' => 'The secret cannot contain spaces.',
         ];
     }
 
@@ -54,12 +44,24 @@ class UpdateNetworkAccountRequest extends FormRequest
         return [function (Validator $validator): void {
             $subscription = $this->subscription();
 
-            if ($subscription->status === 'terminated') {
+            if (Realm::forCompany((int) CompanyService::currentId()) === null) {
+                $validator->errors()->add('realm', 'The company code cannot be used as a RADIUS realm: use 1 to 24 letters, digits or dashes.');
+            } elseif ($subscription->status === 'terminated') {
                 $validator->errors()->add('subscription', 'A terminated subscription cannot have a network account.');
             } elseif (blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name'))) {
-                $validator->errors()->add('subscription', 'The speed profile of this package has no router profile name.');
+                $validator->errors()->add('subscription', 'The speed profile of this package has no RADIUS profile name.');
             }
         }];
+    }
+
+    /** Global, across companies; the account being edited keeps its own name. */
+    private function usernameIsFree(string $attribute, mixed $value, \Closure $fail): void
+    {
+        $accountId = NetworkAccount::query()->where('subscription_id', $this->subscription()->id)->value('id');
+
+        if (NetworkAccountService::usernameTaken(NetworkAccountService::fullUsername((string) $value, (int) CompanyService::currentId()), $accountId)) {
+            $fail('This username is not available.');
+        }
     }
 
     private function subscription(): ServiceSubscription

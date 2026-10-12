@@ -20,8 +20,8 @@ Schedule::command('tickets:sla')->everyFifteenMinutes()->withoutOverlapping();
 // ten minutes, per active company. A no-op while no Midtrans server key is configured.
 Schedule::command('midtrans:reconcile')->everyFifteenMinutes()->withoutOverlapping();
 
-// Reads every NAS router (reachability, who is online, drift, stray secrets) and queues what needs another
-// apply. Dispatches nothing while ROUTEROS_PROVISIONING_ENABLED is off.
+// Re-queues RADIUS accounts that are pending, owe a Disconnect, failed over an hour ago or drifted, and writes
+// NAS client rows that are not in RADIUS yet. Does nothing while RADIUS_ENABLED is off.
 Schedule::command('network:sync')->everyFifteenMinutes()->withoutOverlapping();
 
 // Scheduler heartbeat — keeps the /ready scheduler probe green.

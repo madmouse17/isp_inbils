@@ -10,47 +10,49 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
-use Modules\NetworkAsset\Notifications\NasDeviceUnreachableNotification;
 use Modules\NetworkAsset\Services\NetworkAccountService;
+use Modules\Service\Models\ServicePackage;
 use Monolog\Formatter\LineFormatter;
 use Monolog\Handler\TestHandler;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Activitylog\Models\Activity;
 use Symfony\Component\HttpKernel\Exception\HttpException;
-use Tests\Support\FakeRouterOs;
 use Tests\TestCase;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
-use Tests\Traits\InteractsWithRouterOs;
+use Tests\Traits\InteractsWithNasCoa;
+use Tests\Traits\InteractsWithRadius;
 
 /**
- * Matrix rows the suites of tickets 02-04 leave open: the account service on its own against another
- * company's records, a mass isolir while the router is down, a package without a router profile name
- * changed through the HTTP route, and the two passwords in every place a router answer or a failure can
- * leave a trace.
+ * Matrix rows the other network suites leave open: the account service on its own against another company's
+ * records, a mass isolir while RADIUS is down, a package without a RADIUS profile name changed through the HTTP
+ * route, and the three secrets in every place a RADIUS answer or a failure can leave a trace.
  */
 class NetworkAccessGapTest extends TestCase
 {
     use BuildsNetworkFixtures;
     use BuildsSubscriptionBilling;
     use CreatesCompanyUser;
-    use InteractsWithRouterOs;
+    use InteractsWithNasCoa;
+    use InteractsWithRadius;
     use RefreshDatabase;
 
-    private const SUBSCRIBERS = 50;
+    private const SUBSCRIBERS = 12;
 
     private User $admin;
 
     private Company $company;
 
+    private string $realm;
+
     private NasDevice $nas;
 
-    private FakeRouterOs $router;
+    private string $nasIp;
 
     /** @var array{0: string|false, 1: string|false}|null */
     private ?array $phpTraceSettings = null;
@@ -62,9 +64,12 @@ class NetworkAccessGapTest extends TestCase
         $this->withoutVite();
         $this->admin = $this->createCompanyUser();
         $this->company = $this->admin->company;
+        $this->realm = $this->realmOf($this->company);
         $this->grantNetworkPermissionsToAdminRole();
-        $this->fakeRouterOs();
-        [$this->nas, $this->router] = $this->nasRouter($this->company);
+        $this->fakeRadius();
+        $this->nas = $this->nasClient($this->company);
+        $this->nasIp = (string) $this->nas->nasname;
+        $this->coaAnswers($this->nasIp, 'ack');
         $this->actingAs($this->admin);
     }
 
@@ -78,141 +83,122 @@ class NetworkAccessGapTest extends TestCase
         parent::tearDown();
     }
 
+    private function package(Company $company, ?string $profile = 'home-20m'): ServicePackage
+    {
+        return $this->packageWithRadiusProfile($company, $profile);
+    }
+
     // --- tenant: the service on its own ---------------------------------------------------------------------------
 
     public function test_the_account_service_refuses_another_companys_records_without_the_http_layer(): void
     {
         Queue::fake();
         $other = Company::factory()->create(['is_active' => true]);
-        [$otherNas] = $this->nasRouter($other);
-        $foreign = $this->subscriptionIn($other, 'active', null, $this->packageWithRouterProfile($other));
-        $foreignAccount = $this->networkAccountFor($foreign, $otherNas, ['username' => 'zed']);
-        $mine = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company));
-        $ownAccount = $this->networkAccountFor($this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company)), $this->nas, ['username' => 'bob']);
-        $payload = fn (NasDevice $nas, string $username): array => ['nas_device_id' => $nas->id, 'service_type' => 'pppoe', 'username' => $username, 'password' => 'fake-gap-secret-1'];
+        $foreign = $this->subscriptionIn($other, 'active', null, $this->package($other));
+        $foreignAccount = $this->networkAccountFor($foreign, ['username' => 'zed@'.$this->realmOf($other)]);
+        $mine = $this->subscriptionIn($this->company, 'active', null, $this->package($this->company));
+        $payload = ['service_type' => 'pppoe', 'username' => 'hijack', 'password' => 'fake-gap-secret-1'];
 
         // Another company's subscription is not found: 404, as on the route, not an error that tells it exists.
-        $this->assertRefusedWith(404, fn () => NetworkAccountService::create($foreign, $payload($this->nas, 'hijack-one')));
-        // Another company's router cannot be chosen for an own subscription.
-        $this->assertRefusedWith(422, fn () => NetworkAccountService::create($mine, $payload($otherNas, 'hijack-two')));
-        $this->assertRefusedWith(422, fn () => NetworkAccountService::update($ownAccount, ['nas_device_id' => $otherNas->id]));
+        $this->assertRefusedWith(404, fn () => NetworkAccountService::create($foreign, $payload));
         // Another company's account cannot be edited even when a caller hands it over.
         try {
-            NetworkAccountService::update(NetworkAccount::withoutCompany()->findOrFail($foreignAccount->id), ['username' => 'hijack-three', 'password' => 'fake-gap-secret-2']);
+            NetworkAccountService::update(NetworkAccount::withoutCompany()->findOrFail($foreignAccount->id), ['username' => 'hijack', 'password' => 'fake-gap-secret-2']);
             $this->fail('an account of another company must not be updated');
         } catch (ModelNotFoundException) {
         }
+        // A username that already carries another company's realm is refused for an own subscription.
+        $this->assertRefusedWith(422, fn () => NetworkAccountService::create($mine, ['username' => 'zed@'.$this->realmOf($other)] + $payload));
 
-        $this->assertEquals(['zed' => $other->id, 'bob' => $this->company->id], NetworkAccount::withoutCompany()->pluck('company_id', 'username')->all(), 'no account was created or moved');
-        $this->assertSame($this->nas->id, $ownAccount->fresh()->nas_device_id);
+        $this->assertEquals(['zed@'.$this->realmOf($other) => $other->id], NetworkAccount::withoutCompany()->pluck('company_id', 'username')->all(), 'no account was created or moved');
         $this->assertSame(0, Activity::query()->where('log_name', 'network_account')->count(), 'a refused change leaves no audit entry');
         Queue::assertNothingPushed();
     }
 
-    // --- mass isolir while the router is down ----------------------------------------------------------------------
+    // --- mass isolir while RADIUS is down --------------------------------------------------------------------------
 
-    public function test_a_mass_isolir_while_the_router_is_down_calls_it_once_leaves_every_account_pending_and_recovers_when_it_answers(): void
+    public function test_a_mass_isolir_while_radius_is_down_leaves_every_account_pending_and_recovers_when_it_answers(): void
     {
-        Notification::fake();
-        $manager = $this->userWithPermissions($this->company, 'network_asset.nas.manage');
         $this->company->update(['settings' => ['auto_suspend_enabled' => true, 'auto_suspend_overdue_days' => 7]]);
-        $package = $this->packageWithRouterProfile($this->company, 'home-20m');
+        $package = $this->package($this->company);
 
         foreach (range(1, self::SUBSCRIBERS) as $n) {
             $subscription = $this->subscriptionIn($this->company, 'active', null, $package);
             $this->invoiceFor($subscription, 10); // three days past the seven days of grace
-            $account = $this->networkAccountFor($subscription, $this->nas, ['username' => sprintf('user%02d', $n)]);
-            $this->applyAccount($account);
-            $this->router->seedSession('pppoe', $account->username, '10.10.0.'.$n);
+            $this->applyAccount($this->networkAccountFor($subscription, ['username' => sprintf('user%02d@%s', $n, $this->realm)]));
         }
-        $this->assertCount(self::SUBSCRIBERS, $this->router->accounts());
         $this->assertSame(['synced'], NetworkAccount::query()->pluck('sync_status')->unique()->values()->all());
-        $this->router->forgetRequests();
-        $this->router->down('timeout'); // the worst kind: every call would cost the full ten seconds
+        Schema::connection('radius')->drop('radusergroup');
 
         $this->assertSame(0, Artisan::call('billing:suspend-overdue', ['--company' => $this->company->id]));
 
         $this->assertSame(
             self::SUBSCRIBERS,
             ServiceSubscription::withoutCompany()->where('company_id', $this->company->id)->where('status', 'suspended')->where('suspension_source', 'overdue')->count(),
-            'business first: every overdue subscription is suspended whatever the router does',
+            'business first: every overdue subscription is suspended whatever RADIUS does',
         );
-        $this->assertCount(1, $this->router->requests(), 'only the first job asked the dead router; the other 49 saw the outage and skipped');
         $this->assertSame(['pending'], NetworkAccount::query()->pluck('sync_status')->unique()->values()->all());
         $this->assertSame(self::SUBSCRIBERS, NetworkAccount::query()->whereNotNull('last_error')->where('last_error', '!=', '')->count(), 'every account says why it waits');
-        $this->assertSame(['home-20m'], array_values(array_unique(array_column($this->router->accounts(), 'profile'))), 'nothing was isolated on the router yet');
-        $this->assertNotNull($this->nas->fresh()->unreachable_since);
-        $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'unreachable')->count());
-        Notification::assertSentToTimes($manager, NasDeviceUnreachableNotification::class, 1);
+        $this->assertSame(["{$this->realm}/home-20m"], NetworkAccount::query()->pluck('provisioned_group')->unique()->values()->all(), 'nothing was isolated yet');
 
-        $this->router->up();
+        $this->fakeRadius();
         $this->travel(3)->minutes();
 
         $this->assertSame(0, Artisan::call('network:sync', ['--company' => $this->company->id]));
 
-        $this->assertSame(['synced'], NetworkAccount::query()->pluck('sync_status')->unique()->values()->all(), 'the sync found the router again and re-queued every pending account');
-        $this->assertSame(['isolir'], NetworkAccount::query()->pluck('provisioned_profile')->unique()->values()->all());
-        $this->assertSame(['isolir'], array_values(array_unique(array_column($this->router->accounts(), 'profile'))));
-        $this->assertSame([], $this->router->sessions(), 'the profile changed, so every running session was dropped');
-        $this->assertCount(2 * self::SUBSCRIBERS, $this->router->writes(), 'one profile change and one dropped session per account');
-        $this->assertNull($this->nas->fresh()->unreachable_since);
-        $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'recovered')->count());
-        Notification::assertSentToTimes($manager, NasDeviceUnreachableNotification::class, 1);
+        $this->assertSame(['synced'], NetworkAccount::query()->pluck('sync_status')->unique()->values()->all(), 'the sync found RADIUS again and re-queued every pending account');
+        $this->assertSame(["{$this->realm}/isolir"], NetworkAccount::query()->pluck('provisioned_group')->unique()->values()->all());
+        $this->assertSame(self::SUBSCRIBERS, $this->radiusConnection()->table('radusergroup')->where('groupname', "{$this->realm}/isolir")->count());
     }
 
     // --- observer path of SubscriptionController::update ----------------------------------------------------------
 
-    public function test_a_package_without_a_router_profile_name_chosen_on_the_update_route_fails_only_the_account_and_a_good_package_heals_it(): void
+    public function test_a_package_without_a_radius_profile_name_chosen_on_the_update_route_fails_only_the_account_and_a_good_package_heals_it(): void
     {
-        $subscription = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company, 'home-20m'));
-        $account = $this->networkAccountFor($subscription, $this->nas, ['username' => 'carol']);
+        $subscription = $this->subscriptionIn($this->company, 'active', null, $this->package($this->company));
+        $account = $this->networkAccountFor($subscription, ['username' => "carol@{$this->realm}"]);
         $this->applyAccount($account);
-        $this->router->seedSession('pppoe', 'carol', '10.10.0.9');
-        $this->router->forgetRequests();
-        $nameless = $this->packageWithRouterProfile($this->company, null);
+        $this->seedRadiusSession(['username' => "carol@{$this->realm}", 'nasipaddress' => $this->nasIp]);
+        $nameless = $this->package($this->company, null);
 
         $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $nameless->id])->assertRedirect();
 
         $this->assertSame($nameless->id, $subscription->fresh()->service_package_id, 'business first: the package change itself succeeds');
         $account = $account->fresh();
         $this->assertSame('failed', $account->sync_status);
-        $this->assertStringContainsString('no router profile name', (string) $account->last_error);
-        $this->assertSame([], $this->router->requests(), 'the router is not asked about a profile that cannot be named');
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'carol')['profile']);
-        $this->assertCount(1, $this->router->sessions('pppoe', 'carol'));
+        $this->assertStringContainsString('no RADIUS profile name', (string) $account->last_error);
+        $this->assertSame("{$this->realm}/home-20m", $this->radiusRows('radusergroup', ['username' => "carol@{$this->realm}"])[0]['groupname']);
+        $this->assertSame([], $this->disconnectsSent(), 'the session of an account that cannot be applied stays');
         $this->assertSame('rejected', Activity::query()->where('description', 'provision_failed')->sole()->properties['error_kind']);
 
-        $good = $this->packageWithRouterProfile($this->company, 'home-50m');
+        $good = $this->package($this->company, 'home-50m');
         $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $good->id])->assertRedirect();
 
         $account = $account->fresh();
         $this->assertSame('synced', $account->sync_status);
         $this->assertNull($account->last_error);
-        $this->assertSame('home-50m', $this->router->account('pppoe', 'carol')['profile']);
-        $this->assertSame([], $this->router->sessions('pppoe', 'carol'));
+        $this->assertSame("{$this->realm}/home-50m", $this->radiusRows('radusergroup', ['username' => "carol@{$this->realm}"])[0]['groupname']);
+        $this->assertCount(1, $this->disconnectsSent());
     }
 
-    // --- secrets: nowhere but the router and the one-time flash ----------------------------------------------------
+    // --- secrets: nowhere but RADIUS and the one-time flash ---------------------------------------------------------
 
     /** @return array<string, array{0: string}> */
-    public static function routerAnswers(): array
+    public static function radiusStates(): array
     {
         return [
-            'the router accepts everything' => ['up'],
-            'the call times out' => ['timeout'],
-            'the certificate is refused' => ['tls'],
-            'the API credentials are refused' => ['auth'],
-            'the router rejects the request' => ['rejected'],
-            'the router answers 500 with a page that echoes a secret' => ['server'],
+            'RADIUS accepts everything' => ['up'],
+            'the RADIUS database is down' => ['down'],
+            'the switch is off' => ['off'],
         ];
     }
 
-    #[DataProvider('routerAnswers')]
-    public function test_neither_password_is_left_in_any_store_page_export_or_log_whatever_the_router_answers(string $answer): void
+    #[DataProvider('radiusStates')]
+    public function test_no_secret_is_left_in_any_store_page_export_or_log_whatever_radius_answers(string $state): void
     {
-        $subscriberPassword = 'fake-gap-subscriber-pw-1';
-        $changedPassword = 'fake-gap-subscriber-pw-2';
-        $apiPassword = 'fake-gap-router-api-pw-9';
+        $subscriberSecret = 'fake-gap-subscriber-pw-1';
+        $changedSecret = 'fake-gap-subscriber-pw-2';
+        $nasSecret = 'fake-gap-nas-radius-secret-9';
         // The production image has no php.ini: stack traces keep their arguments, which is what failed_jobs
         // and the exception log lines are made of.
         $this->phpTraceSettings = [ini_get('zend.exception_ignore_args'), ini_get('zend.exception_string_param_max_len')];
@@ -222,32 +208,28 @@ class NetworkAccessGapTest extends TestCase
         $logs = new TestHandler();
         Log::channel(config('logging.default'))->getLogger()->pushHandler($logs);
 
-        $this->nas->forceFill(['api_password' => $apiPassword])->save();
-        if ($answer !== 'up') {
-            $this->router->down($answer);
-        }
-        $subscription = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company, 'home-20m'));
+        $this->nas->forceFill(['radius_secret' => $nasSecret])->save();
+        match ($state) {
+            'down' => Schema::connection('radius')->drop('radcheck'),
+            'off' => config(['services.radius.enabled' => false]),
+            default => null,
+        };
+        $subscription = $this->subscriptionIn($this->company, 'active', null, $this->package($this->company));
         $activitySince = (int) Activity::query()->max('id');
 
-        $this->post(route('admin.subscriptions.network-account.store', $subscription), ['nas_device_id' => $this->nas->id, 'service_type' => 'pppoe', 'username' => 'alice.gap', 'password' => $subscriberPassword])->assertRedirect();
+        $this->post(route('admin.subscriptions.network-account.store', $subscription), ['service_type' => 'pppoe', 'username' => 'alice.gap', 'password' => $subscriberSecret])->assertRedirect();
         $this->assertSame(1, DB::table('jobs')->count(), 'the apply job waits on the real queue');
         $jobsBeforeTheWorker = DB::table('jobs')->get();
         $this->runWorkerUntilIdle();
 
         $this->post(route('admin.subscriptions.network-account.reveal', $subscription))->assertRedirect();
-        $this->put(route('admin.subscriptions.network-account.update', $subscription), ['password' => $changedPassword])->assertRedirect();
+        $this->put(route('admin.subscriptions.network-account.update', $subscription), ['password' => $changedSecret])->assertRedirect();
         $this->post(route('admin.subscriptions.network-account.resync', $subscription))->assertRedirect();
         ServiceSubscription::withoutCompany()->findOrFail($subscription->id)->update(['status' => 'suspended']);
         $this->runWorkerUntilIdle();
 
         $account = NetworkAccount::query()->where('subscription_id', $subscription->id)->sole();
-        // A dead router leaves the account pending while its outage is fresh (jobs skip the call for two minutes);
-        // every other kind of failure ends in failed once the retries are used up.
-        $this->assertContains($account->sync_status, ['up' => ['synced'], 'timeout' => ['pending', 'failed']][$answer] ?? ['failed'], "the account ends `{$account->sync_status}` after `$answer`");
-        $this->assertNotEmpty($this->router->requests(), 'the router was really asked');
-        $answer === 'up'
-            ? $this->assertSame(0, DB::table('failed_jobs')->count())
-            : $this->assertGreaterThan(0, DB::table('failed_jobs')->count(), 'the failure path of the real queue ran');
+        $this->assertContains($account->sync_status, ['up' => ['synced'], 'down' => ['pending', 'failed'], 'off' => ['pending']][$state], "the account ends `{$account->sync_status}` when `$state`");
         $pages = [
             $this->get(route('admin.subscriptions.network-account.show', $subscription)),
             $this->get(route('admin.subscriptions.show', $subscription)),
@@ -274,22 +256,14 @@ class NetworkAccessGapTest extends TestCase
         ];
         $this->assertNotSame('[]', $everywhere['activity_log'], 'the audit entries were written');
         foreach ($everywhere as $store => $content) {
-            foreach ([$subscriberPassword, $changedPassword, $apiPassword, 'fake-leaked-secret-123'] as $secret) {
+            foreach ([$subscriberSecret, $changedSecret, $nasSecret] as $secret) {
                 $at = strpos($content, $secret);
 
                 $this->assertFalse($at !== false, "$store holds `$secret`: ...".($at === false ? '' : substr($content, max(0, $at - 90), 200)).'...');
             }
         }
-
-        // On the wire the subscriber password travels only in a create or update body, and the router
-        // password only as the Basic credential: never in an address, never in a read.
-        foreach ($this->router->requests() as $request) {
-            $this->assertStringNotContainsString($subscriberPassword, json_encode($request['query']));
-            $this->assertStringNotContainsString($changedPassword, json_encode($request['query']));
-            $this->assertStringNotContainsString($apiPassword, json_encode($request));
-            if (! in_array($request['method'], ['PUT', 'PATCH'], true)) {
-                $this->assertNull($request['body'], 'reads and deletes carry no body');
-            }
+        if ($state === 'up') {
+            $this->assertSame($changedSecret, $this->radiusRows('radcheck')[0]['value'], 'the one place that must hold the secret in clear');
         }
     }
 
@@ -315,7 +289,7 @@ class NetworkAccessGapTest extends TestCase
                 return;
             }
 
-            $this->travel(16)->minutes(); // past the longest backoff of the apply job (15 minutes) and the two-minute skip window
+            $this->travel(16)->minutes(); // past the longest backoff of the apply job (15 minutes)
         }
     }
 

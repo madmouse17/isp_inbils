@@ -14,17 +14,19 @@ use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Http\Requests\StoreNasDeviceRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNasDeviceRequest;
 use Modules\NetworkAsset\Http\Resources\NasDeviceResource;
-use Modules\NetworkAsset\Http\Resources\NetworkAccountResource;
-use Modules\NetworkAsset\Jobs\SyncNasDeviceJob;
 use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\NasDeviceService;
+use Modules\NetworkAsset\Services\Radius\RadiusDirectory;
+use Modules\NetworkAsset\Services\Radius\RadiusException;
+use Modules\NetworkAsset\Services\Radius\Realm;
 
 class NasDeviceController extends Controller
 {
     use HasIndexQuery;
 
-    private const SORTABLE = ['routeros_version', 'last_checked_at', 'created_at'];
+    private const SORTABLE = ['nasname', 'radius_synced_at', 'created_at'];
 
     public function index(Request $request): InertiaResponse
     {
@@ -33,13 +35,14 @@ class NasDeviceController extends Controller
         $nasDevices = $this->sorted(
             NasDevice::query()
                 ->with('networkAsset.location')
-                ->withCount(['networkAccounts', 'networkAccounts as accounts_failed_count' => fn (Builder $accounts) => $accounts->where('sync_status', 'failed')])
                 ->when($request->string('search')->trim()->value(), function (Builder $query, string $term): void {
                     $like = '%'.addcslashes($term, '%_\\').'%';
-                    $query->whereHas('networkAsset', fn (Builder $asset) => $asset->where(fn (Builder $match) => $match
-                        ->where('code', 'like', $like)
-                        ->orWhere('name', 'like', $like)
-                        ->orWhere('management_ip', 'like', $like)));
+                    $query->where(fn (Builder $match) => $match
+                        ->where('nasname', 'like', $like)
+                        ->orWhereHas('networkAsset', fn (Builder $asset) => $asset->where(fn (Builder $assetMatch) => $assetMatch
+                            ->where('code', 'like', $like)
+                            ->orWhere('name', 'like', $like)
+                            ->orWhere('management_ip', 'like', $like))));
                 }),
             $request,
         )->paginate($this->perPage($request))->withQueryString();
@@ -60,41 +63,28 @@ class NasDeviceController extends Controller
     {
         Gate::authorize('network_asset.nas.manage');
 
-        return Inertia::render('Admin/NasDevices/Create', ['routerAssets' => $this->unregisteredRouters()]);
+        return Inertia::render('Admin/NasDevices/Create', ['routerAssets' => $this->unregisteredRouters(), 'realm' => $this->realm()]);
     }
 
     public function store(StoreNasDeviceRequest $request): RedirectResponse
     {
         $nasDevice = NasDeviceService::create($request->validated());
 
-        return redirect()->route('admin.nas-devices.show', $nasDevice)->with('success', 'NAS router registered.');
+        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'NAS router registered.');
     }
 
-    public function show(Request $request, NasDevice $nasDevice): InertiaResponse
+    public function show(Request $request, NasDevice $nasDevice, RadiusDirectory $radius): InertiaResponse
     {
         Gate::authorize('network_asset.nas.view');
 
-        $nasDevice->load('networkAsset.location')->loadCount([
-            'networkAccounts',
-            'networkAccounts as accounts_failed_count' => fn (Builder $accounts) => $accounts->where('sync_status', 'failed'),
-        ]);
-
-        $accounts = $nasDevice->networkAccounts()
-            ->with('subscription.customer:id,name')
-            ->orderBy('username')
-            ->paginate($this->perPage($request))
-            ->withQueryString();
-        $accounts->getCollection()->each(fn ($account) => $account->setRelation('nasDevice', $nasDevice));
-
-        $canManage = $request->user()?->can('network_asset.nas.manage') ?? false;
+        $nasDevice->load('networkAsset.location');
 
         return Inertia::render('Admin/NasDevices/Show', [
             'nasDevice' => (new NasDeviceResource($nasDevice))->resolve(),
-            'accounts' => NetworkAccountResource::collection($accounts),
-            'unmanagedUsernames' => $nasDevice->unmanaged_usernames ?? [],
+            'sessions' => $this->sessions($radius, $nasDevice),
             'isolirUrl' => route('isolir.show', CompanyService::current()?->code),
-            'installEnabled' => (bool) config('services.routeros.enabled'),
-            'can' => ['update' => $canManage, 'check' => $canManage],
+            'radiusEnabled' => (bool) config('services.radius.enabled'),
+            'can' => ['update' => $request->user()?->can('network_asset.nas.manage') ?? false],
         ]);
     }
 
@@ -114,6 +104,7 @@ class NasDeviceController extends Controller
                 'location_name' => $asset->location?->getAttribute('name'),
             ]],
             'nasDevice' => (new NasDeviceResource($nasDevice))->resolve(),
+            'realm' => $this->realm(),
         ]);
     }
 
@@ -121,26 +112,62 @@ class NasDeviceController extends Controller
     {
         NasDeviceService::update($nasDevice, $request->validated());
 
-        return redirect()->route('admin.nas-devices.show', $nasDevice)->with('success', 'NAS router updated.');
+        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'NAS router updated.');
     }
 
     public function destroy(NasDevice $nasDevice): RedirectResponse
     {
         Gate::authorize('network_asset.nas.manage');
 
-        NasDeviceService::delete($nasDevice);
+        $removed = NasDeviceService::delete($nasDevice);
+        $redirect = redirect()->route('admin.nas-devices.index')->with('success', 'NAS router removed.');
 
-        return redirect()->route('admin.nas-devices.index')->with('success', 'NAS router removed.');
+        return $removed ? $redirect : $redirect->with('warning', 'The RADIUS client row could not be removed (RADIUS is switched off or unreachable). Remove it from the nas table by hand.');
     }
 
-    /** "Check now": queues the sync job for this router. */
-    public function check(NasDevice $nasDevice): RedirectResponse
+    /** A saved row that RADIUS does not know yet is not an error: the sync writes it later. */
+    private function saved(RedirectResponse $redirect, NasDevice $nasDevice, string $message): RedirectResponse
     {
-        Gate::authorize('network_asset.nas.manage');
+        $redirect->with('success', $message);
 
-        SyncNasDeviceJob::dispatch((int) $nasDevice->company_id, $nasDevice->id);
+        return $nasDevice->last_error === null ? $redirect : $redirect->with('warning', 'Saved, but RADIUS was not updated: '.$nasDevice->last_error.' The sync retries every 15 minutes.');
+    }
 
-        return back()->with('success', 'Router check queued.');
+    private function realm(): ?string
+    {
+        return Realm::fromCode(CompanyService::current()?->code);
+    }
+
+    /**
+     * Open sessions on the router, usernames linked to their subscription. Empty while RADIUS is off or unreachable.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function sessions(RadiusDirectory $radius, NasDevice $nasDevice): array
+    {
+        try {
+            $sessions = $radius->sessionsOnNas((string) $nasDevice->nasname);
+        } catch (RadiusException) {
+            return [];
+        }
+
+        $subscriptions = NetworkAccount::query()
+            ->whereIn('username', array_column($sessions, 'username'))
+            ->with('subscription:id,code')
+            ->get()
+            ->keyBy('username');
+        $label = $nasDevice->networkAsset === null ? null : $nasDevice->networkAsset->code.' - '.$nasDevice->networkAsset->name;
+
+        return array_map(fn (array $session): array => [
+            'session_id' => $session['session_id'],
+            'nas_ip' => $session['nas_ip'],
+            'nas_label' => $label,
+            'framed_ip' => $session['framed_ip'],
+            'started_at' => $session['started_at'],
+            'updated_at' => $session['updated_at'],
+            'username' => $session['username'],
+            'subscription' => ($subscription = $subscriptions->get($session['username'])?->subscription) === null ? null : ['id' => $subscription->id, 'code' => $subscription->code],
+        ], $sessions);
     }
 
     /** @return list<array{id: int, code: string, name: string, management_ip: ?string, location_name: ?string}> */

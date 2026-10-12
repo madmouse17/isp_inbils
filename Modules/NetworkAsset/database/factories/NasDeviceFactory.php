@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Database\Factories;
 use App\Models\Core\Company;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\NetworkAsset\Models\NasDevice;
+use Modules\NetworkAsset\Models\NetworkAsset;
 
 /**
  * Fake credentials and documentation-range addresses (RFC 5737) only: never a real router.
@@ -26,17 +27,9 @@ class NasDeviceFactory extends Factory
                 'asset_type' => 'router',
                 'management_ip' => '192.0.2.'.(self::$hosts++ % 254 + 1),
             ])->create()->id,
-            'api_port' => 443,
-            'api_username' => 'inbils-api',
-            'api_password' => 'fake-router-api-password',
-            'isolir_profile' => 'isolir',
-            'provisioning_enabled' => false,
+            'nasname' => fn (array $attributes) => NetworkAsset::withoutCompany()->whereKey($attributes['network_asset_id'])->value('management_ip'),
+            'coa_port' => 1700,
+            'radius_secret' => 'fake-radius-shared-secret',
         ];
-    }
-
-    /** Writes on: the router may be changed (the installation switch still decides first). */
-    public function writable(): static
-    {
-        return $this->state(fn () => ['provisioning_enabled' => true]);
     }
 }

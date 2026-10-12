@@ -5,11 +5,11 @@ namespace Modules\NetworkAsset\Database\Factories;
 use App\Models\Core\Company;
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Services\Radius\Realm;
 
 /**
- * Fake credentials only. Pass subscription_id and nas_device_id of one company when the test has several.
+ * Fake credentials only. Pass company_id and subscription_id of one company when the test has several.
  *
  * @extends Factory<NetworkAccount>
  */
@@ -24,9 +24,8 @@ class NetworkAccountFactory extends Factory
         return [
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
             'subscription_id' => fn (array $attributes) => ServiceSubscription::factory()->create(['company_id' => $attributes['company_id']])->id,
-            'nas_device_id' => fn (array $attributes) => NasDevice::factory()->create(['company_id' => $attributes['company_id']])->id,
             'service_type' => 'pppoe',
-            'username' => 'fake-user-'.(++self::$accounts),
+            'username' => fn (array $attributes) => 'fake-user-'.(++self::$accounts).'@'.Realm::forCompany((int) $attributes['company_id']),
             'password' => 'fake-subscriber-secret',
         ];
     }

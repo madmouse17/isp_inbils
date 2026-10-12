@@ -31,9 +31,8 @@ use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Models\OdnSplitter;
-use Modules\NetworkAsset\Services\NasDeviceService;
-use Modules\NetworkAsset\Services\NetworkAccountService;
 use Modules\NetworkAsset\Services\OdnService;
+use Modules\NetworkAsset\Services\Radius\Realm;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 
@@ -1068,7 +1067,7 @@ class E2eFixtureSeeder extends Seeder
     /**
      * Fixtures of the IPAM/ODN, MikroTik and WhatsApp specs, all under the POP of E2E-LINKED-SUB: an address plan,
      * an OLT with a wired ODC and ODP (every port free), an unregistered router for the "register a NAS router"
-     * flow plus a registered one (writes off) with a network account on a second subscription, and a customer
+     * flow plus a registered one (RADIUS off) with a network account on a second subscription, and a customer
      * with WhatsApp consent and a few log rows. E2E-LINKED-SUB itself gets no address, drop or network account.
      */
     private function seedNetworkLaneFixtures(Location $pop, int $packageId, ?User $admin): void
@@ -1134,24 +1133,23 @@ class E2eFixtureSeeder extends Seeder
 
     private function seedRouterFixtures(Location $pop, int $packageId): void
     {
-        // Unregistered on purpose: the MikroTik spec registers it through the UI.
+        // Unregistered on purpose: the RADIUS spec registers it through the UI.
         $this->e2eAsset('E2E-ROUTER-001', 'E2E Router (unregistered)', 'router', $pop->id, '10.99.9.1');
         $registered = $this->e2eAsset('E2E-ROUTER-002', 'E2E Router (registered)', 'router', $pop->id, '10.99.9.2');
 
-        $nas = NasDevice::query()->where('network_asset_id', $registered->id)->first() ?? NasDeviceService::create([
+        NasDevice::query()->where('network_asset_id', $registered->id)->first() ?? NasDevice::query()->create([
             'network_asset_id' => $registered->id,
-            'api_username' => 'e2e-api',
-            'api_password' => 'e2e-not-a-real-secret',
-            'provisioning_enabled' => false,
+            'nasname' => '10.99.9.2',
+            'radius_secret' => 'e2e-not-a-real-secret',
         ]);
 
         $subscription = $this->e2eWhatsAppSubscription($pop, $packageId);
 
         if (! NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
-            NetworkAccountService::create($subscription, [
-                'nas_device_id' => $nas->id,
+            NetworkAccount::query()->create([
+                'subscription_id' => $subscription->id,
                 'service_type' => 'pppoe',
-                'username' => 'e2e-wa',
+                'username' => 'e2e-wa@'.Realm::forCompany((int) $subscription->company_id),
                 'password' => 'e2e-pppoe-password',
             ]);
         }

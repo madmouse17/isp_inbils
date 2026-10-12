@@ -4,17 +4,16 @@ namespace Database\Seeders\Demo;
 
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
+use App\Services\Core\CompanyService;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
-use Modules\NetworkAsset\Services\NasDeviceService;
-use Modules\NetworkAsset\Services\NetworkAccountService;
+use Modules\NetworkAsset\Services\Radius\Realm;
 
 /**
- * Router records and PPPoE accounts for the demo company, as data only. Every NAS router has its write switch
- * off and fake credentials, and the global RouterOS switch is off by default, so no request ever leaves the
- * machine: the accounts stay `pending`. Reads the database and skips what exists, like IpamOdnDemo.
+ * NAS client rows and PPPoE accounts for the demo company, as data only. Every NAS has a fake shared secret
+ * and RADIUS_ENABLED is off by default, so nothing reaches RADIUS: the accounts stay `pending`. Reads the database and skips what exists, like IpamOdnDemo.
  */
 final class NetworkAccessDemo
 {
@@ -24,7 +23,7 @@ final class NetworkAccessDemo
         'MKT-CCR-001' => ['ant', 'bbh'],
     ];
 
-    /** The address the older router gets, so it can be registered as a NAS router. */
+    /** The address the older router gets, so it can be registered as a NAS. */
     private const LEGACY_ROUTER_IP = '10.10.0.2';
 
     public static function seed(DemoContext $c): void
@@ -53,12 +52,10 @@ final class NetworkAccessDemo
                 IpAssignmentService::syncAssetAddresses($asset);
             }
 
-            $nas = NasDevice::query()->where('network_asset_id', $asset->id)->first() ?? NasDeviceService::create([
+            $nas = NasDevice::query()->where('network_asset_id', $asset->id)->first() ?? NasDevice::query()->create([
                 'network_asset_id' => $asset->id,
-                'api_port' => 443,
-                'api_username' => 'demo-api',
-                'api_password' => 'demo-not-a-real-secret',
-                'provisioning_enabled' => false,
+                'nasname' => $asset->getAttribute('management_ip'),
+                'radius_secret' => 'demo-not-a-real-secret',
             ]);
 
             foreach ($pops as $pop) {
@@ -77,6 +74,7 @@ final class NetworkAccessDemo
      */
     private static function accounts(array $routers): void
     {
+        $realm = Realm::forCompany((int) CompanyService::currentId());
         $popKeys = [];
 
         foreach (Location::query()->where('type', 'pop')->get(['id', 'code']) as $pop) {
@@ -92,14 +90,14 @@ final class NetworkAccessDemo
         foreach ($subscriptions->values() as $index => $subscription) {
             $nas = $routers[$popKeys[$subscription->serving_pop_id] ?? ''] ?? null;
 
-            if ($index % 3 === 2 || $nas === null || $subscription->customer === null || NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
+            if ($realm === null || $index % 3 === 2 || $nas === null || $subscription->customer === null || NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
                 continue;
             }
 
-            NetworkAccountService::create($subscription, [
-                'nas_device_id' => $nas->id,
+            NetworkAccount::query()->create([
+                'subscription_id' => $subscription->id,
                 'service_type' => 'pppoe',
-                'username' => strtolower($subscription->customer->code),
+                'username' => strtolower($subscription->customer->code).'@'.$realm,
                 'password' => substr(hash_hmac('sha256', $subscription->customer->code, 'demo-pppoe'), 0, 12),
             ]);
         }

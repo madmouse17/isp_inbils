@@ -8,29 +8,28 @@ use App\Models\User;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Schema;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
-use Modules\NetworkAsset\Notifications\NasDeviceUnreachableNotification;
+use Modules\Service\Models\SpeedProfile;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
-use Spatie\Permission\Models\Permission;
-use Tests\Support\FakeRouterOs;
 use Tests\TestCase;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
-use Tests\Traits\InteractsWithRouterOs;
+use Tests\Traits\InteractsWithNasCoa;
+use Tests\Traits\InteractsWithRadius;
 
 class ProvisioningFlowTest extends TestCase
 {
     use BuildsNetworkFixtures;
     use BuildsSubscriptionBilling;
     use CreatesCompanyUser;
-    use InteractsWithRouterOs;
+    use InteractsWithNasCoa;
+    use InteractsWithRadius;
     use RefreshDatabase;
 
     private User $admin;
@@ -39,7 +38,9 @@ class ProvisioningFlowTest extends TestCase
 
     private NasDevice $nas;
 
-    private FakeRouterOs $router;
+    private string $nasIp;
+
+    private string $realm;
 
     private ServiceSubscription $subscription;
 
@@ -51,10 +52,13 @@ class ProvisioningFlowTest extends TestCase
 
         $this->admin = $this->createCompanyUser();
         $this->company = $this->admin->company;
-        $this->fakeRouterOs();
-        [$this->nas, $this->router] = $this->nasRouter($this->company);
-        $this->subscription = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company, 'home-20m'));
-        $this->account = $this->networkAccountFor($this->subscription, $this->nas);
+        $this->realm = $this->realmOf($this->company);
+        $this->fakeRadius();
+        $this->nas = $this->nasClient($this->company);
+        $this->nasIp = (string) $this->nas->nasname;
+        $this->coaAnswers($this->nasIp, 'ack');
+        $this->subscription = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRadiusProfile($this->company, 'home-20m'));
+        $this->account = $this->networkAccountFor($this->subscription);
         $this->actingAs($this->admin);
     }
 
@@ -63,110 +67,204 @@ class ProvisioningFlowTest extends TestCase
         return Activity::query()->where('log_name', 'network_account')->where('description', $event)->count();
     }
 
-    /** The account provisioned and online, as most flows start. */
+    /** The account written to RADIUS and online, as most flows start. */
     private function provisioned(): void
     {
         $this->applyAccount($this->account);
-        $this->router->seedSession('pppoe', 'alice', '10.10.0.5');
-        $this->router->forgetRequests();
+        $this->openSession();
+        $this->forgetDisconnects();
     }
 
-    public function test_an_active_subscription_gets_its_secret_with_the_speed_profile_and_the_comment(): void
+    /** A new open session; the NAS ended the earlier ones of that user unless `$keepOthers`. */
+    private function openSession(string $username = 'alice', ?string $nasIp = null, bool $keepOthers = false): void
+    {
+        if (! $keepOthers) {
+            $this->radiusConnection()->table('radacct')->where('username', $username.'@'.$this->realm)->whereNull('acctstoptime')->update(['acctstoptime' => now()->format('Y-m-d H:i:s')]);
+        }
+
+        $this->seedRadiusSession(['username' => $username.'@'.$this->realm, 'nasipaddress' => $nasIp ?? $this->nasIp]);
+    }
+
+    private function forgetDisconnects(): void
+    {
+        $this->fakeCoa = null;
+        $this->coaAnswers($this->nasIp, 'ack');
+    }
+
+    private function group(string $username = 'alice'): ?string
+    {
+        return $this->radiusRows('radusergroup', ['username' => $username.'@'.$this->realm])[0]['groupname'] ?? null;
+    }
+
+    /** @return array<string, string> */
+    private function replies(string $group): array
+    {
+        return collect($this->radiusRows('radgroupreply', ['groupname' => $group]))->pluck('value', 'attribute')->all();
+    }
+
+    public function test_an_active_subscription_gets_its_user_in_the_speed_group_with_the_package_rate(): void
     {
         $this->applyAccount($this->account);
 
-        $secret = $this->router->account('pppoe', 'alice');
-        $this->assertSame('home-20m', $secret['profile']);
-        $this->assertSame('false', $secret['disabled']);
-        $this->assertSame('pppoe', $secret['service']);
-        $this->assertSame('fake-subscriber-secret', $secret['password']);
-        $this->assertSame('inbils:'.$this->company->code.':'.$this->subscription->code, $secret['comment']);
+        $check = $this->radiusRows('radcheck', ['username' => "alice@{$this->realm}"]);
+        $this->assertCount(1, $check);
+        $this->assertSame('Cleartext-Password', $check[0]['attribute']);
+        $this->assertSame(':=', $check[0]['op']);
+        $this->assertSame('fake-subscriber-secret', $check[0]['value']);
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertSame(['Mikrotik-Group' => 'home-20m', 'Mikrotik-Rate-Limit' => '10M/20M', 'Acct-Interim-Interval' => '300'], $this->replies("{$this->realm}/home-20m"));
         $account = $this->account->fresh();
         $this->assertSame('synced', $account->sync_status);
-        $this->assertSame('home-20m', $account->provisioned_profile);
-        $this->assertSame('alice', $account->provisioned_username);
-        $this->assertSame('pppoe', $account->provisioned_service_type);
-        $this->assertSame($this->nas->id, $account->provisioned_nas_device_id);
+        $this->assertSame("{$this->realm}/home-20m", $account->provisioned_group);
+        $this->assertSame("alice@{$this->realm}", $account->provisioned_username);
         $this->assertNotNull($account->provisioned_at);
         $this->assertNull($account->last_error);
+        $this->assertNull($account->pending_disconnect_at);
         $this->assertSame(1, $this->auditCount('provisioned'));
+        $this->assertSame([], $this->disconnectsSent(), 'a first write has no session to cut');
     }
 
     public function test_a_pending_subscription_is_enabled_too_so_the_technician_can_test_on_site(): void
     {
-        $pending = $this->subscriptionIn($this->company, 'pending', null, $this->packageWithRouterProfile($this->company, 'home-50m'));
-        $account = $this->networkAccountFor($pending, $this->nas, ['username' => 'bob']);
+        $pending = $this->subscriptionIn($this->company, 'pending', null, $this->packageWithRadiusProfile($this->company, 'home-50m', 50, 25));
+        $account = $this->networkAccountFor($pending, ['username' => "bob@{$this->realm}"]);
 
         $this->applyAccount($account);
 
-        $this->assertSame('home-50m', $this->router->account('pppoe', 'bob')['profile']);
-        $this->assertSame('false', $this->router->account('pppoe', 'bob')['disabled']);
+        $this->assertSame("{$this->realm}/home-50m", $this->group('bob'));
+        $this->assertSame('25M/50M', $this->replies("{$this->realm}/home-50m")['Mikrotik-Rate-Limit']);
     }
 
-    public function test_suspending_moves_the_secret_to_the_isolir_profile_and_drops_the_session(): void
+    public function test_suspending_moves_the_user_to_the_isolir_group_and_cuts_the_session(): void
     {
         $this->provisioned();
 
         SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
 
-        $this->assertSame('isolir', $this->router->account('pppoe', 'alice')['profile']);
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
-        $this->assertSame('isolir', $this->account->fresh()->provisioned_profile);
+        $this->assertSame("{$this->realm}/isolir", $this->group());
+        $this->assertSame(
+            ['Mikrotik-Group' => 'isolir', 'Mikrotik-Address-List' => 'isolir', 'Acct-Interim-Interval' => '300'],
+            $this->replies("{$this->realm}/isolir"),
+        );
+        $sent = $this->disconnectsSent();
+        $this->assertCount(1, $sent);
+        $this->assertSame($this->nasIp, $sent[0]['host']);
+        $this->assertSame(1700, $sent[0]['port']);
+        $this->assertSame("alice@{$this->realm}", $sent[0]['attributes']['User-Name']);
+        $this->assertSame($this->nasIp, $sent[0]['attributes']['NAS-IP-Address']);
+        $this->assertSame("{$this->realm}/isolir", $this->account->fresh()->provisioned_group);
+        $this->assertSame(1, $this->auditCount('disconnected'));
     }
 
-    public function test_reactivating_restores_the_speed_profile_and_drops_the_session(): void
+    public function test_reactivating_restores_the_speed_group_and_cuts_the_isolir_session(): void
     {
         $this->provisioned();
         SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
-        $this->router->seedSession('pppoe', 'alice', '10.10.0.9');
+        $this->openSession();
+        $this->forgetDisconnects();
 
         SubscriptionService::reactivate($this->subscription);
 
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'alice')['profile']);
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertCount(1, $this->disconnectsSent());
     }
 
-    public function test_terminating_removes_the_secret_and_drops_the_session(): void
+    public function test_blocking_an_active_subscription_isolates_it_whatever_the_status_and_unblocking_restores_it(): void
     {
         $this->provisioned();
 
-        SubscriptionService::terminate($this->subscription, 'moved away');
+        SubscriptionService::block($this->subscription, 'abuse');
 
-        $this->assertNull($this->router->account('pppoe', 'alice'));
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
-        $account = $this->account->fresh();
-        $this->assertNull($account->provisioned_profile);
-        $this->assertNull($account->provisioned_nas_device_id);
-        $this->assertSame('synced', $account->sync_status);
+        $this->assertSame("{$this->realm}/isolir", $this->group());
+        $this->assertCount(1, $this->disconnectsSent());
+        $this->assertSame('active', $this->subscription->fresh()->status);
+
+        $this->openSession();
+        $this->forgetDisconnects();
+        SubscriptionService::unblock($this->subscription->fresh());
+
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertCount(1, $this->disconnectsSent());
     }
 
-    public function test_deleting_a_subscription_removes_its_secret(): void
+    public function test_unblocking_a_suspended_subscription_keeps_it_isolated_until_it_is_reactivated(): void
+    {
+        $this->provisioned();
+        SubscriptionService::block($this->subscription, 'abuse');
+        SubscriptionService::suspend($this->subscription->fresh(), 'unpaid', 'overdue');
+
+        SubscriptionService::unblock($this->subscription->fresh());
+
+        $this->assertSame("{$this->realm}/isolir", $this->group());
+
+        SubscriptionService::reactivate($this->subscription->fresh());
+
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+    }
+
+    public function test_a_payment_reconnect_leaves_a_blocked_subscription_isolated(): void
+    {
+        $this->provisioned();
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
+        SubscriptionService::block($this->subscription->fresh(), 'fraud');
+
+        SubscriptionService::reactivate($this->subscription->fresh());
+
+        $this->assertSame('active', $this->subscription->fresh()->status);
+        $this->assertSame("{$this->realm}/isolir", $this->group());
+    }
+
+    public function test_terminating_removes_the_user_cuts_the_session_and_clears_the_block(): void
+    {
+        $this->provisioned();
+        SubscriptionService::block($this->subscription, 'abuse');
+        $this->openSession();
+        $this->forgetDisconnects();
+
+        SubscriptionService::terminate($this->subscription->fresh(), 'moved away');
+
+        $this->assertSame([], $this->radiusRows('radcheck'));
+        $this->assertSame([], $this->radiusRows('radusergroup'));
+        $this->assertCount(1, $this->disconnectsSent());
+        $account = $this->account->fresh();
+        $this->assertNull($account->provisioned_group);
+        $this->assertNull($account->provisioned_username);
+        $this->assertSame('synced', $account->sync_status);
+        $this->assertNull($this->subscription->fresh()->blocked_at);
+    }
+
+    public function test_deleting_a_subscription_removes_its_user(): void
     {
         $this->provisioned();
 
         $this->subscription->delete();
 
-        $this->assertNull($this->router->account('pppoe', 'alice'));
+        $this->assertSame([], $this->radiusRows('radcheck'));
+        $this->assertCount(1, $this->disconnectsSent());
     }
 
-    public function test_a_package_change_through_the_subscription_update_route_applies_the_new_profile(): void
+    public function test_a_package_change_writes_the_new_group_and_cuts_the_session(): void
     {
         $this->provisioned();
-        $bigger = $this->packageWithRouterProfile($this->company, 'home-50m');
+        $bigger = $this->packageWithRadiusProfile($this->company, 'home-50m', 50, 25);
 
-        $this->put(route('admin.subscriptions.update', $this->subscription), ['service_package_id' => $bigger->id])->assertRedirect();
+        $this->subscription->update(['service_package_id' => $bigger->id]);
 
-        $this->assertSame('home-50m', $this->router->account('pppoe', 'alice')['profile']);
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
+        $this->assertSame("{$this->realm}/home-50m", $this->group());
+        $this->assertSame('25M/50M', $this->replies("{$this->realm}/home-50m")['Mikrotik-Rate-Limit']);
+        $this->assertCount(1, $this->disconnectsSent());
     }
 
-    public function test_a_change_that_does_not_concern_the_network_makes_no_router_call(): void
+    public function test_a_change_that_does_not_concern_the_network_writes_and_sends_nothing(): void
     {
         $this->provisioned();
+        $before = $this->radiusRows('radcheck');
 
         $this->subscription->update(['notes' => 'called the customer']);
 
-        $this->assertSame([], $this->router->requests());
+        $this->assertSame($before, $this->radiusRows('radcheck'));
+        $this->assertSame([], $this->disconnectsSent());
+        $this->assertSame(1, $this->auditCount('provisioned'));
     }
 
     public function test_a_status_change_is_seen_even_when_the_model_is_saved_again_in_the_same_transaction(): void
@@ -178,10 +276,10 @@ class ProvisioningFlowTest extends TestCase
             $this->subscription->update(['notes' => 'second save']);
         });
 
-        $this->assertSame('isolir', $this->router->account('pppoe', 'alice')['profile']);
+        $this->assertSame("{$this->realm}/isolir", $this->group());
     }
 
-    public function test_a_rolled_back_status_change_never_reaches_the_router(): void
+    public function test_a_rolled_back_status_change_never_reaches_radius(): void
     {
         $this->provisioned();
 
@@ -194,256 +292,214 @@ class ProvisioningFlowTest extends TestCase
         } catch (RuntimeException) {
         }
 
-        $this->assertSame([], $this->router->requests());
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'alice')['profile']);
+        $this->assertSame([], $this->disconnectsSent());
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
     }
 
-    public function test_moving_the_account_to_another_router_removes_it_from_the_old_one(): void
-    {
-        $this->provisioned();
-        [$other, $otherRouter] = $this->nasRouter($this->company);
-
-        $this->account->update(['nas_device_id' => $other->id]);
-        $this->applyAccount($this->account);
-
-        $this->assertNull($this->router->account('pppoe', 'alice'));
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
-        $this->assertSame('home-20m', $otherRouter->account('pppoe', 'alice')['profile']);
-        $this->assertSame($other->id, $this->account->fresh()->provisioned_nas_device_id);
-    }
-
-    public function test_renaming_the_username_removes_the_old_name_and_creates_the_new_one(): void
+    public function test_renaming_the_username_removes_the_old_user_and_cuts_its_session(): void
     {
         $this->provisioned();
 
-        $this->account->update(['username' => 'alice.new']);
+        $this->account->update(['username' => "alice2@{$this->realm}"]);
         $this->applyAccount($this->account);
 
-        $this->assertNull($this->router->account('pppoe', 'alice'));
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'alice.new')['profile']);
-        $this->assertSame('alice.new', $this->account->fresh()->provisioned_username);
+        $this->assertSame([], $this->radiusRows('radcheck', ['username' => "alice@{$this->realm}"]));
+        $this->assertSame([], $this->radiusRows('radusergroup', ['username' => "alice@{$this->realm}"]));
+        $this->assertCount(1, $this->radiusRows('radcheck', ['username' => "alice2@{$this->realm}"]));
+        $this->assertSame("{$this->realm}/home-20m", $this->group('alice2'));
+        $sent = $this->disconnectsSent();
+        $this->assertCount(1, $sent);
+        $this->assertSame("alice@{$this->realm}", $sent[0]['attributes']['User-Name']);
+        $this->assertSame("alice2@{$this->realm}", $this->account->fresh()->provisioned_username);
     }
 
-    public function test_switching_the_service_type_cleans_the_old_menu(): void
+    public function test_changing_the_secret_updates_radius_and_keeps_the_session(): void
     {
         $this->provisioned();
 
-        $this->account->update(['service_type' => 'hotspot']);
+        $this->account->update(['password' => 'fake-new-subscriber-secret']);
         $this->applyAccount($this->account);
 
-        $this->assertNull($this->router->account('pppoe', 'alice'));
-        $this->assertSame('home-20m', $this->router->account('hotspot', 'alice')['profile']);
-        $this->assertSame('hotspot', $this->account->fresh()->provisioned_service_type);
+        $this->assertSame('fake-new-subscriber-secret', $this->radiusRows('radcheck')[0]['value']);
+        $this->assertSame([], $this->disconnectsSent());
     }
 
-    public function test_changing_the_password_updates_it_on_the_router_and_keeps_the_session(): void
+    public function test_a_second_run_against_an_unchanged_radius_writes_nothing_and_audits_nothing(): void
     {
         $this->provisioned();
+        $rows = [$this->radiusRows('radcheck'), $this->radiusRows('radusergroup'), $this->radiusRows('radgroupreply')];
+        $provisionedAt = $this->account->fresh()->provisioned_at;
 
-        $this->account->update(['password' => 'fake-new-secret']);
+        $this->travel(1)->minute();
         $this->applyAccount($this->account);
 
-        $this->assertSame('fake-new-secret', $this->router->account('pppoe', 'alice')['password']);
-        $this->assertCount(1, $this->router->sessions('pppoe', 'alice'));
-        $this->assertSame(0, $this->auditCount('drift_corrected'));
-    }
-
-    public function test_an_existing_secret_with_the_same_name_is_adopted_not_duplicated(): void
-    {
-        $this->router->seedAccount('pppoe', 'alice', 'default', false, 'fake-manual-pass');
-        $this->router->seedSession('pppoe', 'alice');
-
-        $this->applyAccount($this->account);
-
-        $this->assertCount(1, $this->router->accounts('pppoe'));
-        $secret = $this->router->account('pppoe', 'alice');
-        $this->assertSame('home-20m', $secret['profile']);
-        $this->assertSame('fake-subscriber-secret', $secret['password']);
-        $this->assertSame('inbils:'.$this->company->code.':'.$this->subscription->code, $secret['comment']);
-        $this->assertSame([], $this->router->sessions('pppoe', 'alice'));
+        $this->assertSame($rows, [$this->radiusRows('radcheck'), $this->radiusRows('radusergroup'), $this->radiusRows('radgroupreply')], 'same rows, same ids: nothing was rewritten');
+        $this->assertSame([], $this->disconnectsSent());
         $this->assertSame(1, $this->auditCount('provisioned'));
+        $this->assertSame(0, $this->auditCount('drift_corrected'));
+        $this->assertEquals($provisionedAt, $this->account->fresh()->provisioned_at);
     }
 
-    public function test_a_stray_secret_without_our_comment_is_not_deleted_for_an_absent_account(): void
+    public function test_a_manual_edit_in_radius_is_corrected_and_audited_as_drift_without_cutting_the_session(): void
     {
-        $this->subscription->forceFill(['status' => 'terminated'])->saveQuietly();
-        $this->router->seedAccount('pppoe', 'alice', 'default', false, 'fake-manual-pass');
+        $this->provisioned();
+        $this->radiusConnection()->table('radusergroup')->where('username', "alice@{$this->realm}")->update(['groupname' => 'somebody-elses']);
 
         $this->applyAccount($this->account);
 
-        $this->assertNotNull($this->router->account('pppoe', 'alice'));
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertSame(1, $this->auditCount('drift_corrected'));
+        $this->assertSame([], $this->disconnectsSent());
+    }
+
+    public function test_a_user_deleted_from_radius_is_created_again(): void
+    {
+        $this->provisioned();
+        $this->radiusConnection()->table('radcheck')->delete();
+        $this->radiusConnection()->table('radusergroup')->delete();
+
+        $this->applyAccount($this->account);
+
+        $this->assertCount(1, $this->radiusRows('radcheck'));
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertSame(1, $this->auditCount('drift_corrected'));
+    }
+
+    public function test_the_installation_switch_off_writes_nothing_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void
+    {
+        config(['services.radius.enabled' => false]);
+
+        $this->applyAccount($this->account);
+
+        $account = $this->account->fresh();
+        $this->assertSame('pending', $account->sync_status);
+        $this->assertSame('RADIUS is switched off.', $account->last_error);
+        $this->assertSame([], $this->radiusRows('radcheck'));
+        $this->assertSame([], $this->disconnectsSent());
+        $this->assertNull($account->provisioned_group);
+    }
+
+    public function test_a_disconnect_nobody_answers_leaves_the_account_pending_and_the_sync_catches_up(): void
+    {
+        $this->provisioned();
+        $this->coaAnswers($this->nasIp, 'timeout');
+
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
+
+        $account = $this->account->fresh();
+        $this->assertSame('pending', $account->sync_status);
+        $this->assertNotNull($account->pending_disconnect_at);
+        $this->assertStringContainsString('Disconnect', (string) $account->last_error);
+        $this->assertSame("{$this->realm}/home-20m", $account->provisioned_group, 'the record only advances after the Disconnect');
+        $this->assertSame("{$this->realm}/isolir", $this->group(), 'RADIUS already holds the isolir group');
+
+        $this->coaAnswers($this->nasIp, 'ack');
+        $this->artisan('network:sync', ['--company' => $this->company->id])->assertSuccessful();
+
+        $account = $this->account->fresh();
+        $this->assertSame('synced', $account->sync_status);
+        $this->assertNull($account->pending_disconnect_at);
+        $this->assertNull($account->last_error);
+        $this->assertSame("{$this->realm}/isolir", $account->provisioned_group);
+    }
+
+    public function test_a_nak_session_context_not_found_counts_as_done(): void
+    {
+        $this->provisioned();
+        $this->coaAnswers($this->nasIp, 'nak:503');
+
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
+
         $this->assertSame('synced', $this->account->fresh()->sync_status);
+        $this->assertNull($this->account->fresh()->pending_disconnect_at);
     }
 
-    public function test_a_second_run_against_an_unchanged_router_writes_nothing_and_audits_nothing(): void
+    public function test_any_other_nak_is_retried(): void
     {
-        $this->applyAccount($this->account);
-        $this->router->forgetRequests();
+        $this->provisioned();
+        $this->coaAnswers($this->nasIp, 'nak:401');
 
-        $this->applyAccount($this->account);
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
 
-        $this->assertSame([], $this->router->writes());
-        $this->assertSame(1, $this->auditCount('provisioned'));
-        $this->assertSame(0, $this->auditCount('drift_corrected'));
+        $this->assertSame('pending', $this->account->fresh()->sync_status);
+        $this->assertNotNull($this->account->fresh()->pending_disconnect_at);
     }
 
-    public function test_a_manual_edit_on_the_router_is_corrected_and_audited_as_drift(): void
+    public function test_a_session_on_an_address_no_nas_of_the_company_owns_is_not_sent_and_not_retried(): void
     {
-        $this->applyAccount($this->account);
-        $id = $this->router->account('pppoe', 'alice')['.id'];
-        $this->router->changeAccount('pppoe', 'alice', ['profile' => 'home-50m', 'disabled' => 'true']);
-        $this->router->forgetRequests();
+        $this->provisioned();
+        $this->openSession('alice', '203.0.113.9', true);
+        $this->forgetDisconnects();
 
-        $this->applyAccount($this->account);
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
 
-        $secret = $this->router->account('pppoe', 'alice');
-        $this->assertSame('home-20m', $secret['profile']);
-        $this->assertSame('false', $secret['disabled']);
-        $this->assertSame($id, $secret['.id']);
-        $this->assertSame(1, $this->auditCount('drift_corrected'));
-    }
-
-    public function test_a_secret_deleted_on_the_router_is_created_again_and_audited_as_drift(): void
-    {
-        $this->applyAccount($this->account);
-        $this->router->removeAccount('pppoe', 'alice');
-
-        $this->applyAccount($this->account);
-
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'alice')['profile']);
-        $this->assertSame(1, $this->auditCount('drift_corrected'));
-        $this->assertSame(1, $this->auditCount('provisioned'));
-    }
-
-    public function test_hotspot_accounts_follow_the_same_lifecycle_in_the_hotspot_menu(): void
-    {
-        $account = $this->networkAccountFor($this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company, 'home-50m')), $this->nas, ['username' => 'hot1', 'service_type' => 'hotspot']);
-        $this->applyAccount($account);
-        $this->router->seedSession('hotspot', 'hot1');
-
-        SubscriptionService::suspend($account->subscription, 'unpaid', 'overdue');
-
-        $this->assertSame('isolir', $this->router->account('hotspot', 'hot1')['profile']);
-        $this->assertArrayNotHasKey('service', $this->router->account('hotspot', 'hot1'));
-        $this->assertNull($this->router->account('pppoe', 'hot1'));
-        $this->assertSame([], $this->router->sessions('hotspot', 'hot1'));
-    }
-
-    public function test_the_installation_switch_off_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void
-    {
-        $this->disableRouterOs();
-
-        $this->applyAccount($this->account);
-
-        Http::assertNothingSent();
+        $this->assertCount(1, $this->disconnectsSent(), 'only the session on the company NAS');
         $account = $this->account->fresh();
-        $this->assertSame('pending', $account->sync_status);
-        $this->assertStringContainsString('switched off for this installation', $account->last_error);
+        $this->assertSame('synced', $account->sync_status);
+        $this->assertStringContainsString('203.0.113.9', (string) $account->last_error);
+        $this->assertNull($account->pending_disconnect_at);
     }
 
-    public function test_the_router_write_flag_off_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void
+    public function test_a_session_on_the_nas_of_another_company_is_never_sent(): void
     {
-        $this->nas->forceFill(['provisioning_enabled' => false])->save();
+        $other = Company::factory()->create(['is_active' => true]);
+        $theirNas = $this->nasClient($other);
+        $this->provisioned();
+        $this->openSession('alice', (string) $theirNas->nasname, true);
+        $this->forgetDisconnects();
+        $this->coaAnswers((string) $theirNas->nasname, 'ack');
 
-        $this->applyAccount($this->account);
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
 
-        Http::assertNothingSent();
-        $account = $this->account->fresh();
-        $this->assertSame('pending', $account->sync_status);
-        $this->assertStringContainsString('Writes are switched off for this router', $account->last_error);
+        $hosts = array_column($this->disconnectsSent(), 'host');
+        $this->assertNotContains((string) $theirNas->nasname, $hosts);
+        $this->assertStringContainsString((string) $theirNas->nasname, (string) $this->account->fresh()->last_error);
     }
 
-    public function test_a_router_that_says_no_fails_the_account_at_once_with_its_message_and_never_retries(): void
+    public function test_a_package_without_a_radius_profile_name_fails_the_account_without_touching_radius(): void
     {
-        $this->router->down('rejected', 'input does not match any value of profile');
+        $this->subscription->forceFill(['service_package_id' => $this->packageWithRadiusProfile($this->company, null)->id])->saveQuietly();
 
         $this->applyAccount($this->account);
 
         $account = $this->account->fresh();
         $this->assertSame('failed', $account->sync_status);
-        $this->assertSame('Bad Request: input does not match any value of profile', $account->last_error);
-        $this->assertCount(1, $this->router->requests());
-        $audit = Activity::query()->where('description', 'provision_failed')->firstOrFail();
-        $this->assertSame('rejected', $audit->properties['error_kind']);
-        $this->assertStringNotContainsString('fake-subscriber-secret', json_encode($audit->properties));
-        $this->assertStringNotContainsString('fake-router-api-password', json_encode($audit->properties));
+        $this->assertStringContainsString('no RADIUS profile name', $account->last_error);
+        $this->assertSame([], $this->radiusRows('radcheck'));
+        $this->assertSame([], $this->disconnectsSent());
+        $this->assertSame(1, $this->auditCount('provision_failed'));
     }
 
-    public function test_wrong_router_credentials_fail_the_account_at_once(): void
+    public function test_a_company_code_that_is_not_a_valid_realm_fails_the_account(): void
     {
-        $this->router->down('auth');
+        $this->company->forceFill(['code' => 'ACME_CORP'])->save();
 
         $this->applyAccount($this->account);
 
         $this->assertSame('failed', $this->account->fresh()->sync_status);
-        $this->assertCount(1, $this->router->requests());
+        $this->assertSame([], $this->radiusRows('radcheck'));
     }
 
-    public function test_a_package_without_a_router_profile_name_fails_the_account_without_calling_the_router(): void
+    public function test_an_unavailable_radius_database_keeps_the_account_pending_without_leaking_driver_text(): void
     {
-        $this->subscription->forceFill(['service_package_id' => $this->packageWithRouterProfile($this->company, null)->id])->saveQuietly();
-
-        $this->applyAccount($this->account);
-
-        $account = $this->account->fresh();
-        $this->assertSame('failed', $account->sync_status);
-        $this->assertStringContainsString('no router profile name', $account->last_error);
-        $this->assertSame([], $this->router->requests());
-    }
-
-    public function test_an_unreachable_router_keeps_the_account_pending_marks_the_outage_and_is_skipped_for_two_minutes(): void
-    {
-        Notification::fake();
-        $manager = $this->managerWhoCanManageRouters();
-        $other = $this->networkAccountFor($this->subscriptionIn($this->company, 'active', null, $this->packageWithRouterProfile($this->company, 'home-20m')), $this->nas, ['username' => 'carol']);
-        $this->router->down('refused');
+        Schema::connection('radius')->drop('radcheck');
 
         $this->applyAccount($this->account);
 
         $account = $this->account->fresh();
         $this->assertSame('pending', $account->sync_status);
-        $this->assertStringContainsString('did not answer', $account->last_error);
-        $nas = $this->nas->fresh();
-        $this->assertNotNull($nas->unreachable_since);
-        $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'unreachable')->count());
-        Notification::assertSentToTimes($manager, NasDeviceUnreachableNotification::class, 1);
-
-        $seen = count($this->router->requests());
-        $this->applyAccount($other);
-        $this->assertCount($seen, $this->router->requests());
-        $this->assertSame('pending', $other->fresh()->sync_status);
-        Notification::assertSentToTimes($manager, NasDeviceUnreachableNotification::class, 1);
-
-        $this->travel(3)->minutes();
-        $this->applyAccount($other);
-        $this->assertGreaterThan($seen, count($this->router->requests()));
-        Notification::assertSentToTimes($manager, NasDeviceUnreachableNotification::class, 1);
+        $this->assertSame('The RADIUS database is unavailable.', $account->last_error);
     }
 
-    public function test_business_actions_succeed_while_the_router_is_down(): void
+    public function test_business_actions_succeed_while_radius_is_down(): void
     {
         $this->provisioned();
-        $this->router->down('refused');
+        Schema::connection('radius')->drop('radusergroup');
 
-        $suspended = SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
 
-        $this->assertSame('suspended', $suspended->status);
+        $this->assertSame('suspended', $this->subscription->fresh()->status);
         $this->assertSame('pending', $this->account->fresh()->sync_status);
-        $this->assertSame('home-20m', $this->router->account('pppoe', 'alice')['profile']);
-    }
-
-    public function test_the_router_answering_again_clears_the_outage_and_audits_the_recovery(): void
-    {
-        $this->router->down('refused');
-        $this->applyAccount($this->account);
-        $this->router->up();
-        $this->travel(3)->minutes();
-
-        $this->applyAccount($this->account);
-
-        $this->assertNull($this->nas->fresh()->unreachable_since);
-        $this->assertSame('synced', $this->account->fresh()->sync_status);
-        $this->assertSame(1, Activity::query()->where('log_name', 'nas_device')->where('description', 'recovered')->count());
     }
 
     public function test_a_burst_of_changes_queues_one_run_per_account(): void
@@ -460,12 +516,11 @@ class ProvisioningFlowTest extends TestCase
     public function test_a_job_for_company_a_never_touches_company_b(): void
     {
         $other = Company::factory()->create(['is_active' => true]);
-        [$otherNas, $otherRouter] = $this->nasRouter($other);
-        $theirs = $this->networkAccountFor($this->subscriptionIn($other, 'active', null, $this->packageWithRouterProfile($other, 'home-20m')), $otherNas, ['username' => 'zed']);
+        $theirs = $this->networkAccountFor($this->subscriptionIn($other, 'active', null, $this->packageWithRadiusProfile($other, 'home-20m')), ['username' => 'zed@'.$this->realmOf($other)]);
 
         ApplyNetworkAccountJob::dispatch((int) $this->company->id, $theirs->id);
 
-        $this->assertSame([], $otherRouter->requests());
+        $this->assertSame([], $this->radiusRows('radcheck'));
         $this->assertSame('pending', $theirs->fresh()->sync_status);
         $this->assertNull($theirs->fresh()->last_attempt_at);
     }
@@ -473,27 +528,46 @@ class ProvisioningFlowTest extends TestCase
     public function test_the_observer_resolves_the_account_in_the_subscriptions_own_company(): void
     {
         $other = Company::factory()->create(['is_active' => true]);
-        [$otherNas, $otherRouter] = $this->nasRouter($other);
-        $theirSubscription = $this->subscriptionIn($other, 'active', null, $this->packageWithRouterProfile($other, 'home-20m'));
-        $theirs = $this->networkAccountFor($theirSubscription, $otherNas, ['username' => 'zed']);
+        $theirSubscription = $this->subscriptionIn($other, 'active', null, $this->packageWithRadiusProfile($other, 'home-20m'));
+        $theirs = $this->networkAccountFor($theirSubscription, ['username' => 'zed@'.$this->realmOf($other)]);
         $this->applyAccount($theirs);
         $this->provisioned();
 
         // The ambient company is A; the subscription being changed belongs to B.
         ServiceSubscription::withoutCompany()->findOrFail($theirSubscription->id)->update(['status' => 'suspended']);
 
-        $this->assertSame('isolir', $otherRouter->account('pppoe', 'zed')['profile']);
-        $this->assertSame([], $this->router->requests());
+        $this->assertSame($this->realmOf($other).'/isolir', $this->radiusRows('radusergroup', ['username' => 'zed@'.$this->realmOf($other)])[0]['groupname']);
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
     }
 
-    private function managerWhoCanManageRouters(): User
+    public function test_editing_a_speed_profile_rewrites_only_that_companys_speed_group_and_sends_nothing(): void
     {
-        Permission::findOrCreate('network_asset.nas.manage', 'web');
-        $manager = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true, 'email_verified_at' => now()]);
-        $manager->givePermissionTo('network_asset.nas.manage');
-        $outsider = User::factory()->create(['company_id' => Company::factory()->create(['is_active' => true])->id, 'is_active' => true]);
-        $outsider->givePermissionTo('network_asset.nas.manage');
+        $this->provisioned();
+        $other = Company::factory()->create(['is_active' => true]);
+        $theirs = $this->networkAccountFor($this->subscriptionIn($other, 'active', null, $this->packageWithRadiusProfile($other, 'home-20m')), ['username' => 'zed@'.$this->realmOf($other)]);
+        $this->applyAccount($theirs);
+        $theirRates = $this->replies($this->realmOf($other).'/home-20m');
+        $speed = SpeedProfile::query()->findOrFail($this->subscription->servicePackage->speed_profile_id);
 
-        return $manager;
+        $speed->update(['download_max_mbps' => 100, 'upload_max_mbps' => 40]);
+
+        $this->assertSame('40M/100M', $this->replies("{$this->realm}/home-20m")['Mikrotik-Rate-Limit']);
+        $this->assertSame($theirRates, $this->replies($this->realmOf($other).'/home-20m'));
+        $this->assertSame([], $this->disconnectsSent());
+    }
+
+    public function test_no_secret_reaches_the_audit_or_the_error_after_a_full_cycle(): void
+    {
+        $this->provisioned();
+        SubscriptionService::block($this->subscription, 'abuse');
+        $this->coaAnswers($this->nasIp, 'timeout');
+        $this->openSession();
+        SubscriptionService::unblock($this->subscription->fresh());
+        $this->nas->forceFill(['radius_secret' => 'fake-radius-shared-secret'])->save();
+
+        $dump = json_encode(Activity::query()->get()->map->properties).$this->account->fresh()->last_error;
+
+        $this->assertStringNotContainsString('fake-subscriber-secret', $dump);
+        $this->assertStringNotContainsString('fake-radius-shared-secret', $dump);
     }
 }

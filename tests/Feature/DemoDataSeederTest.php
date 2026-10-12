@@ -87,7 +87,7 @@ class DemoDataSeederTest extends TestCase
         $this->assertNotificationsAndMediaExist();
         $this->assertAddressPlanHasNoConflicts();
         $this->assertFibreTreeIsWiredAndDropsAreFree();
-        $this->assertRoutersAreInertAndAccountsExist();
+        $this->assertNasAndAccountsAreInertAndExist();
         $this->assertWhatsAppStateIsConsistent();
 
         $before = $this->rowCounts();
@@ -196,12 +196,14 @@ class DemoDataSeederTest extends TestCase
         }
     }
 
-    private function assertRoutersAreInertAndAccountsExist(): void
+    private function assertNasAndAccountsAreInertAndExist(): void
     {
-        $this->assertSame(0, $this->forCompany('nas_devices')->where('provisioning_enabled', true)->count(), 'A demo router accepts writes.');
-        $this->assertFalse((bool) config('services.routeros.enabled'), 'The global RouterOS switch must stay off for the demo.');
-        $this->assertSame($this->forCompany('network_accounts')->count(), $this->forCompany('network_accounts')->where('sync_status', 'pending')->count(), 'Nothing may have reached a router.');
+        $this->assertFalse((bool) config('services.radius.enabled'), 'The RADIUS switch must stay off for the demo.');
+        $this->assertSame(0, $this->forCompany('nas_devices')->whereNotNull('radius_synced_at')->count(), 'A demo NAS reached RADIUS.');
+        $this->assertSame(0, $this->forCompany('nas_devices')->whereNull('nasname')->count(), 'A demo NAS has no RADIUS address.');
+        $this->assertSame($this->forCompany('network_accounts')->count(), $this->forCompany('network_accounts')->where('sync_status', 'pending')->count(), 'Nothing may have reached RADIUS.');
         $this->assertSame(0, $this->forCompany('network_accounts')->whereNotNull('provisioned_at')->count());
+        $this->assertSame(0, $this->forCompany('network_accounts')->where('username', 'not like', '%@%')->count(), 'Every demo username carries its realm.');
         $this->assertGreaterThan(0, $this->forCompany('network_accounts')->whereIn('subscription_id', $this->forCompany('service_subscriptions')->where('status', 'suspended')->select('id'))->count(), 'No suspended customer has an account.');
     }
 
