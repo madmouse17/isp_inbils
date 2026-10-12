@@ -274,4 +274,33 @@ class SubscriptionBlockTest extends TestCase
                 ->where('can.block', true)
                 ->where('rows.data.0.subscriptions.0.blocked_at', fn ($value) => $value !== null));
     }
+
+    public function test_receivables_lists_a_suspended_subscription_only_while_it_is_blocked(): void
+    {
+        $blockedSuspended = $this->subscriptionIn($this->company);
+        $this->invoiceFor($blockedSuspended, 3);
+        $blockedSuspended->forceFill(['status' => 'suspended'])->save();
+        $this->block($blockedSuspended)->assertRedirect();
+
+        ServiceSubscription::factory()->create([
+            'company_id' => $this->company->id,
+            'customer_id' => $blockedSuspended->customer_id,
+            'service_package_id' => $blockedSuspended->service_package_id,
+            'installation_address_id' => $blockedSuspended->installation_address_id,
+            'status' => 'suspended',
+        ]);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.billing.receivables'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('rows.data.0.subscriptions', 1)
+                ->where('rows.data.0.subscriptions.0.id', $blockedSuspended->id)
+                ->where('rows.data.0.subscriptions.0.status', 'suspended'));
+
+        $this->unblock($blockedSuspended)->assertRedirect();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.billing.receivables'))
+            ->assertInertia(fn (Assert $page) => $page->has('rows.data.0.subscriptions', 0));
+    }
 }

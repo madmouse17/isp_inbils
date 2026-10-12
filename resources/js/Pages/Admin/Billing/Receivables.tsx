@@ -160,7 +160,7 @@ export default function Receivables({
                     {row.subscriptions.map((subscription) => (
                         <div key={subscription.id} className="flex flex-wrap items-center gap-2">
                             {subscription.blocked_at && <BlockedBadge />}
-                            {can.suspend && (
+                            {can.suspend && subscription.status === 'active' && (
                                 <Button
                                     type="button"
                                     variant="secondary"

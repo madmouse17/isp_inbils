@@ -438,7 +438,9 @@ class BillingService
 
         $subsByCustomer = ServiceSubscription::query()
             ->whereIn('customer_id', $invoices->pluck('customer_id')->unique())
-            ->where('status', 'active')
+            // Suspended subscriptions only while blocked, so staff can unblock them here.
+            ->where(fn ($query) => $query->where('status', 'active')
+                ->orWhere(fn ($blocked) => $blocked->where('status', 'suspended')->whereNotNull('blocked_at')))
             ->get(['id', 'code', 'status', 'customer_id', 'blocked_at'])
             ->groupBy('customer_id');
 
