@@ -18,8 +18,8 @@
  *      - a local, gitignored .env.e2e with RADIUS_ENABLED=true, RADIUS_DB_HOST=127.0.0.1, RADIUS_DB_PORT=13306 and the
  *        RADIUS_DB_DATABASE/USERNAME/PASSWORD of the lab, typed by the operator from ~/labs/freeradius/.env and
  *        never printed or committed, plus QUEUE_CONNECTION=sync (already there);
- *      - the same file has the line `E2E_RADIUS_LAB=1` (the e2e runner drops shell variables, so `E2E_RADIUS_LAB=1`
- *        in the shell only works once the runner allowlists it);
+ *      - `E2E_RADIUS_LAB=1` in the shell (the runner allowlists it, LAB_RADIUS_SECRET and LAB_USER_SECRET) or the same
+ *        line in .env.e2e;
  *      - LAB_RADIUS_SECRET (shared secret) and LAB_USER_SECRET (secret of the lab users) are read at run time from the
  *        process env, else from ~/labs/freeradius/.env (RADIUS_SECRET, LAB_USER_PASSWORD), typed on steps with
  *        trace/screenshot/video off and never logged.
@@ -47,8 +47,8 @@ function envFileValue(file: string, key: string): string | null {
     return line ? line.slice(key.length + 1).trim() : null;
 }
 
-// scripts/e2e-canonical.mjs drops every shell variable outside its allowlist before it starts Playwright, so the
-// opt-in switch is also read from the operator's local, gitignored .env.e2e (line `E2E_RADIUS_LAB=1`).
+// scripts/e2e-server-env.mjs allowlists E2E_RADIUS_LAB, LAB_RADIUS_SECRET and LAB_USER_SECRET; the switch is also read
+// from the operator's local, gitignored .env.e2e (line `E2E_RADIUS_LAB=1`) as a fallback.
 const LAB =
     process.env.E2E_RADIUS_LAB === '1' ||
     envFileValue(join(process.cwd(), '.env.e2e'), 'E2E_RADIUS_LAB') === '1';
@@ -854,7 +854,9 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         await expect(detail(page, 'NAS address')).toHaveText(LAB_NAS_ADDRESS);
         await expect(detail(page, 'CoA target')).toHaveText(`127.0.0.1:${LAB_COA_PORT}`);
         await expect(detail(page, 'Realm')).toHaveText(REALM);
-        expect(await page.locator('body').innerText()).not.toContain(labSecret('LAB_RADIUS_SECRET'));
+        expect(await page.locator('body').innerText()).not.toContain(
+            labSecret('LAB_RADIUS_SECRET'),
+        );
         await expect(page.getByText('RADIUS is switched off for this installation.')).toHaveCount(
             0,
         );
