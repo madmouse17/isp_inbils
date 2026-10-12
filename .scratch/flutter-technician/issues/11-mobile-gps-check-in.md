@@ -14,7 +14,11 @@ Card: none (owner added 2026-10-13)
 
 ## Acceptance criteria
 
-- [ ] Start with permission granted stores lat/lng/accuracy and the computed distance; denied stores `unavailable`.
+- [x] (API side) Start with permission granted stores lat/lng/accuracy and the computed distance; denied stores `unavailable`. (Mobile capture still open.)
 - [ ] Android manifest declares only ACCESS_FINE_LOCATION/ACCESS_COARSE_LOCATION (no background location).
-- [ ] Widget test for the permission-denied path; API feature test for the stored check-in and the distance.
+- [x] (API side) API feature test for the stored check-in and the distance. (Widget test for the permission-denied path still open.)
 - [ ] Web SPK/ticket show displays the check-in summary.
+
+## Comments
+
+- API done: `check_in` on `POST technician/work-orders/{wo}/start` and `technician/tickets/{id}/start`, stored as activity log (`check_in`) properties, no new table. Technician work order and ticket resources expose `check_in` {status: recorded|unavailable|none, distance_m, accuracy_m, captured_at, reason}. Web props: SPK `checkInSummary` (string), ticket `check_in` (string) already rendered. Open: mobile capture, manifest, widget test.
