@@ -94,6 +94,8 @@ Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')-
     Route::post('subscriptions/{subscription}/activate', [SubscriptionController::class, 'activate'])->name('subscriptions.activate');
     Route::post('subscriptions/{subscription}/suspend', [SubscriptionController::class, 'suspend'])->name('subscriptions.suspend');
     Route::post('subscriptions/{subscription}/reactivate', [SubscriptionController::class, 'reactivate'])->name('subscriptions.reactivate');
+    Route::post('subscriptions/{subscription}/block', [SubscriptionController::class, 'block'])->name('subscriptions.block');
+    Route::post('subscriptions/{subscription}/unblock', [SubscriptionController::class, 'unblock'])->name('subscriptions.unblock');
     Route::post('subscriptions/{subscription}/terminate', [SubscriptionController::class, 'terminate'])->name('subscriptions.terminate');
 
     // Employee evaluations

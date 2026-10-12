@@ -215,7 +215,10 @@ class InvoiceController extends Controller
             'rows' => ReceivableResource::collection($result['rows']),
             'totals' => $result['totals'],
             'filters' => $result['filters'],
-            'can' => ['suspend' => $request->user()?->can('customer.subscription.suspend') ?? false],
+            'can' => [
+                'suspend' => $request->user()?->can('customer.subscription.suspend') ?? false,
+                'block' => $request->user()?->can('customer.subscription.block') ?? false,
+            ],
         ]);
     }
 

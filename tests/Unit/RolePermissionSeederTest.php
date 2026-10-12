@@ -164,6 +164,15 @@ class RolePermissionSeederTest extends TestCase
         }
     }
 
+    public function test_subscription_block_permission_is_held_by_admin_and_manager_only(): void
+    {
+        $this->assertTrue(Permission::where('name', 'customer.subscription.block')->exists());
+
+        foreach (['admin' => true, 'manager' => true, 'staff' => false, 'technician' => false, 'customer' => false] as $role => $holds) {
+            $this->assertSame($holds, Role::findByName($role)->hasPermissionTo('customer.subscription.block'), $role);
+        }
+    }
+
     public function test_seeding_again_keeps_the_customer_sales_grants_unchanged(): void
     {
         $before = ['manager' => $this->salesPermissionsOf('manager'), 'staff' => $this->salesPermissionsOf('staff')];

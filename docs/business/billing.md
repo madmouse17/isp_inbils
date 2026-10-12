@@ -223,6 +223,11 @@ Lihat `docs/WORKFLOW.md` Section 7 (Billing). Ringkas state machine:
   via SubscriptionService (Customer module shared). Billing UI host
   buttons.
 
+### Block subscription
+- Block (`customer.subscription.block`) tidak menghentikan invoice recurring dan bukan status; lihat `docs/business/customer.md` § Block / unblock.
+- Pembayaran tidak pernah mencabut block: pembayaran yang menyambungkan kembali isolir `overdue` (Reactivate) hanya mengubah status, `blocked_at` tetap.
+- Receivables menampilkan `subscriptions[].blocked_at` per baris dan `can.block`.
+
 ### Tax (PPN)
 - Default rate Setting `tax.ppn_rate` (11). Per invoice_item: tax_rate
   default = invoice rate, override per line.

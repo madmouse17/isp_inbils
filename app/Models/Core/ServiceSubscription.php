@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\User;
 use App\Traits\BelongsToCompany;
 use Database\Factories\ServiceSubscriptionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -51,6 +52,7 @@ class ServiceSubscription extends Model
         'contract_months' => 'integer',
         'terminated_at' => 'datetime',
         'suspended_at' => 'datetime',
+        'blocked_at' => 'datetime',
     ];
 
     /** @return BelongsTo<Customer, $this> */
@@ -63,6 +65,12 @@ class ServiceSubscription extends Model
     public function servicePackage(): BelongsTo
     {
         return $this->belongsTo(ServicePackage::class);
+    }
+
+    /** @return BelongsTo<User, $this> */
+    public function blockedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'blocked_by');
     }
 
     public function installationAddress(): BelongsTo

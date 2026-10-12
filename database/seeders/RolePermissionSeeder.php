@@ -45,6 +45,7 @@ class RolePermissionSeeder extends Seeder
             'customer.subscription.activate',
             'customer.subscription.suspend',
             'customer.subscription.reactivate',
+            'customer.subscription.block',
             'customer.subscription.terminate',
             'customer.export',
             'customer.manage',
@@ -224,6 +225,7 @@ class RolePermissionSeeder extends Seeder
             'customer.subscription.view', 'customer.subscription.manage',
             'customer.subscription.activate', 'customer.subscription.suspend',
             'customer.subscription.reactivate', 'customer.subscription.terminate',
+            'customer.subscription.block',
             'customer.export', 'customer.manage',
             'customer.sales.assign', 'customer.sales.correct',
 

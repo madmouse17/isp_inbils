@@ -71,7 +71,7 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.view');
 
-        $subscription->load(['servicePackage', 'customer', 'installationAddress', 'servingPop']);
+        $subscription->load(['servicePackage', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,name']);
 
         $user = $request->user();
         $canAssignIp = $user?->can('ipam.assign') ?? false;
@@ -93,7 +93,7 @@ class SubscriptionController extends Controller
             'dropPort' => ($user?->can('odn.view') ?? false) ? OdnService::dropPortFor($subscription) : null,
             // Free ODP ports under the serving POP; evaluated only on a partial reload that asks for it.
             ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($subscription->serving_pop_id))] : []),
-            'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop],
+            'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false],
         ]);
     }
 
@@ -153,6 +153,30 @@ class SubscriptionController extends Controller
         SubscriptionService::suspend($subscription, $validated['reason'], $validated['source'] ?? 'manual');
 
         return back()->with('success', 'Subscription suspended.');
+    }
+
+    public function block(Request $request, ServiceSubscription $subscription): RedirectResponse
+    {
+        $this->ensureSameCompany($subscription);
+        Gate::authorize('customer.subscription.block');
+
+        $validated = $request->validate(['reason' => ['required', 'string', 'max:500']]);
+
+        SubscriptionService::block($subscription, $validated['reason']);
+
+        return back()->with('success', 'Subscription blocked.');
+    }
+
+    public function unblock(Request $request, ServiceSubscription $subscription): RedirectResponse
+    {
+        $this->ensureSameCompany($subscription);
+        Gate::authorize('customer.subscription.block');
+
+        $validated = $request->validate(['reason' => ['nullable', 'string', 'max:500']]);
+
+        SubscriptionService::unblock($subscription, $validated['reason'] ?? null);
+
+        return back()->with('success', 'Subscription unblocked.');
     }
 
     public function reactivate(Request $request, ServiceSubscription $subscription): RedirectResponse

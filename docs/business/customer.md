@@ -162,6 +162,19 @@ Lihat `docs/WORKFLOW.md` Section 2 (Customer/Subscription). Ringkas:
 | suspended | active | reactivate(subscription) | `status=active`, `suspension_source=null`, `next_invoice_date = next billing_day`, resume recurring, AuditLog. Trigger: manual OR otomatis setelah pembayaran (setting company `auto_reactivate_on_payment`, default true) hanya bila `suspension_source=overdue` dan tidak ada invoice subscription itu yang masih lewat grace (`auto_suspend_overdue_days`, default 7); suspend `manual` tidak pernah dibuka otomatis. |
 | active/suspended | terminated | terminate(subscription, reason, release_ont) | `status=terminated`, `suspension_source=null`, `terminated_at=now`, `terminated_reason`, stop recurring, release ont_asset (if release_ont → NetworkAsset status=Available + NetworkAssetInstallation removed_at), AuditLog. |
 
+### Block / unblock (isolasi manual, bukan status)
+
+`service_subscriptions.blocked_at|blocked_by|block_reason` (tidak fillable; hanya ditulis `SubscriptionService::block|unblock|terminate`).
+Block mengisolasi jaringan pelanggan apa pun statusnya; penagihan tidak berubah. Permission `customer.subscription.block` (admin, manager).
+
+- `block(subscription, reason)`: alasan wajib (maks 500 karakter, disimpan di `block_reason` dan audit `service_subscription / blocked`). Boleh pada `pending`, `active`, `suspended`; 422 bila `terminated` atau sudah diblok.
+- `unblock(subscription, note)`: catatan opsional (hanya audit `unblocked`); 422 bila tidak diblok.
+- Status tidak berubah dan rollup status customer mengabaikan block (tidak memanggil `CustomerStatusRecalculator`).
+- `billing:suspend-overdue` tetap men-suspend subscription `active` yang diblok (sumber `overdue`); `suspend`, `reactivate` dan aturan auto-reactivate tidak pernah membaca atau menulis kolom block.
+- Unblock pada subscription `suspended` tetap membiarkannya `suspended` (jaringan tetap terisolasi sampai direaktivasi).
+- `terminate` mengosongkan ketiga kolom dalam save yang sama.
+- `POST /admin/subscriptions/{sub}/block` (body: reason), `POST /admin/subscriptions/{sub}/unblock` (body: reason opsional).
+
 ### Customer status (rollup dari subscription)
 
 `customers.customer_status` (`prospective|active|inactive|suspended|terminated`, default `prospective`,

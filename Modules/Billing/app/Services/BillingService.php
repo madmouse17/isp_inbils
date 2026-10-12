@@ -439,7 +439,7 @@ class BillingService
         $subsByCustomer = ServiceSubscription::query()
             ->whereIn('customer_id', $invoices->pluck('customer_id')->unique())
             ->where('status', 'active')
-            ->get(['id', 'code', 'status', 'customer_id'])
+            ->get(['id', 'code', 'status', 'customer_id', 'blocked_at'])
             ->groupBy('customer_id');
 
         return $invoices
@@ -472,7 +472,7 @@ class BillingService
                     'total' => Money::round($total),
                     'invoice_count' => $group->count(),
                     'subscriptions' => ($subsByCustomer[$first->customer_id] ?? collect())
-                        ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'status' => $s->status])
+                        ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'status' => $s->status, 'blocked_at' => $s->blocked_at])
                         ->values()->all(),
                 ];
             })

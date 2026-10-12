@@ -122,6 +122,49 @@ class SubscriptionService
         });
     }
 
+    public static function block(ServiceSubscription $subscription, string $reason): ServiceSubscription
+    {
+        return DB::transaction(function () use ($subscription, $reason) {
+            $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
+            abort_if($subscription->status === 'terminated', 422, 'Terminated subscription cannot be blocked.');
+            abort_if($subscription->blocked_at !== null, 422, 'Subscription is already blocked.');
+
+            $subscription->forceFill([
+                'blocked_at' => now(),
+                'blocked_by' => auth()->id(),
+                'block_reason' => $reason,
+            ])->save();
+
+            AuditService::log('service_subscription', 'blocked', [
+                'code' => $subscription->code,
+                'reason' => $reason,
+            ], $subscription);
+
+            return $subscription->fresh();
+        });
+    }
+
+    public static function unblock(ServiceSubscription $subscription, ?string $note = null): ServiceSubscription
+    {
+        return DB::transaction(function () use ($subscription, $note) {
+            $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
+            abort_if($subscription->blocked_at === null, 422, 'Subscription is not blocked.');
+
+            $subscription->forceFill([
+                'blocked_at' => null,
+                'blocked_by' => null,
+                'block_reason' => null,
+            ])->save();
+
+            AuditService::log('service_subscription', 'unblocked', [
+                'code' => $subscription->code,
+                'note' => $note,
+            ], $subscription);
+
+            return $subscription->fresh();
+        });
+    }
+
     public static function terminate(ServiceSubscription $subscription, string $reason, bool $releaseOnt = false): ServiceSubscription
     {
         abort_if($subscription->status === 'terminated', 422, 'Subscription already terminated.');
@@ -161,6 +204,9 @@ class SubscriptionService
                 'suspension_source' => null,
                 'suspended_at' => null,
                 'terminated_at' => now(),
+                'blocked_at' => null,
+                'blocked_by' => null,
+                'block_reason' => null,
                 'terminated_reason' => $reason,
                 'ont_asset_id' => $releaseOnt ? null : $subscription->ont_asset_id,
             ])->save();
