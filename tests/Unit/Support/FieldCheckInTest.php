@@ -13,7 +13,7 @@ class FieldCheckInTest extends TestCase
     {
         // 0.001 degree of latitude is 111.19 m.
         $properties = FieldCheckIn::properties(
-            ['lat' => '-6.1743924', 'lng' => 106.8271528, 'accuracy_m' => '12.5', 'captured_at' => '2026-10-14T08:30:00+07:00'],
+            ['lat' => '-6.1743924', 'lng' => 106.8271528, 'accuracy_m' => '12.5', 'captured_at' => '2026-10-10T08:30:00+07:00'],
             ['lat' => '-6.1753924', 'lng' => '106.8271528'],
         );
 
@@ -22,7 +22,7 @@ class FieldCheckInTest extends TestCase
             'lat' => -6.1743924,
             'lng' => 106.8271528,
             'accuracy_m' => 12.5,
-            'captured_at' => '2026-10-14T01:30:00+00:00',
+            'captured_at' => '2026-10-10T01:30:00+00:00',
             'distance_m' => 111,
         ], $properties);
     }
@@ -109,7 +109,7 @@ class FieldCheckInTest extends TestCase
             'a null check-in' => [['check_in' => null]],
             'an empty check-in object' => [['check_in' => []]],
             'a fix' => [['check_in' => ['lat' => -6.2, 'lng' => 106.8]]],
-            'a full fix' => [['check_in' => ['lat' => '-6.2', 'lng' => '106.8', 'accuracy_m' => '12.5', 'captured_at' => '2026-10-14T08:30:00+07:00']]],
+            'a full fix' => [['check_in' => ['lat' => '-6.2', 'lng' => '106.8', 'accuracy_m' => '12.5', 'captured_at' => '2026-10-10T08:30:00+07:00']]],
             'the edges of the globe' => [['check_in' => ['lat' => 90, 'lng' => -180, 'accuracy_m' => 0]]],
             'a reason' => [['check_in' => ['unavailable_reason' => 'permission_denied']]],
             'every reason' => [['check_in' => ['unavailable_reason' => 'timeout']]],

@@ -83,7 +83,9 @@ class WorkOrdersTest extends TestCase
 
         $this->api('POST', "technician/work-orders/{$workOrder->id}/start", [
             'check_in' => ['unavailable_reason' => 'permission_denied'],
-        ], $token)->assertOk();
+        ], $token)->assertOk()
+            ->assertJsonPath('data.check_in.status', 'unavailable')
+            ->assertJsonPath('data.check_in.reason', 'permission_denied');
 
         $properties = json_decode((string) DB::table('activity_log')
             ->where('log_name', 'work_order')
@@ -94,6 +96,22 @@ class WorkOrdersTest extends TestCase
         $this->assertSame('unavailable', $properties['status']);
         $this->assertSame('permission_denied', $properties['reason']);
         $this->assertSame($workOrder->company_id, $properties['company_id']);
+    }
+
+    public function test_start_rejects_invalid_check_in_and_reports_none_without_one(): void
+    {
+        $technician = $this->technicianLogin();
+        $token = $this->issueToken($technician, 'technician');
+        [$workOrder] = $this->workOrderFor($technician, 'assigned');
+
+        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", [
+            'check_in' => ['lat' => 12, 'lng' => 181, 'captured_at' => now()->addHour()->toIso8601String()],
+        ], $token)->assertUnprocessable()
+            ->assertJsonValidationErrors(['check_in.lng', 'check_in.captured_at']);
+
+        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $token)
+            ->assertJsonPath('data.status', 'assigned')
+            ->assertJsonPath('data.check_in.status', 'none');
     }
 
     public function test_submit_needs_evidence_and_then_moves_to_waiting_review(): void

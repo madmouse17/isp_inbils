@@ -2,6 +2,7 @@
 
 namespace Modules\Ticketing\Http\Resources\Api\V1;
 
+use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Modules\Ticketing\Models\Ticket;
 
@@ -12,6 +13,7 @@ class TechnicianTicketResource extends CustomerTicketResource
     public function toArray(Request $request): array
     {
         return array_merge($this->summary(), [
+            'check_in' => FieldCheckIn::apiSummary($this->resource, 'ticket'),
             'description' => $this->description,
             'resolution_note' => $this->resolution_note,
             'customer' => $this->customer ? [

@@ -5088,6 +5088,55 @@
                         ],
                         "format": "date-time"
                     },
+                    "check_in": {
+                        "type": "object",
+                        "properties": {
+                            "status": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "none"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "distance_m": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "accuracy_m": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "captured_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "distance_m",
+                            "accuracy_m",
+                            "captured_at",
+                            "reason"
+                        ]
+                    },
                     "description": {
                         "type": [
                             "string",
@@ -5180,6 +5229,7 @@
                     "created_at",
                     "updated_at",
                     "resolved_at",
+                    "check_in",
                     "description",
                     "resolution_note",
                     "customer",
@@ -5231,6 +5281,55 @@
                         "type": [
                             "string",
                             "null"
+                        ]
+                    },
+                    "check_in": {
+                        "type": "object",
+                        "properties": {
+                            "status": {
+                                "anyOf": [
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "type": "string",
+                                        "enum": [
+                                            "none"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "distance_m": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "accuracy_m": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "captured_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "status",
+                            "distance_m",
+                            "accuracy_m",
+                            "captured_at",
+                            "reason"
                         ]
                     },
                     "ticket": {
@@ -5475,6 +5574,7 @@
                     "scheduled_date",
                     "started_at",
                     "rejection_reason",
+                    "check_in",
                     "ticket",
                     "customer",
                     "subscription",

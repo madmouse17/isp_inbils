@@ -5,6 +5,7 @@ namespace Modules\SPK\Http\Resources\Api\V1;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\Location;
 use App\Models\User;
+use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
@@ -37,6 +38,7 @@ class TechnicianWorkOrderResource extends JsonResource
             'scheduled_date' => $wo->scheduled_date?->toDateString(),
             'started_at' => $wo->started_at,
             'rejection_reason' => $wo->rejection_reason,
+            'check_in' => FieldCheckIn::apiSummary($wo, 'work_order'),
             'ticket' => $this->ticketBlock(),
             'customer' => $wo->customer === null ? null : [
                 'id' => $wo->customer->id,

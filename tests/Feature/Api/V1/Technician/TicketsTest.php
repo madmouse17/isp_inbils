@@ -105,10 +105,13 @@ class TicketsTest extends TestCase
         $key = (string) Str::uuid();
 
         $first = $this->api('POST', "technician/tickets/{$ticket->id}/start", [
-            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-14T08:30:00+07:00'],
+            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
-            ->assertJsonPath('data.status', 'on_progress');
+            ->assertJsonPath('data.status', 'on_progress')
+            ->assertJsonPath('data.check_in.status', 'recorded')
+            ->assertJsonPath('data.check_in.distance_m', 111)
+            ->assertJsonPath('data.check_in.accuracy_m', 12.5);
 
         $ticket->refresh();
         $this->assertSame('on_progress', $ticket->status);
@@ -118,7 +121,7 @@ class TicketsTest extends TestCase
         $this->assertSame(111, $audit->properties['distance_m']);
 
         $this->api('POST', "technician/tickets/{$ticket->id}/start", [
-            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-14T08:30:00+07:00'],
+            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
             ->assertHeader('Idempotent-Replayed', 'true')
@@ -138,6 +141,25 @@ class TicketsTest extends TestCase
         $audit = Activity::query()->where('description', 'check_in')->sole();
         $this->assertSame('unavailable', $audit->properties['status']);
         $this->assertSame('permission_denied', $audit->properties['reason']);
+        $this->api('GET', "technician/tickets/{$ticket->id}", token: $this->token)
+            ->assertJsonPath('data.check_in.status', 'unavailable')
+            ->assertJsonPath('data.check_in.reason', 'permission_denied')
+            ->assertJsonPath('data.check_in.distance_m', null);
+    }
+
+    public function test_start_without_check_in_reports_none_and_rejects_invalid_check_in(): void
+    {
+        $ticket = $this->assignedTicket('assigned');
+
+        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+            'check_in' => ['lat' => 91, 'lng' => 106.8, 'accuracy_m' => -1, 'captured_at' => now()->addHour()->toIso8601String()],
+        ], $this->token)->assertUnprocessable()
+            ->assertJsonValidationErrors(['check_in.lat', 'check_in.accuracy_m', 'check_in.captured_at']);
+        $this->assertSame('assigned', $ticket->fresh()->status);
+
+        $this->api('POST', "technician/tickets/{$ticket->id}/start", token: $this->token)
+            ->assertOk()
+            ->assertJsonPath('data.check_in.status', 'none');
     }
 
     public function test_start_twice_and_start_race_leave_state_unchanged_after_the_first_start(): void

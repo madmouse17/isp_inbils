@@ -20,7 +20,7 @@ final class FieldCheckIn
             'check_in.lat' => ['exclude_without:check_in', 'required_without:check_in.unavailable_reason', 'numeric', 'between:-90,90'],
             'check_in.lng' => ['exclude_without:check_in', 'required_without:check_in.unavailable_reason', 'numeric', 'between:-180,180'],
             'check_in.accuracy_m' => ['exclude_without:check_in', 'nullable', 'numeric', 'min:0', 'max:100000'],
-            'check_in.captured_at' => ['exclude_without:check_in', 'nullable', 'date'],
+            'check_in.captured_at' => ['exclude_without:check_in', 'nullable', 'date', 'before_or_equal:+5 minutes'],
             'check_in.unavailable_reason' => [
                 'exclude_without:check_in',
                 'required_without_all:check_in.lat,check_in.lng',
@@ -88,6 +88,24 @@ final class FieldCheckIn
         $properties = $activity?->properties?->toArray();
 
         return $properties === null ? null : Arr::except($properties, ['company_id']);
+    }
+
+    /**
+     * Machine-readable summary for the technician API.
+     *
+     * @return array{status: string, distance_m: int|null, accuracy_m: float|null, captured_at: string|null, reason: string|null}
+     */
+    public static function apiSummary(Model $subject, string $logName): array
+    {
+        $record = self::recordFor($subject, $logName);
+
+        return [
+            'status' => $record['status'] ?? 'none',
+            'distance_m' => $record['distance_m'] ?? null,
+            'accuracy_m' => $record['accuracy_m'] ?? null,
+            'captured_at' => $record['captured_at'] ?? null,
+            'reason' => $record['reason'] ?? null,
+        ];
     }
 
     /** @param  array<string, mixed>  $properties */
