@@ -18,7 +18,7 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -116,10 +116,10 @@ test(
     async () => {
         const dir = mkdtempSync(join(tmpdir(), 'inbils-e2e-setup-'));
         const stub = join(dir, 'php');
-        const stubPidFile = join(dir, 'pid');
+        // The stub exits by itself after ~5 s, so a failing run never leaves it behind and no stale PID is killed.
         writeFileSync(
             stub,
-            `#!/bin/sh\necho $$ > '${stubPidFile}'\ntrap 'echo stopping; sleep 0.5; echo stopped; exit 143' TERM\necho ready\nwhile :; do sleep 0.1; done\n`,
+            "#!/bin/sh\ntrap 'echo stopping; sleep 0.5; echo stopped; exit 143' TERM\necho ready\ni=0\nwhile [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done\n",
         );
         chmodSync(stub, 0o755);
 
@@ -172,17 +172,7 @@ test(
                 'mutex must be released after PHP exits',
             );
         } finally {
-            // A failing run must not leave the stub running or this wrapper's lock behind to block real e2e runs.
-            if (existsSync(stubPidFile)) {
-                const stubPid = Number(readFileSync(stubPidFile, 'utf8'));
-                // The PID may have been reused once the stub exited: kill only a process still running the stub.
-                const args = spawnSync('ps', ['-o', 'args=', '-p', String(stubPid)], {
-                    encoding: 'utf8',
-                }).stdout;
-                if (args.includes(stub)) {
-                    process.kill(stubPid, 'SIGKILL');
-                }
-            }
+            // A failing run must not leave this wrapper's lock behind to block real e2e runs.
             if (wrapperProcess.exitCode === null && wrapperProcess.signalCode === null) {
                 wrapperProcess.kill('SIGKILL');
             }
