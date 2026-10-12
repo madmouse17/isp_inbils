@@ -9,6 +9,7 @@ selama development, v1.0.0 saat release).
 - Receivables lists a `suspended` subscription while it is blocked (`blocked_at` set), so staff with `customer.subscription.block` can Unblock there; Isolir shows for `active` subscriptions only. A suspended subscription that is not blocked stays out.
 - Mobile/web notification inbox: `NotificationResource` title and message for `ticket_assigned` (staff), `ticket_sla_breached`, `billing_schedule_failed`, `inventory_request_*`, `material_return_*` and the fallback are now Indonesian. Keys and `type` values are unchanged. `docs/api/mobile-v1.openapi.json` title enum updated.
 - `scripts/e2e-server-env.mjs` allowlists `E2E_RADIUS_LAB`, `LAB_RADIUS_SECRET` and `LAB_USER_SECRET` (selfcheck added); the `.env.e2e` and lab `.env` fallbacks still work.
+- `scripts/e2e-setup.mjs` takes the canonical e2e mutex for every reset (not `--check`), so a reset refuses to run while a canonical suite is active. `scripts/e2e-radius-lab.sh` resets `inbils_test` through this sanitized wrapper, no longer through `php tests/e2e/setup.php` directly.
 
 ### Changed - FreeRADIUS replaces MikroTik RouterOS API provisioning (2026-10-16)
 
