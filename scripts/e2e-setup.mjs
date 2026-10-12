@@ -19,6 +19,7 @@
 import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
+import { acquireCanonicalMutex } from './e2e-mutex.mjs';
 import { buildE2EServerEnv } from './e2e-server-env.mjs';
 
 const php = process.env.PHP_BINARY || 'php';
@@ -62,6 +63,23 @@ if (declaredDatabase) {
     console.log(`[e2e-setup] target database (from .env.e2e DB_DATABASE): ${declaredDatabase}`);
 }
 
+// The reset (any mode but --check) rebuilds the shared schema, so it must never run while a canonical suite
+// holds the mutex; acquiring it fails fast instead of wiping fixtures mid-test.
+let mutex = null;
+if (!process.argv.includes('--check')) {
+    try {
+        mutex = acquireCanonicalMutex({ runner: 'scripts/e2e-setup.mjs' });
+    } catch (error) {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+    }
+}
+
+const finish = (exitCode) => {
+    mutex?.release();
+    process.exit(exitCode);
+};
+
 const child = spawn(php, args, {
     env: sanitized.env,
     stdio: 'inherit',
@@ -70,10 +88,9 @@ const child = spawn(php, args, {
 
 child.once('error', (error) => {
     console.error(error);
-    process.exit(1);
+    finish(1);
 });
 
 child.once('close', (code, signal) => {
-    const exitCode = code ?? (signal ? 1 : 0);
-    process.exit(exitCode);
+    finish(code ?? (signal ? 1 : 0));
 });
