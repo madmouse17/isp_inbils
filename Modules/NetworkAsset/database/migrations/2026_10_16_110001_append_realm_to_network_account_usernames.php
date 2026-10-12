@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Data only: a RADIUS username is `local@realm` (realm = the lower-cased company code), so existing accounts
@@ -21,10 +23,15 @@ return new class() extends Migration
                 DB::table('network_accounts')->where('id', $account->id)->update(['username' => $username, 'updated_at' => now()]);
             }
         });
+
+        // After the realm suffix: two companies may have used the same local name, which only the suffix makes distinct.
+        Schema::table('network_accounts', fn (Blueprint $table) => $table->unique('username'));
     }
 
     public function down(): void
     {
+        Schema::table('network_accounts', fn (Blueprint $table) => $table->dropUnique(['username']));
+
         $codes = DB::table('companies')->pluck('code', 'id');
 
         DB::table('network_accounts')->where('username', 'like', '%@%')->orderBy('id')->each(function (object $account) use ($codes): void {

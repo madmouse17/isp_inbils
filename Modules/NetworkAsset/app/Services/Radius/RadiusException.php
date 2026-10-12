@@ -5,8 +5,8 @@ namespace Modules\NetworkAsset\Services\Radius;
 use RuntimeException;
 
 /**
- * A RADIUS database call that was refused or failed. Messages are fixed text: driver errors carry the
- * host, user and bindings, so the original exception is never echoed, only chained as `previous`.
+ * A RADIUS database call that was refused or failed. Messages are fixed text and never chain the driver
+ * exception: it carries the host, user and bindings.
  */
 final class RadiusException extends RuntimeException
 {
@@ -19,9 +19,9 @@ final class RadiusException extends RuntimeException
     /** The input cannot be stored in the RADIUS schema: retrying cannot help. */
     public const REJECTED = 'rejected';
 
-    public function __construct(public readonly string $kind, string $message, ?\Throwable $previous = null)
+    public function __construct(public readonly string $kind, string $message)
     {
-        parent::__construct($message, 0, $previous);
+        parent::__construct($message);
     }
 
     public static function disabled(): self
@@ -29,9 +29,9 @@ final class RadiusException extends RuntimeException
         return new self(self::DISABLED, 'RADIUS is switched off.');
     }
 
-    public static function unavailable(?\Throwable $previous = null): self
+    public static function unavailable(): self
     {
-        return new self(self::UNAVAILABLE, 'The RADIUS database is unavailable.', $previous);
+        return new self(self::UNAVAILABLE, 'The RADIUS database is unavailable.');
     }
 
     public static function rejected(string $message): self

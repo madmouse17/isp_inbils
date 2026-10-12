@@ -491,6 +491,23 @@ class ProvisioningFlowTest extends TestCase
         $this->assertSame('The RADIUS database is unavailable.', $account->last_error);
     }
 
+    public function test_an_exhausted_job_stores_no_secret_in_failed_jobs(): void
+    {
+        $this->account->update(['password' => 'leak-canary-subscriber-pass']);
+        $this->radiusConnection()->unprepared('CREATE TRIGGER fail_radcheck BEFORE INSERT ON radcheck BEGIN SELECT RAISE(ABORT, \'boom\'); END');
+        config(['queue.default' => 'database']);
+
+        $this->applyAccount($this->account);
+        DB::table('jobs')->update(['attempts' => 4]);
+        $this->artisan('queue:work', ['connection' => 'database', '--once' => true])->assertSuccessful();
+
+        $failed = DB::table('failed_jobs')->get();
+        $this->assertCount(1, $failed);
+        $this->assertStringNotContainsString('leak-canary', $failed[0]->exception);
+        $this->assertStringContainsString('The RADIUS database is unavailable.', $failed[0]->exception);
+        $this->assertSame('failed', $this->account->fresh()->sync_status);
+    }
+
     public function test_business_actions_succeed_while_radius_is_down(): void
     {
         $this->provisioned();

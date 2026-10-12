@@ -160,7 +160,7 @@ Every subscription with a network account becomes a RADIUS user `local@realm` wi
   public function removeUser(string $username): void;                                // radcheck, radreply, radusergroup rows of that username
   public function hasUser(string $username, string $group, string $secretHash): bool; // drift check
   public function putGroup(string $group, array $replies): void;                    // radgroupreply rows of that group replaced (op :=)
-  public function putNas(string $nasname, string $shortname, string $secret, string $description): void; // upsert by nasname, type 'other'
+  public function putNas(string $nasname, string $shortname, string $secret, string $description, ?string $previousNasname): void; // upsert by nasname, type 'other'
   public function removeNas(string $nasname): void;
   /** @return list<array{session_id:string, nas_ip:string, framed_ip:?string, started_at:string, updated_at:?string}> open, not stale (15 min) */
   public function openSessions(string $username): array;

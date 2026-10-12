@@ -60,7 +60,6 @@ return new class() extends Migration
                 'last_online_at', 'current_address',
             ]);
             $table->string('provisioned_group', 64)->nullable()->after('provisioned_username');
-            $table->unique('username');
         });
     }
 
@@ -76,7 +75,6 @@ return new class() extends Migration
             $table->unique(['company_id', 'username']);
             $table->index(['company_id', 'nas_device_id', 'sync_status']);
             $table->dropIndex(['company_id', 'sync_status']);
-            $table->dropUnique(['username']);
             $table->dropColumn('provisioned_group');
         });
 

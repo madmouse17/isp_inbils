@@ -74,8 +74,12 @@ class RadiusDirectory
         });
     }
 
-    /** Upsert one FreeRADIUS client by `nasname`; other rows are never touched. */
-    public function putNas(string $nasname, string $shortname, string $secret, string $description): void
+    /**
+     * Upsert one FreeRADIUS client by `nasname`. A row that already exists is overwritten only when Inbils wrote it:
+     * `$previousNasname` is the address the caller last wrote for this NAS, and must equal `$nasname`; any other
+     * existing row belongs to operations and is refused.
+     */
+    public function putNas(string $nasname, string $shortname, string $secret, string $description, ?string $previousNasname): void
     {
         if (! filter_var($nasname, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             throw RadiusException::rejected('The NAS address must be an IPv4 address.');
@@ -84,11 +88,17 @@ class RadiusDirectory
             throw RadiusException::rejected('The NAS does not fit the RADIUS schema.');
         }
 
-        $this->run(function (Connection $db) use ($nasname, $shortname, $secret, $description): void {
-            $db->transaction(fn () => $db->table('nas')->updateOrInsert(
-                ['nasname' => $nasname],
-                ['shortname' => $shortname, 'type' => 'other', 'secret' => $secret, 'description' => mb_substr($description, 0, 200)],
-            ));
+        $this->run(function (Connection $db) use ($nasname, $shortname, $secret, $description, $previousNasname): void {
+            $db->transaction(function () use ($db, $nasname, $shortname, $secret, $description, $previousNasname): void {
+                if ($previousNasname !== $nasname && $db->table('nas')->where('nasname', $nasname)->exists()) {
+                    throw RadiusException::rejected('A RADIUS client with this address already exists and was not written by Inbils.');
+                }
+
+                $db->table('nas')->updateOrInsert(
+                    ['nasname' => $nasname],
+                    ['shortname' => $shortname, 'type' => 'other', 'secret' => $secret, 'description' => mb_substr($description, 0, 200)],
+                );
+            });
         });
     }
 
@@ -163,8 +173,8 @@ class RadiusDirectory
     }
 
     /**
-     * Run one unit of work on the `radius` connection. The driver exception is chained but never echoed:
-     * its message carries the host, user and bindings.
+     * Run one unit of work on the `radius` connection. The driver exception is dropped, not chained: its message
+     * carries the host, user and bindings (subscriber and NAS secrets), and a failed job stores the whole chain.
      *
      * @template T
      *
@@ -181,8 +191,8 @@ class RadiusDirectory
             return $work(DB::connection('radius'));
         } catch (RadiusException $e) {
             throw $e;
-        } catch (Throwable $e) {
-            throw RadiusException::unavailable($e);
+        } catch (Throwable) {
+            throw RadiusException::unavailable();
         }
     }
 }

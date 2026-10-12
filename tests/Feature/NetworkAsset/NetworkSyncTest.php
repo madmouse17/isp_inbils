@@ -97,6 +97,20 @@ class NetworkSyncTest extends TestCase
         $this->assertSame(1, $this->auditCount('nas_device', 'radius_written'));
     }
 
+    public function test_a_nas_row_inbils_did_not_write_is_refused_and_recorded(): void
+    {
+        $this->radiusConnection()->table('nas')->insert(['nasname' => $this->nas->nasname, 'shortname' => 'ops', 'type' => 'other', 'secret' => 'ops-secret']);
+
+        $this->sync();
+
+        $row = $this->radiusRows('nas', ['nasname' => $this->nas->nasname])[0];
+        $this->assertSame(['ops', 'ops-secret'], [$row['shortname'], $row['secret']]);
+        $nas = $this->nas->fresh();
+        $this->assertNull($nas->radius_synced_at);
+        $this->assertNotNull($nas->last_error);
+        $this->assertSame(1, $this->auditCount('nas_device', 'radius_failed'));
+    }
+
     public function test_a_changed_nasname_writes_the_new_row_and_removes_the_previous_one(): void
     {
         $this->sync();

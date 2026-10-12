@@ -191,7 +191,7 @@ class NetworkAccountProvisioner
             $label = (string) $nas->networkAsset?->code;
             $name = (string) $nas->networkAsset?->name;
 
-            $this->radius->putNas((string) $nas->nasname, $realm, (string) $nas->radius_secret, trim($label.' '.$name));
+            $this->radius->putNas((string) $nas->nasname, $realm, (string) $nas->radius_secret, trim($label.' '.$name), $nas->radius_nasname);
 
             if ($nas->radius_nasname !== null && $nas->radius_nasname !== $nas->nasname) {
                 $this->radius->removeNas($nas->radius_nasname);

@@ -133,8 +133,8 @@ class RadiusDirectoryTest extends TestCase
     {
         $this->radiusConnection()->table('nas')->insert(['nasname' => '127.0.0.1', 'shortname' => 'lab', 'secret' => 'lab-fake']);
 
-        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'RTR-1 Core');
-        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret-2', 'RTR-1 Core renamed');
+        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'RTR-1 Core', null);
+        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret-2', 'RTR-1 Core renamed', '192.0.2.10');
 
         $rows = $this->radiusRows('nas', ['nasname' => '192.0.2.10']);
         $this->assertCount(1, $rows);
@@ -146,16 +146,49 @@ class RadiusDirectoryTest extends TestCase
 
     public function test_put_nas_refuses_what_the_schema_cannot_hold(): void
     {
-        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('2001:db8::1', 'acme', 'nas-fake-secret', 'x')));
-        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('nas.example.test', 'acme', 'nas-fake-secret', 'x')));
-        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('192.0.2.10', 'acme', str_repeat('s', 61), 'x')));
+        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('2001:db8::1', 'acme', 'nas-fake-secret', 'x', null)));
+        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('nas.example.test', 'acme', 'nas-fake-secret', 'x', null)));
+        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('192.0.2.10', 'acme', str_repeat('s', 61), 'x', null)));
         $this->assertSame([], $this->radiusRows('nas'));
+    }
+
+    public function test_put_nas_refuses_to_overwrite_a_row_inbils_did_not_write(): void
+    {
+        $this->radiusConnection()->table('nas')->insert(['nasname' => '192.0.2.10', 'shortname' => 'ops', 'secret' => 'ops-fake', 'description' => 'managed by ops']);
+
+        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'RTR-1', null)));
+        $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'RTR-1', '192.0.2.99')));
+
+        $rows = $this->radiusRows('nas');
+        $this->assertCount(1, $rows);
+        $this->assertSame(['ops', 'ops-fake', 'managed by ops'], [$rows[0]['shortname'], $rows[0]['secret'], $rows[0]['description']]);
+    }
+
+    public function test_a_failing_write_leaks_no_secret_in_the_exception_or_its_chain(): void
+    {
+        $secret = 'nas-leak-canary-secret';
+        $this->radiusConnection()->unprepared('CREATE TRIGGER fail_radcheck BEFORE INSERT ON radcheck BEGIN SELECT RAISE(ABORT, \'boom\'); END');
+        $this->radiusConnection()->unprepared('CREATE TRIGGER fail_nas BEFORE INSERT ON nas BEGIN SELECT RAISE(ABORT, \'boom\'); END');
+
+        foreach ([
+            fn () => $this->radius->putUser('budi@acme', 'user-leak-canary-secret', 'acme/home-20m'),
+            fn () => $this->radius->putNas('192.0.2.10', 'acme', $secret, 'RTR-1', null),
+        ] as $call) {
+            try {
+                $call();
+                $this->fail('The failing insert must throw.');
+            } catch (RadiusException $e) {
+                $this->assertSame(RadiusException::UNAVAILABLE, $e->kind);
+                $this->assertNull($e->getPrevious());
+                $this->assertStringNotContainsString('leak-canary', (string) $e);
+            }
+        }
     }
 
     public function test_remove_nas_deletes_only_that_row(): void
     {
-        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'one');
-        $this->radius->putNas('192.0.2.11', 'acme', 'nas-fake-secret', 'two');
+        $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'one', null);
+        $this->radius->putNas('192.0.2.11', 'acme', 'nas-fake-secret', 'two', null);
 
         $this->radius->removeNas('192.0.2.10');
 
@@ -219,7 +252,7 @@ class RadiusDirectoryTest extends TestCase
             fn () => $this->radius->removeUser('budi@acme'),
             fn () => $this->radius->hasUser('budi@acme', 'g', 'h'),
             fn () => $this->radius->putGroup('g', ['A' => 'b']),
-            fn () => $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'd'),
+            fn () => $this->radius->putNas('192.0.2.10', 'acme', 'nas-fake-secret', 'd', null),
             fn () => $this->radius->removeNas('192.0.2.10'),
             fn () => $this->radius->openSessions('budi@acme'),
             fn () => $this->radius->sessionsOnNas('192.0.2.10'),
