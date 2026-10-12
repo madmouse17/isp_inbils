@@ -12,7 +12,8 @@ use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Services\NasDeviceHealth;
 use Modules\NetworkAsset\Services\NetworkAccountProvisioner;
-use Modules\NetworkAsset\Services\RouterOsClient;
+use Modules\NetworkAsset\Services\RouterOsApi;
+use Modules\NetworkAsset\Services\RouterOsClients;
 use Modules\NetworkAsset\Services\RouterOsException;
 
 /**
@@ -45,18 +46,20 @@ class SyncNasDeviceJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         return "sync:{$this->companyId}:{$this->nasDeviceId}";
     }
 
-    public function handle(RouterOsClient $client, NasDeviceHealth $health, NetworkAccountProvisioner $provisioner): void
+    public function handle(RouterOsClients $clients, NasDeviceHealth $health, NetworkAccountProvisioner $provisioner): void
     {
         if (! config('services.routeros.enabled')) {
             return;
         }
 
-        CompanyService::runAs($this->companyId, function () use ($client, $health, $provisioner): void {
+        CompanyService::runAs($this->companyId, function () use ($clients, $health, $provisioner): void {
             $nas = NasDevice::query()->find($this->nasDeviceId);
 
             if ($nas === null) {
                 return;
             }
+
+            $client = $clients->for($nas);
 
             try {
                 $resource = $client->systemResource($nas);
@@ -76,7 +79,7 @@ class SyncNasDeviceJob implements ShouldBeUniqueUntilProcessing, ShouldQueue
         });
     }
 
-    private function readAccounts(NasDevice $nas, RouterOsClient $client, NetworkAccountProvisioner $provisioner): void
+    private function readAccounts(NasDevice $nas, RouterOsApi $client, NetworkAccountProvisioner $provisioner): void
     {
         $accounts = $nas->networkAccounts()->with('subscription.servicePackage.speedProfile')->get();
         $accounts->each(fn (NetworkAccount $account) => $account->setRelation('nasDevice', $nas));

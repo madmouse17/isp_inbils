@@ -16,7 +16,8 @@ import {
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
-import type { RouterAssetOption } from '@/types/network-asset';
+import { NAS_API_PROTOCOLS, portAfterProtocolChange } from '@/lib/nasApiProtocol';
+import type { NasApiProtocol, RouterAssetOption } from '@/types/network-asset';
 
 interface CreateProps extends Record<string, unknown> {
     routerAssets: RouterAssetOption[];
@@ -30,6 +31,7 @@ const assetOptionLabel = (asset: RouterAssetOption) =>
 export default function Create({ routerAssets }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         network_asset_id: '',
+        api_protocol: 'rest' as NasApiProtocol,
         api_port: '443',
         api_username: '',
         api_password: '',
@@ -47,7 +49,7 @@ export default function Create({ routerAssets }: CreateProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Register NAS router"
-                    subtitle="Inbils reaches the router over HTTPS (RouterOS REST API, RouterOS 7.1 or later)."
+                    subtitle="Inbils reaches the router over its API: REST over HTTPS (RouterOS 7.1 or later) or the binary API (RouterOS 6 or 7)."
                     actions={
                         <Button
                             asChild
@@ -94,6 +96,33 @@ export default function Create({ routerAssets }: CreateProps) {
                                     {routerAssets.map((asset) => (
                                         <option key={asset.id} value={asset.id}>
                                             {assetOptionLabel(asset)}
+                                        </option>
+                                    ))}
+                                </NativeSelect>
+                                <NativeSelect
+                                    label="API protocol"
+                                    value={data.api_protocol}
+                                    onChange={(event) => {
+                                        const protocol = event.target.value as NasApiProtocol;
+                                        setData((current) => ({
+                                            ...current,
+                                            api_protocol: protocol,
+                                            api_port: portAfterProtocolChange(
+                                                current.api_port,
+                                                protocol,
+                                            ),
+                                        }));
+                                    }}
+                                    hint={
+                                        NAS_API_PROTOCOLS.find(
+                                            (option) => option.value === data.api_protocol,
+                                        )?.hint
+                                    }
+                                    error={errors.api_protocol}
+                                >
+                                    {NAS_API_PROTOCOLS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                            {option.label}
                                         </option>
                                     ))}
                                 </NativeSelect>

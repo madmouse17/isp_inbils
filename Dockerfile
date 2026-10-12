@@ -11,7 +11,7 @@ RUN npm run build
 
 FROM dunglas/frankenphp:php8.4-bookworm AS vendor
 
-RUN install-php-extensions exif intl zip
+RUN install-php-extensions exif intl sockets zip
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
@@ -38,6 +38,7 @@ RUN install-php-extensions \
     pcntl \
     pdo_mysql \
     redis \
+    sockets \
     zip
 
 WORKDIR /app

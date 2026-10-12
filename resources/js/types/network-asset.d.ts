@@ -62,6 +62,9 @@ export type NetworkServiceType = 'pppoe' | 'hotspot';
 export type NetworkSyncStatus = 'pending' | 'synced' | 'failed';
 export type NetworkDesiredState = 'absent' | 'enabled' | 'isolated';
 
+/** rest = RouterOS 7.1+ REST over HTTPS; binary = the API service of RouterOS 6 and 7. */
+export type NasApiProtocol = 'rest' | 'binary';
+
 export interface NasDevice {
     id: number;
     /** Null only when the router asset itself was removed. */
@@ -72,6 +75,7 @@ export interface NasDevice {
         management_ip: string | null;
         location: { id: number; name: string; type: string } | null;
     } | null;
+    api_protocol: NasApiProtocol;
     api_port: number;
     api_username: string;
     has_api_password: boolean;

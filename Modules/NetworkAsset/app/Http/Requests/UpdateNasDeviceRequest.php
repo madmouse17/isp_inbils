@@ -3,6 +3,8 @@
 namespace Modules\NetworkAsset\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\NasDevice;
 
 /** The router asset itself cannot change. A blank API password keeps the stored one. */
 class UpdateNasDeviceRequest extends FormRequest
@@ -16,6 +18,7 @@ class UpdateNasDeviceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'api_protocol' => ['sometimes', Rule::in(NasDevice::API_PROTOCOLS)],
             'api_port' => ['sometimes', 'required', 'integer', 'between:1,65535'],
             'api_username' => ['sometimes', 'required', 'string', 'max:64'],
             'api_password' => ['nullable', 'string', 'max:128'],

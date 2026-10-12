@@ -10,10 +10,12 @@ import {
     CardHeader,
     CardTitle,
     Input,
+    NativeSelect,
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
-import type { NasDevice, RouterAssetOption } from '@/types/network-asset';
+import { NAS_API_PROTOCOLS, portAfterProtocolChange } from '@/lib/nasApiProtocol';
+import type { NasApiProtocol, NasDevice, RouterAssetOption } from '@/types/network-asset';
 
 interface EditProps extends Record<string, unknown> {
     /** Only the router asset this NAS router is registered on: it cannot change. */
@@ -23,6 +25,7 @@ interface EditProps extends Record<string, unknown> {
 
 export default function Edit({ routerAssets, nasDevice }: EditProps) {
     const { data, setData, put, processing, errors, reset } = useForm({
+        api_protocol: nasDevice.api_protocol,
         api_port: String(nasDevice.api_port),
         api_username: nasDevice.api_username,
         api_password: '',
@@ -71,6 +74,33 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                                 <dt className="font-medium text-foreground">Router asset</dt>
                                 <dd className="text-muted-foreground">{assetLabel}</dd>
                             </dl>
+                            <NativeSelect
+                                label="API protocol"
+                                value={data.api_protocol}
+                                onChange={(event) => {
+                                    const protocol = event.target.value as NasApiProtocol;
+                                    setData((current) => ({
+                                        ...current,
+                                        api_protocol: protocol,
+                                        api_port: portAfterProtocolChange(
+                                            current.api_port,
+                                            protocol,
+                                        ),
+                                    }));
+                                }}
+                                hint={
+                                    NAS_API_PROTOCOLS.find(
+                                        (option) => option.value === data.api_protocol,
+                                    )?.hint
+                                }
+                                error={errors.api_protocol}
+                            >
+                                {NAS_API_PROTOCOLS.map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
+                            </NativeSelect>
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Input
                                     label="API port"

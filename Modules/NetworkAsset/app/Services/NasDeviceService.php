@@ -17,18 +17,20 @@ use Modules\NetworkAsset\Models\NetworkAsset;
 class NasDeviceService
 {
     /**
-     * @param  array{network_asset_id: int, api_port?: int, api_username: string, api_password: string, isolir_profile?: string, provisioning_enabled?: bool}  $data
+     * @param  array{network_asset_id: int, api_protocol?: string, api_port?: int, api_username: string, api_password: string, isolir_profile?: string, provisioning_enabled?: bool}  $data
      */
     public static function create(array $data): NasDevice
     {
         return DB::transaction(function () use ($data): NasDevice {
             $asset = self::routerAsset((int) $data['network_asset_id']);
+            $protocol = $data['api_protocol'] ?? 'rest';
 
             abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'This router asset is already registered as a NAS router.');
 
             $nas = NasDevice::query()->create([
                 'network_asset_id' => $asset->id,
-                'api_port' => $data['api_port'] ?? 443,
+                'api_protocol' => $protocol,
+                'api_port' => $data['api_port'] ?? ($protocol === 'binary' ? 8729 : 443),
                 'api_username' => $data['api_username'],
                 'api_password' => $data['api_password'],
                 'isolir_profile' => $data['isolir_profile'] ?? 'isolir',
@@ -44,7 +46,7 @@ class NasDeviceService
     /**
      * A blank password keeps the stored one. The router asset cannot be changed.
      *
-     * @param  array{api_port?: int, api_username?: string, api_password?: ?string, isolir_profile?: string, provisioning_enabled?: bool}  $data
+     * @param  array{api_protocol?: string, api_port?: int, api_username?: string, api_password?: ?string, isolir_profile?: string, provisioning_enabled?: bool}  $data
      */
     public static function update(NasDevice $nas, array $data): NasDevice
     {

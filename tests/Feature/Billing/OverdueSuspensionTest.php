@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Services\Core\SubscriptionService;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
@@ -13,6 +14,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Billing\Models\Invoice;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -331,6 +333,75 @@ class OverdueSuspensionTest extends TestCase
         $this->assertSame('manual', $this->freshSubscription($subscription)->suspension_source);
         $this->post(route('admin.subscriptions.terminate', $subscription), ['reason' => 'moved'])->assertRedirect();
         $this->assertNull($this->freshSubscription($subscription)->suspension_source);
+    }
+
+    private function pay(Invoice $invoice, int $amount = 100000): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.invoices.payments.store', $invoice), ['amount' => $amount, 'method' => 'cash'])
+            ->assertRedirect();
+    }
+
+    public function test_suspending_with_source_overdue_records_the_moment_and_manual_does_not(): void
+    {
+        $overdue = $this->subscriptionIn($this->company);
+        $manual = $this->subscriptionIn($this->company);
+
+        SubscriptionService::suspend($overdue, 'unpaid', 'overdue');
+        SubscriptionService::suspend($manual, 'by hand');
+
+        $this->assertTrue(now()->equalTo($this->freshSubscription($overdue)->suspended_at));
+        $this->assertNull($this->freshSubscription($manual)->suspended_at);
+
+        SubscriptionService::reactivate($overdue);
+        $this->assertNull($this->freshSubscription($overdue)->suspended_at);
+    }
+
+    public function test_terminating_clears_the_suspension_moment(): void
+    {
+        $subscription = $this->subscriptionIn($this->company);
+        SubscriptionService::suspend($subscription, 'unpaid', 'overdue');
+
+        SubscriptionService::terminate($this->freshSubscription($subscription), 'moved');
+
+        $this->assertNull($this->freshSubscription($subscription)->suspended_at);
+    }
+
+    public function test_an_early_isolir_stays_until_every_invoice_due_at_suspension_is_paid(): void
+    {
+        $subscription = $this->subscriptionIn($this->company);
+        $insideGrace = $this->invoiceFor($subscription, 3);
+        $pastGrace = $this->invoiceFor($subscription, 10);
+        SubscriptionService::suspend($subscription, 'unpaid', 'overdue');
+
+        $this->pay($pastGrace);
+        $this->assertSame('suspended', $this->freshSubscription($subscription)->status);
+
+        $this->pay($insideGrace);
+        $this->assertSame('active', $this->freshSubscription($subscription)->status);
+    }
+
+    public function test_an_invoice_due_after_the_suspension_does_not_block_the_reconnection(): void
+    {
+        $subscription = $this->subscriptionIn($this->company);
+        $due = $this->invoiceFor($subscription, 10);
+        SubscriptionService::suspend($subscription, 'unpaid', 'overdue');
+        $this->invoiceFor($subscription, -5);
+
+        $this->pay($due);
+
+        $this->assertSame('active', $this->freshSubscription($subscription)->status);
+    }
+
+    public function test_a_legacy_overdue_row_without_a_suspension_moment_keeps_the_grace_only_rule(): void
+    {
+        $subscription = $this->subscriptionIn($this->company, 'suspended', 'overdue');
+        $this->invoiceFor($subscription, 3);
+        $pastGrace = $this->invoiceFor($subscription, 10);
+
+        $this->pay($pastGrace);
+
+        $this->assertSame('active', $this->freshSubscription($subscription)->status);
     }
 
     public function test_settings_page_shows_the_three_isolir_keys_with_their_defaults(): void

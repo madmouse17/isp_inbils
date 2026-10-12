@@ -29,6 +29,7 @@ class NasDeviceResource extends JsonResource
                 'management_ip' => $asset->getAttribute('management_ip'),
                 'location' => $location === null ? null : ['id' => $location->getKey(), 'name' => $location->getAttribute('name'), 'type' => $location->getAttribute('type')],
             ],
+            'api_protocol' => $this->api_protocol,
             'api_port' => $this->api_port,
             'api_username' => $this->api_username,
             'has_api_password' => filled($this->resource->getRawOriginal('api_password')),

@@ -5,7 +5,6 @@ namespace Modules\NetworkAsset\Services;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Modules\NetworkAsset\Models\NasDevice;
 
 /**
@@ -19,22 +18,13 @@ use Modules\NetworkAsset\Models\NasDevice;
  * Service type `pppoe` uses /ppp/secret and /ppp/active; `hotspot` uses /ip/hotspot/user and
  * /ip/hotspot/active. RouterOS returns every value as a string; the shapes below are already converted.
  */
-class RouterOsClient
+class RouterOsClient implements RouterOsApi
 {
+    use ConvertsRouterOsRecords;
+
     private const CONNECT_TIMEOUT = 5;
 
     private const TIMEOUT = 10;
-
-    /** @var array<string, array{accounts: string, sessions: string, login: string}> */
-    private const MENUS = [
-        'pppoe' => ['accounts' => 'ppp/secret', 'sessions' => 'ppp/active', 'login' => 'name'],
-        'hotspot' => ['accounts' => 'ip/hotspot/user', 'sessions' => 'ip/hotspot/active', 'login' => 'user'],
-    ];
-
-    private const ACCOUNT_FIELDS = '.id,name,profile,disabled,comment';
-
-    /** PPP secrets also say which service they serve (pppoe, l2tp, ...): adoption must never take over a VPN user. */
-    private const PPP_EXTRA_FIELDS = ',service';
 
     /** cURL errors that mean the certificate or the TLS handshake, not the network. */
     private const TLS_FAILURE = '/cURL error (35|51|53|54|58|59|60|64|66|77|80|82|83|90|91|98):|SSL|certificate/i';
@@ -175,15 +165,7 @@ class RouterOsClient
 
     private function baseUrl(NasDevice $nas): string
     {
-        $host = $nas->networkAsset?->getAttribute('management_ip');
-
-        if (! is_string($host) || filter_var($host, FILTER_VALIDATE_IP) === false) {
-            throw RouterOsException::rejected('The router asset has no valid management IP.');
-        }
-
-        $host = str_contains($host, ':') ? "[{$host}]" : $host;
-
-        return "https://{$host}:{$nas->api_port}/rest";
+        return "https://{$this->managementHost($nas)}:{$nas->api_port}/rest";
     }
 
     private function failure(Response $response): RouterOsException
@@ -206,9 +188,7 @@ class RouterOsClient
             return null;
         }
 
-        $text = trim($json['message'].(is_string($json['detail'] ?? null) ? ': '.$json['detail'] : ''));
-
-        return Str::limit(trim(preg_replace('/[\x00-\x1F\x7F]+/', ' ', $text) ?? ''), 255, '');
+        return $this->cleanMessage(trim($json['message'].(is_string($json['detail'] ?? null) ? ': '.$json['detail'] : '')));
     }
 
     /** @return list<array<string, mixed>> */
@@ -219,52 +199,5 @@ class RouterOsClient
         }
 
         return array_values(array_filter($json, is_array(...)));
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     * @return array{id: string, name: string, profile: ?string, disabled: bool, comment: ?string, service: ?string}
-     */
-    private function account(array $row): array
-    {
-        return [
-            'id' => (string) ($row['.id'] ?? ''),
-            'name' => (string) ($row['name'] ?? ''),
-            'profile' => $this->text($row['profile'] ?? null),
-            'disabled' => ($row['disabled'] ?? 'false') === 'true',
-            'comment' => $this->text($row['comment'] ?? null),
-            'service' => $this->text($row['service'] ?? null),
-        ];
-    }
-
-    private function accountFields(string $type): string
-    {
-        return self::ACCOUNT_FIELDS.($type === 'pppoe' ? self::PPP_EXTRA_FIELDS : '');
-    }
-
-    private function text(mixed $value): ?string
-    {
-        return is_string($value) && $value !== '' ? $value : null;
-    }
-
-    /** RouterOS record ids look like `*1A`; anything else is never put into a URL. */
-    private function recordId(mixed $id): string
-    {
-        if (! is_string($id) || ! preg_match('/^\*[0-9A-Fa-f]+$/', $id)) {
-            throw RouterOsException::server('The router returned an unexpected record id.');
-        }
-
-        return $id;
-    }
-
-    /**
-     * RouterOS reads every value as a string.
-     *
-     * @param  array<string, string|bool>  $fields
-     * @return array<string, string>
-     */
-    private function strings(array $fields): array
-    {
-        return array_map(fn (string|bool $value): string => is_bool($value) ? ($value ? 'true' : 'false') : $value, $fields);
     }
 }

@@ -76,7 +76,7 @@ class NasDeviceHttpTest extends TestCase
     /** @return list<string> */
     private function contractKeys(): array
     {
-        return ['id', 'network_asset', 'api_port', 'api_username', 'has_api_password', 'isolir_profile', 'provisioning_enabled', 'routeros_version', 'last_checked_at', 'last_seen_at', 'unreachable_since', 'last_error', 'unmanaged_count', 'accounts_count', 'accounts_failed_count'];
+        return ['id', 'network_asset', 'api_protocol', 'api_port', 'api_username', 'has_api_password', 'isolir_profile', 'provisioning_enabled', 'routeros_version', 'last_checked_at', 'last_seen_at', 'unreachable_since', 'last_error', 'unmanaged_count', 'accounts_count', 'accounts_failed_count'];
     }
 
     public function test_index_lists_only_this_companys_routers_with_the_contract_shape_and_no_password(): void
@@ -98,6 +98,29 @@ class NasDeviceHttpTest extends TestCase
             ->has('filters'));
         $this->assertSame($this->contractKeys(), array_keys($response->inertiaProps()['nasDevices']['data'][0]));
         $this->assertStringNotContainsString('fake-router-api-password', json_encode($response->inertiaProps()));
+    }
+
+    public function test_store_defaults_to_rest_on_443_and_binary_defaults_to_the_tls_port(): void
+    {
+        $rest = $this->routerAsset();
+        $binary = $this->routerAsset();
+        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $rest->id, 'api_username' => 'u', 'api_password' => 'fake-pass'])->assertRedirect();
+        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $binary->id, 'api_protocol' => 'binary', 'api_username' => 'u', 'api_password' => 'fake-pass'])->assertRedirect();
+
+        $this->assertSame(['rest', 443], [NasDevice::query()->where('network_asset_id', $rest->id)->value('api_protocol'), NasDevice::query()->where('network_asset_id', $rest->id)->value('api_port')]);
+        $this->assertSame(['binary', 8729], [NasDevice::query()->where('network_asset_id', $binary->id)->value('api_protocol'), NasDevice::query()->where('network_asset_id', $binary->id)->value('api_port')]);
+    }
+
+    public function test_an_unknown_api_protocol_is_refused_on_store_and_update(): void
+    {
+        $asset = $this->routerAsset();
+
+        $this->postJson(route('admin.nas-devices.store'), $this->payload($asset, ['api_protocol' => 'telnet']))->assertUnprocessable()->assertJsonValidationErrors('api_protocol');
+        $nas = $this->nasDevice();
+        $this->putJson(route('admin.nas-devices.update', $nas), ['api_protocol' => 'ssh'])->assertUnprocessable()->assertJsonValidationErrors('api_protocol');
+        $this->putJson(route('admin.nas-devices.update', $nas), ['api_protocol' => 'binary', 'api_port' => 8728])->assertRedirect();
+
+        $this->assertSame(['binary', 8728], [$nas->fresh()->api_protocol, $nas->fresh()->api_port]);
     }
 
     public function test_index_searches_by_asset_code_name_or_address_and_sorts_by_asset_code(): void

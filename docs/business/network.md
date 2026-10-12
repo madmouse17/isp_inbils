@@ -242,11 +242,11 @@ Lihat `docs/API.md` Section 4 (NetworkAsset + Location group). Ringkas:
 ## NAS router dan network account (MikroTik provisioning, lab pilot)
 
 Keputusan owner 2026-10-12 (`.scratch/mikrotik-radius/spec.md`, "setuju rekomendasi"): **lab pilot**, RouterOS
-API langsung (REST, RouterOS 7.1+; fallback RouterOS 6 = tiket terpisah `09`), bukan FreeRADIUS. Tanpa
+API langsung (REST, RouterOS 7.1+; RouterOS 6 lewat API biner, dipilih per router, tiket `09`), bukan FreeRADIUS. Tanpa
 accounting; tidak ada router bersama antar company.
 
 - **NAS router** (`nas_devices`, `Modules/NetworkAsset`): satu per aset `router` (alamat = `management_ip` aset,
-  tidak disalin), `api_port` (443), `api_username`, `api_password` (cast `encrypted`, tersembunyi, tidak pernah
+  tidak disalin), `api_protocol` (`rest` default | `binary`), `api_port` (443 untuk REST; 8729 default untuk biner), `api_username`, `api_password` (cast `encrypted`, tersembunyi, tidak pernah
   di resource/audit/log), `isolir_profile` (default `isolir`), `provisioning_enabled` (saklar tulis per router,
   default off), hasil cek terakhir (`routeros_version`, `last_checked_at`, `last_seen_at`, `unreachable_since`,
   `last_error`) dan daftar secret asing (`unmanaged_count`, `unmanaged_usernames` maks 100). Hapus ditolak (422)
@@ -322,6 +322,20 @@ accounting; tidak ada router bersama antar company.
   `radius_profile_name` di tiap router. Urutan onboarding: daftar router (tulis off) → Check now → tinjau daftar
   secret asing → hubungkan subscriber yang sudah ada (adopsi per username) → tulis on → terakhir
   `auto_suspend_enabled` per company.
+- **API biner (RouterOS 6, atau 7 tanpa REST)**: pilih "Binary API" di form router. Pustaka
+  `evilfreelancer/routeros-api-php` 1.7.1 (butuh `ext-sockets`, ada di image produksi), satu koneksi per panggilan,
+  selalu ditutup. Di router: `/ip service enable api-ssl` (port 8729, sertifikat dari CA NOC yang ditandatangani
+  untuk IP manajemen router, terverifikasi seperti REST: `ROUTEROS_CA_BUNDLE` atau store sistem, tanpa saklar
+  lewati verifikasi) (port lain selain 8728 juga TLS terverifikasi; port teks polos kustom tidak didukung) atau `/ip service enable api` (port 8728, **teks polos**: password API dan semua perintah
+  terbaca di jaringan; hanya untuk jaringan manajemen tepercaya, dan hanya bila owner memilih port itu).
+  Batasi dengan `/ip service set api-ssl address=<IP server Inbils>`. Grup user API: titik awal policy `api`,
+  `read`, `write` (RouterOS tidak punya policy `ppp`; tanpa `sensitive`, `ftp`, `ssh`, `reboot`, `winbox`,
+  `policy`); himpunan minimal BELUM dikonfirmasi di router nyata, uji di lab CHR 6.49 sebelum tulis diaktifkan.
+  Satu router tidak pernah
+  mencampur protokol; pergantian protokol = ubah form router (port ikut disarankan). Nama menu sama dengan REST
+  (`/ppp/secret`, `/ppp/active`, `/ip/hotspot/user`, `/ip/hotspot/active`, `/system/resource`). Jenis error sama
+  (`unreachable|tls|auth|rejected|server`); pesan `!trap` dibatasi 255 karakter tanpa karakter kontrol; `no such
+  item` saat hapus dianggap sudah terhapus.
 - **Rollback**: tulis off per router → saklar instalasi off → NOC memulihkan subscriber terisolir secara manual
   (account dengan `provisioned_profile` = profil isolir) → migrasi down.
 

@@ -35,6 +35,12 @@ final class FakeRouterOs
 
     private ?string $failure = null;
 
+    /** @var list<array<string, mixed>> */
+    private array $connections = [];
+
+    /** @var list<array{command: string, words: list<string>}> */
+    private array $commands = [];
+
     private string $failureDetail = '';
 
     /** @var list<string> request path prefixes the current failure is limited to (empty = every request) */
@@ -157,6 +163,86 @@ final class FakeRouterOs
         return $this;
     }
 
+    /** The failure set by down()/downOn(), null while the router answers. */
+    public function failure(): ?string
+    {
+        return $this->failure;
+    }
+
+    public function failureDetail(): string
+    {
+        return $this->failureDetail;
+    }
+
+    public function hasProfile(string $type, string $profile): bool
+    {
+        return in_array($profile, $this->profiles[$type], true);
+    }
+
+    /** The stored record of an id, password included. @return array<string, string>|null */
+    public function accountRow(string $type, string $id): ?array
+    {
+        return $this->accounts[$type][$id] ?? null;
+    }
+
+    /** @param  array<string, string>  $changes */
+    public function patchAccount(string $type, string $id, array $changes): void
+    {
+        $this->accounts[$type][$id] = $changes + $this->accounts[$type][$id];
+    }
+
+    /** @return array<string, array<string, string>> */
+    public function accountsById(string $type): array
+    {
+        return $this->accounts[$type];
+    }
+
+    /** @return array<string, array<string, string>> */
+    public function sessionsById(string $type): array
+    {
+        return $this->sessions[$type];
+    }
+
+    public function forgetAccount(string $type, string $id): bool
+    {
+        $found = isset($this->accounts[$type][$id]);
+        unset($this->accounts[$type][$id]);
+
+        return $found;
+    }
+
+    public function forgetSession(string $type, string $id): bool
+    {
+        $found = isset($this->sessions[$type][$id]);
+        unset($this->sessions[$type][$id]);
+
+        return $found;
+    }
+
+    /** Binary API: one entry per connection opened (the client config, credentials included: fake ones). @param  array<string, mixed>  $config */
+    public function recordConnection(array $config): void
+    {
+        $this->connections[] = $config;
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function connections(): array
+    {
+        return $this->connections;
+    }
+
+    /** @param  list<string>  $words */
+    public function recordCommand(string $command, array $words): void
+    {
+        $this->commands[] = ['command' => $command, 'words' => $words];
+    }
+
+    /** Binary API: every command sent. @return list<array{command: string, words: list<string>}> */
+    public function commands(): array
+    {
+        return $this->commands;
+    }
+
     public function up(): self
     {
         $this->failure = null;
@@ -211,7 +297,7 @@ final class FakeRouterOs
             : $this->route($request->method(), $path, $query, $body ?? []);
     }
 
-    private function failureApplies(string $path): bool
+    public function failureApplies(string $path): bool
     {
         if ($this->failurePaths === []) {
             return true;
@@ -329,7 +415,7 @@ final class FakeRouterOs
      * @param  list<string>  $hidden
      * @return list<array<string, string>>
      */
-    private function select(array $rows, array $query, array $hidden = []): array
+    public function select(array $rows, array $query, array $hidden = []): array
     {
         $filters = array_filter($query, fn (string $key): bool => $key[0] !== '.', ARRAY_FILTER_USE_KEY);
         $proplist = isset($query['.proplist']) ? explode(',', $query['.proplist']) : null;
@@ -385,7 +471,7 @@ final class FakeRouterOs
         return Http::response($payload, 200);
     }
 
-    private function newId(): string
+    public function newId(): string
     {
         return '*'.strtoupper(dechex($this->nextId++));
     }

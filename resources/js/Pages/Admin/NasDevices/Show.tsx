@@ -24,6 +24,7 @@ import {
 } from '@/Components/composite/NetworkAccessBadges';
 import { useServerTable } from '@/hooks/useServerTable';
 import { formatDateTime } from '@/lib/format';
+import { apiProtocolLabel } from '@/lib/nasApiProtocol';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import type { NasDevice, NasDeviceAccount } from '@/types/network-asset';
 
@@ -250,6 +251,9 @@ export default function Show({
                                     <span className="font-mono">
                                         {`${asset?.management_ip ?? '—'}:${nasDevice.api_port}`}
                                     </span>
+                                </Detail>
+                                <Detail label="API protocol">
+                                    {apiProtocolLabel(nasDevice.api_protocol)}
                                 </Detail>
                                 <Detail label="API user">
                                     <span className="font-mono">{nasDevice.api_username}</span>

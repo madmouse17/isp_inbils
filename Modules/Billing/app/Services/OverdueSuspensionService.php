@@ -78,7 +78,8 @@ class OverdueSuspensionService
                 ->first();
 
             if ($subscription === null
-                || self::unpaidPastGrace($companyId, $settings['grace_days'])->where('subscription_id', $subscriptionId)->exists()) {
+                || self::unpaidPastGrace($companyId, $settings['grace_days'])->where('subscription_id', $subscriptionId)->exists()
+                || self::unpaidDueAtSuspension($companyId, $subscription)) {
                 return false;
             }
 
@@ -86,6 +87,25 @@ class OverdueSuspensionService
 
             return true;
         });
+    }
+
+    /**
+     * Q16 option (b): an invoice already due when the isolir happened (even inside the grace) must be paid before
+     * reconnecting. Legacy rows have no suspended_at and keep the grace-only rule, because the moment is unknown.
+     */
+    private static function unpaidDueAtSuspension(int $companyId, ServiceSubscription $subscription): bool
+    {
+        if ($subscription->suspended_at === null) {
+            return false;
+        }
+
+        return Invoice::withoutCompany()
+            ->where('company_id', $companyId)
+            ->where('subscription_id', $subscription->id)
+            ->whereIn('status', ['sent', 'partial', 'overdue'])
+            ->whereColumn('paid_amount', '<', 'total')
+            ->whereDate('due_date', '<=', $subscription->suspended_at->toDateString())
+            ->exists();
     }
 
     /**

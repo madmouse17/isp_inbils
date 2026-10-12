@@ -4,13 +4,16 @@ namespace Tests\Traits;
 
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
+use LogicException;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use RouterOS\Client;
+use Tests\Support\FakeBinaryRouterOs;
 use Tests\Support\FakeRouterOs;
 
 /**
  * Fake MikroTik routers for tests: RouterOS REST faked at the HTTP layer, one in-memory router per
- * host and port, and every call to an unknown host refused (stray requests). Credentials and addresses
+ * host and port (the binary API library is faked too, no socket), and every call to an unknown host refused. Credentials and addresses
  * are fake (RFC 5737 documentation range). No test ever reaches a real router.
  *
  *   $this->fakeRouterOs();                              // switch on, Http faked, strays refused
@@ -35,6 +38,14 @@ trait InteractsWithRouterOs
             $router = $this->fakeRouters[$this->routerKey($uri->getHost(), $uri->getPort() ?? 443)] ?? null;
 
             return $router?->handle($request, $options);
+        });
+
+        // The binary API library: the same in-memory router answers, no socket is ever opened.
+        $this->app->bind(Client::class, function ($app, array $parameters): FakeBinaryRouterOs {
+            $config = $parameters['config'];
+            $router = $this->fakeRouters[$this->routerKey((string) $config['host'], (int) $config['port'])] ?? null;
+
+            return new FakeBinaryRouterOs($router ?? throw new LogicException("Stray binary API connection to {$config['host']}:{$config['port']}"), $config);
         });
     }
 

@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Http\Requests;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\NasDevice;
 
 class StoreNasDeviceRequest extends FormRequest
 {
@@ -29,6 +30,7 @@ class StoreNasDeviceRequest extends FormRequest
                     ->whereNotNull('management_ip'),
                 Rule::unique('nas_devices', 'network_asset_id'),
             ],
+            'api_protocol' => ['sometimes', Rule::in(NasDevice::API_PROTOCOLS)],
             'api_port' => ['nullable', 'integer', 'between:1,65535'],
             'api_username' => ['required', 'string', 'max:64'],
             'api_password' => ['required', 'string', 'max:128'],

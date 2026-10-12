@@ -26,6 +26,7 @@ Approved by owner 2026-10-12: recommended option of every decision ("setuju reko
    (a) RouterOS **REST** API over HTTPS through Laravel's `Http` client (RouterOS 7.1 or later, `www-ssl` service, HTTP Basic, JSON). No new dependency; faked with `Http::fake` the same way as Midtrans (`tests/Traits/InteractsWithMidtrans.php:44-55`); outbound-HTTP prior art `Modules/Billing/app/Services/MidtransGateway.php:164-167`.
    (b) `evilfreelancer/routeros-api-php` 1.7.1 (MIT, released 2026-06-08, binary API on 8728/8729, RouterOS v6.43+ and v7). Requires `ext-sockets`, which the production image does not install (`Dockerfile:32-42`), and pulls in `spatie/ssh`; tests then need an interface plus an in-memory fake (no fake TCP server exists in `tests/`).
    (c) Our own socket implementation of the binary protocol. Rejected.
+   **Owner 2026-10-15: (b) approved as a per-router fallback** (ticket 09; `nas_devices.api_protocol` `rest|binary`, REST stays the default). Library, version and audit are in the ticket 09 comment.
    **Recommend (a) if every NAS router runs RouterOS 7.1 or later** (the owner confirms the fleet versions); choose (b) if any router must stay on v6.
    RADIUS sub-choice, only relevant if Q2 is (b) or (c): use the standard FreeRADIUS MySQL schema (v3.2.x `schema.sql`) in its own database, not our own tables, because FreeRADIUS' default queries read exactly those tables; send Disconnect-Messages with `dapphp/radius` 3.1.0 (LGPL-3.0-or-later, released 2025-12-28, implements RFC 5176 CoA/Disconnect).
 
@@ -99,11 +100,11 @@ Approved by owner 2026-10-12: recommended option of every decision ("setuju reko
     (b) PPPoE only in v1.
     **Recommend (a)**, as briefed. Tradeoff: routers that run hotspot need a hotspot user profile with the isolir name as well.
 
-16. **Q16: Reconnection after an early Receivables isolir (OPEN, opened by the security review, MIKROTIK-07-009; NOT implemented).** Today `reactivateIfCleared` blocks only on invoices past the grace days (Q9a). A subscription isolated by hand from Receivables (source `overdue`) while still inside the grace days is therefore reconnected by ANY recorded payment, even Rp0.01 on one invoice, and staff hold `billing.payment.record` but not `customer.subscription.reactivate`.
+16. **Q16: Reconnection after an early Receivables isolir (DECIDED 2026-10-15: option (b); IMPLEMENTED; opened by the security review, MIKROTIK-07-009).** Before: `reactivateIfCleared` blocked only on invoices past the grace days (Q9a). A subscription isolated by hand from Receivables (source `overdue`) while still inside the grace days was reconnected by ANY recorded payment, even Rp0.01 on one invoice, and staff hold `billing.payment.record` but not `customer.subscription.reactivate`. Now: `SubscriptionService::suspend` with source `overdue` stores `service_subscriptions.suspended_at`; `reactivateIfCleared` also requires that no `sent|partial|overdue` invoice with `due_date` on or before that date is still unpaid. Reactivate and terminate clear it. Legacy `overdue` rows (null `suspended_at`) keep the grace-only rule because the moment is unknown.
     (a) Keep Q9a as approved. Tradeoff: an insider can reconnect with a token payment (audited, with the causer).
     (b) Reconnect only when no `sent|partial|overdue` invoice of the subscription that was already due when it was suspended remains unpaid. Needs the suspension date kept next to `suspension_source` (or the invoice ids), one more column.
     (c) Receivables "Isolir" writes source `manual`, so only a person reconnects it. Simplest; loses the automatic reconnect after an early isolir.
-    **No recommendation until the owner answers; ticket 01 stays as shipped.**
+    **Owner chose (b) on 2026-10-15; (a) and (c) are rejected.**
 
 ## Corrections to the source and the brief
 

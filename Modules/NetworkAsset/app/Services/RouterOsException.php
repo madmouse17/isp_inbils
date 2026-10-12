@@ -16,7 +16,7 @@ final class RouterOsException extends RuntimeException
     /** The router certificate was not accepted. */
     public const TLS = 'tls';
 
-    /** 401/403: the API credentials were refused. */
+    /** 401/403 (REST) or a refused login (binary API): the API credentials were refused. */
     public const AUTH = 'auth';
 
     /** A 4xx or a missing address: retrying cannot help. */
@@ -28,7 +28,7 @@ final class RouterOsException extends RuntimeException
     /** The installation switch is off: nothing was sent. */
     public const DISABLED = 'disabled';
 
-    /** Set by RouterOsClient: the NAS device the call was for (a job may talk to two routers). */
+    /** Set by the RouterOs client: the NAS device the call was for (a job may talk to two routers). */
     public ?int $nasDeviceId = null;
 
     private function __construct(public readonly string $kind, string $message, public readonly ?int $status = null)
@@ -51,9 +51,10 @@ final class RouterOsException extends RuntimeException
         return new self(self::TLS, 'The router certificate was not accepted (check the CA bundle and the router certificate).');
     }
 
-    public static function auth(int $status): self
+    /** $status is the HTTP status of the REST API; the binary API has none. */
+    public static function auth(?int $status = null): self
     {
-        return new self(self::AUTH, "The router refused the API credentials (HTTP {$status}).", $status);
+        return new self(self::AUTH, 'The router refused the API credentials'.($status === null ? '.' : " (HTTP {$status})."), $status);
     }
 
     public static function rejected(string $message, ?int $status = null): self

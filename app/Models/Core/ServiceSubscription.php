@@ -50,6 +50,7 @@ class ServiceSubscription extends Model
         'otc_installation_fee' => 'decimal:2',
         'contract_months' => 'integer',
         'terminated_at' => 'datetime',
+        'suspended_at' => 'datetime',
     ];
 
     /** @return BelongsTo<Customer, $this> */

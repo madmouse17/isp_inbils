@@ -38,7 +38,7 @@ class NetworkAccountProvisioner
     /** A router found unreachable is left alone for this long. */
     private const UNREACHABLE_SKIP_MINUTES = 2;
 
-    public function __construct(private readonly RouterOsClient $client, private readonly NasDeviceHealth $health) {}
+    public function __construct(private readonly RouterOsClients $clients, private readonly NasDeviceHealth $health) {}
 
     /** pending and active subscriptions are enabled, suspended ones isolated, terminated or deleted ones absent. */
     public function desiredState(NetworkAccount $account): string
@@ -113,7 +113,7 @@ class NetworkAccountProvisioner
 
         $recordedProfile = $account->provisioned_profile;
         $managed = $recordedProfile !== null;
-        $found = $this->client->find($nas, $type, $account->username);
+        $found = $this->clients->for($nas)->find($nas, $type, $account->username);
 
         if ($state !== self::ABSENT && $found !== null && ! $managed && ! $this->isOurs($found)) {
             $this->assertAdoptable($account, $found);
@@ -147,7 +147,7 @@ class NetworkAccountProvisioner
 
         if ($state === self::ABSENT) {
             if ($found !== null && ($managed || $this->isOurs($found))) {
-                $this->client->remove($nas, $type, $found['id']);
+                $this->clients->for($nas)->remove($nas, $type, $found['id']);
                 $wrote = true;
             }
         } else {
@@ -202,7 +202,7 @@ class NetworkAccountProvisioner
 
         if ($found === null) {
             $fields = ['name' => $account->username, 'password' => $account->password, 'profile' => $profile, 'comment' => $comment, 'disabled' => false];
-            $this->client->create($nas, $type, $type === 'pppoe' ? $fields + ['service' => 'pppoe'] : $fields);
+            $this->clients->for($nas)->create($nas, $type, $type === 'pppoe' ? $fields + ['service' => 'pppoe'] : $fields);
 
             return [true, $managed];
         }
@@ -236,7 +236,7 @@ class NetworkAccountProvisioner
             return [false, false];
         }
 
-        $this->client->update($nas, $type, $found['id'], $fields);
+        $this->clients->for($nas)->update($nas, $type, $found['id'], $fields);
 
         return [true, $managed && $drifted];
     }
@@ -254,10 +254,10 @@ class NetworkAccountProvisioner
             }
 
             $type = (string) $account->provisioned_service_type;
-            $found = $this->client->find($old, $type, (string) $account->provisioned_username);
+            $found = $this->clients->for($old)->find($old, $type, (string) $account->provisioned_username);
 
             if ($found !== null) {
-                $this->client->remove($old, $type, $found['id']);
+                $this->clients->for($old)->remove($old, $type, $found['id']);
             }
 
             $this->dropSessions($old, $type, (string) $account->provisioned_username);
@@ -278,8 +278,8 @@ class NetworkAccountProvisioner
 
     private function dropSessions(NasDevice $nas, string $type, string $username): void
     {
-        foreach ($this->client->activeSessions($nas, $type, $username) as $session) {
-            $this->client->disconnect($nas, $type, $session['id']);
+        foreach ($this->clients->for($nas)->activeSessions($nas, $type, $username) as $session) {
+            $this->clients->for($nas)->disconnect($nas, $type, $session['id']);
         }
     }
 

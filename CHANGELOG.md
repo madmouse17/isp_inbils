@@ -4,6 +4,12 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Added - RouterOS 6 API fallback and reconnect gate (2026-10-15)
+
+- RouterOS 6 binary API (`.scratch/mikrotik-radius` ticket 09): `nas_devices.api_protocol` (`rest` default | `binary`) chosen on the NAS form and validated in the NAS requests; a `RouterOsApi` interface with `RouterOsClient` (REST, 7.1+) and the new `RouterOsBinaryClient` (port 8728 plain / 8729 TLS with a verified certificate), picked per router by `RouterOsClients::for()` in the provisioner and `SyncNasDeviceJob`. Same installation switch, error kinds and message cap. Runbook in `docs/business/network.md`. Tests run against a fake socket only; no real router was contacted.
+- Dependency: `evilfreelancer/routeros-api-php` 1.7.1 (MIT; pulls `spatie/ssh`, unused by Inbils) for the binary API; `composer audit`: no advisories. Production `Dockerfile` installs `ext-sockets`.
+- Q16 decided (option b): `service_subscriptions.suspended_at` is set when the subscription is suspended with source `overdue`; a payment reconnects it only when no invoice that was already due at that moment is still unpaid (rows suspended before this change keep the grace-days rule). Deploy: `migrate --force`.
+
 ### Added - GPS check-in on technician start API (2026-10-14)
 
 - `POST api/v1/technician/work-orders/{wo}/start` and `tickets/{id}/start` accept an optional `check_in` (lat, lng, accuracy_m, captured_at not later than 5 minutes ahead, or `unavailable_reason`), logged to the activity log with the haversine distance to the site. Technician SPK and ticket resources return `check_in` {status, distance_m, accuracy_m, captured_at, reason}; `docs/api/mobile-v1.openapi.json` regenerated.

@@ -20,6 +20,7 @@ use Modules\NetworkAsset\Database\Factories\NasDeviceFactory;
  * @property int $id
  * @property int $company_id
  * @property int $network_asset_id
+ * @property string $api_protocol rest|binary
  * @property int $api_port
  * @property string $api_username
  * @property string $api_password
@@ -38,14 +39,20 @@ class NasDevice extends Model
     use BelongsToCompany;
     use HasFactory;
 
+    /** rest = RouterOS 7.1+ REST over HTTPS; binary = the API service of RouterOS 6 and 7. */
+    public const API_PROTOCOLS = ['rest', 'binary'];
+
     protected $fillable = [
         'network_asset_id',
+        'api_protocol',
         'api_port',
         'api_username',
         'api_password',
         'isolir_profile',
         'provisioning_enabled',
     ];
+
+    protected $attributes = ['api_protocol' => 'rest'];
 
     protected $hidden = ['api_password'];
 

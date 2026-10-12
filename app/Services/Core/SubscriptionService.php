@@ -81,7 +81,11 @@ class SubscriptionService
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
             abort_if($subscription->status !== 'active', 422, 'Subscription must be active to suspend.');
 
-            $subscription->forceFill(['status' => 'suspended', 'suspension_source' => $source])->save();
+            $subscription->forceFill([
+                'status' => 'suspended',
+                'suspension_source' => $source,
+                'suspended_at' => $source === 'overdue' ? now() : null,
+            ])->save();
 
             AuditService::log('service_subscription', 'suspended', [
                 'code' => $subscription->code,
@@ -104,6 +108,7 @@ class SubscriptionService
             $subscription->forceFill([
                 'status' => 'active',
                 'suspension_source' => null,
+                'suspended_at' => null,
                 'next_invoice_date' => self::nextBillingDate($subscription->billing_day),
             ])->save();
 
@@ -154,6 +159,7 @@ class SubscriptionService
             $subscription->forceFill([
                 'status' => 'terminated',
                 'suspension_source' => null,
+                'suspended_at' => null,
                 'terminated_at' => now(),
                 'terminated_reason' => $reason,
                 'ont_asset_id' => $releaseOnt ? null : $subscription->ont_asset_id,
