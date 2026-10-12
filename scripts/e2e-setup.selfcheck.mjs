@@ -174,10 +174,13 @@ test(
         } finally {
             // A failing run must not leave the stub running or this wrapper's lock behind to block real e2e runs.
             if (existsSync(stubPidFile)) {
-                try {
-                    process.kill(Number(readFileSync(stubPidFile, 'utf8')), 'SIGKILL');
-                } catch {
-                    // Already exited.
+                const stubPid = Number(readFileSync(stubPidFile, 'utf8'));
+                // The PID may have been reused once the stub exited: kill only a process still running the stub.
+                const args = spawnSync('ps', ['-o', 'args=', '-p', String(stubPid)], {
+                    encoding: 'utf8',
+                }).stdout;
+                if (args.includes(stub)) {
+                    process.kill(stubPid, 'SIGKILL');
                 }
             }
             if (wrapperProcess.exitCode === null && wrapperProcess.signalCode === null) {
