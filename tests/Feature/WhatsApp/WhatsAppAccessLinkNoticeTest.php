@@ -22,10 +22,12 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\InteractsWithWhatsApp;
 
 class WhatsAppAccessLinkNoticeTest extends TestCase
 {
+    use AllowsManualCodes;
     use InteractsWithWhatsApp;
     use RefreshDatabase;
 
@@ -45,6 +47,7 @@ class WhatsAppAccessLinkNoticeTest extends TestCase
         $this->fakeWhatsApp();
         $this->admin = User::factory()->create(['company_id' => $this->company->id, 'email_verified_at' => now(), 'is_active' => true]);
         $this->admin->assignRole('admin');
+        $this->setManualCodes($this->company->id, true, 'customer');
         $this->travelTo('2026-10-14 03:00:00');
     }
 

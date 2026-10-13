@@ -121,7 +121,7 @@ class BillingService
 
                 $invoice = Invoice::create([
                     'company_id' => $subscription->company_id,
-                    'number' => NumberSequenceService::generate('invoice', 'INV', $subscription->company_id),
+                    'number' => NumberSequenceService::generate('invoice', $subscription->company_id),
                     'type' => 'recurring',
                     'source' => 'subscription',
                     'customer_id' => $subscription->customer_id,

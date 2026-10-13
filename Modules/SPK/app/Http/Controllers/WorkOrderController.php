@@ -143,7 +143,7 @@ class WorkOrderController extends Controller
 
         DB::transaction(function () use ($request) {
             $data = $request->validated();
-            $data['code'] = NumberSequenceService::generate('spk', 'SPK', CompanyService::currentId());
+            $data['code'] = NumberSequenceService::generate('spk', CompanyService::currentId());
             $data['status'] = 'draft';
             $data['created_by'] = $request->user()->id;
 

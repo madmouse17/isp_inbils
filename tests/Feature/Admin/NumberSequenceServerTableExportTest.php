@@ -44,25 +44,24 @@ class NumberSequenceServerTableExportTest extends TestCase
             'company_id' => $companyId,
             'entity_type' => $entity,
             'prefix' => $prefix,
+            'template' => '{PREFIX}-{SEQ:4}',
             'next_number' => 1,
-            'padding' => 4,
-            'year_suffix' => false,
         ]);
     }
 
-    public function test_index_is_company_scoped_and_searchable(): void
+    public function test_index_is_company_scoped(): void
     {
         $this->makeSequence((int) $this->admin->company_id, 'invoice', 'INV');
-        $this->makeSequence((int) $this->admin->company_id, 'quote', 'QTE');
         $this->makeSequence((int) $this->otherCompany->id, 'invoice', 'XX');
 
         $this->actingAs($this->admin)
-            ->get(route('admin.number-sequences.index', ['search' => 'INV']))
+            ->get(route('admin.number-sequences.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/NumberSequences/Index')
-                ->has('sequences.data', 1)
-                ->where('sequences.data.0.prefix', 'INV')
+                ->has('sequences', 9)
+                ->where('sequences.7.entity_type', 'invoice')
+                ->where('sequences.7.prefix', 'INV')
                 ->where('can.export', true)
             );
     }
@@ -83,6 +82,8 @@ class NumberSequenceServerTableExportTest extends TestCase
         $this->assertStringContainsString('text/csv', (string) $response->headers->get('content-type'));
         $content = $response->streamedContent();
         $this->assertStringContainsString('INV', $content);
+        $this->assertStringContainsString('{PREFIX}-{SEQ:4}', $content);
+        $this->assertStringContainsString('Reset Period', $content);
         $this->assertStringNotContainsString('QTE', $content);
         $this->assertStringNotContainsString('OTH', $content);
     }

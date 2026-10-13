@@ -2,7 +2,13 @@ import type { FormEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTable, type DataTableColumn, PageHeader } from '@/Components/composite';
+import {
+    DataTable,
+    type CodeSequence,
+    type DataTableColumn,
+    PageHeader,
+    SequenceCodeField,
+} from '@/Components/composite';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -46,6 +52,7 @@ interface IndexProps extends Record<string, unknown> {
         per_page?: string | number;
     };
     can: { create: boolean; export: boolean };
+    codeSequence: CodeSequence;
 }
 
 export default function Index({
@@ -55,6 +62,7 @@ export default function Index({
     users,
     filters,
     can,
+    codeSequence,
 }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
@@ -68,9 +76,9 @@ export default function Index({
     } = useServerTable({
         url: route('admin.employees.index'),
         filters,
-        only: ['employees', 'organizations', 'vehicles', 'users', 'filters', 'can'],
+        only: ['employees', 'organizations', 'vehicles', 'users', 'filters', 'can', 'codeSequence'],
     });
-    const { data, setData, post, put, processing, errors, reset } = useForm({
+    const { data, setData, post, put, transform, processing, errors, reset } = useForm({
         user_id: '',
         organization_id: '',
         vehicle_id: '',
@@ -86,12 +94,19 @@ export default function Index({
         setEditId(null);
         setModalOpen(true);
     };
-    const openEdit = useCallback((employee: EmpRow) => {
-        setEditId(employee.id);
-        setModalOpen(true);
-    }, []);
+    const openEdit = useCallback(
+        (employee: EmpRow) => {
+            reset();
+            setData('employee_number', employee.employee_number);
+            setEditId(employee.id);
+            setModalOpen(true);
+        },
+        [reset, setData],
+    );
     const submit = (e: FormEvent) => {
         e.preventDefault();
+        // A locked number is generated on create and never changes on update, so it is not sent.
+        if (!codeSequence.manual) transform(({ employee_number: _number, ...values }) => values);
         if (editId) {
             put(route('admin.employees.update', editId), { onSuccess: () => setModalOpen(false) });
         } else {
@@ -245,12 +260,13 @@ export default function Index({
                                     ))}
                                 </NativeSelect>
                             )}
-                            <Input
+                            <SequenceCodeField
                                 label="Employee Number"
                                 value={data.employee_number}
-                                onChange={(e) => setData('employee_number', e.target.value)}
+                                onChange={(next) => setData('employee_number', next)}
                                 error={errors.employee_number}
-                                required
+                                sequence={codeSequence}
+                                mode={editId ? 'edit' : 'create'}
                             />
                             <NativeSelect
                                 label="Organization"

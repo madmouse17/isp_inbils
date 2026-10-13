@@ -4,11 +4,13 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -51,13 +53,20 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Inventory/Products/Create', [
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
+            'codeSequence' => $this->codeSequence(),
         ]);
     }
 
     public function store(StoreProductRequest $request): RedirectResponse
     {
         Gate::authorize('store', Product::class);
-        Product::create($request->validated());
+        DB::transaction(function () use ($request): void {
+            $data = $request->validated();
+            $data['sku'] = NumberSequenceService::resolve('product', $data['sku'] ?? null, 'sku');
+            // The form sends an empty field as null; the column is NOT NULL with a default of 0.
+            $data['min_stock'] ??= 0;
+            Product::create($data);
+        });
 
         return redirect()->route('admin.products.index')->with('success', 'Product created.');
     }
@@ -80,6 +89,7 @@ class ProductController extends Controller
         return Inertia::render('Admin/Inventory/Products/Edit', [
             'product' => new ProductResource($product),
             'categories' => CategoryResource::collection(Category::query()->with('unit')->where('is_active', true)->orderBy('name')->get()),
+            'codeSequence' => $this->codeSequence(),
         ]);
     }
 
@@ -102,6 +112,15 @@ class ProductController extends Controller
         $product->delete();
 
         return back()->with('success', 'Product deleted.');
+    }
+
+    /** @return array{manual: bool, preview: string} */
+    private function codeSequence(): array
+    {
+        return [
+            'manual' => NumberSequenceService::allowsManual('product'),
+            'preview' => NumberSequenceService::peek('product'),
+        ];
     }
 
     public function export(Request $request): Response|StreamedResponse

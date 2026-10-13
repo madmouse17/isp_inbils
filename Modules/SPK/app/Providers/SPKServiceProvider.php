@@ -2,6 +2,8 @@
 
 namespace Modules\SPK\Providers;
 
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
 use Illuminate\Console\Scheduling\Schedule;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
@@ -33,6 +35,15 @@ class SPKServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->app->make(NumberSequenceRegistry::class)->register(
+            new NumberSequenceDefinition('spk', 'SPK', 'work_orders', 'code', 255, 'SPK', '{PREFIX}-{YYYY}-{SEQ:5}'),
+        );
+    }
 
     /**
      * Define module schedules.

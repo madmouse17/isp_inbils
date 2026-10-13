@@ -3,6 +3,8 @@
 namespace Modules\NetworkAsset\Providers;
 
 use App\Models\Core\Company;
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Request;
@@ -55,6 +57,10 @@ class NetworkAssetServiceProvider extends ModuleServiceProvider
                 ? Limit::perMinute(600)->by('isolir|'.$code.'|'.$request->ip())
                 : Limit::perMinute(20)->by('isolir-miss|'.$request->ip());
         });
+
+        $this->app->make(NumberSequenceRegistry::class)->register(
+            new NumberSequenceDefinition('network_asset', 'Aset Jaringan', 'network_assets', 'code', 255, 'NA', '{PREFIX}-{YYYY}-{SEQ:5}'),
+        );
     }
 
     /**

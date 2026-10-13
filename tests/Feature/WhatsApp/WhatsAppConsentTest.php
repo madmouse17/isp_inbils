@@ -14,10 +14,12 @@ use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\InteractsWithWhatsApp;
 
 class WhatsAppConsentTest extends TestCase
 {
+    use AllowsManualCodes;
     use InteractsWithWhatsApp;
     use RefreshDatabase;
 
@@ -34,6 +36,7 @@ class WhatsAppConsentTest extends TestCase
 
         $this->company = Company::factory()->create(['is_active' => true]);
         $this->admin = $this->userWithRole('admin');
+        $this->setManualCodes($this->company->id, true, 'customer');
     }
 
     private function userWithRole(string $role, ?Company $company = null): User

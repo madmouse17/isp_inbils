@@ -213,14 +213,13 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 });
 
 async function createCustomer(page: Page, key: string) {
-    const code = `E2E-${key}-49387795`;
+    const slug = `E2E-${key}-49387795`;
     const name = `E2E ${key} 49387795`;
 
     await loginAs(page);
     await page.goto('/admin/customers/create');
-    await page.getByLabel('Code').fill(code);
     await page.getByLabel('Name').fill(name);
-    await page.getByLabel('Email').fill(`${code.toLowerCase()}@example.test`);
+    await page.getByLabel('Email').fill(`${slug.toLowerCase()}@example.test`);
     await page.getByLabel('Phone').fill('0800004938');
 
     // The create form requires a complete address on the Addresses tab.
@@ -256,7 +255,7 @@ async function createCustomer(page: Page, key: string) {
     await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
     await page.getByLabel('Name').fill(`${name} Contact`);
     await page.getByLabel('Phone').fill('081200004938');
-    await page.getByLabel('Email').fill(`contact.${code.toLowerCase()}@example.test`);
+    await page.getByLabel('Email').fill(`contact.${slug.toLowerCase()}@example.test`);
 
     // Subscription & SPK section: package + serving POP are required and the
     // E2E seeder provisions "Home 10Mbps" and "Default POP". The POP option

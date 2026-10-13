@@ -57,7 +57,7 @@ class SpkService
 
             $wo->update([
                 'status' => 'generated',
-                'code' => $wo->code ?? NumberSequenceService::generate('spk', 'SPK', self::companyId()),
+                'code' => $wo->code ?? NumberSequenceService::generate('spk', self::companyId()),
             ]);
 
             AuditService::log('work_order', 'generated', ['code' => $wo->code], $wo);

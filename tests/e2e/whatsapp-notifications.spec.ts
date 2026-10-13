@@ -198,7 +198,6 @@ test.describe('@lifecycle whatsapp notifications', () => {
         const consent = page.getByRole('checkbox', { name: CONSENT });
         await expect(consent).not.toBeChecked();
 
-        await page.getByLabel('Code').fill(`E2E-${suffix}`);
         await page.getByLabel('Name').fill(name);
         await page.getByLabel('Email').fill(`${suffix}@example.test`);
         await page.getByLabel('Phone').fill('081234560002');

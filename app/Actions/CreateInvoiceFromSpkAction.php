@@ -39,7 +39,7 @@ class CreateInvoiceFromSpkAction
             $taxRate = BillingService::taxRateFor($wo->company_id);
 
             $invoice = Invoice::create([
-                'number' => NumberSequenceService::generate('invoice', 'INV', $wo->company_id),
+                'number' => NumberSequenceService::generate('invoice', $wo->company_id),
                 'type' => 'one_time',
                 'source' => 'spk',
                 'customer_id' => $wo->customer_id,

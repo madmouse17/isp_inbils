@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Http\Requests;
 
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\Category;
@@ -32,7 +33,9 @@ class UpdateProductRequest extends FormRequest
         $companyId = CompanyService::currentId();
 
         return [
-            'sku' => ['required', 'string', 'max:100', Rule::unique('products')->where('company_id', $companyId)->ignore($productId)],
+            'sku' => NumberSequenceService::allowsManual('product')
+                ? ['required', 'string', 'max:100', Rule::unique('products')->where('company_id', $companyId)->ignore($productId)]
+                : ['exclude'],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', Rule::exists('categories', 'id')->where('company_id', $companyId)],
             'unit_id' => ['required', Rule::exists('units', 'id')->where('company_id', $companyId)],

@@ -23,7 +23,7 @@ class SpawnSpkFromTicketAction
 
         return DB::transaction(function () use ($ticket) {
             $wo = WorkOrder::create([
-                'code' => NumberSequenceService::generate('spk', 'SPK', $ticket->company_id),
+                'code' => NumberSequenceService::generate('spk', $ticket->company_id),
                 'type' => 'maintenance',
                 'title' => 'SPK from Ticket '.$ticket->code,
                 'description' => $ticket->description,

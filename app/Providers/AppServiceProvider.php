@@ -31,6 +31,8 @@ use App\Policies\VehiclePolicy;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Operation;
@@ -94,7 +96,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(NumberSequenceRegistry::class);
     }
 
     /**
@@ -136,6 +138,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(Login::class, UpdateLastLoginAt::class);
         Event::listen(CompanyCreated::class, SeedCompanyDefaults::class);
         $this->registerWhatsAppRateLimiters();
+        $this->registerNumberSequences();
         $this->registerApiRateLimiters();
         $this->configureApiDocumentation();
 
@@ -178,6 +181,16 @@ class AppServiceProvider extends ServiceProvider
         if (! $this->app->environment('e2e')) {
             Vite::prefetch(concurrency: 3);
         }
+    }
+
+    /** The numbered entities of the core; each module registers its own from its provider. */
+    private function registerNumberSequences(): void
+    {
+        $registry = $this->app->make(NumberSequenceRegistry::class);
+
+        $registry->register(new NumberSequenceDefinition('customer', 'Pelanggan', 'customers', 'code', 255, 'CUS', '{PREFIX}-{SEQ:5}'));
+        $registry->register(new NumberSequenceDefinition('employee', 'Karyawan', 'employee_profiles', 'employee_number', 255, 'EMP', '{PREFIX}-{SEQ:4}'));
+        $registry->register(new NumberSequenceDefinition('subscription', 'Langganan', 'service_subscriptions', 'code', 255, 'SUB', '{PREFIX}-{YYYY}-{SEQ:5}'));
     }
 
     /**

@@ -26,9 +26,11 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 
 class P0CriticalPathTest extends TestCase
 {
+    use AllowsManualCodes;
     use RefreshDatabase;
 
     protected function setUp(): void
@@ -80,6 +82,8 @@ class P0CriticalPathTest extends TestCase
         $product = $this->product($company, ['sell_price' => 100_000]);
         $asset = NetworkAssetFactory::new()->create(['company_id' => $company->id, 'product_id' => $product->id, 'status' => 'available']);
         Stock::forceCreate(['company_id' => $company->id, 'product_id' => $product->id, 'location_id' => $location->id, 'quantity' => 10, 'reserved_quantity' => 0]);
+
+        $this->setManualCodes($company->id, true, 'customer');
 
         $this->actingAs($admin)
             ->post(route('admin.customers.store'), [

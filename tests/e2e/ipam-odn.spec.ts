@@ -218,7 +218,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
     const suffix = unique('odn');
     const splitterLabel = `E2E 1:8 ${suffix}`;
     const portChoice = `${odpCode} · ${splitterLabel} · port 1`;
-    const customerCode = `E2E-ODN-${suffix}`;
+    const customerKey = `E2E-ODN-${suffix}`;
     const customerName = `E2E ODN Customer ${suffix}`;
     let customerId = '';
 
@@ -279,9 +279,8 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
 
     await test.step('onboard a customer and choose a free port on that ODP', async () => {
         await page.goto('/admin/customers/create');
-        await page.getByLabel('Code').fill(customerCode);
         await page.getByLabel('Name').fill(customerName);
-        await page.getByLabel('Email').fill(`${customerCode.toLowerCase()}@example.test`);
+        await page.getByLabel('Email').fill(`${customerKey.toLowerCase()}@example.test`);
         await page.getByLabel('Phone').fill('0800000000');
 
         await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
@@ -315,7 +314,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
         await page.getByLabel('Name').fill(`${customerName} Contact`);
         await page.getByLabel('Phone').fill('081200000000');
-        await page.getByLabel('Email').fill(`contact.${customerCode.toLowerCase()}@example.test`);
+        await page.getByLabel('Email').fill(`contact.${customerKey.toLowerCase()}@example.test`);
 
         await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
         await page.getByLabel('Service Package').selectOption({ index: 1 });

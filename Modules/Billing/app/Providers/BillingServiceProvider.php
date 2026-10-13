@@ -2,6 +2,8 @@
 
 namespace Modules\Billing\Providers;
 
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\Event;
@@ -63,6 +65,10 @@ class BillingServiceProvider extends ModuleServiceProvider
         // Billing events become WhatsApp messages to the invoice's customer (consent and settings are checked by the channel).
         Event::listen(InvoiceIssued::class, [SendInvoiceWhatsAppMessages::class, 'invoiceIssued']);
         Event::listen(PaymentRecorded::class, [SendInvoiceWhatsAppMessages::class, 'paymentRecorded']);
+
+        $this->app->make(NumberSequenceRegistry::class)->register(
+            new NumberSequenceDefinition('invoice', 'Tagihan', 'invoices', 'number', 255, 'INV', '{PREFIX}-{YYYY}-{SEQ:5}'),
+        );
     }
 
     /**

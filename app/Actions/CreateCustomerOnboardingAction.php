@@ -26,6 +26,7 @@ class CreateCustomerOnboardingAction
             unset($data['acquired_by_user_id']);
             $whatsAppOptIn = filter_var(Arr::pull($data, 'whatsapp_opt_in', false), FILTER_VALIDATE_BOOLEAN);
 
+            $data['code'] = NumberSequenceService::resolve('customer', $data['code'] ?? null);
             $customer = CustomerService::createWithUser($data);
             AssignCustomerAcquirerAction::onCreate($customer, $creator, $acquirerInput);
 
@@ -47,7 +48,7 @@ class CreateCustomerOnboardingAction
             }
 
             $workOrder = WorkOrder::query()->create([
-                'code' => NumberSequenceService::generate('spk', 'SPK', CompanyService::currentId()),
+                'code' => NumberSequenceService::generate('spk', CompanyService::currentId()),
                 'type' => 'installation',
                 'title' => 'Installation '.$subscription->code.' - '.$customer->name,
                 'description' => 'Automatic installation SPK from customer onboarding.',

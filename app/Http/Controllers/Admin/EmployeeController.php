@@ -15,11 +15,13 @@ use App\Models\Core\OrganizationUnit;
 use App\Models\Core\Vehicle;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -53,13 +55,21 @@ class EmployeeController extends Controller
                 'create' => $request->user()?->can('employee.manage') ?? false,
                 'export' => $request->user()?->can('employee.export') ?? false,
             ],
+            'codeSequence' => [
+                'manual' => NumberSequenceService::allowsManual('employee'),
+                'preview' => NumberSequenceService::peek('employee'),
+            ],
         ]);
     }
 
     public function store(StoreEmployeeRequest $request): RedirectResponse
     {
         Gate::authorize('create', EmployeeProfile::class);
-        EmployeeProfile::create($request->validated());
+        DB::transaction(function () use ($request): void {
+            $data = $request->validated();
+            $data['employee_number'] = NumberSequenceService::resolve('employee', $data['employee_number'] ?? null, 'employee_number');
+            EmployeeProfile::create($data);
+        });
 
         return back()->with('success', 'Employee profile created.');
     }

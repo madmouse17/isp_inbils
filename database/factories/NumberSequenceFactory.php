@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Core\Company;
 use App\Models\Core\NumberSequence;
+use App\Support\NumberSequences\ResetPeriod;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /** @extends Factory<NumberSequence> */
@@ -17,9 +18,11 @@ class NumberSequenceFactory extends Factory
             'company_id' => Company::query()->value('id') ?? Company::factory()->create()->id,
             'entity_type' => fake()->unique()->word(),
             'prefix' => strtoupper(fake()->lexify('???')),
+            'template' => '{PREFIX}-{YYYY}-{SEQ:5}',
             'next_number' => 1,
-            'padding' => 5,
-            'year_suffix' => true,
+            'reset_period' => ResetPeriod::Never,
+            'period_key' => null,
+            'allow_manual' => false,
         ];
     }
 }

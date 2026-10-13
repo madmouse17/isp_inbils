@@ -117,7 +117,7 @@ class InvoiceController extends Controller
         Gate::authorize('store', Invoice::class);
 
         $data = $request->validated();
-        $data['number'] = NumberSequenceService::generate('invoice', 'INV', CompanyService::currentId());
+        $data['number'] = NumberSequenceService::generate('invoice', CompanyService::currentId());
         $data['type'] = 'one_time';
         $data['source'] = 'manual';
         $data['status'] = 'draft';

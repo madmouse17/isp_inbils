@@ -144,6 +144,7 @@ class InventoryRequestWorkflowTest extends TestCase
         ]);
 
         $req = InventoryRequest::find($requestId);
+        $this->assertSame('REQ-'.now('Asia/Jakarta')->format('Ymd').'-0001', $req->code);
 
         // 2. Submit Draft
         $submitResponse = $this->actingAs($this->technician)
@@ -158,6 +159,25 @@ class InventoryRequestWorkflowTest extends TestCase
 
         Notification::assertSentTo([$this->managerApprover, $this->adminUser], InventoryRequestSubmittedNotification::class);
         Notification::assertNotSentTo($this->staffWarehouse, InventoryRequestSubmittedNotification::class);
+    }
+
+    public function test_request_codes_come_from_the_engine_and_restart_each_day(): void
+    {
+        $payload = [
+            'warehouse_location_id' => $this->warehouseA->id,
+            'reason' => 'Kebutuhan kode harian',
+            'submit' => false,
+            'items' => [['product_id' => $this->cableProduct->id, 'quantity_requested' => 1]],
+        ];
+        $codes = [];
+
+        foreach (['2026-10-13 09:00:00', '2026-10-13 10:00:00', '2026-10-14 09:00:00'] as $moment) {
+            $this->travelTo($moment);
+            $id = $this->actingAs($this->technician)->postJson(route('admin.inventory.requests.store'), $payload)->assertStatus(201)->json('data.id');
+            $codes[] = InventoryRequest::findOrFail($id)->code;
+        }
+
+        $this->assertSame(['REQ-20261013-0001', 'REQ-20261013-0002', 'REQ-20261014-0001'], $codes);
     }
 
     public function test_maker_checker_rule_requester_cannot_approve_or_reject_own_request(): void

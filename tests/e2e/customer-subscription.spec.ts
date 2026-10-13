@@ -17,7 +17,6 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     page,
 }) => {
     const suffix = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const customerCode = `E2E-CUST-${suffix}`;
     const customerName = `E2E Customer ${suffix}`;
     const customerEmail = `e2e-${suffix}@example.test`;
     const addressLabel = `E2E Installation ${suffix}`;
@@ -30,7 +29,6 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
         page.getByRole('main').getByRole('heading', { name: 'Create Customer' }),
     ).toBeVisible();
 
-    await page.getByLabel('Code').fill(customerCode);
     await page.getByLabel('Name').fill(customerName);
     await page.getByLabel('Email').fill(customerEmail);
     await page.getByLabel('Phone').fill('0800000000');
@@ -70,7 +68,7 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
     await page.getByLabel('Name').fill(`${customerName} Contact`);
     await page.getByLabel('Phone').fill('081200000000');
-    await page.getByLabel('Email').fill(`contact.${customerCode.toLowerCase()}@example.test`);
+    await page.getByLabel('Email').fill(`contact.${suffix}@example.test`);
 
     // Subscription & SPK section: package + serving POP are required; the E2E
     // seeder provisions "Home 10Mbps" and "Default POP".
@@ -90,7 +88,6 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
 
     await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
     await expect(page.getByRole('main').getByRole('heading', { name: customerName })).toBeVisible();
-    await expect(page.getByText(customerCode, { exact: false })).toBeVisible();
 
     // The customer show page renders related tables inline (read-only) — the
     // create-address flow now happens on the create form itself (default
@@ -101,10 +98,11 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
 
     // Onboarding leaves only a pending subscription, so the derived status is Prospective.
     await expect(page.getByRole('main').getByText('Prospective')).toBeVisible();
-    await page.goto(`/admin/customers?search=${customerCode}&status=active`);
-    await expect(page.getByRole('main').getByText(customerCode)).toHaveCount(0);
-    await page.goto(`/admin/customers?search=${customerCode}&status=prospective`);
-    await expect(page.getByRole('row').filter({ hasText: customerCode })).toContainText(
+    const customerSearch = encodeURIComponent(customerName);
+    await page.goto(`/admin/customers?search=${customerSearch}&status=active`);
+    await expect(page.getByRole('main').getByText(customerName)).toHaveCount(0);
+    await page.goto(`/admin/customers?search=${customerSearch}&status=prospective`);
+    await expect(page.getByRole('row').filter({ hasText: customerName })).toContainText(
         'Prospective',
     );
     await page.goto(`/admin/customers/${customerId}`);

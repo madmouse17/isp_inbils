@@ -6,6 +6,7 @@ use App\Models\Core\Customer;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -24,7 +25,9 @@ class UpdateCustomerRequest extends FormRequest
         $companyId = CompanyService::currentId();
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('customers')->where('company_id', $companyId)->ignore($customerId)],
+            'code' => NumberSequenceService::allowsManual('customer')
+                ? ['required', 'string', 'max:50', Rule::unique('customers')->where('company_id', $companyId)->ignore($customerId)]
+                : ['exclude'],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:Individual,Company'],
             'email' => ['nullable', 'email', 'max:255'],

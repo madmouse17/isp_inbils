@@ -17,6 +17,7 @@ use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Queries\Admin\CustomerHistoryQuery;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\NumberSequenceService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -97,6 +98,7 @@ class CustomerController extends Controller
             // Free ODP ports under the chosen serving POP; evaluated only on a partial reload that asks for it (query serving_pop_id).
             ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($request->integer('serving_pop_id') ?: null))] : []),
             'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop],
+            'codeSequence' => self::codeSequence(),
         ]);
     }
 
@@ -177,6 +179,7 @@ class CustomerController extends Controller
                 'correctAcquirer' => $request->user()?->can('correctAcquirer', Customer::class) ?? false,
             ],
             'acquirerOptions' => $canViewAcquirer ? CustomerAcquirerQuery::options((int) CompanyService::currentId()) : [],
+            'codeSequence' => self::codeSequence(),
         ]);
     }
 
@@ -386,5 +389,14 @@ class CustomerController extends Controller
         Gate::authorize('customer.address.manage');
         Gate::authorize('customer.subscription.manage');
         Gate::authorize('spk.create');
+    }
+
+    /** @return array{manual: bool, preview: string} */
+    private static function codeSequence(): array
+    {
+        return [
+            'manual' => NumberSequenceService::allowsManual('customer'),
+            'preview' => NumberSequenceService::peek('customer'),
+        ];
     }
 }

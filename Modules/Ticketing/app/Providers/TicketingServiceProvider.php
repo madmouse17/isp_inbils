@@ -2,6 +2,9 @@
 
 namespace Modules\Ticketing\Providers;
 
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
+use App\Support\NumberSequences\ResetPeriod;
 use Illuminate\Console\Scheduling\Schedule;
 use Modules\Ticketing\Console\CheckTicketSla;
 use Nwidart\Modules\Support\ModuleServiceProvider;
@@ -36,6 +39,15 @@ class TicketingServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        $this->app->make(NumberSequenceRegistry::class)->register(
+            new NumberSequenceDefinition('ticket', 'Tiket', 'tickets', 'code', 255, 'TKT', '{PREFIX}-{YYYY}-{SEQ:5}', ResetPeriod::Yearly),
+        );
+    }
 
     /**
      * Define module schedules.

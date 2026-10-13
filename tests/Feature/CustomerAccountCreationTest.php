@@ -18,14 +18,17 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 
 class CustomerAccountCreationTest extends TestCase
 {
+    use AllowsManualCodes;
     use RefreshDatabase;
 
     private Company $company;
@@ -45,6 +48,7 @@ class CustomerAccountCreationTest extends TestCase
         $this->seedRegion();
 
         $this->company = Company::factory()->create(['is_active' => true]);
+        $this->setManualCodes($this->company->id, true, 'customer');
         $this->admin = User::factory()->create([
             'company_id' => $this->company->id,
             'email_verified_at' => now(),
@@ -332,6 +336,68 @@ class CustomerAccountCreationTest extends TestCase
             ->assertInvalid(['addresses.0', 'contacts.0']);
 
         $this->assertDatabaseMissing('customers', ['code' => 'CUS-ACCOUNT']);
+    }
+
+    public function test_create_without_a_code_gets_the_configured_format(): void
+    {
+        $payload = $this->payload();
+        unset($payload['code']);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), $payload)
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('customers', ['code' => 'CUS-00001', 'company_id' => $this->company->id]);
+    }
+
+    public function test_create_with_a_code_is_rejected_while_manual_input_is_off(): void
+    {
+        $this->setManualCodes($this->company->id, false, 'customer');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.customers.store'), $this->payload())
+            ->assertInvalid(['code']);
+
+        $this->assertDatabaseMissing('customers', ['code' => 'CUS-ACCOUNT']);
+    }
+
+    public function test_update_ignores_the_code_while_manual_input_is_off(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        $this->setManualCodes($this->company->id, false, 'customer');
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $customer->refresh();
+        $this->assertSame('CUS-ACCOUNT', $customer->code);
+        $this->assertSame('Renamed', $customer->name);
+    }
+
+    public function test_update_changes_the_code_when_manual_input_is_on(): void
+    {
+        $customer = $this->createCustomerViaForm();
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.customers.update', $customer), ['code' => 'CUS-CHANGED', 'name' => 'Renamed', 'type' => 'Individual'])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('CUS-CHANGED', $customer->fresh()->code);
+    }
+
+    public function test_create_and_edit_pages_expose_the_code_sequence(): void
+    {
+        $customer = $this->createCustomerViaForm();
+        $this->setManualCodes($this->company->id, false, 'customer');
+
+        $this->actingAs($this->admin)->get(route('admin.customers.create'))
+            ->assertInertia(fn (Assert $page) => $page->where('codeSequence.manual', false)->has('codeSequence.preview'));
+        $this->actingAs($this->admin)->get(route('admin.customers.edit', $customer))
+            ->assertInertia(fn (Assert $page) => $page->where('codeSequence.manual', false)->has('codeSequence.preview'));
     }
 
     /** @return array<string, mixed> */

@@ -5,6 +5,7 @@ namespace Modules\Inventory\Services;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -131,7 +132,7 @@ class InventoryRequestService
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($requester);
 
         return DB::transaction(function () use ($requester, $data, $companyId) {
-            $code = self::generateCode($companyId);
+            $code = NumberSequenceService::generate('inventory_request', $companyId);
             $submitImmediately = ! empty($data['submit']);
 
             $reason = trim((string) ($data['reason'] ?? ''));
@@ -543,24 +544,6 @@ class InventoryRequestService
 
             return $req->fresh(['items.product', 'items.sourceLocation', 'requester', 'warehouseLocation', 'canceller']);
         });
-    }
-
-    private static function generateCode(int $companyId): string
-    {
-        $prefix = 'REQ-'.date('Ymd').'-';
-        $latest = InventoryRequest::withoutCompany()
-            ->where('company_id', $companyId)
-            ->where('code', 'like', $prefix.'%')
-            ->latest('id')
-            ->value('code');
-
-        if ($latest) {
-            $num = (int) substr($latest, -4) + 1;
-        } else {
-            $num = 1;
-        }
-
-        return $prefix.str_pad((string) $num, 4, '0', STR_PAD_LEFT);
     }
 
     private static function notifyWarehouseOfSubmission(InventoryRequest $request): void

@@ -367,7 +367,7 @@ final class TicketDemo
     private static function draftJob(DemoContext $c, string $key, string $customerCode, string $type, string $by, string $title, string $description, string $priority): void
     {
         $workOrder = $c->as($by, fn (User $user) => WorkOrder::query()->create([
-            'code' => NumberSequenceService::generate('spk', 'SPK', $c->companyId()),
+            'code' => NumberSequenceService::generate('spk', $c->companyId()),
             'type' => $type,
             'title' => "{$title} - {$customerCode}",
             'description' => $description,

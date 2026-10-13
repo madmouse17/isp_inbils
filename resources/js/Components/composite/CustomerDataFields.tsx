@@ -1,4 +1,5 @@
 import { Input, NativeSelect, PhoneInput, Switch, Textarea } from '@/Components/ui';
+import { SequenceCodeField, type CodeSequence } from './SequenceCodeField';
 
 export interface CustomerDataValue {
     code: string;
@@ -20,6 +21,8 @@ interface CustomerDataFieldsProps {
     readOnly?: boolean;
     /** Phone field hint shown on create. */
     phoneHint?: string;
+    codeSequence: CodeSequence;
+    mode: 'create' | 'edit';
 }
 
 export function CustomerDataFields({
@@ -28,16 +31,18 @@ export function CustomerDataFields({
     errors = {},
     readOnly = false,
     phoneHint,
+    codeSequence,
+    mode,
 }: CustomerDataFieldsProps) {
     return (
         <div className="grid gap-4 md:grid-cols-2">
-            <Input
+            <SequenceCodeField
                 label="Code"
                 value={value.code}
-                onChange={(event) => onChange('code', event.target.value)}
+                onChange={(next) => onChange('code', next)}
                 error={errors.code}
-                required
-                placeholder="CUS-2026-00001"
+                sequence={codeSequence}
+                mode={mode}
                 readOnly={readOnly}
             />
             <Input

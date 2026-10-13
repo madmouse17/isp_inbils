@@ -196,7 +196,7 @@ final class BillingDemo
             $c->as('staff', function ($staff) use ($c, $customerCode, $note, $lines, $outcome): void {
                 $customerId = (int) $c->get('customer', $customerCode);
                 $invoice = Invoice::query()->create([
-                    'number' => NumberSequenceService::generate('invoice', 'INV', $c->companyId()),
+                    'number' => NumberSequenceService::generate('invoice', $c->companyId()),
                     'type' => 'one_time',
                     'source' => 'manual',
                     'customer_id' => $customerId,

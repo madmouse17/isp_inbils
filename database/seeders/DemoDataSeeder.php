@@ -4,8 +4,10 @@ namespace Database\Seeders;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\NumberSequence;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use Carbon\CarbonImmutable;
 use Database\Seeders\Demo\BillingDemo;
 use Database\Seeders\Demo\CustomerDemo;
@@ -74,6 +76,10 @@ class DemoDataSeeder extends Seeder
     {
         $c = new DemoContext($company);
         $c->travel($c->start->subDays(3));
+
+        // The demo customers carry fixed codes (DEMO-C001...) that the onboarding action must accept.
+        NumberSequenceService::ensureAll((int) $company->id);
+        NumberSequence::forCompany((int) $company->id)->where('entity_type', 'customer')->update(['allow_manual' => true]);
 
         FoundationDemo::seed($c);
         LocationDemo::seed($c);

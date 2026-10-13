@@ -4,9 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\UpdateNumberSequenceRequest;
 use App\Http\Resources\NumberSequenceResource;
 use App\Models\Core\NumberSequence;
+use App\Services\Core\CompanyService;
+use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\NumberSequences\NumberSequenceDefinition;
+use App\Support\NumberSequences\NumberSequenceRegistry;
+use App\Support\NumberSequences\NumberTemplate;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,31 +32,30 @@ class NumberSequenceController extends Controller
     {
         Gate::authorize('viewAny', NumberSequence::class);
 
-        $sequences = $this->filteredQuery($request)
-            ->paginate($this->perPage($request))
-            ->withQueryString();
+        NumberSequenceService::ensureAll(CompanyService::currentId() ?? abort(403, 'Company context is required.'));
+
+        $rows = NumberSequence::query()->with('company:id,code,timezone')->get()->keyBy('entity_type');
+        $sequences = collect(app(NumberSequenceRegistry::class)->all())
+            ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+            ->map(fn (NumberSequenceDefinition $definition): array => (new NumberSequenceResource($rows[$definition->entityType]))->resolve($request))
+            ->values()
+            ->all();
 
         return Inertia::render('Admin/NumberSequences/Index', [
-            'sequences' => NumberSequenceResource::collection($sequences),
-            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
+            'sequences' => $sequences,
+            'company_code' => (string) CompanyService::current()?->code,
+            'tokens' => NumberTemplate::tokens(),
             'can' => [
                 'export' => $request->user()?->can('system.setting') ?? false,
             ],
         ]);
     }
 
-    public function update(Request $request, NumberSequence $number_sequence): RedirectResponse
+    public function update(UpdateNumberSequenceRequest $request, NumberSequence $number_sequence): RedirectResponse
     {
-        Gate::authorize('update', $number_sequence);
-        $request->validate([
-            'prefix' => ['required', 'string', 'max:20'],
-            'next_number' => ['required', 'integer', 'min:1'],
-            'padding' => ['required', 'integer', 'min:1', 'max:10'],
-            'year_suffix' => ['boolean'],
-        ]);
-        $number_sequence->update($request->only(['prefix', 'next_number', 'padding', 'year_suffix']));
+        NumberSequenceService::update($number_sequence, $request->validated());
 
-        return back()->with('success', 'Number sequence updated.');
+        return back()->with('success', 'Penomoran diperbarui.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -66,17 +71,19 @@ class NumberSequenceController extends Controller
         $columns = [
             'entity_type' => 'Entity',
             'prefix' => 'Prefix',
+            'template' => 'Template',
             'next_number' => 'Next Number',
-            'padding' => 'Padding',
-            'year_suffix' => 'Year Suffix',
+            'reset_period' => 'Reset Period',
+            'allow_manual' => 'Allow Manual',
         ];
 
         $map = static fn (NumberSequence $s): array => [
             'entity_type' => $s->entity_type,
             'prefix' => $s->prefix,
+            'template' => $s->template,
             'next_number' => $s->next_number,
-            'padding' => $s->padding,
-            'year_suffix' => $s->year_suffix ? 'Yes' : 'No',
+            'reset_period' => $s->reset_period->value,
+            'allow_manual' => $s->allow_manual ? 'Yes' : 'No',
         ];
 
         if ($format === 'pdf') {

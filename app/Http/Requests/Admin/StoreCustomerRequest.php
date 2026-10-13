@@ -7,6 +7,7 @@ use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
+use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
@@ -29,7 +30,7 @@ class StoreCustomerRequest extends FormRequest
         $companyId = CompanyService::currentId();
 
         return [
-            'code' => ['required', 'string', 'max:50', Rule::unique('customers')->where('company_id', $companyId)],
+            'code' => ['nullable', 'string', 'max:50', ...(NumberSequenceService::allowsManual('customer') ? [] : ['prohibited']), Rule::unique('customers')->where('company_id', $companyId)],
             'name' => ['required', 'string', 'max:255'],
             'type' => ['required', 'string', 'in:Individual,Company'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],

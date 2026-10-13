@@ -41,7 +41,7 @@ class TicketService
 
             $data['company_id'] = $companyId;
             $data['category_id'] = $category->id;
-            $data['code'] = self::generateCode();
+            $data['code'] = NumberSequenceService::generate('ticket', $companyId);
             $data['status'] = $data['status'] ?? 'open';
             $data['created_by'] = $createdBy;
             $data['sla_deadline'] = self::computeSlaDeadline($category, $priority);
@@ -68,23 +68,6 @@ class TicketService
         }
 
         return now()->addHours($hours);
-    }
-
-    public static function generateCode(): string
-    {
-        $year = now()->year;
-        $prefix = "TKT-{$year}-";
-
-        $last = Ticket::forCompany(CompanyService::currentId())
-            ->withTrashed()
-            ->where('code', 'like', $prefix.'%')
-            ->orderByDesc('code')
-            ->lockForUpdate()
-            ->first();
-
-        $next = $last ? ((int) substr($last->code, strlen($prefix))) + 1 : 1;
-
-        return $prefix.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
     }
 
     public static function assign(Ticket $ticket, int $handlerId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT): Ticket
@@ -255,7 +238,7 @@ class TicketService
             abort_if((bool) $ticket->spawned_spk_id, 422, 'SPK already spawned for this ticket.');
             abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Ticket must be on progress or assigned to spawn SPK.');
             $wo = WorkOrder::create([
-                'code' => NumberSequenceService::generate('spk', 'SPK', $ticket->company_id),
+                'code' => NumberSequenceService::generate('spk', $ticket->company_id),
                 'type' => 'maintenance',
                 'title' => 'SPK from Ticket '.$ticket->code,
                 'description' => $ticket->description,

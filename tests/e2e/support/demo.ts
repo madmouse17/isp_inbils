@@ -155,7 +155,8 @@ export const PNG_1X1 = Buffer.from(
 export async function createCustomer(page: Page, name: string) {
     await page.goto('/admin/customers/create');
     const codeField = page.getByLabel(/^code/i);
-    if (await codeField.count()) {
+    // A locked (auto-generated) code field is read-only; the server assigns the code.
+    if ((await codeField.count()) && (await codeField.isEditable())) {
         await codeField.fill(`CUS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
     }
     await page.getByLabel(/name/i).fill(name);

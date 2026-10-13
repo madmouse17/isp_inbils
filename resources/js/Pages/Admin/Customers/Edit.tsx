@@ -22,6 +22,7 @@ import {
     CustomerContactEditor,
     CustomerDataFields,
     PageHeader,
+    type CodeSequence,
     type CustomerDataValue,
     type IndonesiaRegionOptions,
 } from '@/Components/composite';
@@ -35,6 +36,7 @@ interface EditPageProps {
     geocodeResults?: GeocodeResult[];
     geocodeIndex?: number;
     acquirerOptions: AcquirerOption[];
+    codeSequence: CodeSequence;
     can: {
         update: boolean;
         address: boolean;
@@ -60,6 +62,7 @@ export default function Edit({
     geocodeIndex,
     acquirerOptions,
     can,
+    codeSequence,
 }: EditPageProps) {
     const c = customer.data;
     const addresses = c.addresses ?? [];
@@ -104,18 +107,22 @@ export default function Edit({
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (processing || readOnly) return;
-        transform(({ acquirer_id, acquirer_correction_reason, whatsapp_opt_in, ...values }) => ({
-            ...values,
-            // A stale form must never re-opt-in a customer who replied STOP meanwhile, so consent
-            // is sent only when the user changed it.
-            ...(whatsapp_opt_in !== initialWhatsAppOptIn ? { whatsapp_opt_in } : {}),
-            ...(acquirerChanged
-                ? { acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id) }
-                : {}),
-            ...(requireReason
-                ? { acquirer_correction_reason: acquirer_correction_reason.trim() }
-                : {}),
-        }));
+        transform(
+            ({ acquirer_id, acquirer_correction_reason, whatsapp_opt_in, code, ...values }) => ({
+                ...values,
+                // A locked code never changes after creation, so it is not sent.
+                ...(codeSequence.manual ? { code } : {}),
+                // A stale form must never re-opt-in a customer who replied STOP meanwhile, so consent
+                // is sent only when the user changed it.
+                ...(whatsapp_opt_in !== initialWhatsAppOptIn ? { whatsapp_opt_in } : {}),
+                ...(acquirerChanged
+                    ? { acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id) }
+                    : {}),
+                ...(requireReason
+                    ? { acquirer_correction_reason: acquirer_correction_reason.trim() }
+                    : {}),
+            }),
+        );
         // Scalar fields only — addresses/contacts are managed independently.
         put(route('admin.customers.update', c.id), {
             preserveScroll: true,
@@ -178,6 +185,8 @@ export default function Edit({
                                         onChange={(key, value) => setData(key, value as never)}
                                         errors={formErrors}
                                         readOnly={readOnly}
+                                        codeSequence={codeSequence}
+                                        mode="edit"
                                     />
                                     <div className="space-y-2">
                                         <Checkbox

@@ -14,10 +14,12 @@ use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\Service\Models\ServicePackage;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\BuildsCustomerAcquirers;
 
 class CustomerSalesAttributionTest extends TestCase
 {
+    use AllowsManualCodes;
     use BuildsCustomerAcquirers;
     use RefreshDatabase;
 
@@ -42,6 +44,7 @@ class CustomerSalesAttributionTest extends TestCase
         parent::setUp();
 
         $this->seedRolesAndCompany();
+        $this->setManualCodes($this->company->id, true, 'customer');
         $this->seedRegion();
         $this->otherCompany = Company::factory()->create(['is_active' => true]);
         $this->package = ServicePackageFactory::new()->create(['company_id' => $this->company->id]);

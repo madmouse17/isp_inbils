@@ -2,7 +2,7 @@
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite';
+import { PageHeader, SequenceCodeField, type CodeSequence } from '@/Components/composite';
 import {
     Button,
     Card,
@@ -19,9 +19,10 @@ import type { Category, Product } from '@/types/inventory';
 interface EditProps extends Record<string, unknown> {
     product: { data: Product };
     categories: { data: Category[] };
+    codeSequence: CodeSequence;
 }
 
-export default function Edit({ product, categories }: EditProps) {
+export default function Edit({ product, categories, codeSequence }: EditProps) {
     const p = product.data;
     const { data, setData, processing, errors } = useForm({
         sku: p.sku ?? '',
@@ -46,7 +47,9 @@ export default function Edit({ product, categories }: EditProps) {
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        router.put(route('admin.products.update', p.id), data);
+        // A locked SKU never changes after creation, so it is not sent.
+        const { sku: _sku, ...rest } = data;
+        router.put(route('admin.products.update', p.id), codeSequence.manual ? data : rest);
     };
 
     return (
@@ -73,12 +76,13 @@ export default function Edit({ product, categories }: EditProps) {
                             <CardTitle>Edit Product</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <Input
+                            <SequenceCodeField
                                 label="SKU"
                                 value={data.sku ?? ''}
-                                onChange={(e) => setData('sku', e.target.value)}
+                                onChange={(next) => setData('sku', next)}
                                 error={errors.sku}
-                                required
+                                sequence={codeSequence}
+                                mode="edit"
                             />
                             <Input
                                 label="Name"

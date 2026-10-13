@@ -32,3 +32,5 @@ export { RoleBadge } from './RoleBadge';
 export { StatusBadge } from './StatusBadge';
 export { ErrorState, ForbiddenState, LoadingState, ResourceState } from './ResourceState';
 export { NotificationBell } from './NotificationBell';
+export { SequenceCodeField } from './SequenceCodeField';
+export type { CodeSequence } from './SequenceCodeField';

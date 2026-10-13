@@ -25,6 +25,7 @@ use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\AllowsManualCodes;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsOdnTopology;
 
@@ -34,6 +35,7 @@ use Tests\Traits\BuildsOdnTopology;
  */
 class IpamOdnLifecycleTest extends TestCase
 {
+    use AllowsManualCodes;
     use BuildsIpamOdnFixtures;
     use BuildsOdnTopology;
     use RefreshDatabase;
@@ -52,6 +54,7 @@ class IpamOdnLifecycleTest extends TestCase
 
         $this->withoutVite();
         $this->bootIpamOdnWorld(withSeededRoles: true);
+        $this->setManualCodes($this->company->id, true, 'customer');
         $this->seedRegion();
         $this->package = ServicePackageFactory::new()->create(['company_id' => $this->company->id, 'price_mrc' => 250000, 'price_otc' => 150000, 'contract_min_months' => 12]);
         $this->net = $this->topology($this->company);

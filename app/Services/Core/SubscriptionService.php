@@ -36,7 +36,7 @@ class SubscriptionService
             if (empty($data['contract_months']) && (int) $package->getAttribute('contract_min_months') > 0) {
                 $data['contract_months'] = $package->getAttribute('contract_min_months');
             }
-            $data['code'] = NumberSequenceService::generate('subscription', 'SUB', $companyId);
+            $data['code'] = NumberSequenceService::generate('subscription', $companyId);
             $data['status'] = $data['status'] ?? 'pending';
 
             $subscription = ServiceSubscription::create($data);

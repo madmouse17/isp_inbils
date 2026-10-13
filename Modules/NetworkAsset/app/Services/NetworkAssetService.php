@@ -227,7 +227,7 @@ class NetworkAssetService
 
     public static function generateCode(): string
     {
-        return DB::transaction(fn () => NumberSequenceService::generate('network_asset', 'NA'));
+        return DB::transaction(fn () => NumberSequenceService::generate('network_asset'));
     }
 
     private static function lockAsset(NetworkAsset $asset): NetworkAsset
