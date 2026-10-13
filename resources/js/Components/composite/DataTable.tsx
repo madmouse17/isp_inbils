@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react';
+import { AlertCircle, ArrowDown, ArrowUp, ArrowUpDown, Inbox, SearchX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/Components/ui/Button';
 import { NativeSelect } from '@/Components/ui';
 import { Checkbox } from '@/Components/ui/Checkbox';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
 import { EmptyState } from '@/Components/ui/EmptyState';
 import { Skeleton } from '@/Components/ui/Skeleton';
 import { Table, TableFooter, TBody, TD, TH, THead, TR } from '@/Components/ui/Table';
@@ -31,9 +32,6 @@ export interface DataTableColumn<T> {
     render?: (row: T) => React.ReactNode;
 }
 
-/** @deprecated Prefer DataTableColumn — kept for existing imports. */
-export type Column<T> = DataTableColumn<T>;
-
 export interface DataTableProps<T> {
     columns: DataTableColumn<T>[];
     rows?: T[];
@@ -51,10 +49,23 @@ export interface DataTableProps<T> {
     onPerPageChange?: (perPage: number) => void;
     rowKey?: keyof T | ((row: T) => string | number);
     getRowId?: (row: T) => string | number;
+    /** First-run title: nothing has been recorded yet. */
     emptyText?: string;
     emptyTitle?: string;
+    /** First-run reason. Say why the list is empty and what fills it. */
     emptyDescription?: string;
+    /** First-run action, normally the create button. */
     emptyAction?: React.ReactNode;
+    /** A filter or search is active, so an empty page means "nothing matches", not "nothing exists". */
+    hasFilters?: boolean;
+    /** Clears the filters; shown as "Reset filter" beside the "nothing matches" text. */
+    onResetFilters?: () => void;
+    /** What the rows are, lower case ("pelanggan"): "Tidak ada pelanggan yang cocok". */
+    itemLabel?: string;
+    /** The load failed. A string is shown as the cause. */
+    error?: boolean | string;
+    /** Loads again; shown as "Coba lagi" in the error state. */
+    onRetry?: () => void;
     loading?: boolean;
     isLoading?: boolean;
     selectable?: boolean;
@@ -75,6 +86,13 @@ function resolveColumnId<T>(column: DataTableColumn<T>, index: number): string {
     return `col-${index}`;
 }
 
+/** Rows are caller-defined shapes that the table reads by column key at runtime; this is the one place that trusts the key. */
+function readField(row: unknown, key: string): unknown {
+    if (typeof row !== 'object' || row === null) return undefined;
+
+    return (row as Record<string, unknown>)[key];
+}
+
 function resolveRowId<T>(
     row: T,
     index: number,
@@ -84,11 +102,11 @@ function resolveRowId<T>(
     if (getRowId) return getRowId(row);
     if (typeof rowKey === 'function') return rowKey(row);
     if (typeof rowKey === 'string') {
-        const value = (row as Record<string, unknown>)[rowKey];
-        if (value != null) return value as string | number;
+        const value = readField(row, rowKey);
+        if (typeof value === 'string' || typeof value === 'number') return value;
     }
-    const fallback = (row as { id?: string | number }).id;
-    return fallback ?? index;
+    const fallback = readField(row, 'id');
+    return typeof fallback === 'string' || typeof fallback === 'number' ? fallback : index;
 }
 
 function readCellValue<T>(row: T, column: DataTableColumn<T>): React.ReactNode {
@@ -96,13 +114,13 @@ function readCellValue<T>(row: T, column: DataTableColumn<T>): React.ReactNode {
     if (column.render) return column.render(row);
     const path = column.accessor ?? column.key;
     if (path == null) return null;
-    const value = (row as Record<string, unknown>)[String(path)];
-    if (value == null || value === '') return '—';
-    if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+    const value = readField(row, String(path));
+    if (value == null || value === '') return <EmptyCell />;
+    if (typeof value === 'boolean') return value ? 'Ya' : 'Tidak';
     if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') {
         return String(value);
     }
-    return '—';
+    return <EmptyCell />;
 }
 
 /** Skeleton rows follow the page size, bounded so a 50-row page does not render a 50-row placeholder. */
@@ -138,10 +156,15 @@ export function DataTable<T>({
     onPerPageChange,
     rowKey,
     getRowId,
-    emptyText = 'No data found.',
+    emptyText = 'Tidak ada data.',
     emptyTitle,
     emptyDescription,
     emptyAction,
+    hasFilters = false,
+    onResetFilters,
+    itemLabel,
+    error,
+    onRetry,
     loading,
     isLoading,
     selectable = false,
@@ -205,10 +228,8 @@ export function DataTable<T>({
         onSelectionChange(selectedKeys.filter((key) => String(key) !== String(id)));
     };
 
-    const title = emptyTitle ?? emptyText;
-    const description = emptyDescription ?? 'Try adjusting filters or create a new record.';
-
     const perPageOptions = [10, 25, 50];
+    const columnSpan = columns.length + (selectable ? 1 : 0);
 
     return (
         <div className={cn('space-y-3', className)}>
@@ -223,7 +244,7 @@ export function DataTable<T>({
                                         checked={allSelected}
                                         indeterminate={!allSelected && someSelected}
                                         onCheckedChange={(value) => toggleAll(value === true)}
-                                        aria-label="Select all rows"
+                                        aria-label="Pilih semua baris"
                                     />
                                 </TH>
                             )}
@@ -295,18 +316,74 @@ export function DataTable<T>({
                                     ))}
                                 </TR>
                             ))}
-                        {!busy && items.length === 0 && (
-                            <TR>
-                                <TD colSpan={columns.length + (selectable ? 1 : 0)} className="p-0">
-                                    <EmptyState
-                                        title={title}
-                                        description={description}
-                                        action={emptyAction}
-                                    />
+                        {!busy && error && (
+                            <TR className="hover:bg-transparent">
+                                <TD colSpan={columnSpan} className="p-0">
+                                    <div role="alert">
+                                        <EmptyState
+                                            icon={<AlertCircle />}
+                                            title="Data tidak dapat dimuat"
+                                            description={
+                                                typeof error === 'string'
+                                                    ? error
+                                                    : 'Terjadi kesalahan saat memuat data. Coba lagi, atau muat ulang halaman jika masalah berlanjut.'
+                                            }
+                                            action={
+                                                onRetry ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={onRetry}
+                                                    >
+                                                        Coba lagi
+                                                    </Button>
+                                                ) : undefined
+                                            }
+                                        />
+                                    </div>
+                                </TD>
+                            </TR>
+                        )}
+                        {!busy && !error && items.length === 0 && (
+                            <TR className="hover:bg-transparent">
+                                <TD colSpan={columnSpan} className="p-0">
+                                    {hasFilters ? (
+                                        <EmptyState
+                                            icon={<SearchX />}
+                                            title={`Tidak ada ${itemLabel ?? 'data'} yang cocok`}
+                                            description="Ubah kata kunci atau filter, atau kembalikan semuanya ke awal."
+                                            action={
+                                                onResetFilters ? (
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={onResetFilters}
+                                                    >
+                                                        Reset filter
+                                                    </Button>
+                                                ) : (
+                                                    emptyAction
+                                                )
+                                            }
+                                        />
+                                    ) : (
+                                        <EmptyState
+                                            icon={<Inbox />}
+                                            title={emptyTitle ?? emptyText}
+                                            description={
+                                                emptyDescription ??
+                                                (itemLabel
+                                                    ? `Belum ada ${itemLabel} yang tercatat.`
+                                                    : 'Belum ada data yang tercatat.')
+                                            }
+                                            action={emptyAction}
+                                        />
+                                    )}
                                 </TD>
                             </TR>
                         )}
                         {!busy &&
+                            !error &&
                             items.map((row, index) => {
                                 const id = resolveRowId(row, index, rowKey, getRowId);
                                 const selected = selectedSet.has(String(id));
@@ -324,7 +401,7 @@ export function DataTable<T>({
                                                     onCheckedChange={(value) =>
                                                         toggleOne(id, value === true)
                                                     }
-                                                    aria-label={`Select row ${id}`}
+                                                    aria-label={`Pilih baris ${id}`}
                                                 />
                                             </TD>
                                         )}
@@ -343,24 +420,24 @@ export function DataTable<T>({
                     {footer && <TableFooter>{footer}</TableFooter>}
                 </Table>
             </div>
-            {((onPageChange && lastPage > 1) || onPerPageChange) && (
+            {!error && total > 0 && ((onPageChange && lastPage > 1) || onPerPageChange) && (
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                         {from != null && to != null
-                            ? `Showing ${from}–${to} of ${total}`
-                            : `${total} total`}
+                            ? `Menampilkan ${from}–${to} dari ${total}`
+                            : `Total ${total}`}
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                         {onPerPageChange && (
                             <NativeSelect
-                                aria-label="Rows per page"
+                                aria-label="Baris per halaman"
                                 value={String(perPage)}
                                 onChange={(event) => onPerPageChange(Number(event.target.value))}
                                 options={perPageOptions.map((n) => ({
                                     value: String(n),
-                                    label: `${n} / page`,
+                                    label: `${n} / halaman`,
                                 }))}
-                                className="w-32"
+                                wrapperClassName="w-36"
                             />
                         )}
                         {onPageChange && (
@@ -369,24 +446,24 @@ export function DataTable<T>({
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    aria-label="Previous page"
+                                    aria-label="Halaman sebelumnya"
                                     disabled={page <= 1}
                                     onClick={() => onPageChange(page - 1)}
                                 >
-                                    Previous
+                                    Sebelumnya
                                 </Button>
                                 <span className="text-sm text-muted-foreground">
-                                    Page {page} of {lastPage}
+                                    Halaman {page} dari {lastPage}
                                 </span>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    aria-label="Next page"
+                                    aria-label="Halaman berikutnya"
                                     disabled={page >= lastPage}
                                     onClick={() => onPageChange(page + 1)}
                                 >
-                                    Next
+                                    Berikutnya
                                 </Button>
                             </div>
                         )}

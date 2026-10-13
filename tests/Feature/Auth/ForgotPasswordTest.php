@@ -15,7 +15,7 @@ class ForgotPasswordTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const STATUS = 'If an account exists for that email address, we have emailed a password reset link.';
+    private const STATUS = 'Jika ada akun dengan alamat email tersebut, kami telah mengirim tautan pengaturan ulang kata sandi.';
 
     public function test_a_known_and_an_unknown_address_get_exactly_the_same_answer(): void
     {

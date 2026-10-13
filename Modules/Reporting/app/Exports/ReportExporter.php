@@ -30,6 +30,9 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 final class ReportExporter
 {
+    /** Business figures the package category filter leaves whole: assets and tickets have no package. */
+    private const NOT_BY_PACKAGE_CATEGORY = ['asset_distribution', 'sla_compliance_pct'];
+
     public static function report(ReportExportRequest $request): StreamedResponse
     {
         return match ($request->report()) {
@@ -288,6 +291,17 @@ final class ReportExporter
     }
 
     private static function scope(MetricDefinition $metric, ReportFilters $filters): string
+    {
+        $scope = self::periodScope($metric, $filters);
+
+        if ($filters->packageCategoryId !== null && $metric->report === ReportType::Business && in_array($metric->key, self::NOT_BY_PACKAGE_CATEGORY, true)) {
+            $scope .= '; Package category filter not applied';
+        }
+
+        return $scope;
+    }
+
+    private static function periodScope(MetricDefinition $metric, ReportFilters $filters): string
     {
         if ($metric->dateBasis === DateBasis::Snapshot) {
             return 'Snapshot: period filter not applied';

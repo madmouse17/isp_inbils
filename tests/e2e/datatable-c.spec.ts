@@ -66,16 +66,16 @@ async function keyboardSort(page: Page, c: TableCase, direction: 'asc' | 'desc')
 
 async function exportParity(page: Page, c: TableCase) {
     if (!c.exportPath) {
-        await expect(page.getByRole('button', { name: 'Export', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Ekspor', exact: true })).toHaveCount(0);
         return;
     }
-    await keyboardFocus(page, page.getByRole('button', { name: 'Export', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Ekspor', exact: true }));
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('menuitem', { name: 'Export CSV', exact: true })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Export PDF', exact: true })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Export Excel', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Ekspor CSV', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor PDF', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor Excel', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('menuitem', { name: 'Export CSV', exact: true })).toBeHidden();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor CSV', exact: true })).toBeHidden();
     // Attachment navigations emit ERR_ABORTED in Chromium; the canonical guarded
     // fixture has no download exception. Match A+B's authenticated HTTP proof.
     const exportQuery = new URL(page.url()).searchParams;
@@ -130,14 +130,14 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await keyboardSort(page, c, 'asc');
     await keyboardSort(page, c, 'desc');
     await page
-        .getByLabel('Rows per page', { exact: true })
+        .getByLabel('Baris per halaman', { exact: true })
         .locator('visible=true')
         .selectOption('10');
     await expectQuery(page, c.sizeParam ?? 'per_page', '10');
     await expect(page.locator('tbody:visible tr')).toHaveCount(10);
     const preserved = new URL(page.url()).searchParams;
     preserved.delete(c.pageParam ?? 'page');
-    await keyboardFocus(page, page.getByRole('button', { name: 'Next page', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman berikutnya', exact: true }));
     await page.keyboard.press('Enter');
     await expectQuery(page, c.pageParam ?? 'page', '2');
     await expectQuerySnapshot(page, preserved);
@@ -148,12 +148,12 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expectQuery(page, c.pageParam ?? 'page', '2');
     await expect(page.locator('tbody:visible tr').first()).toContainText(c.first);
     await exportParity(page, c);
-    await keyboardFocus(page, page.getByRole('button', { name: 'Previous page', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }));
     await page.keyboard.press('Enter');
     await expectQuery(page, c.pageParam ?? 'page', '1');
     await expect(page.locator('tbody:visible tr').first()).toContainText(c.last);
     await page
-        .getByLabel('Rows per page', { exact: true })
+        .getByLabel('Baris per halaman', { exact: true })
         .locator('visible=true')
         .selectOption('25');
     await expectQuery(page, c.sizeParam ?? 'per_page', '25');
@@ -182,7 +182,7 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
                 );
             }
             await expect(
-                page.getByLabel('Rows per page', { exact: true }).locator('visible=true'),
+                page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true'),
             ).toHaveValue('25');
             await expect(page.locator('tbody:visible tr')).toHaveCount(11);
             await expect(page.locator('tbody:visible tr').first()).toContainText(c.last);
@@ -193,7 +193,7 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
                     .getByRole('button'),
             );
             const controls = [
-                page.getByLabel('Rows per page', { exact: true }).locator('visible=true'),
+                page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true'),
             ];
             if (c.search) controls.push(page.getByLabel(c.search.label, { exact: true }));
             for (const control of controls) {
@@ -374,10 +374,10 @@ test.describe('@datatable-c replacement matrix', () => {
         await page.goto(
             '/admin/inventory/requests?tab=returns&return_search=DTC-RET-&return_status=awaiting_receipt',
         );
-        await expect(page.getByLabel('Rows per page', { exact: true })).toHaveValue('10');
+        await expect(page.getByLabel('Baris per halaman', { exact: true })).toHaveValue('10');
         await expect(page.locator('tbody:visible tr')).toHaveCount(10);
         await expect(page.locator('tbody:visible tr').first()).toContainText('DTC-RET-11');
-        const next = page.getByRole('button', { name: 'Next page', exact: true });
+        const next = page.getByRole('button', { name: 'Halaman berikutnya', exact: true });
         await expect(next).toBeEnabled();
         await keyboardFocus(page, next);
         await page.keyboard.press('Enter');
@@ -387,7 +387,7 @@ test.describe('@datatable-c replacement matrix', () => {
         await expect(page.locator('tbody:visible tr')).toHaveCount(1);
         await expect(page.locator('tbody:visible tr').first()).toContainText('DTC-RET-01');
         await page.reload();
-        await expect(page.getByLabel('Rows per page', { exact: true })).toHaveValue('10');
+        await expect(page.getByLabel('Baris per halaman', { exact: true })).toHaveValue('10');
         await expect(page.locator('tbody:visible tr')).toHaveCount(1);
         await expect(page.locator('tbody:visible tr').first()).toContainText('DTC-RET-01');
     });
@@ -397,11 +397,11 @@ test.describe('@datatable-c replacement matrix', () => {
         await page.goto(
             '/admin/inventory/requests?tab=all&search=DTC-REQ-&status=draft&sort=code&direction=desc',
         );
-        const size = page.getByLabel('Rows per page', { exact: true }).locator('visible=true');
+        const size = page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true');
         await expect(size).toHaveValue('10');
         await expect(page.locator('tbody:visible tr')).toHaveCount(10);
         await expect(page.locator('tbody:visible tr').first()).toContainText('DTC-REQ-11');
-        const next = page.getByRole('button', { name: 'Next page', exact: true });
+        const next = page.getByRole('button', { name: 'Halaman berikutnya', exact: true });
         await expect(next).toBeEnabled();
         await keyboardFocus(page, next);
         await page.keyboard.press('Enter');
@@ -433,7 +433,7 @@ test.describe('@datatable-c replacement matrix', () => {
                 await expect(page.locator('tbody:visible tr')).toHaveCount(1);
                 await expect(page.locator('tbody:visible tr').first()).toContainText('DTC-REQ-01');
                 await expect(
-                    page.getByLabel('Rows per page', { exact: true }).locator('visible=true'),
+                    page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true'),
                 ).toHaveValue('10');
                 await page.getByRole('tab', { name: /Antrean Pengembalian/ }).press('Enter');
                 await expectQuery(page, 'tab', 'returns');

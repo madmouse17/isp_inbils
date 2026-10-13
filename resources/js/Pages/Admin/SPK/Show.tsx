@@ -655,7 +655,7 @@ export default function Show({
                                         <TR key={a.id}>
                                             <TD>{a.technician?.name ?? '-'}</TD>
                                             <TD className="text-sm">{a.assigned_at}</TD>
-                                            <TD className="text-sm">{a.unassigned_at ?? '—'}</TD>
+                                            <TD className="text-sm">{a.unassigned_at ?? '-'}</TD>
                                         </TR>
                                     ))
                                 )}

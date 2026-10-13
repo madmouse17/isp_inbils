@@ -4,10 +4,7 @@ type CardProps = React.HTMLAttributes<HTMLDivElement>;
 
 export function Card({ className, children, ...props }: CardProps) {
     return (
-        <div
-            className={cn('rounded-lg border bg-card text-card-foreground shadow-xs', className)}
-            {...props}
-        >
+        <div className={cn('rounded-lg border bg-card text-card-foreground', className)} {...props}>
             {children}
         </div>
     );
@@ -19,11 +16,14 @@ export function CardHeader({ className, ...props }: CardHeaderProps) {
     return <div className={cn('space-y-1.5 flex flex-col p-6', className)} {...props} />;
 }
 
-type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement>;
+type CardTitleProps = React.HTMLAttributes<HTMLHeadingElement> & {
+    /** Heading level of the title; h2 sits directly under the page's h1, nest deeper cards with h3. */
+    as?: 'h2' | 'h3' | 'h4' | 'p';
+};
 
-export function CardTitle({ className, ...props }: CardTitleProps) {
+export function CardTitle({ as: Tag = 'h2', className, ...props }: CardTitleProps) {
     return (
-        <h3
+        <Tag
             className={cn(
                 'text-lg leading-none font-semibold tracking-tight text-foreground',
                 className,

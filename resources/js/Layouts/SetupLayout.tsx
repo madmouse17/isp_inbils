@@ -1,47 +1,28 @@
 import { Head } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
 import { Button } from '@/Components/ui';
+import { Wordmark } from '@/Components/ui/Wordmark';
+import { useTheme } from '@/hooks/useTheme';
 
 interface SetupLayoutProps {
     title?: string;
     children: React.ReactNode;
 }
 
-export default function SetupLayout({ title = 'Setup', children }: SetupLayoutProps) {
-    const [darkMode, setDarkMode] = useState(
-        () =>
-            localStorage.getItem('darkMode') === 'true' ||
-            window.matchMedia('(prefers-color-scheme: dark)').matches,
-    );
-
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', darkMode);
-    }, [darkMode]);
-
-    const toggleDark = () => {
-        const enabled = !darkMode;
-        setDarkMode(enabled);
-        localStorage.setItem('darkMode', String(enabled));
-        document.documentElement.classList.toggle('dark', enabled);
-    };
+export default function SetupLayout({ title = 'Pengaturan awal', children }: SetupLayoutProps) {
+    const { dark, toggle } = useTheme();
 
     return (
         <>
             <Head title={title} />
             <main className="min-h-screen bg-muted/30 px-4 py-8 text-foreground sm:px-6 lg:px-8 dark:bg-background">
                 <div className="mx-auto flex max-w-3xl flex-col gap-6">
-                    <header className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-base font-bold text-primary-foreground">
-                                IN
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-muted-foreground">inbils</p>
-                                <h1 className="text-xl font-semibold">Initial Setup</h1>
-                            </div>
+                    <header className="flex items-center justify-between gap-4">
+                        <div>
+                            <Wordmark className="text-sm text-muted-foreground" />
+                            <h1 className="text-xl font-semibold">Pengaturan awal</h1>
                         </div>
-                        <Button type="button" variant="secondary" onClick={toggleDark}>
-                            {darkMode ? 'Light' : 'Dark'}
+                        <Button type="button" variant="secondary" onClick={toggle}>
+                            {dark ? 'Mode terang' : 'Mode gelap'}
                         </Button>
                     </header>
 

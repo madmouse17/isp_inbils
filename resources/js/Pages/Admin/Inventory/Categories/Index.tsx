@@ -109,7 +109,7 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
         {
             key: 'unit',
             header: 'Unit',
-            cell: (c) => (c.unit ? `${c.unit.name} (${c.unit.symbol})` : '—'),
+            cell: (c) => (c.unit ? `${c.unit.name} (${c.unit.symbol})` : '-'),
         },
         {
             key: 'children_count',
@@ -154,7 +154,7 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
                                 canExport={can.export}
                             />
                             {can.create && (
-                                <Button type="button" variant="success" onClick={openCreate}>
+                                <Button type="button" variant="primary" onClick={openCreate}>
                                     Create
                                 </Button>
                             )}
@@ -247,11 +247,7 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
                         >
                             Cancel
                         </Button>
-                        <Button
-                            type="submit"
-                            variant={editing ? 'default' : 'success'}
-                            loading={processing}
-                        >
+                        <Button type="submit" variant="primary" loading={processing}>
                             {editing ? 'Save' : 'Create'}
                         </Button>
                     </div>

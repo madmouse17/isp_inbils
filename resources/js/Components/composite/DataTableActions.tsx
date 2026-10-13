@@ -1,7 +1,15 @@
 import { Link, router } from '@inertiajs/react';
+import { MoreHorizontal } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button, buttonVariants } from '@/Components/ui/Button';
+import { IconButton } from '@/Components/ui/IconButton';
 import { Spinner } from '@/Components/ui/Spinner';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import {
     AlertDialog,
@@ -26,15 +34,17 @@ export interface DataTableActionsProps {
 }
 
 /**
- * Canonical row-action group: Show (brand), Edit (warning), Delete (danger).
- * Delete always confirms through an AlertDialog — never window.confirm.
+ * Canonical row actions: one ghost button for the main action (Ubah, or Lihat when the row cannot
+ * be edited) and an overflow menu for the rest (Lihat detail, Hapus). The row's name column links
+ * to the detail page, so the row stays one line and carries one accent. Delete lives only in the
+ * menu and always confirms through an AlertDialog, never window.confirm.
  *
  * Lifecycle contract: the delete request is OWNED by this component. The
- * dialog stays open and Cancel/Delete stay disabled while the request is
+ * dialog stays open and Batal/Hapus stay disabled while the request is
  * in flight; it only closes on success (via onDeleteSuccess the consumer can
  * sync any client-side state) and stays open on error so the user can retry.
- * Consumers MUST pass deleteHref (the route) — there is no onDelete prop:
- * a fire-and-forget callback cannot own the request lifecycle.
+ * Consumers MUST pass deleteHref (the route): there is no onDelete prop,
+ * because a fire-and-forget callback cannot own the request lifecycle.
  */
 export function DataTableActions({
     showHref,
@@ -42,7 +52,7 @@ export function DataTableActions({
     editHref,
     onEdit,
     deleteHref,
-    deleteMessage = 'Delete this item?',
+    deleteMessage = 'Hapus data ini?',
     deleteDescription,
     onDeleteSuccess,
 }: DataTableActionsProps) {
@@ -71,76 +81,97 @@ export function DataTableActions({
         });
     };
 
+    const hasShow = Boolean(showHref || onShow);
+    const hasEdit = Boolean(editHref || onEdit);
+    // The detail link moves into the menu when an edit button takes the visible slot.
+    const showInMenu = hasShow && hasEdit;
+    const mainHref = hasEdit ? editHref : showHref;
+    const mainClick = hasEdit ? onEdit : onShow;
+    const mainLabel = hasEdit ? 'Ubah' : 'Lihat';
+
     return (
-        <div className="flex flex-wrap gap-1">
-            {showHref ? (
-                <Button asChild variant="primary" size="sm">
-                    <Link href={showHref}>Show</Link>
-                </Button>
-            ) : onShow ? (
-                <Button type="button" variant="primary" size="sm" onClick={onShow}>
-                    Show
-                </Button>
-            ) : null}
-            {editHref ? (
-                <Button asChild variant="warning" size="sm">
-                    <Link href={editHref}>Edit</Link>
-                </Button>
-            ) : onEdit ? (
-                <Button type="button" variant="warning" size="sm" onClick={onEdit}>
-                    Edit
-                </Button>
-            ) : null}
-            {deleteHref ? (
-                <>
-                    <Button
-                        type="button"
-                        variant="danger"
-                        size="sm"
-                        onClick={() => setConfirmOpen(true)}
-                    >
-                        Delete
+        <div className="flex items-center gap-1">
+            {hasEdit || hasShow ? (
+                mainHref ? (
+                    <Button asChild variant="ghost" size="sm">
+                        <Link href={mainHref}>{mainLabel}</Link>
                     </Button>
-                    <AlertDialog
-                        open={confirmOpen}
-                        onOpenChange={(open) => {
-                            // While the request is in flight the dialog must
-                            // stay open: only the success path (or a user
-                            // cancel when idle) may close it.
-                            if (deleteInFlight.current && !open) return;
-                            setConfirmOpen(open);
-                        }}
-                    >
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>{deleteMessage}</AlertDialogTitle>
-                                {deleteDescription ? (
-                                    <AlertDialogDescription>
-                                        {deleteDescription}
-                                    </AlertDialogDescription>
-                                ) : null}
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel disabled={deleteProcessing}>
-                                    Cancel
-                                </AlertDialogCancel>
-                                <AlertDialogAction
-                                    className={cn(
-                                        buttonVariants({ variant: 'destructive' }),
-                                        'gap-2',
-                                    )}
-                                    onClick={(event) => {
-                                        event.preventDefault();
-                                        confirmDelete();
-                                    }}
-                                    disabled={deleteProcessing}
-                                >
-                                    {deleteProcessing ? <Spinner size="sm" /> : null}
-                                    Delete
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
+                ) : (
+                    <Button type="button" variant="ghost" size="sm" onClick={mainClick}>
+                        {mainLabel}
+                    </Button>
+                )
+            ) : null}
+            {showInMenu || deleteHref ? (
+                <>
+                    {/* Not modal: a modal menu and the confirm dialog would both lock the page and leave it locked. */}
+                    <DropdownMenu modal={false}>
+                        <DropdownMenuTrigger asChild>
+                            <IconButton label="Aksi lainnya" variant="ghost" size="sm">
+                                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                            </IconButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {showInMenu ? (
+                                showHref ? (
+                                    <DropdownMenuItem asChild>
+                                        <Link href={showHref}>Lihat detail</Link>
+                                    </DropdownMenuItem>
+                                ) : (
+                                    <DropdownMenuItem onSelect={onShow}>
+                                        Lihat detail
+                                    </DropdownMenuItem>
+                                )
+                            ) : null}
+                            {deleteHref ? (
+                                <DropdownMenuItem destructive onSelect={() => setConfirmOpen(true)}>
+                                    Hapus
+                                </DropdownMenuItem>
+                            ) : null}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                    {deleteHref ? (
+                        <AlertDialog
+                            open={confirmOpen}
+                            onOpenChange={(open) => {
+                                // While the request is in flight the dialog must
+                                // stay open: only the success path (or a user
+                                // cancel when idle) may close it.
+                                if (deleteInFlight.current && !open) return;
+                                setConfirmOpen(open);
+                            }}
+                        >
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>{deleteMessage}</AlertDialogTitle>
+                                    {deleteDescription ? (
+                                        <AlertDialogDescription>
+                                            {deleteDescription}
+                                        </AlertDialogDescription>
+                                    ) : null}
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel disabled={deleteProcessing}>
+                                        Batal
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                        className={cn(
+                                            buttonVariants({ variant: 'destructive' }),
+                                            'gap-2',
+                                        )}
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            confirmDelete();
+                                        }}
+                                        disabled={deleteProcessing}
+                                    >
+                                        {deleteProcessing ? <Spinner size="sm" /> : null}
+                                        Hapus
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    ) : null}
                 </>
             ) : null}
         </div>

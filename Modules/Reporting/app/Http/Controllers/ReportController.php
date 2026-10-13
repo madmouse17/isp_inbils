@@ -5,6 +5,7 @@ namespace Modules\Reporting\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Services\Core\CompanyService;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +25,7 @@ use Modules\Reporting\Queries\TechnicianPerformanceQuery;
 use Modules\Reporting\Registry\MetricRegistry;
 use Modules\Reporting\Registry\ReportType;
 use Modules\Reporting\Services\TechnicianReportAccess;
+use Modules\Service\Models\ServicePackageCategory;
 
 class ReportController extends Controller
 {
@@ -37,6 +39,12 @@ class ReportController extends Controller
         ]);
     }
 
+    /** @return Collection<int, ServicePackageCategory> */
+    private function packageCategories(): Collection
+    {
+        return ServicePackageCategory::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'code', 'name', 'is_active']);
+    }
+
     public function business(ReportFilterRequest $request): InertiaResponse
     {
         $filters = ReportFilters::fromRequest($request);
@@ -45,7 +53,8 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports/Business', [
             'data' => $data,
             'charts' => $filters->charts(ReportType::Business, $data),
-            'filters' => $request->only(['date_from', 'date_to']),
+            'filters' => $request->only(['date_from', 'date_to', 'service_package_category_id']),
+            'packageCategories' => $this->packageCategories(),
             'meta' => MetricRegistry::meta(ReportType::Business),
             ...$this->exportAndDrill($request, ReportType::Business, $filters),
         ]);
@@ -69,6 +78,7 @@ class ReportController extends Controller
             $acquirerId,
             $sortBy,
             $sortDir,
+            $request->integer('service_package_category_id') ?: null,
         );
 
         return Inertia::render('Admin/Reports/Sales', [
@@ -85,10 +95,12 @@ class ReportController extends Controller
             ],
             'charts' => SalesKpiQuery::charts($report, $companyId, $request->dateFrom(), $request->dateTo(), $acquirerId),
             'acquirers' => $report['acquirers'],
+            'packageCategories' => $this->packageCategories(),
             'filters' => [
                 'date_from' => $request->input('date_from'),
                 'date_to' => $request->input('date_to'),
                 'acquirer_id' => $request->input('acquirer_id'),
+                'service_package_category_id' => $request->input('service_package_category_id'),
                 'sort_by' => $sortBy,
                 'sort_dir' => $sortDir,
                 'per_page' => $perPage,

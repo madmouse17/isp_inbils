@@ -21,7 +21,7 @@ import {
     type CustomerHistoryAccess,
     type DataTableColumn,
 } from '@/Components/composite';
-import { ToneBadge, type BadgeTone } from '@/Components/composite/ToneBadge';
+import type { BadgeVariant } from '@/Components/ui/Badge';
 import { CustomerStatusBadge } from '@/lib/customerStatus';
 import { formatDate, formatDateTime } from '@/lib/format';
 import type { Customer } from '@/types/models';
@@ -63,8 +63,8 @@ const skipReasonLabels: Record<string, string> = {
     budget_exceeded: 'Batas pesan bulanan tercapai',
 };
 
-const statusBadges: Record<WhatsAppStatus, { tone: BadgeTone; label: string }> = {
-    queued: { tone: 'secondary', label: 'Antrean' },
+const statusBadges: Record<WhatsAppStatus, { tone: BadgeVariant; label: string }> = {
+    queued: { tone: 'neutral', label: 'Antrean' },
     sent: { tone: 'info', label: 'Terkirim' },
     delivered: { tone: 'success', label: 'Diterima' },
     read: { tone: 'success', label: 'Dibaca' },
@@ -86,15 +86,13 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
                 ? 'Akun portal'
                 : row.subject_type && row.subject_id !== null
                   ? `${subjectLabels[row.subject_type] ?? row.subject_type} #${row.subject_id}`
-                  : '—',
+                  : '-',
     },
     {
         key: 'status',
         header: 'Status',
         cell: (row) => (
-            <ToneBadge tone={statusBadges[row.status].tone}>
-                {statusBadges[row.status].label}
-            </ToneBadge>
+            <Badge variant={statusBadges[row.status].tone}>{statusBadges[row.status].label}</Badge>
         ),
     },
     {
@@ -106,7 +104,7 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
             ) : row.error_code ? (
                 <span className="font-mono">Kode galat {row.error_code}</span>
             ) : (
-                '—'
+                '-'
             ),
     },
     {
@@ -116,7 +114,7 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
             row.recipient_last4 ? (
                 <span className="font-mono">••••{row.recipient_last4}</span>
             ) : (
-                '—'
+                '-'
             ),
     },
     {
@@ -128,18 +126,14 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
 
 function ConsentBadge({ whatsapp }: { whatsapp: CustomerWhatsApp }) {
     if (whatsapp.opted_in) {
-        return (
-            <ToneBadge tone="success">Setuju sejak {formatDate(whatsapp.opted_in_at)}</ToneBadge>
-        );
+        return <Badge variant="success">Setuju sejak {formatDate(whatsapp.opted_in_at)}</Badge>;
     }
 
     if (whatsapp.opted_out_at) {
-        return (
-            <ToneBadge tone="warning">Berhenti sejak {formatDate(whatsapp.opted_out_at)}</ToneBadge>
-        );
+        return <Badge variant="warning">Berhenti sejak {formatDate(whatsapp.opted_out_at)}</Badge>;
     }
 
-    return <ToneBadge tone="secondary">Belum setuju</ToneBadge>;
+    return <Badge variant="neutral">Belum setuju</Badge>;
 }
 
 export default function Show({
@@ -184,7 +178,7 @@ export default function Show({
                             ) : null}
                             <Button
                                 type="button"
-                                variant="warning"
+                                variant="outline"
                                 onClick={() => router.get(route('admin.customers.edit', c.id))}
                             >
                                 Edit

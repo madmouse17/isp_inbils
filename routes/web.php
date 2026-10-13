@@ -4,18 +4,10 @@ use App\Http\Controllers\AppOnlyController;
 use App\Http\Controllers\Operations\ReadinessController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Setup\SetupWizardController;
-use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Inertia\Inertia;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+Route::get('/', fn () => redirect()->route(Auth::check() ? 'admin.dashboard' : 'login'));
 
 // Fallback dashboard redirect to admin dashboard
 Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'))

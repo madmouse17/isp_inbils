@@ -37,7 +37,7 @@ class DispatchItemResource extends JsonResource
                     ? ['id' => $ticket->assignee->id, 'name' => $ticket->assignee->name]
                     : null,
                 'submitted_at' => $ticket->created_at?->toISOString(),
-                'age_seconds' => $ticket->created_at ? max(0, now()->diffInSeconds($ticket->created_at)) : null,
+                'age_seconds' => $ticket->created_at ? max(0, (int) $ticket->created_at->diffInSeconds(now())) : null,
                 'due_at' => $ticket->sla_deadline?->toISOString(),
                 'sla_breached' => (bool) $ticket->is_sla_breached,
                 'updated_at' => $ticket->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
@@ -78,7 +78,7 @@ class DispatchItemResource extends JsonResource
                     ? ['id' => $wo->assignee->id, 'name' => $wo->assignee->name]
                     : null,
                 'submitted_at' => $wo->created_at?->toISOString(),
-                'age_seconds' => $wo->created_at ? max(0, now()->diffInSeconds($wo->created_at)) : null,
+                'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,
                 'scheduled_date' => $wo->scheduled_date?->toDateString(),
                 'updated_at' => $wo->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
                 'summary' => [

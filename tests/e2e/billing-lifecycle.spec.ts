@@ -152,7 +152,7 @@ async function openDraftInvoice(page: import('@playwright/test').Page, customerN
         .filter({ hasText: 'Draft' })
         .first();
     await expect(row).toBeVisible({ timeout: 15_000 });
-    await row.getByRole('link', { name: 'Show' }).click();
+    await row.getByRole('link', { name: 'Lihat', exact: true }).click();
 }
 
 /**

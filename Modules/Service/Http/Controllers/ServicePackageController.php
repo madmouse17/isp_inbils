@@ -21,6 +21,7 @@ use Modules\Service\Http\Resources\SLATierResource;
 use Modules\Service\Http\Resources\SpeedProfileResource;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -40,7 +41,8 @@ class ServicePackageController extends Controller
         return Inertia::render('Admin/Service/Packages/Index', [
             'servicePackages' => ServicePackageResource::collection($packages),
             'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->get()),
-            'filters' => $request->only(['is_active', 'sla_tier_id', 'search', 'sort', 'direction', 'per_page']),
+            'packageCategories' => ServicePackageCategory::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'code', 'name', 'is_active']),
+            'filters' => $request->only(['is_active', 'sla_tier_id', 'service_package_category_id', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
                 'export' => (bool) $request->user()?->can('service.export'),
@@ -68,7 +70,7 @@ class ServicePackageController extends Controller
         Gate::authorize('view', $servicePackage);
 
         return Inertia::render('Admin/Service/Packages/Show', [
-            'servicePackage' => new ServicePackageResource($servicePackage->load(['bandwidthProfile', 'speedProfile', 'slaTier'])),
+            'servicePackage' => new ServicePackageResource($servicePackage->load(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])),
         ]);
     }
 
@@ -77,8 +79,8 @@ class ServicePackageController extends Controller
         Gate::authorize('edit', $servicePackage);
 
         return Inertia::render('Admin/Service/Packages/Edit', [
-            'servicePackage' => new ServicePackageResource($servicePackage->load(['bandwidthProfile', 'speedProfile', 'slaTier'])),
-            ...$this->formOptions(),
+            'servicePackage' => new ServicePackageResource($servicePackage->load(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])),
+            ...$this->formOptions($servicePackage),
         ]);
     }
 
@@ -126,6 +128,7 @@ class ServicePackageController extends Controller
             'bandwidth_profile' => 'Bandwidth',
             'speed_profile' => 'Speed',
             'sla_tier' => 'SLA',
+            'category' => 'Kategori',
             'price_mrc' => 'MRC',
             'price_otc' => 'OTC',
             'is_active' => 'Status',
@@ -137,6 +140,7 @@ class ServicePackageController extends Controller
             'bandwidth_profile' => $package->bandwidthProfile?->name ?? '-',
             'speed_profile' => $package->speedProfile?->name ?? '-',
             'sla_tier' => $package->slaTier?->name ?? '-',
+            'category' => $package->category?->name ?? '-',
             'price_mrc' => $package->price_mrc,
             'price_otc' => $package->price_otc,
             'is_active' => $package->is_active ? 'Active' : 'Inactive',
@@ -152,12 +156,18 @@ class ServicePackageController extends Controller
     }
 
     /** @return array<string, mixed> */
-    private function formOptions(): array
+    private function formOptions(?ServicePackage $package = null): array
     {
         return [
             'bandwidthProfiles' => BandwidthProfileResource::collection(BandwidthProfile::query()->where('is_active', true)->orderBy('name')->get()),
             'speedProfiles' => SpeedProfileResource::collection(SpeedProfile::query()->where('is_active', true)->orderBy('name')->get()),
             'slaTiers' => SLATierResource::collection(SLATier::query()->where('is_active', true)->orderBy('name')->get()),
+            // An inactive category stays selectable only for the package that already has it.
+            'packageCategories' => ServicePackageCategory::query()
+                ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $package?->service_package_category_id))
+                ->orderBy('sort_order')
+                ->orderBy('id')
+                ->get(['id', 'code', 'name', 'is_active']),
         ];
     }
 
@@ -165,9 +175,10 @@ class ServicePackageController extends Controller
     private function filteredQuery(Request $request): Builder
     {
         return ServicePackage::query()
-            ->with(['bandwidthProfile', 'speedProfile', 'slaTier'])
+            ->with(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])
             ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
             ->when($request->filled('sla_tier_id'), fn (Builder $query) => $query->where('sla_tier_id', $request->integer('sla_tier_id')))
+            ->when($request->filled('service_package_category_id'), fn (Builder $query) => $query->where('service_package_category_id', $request->integer('service_package_category_id')))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

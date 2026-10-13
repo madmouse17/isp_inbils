@@ -120,29 +120,27 @@ const roleExpectations: Record<
     },
 };
 
-test('@kanban-t_525dca8a landing hydrates and exposes login only', async ({ page }) => {
-    const response = await page.goto('/');
+test('@kanban-t_525dca8a landing sends guests to the login page', async ({ page }) => {
+    await page.goto('/');
 
-    expect(response?.status()).toBe(200);
-    await expect(page.locator('body')).not.toBeEmpty();
-    await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
+    await expect(page).toHaveURL(/\/login$/);
+    await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Register' })).toHaveCount(0);
 });
 
 test('@kanban-t_525dca8a login link navigates and invalid credentials show error', async ({
     page,
 }) => {
-    await page.goto('/');
-    await page.getByRole('link', { name: 'Log in' }).click();
+    await page.goto('/login');
 
     await expect(page).toHaveURL(/\/login$/);
-    await expect(page.getByRole('heading', { name: 'Log in to admin' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Masuk' })).toBeVisible();
 
     await page.getByLabel('Email').fill('nobody@example.test');
-    await page.getByLabel('Password').fill('wrong-password');
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill('wrong-password');
+    await page.getByRole('button', { name: 'Masuk' }).click();
 
-    await expect(page.getByText('These credentials do not match our records.')).toBeVisible();
+    await expect(page.getByText('Email atau kata sandi salah.')).toBeVisible();
 });
 
 test('@kanban-t_525dca8a register endpoint stays unavailable', async ({ page }) => {
@@ -170,7 +168,7 @@ test('@kanban-t_525dca8a seeded demo roles can login and see permitted shell', a
                 page.getByRole('main').getByRole('heading', { name: 'Gunakan aplikasi Inbils' }),
             ).toBeVisible();
             await page.getByRole('button', { name: 'Keluar' }).click();
-            await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
+            await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
             continue;
         }
 
@@ -202,7 +200,7 @@ test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page
 
     await expect(page.locator('html')).not.toHaveClass(/dark/);
     await openUserMenu(page);
-    await page.getByRole('menuitem', { name: 'Dark mode', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Mode gelap', exact: true }).click();
 
     await expect(page.locator('html')).toHaveClass(/dark/);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('darkMode'))).toBe('true');
@@ -215,8 +213,8 @@ test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page
 async function login(page: Page, demoUser: DemoUser) {
     await page.goto('/login');
     await page.getByLabel('Email').fill(demoUser.email);
-    await page.getByLabel('Password').fill(demoPassword!);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill(demoPassword!);
+    await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(isAppOnly(demoUser.role) ? /\/app-only$/ : /\/admin\/dashboard$/);
 }
 
@@ -228,12 +226,12 @@ async function logout(page: Page) {
     // AdminLayout moved Logout into the user dropdown menu (Radix), so open
     // the menu first and activate the menuitem instead of a page-level button.
     await openUserMenu(page);
-    await page.getByRole('menuitem', { name: 'Logout', exact: true }).click();
-    await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
+    await page.getByRole('menuitem', { name: 'Keluar', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Masuk' })).toBeVisible();
 }
 
 async function openUserMenu(page: Page) {
-    await page.getByRole('button', { name: 'Open user menu' }).click();
+    await page.getByRole('button', { name: 'Menu pengguna' }).click();
 }
 
 async function expectShellFor(page: Page, demoUser: DemoUser) {

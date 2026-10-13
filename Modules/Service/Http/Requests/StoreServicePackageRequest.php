@@ -24,6 +24,7 @@ class StoreServicePackageRequest extends FormRequest
             'bandwidth_profile_id' => ['required', 'integer', Rule::exists('bandwidth_profiles', 'id')->where('company_id', $companyId)],
             'speed_profile_id' => ['required', 'integer', Rule::exists('speed_profiles', 'id')->where('company_id', $companyId)],
             'sla_tier_id' => ['required', 'integer', Rule::exists('sla_tiers', 'id')->where('company_id', $companyId)],
+            'service_package_category_id' => ['required', 'integer', Rule::exists('service_package_categories', 'id')->where('company_id', $companyId)->where('is_active', true)],
             'price_mrc' => ['required', 'numeric', 'min:0'],
             'price_otc' => ['sometimes', 'numeric', 'min:0'],
             'contract_min_months' => ['sometimes', 'integer', 'min:0'],

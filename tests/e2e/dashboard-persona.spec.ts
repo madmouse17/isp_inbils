@@ -126,11 +126,11 @@ test('@dashboard-persona admin block contents visible only for admin', async ({ 
     await expect(adminRegion).toBeVisible();
 
     await expect(adminRegion.getByText('Pengguna', { exact: true })).toBeVisible();
-    await expect(adminRegion.getByRole('heading', { name: 'Perusahaan', level: 3 })).toBeVisible();
+    await expect(adminRegion.getByRole('heading', { name: 'Perusahaan', level: 2 })).toBeVisible();
     await expect(
-        adminRegion.getByRole('heading', { name: 'Aktivitas terbaru', level: 3 }),
+        adminRegion.getByRole('heading', { name: 'Aktivitas terbaru', level: 2 }),
     ).toBeVisible();
-    await expect(adminRegion.getByRole('heading', { name: 'Modul', level: 3 })).toBeVisible();
+    await expect(adminRegion.getByRole('heading', { name: 'Modul', level: 2 })).toBeVisible();
 
     // Check one module link exists
     await expect(adminRegion.getByRole('link').first()).toBeVisible();

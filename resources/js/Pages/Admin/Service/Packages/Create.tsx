@@ -24,12 +24,19 @@ interface CreateProps extends Record<string, unknown> {
     bandwidthProfiles: { data: OptRow[] };
     speedProfiles: { data: OptRow[] };
     slaTiers: { data: OptRow[] };
+    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
 }
 
-export default function Create({ bandwidthProfiles, speedProfiles, slaTiers }: CreateProps) {
+export default function Create({
+    bandwidthProfiles,
+    speedProfiles,
+    slaTiers,
+    packageCategories,
+}: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         code: '',
         name: '',
+        service_package_category_id: '',
         bandwidth_profile_id: '',
         speed_profile_id: '',
         sla_tier_id: '',
@@ -82,6 +89,22 @@ export default function Create({ bandwidthProfiles, speedProfiles, slaTiers }: C
                                 error={errors.name}
                                 required
                             />
+                            <NativeSelect
+                                label="Kategori"
+                                value={data.service_package_category_id}
+                                onChange={(e) =>
+                                    setData('service_package_category_id', e.target.value)
+                                }
+                                error={errors.service_package_category_id}
+                                required
+                            >
+                                <option value="">Pilih kategori...</option>
+                                {packageCategories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.name}
+                                    </option>
+                                ))}
+                            </NativeSelect>
                             <NativeSelect
                                 label="Bandwidth Profile"
                                 value={data.bandwidth_profile_id}
@@ -167,7 +190,7 @@ export default function Create({ bandwidthProfiles, speedProfiles, slaTiers }: C
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" variant="primary" loading={processing}>
                             Create
                         </Button>
                     </div>

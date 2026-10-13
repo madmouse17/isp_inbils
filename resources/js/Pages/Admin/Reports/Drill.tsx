@@ -90,7 +90,7 @@ export default function Drill({
         cell: (row) => {
             const value = row[column.key];
             const text =
-                value === null || value === undefined || value === '' ? '—' : String(value);
+                value === null || value === undefined || value === '' ? '-' : String(value);
 
             return index === 0 && row.url ? (
                 <Link
@@ -189,7 +189,7 @@ export default function Drill({
                                     Figure on {report.title}
                                 </dt>
                                 <dd className="text-2xl font-bold wrap-break-word">
-                                    {tieOut.figure ?? '—'}
+                                    {tieOut.figure ?? '-'}
                                     {tieOut.measure === 'share' ? '%' : ''}
                                 </dd>
                             </div>

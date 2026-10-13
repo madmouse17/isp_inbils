@@ -80,29 +80,29 @@ final class DrillRegistry
         return [
             // Business
             new DrillSource($business, 'mrr', 'MRR', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'active'),
+                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'active', $f->packageCategoryId),
                 Measure::Sum, sum: ['mrc_amount']),
             new DrillSource($business, 'active_subscriptions', 'Active subscriptions', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'active')),
+                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'active', $f->packageCategoryId)),
             new DrillSource($business, 'suspended_subscriptions', 'Suspended subscriptions', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'suspended')),
+                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'suspended', $f->packageCategoryId)),
             new DrillSource($business, 'terminated_subscriptions', 'Terminated subscriptions', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'terminated')),
+                fn (ReportFilters $f) => BusinessSources::subscriptionsInStatus($f->companyId, 'terminated', $f->packageCategoryId)),
             new DrillSource($business, 'new_subscriptions', 'New subscriptions', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::newSubscriptions($f->companyId, $f->dateFrom, $f->dateTo)),
+                fn (ReportFilters $f) => BusinessSources::newSubscriptions($f->companyId, $f->dateFrom, $f->dateTo, packageCategoryId: $f->packageCategoryId)),
             new DrillSource($business, 'churn', 'Churn', DrillKind::Subscription,
-                fn (ReportFilters $f) => BusinessSources::churn($f->companyId, $f->dateFrom, $f->dateTo)),
+                fn (ReportFilters $f) => BusinessSources::churn($f->companyId, $f->dateFrom, $f->dateTo, packageCategoryId: $f->packageCategoryId)),
             new DrillSource($business, 'revenue_paid', 'Revenue (Paid)', DrillKind::Invoice,
-                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo),
+                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo, packageCategoryId: $f->packageCategoryId),
                 Measure::Sum, sum: ['paid_amount']),
             new DrillSource($business, 'recurring_revenue', 'Recurring revenue', DrillKind::Invoice,
-                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo, 'recurring'),
+                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo, 'recurring', $f->packageCategoryId),
                 Measure::Sum, sum: ['paid_amount']),
             new DrillSource($business, 'one_time_revenue', 'One-time revenue', DrillKind::Invoice,
-                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo, 'one_time'),
+                fn (ReportFilters $f) => BusinessSources::paidInvoices($f->companyId, $f->dateFrom, $f->dateTo, 'one_time', $f->packageCategoryId),
                 Measure::Sum, sum: ['paid_amount']),
             new DrillSource($business, 'outstanding', 'Outstanding', DrillKind::Invoice,
-                fn (ReportFilters $f) => BusinessSources::outstandingInvoices($f->companyId),
+                fn (ReportFilters $f) => BusinessSources::outstandingInvoices($f->companyId, $f->packageCategoryId),
                 Measure::Sum, sum: ['total', 'paid_amount'], reconcile: self::receivables(...)),
             new DrillSource($business, 'asset_distribution', 'Asset distribution', DrillKind::Asset,
                 fn (ReportFilters $f) => AssetSources::assets($f->companyId)->where('status', (string) $f->group),
@@ -111,7 +111,7 @@ final class DrillRegistry
                 fn (ReportFilters $f) => SlaSources::resolved($f->companyId),
                 Measure::Share, onTime: SlaSources::onTime(...)),
             new DrillSource($business, 'installation_count', 'Installations completed', DrillKind::WorkOrder,
-                fn (ReportFilters $f) => BusinessSources::completedInstallations($f->companyId, $f->dateFrom, $f->dateTo)),
+                fn (ReportFilters $f) => BusinessSources::completedInstallations($f->companyId, $f->dateFrom, $f->dateTo, packageCategoryId: $f->packageCategoryId)),
 
             // SLA
             new DrillSource($sla, 'total_resolved', 'Resolved tickets', DrillKind::Ticket,
@@ -212,7 +212,8 @@ final class DrillRegistry
      */
     private static function receivables(ReportFilters $filters, User $actor): ?array
     {
-        if (! $actor->can('viewAny', Invoice::class)) {
+        // Billing's Receivables page has no category filter, so a filtered figure has nothing to reconcile with.
+        if ($filters->packageCategoryId !== null || ! $actor->can('viewAny', Invoice::class)) {
             return null;
         }
 

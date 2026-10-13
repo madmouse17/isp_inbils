@@ -24,6 +24,9 @@ use App\Http\Controllers\Admin\SubscriptionController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\UserTwoFactorResetController;
 use App\Http\Controllers\Admin\VehicleController;
+use App\Models\Core\Location;
+use App\Support\SearchOptions;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -61,13 +64,22 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
         Route::delete('/{location}', [LocationController::class, 'destroy'])->name('destroy');
     });
 
-    Route::get('components', function () {
+    Route::get('components', function (Request $request) {
         // Developer-only gallery. Fail-closed by default: not even an admin
-        // may open it outside a non-production environment. No secrets or
-        // debug payloads live here, so 404 keeps the route obscure.
-        abort_unless(app()->environment(['local', 'testing']), 404);
+        // may open it in production or staging. No secrets or debug payloads
+        // live here, so 404 keeps the route obscure. `e2e` is the Playwright
+        // environment, which exercises the pickers on this page.
+        abort_unless(app()->environment(['local', 'testing', 'e2e']), 404);
 
-        return Inertia::render('Admin/Components');
+        return Inertia::render('Admin/Components', [
+            'demoOptions' => SearchOptions::for(
+                $request,
+                'demo',
+                Location::query(),
+                ['name', 'code'],
+                fn (Location $location): array => ['value' => $location->id, 'label' => $location->name, 'description' => $location->code],
+            ),
+        ]);
     })->middleware('can:developer.components.view')->name('components');
 
     // Customer management

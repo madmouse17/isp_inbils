@@ -1,8 +1,7 @@
 import { Link } from '@inertiajs/react';
-import { Card } from '@/Components/ui';
+import { Badge, Card } from '@/Components/ui';
 import { formatDateTime } from '@/lib/format';
 import type { DashboardNotification } from '@/types/dashboard';
-import { ToneBadge } from './ToneBadge';
 
 interface NotificationsCardProps {
     items: DashboardNotification[];
@@ -19,7 +18,11 @@ export function NotificationsCard({ items }: NotificationsCardProps) {
                         <li key={item.id} className="space-y-1 p-4">
                             <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-sm font-medium text-foreground">{item.title}</p>
-                                {!item.read_at && <ToneBadge tone="info">Belum dibaca</ToneBadge>}
+                                {!item.read_at && (
+                                    <Badge variant="info" className="shrink-0 whitespace-nowrap">
+                                        Belum dibaca
+                                    </Badge>
+                                )}
                             </div>
                             <p className="text-sm wrap-break-word text-muted-foreground">
                                 {item.message}

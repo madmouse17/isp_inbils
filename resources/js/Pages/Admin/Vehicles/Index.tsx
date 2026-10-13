@@ -75,7 +75,7 @@ export default function Index({ vehicles }: IndexProps) {
                     title="Kendaraan"
                     subtitle="Technician transport."
                     actions={
-                        <Button type="button" variant="success" onClick={openCreate}>
+                        <Button type="button" variant="primary" onClick={openCreate}>
                             Add Vehicle
                         </Button>
                     }
@@ -185,11 +185,7 @@ export default function Index({ vehicles }: IndexProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

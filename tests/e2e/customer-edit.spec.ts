@@ -45,7 +45,7 @@ test('@customer-edit tabs are accessible, forms never nest, scalar save is isola
     await page.getByLabel('Email').fill('not-an-email');
     await page.getByRole('button', { name: 'Save Customer' }).click();
     await expect(page.getByLabel('Name')).toHaveValue(name);
-    await expect(page.getByText(/valid email/i)).toBeVisible();
+    await expect(page.getByText(/alamat email yang valid/i)).toBeVisible();
 
     await page.getByLabel('Email').fill(`${unique('customer').toLowerCase()}@example.test`);
     const save = page.getByRole('button', { name: 'Save Customer' });
@@ -86,44 +86,44 @@ test('@customer-edit address and contact CRUD preserve invariant A and support m
     // textarea (the map mode-toggle "Address" is a button, not a label).
     await page.getByLabel('Address *', { exact: true }).fill('QA disposable address');
 
-    await page.getByRole('button', { name: 'Lat / Long' }).click();
+    await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
     // Editable coordinates: -6.210 / 106.820 (Jakarta)
-    await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
-    await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
-    await page.getByRole('button', { name: 'Find' }).click();
-    await expect(page.getByLabel('Latitude *', { exact: true })).toHaveValue('-6.2100000');
+    await page.getByLabel('Lintang', { exact: true }).fill('-6.2100000');
+    await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
+    await page.getByRole('button', { name: 'Cari', exact: true }).click();
+    await expect(page.getByLabel('Lintang *', { exact: true })).toHaveValue('-6.2100000');
 
     await context.grantPermissions(['geolocation'], { origin: 'http://127.0.0.1:8010' });
     await context.setGeolocation({ latitude: -6.22, longitude: 106.83 });
-    await page.getByRole('button', { name: 'Current Location' }).click();
-    await expect(page.getByLabel('Latitude *', { exact: true })).toHaveValue('-6.2200000');
+    await page.getByRole('button', { name: 'Lokasi saat ini' }).click();
+    await expect(page.getByLabel('Lintang *', { exact: true })).toHaveValue('-6.2200000');
 
-    const map = page.getByLabel('Map for selecting customer address coordinates');
+    const map = page.getByLabel('Peta untuk memilih koordinat alamat');
     await map.click({ position: { x: 300, y: 220 } });
-    await expect(page.getByLabel('Latitude *', { exact: true })).not.toHaveValue('-6.2200000');
+    await expect(page.getByLabel('Lintang *', { exact: true })).not.toHaveValue('-6.2200000');
 
-    // Region cascade: Province -> City -> District -> Village. Each SearchSelect
-    // is a combobox that lists options while focused; children are disabled
-    // until their parent is chosen.
+    // Region cascade: Provinsi -> Kota / Kabupaten -> Kecamatan -> Kelurahan / Desa. Each
+    // SearchSelect is a combobox that opens on click and lists role=option items in a popover;
+    // children are disabled until their parent is chosen.
     const regionCombobox = (label: string) => page.getByLabel(label, { exact: true });
-    await regionCombobox('Province *').click();
+    await regionCombobox('Provinsi *').click();
     await page
-        .getByRole('button', { name: /jakarta/i })
+        .getByRole('option', { name: /jakarta/i })
         .first()
         .click();
-    await regionCombobox('City / Regency *').click();
+    await regionCombobox('Kota / Kabupaten *').click();
     await page
-        .getByRole('button', { name: /jakarta pusat/i })
+        .getByRole('option', { name: /jakarta pusat/i })
         .first()
         .click();
-    await regionCombobox('District *').click();
+    await regionCombobox('Kecamatan *').click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
-    await regionCombobox('Village / Subdistrict *').click();
+    await regionCombobox('Kelurahan / Desa *').click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
 

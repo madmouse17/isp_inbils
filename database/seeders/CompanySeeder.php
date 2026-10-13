@@ -8,11 +8,13 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Modules\Service\Models\ServicePackageCategory;
 
 class CompanySeeder extends Seeder
 {
@@ -49,6 +51,7 @@ class CompanySeeder extends Seeder
                 $this->seedTicketCategories($company);
                 $this->seedSlaTiers($company);
                 $this->seedLocations($company);
+                $this->seedPackageCategories($company);
                 $this->seedBandwidthProfiles($company);
                 $this->seedSpeedProfiles($company);
                 $this->seedServicePackages($company);
@@ -198,6 +201,13 @@ class CompanySeeder extends Seeder
         }
     }
 
+    private function seedPackageCategories(Company $company): void
+    {
+        if (Schema::hasTable('service_package_categories')) {
+            ServicePackageCategory::ensureDefaults((int) $company->id);
+        }
+    }
+
     private function seedServicePackages(Company $company): void
     {
         if (! Schema::hasTable('service_packages')) {
@@ -211,25 +221,27 @@ class CompanySeeder extends Seeder
         $bwIds = DB::table('bandwidth_profiles')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
         $spIds = DB::table('speed_profiles')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
         $slaIds = DB::table('sla_tiers')->where('company_id', $company->id)->orderBy('id')->pluck('id')->toArray();
+        $categoryIds = DB::table('service_package_categories')->where('company_id', $company->id)->pluck('id', 'code');
 
         $packages = [
-            ['code' => 'PKG-HOME-10', 'name' => 'Home 10Mbps', 'price_mrc' => 150000, 'price_otc' => 250000, 'contract_min_months' => 12],
-            ['code' => 'PKG-HOME-20', 'name' => 'Home 20Mbps', 'price_mrc' => 250000, 'price_otc' => 300000, 'contract_min_months' => 12],
-            ['code' => 'PKG-HOME-50', 'name' => 'Home 50Mbps', 'price_mrc' => 350000, 'price_otc' => 350000, 'contract_min_months' => 12],
-            ['code' => 'PKG-BIZ-100', 'name' => 'Business 100Mbps', 'price_mrc' => 750000, 'price_otc' => 500000, 'contract_min_months' => 24],
-            ['code' => 'PKG-BIZ-200', 'name' => 'Business 200Mbps', 'price_mrc' => 1500000, 'price_otc' => 750000, 'contract_min_months' => 24],
-            ['code' => 'PKG-HOME-20-PROMO', 'name' => 'Home 20Mbps Promo', 'price_mrc' => 199000, 'price_otc' => 0, 'contract_min_months' => 6],
-            ['code' => 'PKG-BIZ-100-GOLD', 'name' => 'Business 100Mbps Gold', 'price_mrc' => 950000, 'price_otc' => 500000, 'contract_min_months' => 24],
-            ['code' => 'PKG-TRIAL', 'name' => 'Trial 5Mbps', 'price_mrc' => 50000, 'price_otc' => 0, 'contract_min_months' => 0],
+            ['code' => 'PKG-HOME-10', 'name' => 'Home 10Mbps', 'price_mrc' => 150000, 'price_otc' => 250000, 'contract_min_months' => 12, 'category' => 'RUMAHAN'],
+            ['code' => 'PKG-HOME-20', 'name' => 'Home 20Mbps', 'price_mrc' => 250000, 'price_otc' => 300000, 'contract_min_months' => 12, 'category' => 'RUMAHAN'],
+            ['code' => 'PKG-HOME-50', 'name' => 'Home 50Mbps', 'price_mrc' => 350000, 'price_otc' => 350000, 'contract_min_months' => 12, 'category' => 'RUMAHAN'],
+            ['code' => 'PKG-BIZ-100', 'name' => 'Business 100Mbps', 'price_mrc' => 750000, 'price_otc' => 500000, 'contract_min_months' => 24, 'category' => 'BISNIS'],
+            ['code' => 'PKG-BIZ-200', 'name' => 'Business 200Mbps', 'price_mrc' => 1500000, 'price_otc' => 750000, 'contract_min_months' => 24, 'category' => 'BISNIS'],
+            ['code' => 'PKG-HOME-20-PROMO', 'name' => 'Home 20Mbps Promo', 'price_mrc' => 199000, 'price_otc' => 0, 'contract_min_months' => 6, 'category' => 'RUMAHAN'],
+            ['code' => 'PKG-BIZ-100-GOLD', 'name' => 'Business 100Mbps Gold', 'price_mrc' => 950000, 'price_otc' => 500000, 'contract_min_months' => 24, 'category' => 'BISNIS'],
+            ['code' => 'PKG-TRIAL', 'name' => 'Trial 5Mbps', 'price_mrc' => 50000, 'price_otc' => 0, 'contract_min_months' => 0, 'category' => 'RUMAHAN'],
         ];
 
         foreach ($packages as $i => $p) {
             DB::table('service_packages')->insert([
-                ...$p,
+                ...Arr::except($p, 'category'),
                 'company_id' => $company->id,
                 'bandwidth_profile_id' => $bwIds[$i % count($bwIds)] ?? null,
                 'speed_profile_id' => $spIds[$i % count($spIds)] ?? null,
                 'sla_tier_id' => $slaIds[min(intdiv($i, 2), count($slaIds) - 1)] ?? null,
+                'service_package_category_id' => $categoryIds[$p['category']],
                 'description' => null,
                 'is_active' => true,
                 'created_at' => now(),

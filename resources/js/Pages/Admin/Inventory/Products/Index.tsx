@@ -100,7 +100,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
                             {can.create && (
                                 <Button
                                     type="button"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => router.get(route('admin.products.create'))}
                                 >
                                     Create Product

@@ -519,17 +519,17 @@ export function LocationsMapView({
                 <button
                     type="button"
                     onClick={() => setLegendOpen(!legendOpen)}
-                    className="rounded-lg border border-border bg-background/95 px-2 py-1 text-xs font-medium text-foreground shadow-xs backdrop-blur-sm hover:bg-accent dark:bg-background/95"
+                    className="rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium text-foreground shadow-xs hover:bg-accent"
                     aria-label={legendOpen ? 'Hide legend' : 'Show legend'}
                 >
                     {legendOpen ? 'Legenda ▾' : 'Legenda ▸'}
                 </button>
                 {legendOpen && (
-                    <div className="mt-1 rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
+                    <div className="mt-1 rounded-lg border border-border bg-background p-2 shadow-xs">
                         <ul className="space-y-1 text-xs">
                             {Object.entries(TYPE_ICONS).map(([type, config]) => (
                                 <li key={type} className="flex items-center gap-2">
-                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-[10px] font-bold text-primary">
+                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
                                         {config.label}
                                     </span>
                                     <span className="text-foreground">{config.ariaLabel}</span>
@@ -628,7 +628,7 @@ function FilterChip({
             type="button"
             onClick={onClick}
             className={cn(
-                'rounded-full px-2.5 py-0.5 text-[11px] font-medium transition-colors',
+                'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
                 active
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',

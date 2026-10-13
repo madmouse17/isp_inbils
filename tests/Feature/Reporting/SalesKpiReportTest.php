@@ -166,6 +166,7 @@ class SalesKpiReportTest extends TestCase
                     'date_from' => null,
                     'date_to' => null,
                     'acquirer_id' => null,
+                    'service_package_category_id' => null,
                     'sort_by' => 'name',
                     'sort_dir' => 'asc',
                     'per_page' => 10,

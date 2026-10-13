@@ -1,7 +1,7 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -351,7 +351,7 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                 </Card>
                 {refusal ? (
                     <Alert variant="warning">
-                        <ExclamationTriangleIcon className="h-4 w-4" aria-hidden="true" />
+                        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                         <div className="space-y-2">
                             <p className="font-medium">These companies cannot be consolidated</p>
                             <p>{refusal.message}</p>

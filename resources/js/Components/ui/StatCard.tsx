@@ -1,12 +1,12 @@
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from './Card';
-import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/20/solid';
+import { ArrowUp, ArrowDown } from 'lucide-react';
 
 const accents = {
     brand: 'text-brand-600 dark:text-brand-400',
-    success: 'text-success',
-    warning: 'text-warning',
-    danger: 'text-destructive',
+    success: 'text-emerald-700 dark:text-emerald-400',
+    warning: 'text-amber-700 dark:text-amber-400',
+    danger: 'text-destructive-text',
 } as const;
 
 interface StatCardProps {
@@ -38,13 +38,15 @@ export function StatCard({
                         <p
                             className={cn(
                                 'mt-1 inline-flex items-center gap-1 text-sm font-medium',
-                                deltaDirection === 'up' ? 'text-success' : 'text-destructive',
+                                deltaDirection === 'up'
+                                    ? 'text-emerald-700 dark:text-emerald-400'
+                                    : 'text-destructive-text',
                             )}
                         >
                             {deltaDirection === 'up' ? (
-                                <ArrowUpIcon className="h-4 w-4" />
+                                <ArrowUp className="h-4 w-4" />
                             ) : (
-                                <ArrowDownIcon className="h-4 w-4" />
+                                <ArrowDown className="h-4 w-4" />
                             )}
                             {Math.abs(delta)}%
                         </p>

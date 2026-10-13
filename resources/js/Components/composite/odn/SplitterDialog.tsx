@@ -79,7 +79,7 @@ export function SplitterDialog({ onClose, host, inputOptions }: SplitterDialogPr
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="success" loading={processing}>
+                    <Button type="submit" variant="primary" loading={processing}>
                         Add splitter
                     </Button>
                 </div>

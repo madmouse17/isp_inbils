@@ -12,7 +12,14 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { datatableCustomerNames, inertiaProps, loginAs, logout, unique } from './support/demo';
+import {
+    datatableCustomerNames,
+    inertiaProps,
+    loginAs,
+    logout,
+    selectFirstSearchOption,
+    unique,
+} from './support/demo';
 
 const WA_CUSTOMER = 'E2E WhatsApp Customer';
 // A datatable fixture customer: no consent, an unreachable number (0800...) and, because no spec sends it
@@ -201,30 +208,30 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
         await page.getByLabel('Label').fill(`E2E Install ${suffix}`);
         await page.getByLabel('Address *', { exact: true }).fill('9 E2E Consent Street');
-        await page.getByLabel('Province *', { exact: true }).click();
+        await page.getByLabel('Provinsi *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /jakarta/i })
+            .getByRole('option', { name: /jakarta/i })
             .first()
             .click();
-        await page.getByLabel('City / Regency *', { exact: true }).click();
+        await page.getByLabel('Kota / Kabupaten *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /jakarta pusat/i })
+            .getByRole('option', { name: /jakarta pusat/i })
             .first()
             .click();
-        await page.getByLabel('District *', { exact: true }).click();
+        await page.getByLabel('Kecamatan *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /menteng/i })
+            .getByRole('option', { name: /menteng/i })
             .first()
             .click();
-        await page.getByLabel('Village / Subdistrict *', { exact: true }).click();
+        await page.getByLabel('Kelurahan / Desa *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /menteng/i })
+            .getByRole('option', { name: /menteng/i })
             .first()
             .click();
-        await page.getByRole('button', { name: 'Lat / Long' }).click();
-        await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
-        await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
-        await page.getByRole('button', { name: 'Find' }).click();
+        await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
+        await page.getByLabel('Lintang', { exact: true }).fill('-6.2100000');
+        await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
+        await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
         await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
         await page.getByLabel('Name').fill(`${name} Contact`);
@@ -232,7 +239,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await page.getByLabel('Email').fill(`contact.${suffix}@example.test`);
 
         await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-        await page.getByLabel('Service Package').selectOption({ index: 1 });
+        await selectFirstSearchOption(page, 'Service Package');
         const pop = page.getByLabel('Serving POP / Location');
         const popValue = await pop
             .locator('option')
@@ -320,7 +327,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         // An emptied cap is a validation error, never a silent 0 (which would send nothing).
         await page.getByLabel('Batas pesan per bulan').fill('');
         await page.getByRole('button', { name: 'Save Settings' }).click();
-        await expect(page.getByText(/whatsapp_monthly_cap field is required/i)).toBeVisible();
+        await expect(page.getByText(/batas WhatsApp bulanan wajib diisi/i)).toBeVisible();
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('');
         await page.reload();
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('2500');

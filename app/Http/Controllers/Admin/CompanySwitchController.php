@@ -17,6 +17,6 @@ class CompanySwitchController extends Controller
         $memberships->switchTo($request->user(), $company);
 
         // The page the user was on belongs to the company they just left.
-        return redirect()->route('admin.dashboard')->with('success', 'Now working in '.$company->name.'.');
+        return redirect()->route('admin.dashboard')->with('success', 'Sekarang bekerja di '.$company->name.'.');
     }
 }

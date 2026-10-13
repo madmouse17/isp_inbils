@@ -16,9 +16,9 @@ export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 export { Label } from './Label';
 export { Badge, badgeVariants } from './Badge';
-export type { BadgeProps } from './Badge';
+export type { BadgeProps, BadgeVariant } from './Badge';
 export { Alert, AlertTitle, AlertDescription } from './Alert';
-export type { AlertProps } from './Alert';
+export type { AlertProps, AlertVariant } from './Alert';
 export {
     AlertDialog,
     AlertDialogPortal,
@@ -59,7 +59,6 @@ export type { SearchSelectProps, SearchSelectOption } from './SearchSelect';
 export { DataTable } from './DataTable';
 export type {
     DataTableProps,
-    Column,
     DataTableColumn,
     SortDirection,
     PaginatorShape,
@@ -97,6 +96,18 @@ export { Topbar } from './Topbar';
 export { RadioGroup, Radio } from './RadioGroup';
 export { DateRangePicker } from './DateRangePicker';
 export type { DateRange, DateRangePickerProps } from './DateRangePicker';
+export { DatePicker } from './DatePicker';
+export type { DatePickerProps } from './DatePicker';
+export { DateTimePicker } from './DateTimePicker';
+export type { DateTimePickerProps } from './DateTimePicker';
+export { MonthPicker } from './MonthPicker';
+export type { MonthPickerProps } from './MonthPicker';
+export { TimeInput } from './TimeInput';
+export type { TimeInputProps } from './TimeInput';
+export { EnumBadge } from './EnumBadge';
+export type { EnumBadgeProps } from './EnumBadge';
+export { EmptyCell } from './EmptyCell';
+export { Wordmark } from './Wordmark';
 // Lazy chart wrappers only: Chart.tsx (and recharts) load on first render, never with the barrel.
 export { BarChartLazy, DonutChartLazy, LineChartLazy } from './ChartLazy';
 export type { BarChartProps, ChartSeries, DonutChartProps, LineChartProps } from './Chart';

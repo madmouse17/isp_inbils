@@ -40,7 +40,7 @@ class TwoFactorAuthenticationController extends Controller
 
         Inertia::flash('two_factor', ['recovery_codes' => $codes]);
 
-        return redirect()->route('profile.edit')->with('success', 'Two-factor authentication is on. Keep your recovery codes safe.');
+        return redirect()->route('profile.edit')->with('success', 'Autentikasi dua langkah aktif. Simpan kode pemulihan Anda dengan aman.');
     }
 
     public function regenerateRecoveryCodes(Request $request, TwoFactorService $twoFactor): RedirectResponse
@@ -49,7 +49,7 @@ class TwoFactorAuthenticationController extends Controller
 
         Inertia::flash('two_factor', ['recovery_codes' => $codes]);
 
-        return redirect()->route('profile.edit')->with('success', 'New recovery codes generated. The old ones no longer work.');
+        return redirect()->route('profile.edit')->with('success', 'Kode pemulihan baru dibuat. Kode yang lama tidak berlaku lagi.');
     }
 
     /** Turn two-factor authentication off, or cancel a setup that was never confirmed. */
@@ -57,6 +57,6 @@ class TwoFactorAuthenticationController extends Controller
     {
         $twoFactor->disable($request->user(), $request->session());
 
-        return redirect()->route('profile.edit')->with('success', 'Two-factor authentication is off.');
+        return redirect()->route('profile.edit')->with('success', 'Autentikasi dua langkah dinonaktifkan.');
     }
 }

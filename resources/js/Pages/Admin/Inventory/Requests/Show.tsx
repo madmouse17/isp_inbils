@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -13,7 +13,7 @@ import {
     FileText,
     ShieldAlert,
 } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { Button } from '@/Components/ui/Button';
@@ -366,9 +366,8 @@ export default function InventoryRequestsShow({ request }: Props) {
     ];
 
     return (
-        <AppLayout>
-            <Head title={`Permintaan ${r.code}`} />
-            <div className="mx-auto space-y-6 max-w-5xl p-4 md:p-6">
+        <AdminLayout title={`Permintaan ${r.code}`}>
+            <div className="mx-auto space-y-6 max-w-5xl">
                 <PageHeader
                     title={`Permintaan: ${r.code}`}
                     description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at)}`}
@@ -387,7 +386,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             {r.can?.submit && (
                                 <Button
                                     size="sm"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => {
                                         setActionError(null);
                                         setDialogOpen('submit');
@@ -403,7 +402,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             {r.can?.approve && (
                                 <Button
                                     size="sm"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => {
                                         setActionError(null);
                                         setDialogOpen('approve');
@@ -451,7 +450,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             {r.can?.ready && (
                                 <Button
                                     size="sm"
-                                    variant="warning"
+                                    variant="primary"
                                     onClick={() => {
                                         setActionError(null);
                                         setDialogOpen('ready');
@@ -467,7 +466,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             {r.can?.issue && (
                                 <Button
                                     size="sm"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => {
                                         setActionError(null);
                                         setDialogOpen('issue');
@@ -489,7 +488,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         setDialogOpen('cancel');
                                     }}
                                     disabled={actionLoading}
-                                    className="gap-1.5 text-destructive hover:bg-destructive/10"
+                                    className="gap-1.5 text-destructive-text hover:bg-destructive/10"
                                 >
                                     <XCircle className="h-4 w-4" />
                                     Batalkan Permintaan
@@ -501,7 +500,7 @@ export default function InventoryRequestsShow({ request }: Props) {
 
                 {/* Status & Banner Alerts */}
                 {r.status === 'rejected' && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text">
                         <div className="mb-1 flex items-center gap-2 font-medium">
                             <XCircle className="h-4 w-4" />
                             <span>Permintaan Barang Ditolak</span>
@@ -553,12 +552,12 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         <span className="font-semibold">{step.title}</span>
                                     </div>
                                     {step.actor && (
-                                        <span className="truncate text-[11px] text-muted-foreground">
+                                        <span className="truncate text-xs text-muted-foreground">
                                             {step.actor}
                                         </span>
                                     )}
                                     {step.timestamp && (
-                                        <span className="mt-auto text-[10px] text-muted-foreground/80">
+                                        <span className="mt-auto text-xs text-muted-foreground">
                                             {formatDate(step.timestamp)}
                                         </span>
                                     )}
@@ -596,7 +595,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             return (
                                                 <TR key={item.id}>
                                                     <TD className="font-medium">
-                                                        <div>{item.product?.name ?? '—'}</div>
+                                                        <div>{item.product?.name ?? '-'}</div>
                                                         {item.product?.code && (
                                                             <div className="font-mono text-xs text-muted-foreground">
                                                                 {item.product.code}
@@ -614,7 +613,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                             </span>
                                                         ) : (
                                                             <span className="text-muted-foreground">
-                                                                —
+                                                                -
                                                             </span>
                                                         )}
                                                     </TD>
@@ -630,7 +629,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         )}
                                                     </TD>
                                                     <TD className="text-xs text-muted-foreground">
-                                                        {item.note || '—'}
+                                                        {item.note || '-'}
                                                     </TD>
                                                 </TR>
                                             );
@@ -689,7 +688,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         <div
                                             role="alert"
                                             aria-live="assertive"
-                                            className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive"
+                                            className="flex items-center justify-between rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive-text"
                                         >
                                             <div className="flex items-center gap-2">
                                                 <AlertCircle className="h-4 w-4 shrink-0" />
@@ -700,7 +699,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={fetchReturnCase}
-                                                className="h-7 border-destructive/30 text-xs text-destructive hover:bg-destructive/20"
+                                                className="h-7 border-destructive/30 text-xs text-destructive-text hover:bg-destructive/20"
                                             >
                                                 <RotateCcw className="mr-1 h-3 w-3" />
                                                 Coba Lagi
@@ -711,7 +710,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     {/* Alert / Reason Notes */}
                                     {returnCase?.status === 'correction_required' &&
                                         returnCase.rejection_reason && (
-                                            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive">
+                                            <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-xs text-destructive-text">
                                                 <div className="mb-1 flex items-center gap-1.5 font-medium">
                                                     <XCircle className="size-3.5 shrink-0" />
                                                     <span>Penyerahan Fisik Ditolak Gudang</span>
@@ -794,7 +793,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         return (
                                                             <TR key={line.id}>
                                                                 <TD className="text-xs font-medium">
-                                                                    {line.product?.name ?? '—'}
+                                                                    {line.product?.name ?? '-'}
                                                                 </TD>
                                                                 <TD className="text-right text-xs">
                                                                     {line.issued_qty} {unit}
@@ -812,7 +811,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                                     {line.accepted_good_return_qty}{' '}
                                                                     {unit}
                                                                 </TD>
-                                                                <TD className="text-right text-xs text-destructive">
+                                                                <TD className="text-right text-xs text-destructive-text">
                                                                     {line.damaged_return_qty +
                                                                         line.lost_qty >
                                                                     0
@@ -862,7 +861,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         </Button>
                                                         <Button
                                                             size="sm"
-                                                            variant="success"
+                                                            variant="outline"
                                                             onClick={() => {
                                                                 setActionError(null);
                                                                 setDialogOpen('receiveAccept');
@@ -928,7 +927,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         Tanggal Dibutuhkan:
                                     </span>
                                     <span className="font-medium text-foreground">
-                                        {r.needed_at ? formatDate(r.needed_at) : '—'}
+                                        {r.needed_at ? formatDate(r.needed_at) : '-'}
                                     </span>
                                 </div>
 
@@ -989,7 +988,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1026,7 +1025,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1115,7 +1114,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1172,7 +1171,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1209,7 +1208,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1250,7 +1249,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1290,7 +1289,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1344,7 +1343,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1361,7 +1360,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <Label className="text-[11px]">Dipakai Aktual</Label>
+                                            <Label className="text-xs">Dipakai Aktual</Label>
                                             <Input
                                                 type="number"
                                                 step="any"
@@ -1381,7 +1380,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-[11px]">Sisa Dikembalikan</Label>
+                                            <Label className="text-xs">Sisa Dikembalikan</Label>
                                             <Input
                                                 type="number"
                                                 step="any"
@@ -1449,7 +1448,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1466,7 +1465,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <Label className="text-[11px]">
+                                            <Label className="text-xs">
                                                 Diterima Baik (Tambah Stok)
                                             </Label>
                                             <Input
@@ -1485,7 +1484,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-[11px]">
+                                            <Label className="text-xs">
                                                 Kondisi Rusak (Damaged)
                                             </Label>
                                             <Input
@@ -1560,7 +1559,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1628,7 +1627,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <div
                                 role="alert"
                                 aria-live="assertive"
-                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive"
+                                className="mb-2 rounded border border-destructive/50 bg-destructive/10 p-2.5 text-xs text-destructive-text"
                             >
                                 {actionError}
                             </div>
@@ -1672,6 +1671,6 @@ export default function InventoryRequestsShow({ request }: Props) {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

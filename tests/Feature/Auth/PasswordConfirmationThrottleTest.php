@@ -25,7 +25,7 @@ class PasswordConfirmationThrottleTest extends TestCase
         }
 
         $this->post('/confirm-password', ['password' => 'password'])->assertSessionHasErrors('password');
-        $this->assertStringContainsString('Too many', session('errors')->first('password'));
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('password'));
         $this->assertNull(session('auth.password_confirmed_at'));
 
         $this->travel(61)->seconds();

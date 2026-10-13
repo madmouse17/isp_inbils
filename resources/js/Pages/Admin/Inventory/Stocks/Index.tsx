@@ -7,11 +7,11 @@ import { Input } from '@/Components/ui/Input';
 import { Modal } from '@/Components/ui/Modal';
 import { Textarea } from '@/Components/ui/Textarea';
 import { NativeSelect } from '@/Components/ui';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { formatNumber } from '@/lib/format';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import { useMemo, useRef, useState, type FormEvent } from 'react';
 
 type StockRow = {
@@ -95,7 +95,7 @@ type AdjustFormData = {
 type DecisionState = { row: AdjustmentRequestRow; mode: 'approve' | 'reject' };
 
 const locationLabel = (location?: { name: string; code?: string | null } | null) =>
-    location ? `${location.name}${location.code ? ` (${location.code})` : ''}` : '—';
+    location ? `${location.name}${location.code ? ` (${location.code})` : ''}` : '-';
 
 const signed = (value: number | string) => {
     const number = Number(value);
@@ -256,7 +256,7 @@ export default function StockIndex({
             {
                 key: 'product',
                 header: 'Product',
-                cell: (row) => <span className="font-medium">{row.product?.name ?? '—'}</span>,
+                cell: (row) => <span className="font-medium">{row.product?.name ?? '-'}</span>,
             },
             {
                 key: 'location',
@@ -264,27 +264,27 @@ export default function StockIndex({
                 cell: (row) =>
                     row.location
                         ? `${row.location.name}${row.location.code ? ` (${row.location.code})` : ''}`
-                        : '—',
+                        : '-',
             },
             {
                 key: 'quantity',
                 header: 'Quantity',
                 sortable: true,
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.quantity ?? '—'),
+                cell: (row) => String(row.quantity ?? '-'),
             },
             {
                 key: 'reserved_quantity',
                 header: 'Reserved',
                 sortable: true,
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.reserved_quantity ?? '—'),
+                cell: (row) => String(row.reserved_quantity ?? '-'),
             },
             {
                 key: 'available',
                 header: 'Available',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.available ?? '—'),
+                cell: (row) => String(row.available ?? '-'),
             },
         ],
         [],
@@ -294,7 +294,7 @@ export default function StockIndex({
         {
             key: 'product',
             header: 'Produk',
-            cell: (row) => <span className="font-medium">{row.product?.name ?? '—'}</span>,
+            cell: (row) => <span className="font-medium">{row.product?.name ?? '-'}</span>,
         },
         { key: 'location', header: 'Lokasi', cell: (row) => locationLabel(row.location) },
         {
@@ -314,7 +314,7 @@ export default function StockIndex({
             ),
         },
         { key: 'reason', header: 'Alasan', cell: (row) => row.reason },
-        { key: 'requester', header: 'Pemohon', cell: (row) => row.requester?.name ?? '—' },
+        { key: 'requester', header: 'Pemohon', cell: (row) => row.requester?.name ?? '-' },
         {
             key: 'actions',
             header: 'Aksi',
@@ -350,9 +350,8 @@ export default function StockIndex({
     ];
 
     return (
-        <AppLayout>
-            <Head title="Stok" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Stok">
+            <div className="space-y-4">
                 <PageHeader
                     title="Stok"
                     description="Current stock per product and location."
@@ -533,7 +532,7 @@ export default function StockIndex({
                         maxLength={500}
                         error={receiveErrors.note}
                     />
-                    {formError && <p className="text-sm text-destructive">{formError}</p>}
+                    {formError && <p className="text-sm text-destructive-text">{formError}</p>}
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={closeReceive}>
                             Batal
@@ -644,7 +643,7 @@ export default function StockIndex({
                 {decision && (
                     <form onSubmit={submitDecision} className="space-y-4">
                         <p className="text-sm">
-                            <span className="font-medium">{decision.row.product?.name ?? '—'}</span>{' '}
+                            <span className="font-medium">{decision.row.product?.name ?? '-'}</span>{' '}
                             di {locationLabel(decision.row.location)}:{' '}
                             {formatNumber(decision.row.old_quantity)} →{' '}
                             {formatNumber(decision.row.new_quantity)}
@@ -668,7 +667,7 @@ export default function StockIndex({
                             />
                         )}
                         {decisionError && (
-                            <p role="alert" className="text-sm text-destructive">
+                            <p role="alert" className="text-sm text-destructive-text">
                                 {decisionError}
                             </p>
                         )}
@@ -688,6 +687,6 @@ export default function StockIndex({
                     </form>
                 )}
             </Modal>
-        </AppLayout>
+        </AdminLayout>
     );
 }

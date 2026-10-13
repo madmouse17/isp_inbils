@@ -268,7 +268,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expectFigures(footRow(page, 'Total'), febTotal);
 
         // Total reconciles with every visible row plus Unassigned.
-        await expect(page.getByText(/^Showing /)).toBeVisible();
+        await expect(page.getByText(/^Menampilkan /)).toBeVisible();
         const visible = await page.locator('tbody tr').count();
         const summed: Figures = {
             customers: 0,
@@ -457,8 +457,8 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect.poll(() => query(page, 'direction')).toBe('desc');
         await expect.poll(async () => before(await bodyNames(page), staff, manager)).toBe(true);
 
-        // Rows per page: the URL follows, sort and period survive, the footer still reconciles.
-        const perPage = page.getByLabel('Rows per page');
+        // Baris per halaman: the URL follows, sort and period survive, the footer still reconciles.
+        const perPage = page.getByLabel('Baris per halaman');
         await expect(perPage).toHaveValue('50');
         await perPage.selectOption('25');
         await expect.poll(() => query(page, 'per_page')).toBe('25');
@@ -471,7 +471,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expectFigures(footRow(page, 'Total'), febTotal);
 
         await page.reload();
-        await expect(page.getByLabel('Rows per page')).toHaveValue('25');
+        await expect(page.getByLabel('Baris per halaman')).toHaveValue('25');
         await expect(
             page.getByRole('columnheader', { name: 'Acquirer', exact: true }),
         ).toHaveAttribute('aria-sort', 'descending');
@@ -583,12 +583,13 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     for (const expected of [
                         'BUTTON:Buka kalender',
                         'SELECT:Acquirer',
+                        'SELECT:Kategori paket',
                         'BUTTON:Run',
                         'BUTTON:Acquirer',
                         'BUTTON:Customers Acquired',
                         'BUTTON:Collected',
                         'BUTTON:Collection Rate',
-                        'SELECT:Rows per page',
+                        'SELECT:Baris per halaman',
                     ]) {
                         expect([...reached], expected).toContain(expected);
                     }

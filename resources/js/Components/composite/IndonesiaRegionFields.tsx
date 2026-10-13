@@ -59,12 +59,11 @@ export function IndonesiaRegionFields({
         <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
             <SearchSelect
                 id={`${idPrefix}-province`}
-                label="Province"
+                label="Provinsi"
                 value={value.province_code}
                 error={errors.province_code}
-                clearValueOnSearch={false}
                 required
-                placeholder="Search province"
+                placeholder="Cari provinsi"
                 onChange={(provinceCode) =>
                     onChange({
                         ...value,
@@ -82,13 +81,12 @@ export function IndonesiaRegionFields({
             />
             <SearchSelect
                 id={`${idPrefix}-city`}
-                label="City / Regency"
+                label="Kota / Kabupaten"
                 value={value.city_code}
                 error={errors.city_code}
-                clearValueOnSearch={false}
                 disabled={!value.province_code}
                 required
-                placeholder="Search city / regency"
+                placeholder="Cari kota / kabupaten"
                 onChange={(cityCode) => {
                     onChange({
                         ...value,
@@ -102,13 +100,12 @@ export function IndonesiaRegionFields({
             />
             <SearchSelect
                 id={`${idPrefix}-district`}
-                label="District"
+                label="Kecamatan"
                 value={value.district_code}
                 error={errors.district_code}
-                clearValueOnSearch={false}
                 disabled={!value.city_code}
                 required
-                placeholder="Search district"
+                placeholder="Cari kecamatan"
                 onChange={(districtCode) =>
                     onChange({ ...value, district_code: districtCode, village_code: '' })
                 }
@@ -119,13 +116,12 @@ export function IndonesiaRegionFields({
             />
             <SearchSelect
                 id={`${idPrefix}-village`}
-                label="Village / Subdistrict"
+                label="Kelurahan / Desa"
                 value={value.village_code}
                 error={errors.village_code}
-                clearValueOnSearch={false}
                 disabled={!value.district_code}
                 required
-                placeholder="Search village / subdistrict"
+                placeholder="Cari kelurahan / desa"
                 onChange={(villageCode) => onChange({ ...value, village_code: villageCode })}
                 options={villages.map((village) => ({ value: village.code, label: village.name }))}
             />

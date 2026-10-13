@@ -110,21 +110,21 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
             header: 'Position',
             sortable: true,
             sortKey: 'role',
-            cell: (row) => row.position ?? '—',
+            cell: (row) => row.position ?? '-',
         },
         {
             key: 'phone',
             header: 'Phone',
             sortable: true,
             sortKey: 'phone',
-            cell: (row) => row.phone ?? '—',
+            cell: (row) => row.phone ?? '-',
         },
         {
             key: 'email',
             header: 'Email',
             sortable: true,
             sortKey: 'email',
-            cell: (row) => row.email ?? '—',
+            cell: (row) => row.email ?? '-',
         },
         {
             key: 'is_primary',
@@ -140,7 +140,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
             header: 'Notes',
             cell: (row) => (
                 <span className="line-clamp-2 text-sm text-muted-foreground">
-                    {row.notes ?? '—'}
+                    {row.notes ?? '-'}
                 </span>
             ),
         },
@@ -163,7 +163,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
             <div className="space-y-6">
                 <PageHeader
                     title="Customer Contacts"
-                    subtitle={`${customer.code} — ${customer.name}`}
+                    subtitle={`${customer.code} - ${customer.name}`}
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -176,7 +176,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" variant="success" onClick={openCreate}>
+                            <Button type="button" variant="primary" onClick={openCreate}>
                                 Add Contact
                             </Button>
                         </div>
@@ -269,11 +269,7 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editingId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editingId ? 'Save' : 'Add'}
                             </Button>
                         </div>

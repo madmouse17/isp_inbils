@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownTrayIcon, ArrowTopRightOnSquareIcon } from '@heroicons/react/24/outline';
+import { Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/Components/ui';
 
 export interface MediaFile {
@@ -38,14 +38,14 @@ export function MediaPreview({ media }: { media: MediaFile }) {
                             rel="noopener noreferrer"
                             aria-label={`Open ${name} in a new tab`}
                         >
-                            <ArrowTopRightOnSquareIcon className="h-4 w-4" aria-hidden="true" />
+                            <ExternalLink className="h-4 w-4" aria-hidden="true" />
                             Open
                         </a>
                     </Button>
                 )}
                 <Button asChild size="sm" variant="outline">
                     <a href={media.url} download aria-label={`Download ${name}`}>
-                        <ArrowDownTrayIcon className="h-4 w-4" aria-hidden="true" />
+                        <Download className="h-4 w-4" aria-hidden="true" />
                         Download
                     </a>
                 </Button>

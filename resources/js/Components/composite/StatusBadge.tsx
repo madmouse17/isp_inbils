@@ -1,25 +1,12 @@
-import { Badge } from '@/Components/ui';
-
-const variants = {
-    success: 'success',
-    warning: 'warning',
-    danger: 'danger',
-    muted: 'muted',
-    info: 'info',
-    brand: 'brand',
-    neutral: 'neutral',
-} as const;
+import { Badge, type BadgeVariant } from '@/Components/ui/Badge';
 
 type StatusBadgeProps = {
-    variant?: keyof typeof variants;
+    variant?: BadgeVariant;
     status?: string;
     label?: React.ReactNode;
     children?: React.ReactNode;
 };
 
-export function StatusBadge({ variant, status, label, children }: StatusBadgeProps) {
-    const content = children ?? label ?? status;
-    const tone = variant ?? 'neutral';
-
-    return <Badge variant={variants[tone]}>{content}</Badge>;
+export function StatusBadge({ variant = 'neutral', status, label, children }: StatusBadgeProps) {
+    return <Badge variant={variant}>{children ?? label ?? status}</Badge>;
 }

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { Plus, Package, Clock, AlertCircle, RefreshCw, Truck, ShieldAlert } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -247,12 +247,12 @@ export default function InventoryRequestsIndex({
             case 'cancelled':
                 return 'Tidak Ada';
             default:
-                return '—';
+                return '-';
         }
     };
 
     const calculateAge = (dateStr?: string | null): string => {
-        if (!dateStr) return '—';
+        if (!dateStr) return '-';
         const diffMs = Date.now() - new Date(dateStr).getTime();
         const diffHrs = Math.floor(diffMs / (1000 * 60 * 60));
         if (diffHrs < 1) return '< 1 jam lalu';
@@ -301,7 +301,7 @@ export default function InventoryRequestsIndex({
                 cell: (row) => (
                     <div className="flex flex-col text-sm">
                         <span className="font-medium text-foreground">
-                            {row.requester?.name ?? '—'}
+                            {row.requester?.name ?? '-'}
                         </span>
                         {row.requester?.email && (
                             <span className="text-xs text-muted-foreground">
@@ -322,7 +322,7 @@ export default function InventoryRequestsIndex({
                 cell: (row) => {
                     const reqItems = row.items || [];
                     if (reqItems.length === 0)
-                        return <span className="text-muted-foreground">—</span>;
+                        return <span className="text-muted-foreground">-</span>;
                     const first = reqItems[0];
                     const remaining = reqItems.length - 1;
                     return (
@@ -345,13 +345,13 @@ export default function InventoryRequestsIndex({
                 header: 'Tgl Dibutuhkan',
                 sortable: true,
                 sortKey: 'needed_at',
-                cell: (row) => (row.needed_at ? formatDate(row.needed_at) : '—'),
+                cell: (row) => (row.needed_at ? formatDate(row.needed_at) : '-'),
             },
             {
                 key: 'source',
                 header: 'Ref SPK / Tiket',
                 cell: (row) => {
-                    if (!row.source_type || !row.source_id) return '—';
+                    if (!row.source_type || !row.source_id) return '-';
                     return (
                         <span className="rounded bg-muted/60 px-2 py-0.5 font-mono text-xs text-foreground">
                             {row.source_type === 'work_order' ? 'SPK' : 'TIKET'} #{row.source_id}
@@ -386,9 +386,8 @@ export default function InventoryRequestsIndex({
     };
 
     return (
-        <AppLayout>
-            <Head title="Permintaan Barang" />
-            <div className="space-y-6 p-4 md:p-6">
+        <AdminLayout title="Permintaan Barang">
+            <div className="space-y-6">
                 <PageHeader
                     title="Permintaan Barang"
                     description="Kelola pengajuan kebutuhan material teknisi, reservasi stok gudang, penyerahan barang, dan pelaporan sisa/pengembalian fisik."
@@ -609,7 +608,7 @@ export default function InventoryRequestsIndex({
                                                     returnsBadges.warehouse_return_queue > 0 && (
                                                         <Badge
                                                             variant="warning"
-                                                            className="ml-1 px-1 py-0 text-[10px]"
+                                                            className="ml-1 px-1 py-0 text-xs"
                                                         >
                                                             {returnsBadges.warehouse_return_queue}
                                                         </Badge>
@@ -656,7 +655,7 @@ export default function InventoryRequestsIndex({
                                                     returnsBadges.my_pending_returns > 0 && (
                                                         <Badge
                                                             variant="info"
-                                                            className="ml-1 px-1 py-0 text-[10px]"
+                                                            className="ml-1 px-1 py-0 text-xs"
                                                         >
                                                             {returnsBadges.my_pending_returns}
                                                         </Badge>
@@ -738,7 +737,7 @@ export default function InventoryRequestsIndex({
                                     <div
                                         role="alert"
                                         aria-live="assertive"
-                                        className="flex flex-col gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between"
+                                        className="flex flex-col gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         <div className="flex items-center gap-2">
                                             <AlertCircle className="h-5 w-5 shrink-0" />
@@ -750,7 +749,7 @@ export default function InventoryRequestsIndex({
                                             onClick={() =>
                                                 fetchReturnsData(returnsQueueFilter, returnsSearch)
                                             }
-                                            className="self-end border-destructive/30 text-xs text-destructive hover:bg-destructive/20 sm:self-auto"
+                                            className="self-end border-destructive/30 text-xs text-destructive-text hover:bg-destructive/20 sm:self-auto"
                                         >
                                             Coba Lagi
                                         </Button>
@@ -809,7 +808,7 @@ export default function InventoryRequestsIndex({
                                                                 {c.can.resolve && (
                                                                     <Badge
                                                                         variant="warning"
-                                                                        className="text-[10px]"
+                                                                        className="text-xs"
                                                                     >
                                                                         Eligible Resolve
                                                                     </Badge>
@@ -817,7 +816,7 @@ export default function InventoryRequestsIndex({
                                                                 {c.can.receive && (
                                                                     <Badge
                                                                         variant="info"
-                                                                        className="text-[10px]"
+                                                                        className="text-xs"
                                                                     >
                                                                         Eligible Receive
                                                                     </Badge>
@@ -825,7 +824,7 @@ export default function InventoryRequestsIndex({
                                                                 {c.can.declare && (
                                                                     <Badge
                                                                         variant="neutral"
-                                                                        className="text-[10px]"
+                                                                        className="text-xs"
                                                                     >
                                                                         Eligible Declare
                                                                     </Badge>
@@ -837,7 +836,7 @@ export default function InventoryRequestsIndex({
                                                             <div>
                                                                 Teknisi:{' '}
                                                                 <span className="font-medium text-foreground">
-                                                                    {c.technician?.name ?? '—'}
+                                                                    {c.technician?.name ?? '-'}
                                                                 </span>
                                                             </div>
                                                             <div>
@@ -863,14 +862,14 @@ export default function InventoryRequestsIndex({
                                                                         ? formatDateTime(
                                                                               c.declared_at,
                                                                           )
-                                                                        : '—'}
+                                                                        : '-'}
                                                                 </span>
                                                             </div>
                                                         </div>
 
                                                         {/* Alert / Reason tags if rejected or exception */}
                                                         {c.rejection_reason && (
-                                                            <div className="rounded bg-destructive/10 p-2 text-xs text-destructive">
+                                                            <div className="rounded bg-destructive/10 p-2 text-xs text-destructive-text">
                                                                 <strong>Alasan Penolakan:</strong>{' '}
                                                                 {c.rejection_reason}
                                                             </div>
@@ -963,7 +962,7 @@ export default function InventoryRequestsIndex({
                     )}
                 </Tabs>
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }
 
@@ -1044,7 +1043,7 @@ function RequestsTableView({
                                                     {row.code}
                                                 </Link>
                                                 <p className="mt-0.5 text-xs text-muted-foreground">
-                                                    Pemohon: {row.requester?.name ?? '—'}
+                                                    Pemohon: {row.requester?.name ?? '-'}
                                                 </p>
                                             </div>
                                             <StatusBadge
@@ -1065,7 +1064,7 @@ function RequestsTableView({
                                                 <span className="font-medium text-foreground">
                                                     {row.needed_at
                                                         ? formatDate(row.needed_at)
-                                                        : '—'}
+                                                        : '-'}
                                                 </span>
                                             </div>
                                             {row.source_type && row.source_id && (

@@ -949,7 +949,7 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
    - **Notes**: opsional.
    - **Primary contact**: pilih satu kartu. Klik **Add Contact** untuk menambah kontak. Tombol **Remove** tidak dapat menghapus satu-satunya kontak.
 6. Buka tab **Subscription & SPK**:
-   - **Service Package**: wajib. Pilihan hanya memuat paket aktif. Memilih paket mengisi MRC, OTC, dan masa kontrak dari paket.
+   - **Service Package**: wajib. Pilihan hanya memuat paket aktif dari kategori aktif, dikelompokkan dengan judul nama kategori. Mengganti **Type** menata ulang kelompok: **Individual** menampilkan **Rumahan** paling atas, **Company** menampilkan **Bisnis** lalu **Korporat**. Semua paket tetap bisa dipilih untuk tipe apa pun. Memilih paket mengisi MRC, OTC, dan masa kontrak dari paket.
    - **Serving POP / Location**: wajib. Pilihan hanya memuat lokasi aktif dalam perusahaan.
    - **Drop port (ODP)**: opsional dan hanya muncul dengan `odn.assign`. Pilih port bebas di bawah POP tersebut atau biarkan **No port chosen**.
    - **Billing Day**: wajib, bilangan bulat 1 sampai 28. Nilai awal 1.
@@ -1011,6 +1011,7 @@ Admin dapat mengubah susunan izin melalui **Peran** dan **Hak Akses**. Tombol ya
 2. Halaman **Subscriptions** menyediakan pencarian kode atau paket, filter paket dan status, serta kolom **Code**, **Package**, **Status**, **MRC**, **Billing Day**, dan **Actions**.
 3. Klik **Create Subscription** dengan `customer.subscription.manage`, lalu isi:
    - **Service Package**, **Installation Address**, dan **Billing Day (1-28)**: wajib.
+   - **Service Package** berisi paket aktif dari kategori aktif, dikelompokkan dengan judul nama kategori. Kategori yang cocok dengan tipe pelanggan tampil paling atas: pelanggan **Individual** melihat **Rumahan** dulu, pelanggan **Company** melihat **Bisnis**, lalu **Korporat**. Kategori lain mengikuti urutannya di **Kategori Paket**. Tiap pilihan menulis nama paket dan `KODE · harga/bln`.
    - **MRC Amount**, **OTC Installation Fee**, dan **Contract Months**: opsional. MRC kosong memakai harga paket. OTC bernilai awal 0.
 4. Klik **Create**. Sistem membuat kode langganan dan status `pending`. Jalur ini tidak membuat SPK instalasi dan tidak meminta serving POP. Buat SPK instalasi pada SPK (bagian 3.3) bila pekerjaan lapangan diperlukan.
 5. Buka langganan melalui tombol **Show** pada halaman tersebut, melalui link kode langganan di ODN, atau dari Aset Jaringan yang terpasang.
@@ -1080,9 +1081,10 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `service.view` atau `servi
    - Kotak **Search** mencari kode dan nama paket.
    - Filter **Active** berisi **All**, **Active** dan **Inactive**.
    - Filter **SLA Tier** berisi semua tingkat SLA perusahaan.
-   - Kolom: **Name**, **Code**, **Monthly** (harga bulanan), **One-time** (harga pemasangan), **Active** (lencana `active` atau `inactive`), **Created**, **Actions**. Semua kolom kecuali **Actions** bisa diurutkan.
+   - Filter **Kategori** berisi **Semua kategori** dan semua kategori perusahaan. Kategori nonaktif tampil dengan tulisan `(nonaktif)`.
+   - Kolom: **Name**, **Code**, **Kategori**, **Monthly** (harga bulanan), **One-time** (harga pemasangan), **Active** (lencana `active` atau `inactive`), **Created**, **Actions**. Semua kolom kecuali **Actions** bisa diurutkan.
    - Nama paket adalah tautan ke halaman Edit.
-   - Tombol **Export** muncul hanya bagi pemegang `service.export`. Ekspor memakai pencarian dan filter yang sedang aktif, dalam format CSV atau PDF, dengan kolom Code, Name, Bandwidth, Speed, SLA, MRC, OTC dan Status.
+   - Tombol **Export** muncul hanya bagi pemegang `service.export`. Ekspor memakai pencarian dan filter yang sedang aktif, dalam format CSV atau PDF, dengan kolom Code, Name, Kategori, Bandwidth, Speed, SLA, MRC, OTC dan Status.
    - Tombol **New package** muncul bagi pemegang `service.create` atau `service.manage`.
 
    ![Daftar Paket Layanan dengan filter Active dan SLA Tier](images/web/service-packages.png)
@@ -1103,6 +1105,7 @@ Form paket hanya menawarkan profil bandwidth, profil kecepatan dan tingkat SLA y
    - **Name**: wajib, maksimal 255 karakter. Contoh: `Home 50Mbps`.
    - **Bandwidth Profile**: wajib, pilih dari daftar profil bandwidth aktif.
    - **Speed Profile**: wajib, pilih dari daftar profil kecepatan aktif.
+   - **Kategori**: wajib, pilih **Pilih kategori...** lalu salah satu kategori aktif (lihat Kategori Paket di bawah). Pada form ubah, kategori nonaktif yang sedang dipakai paket tetap tampil.
    - **SLA Tier**: wajib, pilih dari daftar tingkat SLA aktif.
    - **Price MRC**: wajib, angka 0 atau lebih. Ini harga langganan per bulan (Monthly Recurring Charge). Di daftar kolom ini bernama **Monthly**.
    - **Price OTC**: angka 0 atau lebih, isian awal `0`. Ini biaya sekali bayar untuk pemasangan (One-Time Charge). Di daftar kolom ini bernama **One-time**. Isi `0` bila paket tidak memungut biaya pemasangan.
@@ -1123,7 +1126,7 @@ Harga disalin ke langganan saat langganan dibuat: **MRC** pelanggan diisi dari *
 
 ### Menonaktifkan dan menghapus paket
 
-1. Untuk berhenti menjual paket, buka **Edit**, matikan saklar **Active**, lalu klik **Save**. Paket tetap ada di daftar dengan lencana `inactive`, langganan yang sudah berjalan tidak terganggu, dan paket tidak ditawarkan pada pelanggan baru.
+1. Untuk berhenti menjual paket, buka **Edit**, matikan saklar **Active**, lalu klik **Save**. Paket tetap ada di daftar dengan lencana `inactive`, langganan yang sudah berjalan tidak terganggu, dan paket tidak ditawarkan pada pelanggan baru. Untuk menyembunyikan satu kelompok paket sekaligus, nonaktifkan kategorinya (bagian Kategori Paket di bawah).
 2. Untuk menghapus, klik **Delete** di baris paket, lalu konfirmasi di dialog. Muncul toast `Service package deleted.`
 
 Penghapusan ditolak dengan pesan `Service package has active subscriptions.` bila masih ada langganan berstatus `active` atau `pending` pada paket itu. Langganan yang sudah berhenti tidak menghalangi. Bila ragu, nonaktifkan paketnya, jangan hapus.
@@ -1136,6 +1139,26 @@ Penghapusan ditolak dengan pesan `Service package has active subscriptions.` bil
 - Harga paket sudah diubah tetapi tagihan pelanggan lama tetap memakai harga lama: harga tersimpan di langganan, bukan di paket. Ubah harga di langganan itu bila memang perlu.
 - Tombol **Delete** mengembalikan galat `Service package has active subscriptions.`: akhiri atau pindahkan langganan `active` dan `pending` dulu, atau nonaktifkan paket.
 - Staf menekan **Edit** atau **Delete** dan ditolak: staf hanya punya `service.view`. Minta admin menambah izin atau mengubah perannya (bagian 8.6 dan 8.7).
+- Paket baru tidak bisa disimpan karena **Kategori** kosong: pilih kategori. Kategori yang nonaktif tidak ada di daftar. Aktifkan lagi di **Kategori Paket** atau pilih kategori lain.
+
+### Kategori Paket
+
+Kategori Paket mengelompokkan paket menurut segmen pelanggan, misalnya rumahan atau bisnis. Setiap paket wajib punya tepat satu kategori. Kategori dipakai untuk filter di daftar paket, pengelompokan di pilihan paket pada form pelanggan dan langganan, dan filter **Kategori paket** pada laporan Business Metrics dan Sales KPI (bagian 7.4 dan 7.10).
+
+Peran dan izin sama dengan Paket Layanan: `service.view` atau `service.manage` membuka halaman, `service.create` membuat kategori, `service.update` mengubah, `service.delete` menghapus. Staf bawaan hanya melihat.
+
+Setiap perusahaan punya tiga kategori bawaan: **Rumahan** (urutan 1), **Bisnis** (urutan 2) dan **Korporat** (urutan 3), dengan kode `RUMAHAN`, `BISNIS` dan `KORPORAT`. Perusahaan baru, termasuk anak perusahaan, mendapat ketiganya otomatis. Paket yang sudah ada sebelum fitur ini dimasukkan ke kategori menurut kata di kode atau namanya: `ENT`, `Enterprise`, `Dedicated`, `Korporat` atau `Corporate` masuk **Korporat**, lalu `BIZ`, `Business`, `Bisnis`, `SOHO` atau `UMKM` masuk **Bisnis**, sisanya (termasuk `Home`, `Rumah`, `Kos`, `Asrama`, `Gamer`, `Trial`, `Promo`) masuk **Rumahan**. Korporat didahulukan, jadi "Business 100Mbps Dedicated" masuk **Korporat**. Periksa hasilnya di daftar paket dan pindahkan paket yang salah tempat lewat **Edit**.
+
+1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Kategori Paket** (di bawah **Paket Layanan**).
+2. Baca daftar. Kotak **Cari** mencari kode atau nama, filter **Status** berisi **Semua**, **Aktif** dan **Nonaktif**. Kolom: **Kode**, **Nama**, **Urutan**, **Paket** (jumlah paket di kategori itu, termasuk paket yang sudah dihapus), **Status** dan **Aksi**.
+3. Klik **Kategori baru** (pemegang `service.create` atau `service.manage`). Isi dialog:
+   - **Kode**: wajib, huruf besar, angka, `_` dan `-`, maksimal 30 karakter, unik per perusahaan. Sistem mengubah huruf kecil menjadi besar. Kode tidak bisa diubah setelah kategori dibuat, karena pilihan paket mengenali Rumahan, Bisnis dan Korporat lewat kode.
+   - **Nama**: wajib, maksimal 100 karakter.
+   - **Urutan**: angka 0 sampai 65535, isian awal `0`. Kategori dengan angka kecil tampil lebih dulu di daftar dan di pilihan paket.
+   - **Aktif**: saklar, aktif secara awal.
+4. Klik **Tambah kategori**. Muncul toast `Kategori paket dibuat.` Untuk mengubah, klik **Edit** di baris, ubah **Nama**, **Urutan** atau **Aktif**, lalu klik **Simpan** (`Kategori paket diperbarui.`).
+5. Untuk berhenti memakai kategori, matikan saklar **Aktif**. Kategori nonaktif tidak muncul di pilihan **Kategori** saat membuat paket baru dan tidak muncul di pilihan paket pada form pelanggan dan langganan. Paket yang sudah memakainya tetap utuh, dan kategorinya tetap tampil di form ubah paket itu.
+6. Untuk menghapus, klik ikon hapus di baris, lalu konfirmasi. Muncul toast `Kategori paket dihapus.` Kategori yang masih dipakai paket (paket yang sudah dihapus ikut dihitung) tidak bisa dihapus. Dialog menampilkan `Kategori masih dipakai {n} paket. Nonaktifkan saja.` Nonaktifkan kategorinya sebagai gantinya.
 
 ## 4.3 Profil Bandwidth
 
@@ -2726,6 +2749,9 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.business.view`. To
 
 1. Buka **Laporan**, lalu klik **Open Business Metrics**.
 2. Pilih **Periode**, lalu klik **Run**. Header menampilkan **Formula version business.v1**.
+
+   Pilih juga **Kategori paket**: **Semua kategori** atau satu kategori (bagian 4.2). Pilihan ini membatasi MRR, pendapatan, saldo belum dibayar, jumlah langganan, pemasangan, serta grafik tagihan dan MRR pada paket kategori itu. Kategori nonaktif tampil dengan tulisan `(nonaktif)`. Aset, SLA, dan pelanggan baru tidak terpengaruh. Tagihan satu kali tanpa langganan tidak masuk kategori mana pun. Tautan **View records** dan file ekspor mengikuti kategori yang dipilih.
+
 3. Baca enam kartu:
    - **MRR** menjumlahkan tarif bulanan semua langganan yang saat ini berstatus `active`. Angka ini **Snapshot**.
    - **Revenue (Paid)** menjumlahkan `paid_amount` tagihan berstatus `paid` berdasarkan tanggal terbit dalam **Periode**. Tagihan yang baru dibayar sebagian tidak masuk.
@@ -2925,6 +2951,9 @@ Peran yang dapat memakai: admin dan manajer. Izin: `report.sales.view`. Staf tid
 
 2. Pilih **Periode**. Tanpa pilihan, baris keterangan menulis **Periode: semua waktu**.
 3. Pilih **Acquirer**. **All acquirers** menampilkan semua acquirer dan baris Unassigned. Nama pengguna nonaktif diberi tulisan **Inactive**.
+
+   Pilih juga **Kategori paket**: **Semua kategori** atau satu kategori (bagian 4.2). Kategori nonaktif tetap ada di daftar dengan tulisan `(nonaktif)`, karena riwayat masih memakainya. Dengan satu kategori, **Subscriptions Activated**, **Active MRR**, **Invoiced**, **Collected**, **Outstanding** dan Collection Rate hanya menghitung langganan pada paket kategori itu beserta tagihan dan pembayarannya. **Customers Acquired** tidak ikut terfilter.
+
 4. Klik **Run**. Header menampilkan **Formula version sales.v1**.
 5. Baca tujuh kartu total:
    - **Customers Acquired** menghitung pelanggan yang saat ini dikreditkan kepada acquirer dan dibuat dalam **Periode**. Pelanggan yang dihapus secara lunak tidak masuk.
@@ -3748,6 +3777,7 @@ Kolom izin menyebut izin yang membuka menu: satu saja sudah cukup. Menu hanya me
 | Evaluasi | `evaluation.view` atau `evaluation.view.own` | ya | ya | ya |
 | Pelanggan | `customer.view` | ya | ya | ya |
 | Paket Layanan | `service.view` atau `service.manage` | ya | ya | ya |
+| Kategori Paket | `service.view` atau `service.manage` | ya | ya | ya |
 | Profil Bandwidth | `service.view` atau `service.manage` | ya | ya | ya |
 | Profil Kecepatan | `service.view` atau `service.manage` | ya | ya | ya |
 | Tingkat SLA | `service.view` atau `service.manage` | ya | ya | ya |
@@ -3823,9 +3853,10 @@ Catatan untuk menu bersyarat:
 | Reaktivasi, blokir, dan terminasi langganan | `customer.subscription.reactivate`, `customer.subscription.block`, `customer.subscription.terminate` | ya | ya | tidak |
 | Menetapkan Acquired by | `customer.sales.assign` | ya | ya | ya |
 | Mengoreksi Acquired by | `customer.sales.correct` | ya | ya | tidak |
-| Melihat paket dan profil layanan | `service.view` | ya | ya | ya |
+| Melihat paket, kategori paket, dan profil layanan | `service.view` | ya | ya | ya |
 | Membuat dan mengubah paket dan profil layanan | `service.create`, `service.update`, `service.manage` | ya | ya | tidak |
 | Menghapus dan mengekspor paket dan profil layanan | `service.delete`, `service.export` | ya | tidak | tidak |
+| Kategori Paket: lihat, buat, ubah, nonaktifkan, hapus | sama dengan paket: `service.view`, `service.create`, `service.update`, `service.delete`, `service.manage` | lihat, buat, ubah, hapus | lihat, buat, ubah, hapus | lihat saja |
 
 ### Kemampuan: Jaringan
 

@@ -23,6 +23,7 @@ final readonly class ReportFilters
         public ?string $assetType = null,
         public ?int $technicianId = null,
         public ?string $group = null,
+        public ?int $packageCategoryId = null,
     ) {}
 
     public static function fromRequest(Request $request, ?int $technicianId = null): self
@@ -39,6 +40,7 @@ final readonly class ReportFilters
             assetType: $request->input('asset_type') ?: null,
             technicianId: $technicianId,
             group: $request->input('group') ?: null,
+            packageCategoryId: $request->integer('service_package_category_id') ?: null,
         );
     }
 
@@ -50,7 +52,7 @@ final readonly class ReportFilters
     public function query(ReportType $report): array
     {
         $filters = match ($report) {
-            ReportType::Business => ['date_from' => $this->dateFrom, 'date_to' => $this->dateTo],
+            ReportType::Business => ['date_from' => $this->dateFrom, 'date_to' => $this->dateTo, 'service_package_category_id' => $this->packageCategoryId],
             ReportType::Sla => ['date_from' => $this->dateFrom, 'date_to' => $this->dateTo, 'category_id' => $this->categoryId],
             ReportType::Asset => [
                 'location_id' => $this->locationId,
@@ -73,7 +75,7 @@ final readonly class ReportFilters
     public function payload(ReportType $report): array
     {
         return match ($report) {
-            ReportType::Business => BusinessMetricsQuery::execute($this->dateFrom, $this->dateTo, $this->companyId),
+            ReportType::Business => BusinessMetricsQuery::execute($this->dateFrom, $this->dateTo, $this->companyId, packageCategoryId: $this->packageCategoryId),
             ReportType::Sla => SlaComplianceQuery::execute($this->dateFrom, $this->dateTo, $this->categoryId, $this->companyId),
             ReportType::Asset => AssetUtilizationQuery::execute($this->locationId, $this->assetType, $this->dateFrom, $this->dateTo, $this->companyId),
             ReportType::Technician => TechnicianPerformanceQuery::execute((int) $this->technicianId, $this->dateFrom, $this->dateTo, $this->companyId),
@@ -91,7 +93,7 @@ final readonly class ReportFilters
     public function charts(ReportType $report, array $payload): array
     {
         return match ($report) {
-            ReportType::Business => BusinessMetricsQuery::charts($this->dateFrom, $this->dateTo, $this->companyId),
+            ReportType::Business => BusinessMetricsQuery::charts($this->dateFrom, $this->dateTo, $this->companyId, $this->packageCategoryId),
             ReportType::Sla => SlaComplianceQuery::charts($payload),
             ReportType::Technician => TechnicianPerformanceQuery::charts((int) $this->technicianId, $this->dateFrom, $this->dateTo, $this->companyId),
             default => throw new LogicException("{$report->value} has no charts payload."),

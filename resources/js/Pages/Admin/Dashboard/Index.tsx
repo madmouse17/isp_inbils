@@ -1,5 +1,6 @@
 import { PageHeader } from '@/Components/composite';
 import { ResourceEmpty } from '@/Components/composite/ResourceState';
+import { Badge } from '@/Components/ui/Badge';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { formatNumber } from '@/lib/format';
 import type { DashboardGroup, DashboardProps, DashboardSection } from '@/types/dashboard';
@@ -7,7 +8,6 @@ import { AdminOverview } from './components/AdminOverview';
 import { DashboardRegion } from './components/DashboardRegion';
 import { NotificationsCard } from './components/NotificationsCard';
 import { SectionCard } from './components/SectionCard';
-import { ToneBadge } from './components/ToneBadge';
 
 const groupTitles: Record<DashboardGroup, string> = {
     operations: 'Operasional',
@@ -77,9 +77,9 @@ export default function Index({ company, sections, notifications, admin }: Dashb
                         title="Notifikasi"
                         meta={
                             unreadCount > 0 ? (
-                                <ToneBadge tone="info">
+                                <Badge variant="info" className="shrink-0 whitespace-nowrap">
                                     {formatNumber(unreadCount)} belum dibaca
-                                </ToneBadge>
+                                </Badge>
                             ) : null
                         }
                     >

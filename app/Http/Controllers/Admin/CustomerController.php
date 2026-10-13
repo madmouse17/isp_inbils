@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
+use Modules\Service\Services\ServicePackageOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerController extends Controller
@@ -78,6 +79,7 @@ class CustomerController extends Controller
                 ->whereNull('deleted_at')
                 ->orderBy('name')
                 ->get(['id', 'code', 'name', 'price_mrc', 'price_otc', 'contract_min_months']),
+            'packageGroups' => ServicePackageOptions::grouped($request->string('customer_type')->toString()),
             'locations' => DB::table('locations')
                 ->where('company_id', CompanyService::currentId())
                 ->where('is_active', true)

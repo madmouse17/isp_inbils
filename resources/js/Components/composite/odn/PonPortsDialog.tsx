@@ -48,7 +48,7 @@ export function PonPortsDialog({ onClose, olt }: PonPortsDialogProps) {
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="success" loading={processing}>
+                    <Button type="submit" variant="primary" loading={processing}>
                         Add ports
                     </Button>
                 </div>

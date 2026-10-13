@@ -104,7 +104,7 @@ test.describe('@lifecycle ticket', () => {
         await page.getByRole('button', { name: 'Close', exact: true }).click();
         const closeDialog = page.getByRole('dialog', { name: 'Close' });
         await closeDialog.getByRole('button', { name: 'Confirm' }).click();
-        await expect(page.getByText('closed').first()).toBeVisible({ timeout: 15_000 });
+        await expectDetail(page, 'Status', 'closed');
         const closedText = await detailValue(page, 'Closed:');
         expect(closedText.trim()).not.toBe('-');
 

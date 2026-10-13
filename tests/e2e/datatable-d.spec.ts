@@ -69,13 +69,13 @@ async function keyboardFocus(page: Page, control: Locator) {
 }
 
 async function exportParity(page: Page, c: TableCase) {
-    await keyboardFocus(page, page.getByRole('button', { name: 'Export', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Ekspor', exact: true }));
     await page.keyboard.press('Enter');
-    await expect(page.getByRole('menuitem', { name: 'Export CSV', exact: true })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Export PDF', exact: true })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Export Excel', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('menuitem', { name: 'Ekspor CSV', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor PDF', exact: true })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor Excel', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
-    await expect(page.getByRole('menuitem', { name: 'Export CSV', exact: true })).toBeHidden();
+    await expect(page.getByRole('menuitem', { name: 'Ekspor CSV', exact: true })).toBeHidden();
 
     // Attachment navigation emits ERR_ABORTED under the guarded browser fixture.
     const query = new URL(page.url()).searchParams;
@@ -112,7 +112,7 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
         await expectQuery(page, filter.key, filter.value);
     }
     const rows = page.locator('tbody:visible tr');
-    const size = page.getByLabel('Rows per page', { exact: true }).locator('visible=true');
+    const size = page.getByLabel('Baris per halaman', { exact: true }).locator('visible=true');
     const header = page.getByRole('columnheader', { name: c.sortHeader, exact: true });
     await expect(size).toHaveValue('10');
     await expect(rows).toHaveCount(10);
@@ -131,7 +131,7 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expectQuery(page, 'per_page', '10');
     const preserved = new URL(page.url()).searchParams;
     preserved.delete('page');
-    await keyboardFocus(page, page.getByRole('button', { name: 'Next page', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman berikutnya', exact: true }));
     await page.keyboard.press('Enter');
     await expectQuery(page, 'page', '2');
     await expectQuerySnapshot(page, preserved);
@@ -144,7 +144,7 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText(`${c.prefix}01`);
     await exportParity(page, c);
-    await keyboardFocus(page, page.getByRole('button', { name: 'Previous page', exact: true }));
+    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }));
     await page.keyboard.press('Enter');
     await expectQuery(page, 'page', '1');
     await expect(rows.first()).toContainText(`${c.prefix}11`);

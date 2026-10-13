@@ -154,7 +154,7 @@ export default function Index({
                     can.create ? (
                         <Button
                             type="button"
-                            variant="warning"
+                            variant="outline"
                             size="sm"
                             onClick={() => openEdit(employee)}
                         >
@@ -183,7 +183,7 @@ export default function Index({
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button type="button" variant="success" onClick={openCreate}>
+                                <Button type="button" variant="primary" onClick={openCreate}>
                                     Add Employee
                                 </Button>
                             ) : null}
@@ -314,11 +314,7 @@ export default function Index({
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

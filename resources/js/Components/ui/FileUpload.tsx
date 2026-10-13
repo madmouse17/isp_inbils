@@ -34,7 +34,7 @@ export function FileUpload({
     className,
     maxFileSize = '10MB',
     previewUrl,
-    previewName = 'Current file',
+    previewName = 'Berkas saat ini',
     previewType,
 }: FileUploadProps) {
     const inputId = label?.toLowerCase().replace(/\s+/g, '-');
@@ -86,15 +86,26 @@ export function FileUpload({
                     disabled={disabled}
                     acceptedFileTypes={acceptedFileTypes}
                     maxFileSize={maxFileSize}
-                    labelFileTypeNotAllowed="File type is not allowed"
-                    fileValidateTypeLabelExpectedTypes="Allowed: {allTypes}"
-                    labelMaxFileSizeExceeded="File is too large"
-                    labelMaxFileSize="Maximum file size is {filesize}"
+                    labelFileTypeNotAllowed="Jenis berkas tidak diizinkan"
+                    fileValidateTypeLabelExpectedTypes="Diizinkan: {allTypes}"
+                    labelMaxFileSizeExceeded="Berkas terlalu besar"
+                    labelMaxFileSize="Ukuran berkas maksimum {filesize}"
                     credits={false}
-                    labelIdle='Drop file here or <span class="filepond--label-action">browse</span>'
+                    labelIdle='Seret berkas ke sini atau <span class="filepond--label-action">telusuri</span>'
+                    labelInvalidField="Ada berkas yang tidak valid"
+                    labelFileWaitingForSize="Menunggu ukuran berkas"
+                    labelFileSizeNotAvailable="Ukuran tidak tersedia"
+                    labelFileLoading="Memuat"
+                    labelFileLoadError="Gagal memuat berkas"
+                    labelFileRemoveError="Gagal menghapus berkas"
+                    labelTapToCancel="ketuk untuk membatalkan"
+                    labelTapToRetry="ketuk untuk mencoba lagi"
+                    labelButtonRemoveItem="Hapus"
+                    labelButtonAbortItemLoad="Batalkan"
+                    labelButtonRetryItemLoad="Coba lagi"
                 />
             </div>
-            {error && <p className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</p>}
+            {error && <p className="mt-1 text-sm text-destructive-text">{error}</p>}
             {!error && hint && <p className="mt-1 text-sm text-muted-foreground">{hint}</p>}
         </div>
     );

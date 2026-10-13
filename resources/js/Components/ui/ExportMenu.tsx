@@ -6,7 +6,7 @@ import {
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
-} from '@/Components/ui/Dropdown';
+} from '@/Components/ui/dropdown-menu';
 
 export type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 
@@ -27,9 +27,9 @@ export interface ExportMenuProps {
 }
 
 const LABELS: Record<ExportFormat, string> = {
-    csv: 'Export CSV',
-    xlsx: 'Export Excel',
-    pdf: 'Export PDF',
+    csv: 'Ekspor CSV',
+    xlsx: 'Ekspor Excel',
+    pdf: 'Ekspor PDF',
 };
 
 export function ExportMenu({
@@ -39,7 +39,7 @@ export function ExportMenu({
     resource: _resource,
     formats = ['csv', 'xlsx'],
     disabled = false,
-    label = 'Export',
+    label = 'Ekspor',
     canExport = true,
     className,
 }: ExportMenuProps) {

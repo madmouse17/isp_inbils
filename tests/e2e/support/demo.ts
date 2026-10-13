@@ -100,8 +100,8 @@ export async function loginAs(page: Page, role: DemoRole = 'admin') {
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(user.email);
-    await page.getByLabel('Password').fill(demoPassword);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill(demoPassword);
+    await page.getByRole('button', { name: 'Masuk' }).click();
 
     // Technician and customer accounts are app-only on the web: they land on /app-only.
     if (appOnly) {
@@ -209,21 +209,35 @@ export async function selectFirstRealOption(select: Locator) {
 }
 
 export async function selectSearchOption(page: Page, label: string, text: string | RegExp) {
-    const field = page.getByLabel(label);
+    // Found by role: the clear button of a chosen field is also labelled "Hapus pilihan: {label}".
+    const field = page.getByRole('combobox', { name: label });
     await field.click();
     if (typeof text === 'string') {
         await field.fill(text);
-        await page.getByRole('button', { name: text }).first().click();
-        return;
     }
-    await page.getByRole('button', { name: text }).first().click();
+    // The options are role=option items in a popover, outside any dialog the field sits in.
+    await page.getByRole('option', { name: text }).first().click();
+}
+
+/** Opens the SearchSelect `label`, takes its first option and returns that option's label (not its description). */
+export async function selectFirstSearchOption(page: Page, label: string): Promise<string> {
+    await page.getByRole('combobox', { name: label }).click();
+    // The field's own list: a native select on the same page also holds role=option items, and they come first in the DOM.
+    const option = page.getByRole('listbox', { name: label }).getByRole('option').first();
+    await expect(option).toBeVisible();
+    const name = (await option.locator('span').first().textContent()) ?? '';
+    await option.click();
+
+    return name;
 }
 
 export async function technicianUserId(page: Page) {
     await page.goto('/admin/users?search=Demo%20Technician');
     const row = page.getByRole('row').filter({ hasText: 'Demo Technician' }).first();
     await expect(row).toBeVisible({ timeout: 15_000 });
-    const href = await row.getByRole('link', { name: 'Show' }).getAttribute('href');
+    await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+    const href = await page.getByRole('menuitem', { name: 'Lihat detail' }).getAttribute('href');
+    await page.keyboard.press('Escape');
     const id = href?.match(/\/(\d+)$/)?.[1];
     if (!id) {
         throw new Error('Could not resolve Demo Technician user id');

@@ -56,7 +56,7 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                         0
                     ),
             },
-            { key: 'description', header: 'Description', cell: (row) => row.description ?? '—' },
+            { key: 'description', header: 'Description', cell: (row) => row.description ?? '-' },
         ];
 
         if (!can.manage) return base;
@@ -100,7 +100,7 @@ export default function Index({ vlans, locations, can }: IndexProps) {
     }, [can.manage]);
 
     const newVlan = can.manage ? (
-        <Button type="button" variant="success" onClick={() => setDialog('new')}>
+        <Button type="button" variant="primary" onClick={() => setDialog('new')}>
             <Plus className="size-4" aria-hidden="true" />
             New VLAN
         </Button>

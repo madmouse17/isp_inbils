@@ -1,12 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { router } from '@inertiajs/react';
-import {
-    CheckCircleIcon,
-    ExclamationTriangleIcon,
-    PaperAirplaneIcon,
-    PlayIcon,
-    XCircleIcon,
-} from '@heroicons/react/24/outline';
+import { CheckCircle2, AlertTriangle, Send, Play, XCircle } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { LoadingState, ResourceEmpty } from '@/Components/composite/ResourceState';
@@ -190,7 +184,7 @@ export default function MyWorkIndex({
                     <div>
                         <Badge
                             variant={getDomainVariant(row.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getDomainLabel(row.domain)}
                         </Badge>
@@ -211,12 +205,12 @@ export default function MyWorkIndex({
                     <div className="text-xs text-muted-foreground">
                         Pelanggan:{' '}
                         <span className="font-medium text-foreground">
-                            {row.customer?.name ?? '—'}
+                            {row.customer?.name ?? '-'}
                         </span>
                     </div>
                     {row.sla_breached && (
-                        <div className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                        <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                             <span>SLA Terlampaui</span>
                         </div>
                     )}
@@ -232,7 +226,7 @@ export default function MyWorkIndex({
                 <div className="space-y-1">
                     <Badge
                         variant={getPriorityVariant(row.priority)}
-                        className="text-[10px] font-semibold uppercase"
+                        className="text-xs font-semibold"
                     >
                         {getPriorityLabel(row.priority)}
                     </Badge>
@@ -247,10 +241,10 @@ export default function MyWorkIndex({
             sortKey: 'status',
             cell: (row) => (
                 <div className="space-y-1">
-                    <Badge variant={getStatusVariant(row.status)} className="text-[10px]">
+                    <Badge variant={getStatusVariant(row.status)}>
                         {getStatusLabel(row.status)}
                     </Badge>
-                    <p className="text-[11px] text-muted-foreground">{getItemNextStatus(row)}</p>
+                    <p className="text-xs text-muted-foreground">{getItemNextStatus(row)}</p>
                 </div>
             ),
         },
@@ -298,7 +292,7 @@ export default function MyWorkIndex({
                             variant="default"
                             onClick={() => handleOpenConfirm(row, 'start')}
                         >
-                            <PlayIcon className="mr-1 h-3.5 w-3.5" />
+                            <Play className="mr-1 h-3.5 w-3.5" />
                             Mulai
                         </Button>
                     )}
@@ -309,7 +303,7 @@ export default function MyWorkIndex({
                             variant="default"
                             onClick={() => handleOpenResolve(row)}
                         >
-                            <CheckCircleIcon className="mr-1 h-3.5 w-3.5" />
+                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                             Selesaikan
                         </Button>
                     )}
@@ -320,7 +314,7 @@ export default function MyWorkIndex({
                             variant="default"
                             onClick={() => handleOpenConfirm(row, 'submit')}
                         >
-                            <PaperAirplaneIcon className="mr-1 h-3.5 w-3.5" />
+                            <Send className="mr-1 h-3.5 w-3.5" />
                             Ajukan Review
                         </Button>
                     )}
@@ -331,7 +325,7 @@ export default function MyWorkIndex({
                             variant="outline"
                             onClick={() => handleOpenConfirm(row, 'close')}
                         >
-                            <XCircleIcon className="mr-1 h-3.5 w-3.5" />
+                            <XCircle className="mr-1 h-3.5 w-3.5" />
                             Tutup
                         </Button>
                     )}

@@ -1,7 +1,7 @@
 import React from 'react';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
@@ -98,9 +98,8 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
     };
 
     return (
-        <AppLayout>
-            <Head title="Buat Permintaan Barang Baru" />
-            <div className="mx-auto space-y-6 max-w-4xl p-4 md:p-6">
+        <AdminLayout title="Buat Permintaan Barang">
+            <div className="mx-auto space-y-6 max-w-4xl">
                 <PageHeader
                     title="Buat Permintaan Barang"
                     description="Ajukan permohonan material atau alat kerja kepada bagian gudang."
@@ -117,7 +116,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                 />
 
                 {Object.keys(errors).length > 0 && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
+                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text">
                         <div className="mb-1 flex items-center gap-2 font-medium">
                             <AlertCircle className="h-4 w-4" />
                             <span>Terdapat kesalahan pengisian formulir:</span>
@@ -328,7 +327,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                                                 size="icon"
                                                 onClick={() => removeItem(idx)}
                                                 disabled={data.items.length <= 1}
-                                                className="text-destructive hover:bg-destructive/10"
+                                                className="text-destructive-text hover:bg-destructive/10"
                                                 title="Hapus baris ini"
                                             >
                                                 <Trash2 className="h-4 w-4" />
@@ -352,7 +351,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                         </Button>
                         <Button
                             type="button"
-                            variant="success"
+                            variant="primary"
                             onClick={() => handleSubmit(true)}
                             disabled={processing}
                             loading={processing && data.submit}
@@ -364,6 +363,6 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                     </div>
                 </form>
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

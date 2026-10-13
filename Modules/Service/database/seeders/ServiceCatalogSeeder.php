@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use Illuminate\Database\Seeder;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
 
@@ -45,21 +46,24 @@ class ServiceCatalogSeeder extends Seeder
             ['name' => 'Platinum', 'response_time_hours' => 2, 'resolution_time_hours' => 8],
         ])->map(fn (array $data) => SLATier::query()->firstOrCreate(['company_id' => $companyId, 'name' => $data['name']], $data + ['is_active' => true]));
 
+        $categoryIds = ServicePackageCategory::ensureDefaults($companyId);
+
         foreach ([
-            ['PKG-HOME-20M', 'Home 20Mbps', 0, 0, 0, 150000, 300000, 0],
-            ['PKG-HOME-50M', 'Home 50Mbps', 1, 1, 1, 250000, 500000, 0],
-            ['PKG-HOME-100M', 'Home 100Mbps', 2, 2, 1, 450000, 750000, 0],
-            ['PKG-BIZ-50M', 'Business 50Mbps', 1, 1, 2, 750000, 1000000, 12],
-            ['PKG-BIZ-100M', 'Business 100Mbps Dedicated', 3, 3, 2, 1500000, 1500000, 12],
-            ['PKG-ENT-100M', 'Enterprise 100Mbps', 3, 3, 3, 2500000, 2500000, 24],
-            ['PKG-ENT-500M', 'Enterprise 500Mbps', 4, 4, 3, 8000000, 5000000, 24],
-            ['PKG-SOHO-20M', 'SOHO 20Mbps', 0, 0, 1, 300000, 500000, 6],
-        ] as [$code, $name, $bandwidth, $speed, $sla, $mrc, $otc, $contract]) {
+            ['PKG-HOME-20M', 'Home 20Mbps', 0, 0, 0, 150000, 300000, 0, 'RUMAHAN'],
+            ['PKG-HOME-50M', 'Home 50Mbps', 1, 1, 1, 250000, 500000, 0, 'RUMAHAN'],
+            ['PKG-HOME-100M', 'Home 100Mbps', 2, 2, 1, 450000, 750000, 0, 'RUMAHAN'],
+            ['PKG-BIZ-50M', 'Business 50Mbps', 1, 1, 2, 750000, 1000000, 12, 'BISNIS'],
+            ['PKG-BIZ-100M', 'Business 100Mbps Dedicated', 3, 3, 2, 1500000, 1500000, 12, 'KORPORAT'],
+            ['PKG-ENT-100M', 'Enterprise 100Mbps', 3, 3, 3, 2500000, 2500000, 24, 'KORPORAT'],
+            ['PKG-ENT-500M', 'Enterprise 500Mbps', 4, 4, 3, 8000000, 5000000, 24, 'KORPORAT'],
+            ['PKG-SOHO-20M', 'SOHO 20Mbps', 0, 0, 1, 300000, 500000, 6, 'BISNIS'],
+        ] as [$code, $name, $bandwidth, $speed, $sla, $mrc, $otc, $contract, $category]) {
             ServicePackage::query()->firstOrCreate(['company_id' => $companyId, 'code' => $code], [
                 'name' => $name,
                 'bandwidth_profile_id' => $bandwidths[$bandwidth]->id,
                 'speed_profile_id' => $speeds[$speed]->id,
                 'sla_tier_id' => $slas[$sla]->id,
+                'service_package_category_id' => $categoryIds[$category],
                 'price_mrc' => $mrc,
                 'price_otc' => $otc,
                 'contract_min_months' => $contract,

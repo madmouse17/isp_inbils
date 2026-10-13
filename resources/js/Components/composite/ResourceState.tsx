@@ -97,10 +97,10 @@ type ErrorStateProps = {
 };
 
 export function ErrorState({
-    title = 'Something went wrong',
-    description = 'An unexpected error occurred. Try again or contact support.',
+    title = 'Terjadi kesalahan',
+    description = 'Terjadi kesalahan yang tidak terduga. Coba lagi atau hubungi tim dukungan.',
     onRetry,
-    retryLabel = 'Try again',
+    retryLabel = 'Coba lagi',
     action,
     className,
 }: ErrorStateProps) {
@@ -108,7 +108,7 @@ export function ErrorState({
         <Empty className={cn('border border-dashed', className)}>
             <EmptyHeader>
                 <EmptyMedia variant="icon">
-                    <AlertCircle className="text-destructive" />
+                    <AlertCircle className="text-destructive-text" />
                 </EmptyMedia>
                 <EmptyTitle>{title}</EmptyTitle>
                 <EmptyDescription>{description}</EmptyDescription>
@@ -140,10 +140,10 @@ type ForbiddenStateProps = {
 };
 
 export function ForbiddenState({
-    title = 'Access denied',
-    description = 'You do not have permission to view this resource.',
+    title = 'Akses ditolak',
+    description = 'Anda tidak punya izin untuk membuka halaman ini.',
     backHref = '/',
-    backLabel = 'Back to home',
+    backLabel = 'Kembali ke dasbor',
     action,
     className,
 }: ForbiddenStateProps) {
@@ -160,12 +160,9 @@ export function ForbiddenState({
                 <EmptyContent>
                     {action}
                     {backHref ? (
-                        <Link
-                            href={backHref}
-                            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-medium shadow-xs hover:bg-accent hover:text-accent-foreground"
-                        >
-                            {backLabel}
-                        </Link>
+                        <Button asChild variant="outline">
+                            <Link href={backHref}>{backLabel}</Link>
+                        </Button>
                     ) : null}
                 </EmptyContent>
             )}
@@ -184,8 +181,8 @@ type ResourceEmptyProps = {
 };
 
 export function ResourceEmpty({
-    title = 'No data',
-    description = 'Nothing to show yet.',
+    title = 'Tidak ada data',
+    description = 'Belum ada yang bisa ditampilkan.',
     action,
     icon,
     className,

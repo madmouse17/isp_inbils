@@ -66,7 +66,7 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
             {
                 key: 'framed_ip',
                 header: 'Address',
-                cell: (row) => <span className="font-mono text-sm">{row.framed_ip ?? '—'}</span>,
+                cell: (row) => <span className="font-mono text-sm">{row.framed_ip ?? '-'}</span>,
             },
             {
                 key: 'started_at',
@@ -150,7 +150,7 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                                 </Detail>
                                 <Detail label="CoA target">
                                     <span className="font-mono">
-                                        {`${asset?.management_ip ?? '—'}:${nasDevice.coa_port}`}
+                                        {`${asset?.management_ip ?? '-'}:${nasDevice.coa_port}`}
                                     </span>
                                 </Detail>
                                 <Detail label="Realm">

@@ -66,8 +66,8 @@ export default function Show({
                 'Top level'
             ),
         },
-        { label: 'POP', value: prefix.location?.code ?? '—' },
-        { label: 'VLAN', value: prefix.vlan ? `${prefix.vlan.vid} · ${prefix.vlan.name}` : '—' },
+        { label: 'POP', value: prefix.location?.code ?? '-' },
+        { label: 'VLAN', value: prefix.vlan ? `${prefix.vlan.vid} · ${prefix.vlan.name}` : '-' },
         { label: 'Size', value: formatCount(prefix.size) },
         ...(holdsAddresses
             ? [
@@ -100,7 +100,7 @@ export default function Show({
                     <Badge variant={usageVariants[row.usage]}>{usageLabels[row.usage]}</Badge>
                 ),
             },
-            { key: 'location', header: 'POP', cell: (row) => row.location?.code ?? '—' },
+            { key: 'location', header: 'POP', cell: (row) => row.location?.code ?? '-' },
             {
                 key: 'size',
                 header: 'Size',
@@ -144,10 +144,10 @@ export default function Show({
                             {row.holder.label}
                         </Link>
                     ) : (
-                        '—'
+                        '-'
                     ),
             },
-            { key: 'note', header: 'Note', cell: (row) => row.note ?? '—' },
+            { key: 'note', header: 'Note', cell: (row) => row.note ?? '-' },
             {
                 key: 'assigned_at',
                 header: 'Added',
@@ -202,7 +202,7 @@ export default function Show({
     }, [can.manage, can.assign]);
 
     const reserve = can.manage ? (
-        <Button type="button" variant="success" onClick={() => setReserving(true)}>
+        <Button type="button" variant="primary" onClick={() => setReserving(true)}>
             <Plus className="size-4" aria-hidden="true" />
             Reserve address
         </Button>

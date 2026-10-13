@@ -35,11 +35,11 @@ type CustomerRow = {
 };
 
 const acquiredByField = (page: Page) =>
-    page.getByRole('combobox', { name: 'Acquired by', exact: true });
+    page.getByRole('combobox', { name: 'Diperoleh oleh', exact: true });
 const dropdownOf = (field: Locator) => field.locator('..');
 const optionIn = (field: Locator, name: string) =>
-    dropdownOf(field).getByRole('button', { name: new RegExp(name) });
-const correctionReason = (page: Page) => page.getByLabel('Correction reason');
+    field.page().getByRole('option', { name: new RegExp(name) });
+const correctionReason = (page: Page) => page.getByLabel('Alasan koreksi');
 const saveButton = (page: Page) => page.getByRole('button', { name: 'Save Customer' });
 const customersIndexUrl = /\/admin\/customers\/?$/;
 
@@ -77,7 +77,9 @@ async function chooseAcquirer(page: Page, name: string) {
 
 async function clearAcquirer(page: Page, reason: string) {
     const field = acquiredByField(page);
-    await dropdownOf(field).getByRole('button', { name: 'Clear selection' }).click();
+    await dropdownOf(field)
+        .getByRole('button', { name: /^Hapus pilihan/ })
+        .click();
     await correctionReason(page).fill(reason);
 }
 
@@ -93,10 +95,10 @@ async function expectShowAcquirer(page: Page, id: number, name: string, expected
     const row = main.getByText(/^Acquired by:?\s*$/).locator('..');
     await expect(row).toBeVisible();
     if (expected === null) {
-        await expect(row).toContainText('Unassigned');
+        await expect(row).toContainText('Belum ditentukan');
     } else {
         await expect(row).toContainText(expected);
-        await expect(row).not.toContainText('Unassigned');
+        await expect(row).not.toContainText('Belum ditentukan');
     }
 }
 
@@ -194,7 +196,7 @@ test.describe('@customer-sales-attribution', () => {
         const field = acquiredByField(page);
         await expect(field).toBeVisible();
         await expect(field).toHaveValue('');
-        await expect(field).toHaveAttribute('placeholder', 'Unassigned - search employee');
+        await expect(field).toHaveAttribute('placeholder', 'Belum ditentukan, cari karyawan');
         await expect(correctionReason(page)).toHaveCount(0);
 
         // Only eligible employees (active profile + customer.create) are offered.
@@ -205,7 +207,9 @@ test.describe('@customer-sales-attribution', () => {
         await expect(optionIn(field, 'Demo Technician')).toHaveCount(0);
         await expect(optionIn(field, 'Demo Customer')).toHaveCount(0);
         await field.fill('zzz-no-such-employee');
-        await expect(dropdownOf(field).getByText('No eligible employees found.')).toBeVisible();
+        await expect(
+            field.page().getByText('Tidak ada karyawan yang memenuhi syarat.'),
+        ).toBeVisible();
         await field.fill('');
 
         await chooseAcquirer(page, staff);
@@ -231,11 +235,11 @@ test.describe('@customer-sales-attribution', () => {
         const reason = correctionReason(page);
         await expect(reason).toBeVisible();
         await expect(
-            page.getByText('Recorded in the audit log with the old and new acquirer.'),
+            page.getByText('Dicatat di log audit bersama nilai lama dan barunya.'),
         ).toBeVisible();
         await saveButton(page).click();
         await expect(reason).toHaveAttribute('aria-invalid', 'true');
-        await expect(reason).not.toHaveAccessibleDescription(/Recorded in the audit log/);
+        await expect(reason).not.toHaveAccessibleDescription(/Dicatat di log audit/);
         await expect(reason).toHaveAccessibleDescription(/\S/);
         await expect(page).toHaveURL(new RegExp(`/admin/customers/${id}/edit$`));
         await expect(field).toHaveValue(new RegExp(manager));
@@ -249,7 +253,7 @@ test.describe('@customer-sales-attribution', () => {
         // Clearing is a correction too: needs a reason, ends Unassigned.
         await openEdit(page, id);
         await dropdownOf(acquiredByField(page))
-            .getByRole('button', { name: 'Clear selection' })
+            .getByRole('button', { name: /^Hapus pilihan/ })
             .click();
         await expect(acquiredByField(page)).toHaveValue('');
         await expect(correctionReason(page)).toBeVisible();
@@ -283,10 +287,10 @@ test.describe('@customer-sales-attribution', () => {
         for (const id of [assignId, lockedId]) {
             await openEdit(page, id);
             const main = page.getByRole('main');
-            await expect(main.getByText('Acquired by').first()).toBeVisible();
+            await expect(main.getByText('Diperoleh oleh').first()).toBeVisible();
             await expect(main.getByText(manager).first()).toBeVisible();
             await expect(acquiredByField(page)).toHaveCount(0);
-            await expect(page.getByRole('button', { name: 'Clear selection' })).toHaveCount(0);
+            await expect(page.getByRole('button', { name: /^Hapus pilihan/ })).toHaveCount(0);
             await expect(correctionReason(page)).toHaveCount(0);
         }
     });
@@ -308,13 +312,14 @@ test.describe('@customer-sales-attribution', () => {
         const rows = page.locator('tbody tr');
         const rowOf = (name: string) => rows.filter({ hasText: name });
         const acquiredBy = (url: URL) => url.searchParams.get('acquired_by');
-        const filter = acquiredByField(page);
+        // The Index filter is a native select with its own label; the Edit field is the SearchSelect.
+        const filter = page.getByRole('combobox', { name: 'Acquired by', exact: true });
 
         await expect(main.getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
         await expect(rows).toHaveCount(3);
         await expect(rowOf(filterManager)).toContainText(manager);
         await expect(rowOf(filterStaff)).toContainText(staff);
-        await expect(rowOf(filterNone)).toContainText('Unassigned');
+        await expect(rowOf(filterNone)).toContainText('Belum ditentukan');
 
         // Column header exists and is not sortable (Name, by contrast, is).
         const header = main.getByRole('columnheader', { name: 'Acquired by' });
@@ -348,7 +353,7 @@ test.describe('@customer-sales-attribution', () => {
         await page.getByRole('button', { name: 'Filter' }).click();
         await expect.poll(() => acquiredBy(new URL(page.url()))).toBe('unassigned');
         await expect(rows).toHaveCount(1);
-        await expect(rowOf(filterNone)).toContainText('Unassigned');
+        await expect(rowOf(filterNone)).toContainText('Belum ditentukan');
 
         await filter.selectOption({ label: 'All acquirers' });
         await page.getByRole('button', { name: 'Filter' }).click();
@@ -393,7 +398,7 @@ test.describe('@customer-sales-attribution', () => {
                     page.getByRole('main').getByRole('heading', { name: 'Pelanggan' }),
                 ).toBeVisible();
                 await setTheme(page, width, dark);
-                const filter = acquiredByField(page);
+                const filter = page.getByRole('combobox', { name: 'Acquired by', exact: true });
                 await expect(filter).toBeVisible();
                 await expectInsideViewport(filter, width);
                 await expect(page.locator('tbody tr')).toHaveCount(3);

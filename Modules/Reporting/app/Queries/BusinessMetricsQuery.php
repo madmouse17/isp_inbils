@@ -4,9 +4,7 @@ namespace Modules\Reporting\Queries;
 
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\DB;
-use Modules\Billing\Models\Invoice;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
-use Modules\Reporting\Queries\Concerns\ScopesToCompany;
 use Modules\Reporting\Queries\Sources\AssetSources;
 use Modules\Reporting\Queries\Sources\BusinessSources;
 use Modules\Reporting\Queries\Sources\SlaSources;
@@ -15,7 +13,6 @@ use Modules\Reporting\Support\TimeBuckets;
 class BusinessMetricsQuery
 {
     use AppliesDateRange;
-    use ScopesToCompany;
 
     /** Order of the invoice status chart; a status not listed comes last. */
     private const INVOICE_STATUSES = ['draft', 'sent', 'partial', 'paid', 'overdue', 'cancelled'];
@@ -25,25 +22,25 @@ class BusinessMetricsQuery
      * Without a company id the ambient tenant scope of the authenticated user applies. A timezone
      * (consolidation) reads the period as calendar days of that zone; null keeps v1: application timezone.
      */
-    public static function execute(?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null, ?string $timezone = null): array
+    public static function execute(?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null, ?string $timezone = null, ?int $packageCategoryId = null): array
     {
-        $subStatusCounts = BusinessSources::subscriptions($companyId)
+        $subStatusCounts = BusinessSources::subscriptions($companyId, $packageCategoryId)
             ->select('status', DB::raw('count(*) as count'))
             ->groupBy('status')->pluck('count', 'status')
             ->map(fn ($count) => (int) $count)->toArray();
-        $mrc = BusinessSources::subscriptionsInStatus($companyId, 'active')->sum('mrc_amount');
+        $mrc = BusinessSources::subscriptionsInStatus($companyId, 'active', $packageCategoryId)->sum('mrc_amount');
         $activeCount = (int) ($subStatusCounts['active'] ?? 0);
         $suspendedCount = (int) ($subStatusCounts['suspended'] ?? 0);
         $terminatedCount = (int) ($subStatusCounts['terminated'] ?? 0);
 
-        $newSubs = BusinessSources::newSubscriptions($companyId, $dateFrom, $dateTo, $timezone)->count();
-        $churn = BusinessSources::churn($companyId, $dateFrom, $dateTo, $timezone)->count();
+        $newSubs = BusinessSources::newSubscriptions($companyId, $dateFrom, $dateTo, $timezone, $packageCategoryId)->count();
+        $churn = BusinessSources::churn($companyId, $dateFrom, $dateTo, $timezone, $packageCategoryId)->count();
 
-        $revenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo)->sum('paid_amount');
-        $recurringRevenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, 'recurring')->sum('paid_amount');
-        $oneTimeRevenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, 'one_time')->sum('paid_amount');
+        $revenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, packageCategoryId: $packageCategoryId)->sum('paid_amount');
+        $recurringRevenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, 'recurring', $packageCategoryId)->sum('paid_amount');
+        $oneTimeRevenue = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, 'one_time', $packageCategoryId)->sum('paid_amount');
 
-        $outstanding = BusinessSources::outstandingInvoices($companyId)
+        $outstanding = BusinessSources::outstandingInvoices($companyId, $packageCategoryId)
             ->selectRaw('SUM(total - paid_amount) as outstanding')->value('outstanding') ?? 0;
 
         $assetDist = AssetSources::assets($companyId)
@@ -54,7 +51,7 @@ class BusinessMetricsQuery
         $slaTotal = SlaSources::resolved($companyId)->count();
         $slaRate = $slaTotal > 0 ? round(($slaCompliant / $slaTotal) * 100, 1) : 0;
 
-        $installCount = BusinessSources::completedInstallations($companyId, $dateFrom, $dateTo, $timezone)->count();
+        $installCount = BusinessSources::completedInstallations($companyId, $dateFrom, $dateTo, $timezone, $packageCategoryId)->count();
 
         return [
             'mrr' => $mrc,
@@ -83,14 +80,14 @@ class BusinessMetricsQuery
      *     invoice_status: list<array{status: string, count: int}>
      * }
      */
-    public static function charts(?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null): array
+    public static function charts(?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null, ?int $packageCategoryId = null): array
     {
         $timezone = TimeBuckets::timezoneOf($companyId);
-        $paid = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo);
+        $paid = BusinessSources::paidInvoices($companyId, $dateFrom, $dateTo, packageCategoryId: $packageCategoryId);
 
         $oldest = null;
         if ($dateFrom === null) {
-            $days = array_filter([(clone $paid)->min('issue_date'), BusinessSources::subscriptions($companyId)->min('activation_date')]);
+            $days = array_filter([(clone $paid)->min('issue_date'), BusinessSources::subscriptions($companyId, $packageCategoryId)->min('activation_date')]);
             $oldest = $days === [] ? null : CarbonImmutable::parse(min($days), $timezone);
         }
 
@@ -100,8 +97,8 @@ class BusinessMetricsQuery
             ->map(fn ($amount): float => (float) $amount)->all();
 
         return [
-            'series' => $buckets->series(['revenue_paid' => $revenue, 'mrr' => self::mrrAtBucketEnds($buckets, $companyId, $timezone)]),
-            'invoice_status' => self::invoiceStatus($companyId, $dateFrom, $dateTo),
+            'series' => $buckets->series(['revenue_paid' => $revenue, 'mrr' => self::mrrAtBucketEnds($buckets, $companyId, $timezone, $packageCategoryId)]),
+            'invoice_status' => self::invoiceStatus($companyId, $dateFrom, $dateTo, $packageCategoryId),
         ];
     }
 
@@ -113,7 +110,7 @@ class BusinessMetricsQuery
      *
      * @return array<string, float> bucket start => MRR
      */
-    private static function mrrAtBucketEnds(TimeBuckets $buckets, ?int $companyId, string $timezone): array
+    private static function mrrAtBucketEnds(TimeBuckets $buckets, ?int $companyId, string $timezone, ?int $packageCategoryId): array
     {
         $sums = [];
         $bindings = [];
@@ -123,7 +120,7 @@ class BusinessMetricsQuery
             array_push($bindings, $day, self::dateRange(null, $day, $timezone)[1]);
         }
 
-        $row = (array) BusinessSources::subscriptions($companyId)->selectRaw(implode(', ', $sums), $bindings)->toBase()->first();
+        $row = (array) BusinessSources::subscriptions($companyId, $packageCategoryId)->selectRaw(implode(', ', $sums), $bindings)->toBase()->first();
 
         return array_combine($buckets->keys(), array_map(
             static fn (int $index): float => (float) $row["m{$index}"],
@@ -132,9 +129,9 @@ class BusinessMetricsQuery
     }
 
     /** @return list<array{status: string, count: int}> */
-    private static function invoiceStatus(?int $companyId, ?string $dateFrom, ?string $dateTo): array
+    private static function invoiceStatus(?int $companyId, ?string $dateFrom, ?string $dateTo, ?int $packageCategoryId): array
     {
-        $query = self::scoped(Invoice::class, $companyId);
+        $query = BusinessSources::invoices($companyId, $packageCategoryId);
         self::applyDateOnlyRange($query, 'issue_date', $dateFrom, $dateTo);
         $order = array_flip(self::INVOICE_STATUSES);
 

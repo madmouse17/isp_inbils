@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
 
@@ -25,6 +26,7 @@ class ServicePackageFactory extends Factory
             'bandwidth_profile_id' => BandwidthProfile::withoutCompany()->where('company_id', $companyId)->value('id') ?? BandwidthProfile::factory()->create(['company_id' => $companyId])->id,
             'speed_profile_id' => SpeedProfile::withoutCompany()->where('company_id', $companyId)->value('id') ?? SpeedProfile::factory()->create(['company_id' => $companyId])->id,
             'sla_tier_id' => SLATier::withoutCompany()->where('company_id', $companyId)->value('id') ?? SLATier::factory()->create(['company_id' => $companyId])->id,
+            'service_package_category_id' => ServicePackageCategory::withoutCompany()->where('company_id', $companyId)->value('id') ?? ServicePackageCategory::factory()->create(['company_id' => $companyId])->id,
             'price_mrc' => fake()->numberBetween(150000, 2000000),
             'price_otc' => fake()->numberBetween(0, 1000000),
             'contract_min_months' => fake()->randomElement([0, 12, 24]),

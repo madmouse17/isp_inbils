@@ -21,7 +21,7 @@ export function UtilisationBar({ percent, label, className }: UtilisationBarProp
     if (percent === null) {
         return (
             <span className="text-muted-foreground" title={`${label}: not measured`}>
-                <span aria-hidden="true">—</span>
+                <span aria-hidden="true">-</span>
                 <span className="sr-only">{label}: not measured</span>
             </span>
         );

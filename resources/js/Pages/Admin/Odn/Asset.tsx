@@ -85,7 +85,7 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
 
     const addLabel = isOlt ? 'Add PON ports' : 'Add splitter';
     const add = can.manage ? (
-        <Button type="button" variant="success" onClick={() => setAdding(true)}>
+        <Button type="button" variant="primary" onClick={() => setAdding(true)}>
             <Plus className="size-4" aria-hidden="true" />
             {addLabel}
         </Button>

@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChevronRightIcon } from '@heroicons/react/20/solid';
+import { ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface BreadcrumbItem {
@@ -20,9 +20,7 @@ export function Breadcrumb({ items, className }: BreadcrumbProps) {
                     const isLast = i === items.length - 1;
                     return (
                         <li key={i} className="flex items-center gap-1.5">
-                            {i > 0 && (
-                                <ChevronRightIcon className="h-4 w-4 text-muted-foreground" />
-                            )}
+                            {i > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
                             {isLast || !item.href ? (
                                 <span
                                     aria-current={isLast ? 'page' : undefined}

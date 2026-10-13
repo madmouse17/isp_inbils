@@ -464,6 +464,7 @@ PHP;
             DB::table('categories')->where('id', $fixtureIds['category'])->delete();
             DB::table('units')->where('id', $fixtureIds['unit'])->delete();
             DB::table('service_packages')->where('id', $fixtureIds['service_package'])->delete();
+            DB::table('service_package_categories')->where('company_id', $companyId)->delete();
             DB::table('bandwidth_profiles')->where('id', $fixtureIds['bandwidth_profile'])->delete();
             DB::table('speed_profiles')->where('id', $fixtureIds['speed_profile'])->delete();
             DB::table('sla_tiers')->where('id', $fixtureIds['sla_tier'])->delete();

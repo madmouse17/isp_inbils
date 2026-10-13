@@ -192,7 +192,7 @@ async function exerciseTable(page: Page, c: Case) {
     await sortWithKeyboard(page, c, 'desc');
 
     const rowsBefore = await page.locator('tbody tr').count();
-    const perPage = page.getByLabel('Rows per page');
+    const perPage = page.getByLabel('Baris per halaman');
     await perPage.selectOption('25');
     await expectQuery(page, 'per_page', '25');
     await expectQuery(page, c.params.sort, c.sortKey);
@@ -201,7 +201,7 @@ async function exerciseTable(page: Page, c: Case) {
     expect(await page.locator('tbody tr').count()).toBeGreaterThanOrEqual(rowsBefore);
 
     await page.reload();
-    await expect(page.getByLabel('Rows per page')).toHaveValue('25');
+    await expect(page.getByLabel('Baris per halaman')).toHaveValue('25');
     await expect(page.getByLabel(c.searchLabel ?? 'Search', { exact: true })).toHaveValue(c.search);
     await expect(page.getByRole('columnheader', { name: c.sortHeader })).toHaveAttribute(
         'aria-sort',
@@ -210,12 +210,12 @@ async function exerciseTable(page: Page, c: Case) {
     await expect(page.locator('tbody tr').first()).toContainText(c.descFirst);
 
     if (c.exportable) {
-        const menu = page.getByRole('button', { name: 'Export', exact: true });
+        const menu = page.getByRole('button', { name: 'Ekspor', exact: true });
         await menu.focus();
         await page.keyboard.press('Enter');
-        await expect(page.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeVisible();
         await page.keyboard.press('Escape');
-        await expect(page.getByRole('menuitem', { name: 'Export CSV' })).toBeHidden();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeHidden();
 
         // Export parity: the endpoint receives the exact query the index shows.
         const query = new URL(page.url()).searchParams;
@@ -237,7 +237,7 @@ async function exerciseTable(page: Page, c: Case) {
             await page.reload();
             await expect(page.locator('html')).toHaveClass(dark ? /\bdark\b/ : /^(?!.*\bdark\b)/);
             await expect(heading).toBeVisible();
-            const control = page.getByLabel('Rows per page');
+            const control = page.getByLabel('Baris per halaman');
             await control.scrollIntoViewIfNeeded();
             const box = await control.boundingBox();
             expect(box, `${c.name} rows-per-page box at ${width}`).not.toBeNull();

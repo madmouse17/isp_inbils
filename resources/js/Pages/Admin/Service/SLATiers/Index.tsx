@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
@@ -68,7 +68,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 sortable: true,
                 sortKey: 'response_time_hours',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.response_time_hours ?? '—'),
+                cell: (row) => String(row.response_time_hours ?? '-'),
             },
             {
                 key: 'resolution_time_hours',
@@ -76,7 +76,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 sortable: true,
                 sortKey: 'resolution_time_hours',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.resolution_time_hours ?? '—'),
+                cell: (row) => String(row.resolution_time_hours ?? '-'),
             },
             {
                 key: 'response_on_time_rate_30d',
@@ -84,7 +84,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 className: 'text-right tabular-nums',
                 cell: (row) =>
                     row.response_on_time_rate_30d === null
-                        ? '—'
+                        ? '-'
                         : `${row.response_on_time_rate_30d}%`,
             },
             {
@@ -93,7 +93,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 className: 'text-right tabular-nums',
                 cell: (row) =>
                     row.resolution_on_time_rate_30d === null
-                        ? '—'
+                        ? '-'
                         : `${row.resolution_on_time_rate_30d}%`,
             },
             {
@@ -126,9 +126,8 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
     );
 
     return (
-        <AppLayout>
-            <Head title="Tingkat SLA" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Tingkat SLA">
+            <div className="space-y-4">
                 <PageHeader
                     title="Tingkat SLA"
                     description="Target layanan per paket. Hasil diukur otomatis dari tiket. Tiket urgent memakai setengah dari target."
@@ -142,7 +141,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild variant="success" size="sm">
+                                <Button asChild variant="primary" size="sm">
                                     <Link href={route('admin.sla-tiers.create')}>
                                         <Plus className="size-4" />
                                         Tingkat baru
@@ -183,6 +182,6 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     loading={processing}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

@@ -12,7 +12,7 @@ import { companyDateFormat, formatIsoAs, typeDateRange } from './support/dateRan
 
 const head = 'Inbils Demo Company';
 const subsidiary = 'E2E Subsidiary Company';
-const switcherName = /^Switch company, current:/;
+const switcherName = /^Ganti perusahaan, saat ini:/;
 
 // MRR, Revenue (Paid), Outstanding, Active Subscriptions, Suspended Subscriptions.
 const addableMetrics = [
@@ -69,7 +69,7 @@ async function expectInsideViewport(locator: Locator, width: number) {
 
 /** Below the lg breakpoint the sidebar, and the switcher in it, is a drawer behind the menu button. */
 async function openSidebarIfDrawer(page: Page) {
-    const toggle = page.getByRole('button', { name: 'Toggle sidebar' });
+    const toggle = page.getByRole('button', { name: 'Menu navigasi' });
 
     if (await toggle.isVisible()) {
         await toggle.click();
@@ -96,10 +96,10 @@ async function switchTo(page: Page, company: string) {
     await page.getByRole('button', { name: switcherName }).click();
     await page.getByRole('menuitemradio', { name: new RegExp(`^${company}`) }).click();
     await expect(
-        page.getByRole('status').filter({ hasText: `Now working in ${company}.` }),
+        page.getByRole('status').filter({ hasText: `Sekarang bekerja di ${company}.` }),
     ).toBeVisible();
     await expect(
-        page.getByRole('button', { name: `Switch company, current: ${company}` }),
+        page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${company}` }),
     ).toBeVisible();
 }
 
@@ -216,7 +216,7 @@ test.describe('@smoke @head-company head company', () => {
             [subsidiary, false],
         ]);
 
-        const switcher = page.getByRole('button', { name: `Switch company, current: ${head}` });
+        const switcher = page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${head}` });
         await expect(switcher).toBeVisible();
         await switcher.click();
         await expect(
@@ -237,7 +237,7 @@ test.describe('@smoke @head-company head company', () => {
             const other = await sharedProps(page);
             expect(other.canSwitch, role).toBe(false);
             expect(other.companies, role).toEqual([]);
-            await expect(page.getByRole('button', { name: /Switch company/ }), role).toHaveCount(0);
+            await expect(page.getByRole('button', { name: /Ganti perusahaan/ }), role).toHaveCount(0);
             await logout(page);
         }
     });
@@ -314,9 +314,9 @@ test.describe('@smoke @head-company head company', () => {
         const filtered = await expectTotalIsTheSum(page);
 
         // Only CSV is offered, and the file holds the figures on screen.
-        await page.getByRole('button', { name: 'Export', exact: true }).click();
+        await page.getByRole('button', { name: 'Ekspor', exact: true }).click();
         await expect(page.getByRole('menuitem')).toHaveCount(1);
-        await expect(page.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeVisible();
         await page.keyboard.press('Escape');
 
         const exported = await exportedFigures(page, '&date_from=2026-01-01&date_to=2026-01-31');
@@ -475,7 +475,7 @@ test.describe('@smoke @head-company head company', () => {
         await page.setViewportSize({ width: 320, height: 800 });
         await openSidebarIfDrawer(page);
 
-        const switcher = page.getByRole('button', { name: `Switch company, current: ${head}` });
+        const switcher = page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${head}` });
         await switcher.focus();
         await page.keyboard.press('Enter');
 
@@ -492,14 +492,14 @@ test.describe('@smoke @head-company head company', () => {
         await page.keyboard.press('Enter');
 
         await expect(
-            page.getByRole('status').filter({ hasText: `Now working in ${subsidiary}.` }),
+            page.getByRole('status').filter({ hasText: `Sekarang bekerja di ${subsidiary}.` }),
         ).toBeVisible();
         // The dashboard was already open, so the layout stays mounted: the switcher closes the drawer itself.
         await expect(page.locator('aside')).not.toBeInViewport();
-        await page.getByRole('button', { name: 'Toggle sidebar' }).click();
+        await page.getByRole('button', { name: 'Menu navigasi' }).click();
         await expect(brand(page, subsidiary)).toBeVisible();
         await expect(
-            page.getByRole('button', { name: `Switch company, current: ${subsidiary}` }),
+            page.getByRole('button', { name: `Ganti perusahaan, saat ini: ${subsidiary}` }),
         ).toBeVisible();
     });
 });

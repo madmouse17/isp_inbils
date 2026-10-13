@@ -47,7 +47,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                 <label
                     htmlFor={checkboxId}
                     className={cn(
-                        'inline-flex items-center gap-2 text-sm',
+                        'inline-flex min-h-11 items-center gap-2 text-sm sm:min-h-0',
                         disabled && 'cursor-not-allowed opacity-50',
                     )}
                 >
@@ -56,8 +56,8 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                         id={checkboxId}
                         type="checkbox"
                         className={cn(
-                            'h-4 w-4 rounded border border-primary text-primary shadow-sm focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
-                            error && 'border-destructive',
+                            'h-4 w-4 rounded border border-primary text-primary focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50',
+                            error && 'border-destructive-text',
                             className,
                         )}
                         checked={checked}
@@ -81,7 +81,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
                         </span>
                     ) : null}
                 </label>
-                {error ? <p className="text-sm text-red-700 dark:text-red-400">{error}</p> : null}
+                {error ? <p className="text-sm text-destructive-text">{error}</p> : null}
             </div>
         );
     },

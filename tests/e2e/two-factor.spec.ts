@@ -13,7 +13,7 @@ import { totp } from './support/totp';
  */
 
 const userPassword = 'Password123!';
-const invalidCode = 'The provided two-factor code was invalid.';
+const invalidCode = 'Kode autentikasi dua langkah tidak valid.';
 
 test('@two-factor the authenticator helper matches the RFC 6238 test vector', () => {
     // RFC 6238 appendix B, SHA-1, T = 59 s: 94287082, whose last six digits are the code.
@@ -145,8 +145,8 @@ async function createStaffUser(page: Page, email: string) {
 
 async function submitPassword(page: Page, email: string) {
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(userPassword);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill(userPassword);
+    await page.getByRole('button', { name: 'Masuk' }).click();
 }
 
 /** A fresh browser session logs in with the password and lands on the challenge. */

@@ -40,7 +40,7 @@ class ApprovalInboxItemResource extends JsonResource
                     : null,
                 'assigned_to' => $wo->assigned_to,
                 'submitted_at' => $wo->created_at?->toISOString(),
-                'age_seconds' => $wo->created_at ? max(0, now()->diffInSeconds($wo->created_at)) : null,
+                'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,
                 'scheduled_date' => $wo->scheduled_date?->toDateString(),
                 'summary' => $this->summarizeWorkOrder($wo),
                 'actions' => [
@@ -76,7 +76,7 @@ class ApprovalInboxItemResource extends JsonResource
                     : null,
                 'assigned_to' => null,
                 'submitted_at' => $submittedTime?->toISOString(),
-                'age_seconds' => $submittedTime ? max(0, now()->diffInSeconds($submittedTime)) : null,
+                'age_seconds' => $submittedTime ? max(0, (int) $submittedTime->diffInSeconds(now())) : null,
                 'scheduled_date' => $ir->needed_at?->toDateString(),
                 'summary' => $this->summarizeInventoryRequest($ir),
                 'actions' => [

@@ -15,6 +15,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertTitle,
+    Badge,
     Button,
     Card,
     CardContent,
@@ -32,7 +33,7 @@ import {
     serviceTypeLabel,
     SyncStatusBadge,
 } from '@/Components/composite/NetworkAccessBadges';
-import { ToneBadge, type BadgeTone } from '@/Components/composite/ToneBadge';
+import type { BadgeVariant } from '@/Components/ui/Badge';
 import { formatDateTime } from '@/lib/format';
 import type {
     NetworkAccount,
@@ -57,7 +58,7 @@ interface ShowProps extends Record<string, unknown> {
     errors?: Record<string, string | undefined>;
 }
 
-const subscriptionStatusTones: Record<string, BadgeTone> = {
+const subscriptionStatusTones: Record<string, BadgeVariant> = {
     pending: 'warning',
     active: 'success',
     suspended: 'warning',
@@ -122,7 +123,7 @@ function UsernameField({
         <div className="space-y-1.5">
             <label htmlFor="account-username" className="text-sm leading-none font-medium">
                 Username
-                <span aria-hidden="true" className="text-destructive">
+                <span aria-hidden="true" className="text-destructive-text">
                     {' '}
                     *
                 </span>
@@ -464,14 +465,14 @@ export default function Show({
                             <dl className="space-y-3 text-sm">
                                 <Row label="Subscription">{subscription.code}</Row>
                                 <Row label="Status">
-                                    <ToneBadge
-                                        tone={
+                                    <Badge
+                                        variant={
                                             subscriptionStatusTones[subscription.status] ??
-                                            'secondary'
+                                            'neutral'
                                         }
                                     >
                                         {subscription.status}
-                                    </ToneBadge>
+                                    </Badge>
                                 </Row>
                                 <Row label="Customer">
                                     {subscription.customer ? (
@@ -485,7 +486,7 @@ export default function Show({
                                             {subscription.customer.name}
                                         </Link>
                                     ) : (
-                                        '—'
+                                        '-'
                                     )}
                                 </Row>
                                 <Row label="Speed profile">
@@ -497,11 +498,11 @@ export default function Show({
                                                 : ''}
                                         </>
                                     ) : (
-                                        '—'
+                                        '-'
                                     )}
                                 </Row>
                                 <Row label="Serving POP">
-                                    {subscription.serving_pop?.name ?? '—'}
+                                    {subscription.serving_pop?.name ?? '-'}
                                 </Row>
                                 <Row label="Desired state">
                                     <DesiredStateBadge state={desiredState} />
@@ -581,7 +582,7 @@ export default function Show({
                                         <>
                                             <Row label="Address">
                                                 <span className="font-mono break-all">
-                                                    {session.framed_ip ?? '—'}
+                                                    {session.framed_ip ?? '-'}
                                                 </span>
                                             </Row>
                                             <Row label="NAS">
@@ -597,7 +598,7 @@ export default function Show({
                                             ? `Upload ${formatBytes(usage.input_octets)}, download ${formatBytes(usage.output_octets)}`
                                             : radiusEnabled
                                               ? 'Usage is not available right now. RADIUS did not answer.'
-                                              : '—'}
+                                              : '-'}
                                     </Row>
                                 </dl>
                             </CardContent>

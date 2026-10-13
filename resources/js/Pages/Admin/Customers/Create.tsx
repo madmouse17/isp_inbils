@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -13,6 +13,7 @@ import {
     Input,
     MapPicker,
     NativeSelect,
+    SearchSelect,
     PhoneInput,
     Switch,
     Tab,
@@ -32,6 +33,7 @@ import {
     type IndonesiaRegionValue,
 } from '@/Components/composite';
 import type { AcquirerOption } from '@/types/models';
+import { packageGroupOptions, type PackageGroup } from '@/lib/packageGroups';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
@@ -109,6 +111,8 @@ interface CustomerForm {
 interface CreateProps {
     codeSequence: CodeSequence;
     packages: PackageOption[];
+    /** The same packages grouped by category, ordered for `?customer_type`. */
+    packageGroups: PackageGroup[];
     locations: LocationOption[];
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
@@ -148,6 +152,7 @@ const emptyContact = (): ContactInput => ({
 export default function Create({
     codeSequence,
     packages,
+    packageGroups,
     locations,
     regions,
     can,
@@ -343,6 +348,12 @@ export default function Create({
         setData('contacts', contacts);
     };
 
+    // The server orders `packageGroups` for the type it was loaded with; the toggle re-orders here.
+    const packageOptions = useMemo(
+        () => packageGroupOptions(packageGroups, data.type),
+        [packageGroups, data.type],
+    );
+
     const selectPackage = (packageId: string) => {
         const selected = packages.find((item) => String(item.id) === packageId);
         setData('subscription', {
@@ -488,7 +499,7 @@ export default function Create({
                                             </div>
                                             <Button
                                                 type="button"
-                                                variant="success"
+                                                variant="outline"
                                                 size="sm"
                                                 onClick={() =>
                                                     setData('addresses', [
@@ -501,7 +512,7 @@ export default function Create({
                                             </Button>
                                         </div>
                                         {formErrors.addresses ? (
-                                            <p className="text-sm text-destructive">
+                                            <p className="text-sm text-destructive-text">
                                                 {formErrors.addresses}
                                             </p>
                                         ) : null}
@@ -684,7 +695,7 @@ export default function Create({
                                             </div>
                                             <Button
                                                 type="button"
-                                                variant="success"
+                                                variant="outline"
                                                 size="sm"
                                                 onClick={() =>
                                                     setData('contacts', [
@@ -697,7 +708,7 @@ export default function Create({
                                             </Button>
                                         </div>
                                         {formErrors.contacts ? (
-                                            <p className="text-sm text-destructive">
+                                            <p className="text-sm text-destructive-text">
                                                 {formErrors.contacts}
                                             </p>
                                         ) : null}
@@ -810,18 +821,14 @@ export default function Create({
                                                 SPK will be created automatically.
                                             </p>
                                         </div>
-                                        <NativeSelect
+                                        <SearchSelect
+                                            id="subscription-package"
                                             label="Service Package"
                                             value={data.subscription.service_package_id}
-                                            onChange={(event) => selectPackage(event.target.value)}
+                                            onChange={selectPackage}
+                                            options={packageOptions}
+                                            placeholder="Select package…"
                                             error={formErrors['subscription.service_package_id']}
-                                            options={[
-                                                { value: '', label: 'Select package…' },
-                                                ...packages.map((item) => ({
-                                                    value: String(item.id),
-                                                    label: `${item.code} — ${item.name}`,
-                                                })),
-                                            ]}
                                             required
                                         />
                                         <NativeSelect
@@ -835,7 +842,7 @@ export default function Create({
                                                 { value: '', label: 'Select location…' },
                                                 ...locations.map((location) => ({
                                                     value: String(location.id),
-                                                    label: `${location.code} — ${location.name} (${location.type})`,
+                                                    label: `${location.code} - ${location.name} (${location.type})`,
                                                 })),
                                             ]}
                                             required
@@ -964,7 +971,7 @@ export default function Create({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" variant="primary" loading={processing}>
                             Create Customer & SPK
                         </Button>
                     </div>

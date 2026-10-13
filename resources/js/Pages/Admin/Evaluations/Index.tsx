@@ -70,7 +70,7 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
                         can.create && (
                             <Button
                                 type="button"
-                                variant="success"
+                                variant="primary"
                                 onClick={() => router.get(route('admin.evaluations.create'))}
                             >
                                 Create

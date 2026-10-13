@@ -258,7 +258,7 @@ export function CustomerAddressEditor({
                     {canManage ? (
                         <Button
                             type="button"
-                            variant="success"
+                            variant="primary"
                             size="sm"
                             onClick={startCreate}
                             disabled={processing}
@@ -307,7 +307,7 @@ export function CustomerAddressEditor({
                                     <div className="flex gap-2">
                                         <Button
                                             type="button"
-                                            variant="warning"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => startEdit(row)}
                                             disabled={processing}
@@ -430,7 +430,7 @@ export function CustomerAddressEditor({
                                 </Button>
                                 <Button
                                     type="submit"
-                                    variant="success"
+                                    variant="primary"
                                     loading={processing}
                                     disabled={processing}
                                 >

@@ -1,11 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
-import {
-    CheckCircleIcon,
-    ClockIcon,
-    ExclamationTriangleIcon,
-    XCircleIcon,
-} from '@heroicons/react/24/outline';
+import { AlertTriangle, CheckCircle2, Clock, XCircle, type LucideIcon } from 'lucide-react';
 import { Button } from '@/Components/ui';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { formatDateTime, formatMoney } from '@/lib/format';
@@ -17,36 +12,36 @@ interface ReturnProps extends Record<string, unknown> {
 
 const outcomes: Record<
     PaymentAttemptStatus,
-    { title: string; body: string; Icon: typeof CheckCircleIcon; tone: string }
+    { title: string; body: string; Icon: LucideIcon; tone: string }
 > = {
     paid: {
         title: 'Pembayaran diterima',
         body: 'Terima kasih. Pembayaran Anda sudah tercatat pada tagihan.',
-        Icon: CheckCircleIcon,
+        Icon: CheckCircle2,
         tone: 'text-emerald-700 dark:text-emerald-400',
     },
     pending: {
         title: 'Menunggu konfirmasi',
         body: 'Pembayaran belum dikonfirmasi. Biasanya selesai dalam beberapa menit; transfer bank bisa lebih lama. Periksa lagi sebentar lagi.',
-        Icon: ClockIcon,
+        Icon: Clock,
         tone: 'text-amber-700 dark:text-amber-400',
     },
     failed: {
         title: 'Pembayaran gagal atau dibatalkan',
         body: 'Tidak ada dana yang diterima. Anda dapat mencoba membayar lagi dari aplikasi Inbils.',
-        Icon: XCircleIcon,
-        tone: 'text-destructive',
+        Icon: XCircle,
+        tone: 'text-destructive-text',
     },
     expired: {
         title: 'Halaman pembayaran kedaluwarsa',
         body: 'Batas waktu pembayaran sudah lewat. Buka tagihan di aplikasi Inbils untuk membuat halaman pembayaran baru.',
-        Icon: XCircleIcon,
-        tone: 'text-destructive',
+        Icon: XCircle,
+        tone: 'text-destructive-text',
     },
     exception: {
         title: 'Pembayaran sedang diperiksa',
         body: 'Petugas kami sedang memeriksa pembayaran ini. Anda tidak perlu membayar ulang. Hubungi kami jika ada pertanyaan.',
-        Icon: ExclamationTriangleIcon,
+        Icon: AlertTriangle,
         tone: 'text-amber-700 dark:text-amber-400',
     },
 };
@@ -54,15 +49,6 @@ const outcomes: Record<
 export default function Return({ attempt }: ReturnProps) {
     const [checking, setChecking] = useState(false);
     const outcome = attempt === null ? null : outcomes[attempt.status];
-
-    // GuestLayout does not apply the saved or system theme itself.
-    useEffect(() => {
-        document.documentElement.classList.toggle(
-            'dark',
-            localStorage.getItem('darkMode') === 'true' ||
-                window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-    }, []);
 
     return (
         <GuestLayout>

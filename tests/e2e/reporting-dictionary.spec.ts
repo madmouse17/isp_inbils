@@ -277,11 +277,11 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
 
         for (const title of businessCards) {
             await expect(
-                main.getByRole('heading', { name: title, level: 3, exact: true }),
+                main.getByRole('heading', { name: title, level: 2, exact: true }),
             ).toBeVisible();
         }
         // The two charts under the cards (revenue and MRR, invoice status) are headed like the cards.
-        await expect(main.getByRole('heading', { level: 3 })).toHaveCount(businessCards.length + 2);
+        await expect(main.getByRole('heading', { level: 2 })).toHaveCount(businessCards.length + 2);
         for (const title of hiddenBusinessMetrics) {
             await expect(main.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
         }

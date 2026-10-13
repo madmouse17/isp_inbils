@@ -162,7 +162,7 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
             <div className="space-y-6">
                 <PageHeader
                     title="Addresses"
-                    subtitle={`${customer.code} — ${customer.name}`}
+                    subtitle={`${customer.code} - ${customer.name}`}
                     actions={
                         <>
                             <Button
@@ -176,7 +176,7 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             >
                                 Back
                             </Button>
-                            <Button type="button" variant="success" onClick={openCreate}>
+                            <Button type="button" variant="primary" onClick={openCreate}>
                                 Add Address
                             </Button>
                         </>
@@ -338,11 +338,7 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
-import { Button, Modal, Textarea } from '@/Components/ui';
+import { Badge, Button, Modal, Textarea } from '@/Components/ui';
 import type {
     NasDevice,
     NetworkDesiredState,
     NetworkServiceType,
     NetworkSyncStatus,
 } from '@/types/network-asset';
-import { ToneBadge, type BadgeTone } from './ToneBadge';
+import type { BadgeVariant } from '@/Components/ui/Badge';
 
 /*
  * Status words shared by the NAS router pages and the network account page. The text carries the
@@ -33,17 +33,17 @@ export function NasStatusBadge({
     nas: Pick<NasDevice, 'radius_synced_at' | 'last_error'>;
 }) {
     if (nas.radius_synced_at) {
-        return <ToneBadge tone="success">Written to RADIUS</ToneBadge>;
+        return <Badge variant="success">Written to RADIUS</Badge>;
     }
 
     if (nas.last_error) {
-        return <ToneBadge tone="danger">Not written</ToneBadge>;
+        return <Badge variant="danger">Not written</Badge>;
     }
 
-    return <ToneBadge tone="warning">Waiting to be written</ToneBadge>;
+    return <Badge variant="warning">Waiting to be written</Badge>;
 }
 
-const syncStatuses: Record<NetworkSyncStatus, { tone: BadgeTone; label: string }> = {
+const syncStatuses: Record<NetworkSyncStatus, { tone: BadgeVariant; label: string }> = {
     pending: { tone: 'warning', label: 'Pending' },
     synced: { tone: 'success', label: 'Synced' },
     failed: { tone: 'danger', label: 'Failed' },
@@ -52,31 +52,31 @@ const syncStatuses: Record<NetworkSyncStatus, { tone: BadgeTone; label: string }
 export function SyncStatusBadge({ status }: { status: NetworkSyncStatus }) {
     const { tone, label } = syncStatuses[status];
 
-    return <ToneBadge tone={tone}>{label}</ToneBadge>;
+    return <Badge variant={tone}>{label}</Badge>;
 }
 
-const desiredStates: Record<NetworkDesiredState, { tone: BadgeTone; label: string }> = {
+const desiredStates: Record<NetworkDesiredState, { tone: BadgeVariant; label: string }> = {
     enabled: { tone: 'success', label: 'Enabled' },
     isolated: { tone: 'warning', label: 'Isolated' },
-    absent: { tone: 'secondary', label: 'Absent' },
+    absent: { tone: 'neutral', label: 'Absent' },
 };
 
 export function DesiredStateBadge({ state }: { state: NetworkDesiredState }) {
     const { tone, label } = desiredStates[state];
 
-    return <ToneBadge tone={tone}>{label}</ToneBadge>;
+    return <Badge variant={tone}>{label}</Badge>;
 }
 
 export function OnlineBadge({ online }: { online: boolean }) {
     return online ? (
-        <ToneBadge tone="success">Online</ToneBadge>
+        <Badge variant="success">Online</Badge>
     ) : (
-        <ToneBadge tone="secondary">Offline</ToneBadge>
+        <Badge variant="neutral">Offline</Badge>
     );
 }
 
 export function BlockedBadge() {
-    return <ToneBadge tone="danger">Blocked</ToneBadge>;
+    return <Badge variant="danger">Blocked</Badge>;
 }
 
 export interface BlockTarget {

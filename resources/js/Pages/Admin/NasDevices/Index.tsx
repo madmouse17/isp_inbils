@@ -62,7 +62,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             {
                 key: 'location',
                 header: 'Location',
-                cell: (row) => row.network_asset?.location?.name ?? '—',
+                cell: (row) => row.network_asset?.location?.name ?? '-',
             },
             {
                 key: 'nasname',

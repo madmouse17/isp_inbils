@@ -129,7 +129,7 @@ export function MapPicker({
         setLocationError('');
         navigator.geolocation.getCurrentPosition(
             ({ coords }) => onChange(coords.latitude, coords.longitude),
-            () => setLocationError('Current location could not be detected.'),
+            () => setLocationError('Lokasi saat ini tidak dapat dideteksi.'),
             { enableHighAccuracy: true, timeout: 10000 },
         );
     };
@@ -162,7 +162,7 @@ export function MapPicker({
             nextLongitude < -180 ||
             nextLongitude > 180
         ) {
-            setLocationError('Latitude must be -90 to 90 and longitude -180 to 180.');
+            setLocationError('Lintang harus antara -90 dan 90, bujur antara -180 dan 180.');
             return;
         }
 
@@ -176,24 +176,30 @@ export function MapPicker({
                 <div
                     ref={containerRef}
                     className="h-full w-full"
-                    aria-label="Map for selecting customer address coordinates"
+                    aria-label="Peta untuk memilih koordinat alamat"
                 />
                 {onSearch ? (
                     <div className="absolute top-3 right-3 left-3 z-1000 space-y-2 max-w-2xl md:right-auto md:w-xl">
-                        <div className="rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
-                            <div className="mb-2 flex gap-2" aria-label="Location search mode">
+                        <div className="rounded-lg border border-border bg-background p-2 shadow-xs">
+                            <div
+                                role="group"
+                                className="mb-2 flex gap-2"
+                                aria-label="Mode pencarian lokasi"
+                            >
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant={searchMode === 'address' ? 'success' : 'ghost'}
+                                    variant={searchMode === 'address' ? 'secondary' : 'ghost'}
+                                    aria-pressed={searchMode === 'address'}
                                     onClick={() => setSearchMode('address')}
                                 >
-                                    Address
+                                    Alamat
                                 </Button>
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant={searchMode === 'coordinates' ? 'success' : 'ghost'}
+                                    variant={searchMode === 'coordinates' ? 'secondary' : 'ghost'}
+                                    aria-pressed={searchMode === 'coordinates'}
                                     onClick={() => {
                                         setSearchMode('coordinates');
                                         setHasSearched(false);
@@ -201,7 +207,7 @@ export function MapPicker({
                                         setCoordinateLongitude(String(longitude ?? ''));
                                     }}
                                 >
-                                    Lat / Long
+                                    Lintang / Bujur
                                 </Button>
                             </div>
                             {searchMode === 'address' ? (
@@ -210,17 +216,17 @@ export function MapPicker({
                                         value={searchQuery}
                                         onChange={(event) => setSearchQuery(event.target.value)}
                                         onKeyDown={handleSearchKeyDown}
-                                        placeholder="Search a location or address"
+                                        placeholder="Cari lokasi atau alamat"
                                         className="flex-1"
-                                        aria-label="Search a location or address"
+                                        aria-label="Cari lokasi atau alamat"
                                     />
                                     <Button
                                         type="button"
-                                        variant="success"
+                                        variant="primary"
                                         loading={searching}
                                         onClick={searchLocation}
                                     >
-                                        Search
+                                        Cari
                                     </Button>
                                 </div>
                             ) : (
@@ -231,8 +237,8 @@ export function MapPicker({
                                         onChange={(event) =>
                                             setCoordinateLatitude(event.target.value)
                                         }
-                                        placeholder="Latitude"
-                                        aria-label="Latitude"
+                                        placeholder="Lintang"
+                                        aria-label="Lintang"
                                     />
                                     <Input
                                         inputMode="decimal"
@@ -240,30 +246,31 @@ export function MapPicker({
                                         onChange={(event) =>
                                             setCoordinateLongitude(event.target.value)
                                         }
-                                        placeholder="Longitude"
-                                        aria-label="Longitude"
+                                        placeholder="Bujur"
+                                        aria-label="Bujur"
                                     />
                                     <Button
                                         type="button"
-                                        variant="success"
+                                        variant="primary"
                                         onClick={useCoordinates}
                                     >
-                                        Find
+                                        Cari
                                     </Button>
                                 </div>
                             )}
                         </div>
                         {searchMode === 'address' && hasSearched && searchResults.length > 0 ? (
                             <div
-                                className="max-h-56 overflow-y-auto rounded-lg border border-border bg-background/95 p-1 shadow-xs backdrop-blur-sm dark:bg-background/95"
-                                aria-label="Location search results"
+                                className="max-h-56 overflow-y-auto rounded-lg border border-border bg-background p-1 shadow-xs"
+                                aria-label="Hasil pencarian lokasi"
                             >
                                 {searchResults.map((result) => (
                                     <Button
                                         key={`${result.lat}-${result.lng}`}
                                         type="button"
                                         variant="ghost"
-                                        className="h-auto w-full justify-start text-left whitespace-normal"
+                                        size="auto"
+                                        className="w-full justify-start text-left whitespace-normal"
                                         onClick={() => {
                                             setSearchQuery(result.display_name);
                                             setHasSearched(false);
@@ -275,31 +282,31 @@ export function MapPicker({
                                 ))}
                             </div>
                         ) : searchMode === 'address' && hasSearched && !searching ? (
-                            <div className="rounded-lg border border-border bg-background/95 p-3 text-sm text-muted-foreground shadow-xs">
-                                Location not found. Try a more specific address.
+                            <div className="rounded-lg border border-border bg-background p-3 text-sm text-muted-foreground shadow-xs">
+                                Lokasi tidak ditemukan. Coba alamat yang lebih spesifik.
                             </div>
                         ) : null}
                     </div>
                 ) : null}
                 <div className="absolute right-3 bottom-3 z-1000">
-                    <Button type="button" variant="success" size="sm" onClick={useCurrentLocation}>
-                        Current Location
+                    <Button type="button" variant="outline" size="sm" onClick={useCurrentLocation}>
+                        Lokasi saat ini
                     </Button>
                 </div>
             </div>
             <p className="text-sm text-muted-foreground">
-                Click the map, drag the red pin, search an address, or enter coordinates.
+                Klik peta, geser pin merah, cari alamat, atau masukkan koordinat.
             </p>
             <div className="grid gap-4 md:grid-cols-2">
                 <Input
-                    label="Latitude"
+                    label="Lintang"
                     value={latitude ?? ''}
                     readOnly
                     error={latitudeError}
                     required
                 />
                 <Input
-                    label="Longitude"
+                    label="Bujur"
                     value={longitude ?? ''}
                     readOnly
                     error={longitudeError}
@@ -307,7 +314,7 @@ export function MapPicker({
                 />
             </div>
             {locationError ? (
-                <p className="text-sm text-red-700 dark:text-red-400">{locationError}</p>
+                <p className="text-sm text-destructive-text">{locationError}</p>
             ) : null}
         </div>
     );

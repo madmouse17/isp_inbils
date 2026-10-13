@@ -1,5 +1,5 @@
 import { router, usePage } from '@inertiajs/react';
-import { BellIcon } from '@heroicons/react/24/outline';
+import { Bell } from 'lucide-react';
 import { Button } from '@/Components/ui';
 import type { PageProps } from '@/types';
 
@@ -12,13 +12,17 @@ export function NotificationBell() {
             type="button"
             variant="ghost"
             size="icon"
-            aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+            aria-label={unreadCount > 0 ? `Notifikasi, ${unreadCount} belum dibaca` : 'Notifikasi'}
             onClick={() => router.get(route('admin.notifications.index'))}
             className="relative shrink-0"
         >
-            <BellIcon className="h-5 w-5" />
+            <Bell className="h-5 w-5" aria-hidden="true" />
             {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] leading-4 font-semibold text-destructive-foreground">
+                // White on red-600 is 4.83:1; the label above already speaks the count.
+                <span
+                    aria-hidden="true"
+                    className="absolute top-0 right-0 flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-xs leading-4 font-semibold text-white"
+                >
                     {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
             )}

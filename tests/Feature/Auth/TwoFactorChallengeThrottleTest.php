@@ -75,13 +75,13 @@ class TwoFactorChallengeThrottleTest extends TestCase
         for ($attempt = 1; $attempt <= 10; $attempt++) {
             $this->fromAddress("203.0.113.{$attempt}")
                 ->post(route('two-factor.login'), ['code' => '000000'])
-                ->assertSessionHasErrors(['code' => 'The provided two-factor code was invalid.']);
+                ->assertSessionHasErrors(['code' => 'Kode autentikasi dua langkah tidak valid.']);
         }
 
         $this->fromAddress('203.0.113.200')
             ->post(route('two-factor.login'), ['code' => $this->totp($this->secret)])
             ->assertSessionHasErrors('code');
-        $this->assertStringContainsString('Too many', session('errors')->first('code'));
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('code'));
         $this->assertGuest();
 
         // A new window: the parked login lapsed meanwhile, so the password step is repeated.

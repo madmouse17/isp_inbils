@@ -136,7 +136,7 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                         Preview
                     </Button>
                     {rows !== null && rows.length > 0 && (
-                        <Button type="button" variant="success" onClick={confirm}>
+                        <Button type="button" variant="primary" onClick={confirm}>
                             Terbitkan {rows.length} Tagihan
                         </Button>
                     )}

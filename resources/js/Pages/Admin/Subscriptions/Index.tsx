@@ -10,10 +10,12 @@ import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Modal } from '@/Components/ui/Modal';
+import { SearchSelect } from '@/Components/ui/SearchSelect';
 import { NativeSelect } from '@/Components/composite';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import type { ServiceSubscription } from '@/types/models';
+import { packageGroupOptions, type PackageGroup } from '@/lib/packageGroups';
 
 interface SubIndexProps {
     customer: { id: number; code: string; name: string };
@@ -25,6 +27,8 @@ interface SubIndexProps {
         total?: number;
     };
     packages: { data: { id: number; code: string; name: string; price_mrc: string }[] };
+    /** Active packages by category, ordered for this customer's type. */
+    packageGroups: PackageGroup[];
     addresses: { data: { id: number; label: string; address: string }[] };
     filters: {
         search?: string;
@@ -41,11 +45,13 @@ export default function Index({
     customer,
     subscriptions,
     packages,
+    packageGroups,
     addresses,
     filters,
     can,
 }: SubIndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
+    const packageOptions = useMemo(() => packageGroupOptions(packageGroups), [packageGroups]);
     const { data, setData, post, processing, errors, reset } = useForm({
         service_package_id: '',
         installation_address_id: '',
@@ -66,7 +72,7 @@ export default function Index({
     } = useServerTable({
         url: route('admin.customers.subscriptions.index', customer.id),
         filters,
-        only: ['subscriptions', 'filters', 'can', 'packages', 'addresses'],
+        only: ['subscriptions', 'filters', 'can', 'packages', 'packageGroups', 'addresses'],
     });
 
     const columns: DataTableColumn<ServiceSubscription>[] = useMemo(
@@ -120,7 +126,10 @@ export default function Index({
     const submit = (e: FormEvent) => {
         e.preventDefault();
         post(route('admin.customers.subscriptions.store', customer.id), {
-            onSuccess: () => setModalOpen(false),
+            onSuccess: () => {
+                reset();
+                setModalOpen(false);
+            },
         });
     };
 
@@ -129,7 +138,7 @@ export default function Index({
             <div className="space-y-6">
                 <PageHeader
                     title="Subscriptions"
-                    subtitle={`${customer.code} — ${customer.name}`}
+                    subtitle={`${customer.code} - ${customer.name}`}
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -152,7 +161,7 @@ export default function Index({
                             </Button>
                             <Button
                                 type="button"
-                                variant="success"
+                                variant="primary"
                                 onClick={() => setModalOpen(true)}
                             >
                                 Create Subscription
@@ -232,18 +241,14 @@ export default function Index({
                     title="Create Subscription"
                 >
                     <form onSubmit={submit} className="space-y-4">
-                        <NativeSelect
+                        <SearchSelect
+                            id="subscription-package"
                             label="Service Package"
                             value={data.service_package_id}
-                            onChange={(e) => setData('service_package_id', e.target.value)}
+                            onChange={(value) => setData('service_package_id', value)}
+                            options={packageOptions}
+                            placeholder="Select package…"
                             error={errors.service_package_id}
-                            options={[
-                                { value: '', label: 'Select package…' },
-                                ...packages.data.map((pkg) => ({
-                                    value: String(pkg.id),
-                                    label: `${pkg.name} (MRC: ${pkg.price_mrc})`,
-                                })),
-                            ]}
                             required
                         />
                         <NativeSelect
@@ -255,7 +260,7 @@ export default function Index({
                                 { value: '', label: 'Select address…' },
                                 ...addresses.data.map((a) => ({
                                     value: String(a.id),
-                                    label: `${a.label} — ${a.address}`,
+                                    label: `${a.label} - ${a.address}`,
                                 })),
                             ]}
                             required
@@ -300,7 +305,7 @@ export default function Index({
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" variant="success" loading={processing}>
+                            <Button type="submit" variant="primary" loading={processing}>
                                 Create
                             </Button>
                         </div>

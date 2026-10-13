@@ -73,13 +73,13 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                 key: 'location',
                 header: 'POP',
                 className: 'whitespace-nowrap',
-                cell: (row) => row.location?.code ?? '—',
+                cell: (row) => row.location?.code ?? '-',
             },
             {
                 key: 'vlan',
                 header: 'VLAN',
                 className: 'whitespace-nowrap',
-                cell: (row) => (row.vlan ? `${row.vlan.vid} · ${row.vlan.name}` : '—'),
+                cell: (row) => (row.vlan ? `${row.vlan.vid} · ${row.vlan.name}` : '-'),
             },
             {
                 key: 'size',
@@ -97,7 +97,7 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                     // Containers are measured by their child prefixes and dynamic pools by size only.
                     row.usage === 'customer_static' || row.usage === 'infrastructure'
                         ? formatCount(row.assigned + row.reserved)
-                        : '—',
+                        : '-',
             },
             {
                 key: 'free',
@@ -116,7 +116,7 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
     );
 
     const newPrefix = can.manage ? (
-        <Button type="button" variant="success" onClick={() => setCreating(true)}>
+        <Button type="button" variant="primary" onClick={() => setCreating(true)}>
             <Plus className="size-4" aria-hidden="true" />
             New prefix
         </Button>
@@ -175,7 +175,7 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                             { value: '', label: 'All POPs' },
                             ...locations.map((pop) => ({
                                 value: String(pop.id),
-                                label: `${pop.code} — ${pop.name}`,
+                                label: `${pop.code} - ${pop.name}`,
                             })),
                         ]}
                     />

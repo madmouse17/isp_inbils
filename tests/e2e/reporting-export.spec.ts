@@ -34,10 +34,10 @@ test.describe('@smoke @reporting-export report export', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/reports/business?date_from=2026-01-01&date_to=2026-01-31');
 
-        const menu = page.getByRole('button', { name: 'Export', exact: true });
+        const menu = page.getByRole('button', { name: 'Ekspor', exact: true });
         await menu.click();
-        await expect(page.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
-        await expect(page.getByRole('menuitem', { name: 'Export PDF' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor PDF' })).toBeVisible();
         await expect(page.getByRole('menuitem', { name: /excel/i })).toHaveCount(0);
         await page.keyboard.press('Escape');
 
@@ -111,7 +111,7 @@ test.describe('@smoke @reporting-export report export', () => {
         await page.goto(
             `/admin/reports/stock-card?product_id=${product!.id}&date_from=2026-08-01&date_to=2026-08-11&per_page=10`,
         );
-        await expect(page.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Ekspor', exact: true })).toBeVisible();
         await expect(page.locator('tbody tr')).toHaveCount(10);
 
         const csv = await download(
@@ -130,8 +130,8 @@ test.describe('@smoke @reporting-export report export', () => {
         await page.goto('/admin/reports/audit-log');
 
         await page.getByRole('button', { name: 'Ekspor Log' }).click();
-        await expect(page.getByRole('menuitem', { name: 'Export CSV' })).toBeVisible();
-        await expect(page.getByRole('menuitem', { name: 'Export PDF' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeVisible();
+        await expect(page.getByRole('menuitem', { name: 'Ekspor PDF' })).toBeVisible();
         await expect(page.getByRole('menuitem', { name: /excel/i })).toHaveCount(0);
         await page.keyboard.press('Escape');
 
@@ -213,7 +213,7 @@ test.describe('@smoke @reporting-export report drill-down', () => {
                     ).toBeVisible();
                     await expectNoHorizontalOverflow(page);
 
-                    const trigger = page.getByRole('button', { name: 'Export', exact: true });
+                    const trigger = page.getByRole('button', { name: 'Ekspor', exact: true });
                     await trigger.focus();
                     await expect(trigger).toBeFocused();
                     const bounds = await trigger.boundingBox();

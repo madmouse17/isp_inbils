@@ -1,8 +1,5 @@
-import {
-    ArrowTopRightOnSquareIcon,
-    ExclamationTriangleIcon,
-    UserIcon,
-} from '@heroicons/react/24/outline';
+import { Link } from '@inertiajs/react';
+import { AlertTriangle, User } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@/Components/ui';
 import type { DispatchItem } from '@/types';
 import {
@@ -37,7 +34,7 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                             </span>
                             <Badge
                                 variant={getDomainVariant(item.domain)}
-                                className="text-[10px] font-semibold uppercase"
+                                className="text-xs font-semibold"
                             >
                                 {getDomainLabel(item.domain)}
                             </Badge>
@@ -48,7 +45,7 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                     </div>
                     <Badge
                         variant={getPriorityVariant(item.priority)}
-                        className="shrink-0 text-[10px] font-semibold uppercase"
+                        className="shrink-0 text-xs font-semibold"
                     >
                         {getPriorityLabel(item.priority)}
                     </Badge>
@@ -59,7 +56,7 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Pemohon:</span>
                         <span className="min-w-0 text-right font-medium wrap-break-word text-foreground">
-                            {item.requester?.name ?? '—'}
+                            {item.requester?.name ?? '-'}
                         </span>
                     </div>
                     <div className="flex items-start justify-between gap-2">
@@ -87,7 +84,7 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                         ) : (
                             <Badge
                                 variant="outline"
-                                className="border-amber-300 text-[10px] text-amber-600 dark:text-amber-400"
+                                className="border-amber-300 text-xs text-amber-700 dark:text-amber-400"
                             >
                                 Belum Ditugaskan
                             </Badge>
@@ -97,8 +94,8 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
 
                 {/* Breach Warning if any */}
                 {item.sla_breached && (
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                        <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive-text">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
                         <span>SLA Terlampaui!</span>
                     </div>
                 )}
@@ -113,21 +110,18 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                         <span className="font-medium text-foreground">Dampak: </span>
                         {getItemImpact(item)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground/80">
-                        {getNextStatusInfo(item)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{getNextStatusInfo(item)}</p>
                 </div>
 
                 {/* Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-1">
                     {item.actions.view && item.detail_url ? (
-                        <a
+                        <Link
                             href={item.detail_url}
                             className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
-                            <ArrowTopRightOnSquareIcon className="mr-1 h-3.5 w-3.5" />
                             Lihat Detail
-                        </a>
+                        </Link>
                     ) : (
                         <span />
                     )}
@@ -140,7 +134,7 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                             onClick={() => onAssign(item)}
                             className="min-h-11"
                         >
-                            <UserIcon className="mr-1.5 h-3.5 w-3.5" />
+                            <User className="mr-1.5 h-3.5 w-3.5" />
                             {item.assigned_to ? 'Ganti Petugas' : 'Tugaskan'}
                         </Button>
                     )}

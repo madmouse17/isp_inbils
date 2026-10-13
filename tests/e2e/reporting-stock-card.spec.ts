@@ -55,7 +55,7 @@ test.describe('@smoke stock card reporting', () => {
         await expect.poll(() => query(page, 'date_to')).toBe('2026-08-11');
 
         // Default page size 10 over 11 movements: second page holds the remainder.
-        const perPage = page.getByLabel('Rows per page');
+        const perPage = page.getByLabel('Baris per halaman');
         await expect(perPage).toHaveValue('10');
         await expect(page.locator('tbody tr')).toHaveCount(10);
 
@@ -91,7 +91,7 @@ test.describe('@smoke stock card reporting', () => {
         await expect(page.getByLabel('Periode', { exact: true })).toHaveValue(
             `${formatIsoAs('2026-08-01', format)} – ${formatIsoAs('2026-08-11', format)}`,
         );
-        await expect(page.getByLabel('Rows per page')).toHaveValue('25');
+        await expect(page.getByLabel('Baris per halaman')).toHaveValue('25');
         await expect(qtyHeader).toHaveAttribute('aria-sort', 'descending');
         await expectRowsToContainExactly(page, movementNotes);
 

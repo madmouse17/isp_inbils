@@ -29,7 +29,13 @@ type RoleSidebar = {
     absent: readonly string[];
 };
 
-const serviceLinks = ['Paket Layanan', 'Profil Bandwidth', 'Profil Kecepatan', 'Tingkat SLA'];
+const serviceLinks = [
+    'Paket Layanan',
+    'Kategori Paket',
+    'Profil Bandwidth',
+    'Profil Kecepatan',
+    'Tingkat SLA',
+];
 const inventoryLinks = [
     'Permintaan Barang',
     'Barang',
@@ -55,8 +61,8 @@ const adminOnlyLinks = [
     'Perusahaan',
 ];
 
-// APP_ENV=e2e closes the developer gallery (route answers 404, `developerGalleryEnabled` is
-// false), so Komponen is absent for every role, admin included.
+// APP_ENV=e2e serves the developer gallery route but `developerGalleryEnabled` is false, so
+// Komponen is absent from the sidebar for every role, admin included.
 // Technician and customer accounts are app-only on the web (app-only.spec.ts): no sidebar to check.
 type WebRole = Exclude<DemoRole, 'technician' | 'customer'>;
 
@@ -172,7 +178,7 @@ for (const role of roles) {
         await expect(page.locator('aside a[href]:visible')).toHaveCount(labels.length);
     });
 
-    test(`@sidebar-ia ${role}: every visible link opens and the gallery stays closed`, async ({
+    test(`@sidebar-ia ${role}: every visible link opens and the gallery link stays hidden`, async ({
         page,
     }) => {
         test.setTimeout(120_000);
@@ -192,9 +198,9 @@ for (const role of roles) {
         }
         expect(failures).toEqual([]);
 
-        // The route itself is closed in this environment: 404 for admin, 403 for everyone else.
+        // The sidebar never links the gallery, but the route answers in this environment: 200 for admin, 403 for everyone else.
         const gallery = await page.request.get('/admin/components');
-        expect(gallery.status()).toBe(role === 'admin' ? 404 : 403);
+        expect(gallery.status()).toBe(role === 'admin' ? 200 : 403);
     });
 }
 
@@ -269,7 +275,7 @@ for (const dark of [false, true]) {
         page,
     }) => {
         const aside = page.locator('aside');
-        const toggle = page.getByRole('button', { name: 'Toggle sidebar' });
+        const toggle = page.getByRole('button', { name: 'Menu navigasi' });
 
         await loginAs(page, 'admin');
 
@@ -312,7 +318,7 @@ test('@sidebar-ia mobile drawer is out of the tab order until opened, Escape ret
     await page.setViewportSize({ width: 375, height: 812 });
     await expect(page.locator('aside')).not.toBeInViewport();
 
-    const toggle = page.getByRole('button', { name: 'Toggle sidebar' });
+    const toggle = page.getByRole('button', { name: 'Menu navigasi' });
     const focusedInDrawer = page.locator('aside :focus');
 
     // Closed: Tab never lands on a sidebar link, however far it travels.

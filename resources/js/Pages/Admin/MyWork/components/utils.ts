@@ -35,7 +35,7 @@ export function getPriorityLabel(priority: string): string {
         case 'low':
             return 'Rendah';
         default:
-            return priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : '—';
+            return priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : '-';
     }
 }
 
@@ -67,7 +67,7 @@ export function getStatusLabel(status: string): string {
         case 'closed':
             return 'Ditutup';
         default:
-            return status ? status.replace(/_/g, ' ') : '—';
+            return status ? status.replace(/_/g, ' ') : '-';
     }
 }
 
@@ -90,7 +90,7 @@ export function getStatusVariant(
 }
 
 export function formatAge(seconds: number | null | undefined): string {
-    if (seconds == null || seconds < 0) return '—';
+    if (seconds == null || seconds < 0) return '-';
     if (seconds < 60) return '< 1 menit lalu';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes} menit lalu`;
@@ -103,7 +103,7 @@ export function formatAge(seconds: number | null | undefined): string {
 }
 
 export function formatDate(dateString: string | null | undefined): string {
-    if (!dateString) return '—';
+    if (!dateString) return '-';
     try {
         const d = new Date(dateString);
         if (Number.isNaN(d.getTime())) return dateString;
@@ -143,7 +143,7 @@ export function getItemNextStatus(item: MyWorkItem): string {
         case 'resolved':
             return "Status berikutnya: 'closed' (Tiket ditutup permanen)";
         default:
-            return '—';
+            return '-';
     }
 }
 

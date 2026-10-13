@@ -1,7 +1,6 @@
-import { Head, Link } from '@inertiajs/react';
-import { ShieldAlert } from 'lucide-react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import { AlertCircle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/Components/ui/Button';
-import { Alert, AlertDescription, AlertTitle } from '@/Components/ui';
 import {
     Empty,
     EmptyContent,
@@ -10,62 +9,91 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from '@/Components/ui/empty';
+import { Wordmark } from '@/Components/ui/Wordmark';
+import type { PageProps } from '@/types';
 
-const copy: Record<number, { title: string; description: string }> = {
+interface ErrorCopy {
+    title: string;
+    description: string;
+    /** The page can succeed on a second try, so it gets a reload button. */
+    retry: boolean;
+}
+
+const copy: Record<number, ErrorCopy> = {
     403: {
-        title: 'Access denied',
-        description: 'You do not have permission to view this page.',
+        title: 'Akses ditolak',
+        description:
+            'Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya.',
+        retry: false,
     },
     404: {
-        title: 'Page not found',
-        description: 'The page you requested does not exist or was moved.',
+        title: 'Halaman tidak ditemukan',
+        description:
+            'Alamat yang Anda buka tidak ada atau sudah dipindahkan. Periksa alamatnya, atau kembali ke halaman utama.',
+        retry: false,
+    },
+    419: {
+        title: 'Sesi berakhir',
+        description:
+            'Halaman ini sudah terlalu lama terbuka dan kedaluwarsa. Muat ulang halaman, lalu ulangi langkah Anda.',
+        retry: true,
     },
     500: {
-        title: 'Something went wrong',
-        description: 'An unexpected error occurred. Try again or contact support.',
+        title: 'Terjadi kesalahan di server',
+        description:
+            'Permintaan Anda tidak dapat diproses. Coba lagi sebentar lagi. Jika masalah berlanjut, hubungi administrator.',
+        retry: true,
     },
     503: {
-        title: 'Service unavailable',
-        description: 'The application is temporarily unavailable. Please try again later.',
+        title: 'Layanan sedang tidak tersedia',
+        description: 'Aplikasi sedang dalam pemeliharaan. Coba lagi beberapa saat lagi.',
+        retry: true,
     },
 };
 
+/**
+ * Rendered by the exception handler for 403, 404, 419, 500 and 503. It stands alone: no AdminLayout,
+ * and the shared auth props are read defensively, because a failed request may carry none.
+ */
 export default function ErrorPage({ status }: { status: number }) {
-    const { title, description } = copy[status] ?? {
-        title: `Error ${status}`,
-        description: 'An error occurred while processing your request.',
+    const { title, description, retry } = copy[status] ?? {
+        title: `Kesalahan ${status}`,
+        description: 'Terjadi kesalahan saat memproses permintaan Anda.',
+        retry: true,
     };
-
-    const isForbidden = status === 403;
+    const signedIn = Boolean(usePage<PageProps>().props.auth?.user);
+    const Icon = status === 403 ? ShieldAlert : AlertCircle;
 
     return (
-        <div className="flex min-h-svh items-center justify-center bg-background p-6">
+        <main className="flex min-h-svh flex-col items-center justify-center gap-6 bg-muted/30 p-6 dark:bg-background">
             <Head title={title} />
-            <div className="space-y-4 w-full max-w-lg">
-                {isForbidden ? (
-                    <Alert variant="destructive">
-                        <ShieldAlert />
-                        <AlertTitle>{title}</AlertTitle>
-                        <AlertDescription>{description}</AlertDescription>
-                    </Alert>
-                ) : null}
-                <Empty className="border border-dashed">
-                    <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                            <ShieldAlert />
-                        </EmptyMedia>
-                        <EmptyTitle>
-                            {status} — {title}
-                        </EmptyTitle>
-                        <EmptyDescription>{description}</EmptyDescription>
-                    </EmptyHeader>
-                    <EmptyContent>
-                        <Button asChild variant="outline">
-                            <Link href="/">Back to home</Link>
+            <Wordmark className="text-2xl" />
+            <Empty className="max-w-lg flex-none border border-dashed bg-card">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <Icon />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                        <h1>{title}</h1>
+                    </EmptyTitle>
+                    <EmptyDescription>{description}</EmptyDescription>
+                    <p className="text-sm text-muted-foreground">Kode galat {status}</p>
+                </EmptyHeader>
+                <EmptyContent>
+                    {retry ? (
+                        <Button type="button" onClick={() => window.location.reload()}>
+                            Muat ulang halaman
                         </Button>
-                    </EmptyContent>
-                </Empty>
-            </div>
-        </div>
+                    ) : null}
+                    <Button asChild variant={retry ? 'outline' : 'default'}>
+                        {signedIn ? (
+                            <Link href={route('admin.dashboard')}>Ke dasbor</Link>
+                        ) : (
+                            <Link href={route('login')}>Masuk</Link>
+                        )}
+                    </Button>
+                </EmptyContent>
+            </Empty>
+        </main>
     );
 }

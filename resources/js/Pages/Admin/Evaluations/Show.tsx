@@ -43,7 +43,7 @@ export default function Show({ evaluation }: ShowProps) {
                             </Button>
                             <Button
                                 type="button"
-                                variant="warning"
+                                variant="outline"
                                 onClick={() => router.get(route('admin.evaluations.edit', ev.id))}
                             >
                                 Edit

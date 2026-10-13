@@ -1,14 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { router } from '@inertiajs/react';
-import {
-    ArrowTopRightOnSquareIcon,
-    CheckCircleIcon,
-    ExclamationTriangleIcon,
-    PaperAirplaneIcon,
-    PlayIcon,
-    UserIcon,
-    XCircleIcon,
-} from '@heroicons/react/24/outline';
+import { Link, router } from '@inertiajs/react';
+import { CheckCircle2, AlertTriangle, Send, Play, User, XCircle } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ForbiddenState, LoadingState, ResourceEmpty } from '@/Components/composite/ResourceState';
@@ -366,7 +358,7 @@ export default function DispatchIndex({
                     <div>
                         <Badge
                             variant={getDomainVariant(row.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getDomainLabel(row.domain)}
                         </Badge>
@@ -392,8 +384,8 @@ export default function DispatchIndex({
                         )}
                     </div>
                     {row.sla_breached && (
-                        <div className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                        <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                             <span>SLA Terlampaui</span>
                         </div>
                     )}
@@ -405,7 +397,7 @@ export default function DispatchIndex({
             header: 'Pemohon / Pelanggan',
             cell: (row) => (
                 <div className="space-y-0.5 text-xs">
-                    <p className="font-medium text-foreground">{row.requester?.name ?? '—'}</p>
+                    <p className="font-medium text-foreground">{row.requester?.name ?? '-'}</p>
                     {row.requester?.code && (
                         <p className="text-muted-foreground">{row.requester.code}</p>
                     )}
@@ -421,7 +413,7 @@ export default function DispatchIndex({
                 <div className="space-y-1">
                     <Badge
                         variant={getPriorityVariant(row.priority)}
-                        className="text-[10px] font-semibold uppercase"
+                        className="text-xs font-semibold"
                     >
                         {getPriorityLabel(row.priority)}
                     </Badge>
@@ -461,7 +453,7 @@ export default function DispatchIndex({
                 ) : (
                     <Badge
                         variant="outline"
-                        className="border-amber-300 text-[10px] text-amber-600 dark:text-amber-400"
+                        className="border-amber-300 text-xs text-amber-700 dark:text-amber-400"
                     >
                         Belum Ditugaskan
                     </Badge>
@@ -474,13 +466,12 @@ export default function DispatchIndex({
             cell: (row) => (
                 <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:min-h-11">
                     {row.actions.view && row.detail_url && (
-                        <a
+                        <Link
                             href={row.detail_url}
                             className="inline-flex items-center text-xs font-medium text-primary hover:underline"
                         >
-                            <ArrowTopRightOnSquareIcon className="mr-1 h-3.5 w-3.5" />
                             Detail
-                        </a>
+                        </Link>
                     )}
                     {row.actions.assign && (
                         <Button
@@ -489,7 +480,7 @@ export default function DispatchIndex({
                             variant="default"
                             onClick={() => handleOpenAssign(row)}
                         >
-                            <UserIcon className="mr-1.5 h-3.5 w-3.5" />
+                            <User className="mr-1.5 h-3.5 w-3.5" />
                             {row.assigned_to ? 'Ganti Petugas' : 'Tugaskan'}
                         </Button>
                     )}
@@ -520,7 +511,7 @@ export default function DispatchIndex({
                     <div>
                         <Badge
                             variant={getMyWorkDomainVariant(row.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getMyWorkDomainLabel(row.domain)}
                         </Badge>
@@ -541,12 +532,12 @@ export default function DispatchIndex({
                     <div className="text-xs text-muted-foreground">
                         Pelanggan:{' '}
                         <span className="font-medium text-foreground">
-                            {row.customer?.name ?? '—'}
+                            {row.customer?.name ?? '-'}
                         </span>
                     </div>
                     {row.sla_breached && (
-                        <div className="flex items-center gap-1 text-[11px] font-semibold text-destructive">
-                            <ExclamationTriangleIcon className="h-3.5 w-3.5 shrink-0" />
+                        <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                             <span>SLA Terlampaui</span>
                         </div>
                     )}
@@ -562,7 +553,7 @@ export default function DispatchIndex({
                 <div className="space-y-1">
                     <Badge
                         variant={getMyWorkPriorityVariant(row.priority)}
-                        className="text-[10px] font-semibold uppercase"
+                        className="text-xs font-semibold"
                     >
                         {getMyWorkPriorityLabel(row.priority)}
                     </Badge>
@@ -579,10 +570,10 @@ export default function DispatchIndex({
             sortKey: 'status',
             cell: (row) => (
                 <div className="space-y-1">
-                    <Badge variant={getMyWorkStatusVariant(row.status)} className="text-[10px]">
+                    <Badge variant={getMyWorkStatusVariant(row.status)}>
                         {getMyWorkStatusLabel(row.status)}
                     </Badge>
-                    <p className="text-[11px] text-muted-foreground">{getItemNextStatus(row)}</p>
+                    <p className="text-xs text-muted-foreground">{getItemNextStatus(row)}</p>
                 </div>
             ),
         },
@@ -632,7 +623,7 @@ export default function DispatchIndex({
                             variant="default"
                             onClick={() => handleOpenConfirm(row, 'start')}
                         >
-                            <PlayIcon className="mr-1 h-3.5 w-3.5" />
+                            <Play className="mr-1 h-3.5 w-3.5" />
                             Mulai
                         </Button>
                     )}
@@ -643,7 +634,7 @@ export default function DispatchIndex({
                             variant="default"
                             onClick={() => handleOpenResolve(row)}
                         >
-                            <CheckCircleIcon className="mr-1 h-3.5 w-3.5" />
+                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
                             Selesaikan
                         </Button>
                     )}
@@ -654,7 +645,7 @@ export default function DispatchIndex({
                             variant="default"
                             onClick={() => handleOpenConfirm(row, 'submit')}
                         >
-                            <PaperAirplaneIcon className="mr-1 h-3.5 w-3.5" />
+                            <Send className="mr-1 h-3.5 w-3.5" />
                             Ajukan Review
                         </Button>
                     )}
@@ -665,7 +656,7 @@ export default function DispatchIndex({
                             variant="outline"
                             onClick={() => handleOpenConfirm(row, 'close')}
                         >
-                            <XCircleIcon className="mr-1 h-3.5 w-3.5" />
+                            <XCircle className="mr-1 h-3.5 w-3.5" />
                             Tutup
                         </Button>
                     )}

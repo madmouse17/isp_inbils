@@ -6,6 +6,7 @@ import {
     FormulaVersionLabel,
     LoadingState,
     MetricDefinitionNote,
+    NativeSelect,
     PageHeader,
 } from '@/Components/composite';
 import {
@@ -50,25 +51,39 @@ interface BusinessData extends Record<string, unknown> {
 interface Props extends Record<string, unknown> {
     data?: BusinessData;
     charts: BusinessChartData;
-    filters: { date_from?: string; date_to?: string };
+    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    filters: { date_from?: string; date_to?: string; service_package_category_id?: string | null };
     meta: ReportMeta<BusinessMetricKey>;
     can: { export: boolean };
     drill: DrillLinks;
 }
 
-export default function Business({ data, charts, filters, meta, can, drill }: Props) {
+export default function Business({
+    data,
+    charts,
+    packageCategories,
+    filters,
+    meta,
+    can,
+    drill,
+}: Props) {
     const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
     const [range, setRange] = useState<DateRange>({
         from: filters.date_from ?? null,
         to: filters.date_to ?? null,
     });
+    const [categoryId, setCategoryId] = useState(filters.service_package_category_id ?? '');
     const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.reports.business'),
-            { date_from: range.from ?? '', date_to: range.to ?? '' },
+            {
+                date_from: range.from ?? '',
+                date_to: range.to ?? '',
+                service_package_category_id: categoryId,
+            },
             { preserveState: true, ...callbacks },
         );
     };
@@ -100,6 +115,24 @@ export default function Business({ data, charts, filters, meta, can, drill }: Pr
                                 error={errors.date_from ?? errors.date_to}
                                 className="sm:w-80"
                             />
+                            <div className="sm:w-64">
+                                <NativeSelect
+                                    label="Kategori paket"
+                                    value={categoryId}
+                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    error={errors.service_package_category_id}
+                                    hint="Aset, SLA, dan pelanggan baru tidak terpengaruh."
+                                    options={[
+                                        { value: '', label: 'Semua kategori' },
+                                        ...packageCategories.map((category) => ({
+                                            value: String(category.id),
+                                            label: category.is_active
+                                                ? category.name
+                                                : `${category.name} (nonaktif)`,
+                                        })),
+                                    ]}
+                                />
+                            </div>
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
                                     Run

@@ -300,7 +300,7 @@ export default function Index({
                             {Number(row.lat).toFixed(4)}, {Number(row.lng).toFixed(4)}
                         </span>
                     ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground">-</span>
                     ),
             },
             {
@@ -311,7 +311,7 @@ export default function Index({
                         {can.update && (
                             <Button
                                 type="button"
-                                variant="warning"
+                                variant="outline"
                                 size="sm"
                                 onClick={() => startEdit(row)}
                             >
@@ -358,7 +358,7 @@ export default function Index({
                     subtitle="Region, area, POP, rack, and site topology."
                     actions={
                         can.create ? (
-                            <Button type="button" variant="success" onClick={() => openCreate()}>
+                            <Button type="button" variant="primary" onClick={() => openCreate()}>
                                 Tambah Lokasi
                             </Button>
                         ) : undefined
@@ -519,7 +519,7 @@ export default function Index({
                                 </Button>
                                 <Button
                                     type="submit"
-                                    variant="success"
+                                    variant="primary"
                                     loading={createForm.processing}
                                 >
                                     Create
@@ -609,11 +609,11 @@ export default function Index({
                                         Koordinat berubah
                                     </p>
                                     <p className="mt-1 text-amber-700 dark:text-amber-300">
-                                        Lama: {editOrigCoords?.lat || '—'},{' '}
-                                        {editOrigCoords?.lng || '—'}
+                                        Lama: {editOrigCoords?.lat || '-'},{' '}
+                                        {editOrigCoords?.lng || '-'}
                                     </p>
                                     <p className="text-amber-700 dark:text-amber-300">
-                                        Baru: {editForm.data.lat || '—'}, {editForm.data.lng || '—'}
+                                        Baru: {editForm.data.lat || '-'}, {editForm.data.lng || '-'}
                                     </p>
                                 </div>
                             )}

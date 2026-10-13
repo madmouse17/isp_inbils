@@ -1,12 +1,6 @@
 import { useState } from 'react';
-import {
-    ArrowTopRightOnSquareIcon,
-    CheckIcon,
-    ExclamationCircleIcon,
-    ShieldExclamationIcon,
-    XMarkIcon,
-} from '@heroicons/react/24/outline';
-import { router } from '@inertiajs/react';
+import { AlertCircle, Check, ShieldAlert, X } from 'lucide-react';
+import { Link, router } from '@inertiajs/react';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Textarea } from '@/Components/ui';
 import {
     Sheet,
@@ -221,7 +215,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 {/* Stale or Conflict Error Alert */}
                 {errorMessage && (
                     <Alert variant="destructive" className="space-y-2">
-                        <ExclamationCircleIcon className="h-5 w-5" />
+                        <AlertCircle className="h-5 w-5" />
                         <AlertTitle>Gagal Memproses Tindakan</AlertTitle>
                         <AlertDescription>{errorMessage}</AlertDescription>
                         {isStale && onRefreshQueue && (
@@ -246,7 +240,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 {/* Maker-checker Warning */}
                 {!isActionable && (
                     <Alert variant="warning">
-                        <ShieldExclamationIcon className="h-5 w-5" />
+                        <ShieldAlert className="h-5 w-5" />
                         <AlertTitle>Aturan Maker-Checker</AlertTitle>
                         <AlertDescription>
                             {isInventory
@@ -258,7 +252,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
 
                 {/* General Information Card */}
                 <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-xs">
-                    <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    <h4 className="text-sm font-semibold text-muted-foreground">
                         {isInventory ? 'Informasi Permintaan Barang' : 'Informasi SPK'}
                     </h4>
                     <div>
@@ -268,7 +262,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                         <div>
                             <span className="text-muted-foreground">Pemohon:</span>
                             <p className="font-medium text-foreground">
-                                {item.requester?.name ?? `#${item.requester?.id ?? '—'}`}
+                                {item.requester?.name ?? `#${item.requester?.id ?? '-'}`}
                             </p>
                         </div>
                         <div>
@@ -288,7 +282,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                             <p className="font-medium text-foreground">
                                 {item.submitted_at
                                     ? new Date(item.submitted_at).toLocaleString('id-ID')
-                                    : '—'}
+                                    : '-'}
                             </p>
                         </div>
                         <div className="col-span-2">
@@ -296,7 +290,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                 {isInventory ? 'Tanggal Dibutuhkan:' : 'Jadwal Pelaksanaan:'}
                             </span>
                             <p className="font-medium text-foreground">
-                                {item.scheduled_date || '—'}
+                                {item.scheduled_date || '-'}
                             </p>
                         </div>
                     </div>
@@ -304,7 +298,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
 
                 {/* Impact & Material Summary Card */}
                 <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
-                    <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                    <h4 className="text-sm font-semibold text-muted-foreground">
                         Dampak Material & Penggunaan Barang
                     </h4>
                     <p className="text-sm font-medium text-foreground">{item.summary.label}</p>
@@ -320,7 +314,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                             unit
                         </span>
                     </div>
-                    <p className="pt-1 text-[11px] text-muted-foreground italic">
+                    <p className="pt-1 text-xs text-muted-foreground italic">
                         {isInventory
                             ? '* Persetujuan akan mereservasi stok material di gudang dan mengubah status menjadi Disetujui (Reservasi).'
                             : '* Persetujuan akan memproses alokasi stok material dan memperbarui status SPK secara permanen.'}
@@ -332,7 +326,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                     <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
                         <label
                             htmlFor="inv-approve-note"
-                            className="text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                            className="text-sm font-semibold text-muted-foreground"
                         >
                             Catatan Persetujuan (Opsional)
                         </label>
@@ -352,7 +346,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 {isRejecting && (
                     <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-xs font-semibold tracking-wider text-destructive uppercase">
+                            <h4 className="text-sm font-semibold text-destructive-text">
                                 {isInventory
                                     ? 'Konfirmasi Penolakan Permintaan Barang'
                                     : 'Konfirmasi Penolakan SPK'}
@@ -399,15 +393,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                 size="sm"
                                 className="w-full sm:w-auto"
                             >
-                                <a
-                                    href={item.detail_url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center gap-1.5"
-                                >
-                                    <span>Lihat detail</span>
-                                    <ArrowTopRightOnSquareIcon className="h-3.5 w-3.5" />
-                                </a>
+                                <Link href={item.detail_url}>Lihat detail</Link>
                             </Button>
                         )}
                     </div>
@@ -436,7 +422,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                     disabled={
                                         submitting || isStale || isReloading || !rejectReason.trim()
                                     }
-                                    leftIcon={<XMarkIcon className="h-4 w-4" />}
+                                    leftIcon={<X className="h-4 w-4" />}
                                 >
                                     Konfirmasi Tolak
                                 </Button>
@@ -450,7 +436,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                         size="sm"
                                         onClick={() => setIsRejecting(true)}
                                         disabled={submitting || isStale || isReloading}
-                                        leftIcon={<XMarkIcon className="h-4 w-4" />}
+                                        leftIcon={<X className="h-4 w-4" />}
                                     >
                                         Tolak
                                     </Button>
@@ -458,12 +444,12 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                 {item.actions.approve && (
                                     <Button
                                         type="button"
-                                        variant="success"
+                                        variant="primary"
                                         size="sm"
                                         onClick={handleApprove}
                                         loading={submitting}
                                         disabled={submitting || isStale || isReloading}
-                                        leftIcon={<CheckIcon className="h-4 w-4" />}
+                                        leftIcon={<Check className="h-4 w-4" />}
                                     >
                                         Setujui
                                     </Button>

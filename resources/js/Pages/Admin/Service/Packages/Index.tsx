@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -26,6 +26,7 @@ type Row = {
     price_mrc: number | string;
     price_otc: number | string;
     is_active?: boolean;
+    category: { id: number; code: string; name: string } | null;
     created_at: string | null;
 };
 
@@ -38,10 +39,12 @@ type Props = {
         total: number;
     };
     slaTiers: { data: { id: number; name: string }[] };
+    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
     filters: {
         search?: string;
         is_active?: string;
         sla_tier_id?: string;
+        service_package_category_id?: string;
         sort?: string;
         direction?: string;
         per_page?: string | number;
@@ -49,11 +52,17 @@ type Props = {
     can: { create: boolean; export: boolean };
 };
 
-export default function PackagesIndex({ servicePackages, slaTiers, filters, can }: Props) {
+export default function PackagesIndex({
+    servicePackages,
+    slaTiers,
+    packageCategories,
+    filters,
+    can,
+}: Props) {
     const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.service-packages.index'),
         filters,
-        only: ['servicePackages', 'filters', 'can', 'slaTiers'],
+        only: ['servicePackages', 'filters', 'can', 'slaTiers', 'packageCategories'],
     });
 
     const columns: DataTableColumn<Row>[] = useMemo(
@@ -78,6 +87,11 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                 sortable: true,
                 sortKey: 'code',
                 cell: (row) => row.code,
+            },
+            {
+                key: 'category',
+                header: 'Kategori',
+                cell: (row) => row.category?.name ?? '-',
             },
             {
                 key: 'price_mrc',
@@ -127,9 +141,8 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
     );
 
     return (
-        <AppLayout>
-            <Head title="Paket Layanan" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Paket Layanan">
+            <div className="space-y-4">
                 <PageHeader
                     title="Paket Layanan"
                     description="Service packages sold to customers."
@@ -143,7 +156,7 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild variant="success" size="sm">
+                                <Button asChild variant="primary" size="sm">
                                     <Link href={route('admin.service-packages.create')}>
                                         <Plus className="size-4" />
                                         New package
@@ -218,6 +231,34 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                             </SelectContent>
                         </Select>
                     </div>
+                    <div className="space-y-1">
+                        <label
+                            htmlFor="pkg-category"
+                            className="text-xs font-medium text-muted-foreground"
+                        >
+                            Kategori
+                        </label>
+                        <Select
+                            value={params.service_package_category_id || '__all__'}
+                            onValueChange={(value) =>
+                                set('service_package_category_id', value === '__all__' ? '' : value)
+                            }
+                        >
+                            <SelectTrigger id="pkg-category" className="w-44">
+                                <SelectValue placeholder="Semua" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__all__">Semua</SelectItem>
+                                {packageCategories.map((category) => (
+                                    <SelectItem key={category.id} value={String(category.id)}>
+                                        {category.is_active
+                                            ? category.name
+                                            : `${category.name} (nonaktif)`}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                 </div>
 
                 <DataTable
@@ -233,6 +274,6 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
                     loading={processing}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

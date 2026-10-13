@@ -32,3 +32,9 @@ TG1 invoice detail money/dates via `formatRupiah`/`formatDate`, delete the dupli
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).
 
 ## Comments
+
+Carried from ticket 02 Part B (2026-10-14): migrate this module's Radix `Select` filters to `NativeSelect` (or `SearchSelect` for DB lists) per G22; `Select.selfcheck.mjs` and E2E `combobox` lookups change with them. Delete `ui/Select.tsx` in the last of 04/05/06/08 to land.
+
+Carried from ticket 02 Part B: LB4 — status charts in `Reports/Business.tsx` pass `var(--status-*)` / `toneColor` from `lib/statuses` to `Chart.tsx`.
+
+Carried from ticket 02 Part A: derive `InvoiceStatus` in `types/models.ts` from `lib/statuses`; `InvoiceController` `statusOptions` lists statuses that never occur — use `optionsOf`; delete duplicate status maps (ticket 02 Part A comment).

@@ -65,7 +65,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             {row.location_path}
                         </span>
                     ) : (
-                        '—'
+                        '-'
                     ),
             },
             {
@@ -156,8 +156,8 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                     </Link>
                 ),
             },
-            { key: 'customer', header: 'Customer', cell: (row) => row.customer_name ?? '—' },
-            { key: 'pop', header: 'Serving POP', cell: (row) => row.serving_pop_code ?? '—' },
+            { key: 'customer', header: 'Customer', cell: (row) => row.customer_name ?? '-' },
+            { key: 'pop', header: 'Serving POP', cell: (row) => row.serving_pop_code ?? '-' },
             {
                 key: 'status',
                 header: 'Status',
@@ -192,7 +192,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             { value: '', label: 'All POPs' },
                             ...pops.map((pop) => ({
                                 value: String(pop.id),
-                                label: `${pop.code} — ${pop.name}`,
+                                label: `${pop.code} - ${pop.name}`,
                             })),
                         ]}
                     />

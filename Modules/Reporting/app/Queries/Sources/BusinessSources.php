@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Modules\Billing\Models\Invoice;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Modules\Reporting\Queries\Concerns\ScopesToCompany;
+use Modules\Reporting\Queries\Concerns\ScopesToPackageCategory;
 use Modules\SPK\Models\WorkOrder;
 
 /**
@@ -18,17 +19,49 @@ final class BusinessSources
 {
     use AppliesDateRange;
     use ScopesToCompany;
+    use ScopesToPackageCategory;
 
     /** @return Builder<ServiceSubscription> */
-    public static function subscriptions(?int $companyId): Builder
+    public static function subscriptions(?int $companyId, ?int $packageCategoryId = null): Builder
     {
-        return self::scoped(ServiceSubscription::class, $companyId);
+        $query = self::scoped(ServiceSubscription::class, $companyId);
+
+        return $packageCategoryId === null
+            ? $query
+            : $query->whereIn('service_subscriptions.service_package_id', self::packageIdsInCategory(self::companyOf($companyId), $packageCategoryId));
     }
 
     /** @return Builder<ServiceSubscription> */
-    public static function subscriptionsInStatus(?int $companyId, string $status): Builder
+    public static function subscriptionsInStatus(?int $companyId, string $status, ?int $packageCategoryId = null): Builder
     {
-        return self::subscriptions($companyId)->where('status', $status);
+        return self::subscriptions($companyId, $packageCategoryId)->where('status', $status);
+    }
+
+    /** @return Builder<Invoice> */
+    public static function invoices(?int $companyId, ?int $packageCategoryId = null): Builder
+    {
+        return self::inCategory(self::scoped(Invoice::class, $companyId), $companyId, $packageCategoryId);
+    }
+
+    /**
+     * Invoices of subscriptions on packages of the category; invoices without a subscription fall outside it.
+     *
+     * @param  Builder<Invoice>  $query
+     * @return Builder<Invoice>
+     */
+    private static function inCategory(Builder $query, ?int $companyId, ?int $packageCategoryId): Builder
+    {
+        return $packageCategoryId === null
+            ? $query
+            : $query->whereIn('invoices.subscription_id', self::subscriptionIdsInCategory(self::companyOf($companyId), $packageCategoryId));
+    }
+
+    /** A category filter needs the company explicit, like every sub-select of ScopesToPackageCategory. */
+    private static function companyOf(?int $companyId): int
+    {
+        abort_if($companyId === null, 403);
+
+        return $companyId;
     }
 
     /**
@@ -38,9 +71,9 @@ final class BusinessSources
      *
      * @return Builder<ServiceSubscription>
      */
-    public static function newSubscriptions(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null): Builder
+    public static function newSubscriptions(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null, ?int $packageCategoryId = null): Builder
     {
-        $query = self::subscriptions($companyId);
+        $query = self::subscriptions($companyId, $packageCategoryId);
 
         if (self::dateRange($dateFrom, $dateTo, $timezone) === null) {
             return $query->whereKey([]);
@@ -56,9 +89,9 @@ final class BusinessSources
      *
      * @return Builder<ServiceSubscription>
      */
-    public static function churn(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null): Builder
+    public static function churn(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null, ?int $packageCategoryId = null): Builder
     {
-        $query = self::subscriptionsInStatus($companyId, 'terminated');
+        $query = self::subscriptionsInStatus($companyId, 'terminated', $packageCategoryId);
 
         if (self::dateRange($dateFrom, $dateTo, $timezone) === null) {
             return $query->whereKey([]);
@@ -75,28 +108,30 @@ final class BusinessSources
      *
      * @return Builder<Invoice>
      */
-    public static function paidInvoices(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $type = null): Builder
+    public static function paidInvoices(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $type = null, ?int $packageCategoryId = null): Builder
     {
-        $query = self::scoped(Invoice::class, $companyId)->where('status', 'paid');
+        $query = self::inCategory(self::scoped(Invoice::class, $companyId)->where('status', 'paid'), $companyId, $packageCategoryId);
         self::applyDateOnlyRange($query, 'issue_date', $dateFrom, $dateTo);
 
         return $type === null ? $query : $query->where('type', $type);
     }
 
     /** @return Builder<Invoice> */
-    public static function outstandingInvoices(?int $companyId): Builder
+    public static function outstandingInvoices(?int $companyId, ?int $packageCategoryId = null): Builder
     {
-        return self::scoped(Invoice::class, $companyId)->whereIn('status', ['sent', 'partial', 'overdue']);
+        return self::inCategory(self::scoped(Invoice::class, $companyId)->whereIn('status', ['sent', 'partial', 'overdue']), $companyId, $packageCategoryId);
     }
 
     /** @return Builder<WorkOrder> */
-    public static function completedInstallations(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null): Builder
+    public static function completedInstallations(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $timezone = null, ?int $packageCategoryId = null): Builder
     {
         $query = self::scoped(WorkOrder::class, $companyId)
             ->where('type', 'installation')
             ->where('status', 'completed');
         self::applyDateRange($query, 'completed_at', $dateFrom, $dateTo, $timezone);
 
-        return $query;
+        return $packageCategoryId === null
+            ? $query
+            : $query->whereIn('work_orders.subscription_id', self::subscriptionIdsInCategory(self::companyOf($companyId), $packageCategoryId));
     }
 }

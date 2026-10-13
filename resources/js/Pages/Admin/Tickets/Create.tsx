@@ -172,7 +172,7 @@ export default function Create({
                                 <option value="">None</option>
                                 {assets.data.map((a) => (
                                     <option key={a.id} value={a.id}>
-                                        {a.code} — {a.name}
+                                        {a.code} - {a.name}
                                     </option>
                                 ))}
                             </NativeSelect>
@@ -186,7 +186,7 @@ export default function Create({
                                     <option value="">None</option>
                                     {locations.data.map((l) => (
                                         <option key={l.id} value={l.id}>
-                                            {l.code} — {l.name}
+                                            {l.code} - {l.name}
                                         </option>
                                     ))}
                                 </NativeSelect>
@@ -209,7 +209,7 @@ export default function Create({
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" variant="primary" loading={processing}>
                             Create
                         </Button>
                     </div>

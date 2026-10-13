@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { BellAlertIcon } from '@heroicons/react/24/outline';
+import { BellRing } from 'lucide-react';
 import { LoadingState, PageHeader } from '@/Components/composite';
 import { EmptyState } from '@/Components/ui/EmptyState';
 import { Badge, Button, Card, CardContent } from '@/Components/ui';
@@ -60,7 +60,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                             <LoadingState variant="rows" className="p-4 sm:p-6" />
                         ) : notifications.data.length === 0 ? (
                             <EmptyState
-                                icon={<BellAlertIcon className="h-10 w-10" />}
+                                icon={<BellRing className="h-10 w-10" />}
                                 title="No notifications"
                                 description="You are all caught up."
                             />

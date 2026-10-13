@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { BuildingOffice2Icon, ChevronUpDownIcon } from '@heroicons/react/24/outline';
+import { Building2, ChevronsUpDown } from 'lucide-react';
 import { Button, Spinner } from '@/Components/ui';
 import {
     DropdownMenu,
@@ -59,24 +59,27 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                         switching ? (
                             <Spinner size="sm" className="shrink-0" />
                         ) : (
-                            <BuildingOffice2Icon
+                            <Building2
                                 className="h-5 w-5 shrink-0 text-muted-foreground"
                                 aria-hidden="true"
                             />
                         )
                     }
                     rightIcon={
-                        <ChevronUpDownIcon
+                        <ChevronsUpDown
                             className="h-4 w-4 shrink-0 text-muted-foreground"
                             aria-hidden="true"
                         />
                     }
-                    aria-label={`Switch company, current: ${current.name}`}
-                    className="h-auto min-h-11 w-full justify-start gap-3 px-3 py-2 text-left font-normal"
+                    aria-label={`Ganti perusahaan, saat ini: ${current.name}`}
+                    size="auto"
+                    className="w-full justify-start gap-3 px-3 text-left font-normal"
                 >
                     <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{current.name}</span>
-                        <span className="block text-xs text-muted-foreground">Switch company</span>
+                        <span className="block text-xs text-muted-foreground">
+                            Ganti perusahaan
+                        </span>
                     </span>
                 </Button>
             </DropdownMenuTrigger>
@@ -84,10 +87,10 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                 align="start"
                 className="w-(--radix-dropdown-menu-trigger-width) min-w-56"
             >
-                <DropdownMenuLabel>Switch company</DropdownMenuLabel>
+                <DropdownMenuLabel>Ganti perusahaan</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuRadioGroup
-                    aria-label="Companies"
+                    aria-label="Perusahaan"
                     value={String(current.id)}
                     onValueChange={switchTo}
                 >
@@ -100,7 +103,7 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
                             <span className="flex min-w-0 flex-col">
                                 <span className="truncate font-medium">{company.name}</span>
                                 <span className="truncate text-xs text-muted-foreground">
-                                    {company.is_default ? `${company.code}, default` : company.code}
+                                    {company.is_default ? `${company.code}, bawaan` : company.code}
                                 </span>
                             </span>
                         </DropdownMenuRadioItem>

@@ -2,8 +2,10 @@
 
 namespace Modules\Reporting\Http\Requests;
 
+use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\Rule;
 use Modules\Reporting\Queries\SalesKpiQuery;
 use Modules\Reporting\Registry\ReportType;
 
@@ -42,6 +44,7 @@ class ReportFilterRequest extends FormRequest
             'log_name' => ['nullable', 'string'],
             'event' => ['nullable', 'string', 'max:50'],
             'search' => ['nullable', 'string', 'max:255'],
+            'service_package_category_id' => ['nullable', 'integer', Rule::exists('service_package_categories', 'id')->where('company_id', CompanyService::currentId())],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'sort' => $sortColumns,

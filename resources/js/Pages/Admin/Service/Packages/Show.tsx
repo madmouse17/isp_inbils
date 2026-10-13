@@ -13,6 +13,7 @@ interface PkgData {
     contract_min_months: number | null;
     description: string | null;
     is_active: boolean;
+    category: { id: number; code: string; name: string } | null;
     bandwidth_profile: { name: string } | null;
     speed_profile: { name: string } | null;
     sla_tier: { name: string } | null;
@@ -43,7 +44,7 @@ export default function Show({ servicePackage }: ShowProps) {
                             </Button>
                             <Button
                                 type="button"
-                                variant="warning"
+                                variant="outline"
                                 onClick={() =>
                                     router.get(route('admin.service-packages.edit', p.id))
                                 }
@@ -60,6 +61,10 @@ export default function Show({ servicePackage }: ShowProps) {
                             <CardTitle>Package Details</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 text-sm md:grid-cols-2">
+                            <p>
+                                <span className="text-muted-foreground">Kategori: </span>
+                                {p.category?.name ?? '-'}
+                            </p>
                             <p>
                                 <span className="text-muted-foreground">Bandwidth: </span>
                                 {p.bandwidth_profile?.name ?? '-'}

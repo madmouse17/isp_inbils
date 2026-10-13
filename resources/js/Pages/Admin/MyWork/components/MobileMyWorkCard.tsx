@@ -1,11 +1,5 @@
-import {
-    ArrowTopRightOnSquareIcon,
-    CheckCircleIcon,
-    ExclamationTriangleIcon,
-    PaperAirplaneIcon,
-    PlayIcon,
-    XCircleIcon,
-} from '@heroicons/react/24/outline';
+import { Link } from '@inertiajs/react';
+import { CheckCircle2, AlertTriangle, Send, Play, XCircle } from 'lucide-react';
 import { Badge, Button, Card, CardContent } from '@/Components/ui';
 import type { MyWorkItem } from '@/types';
 import type { ActionType } from './ActionConfirmDialog';
@@ -44,7 +38,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                             </span>
                             <Badge
                                 variant={getDomainVariant(item.domain)}
-                                className="text-[10px] font-semibold uppercase"
+                                className="text-xs font-semibold"
                             >
                                 {getDomainLabel(item.domain)}
                             </Badge>
@@ -55,7 +49,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                     </div>
                     <Badge
                         variant={getPriorityVariant(item.priority)}
-                        className="shrink-0 text-[10px] font-semibold uppercase"
+                        className="shrink-0 text-xs font-semibold"
                     >
                         {getPriorityLabel(item.priority)}
                     </Badge>
@@ -66,12 +60,12 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Pelanggan:</span>
                         <span className="min-w-0 text-right font-medium wrap-break-word text-foreground">
-                            {item.customer?.name ?? '—'}
+                            {item.customer?.name ?? '-'}
                         </span>
                     </div>
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Status:</span>
-                        <Badge variant={getStatusVariant(item.status)} className="text-[10px]">
+                        <Badge variant={getStatusVariant(item.status)}>
                             {getStatusLabel(item.status)}
                         </Badge>
                     </div>
@@ -95,8 +89,8 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
 
                 {/* Breach Warning if any */}
                 {item.sla_breached && (
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                        <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive-text">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
                         <span>SLA Terlampaui! Segera tangani masalah ini.</span>
                     </div>
                 )}
@@ -111,21 +105,18 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                         <span className="font-medium text-foreground">Dampak: </span>
                         {getItemImpact(item)}
                     </p>
-                    <p className="text-[11px] text-muted-foreground/80">
-                        {getItemNextStatus(item)}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{getItemNextStatus(item)}</p>
                 </div>
 
                 {/* Centered Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
                     {item.actions.view && item.detail_url ? (
-                        <a
+                        <Link
                             href={item.detail_url}
                             className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
-                            <ArrowTopRightOnSquareIcon className="mr-1 h-3.5 w-3.5" />
                             Lihat Detail
-                        </a>
+                        </Link>
                     ) : (
                         <span />
                     )}
@@ -139,7 +130,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                                 variant="default"
                                 onClick={() => onActionConfirm(item, 'start')}
                             >
-                                <PlayIcon className="mr-1.5 h-3.5 w-3.5" />
+                                <Play className="mr-1.5 h-3.5 w-3.5" />
                                 Mulai Kerja
                             </Button>
                         )}
@@ -152,7 +143,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                                 variant="default"
                                 onClick={() => onResolve(item)}
                             >
-                                <CheckCircleIcon className="mr-1.5 h-3.5 w-3.5" />
+                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                                 Selesaikan
                             </Button>
                         )}
@@ -165,7 +156,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                                 variant="default"
                                 onClick={() => onActionConfirm(item, 'submit')}
                             >
-                                <PaperAirplaneIcon className="mr-1.5 h-3.5 w-3.5" />
+                                <Send className="mr-1.5 h-3.5 w-3.5" />
                                 Ajukan Review
                             </Button>
                         )}
@@ -178,7 +169,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                                 variant="outline"
                                 onClick={() => onActionConfirm(item, 'close')}
                             >
-                                <XCircleIcon className="mr-1.5 h-3.5 w-3.5" />
+                                <XCircle className="mr-1.5 h-3.5 w-3.5" />
                                 Tutup Tiket
                             </Button>
                         )}

@@ -60,9 +60,9 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         const detailButtons = page.getByRole('button', { name: /Lihat detail log aktivitas/ });
         await expect(detailButtons.first()).toBeVisible();
         const firstLogName = await detailButtons.first().getAttribute('aria-label');
-        const previousPage = page.getByRole('button', { name: 'Previous', exact: true });
+        const previousPage = page.getByRole('button', { name: 'Sebelumnya', exact: true });
         await expect(previousPage).toBeDisabled();
-        await page.getByRole('button', { name: 'Next', exact: true }).click();
+        await page.getByRole('button', { name: 'Berikutnya', exact: true }).click();
         await expect(page).toHaveURL(/[?&]page=2(?:&|$)/);
         await expect(previousPage).toBeEnabled();
         await expect(detailButtons.first()).toBeVisible();

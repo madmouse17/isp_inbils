@@ -1,6 +1,6 @@
-import { Dialog, DialogPanel, DialogBackdrop, DialogTitle } from '@headlessui/react';
-import { XMarkIcon } from '@heroicons/react/20/solid';
+import { useLayoutEffect, useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from './dialog';
 
 const sizes = {
     sm: 'max-w-sm',
@@ -17,38 +17,37 @@ interface ModalProps {
     children: React.ReactNode;
 }
 
+/** A titled panel: the short form of the Dialog parts, which hold the one implementation (focus trap, Escape, overlay). */
 export function Modal({ open, onClose, title, size = 'md', children }: ModalProps) {
+    // Radix hands focus back only to a Dialog.Trigger. A Modal opens from page state, so it remembers what had focus when it
+    // opened: before the content mounts, because content with `autoFocus` has taken the focus by then.
+    const opener = useRef<HTMLElement | null>(null);
+    useLayoutEffect(() => {
+        if (open) opener.current = document.activeElement as HTMLElement | null;
+    }, [open]);
+
     return (
-        <Dialog open={open} onClose={onClose} className="fixed inset-0 z-50">
-            <DialogBackdrop
-                transition
-                className="fixed inset-0 bg-black/50 transition-opacity data-closed:opacity-0 data-enter:duration-200 data-leave:duration-150"
-            />
-            <div className="fixed inset-0 flex items-center justify-center overflow-y-auto p-4">
-                <DialogPanel
-                    transition
-                    className={cn(
-                        'w-full rounded-lg border bg-card text-card-foreground shadow-xl transition-transform data-closed:scale-95 data-enter:duration-200 data-leave:duration-150',
-                        sizes[size],
-                    )}
-                >
-                    {title && (
-                        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                            <DialogTitle className="font-semibold text-foreground">
-                                {title}
-                            </DialogTitle>
-                            <button
-                                onClick={onClose}
-                                className="rounded-md p-1 text-muted-foreground hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
-                                aria-label="Tutup"
-                            >
-                                <XMarkIcon className="h-5 w-5" />
-                            </button>
-                        </div>
-                    )}
-                    <div className="px-5 py-4">{children}</div>
-                </DialogPanel>
-            </div>
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                if (!next) onClose();
+            }}
+        >
+            <DialogContent
+                aria-describedby={undefined}
+                onCloseAutoFocus={(event) => {
+                    event.preventDefault();
+                    opener.current?.focus();
+                }}
+                className={cn('max-h-[calc(100dvh-2rem)] overflow-y-auto', sizes[size])}
+            >
+                <DialogHeader>
+                    <DialogTitle className={cn(!title && 'sr-only')}>
+                        {title ?? 'Dialog'}
+                    </DialogTitle>
+                </DialogHeader>
+                <div>{children}</div>
+            </DialogContent>
         </Dialog>
     );
 }

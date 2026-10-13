@@ -60,7 +60,7 @@ export function AssignDropDialog({
                     </Button>
                     <Button
                         type="submit"
-                        variant="success"
+                        variant="primary"
                         loading={processing}
                         disabled={portId === ''}
                     >

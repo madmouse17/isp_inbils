@@ -10,6 +10,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\Reporting\Models\SalesCustomer;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
+use Modules\Reporting\Queries\Concerns\ScopesToPackageCategory;
 use Modules\Reporting\Support\TimeBuckets;
 
 /**
@@ -23,6 +24,7 @@ use Modules\Reporting\Support\TimeBuckets;
 final class SalesKpiQuery
 {
     use AppliesDateRange;
+    use ScopesToPackageCategory;
 
     /** Sort keys accepted by the report: the acquirer name and every metric. */
     public const SORTABLE = [
@@ -51,6 +53,7 @@ final class SalesKpiQuery
         ?int $acquirerId = null,
         string $sortBy = 'name',
         string $sortDir = 'asc',
+        ?int $packageCategoryId = null,
     ): array {
         $acquirers = self::acquirers($companyId);
         abort_if($acquirerId !== null && ! array_key_exists($acquirerId, $acquirers), 403);
@@ -59,7 +62,7 @@ final class SalesKpiQuery
         $buckets = [];
         $unassigned = self::blank();
 
-        foreach (self::customers($companyId, $dateFrom, $dateTo, $acquirerId)->lazyById(self::CHUNK, 'customers.id', 'id') as $customer) {
+        foreach (self::customers($companyId, $dateFrom, $dateTo, $acquirerId, $packageCategoryId)->lazyById(self::CHUNK, 'customers.id', 'id') as $customer) {
             $credited = $customer->acquired_by_user_id;
 
             if ($credited !== null && array_key_exists($credited, $acquirers)) {
@@ -166,30 +169,37 @@ final class SalesKpiQuery
      *
      * @return Builder<SalesCustomer>
      */
-    private static function customers(int $companyId, ?string $dateFrom, ?string $dateTo, ?int $acquirerId): Builder
+    private static function customers(int $companyId, ?string $dateFrom, ?string $dateTo, ?int $acquirerId, ?int $packageCategoryId): Builder
     {
-        $open = static fn (Builder $query): Builder => $query
+        // With a category, money and subscriptions count only through subscriptions on packages of it.
+        $packages = static fn (Builder $query): Builder => $packageCategoryId === null
+            ? $query
+            : $query->whereIn('service_subscriptions.service_package_id', self::packageIdsInCategory($companyId, $packageCategoryId));
+        $subscriptions = static fn (Builder $query): Builder => $packageCategoryId === null
+            ? $query
+            : $query->whereIn('invoices.subscription_id', self::subscriptionIdsInCategory($companyId, $packageCategoryId));
+        $open = static fn (Builder $query): Builder => $subscriptions($query
             ->forCompany($companyId)
-            ->whereIn('invoices.status', self::OPEN_STATUSES);
+            ->whereIn('invoices.status', self::OPEN_STATUSES));
 
         return SalesCustomer::query()
             ->forCompany($companyId)
             ->withTrashed()
             ->when($acquirerId !== null, fn (Builder $query) => $query->where('customers.acquired_by_user_id', $acquirerId))
             ->select(['customers.id', 'customers.acquired_by_user_id', 'customers.created_at', 'customers.deleted_at'])
-            ->withCount(['subscriptions as activated' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
-                $query->forCompany($companyId)->whereNotNull('service_subscriptions.activation_date');
+            ->withCount(['subscriptions as activated' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo, $packages): void {
+                $packages($query->forCompany($companyId)->whereNotNull('service_subscriptions.activation_date'));
                 self::applyDateOnlyRange($query, 'service_subscriptions.activation_date', $dateFrom, $dateTo);
             }])
-            ->withSum(['subscriptions as mrr' => static fn (Builder $query): Builder => $query
+            ->withSum(['subscriptions as mrr' => static fn (Builder $query): Builder => $packages($query
                 ->forCompany($companyId)
-                ->where('service_subscriptions.status', 'active')], 'mrc_amount')
-            ->withSum(['invoices as invoiced' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
-                $query->forCompany($companyId)->whereIn('invoices.status', self::INVOICED_STATUSES);
+                ->where('service_subscriptions.status', 'active'))], 'mrc_amount')
+            ->withSum(['invoices as invoiced' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo, $subscriptions): void {
+                $subscriptions($query->forCompany($companyId)->whereIn('invoices.status', self::INVOICED_STATUSES));
                 self::applyDateOnlyRange($query, 'invoices.issue_date', $dateFrom, $dateTo);
             }], 'total')
-            ->withSum(['payments as collected' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
-                $query->forCompany($companyId)->whereNull('payments.cancelled_at');
+            ->withSum(['payments as collected' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo, $subscriptions): void {
+                $subscriptions($query->forCompany($companyId)->whereNull('payments.cancelled_at'));
                 self::applyDateRange($query, 'payments.paid_at', $dateFrom, $dateTo);
             }], 'amount')
             ->withSum(['invoices as open_total' => $open], 'total')

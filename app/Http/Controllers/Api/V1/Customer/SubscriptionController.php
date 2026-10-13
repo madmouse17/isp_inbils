@@ -20,7 +20,8 @@ class SubscriptionController extends Controller
 
         $subscriptions = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name',
+                'servicePackage:id,name,service_package_category_id',
+                'servicePackage.category:id,name',
                 'installationAddress:id,address,city',
             ])
             ->latest('id')
@@ -38,7 +39,8 @@ class SubscriptionController extends Controller
 
         $subscription = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name',
+                'servicePackage:id,name,service_package_category_id',
+                'servicePackage.category:id,name',
                 'installationAddress:id,address,city',
             ])
             ->findOrFail($id);

@@ -135,7 +135,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                                 <option value="">Select...</option>
                                 {locations.data.map((l) => (
                                     <option key={l.id} value={l.id}>
-                                        {l.code} — {l.name}
+                                        {l.code} - {l.name}
                                     </option>
                                 ))}
                             </NativeSelect>
@@ -175,7 +175,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" variant="primary" loading={processing}>
                             Create
                         </Button>
                     </div>

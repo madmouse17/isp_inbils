@@ -126,7 +126,7 @@ class TwoFactorEnrollmentTest extends TestCase
 
         $this->from('/profile')->post(route('two-factor.confirm'), ['code' => '000000'])
             ->assertRedirect('/profile')
-            ->assertSessionHasErrors(['code' => 'The provided two-factor code was invalid.']);
+            ->assertSessionHasErrors(['code' => 'Kode autentikasi dua langkah tidak valid.']);
 
         $this->assertFalse($this->user->fresh()->hasTwoFactorEnabled());
         $this->get(route('profile.edit'))->assertInertia(fn (Assert $inertia) => $inertia->missingFlash('two_factor.recovery_codes'));

@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -100,7 +100,7 @@ export default function SpkIndex({
             {
                 key: 'customer',
                 header: 'Customer',
-                cell: (row) => row.customer?.name ?? '—',
+                cell: (row) => row.customer?.name ?? '-',
             },
             {
                 key: 'scheduled_date',
@@ -121,9 +121,8 @@ export default function SpkIndex({
     );
 
     return (
-        <AppLayout>
-            <Head title="SPK" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="SPK">
+            <div className="space-y-4">
                 <PageHeader
                     title="SPK"
                     description="Field work orders and installation jobs."
@@ -136,7 +135,7 @@ export default function SpkIndex({
                                 formats={['csv', 'pdf']}
                             />
                             {can('spk.create') && (
-                                <Button asChild size="sm" variant="success">
+                                <Button asChild size="sm" variant="primary">
                                     <Link href={route('admin.spk.create')}>
                                         <Plus className="size-4" />
                                         New SPK
@@ -216,6 +215,6 @@ export default function SpkIndex({
                     onPerPageChange={(n) => set('per_page', n)}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

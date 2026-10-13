@@ -1,6 +1,6 @@
 # Service package categories (Rumahan / Bisnis / Korporat …)
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `package-categories`
 Source: owner question 2026-10-14 (grill-me): "pada layanan kenapa tidak ada kategori, seperti ini untuk home/company/yang lainnya?". Owner approved P1–P10, all recommended.
 

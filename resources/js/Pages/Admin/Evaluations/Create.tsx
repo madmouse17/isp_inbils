@@ -134,7 +134,7 @@ export default function Create({ employees }: CreateProps) {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" variant="success" loading={processing}>
+                        <Button type="submit" variant="primary" loading={processing}>
                             Create
                         </Button>
                     </div>

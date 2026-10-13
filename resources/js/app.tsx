@@ -9,8 +9,10 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { registerPlugin } from 'react-filepond';
 import { ToastProvider } from '@/Components/ui';
+import { ErrorBoundary } from '@/Components/composite/ErrorBoundary';
 
-const appName = (import.meta.env.VITE_APP_NAME as string | undefined) || 'Laravel';
+// Product name, not env: existing .env files still carry VITE_APP_NAME=Laravel.
+const appName = 'Inbils';
 
 registerPlugin(
     FilePondPluginFileValidateSize,
@@ -19,16 +21,18 @@ registerPlugin(
 );
 
 void createInertiaApp({
-    title: (title) => `${title} - ${appName}`,
+    title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
         resolvePageComponent(`./Pages/${name}.tsx`, import.meta.glob('./Pages/**/*.tsx')),
     setup({ el, App, props }) {
         const root = createRoot(el);
 
         root.render(
-            <ToastProvider>
-                <App {...props} />
-            </ToastProvider>,
+            <ErrorBoundary>
+                <ToastProvider>
+                    <App {...props} />
+                </ToastProvider>
+            </ErrorBoundary>,
         );
     },
     progress: {

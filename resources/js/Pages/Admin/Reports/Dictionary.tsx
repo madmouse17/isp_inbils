@@ -72,6 +72,7 @@ export default function Dictionary({ reports }: Props) {
                                         >
                                             <CardHeader className="space-y-1">
                                                 <CardTitle
+                                                    as="h3"
                                                     id={`dictionary-${report.key}-${metric.key}-title`}
                                                     className="leading-tight wrap-break-word"
                                                 >

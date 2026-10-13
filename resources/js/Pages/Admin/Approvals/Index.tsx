@@ -232,7 +232,7 @@ export default function ApprovalInboxIndex({
                     <div>
                         <Badge
                             variant={getDomainVariant(row.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getDomainLabel(row.domain)}
                         </Badge>
@@ -281,7 +281,7 @@ export default function ApprovalInboxIndex({
             header: 'Pemohon',
             cell: (row) => (
                 <span className="text-sm font-medium text-foreground">
-                    {row.requester?.name ?? `#${row.requester?.id ?? '—'}`}
+                    {row.requester?.name ?? `#${row.requester?.id ?? '-'}`}
                 </span>
             ),
         },
@@ -309,7 +309,7 @@ export default function ApprovalInboxIndex({
                         <span className="font-medium text-foreground">
                             {row.submitted_at
                                 ? new Date(row.submitted_at).toLocaleDateString('id-ID')
-                                : '—'}
+                                : '-'}
                         </span>
                         <span className="text-muted-foreground">
                             {' '}
@@ -321,7 +321,7 @@ export default function ApprovalInboxIndex({
                             {row.domain === 'inventory_request' ? 'Dibutuhkan: ' : 'Jadwal: '}
                         </span>
                         <span className="font-medium text-foreground">
-                            {row.scheduled_date || '—'}
+                            {row.scheduled_date || '-'}
                         </span>
                     </div>
                 </div>
@@ -342,7 +342,7 @@ export default function ApprovalInboxIndex({
                             Tinjau
                         </Button>
                     ) : (
-                        <span className="rounded border border-muted bg-muted/30 px-2 py-0.5 text-[11px] text-muted-foreground italic">
+                        <span className="rounded border border-muted bg-muted/30 px-2 py-0.5 text-xs text-muted-foreground italic">
                             Maker-checker
                         </span>
                     )}

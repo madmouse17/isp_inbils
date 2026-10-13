@@ -52,7 +52,8 @@ test('@map-default a company default region moves every map, and a saved point s
     const latitude = page.getByLabel('Lintang (latitude)');
     const longitude = page.getByLabel('Bujur (longitude)');
     const zoom = page.getByLabel('Zoom', { exact: true });
-    const city = page.getByLabel('Wilayah default');
+    // By role: the clear button of a chosen field is also labelled "Hapus pilihan: Wilayah default".
+    const city = page.getByRole('combobox', { name: 'Wilayah default' });
 
     try {
         await page.goto('/admin/company/settings');
@@ -99,19 +100,17 @@ test('@map-default a company default region moves every map, and a saved point s
 
             await page.goto('/admin/customers/create');
             await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
-            const picker = page
-                .getByLabel('Map for selecting customer address coordinates')
-                .first();
+            const picker = page.getByLabel('Peta untuk memilih koordinat alamat').first();
             await expect(picker).toBeVisible();
             await expectCenterNear(picker, savedLat, savedLng);
 
             // A point on the address wins over the company default.
             await picker.click({ position: { x: 120, y: 300 } });
             const pointLat = Number(
-                await page.getByRole('textbox', { name: /^Latitude/ }).inputValue(),
+                await page.getByRole('textbox', { name: /^Lintang/ }).inputValue(),
             );
             const pointLng = Number(
-                await page.getByRole('textbox', { name: /^Longitude/ }).inputValue(),
+                await page.getByRole('textbox', { name: /^Bujur/ }).inputValue(),
             );
             expect(Number.isFinite(pointLat)).toBe(true);
             await expect

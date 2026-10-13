@@ -71,10 +71,12 @@ interface Props extends Record<string, unknown> {
     };
     charts: SalesChartData;
     acquirers: Acquirer[];
+    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
     filters: {
         date_from: string | null;
         date_to: string | null;
         acquirer_id: string | null;
+        service_package_category_id: string | null;
         sort_by: string;
         sort_dir: 'asc' | 'desc';
         per_page: number;
@@ -118,7 +120,14 @@ function FooterRow({
     );
 }
 
-export default function Sales({ data, charts, acquirers, filters, meta }: Props) {
+export default function Sales({
+    data,
+    charts,
+    acquirers,
+    packageCategories,
+    filters,
+    meta,
+}: Props) {
     const company = useCompany();
     const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
     const table = useServerTable({
@@ -127,6 +136,7 @@ export default function Sales({ data, charts, acquirers, filters, meta }: Props)
             date_from: filters.date_from,
             date_to: filters.date_to,
             acquirer_id: filters.acquirer_id,
+            service_package_category_id: filters.service_package_category_id,
             sort: filters.sort_by,
             direction: filters.sort_dir,
             per_page: filters.per_page,
@@ -138,6 +148,7 @@ export default function Sales({ data, charts, acquirers, filters, meta }: Props)
         to: filters.date_to,
     });
     const [acquirerId, setAcquirerId] = useState(filters.acquirer_id ?? '');
+    const [categoryId, setCategoryId] = useState(filters.service_package_category_id ?? '');
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -145,6 +156,7 @@ export default function Sales({ data, charts, acquirers, filters, meta }: Props)
             date_from: range.from ?? '',
             date_to: range.to ?? '',
             acquirer_id: acquirerId,
+            service_package_category_id: categoryId,
             page: 1,
         });
     };
@@ -215,6 +227,25 @@ export default function Sales({ data, charts, acquirers, filters, meta }: Props)
                                             label: acquirer.is_active
                                                 ? acquirer.name
                                                 : `${acquirer.name} (inactive)`,
+                                        })),
+                                    ]}
+                                />
+                            </div>
+                            <div className="min-w-0 sm:w-64">
+                                <NativeSelect
+                                    label="Kategori paket"
+                                    className="h-11 min-w-0"
+                                    value={categoryId}
+                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    error={errors.service_package_category_id}
+                                    hint="Pelanggan baru tidak terpengaruh."
+                                    options={[
+                                        { value: '', label: 'Semua kategori' },
+                                        ...packageCategories.map((category) => ({
+                                            value: String(category.id),
+                                            label: category.is_active
+                                                ? category.name
+                                                : `${category.name} (nonaktif)`,
                                         })),
                                     ]}
                                 />

@@ -21,7 +21,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     >
                         {label}
                         {props.required ? (
-                            <span aria-hidden="true" className="text-destructive">
+                            <span aria-hidden="true" className="text-destructive-text">
                                 {' '}
                                 *
                             </span>
@@ -31,8 +31,8 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                 <textarea
                     id={areaId}
                     className={cn(
-                        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-                        error && 'border-destructive focus-visible:ring-destructive',
+                        'flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+                        error && 'border-destructive-text focus-visible:ring-destructive-text',
                         className,
                     )}
                     ref={ref}
@@ -41,7 +41,7 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
                     {...props}
                 />
                 {error ? (
-                    <p id={`${areaId}-error`} className="text-sm text-red-700 dark:text-red-400">
+                    <p id={`${areaId}-error`} className="text-sm text-destructive-text">
                         {error}
                     </p>
                 ) : null}

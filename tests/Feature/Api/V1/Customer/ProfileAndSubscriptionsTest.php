@@ -6,7 +6,9 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Modules\Service\Models\ServicePackageCategory;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
 
@@ -68,7 +70,8 @@ class ProfileAndSubscriptionsTest extends TestCase
             'id', 'code', 'status', 'package', 'mrc_amount', 'installation_address', 'activation_date',
             'billing_day', 'next_invoice_date', 'contract_months', 'expiration_date',
         ], array_keys($list));
-        $this->assertSame(['id', 'name'], array_keys($list['package']));
+        $this->assertSame(['id', 'name', 'category'], array_keys($list['package']));
+        $this->assertSame(['id' => ServicePackageCategory::ensureDefaults((int) $customer->company_id)['BISNIS'], 'name' => 'Bisnis'], $list['package']['category']);
         $this->assertSame(['address', 'city'], array_keys($list['installation_address']));
         $this->assertNoForbiddenKeys($list);
 
@@ -77,6 +80,23 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->assertJsonPath('data.id', $subscription->id);
         $this->api('GET', 'customer/subscriptions/'.$foreign->id, token: $this->issueToken($user, 'customer'))
             ->assertNotFound();
+    }
+
+    public function test_package_category_is_loaded_without_a_query_per_subscription(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $token = $this->issueToken($user, 'customer');
+        foreach (range(1, 3) as $ignored) {
+            $this->subscriptionFor($customer);
+        }
+
+        DB::enableQueryLog();
+        $response = $this->api('GET', 'customer/subscriptions?per_page=50', token: $token)->assertOk()->assertJsonCount(3, 'data');
+        $categoryQueries = array_filter(DB::getQueryLog(), fn (array $query): bool => str_contains($query['query'], 'service_package_categories'));
+        DB::disableQueryLog();
+
+        $this->assertCount(1, $categoryQueries, 'one eager load for every subscription on the page');
+        $this->assertSame(['Bisnis'], array_values(array_unique($response->json('data.*.package.category.name'))));
     }
 
     public function test_customer_routes_reject_technician_tokens(): void
@@ -94,11 +114,13 @@ class ProfileAndSubscriptionsTest extends TestCase
             'company_id' => $customer->company_id,
             'customer_id' => $customer->id,
             'address' => 'Jl. Pasang 2',
+            'label' => uniqid('Rumah '),
             'city' => 'Jakarta',
         ]);
         $package = ServicePackageFactory::new()->create([
             'company_id' => $customer->company_id,
             'name' => 'Fiber 20 Mbps',
+            'service_package_category_id' => ServicePackageCategory::ensureDefaults((int) $customer->company_id)['BISNIS'],
         ]);
 
         return ServiceSubscription::factory()->create([

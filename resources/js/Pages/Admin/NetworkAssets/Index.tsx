@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -104,7 +104,7 @@ export default function NetworkAssetsIndex({
                     row.serial_number ? (
                         <span className="font-mono text-sm">{row.serial_number}</span>
                     ) : (
-                        '—'
+                        '-'
                     ),
             },
             {
@@ -117,7 +117,7 @@ export default function NetworkAssetsIndex({
             {
                 key: 'location',
                 header: 'Location',
-                cell: (row) => row.location?.name ?? '—',
+                cell: (row) => row.location?.name ?? '-',
             },
             {
                 key: 'created_at',
@@ -139,9 +139,8 @@ export default function NetworkAssetsIndex({
     );
 
     return (
-        <AppLayout>
-            <Head title="Aset Jaringan" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Aset Jaringan">
+            <div className="space-y-4">
                 <PageHeader
                     title="Aset Jaringan"
                     description="Physical and logical network inventory."
@@ -154,7 +153,7 @@ export default function NetworkAssetsIndex({
                                 formats={['csv', 'pdf']}
                             />
                             {can('network_asset.create') && (
-                                <Button asChild size="sm" variant="success">
+                                <Button asChild size="sm" variant="primary">
                                     <Link href={route('admin.network-assets.create')}>
                                         <Plus className="size-4" />
                                         New asset
@@ -234,6 +233,6 @@ export default function NetworkAssetsIndex({
                     onPerPageChange={(n) => set('per_page', n)}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

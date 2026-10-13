@@ -26,8 +26,8 @@ const ISO_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
 /** An en or em dash, or a hyphen with spaces around it (a bare hyphen belongs to `Y-m-d`). */
 const RANGE_SEPARATOR = /\s*[–—]\s*|\s+-\s+/;
 /** A typed two-digit year parses as year 26 AD; four digits only, inside MySQL's `date` range. */
-const MIN_YEAR = 1000;
-const MAX_YEAR = 9999;
+export const MIN_YEAR = 1000;
+export const MAX_YEAR = 9999;
 const REFERENCE_DAY = new Date(2000, 0, 1);
 
 /** The calendar day of an ISO `yyyy-mm-dd`, at local midnight; null for anything else, `2026-02-31` included. */
@@ -97,14 +97,16 @@ export function presetRange(id: DateRangePresetId, today: string): DateRange {
     }
 }
 
+/** `13 Okt 2026` in the company format; empty for anything that is not an ISO day. */
+export function formatDay(iso: string | null | undefined, dateFnsFormat: string): string {
+    const date = isoToLocalDate(iso);
+
+    return date ? format(date, dateFnsFormat, { locale: localeId }) : '';
+}
+
 /** `13 Okt 2026 – 20 Okt 2026`; an open end leaves its side empty (`13 Okt 2026 –`). */
 export function formatRange(range: DateRange, dateFnsFormat: string): string {
-    const day = (iso: string | null) => {
-        const date = isoToLocalDate(iso);
-
-        return date ? format(date, dateFnsFormat, { locale: localeId }) : '';
-    };
-    const [from, to] = [day(range.from), day(range.to)];
+    const [from, to] = [formatDay(range.from, dateFnsFormat), formatDay(range.to, dateFnsFormat)];
 
     if (from && to) return `${from} – ${to}`;
     if (from) return `${from} –`;
@@ -112,8 +114,8 @@ export function formatRange(range: DateRange, dateFnsFormat: string): string {
     return to ? `– ${to}` : '';
 }
 
-/** One typed day in the company format; null when it is not a real day. */
-function parseDay(text: string, dateFnsFormat: string): string | null {
+/** One typed day in the company format as an ISO day; null when it is not a real day. */
+export function parseDay(text: string, dateFnsFormat: string): string | null {
     // Typing "13 Oktober 2026" into a `d M Y` field is as natural as "13 Okt 2026".
     const monthWidths = dateFnsFormat.includes('MMMM')
         ? [dateFnsFormat, dateFnsFormat.replace('MMMM', 'MMM')]

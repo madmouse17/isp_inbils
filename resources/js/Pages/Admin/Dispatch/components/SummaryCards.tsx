@@ -1,9 +1,4 @@
-import {
-    ChatBubbleLeftRightIcon,
-    CheckCircleIcon,
-    ClipboardDocumentListIcon,
-    ClockIcon,
-} from '@heroicons/react/24/outline';
+import { CheckCircle2, ClipboardList, Clock, MessagesSquare } from 'lucide-react';
 import { Card, CardContent } from '@/Components/ui';
 import type { DispatchSummary } from '@/types';
 
@@ -28,7 +23,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        <p className="text-sm font-medium text-muted-foreground">
                             Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -39,7 +34,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                         </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
-                        <ClockIcon className="h-6 w-6" aria-hidden="true" />
+                        <Clock className="h-6 w-6" aria-hidden="true" />
                     </div>
                 </CardContent>
             </Card>
@@ -50,7 +45,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        <p className="text-sm font-medium text-muted-foreground">
                             Tiket Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -61,7 +56,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                         </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
-                        <ChatBubbleLeftRightIcon className="h-6 w-6" aria-hidden="true" />
+                        <MessagesSquare className="h-6 w-6" aria-hidden="true" />
                     </div>
                 </CardContent>
             </Card>
@@ -72,7 +67,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        <p className="text-sm font-medium text-muted-foreground">
                             SPK Belum Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -83,7 +78,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                         </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400">
-                        <ClipboardDocumentListIcon className="h-6 w-6" aria-hidden="true" />
+                        <ClipboardList className="h-6 w-6" aria-hidden="true" />
                     </div>
                 </CardContent>
             </Card>
@@ -96,7 +91,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             >
                 <CardContent className="flex items-center justify-between p-5">
                     <div className="space-y-1">
-                        <p className="text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                        <p className="text-sm font-medium text-muted-foreground">
                             Sudah Ditugaskan
                         </p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">
@@ -107,7 +102,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                         </p>
                     </div>
                     <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-                        <CheckCircleIcon className="h-6 w-6" aria-hidden="true" />
+                        <CheckCircle2 className="h-6 w-6" aria-hidden="true" />
                     </div>
                 </CardContent>
             </Card>

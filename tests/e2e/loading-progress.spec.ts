@@ -292,9 +292,9 @@ test.describe('@loading-progress DataTable', () => {
 
         // Page sizes are 10, 25 or 50 on the server: 10 fills the placeholder, the rest are capped.
         for (const perPage of ['10', '25', '50']) {
-            await page.getByLabel('Rows per page').selectOption(perPage);
+            await page.getByLabel('Baris per halaman').selectOption(perPage);
             await expect(busyTable(page)).toHaveCount(0);
-            await expect(page.getByLabel('Rows per page')).toHaveValue(perPage);
+            await expect(page.getByLabel('Baris per halaman')).toHaveValue(perPage);
 
             const hold = await holdInertiaGet(page, (url) => url.pathname === '/admin/users');
             try {

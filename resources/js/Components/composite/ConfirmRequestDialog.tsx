@@ -48,13 +48,13 @@ export function ConfirmRequestDialog({ request, onClose }: ConfirmRequestDialogP
                 </AlertDialogHeader>
                 {refusal ? (
                     <Alert variant="danger">
-                        <AlertDescription className="text-red-700 dark:text-red-400">
+                        <AlertDescription className="text-destructive-text">
                             {refusal}
                         </AlertDescription>
                     </Alert>
                 ) : null}
                 <AlertDialogFooter>
-                    <AlertDialogCancel disabled={form.processing}>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel disabled={form.processing}>Batal</AlertDialogCancel>
                     <Button
                         type="button"
                         variant="danger"

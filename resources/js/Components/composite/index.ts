@@ -26,6 +26,8 @@ export { PageHeader } from './PageHeader';
 export { PermissionGroupSelector } from './PermissionGroupSelector';
 export type { PermissionGroupSelectorProps } from './PermissionGroupSelector';
 export type { PermissionOption } from './permissionGroups';
+export { RemoteSearchSelect } from './RemoteSearchSelect';
+export type { RemoteOption, RemoteSearchSelectProps } from './RemoteSearchSelect';
 export { RoleBadge } from './RoleBadge';
 export { StatusBadge } from './StatusBadge';
 export { ErrorState, ForbiddenState, LoadingState, ResourceState } from './ResourceState';

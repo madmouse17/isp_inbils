@@ -216,19 +216,37 @@ This is the single source of truth for the design system.
 
 ## Design System
 
-- Theme: modern flat. No heavy gradients, no faux-3D, no drop shadows
-  deeper than `shadow-xs` (Tailwind v4 name of the old `shadow-sm`). Rounded corners (`rounded-lg`/`rounded-xl`),
-  generous whitespace, restrained palette.
+- Theme: modern flat. No heavy gradients, no faux-3D. Static controls (Button,
+  Badge, Checkbox, IconButton, Card, GuestLayout) carry no shadow: nothing
+  lifts off the page without a reason. Overlays (dropdown, popover, dialog,
+  sheet, toast) may use `shadow-md` and nothing deeper. Rounded corners
+  (`rounded-lg`/`rounded-xl`), generous whitespace, restrained palette.
 - Dark mode: every component MUST support `dark:` variants. The app
   toggles via the `class` strategy (set on `<html>`); `resources/css/app.css`
   declares `@custom-variant dark`.
 - Color tokens: `resources/css/app.css` `@theme` (CSS-first config; no `tailwind.config.js`). Use semantic
   names (`brand`, `surface`, `success`, `warning`, `danger`), never raw
   hex in components.
-- Typography: Figtree (already wired). Headings via `font-semibold`/
-  `font-bold`.
+- Typography: Figtree 400/500/600/700, self-hosted as woff2 under
+  `resources/fonts/figtree/` (SIL OFL licence alongside) and declared with
+  `@font-face` in `resources/css/app.css`; no font CDN request. Chosen for its
+  open, even letterforms at 12-14px table text. Headings via `font-semibold`/
+  `font-bold`. The wordmark is text ("Inbils", `Components/ui/Wordmark.tsx`)
+  until the owner supplies a logo.
 - Focus states: always visible `focus:ring` for keyboard a11y.
 - Interactive elements: clear `hover:` + `active:` + `disabled:` states.
+- Icons: Lucide only (`lucide-react`). One set keeps the stroke and weight
+  consistent; shadcn primitives and most pages already used it. No
+  `@heroicons/react`, no inline SVG icons. Pick the icon for relevance.
+- Destructive text and invalid-field outlines use `text-destructive-text` /
+  `border-destructive-text` (`--destructive-text`: red-700 light, red-400
+  dark); `--destructive` stays the fill. `--input` borders reach 3:1. Chart
+  and meter status colours use `--status-*`. Never `text-destructive` for text.
+- Touch targets: controls are 44px high below `sm` and on coarse pointers
+  (`ui/controlSize.ts`). Text is never smaller than 12px; labels are sentence
+  case, not uppercase tracked.
+- Copy: no em dash in UI text. A missing value is `EmptyCell` (a hyphen,
+  announced as "Kosong").
 
 ## Code Standards
 

@@ -21,7 +21,7 @@ test.describe('@datatable-e Receivables', () => {
         page,
     }) => {
         await openReceivables(page);
-        await expect(page.getByText('Showing 1–10 of 12')).toBeVisible();
+        await expect(page.getByText('Menampilkan 1–10 dari 12')).toBeVisible();
         await expect(page.getByRole('link', { name: receivableCustomerNames[0] })).toBeVisible();
         const customerSort = page.getByRole('button', { name: 'Pelanggan' });
         await customerSort.focus();
@@ -43,22 +43,22 @@ test.describe('@datatable-e Receivables', () => {
             .getByText(currency.format(receivableGrandTotal));
         await expect(grandTotalCard).toBeVisible();
 
-        await page.getByRole('button', { name: 'Next page' }).click();
+        await page.getByRole('button', { name: 'Halaman berikutnya' }).click();
         await expect(page).toHaveURL(/page=2/);
         await expect(page).toHaveURL(/per_page=10/);
         await expect(page).toHaveURL(/sort=customer/);
         await expect(page).toHaveURL(/direction=asc/);
-        await expect(page.getByText('Showing 11–12 of 12')).toBeVisible();
+        await expect(page.getByText('Menampilkan 11–12 dari 12')).toBeVisible();
         await expect(page.getByText(currency.format(receivableGrandTotal))).toBeVisible();
         await page.reload();
         await expect(page).toHaveURL(/page=2/);
-        await expect(page.getByRole('button', { name: 'Previous page' })).toBeEnabled();
-        await page.getByRole('button', { name: 'Previous page' }).click();
+        await expect(page.getByRole('button', { name: 'Halaman sebelumnya' })).toBeEnabled();
+        await page.getByRole('button', { name: 'Halaman sebelumnya' }).click();
         await expect(page).toHaveURL(/page=1/);
-        await page.getByLabel('Rows per page').selectOption('25');
+        await page.getByLabel('Baris per halaman').selectOption('25');
         await expect(page).toHaveURL(/per_page=25/);
         await expect(page).toHaveURL(/page=1/);
-        await expect(page.getByText('Showing 1–12 of 12')).toBeVisible();
+        await expect(page.getByText('Menampilkan 1–12 dari 12')).toBeVisible();
         await expect(page.getByText(currency.format(receivableGrandTotal))).toBeVisible();
         await page.getByRole('button', { name: 'Total' }).focus();
         await page.keyboard.press('Enter');
@@ -91,7 +91,7 @@ test.describe('@datatable-e Receivables', () => {
                     content: document.documentElement.scrollWidth,
                 }));
                 expect(sizes.content).toBeLessThanOrEqual(sizes.viewport);
-                const perPage = await page.getByLabel('Rows per page').boundingBox();
+                const perPage = await page.getByLabel('Baris per halaman').boundingBox();
                 expect(perPage).not.toBeNull();
                 expect(perPage!.x).toBeGreaterThanOrEqual(0);
                 expect(perPage!.x + perPage!.width).toBeLessThanOrEqual(width);
@@ -103,7 +103,7 @@ test.describe('@datatable-e Receivables', () => {
         page,
     }) => {
         await openReceivables(page);
-        await page.getByLabel('Rows per page').selectOption('25');
+        await page.getByLabel('Baris per halaman').selectOption('25');
         const linkedCustomerRow = page.getByRole('row').filter({ hasText: 'E2E Linked Customer' });
         const suspendAction = linkedCustomerRow.getByRole('button', {
             name: 'Isolir E2E-LINKED-SUB',

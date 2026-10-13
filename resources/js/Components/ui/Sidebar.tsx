@@ -1,4 +1,4 @@
-import { ChevronDownIcon } from '@heroicons/react/20/solid';
+import { ChevronDown } from 'lucide-react';
 import { Link } from '@inertiajs/react';
 import { Children, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
@@ -16,17 +16,29 @@ export function SidebarItem({ href, icon, label, active, badge }: SidebarItemPro
         <Link
             href={href}
             className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden',
+                'flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden lg:min-h-9',
                 active
-                    ? 'bg-primary text-primary-foreground shadow-xs'
+                    ? 'bg-primary text-primary-foreground'
                     : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
             )}
             aria-current={active ? 'page' : undefined}
         >
-            {icon && <span className="h-5 w-5 shrink-0">{icon}</span>}
+            {icon && (
+                <span className="h-5 w-5 shrink-0 [&>svg]:h-full [&>svg]:w-full" aria-hidden="true">
+                    {icon}
+                </span>
+            )}
             <span className="flex-1 truncate">{label}</span>
             {badge !== undefined && (
-                <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                <span
+                    className={cn(
+                        'rounded-md px-2 py-0.5 text-xs font-semibold',
+                        // The count must stay legible on the active row: primary-on-primary would vanish.
+                        active
+                            ? 'bg-primary-foreground text-primary'
+                            : 'bg-primary/10 text-brand-700 dark:text-brand-300',
+                    )}
+                >
                     {badge}
                 </span>
             )}
@@ -68,9 +80,12 @@ export function SidebarSection({
             open={expanded}
             onToggle={(event) => setExpanded(event.currentTarget.open)}
         >
-            <summary className="mb-2 flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden [&::-webkit-details-marker]:hidden">
+            <summary className="mb-2 flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 rounded-md px-3 py-1 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden lg:min-h-9 [&::-webkit-details-marker]:hidden">
                 <span className="truncate">{title}</span>
-                <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
+                <ChevronDown
+                    className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180"
+                    aria-hidden="true"
+                />
             </summary>
             <div className="space-y-1">{children}</div>
         </details>
@@ -107,7 +122,7 @@ export function Sidebar({
     onClose,
     returnFocusRef,
     className,
-    brandName = 'inbils',
+    brandName = 'Inbils',
     brandLogo,
 }: SidebarProps) {
     const asideRef = useRef<HTMLElement>(null);
@@ -185,7 +200,7 @@ export function Sidebar({
                 // A closed drawer is only translated off-screen: inert keeps its links out of the tab order.
                 {...(drawerClosed ? { inert: '' } : {})}
                 className={cn(
-                    'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-xl transition-transform lg:static lg:translate-x-0 lg:shadow-none dark:bg-card',
+                    'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-md transition-transform lg:static lg:translate-x-0 lg:shadow-none dark:bg-card',
                     open === undefined
                         ? 'hidden lg:block'
                         : open
@@ -206,7 +221,7 @@ export function Sidebar({
                         {brandLogo ? (
                             <img
                                 src={brandLogo}
-                                alt={`${brandName} logo`}
+                                alt={`Logo ${brandName}`}
                                 className="h-full w-full rounded-lg object-contain"
                             />
                         ) : (

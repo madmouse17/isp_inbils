@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -106,7 +106,7 @@ export default function TicketsIndex({
             {
                 key: 'customer',
                 header: 'Customer',
-                cell: (row) => row.customer?.name ?? '—',
+                cell: (row) => row.customer?.name ?? '-',
             },
             {
                 key: 'created_at',
@@ -120,9 +120,8 @@ export default function TicketsIndex({
     );
 
     return (
-        <AppLayout>
-            <Head title="Tiket" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Tiket">
+            <div className="space-y-4">
                 <PageHeader
                     title="Tiket"
                     description="Support tickets and escalations."
@@ -135,7 +134,7 @@ export default function TicketsIndex({
                                 formats={['csv', 'pdf']}
                             />
                             {can('ticket.create') && (
-                                <Button asChild size="sm" variant="success">
+                                <Button asChild size="sm" variant="primary">
                                     <Link href={route('admin.tickets.create')}>
                                         <Plus className="size-4" />
                                         New ticket
@@ -217,6 +216,6 @@ export default function TicketsIndex({
                     onPerPageChange={(n) => set('per_page', n)}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

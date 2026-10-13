@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Card, CardContent } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
@@ -18,16 +17,6 @@ export default function Edit({
     twoFactor,
     appOnly,
 }: PageProps<{ mustVerifyEmail: boolean; status?: string; twoFactor: TwoFactorStatus }>) {
-    // GuestLayout does not apply the saved or system theme itself; AdminLayout does.
-    useEffect(() => {
-        if (!appOnly) return;
-        document.documentElement.classList.toggle(
-            'dark',
-            localStorage.getItem('darkMode') === 'true' ||
-                window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-    }, [appOnly]);
-
     const sections = (
         <div className="grid gap-6 xl:grid-cols-2">
             <Card>

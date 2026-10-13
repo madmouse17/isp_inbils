@@ -71,13 +71,17 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
 
     // Assert server-authoritative self-row capability: logged-in admin has no Delete action.
     const selfRow = await findRow(page, 'Demo Admin');
-    await expect(selfRow.getByRole('button', { name: 'Delete' })).not.toBeVisible();
+    await selfRow.getByRole('button', { name: 'Aksi lainnya' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Hapus' })).toHaveCount(0);
+    await page.keyboard.press('Escape');
 
     const name = await createDisposableUser(page);
 
     // Prove the row's DataTableActions renders the Delete action for authorized other user.
     const row = await findRow(page, name);
-    await expect(row.getByRole('button', { name: 'Delete' })).toBeVisible();
+    await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Hapus' })).toBeVisible();
+    await page.keyboard.press('Escape');
 
     // Intercept the destroy request: count DELETE hits, and hold the response
     // open long enough to observe the in-flight disabled state.
@@ -97,7 +101,8 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
     });
 
     // Open the confirm dialog.
-    await row.getByRole('button', { name: 'Delete' }).click();
+    await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+    await page.getByRole('menuitem', { name: 'Hapus' }).click();
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
 
@@ -106,7 +111,7 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
     // both activations natively in a single evaluate tick: a second Playwright
     // click would wait for the button to become enabled again, which only
     // happens after the held request is released (test deadlock).
-    const dialogDelete = dialog.getByRole('button', { name: 'Delete' });
+    const dialogDelete = dialog.getByRole('button', { name: 'Hapus' });
     await dialogDelete.evaluate((button) => {
         const el = button as HTMLButtonElement;
         el.click();
@@ -116,7 +121,7 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
     // While the request is held: exactly one DELETE issued, buttons disabled.
     await expect.poll(() => deleteRequestCount, { timeout: 5_000 }).toBe(1);
     await expect(dialogDelete).toBeDisabled();
-    await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    await expect(dialog.getByRole('button', { name: 'Batal' })).toBeDisabled();
 
     // Release the request; the dialog must close on success.
     releaseDelete?.();
@@ -138,7 +143,9 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
         await openUsersIndex(page);
         name = await createDisposableUser(page);
         const row = await findRow(page, name);
-        await expect(row.getByRole('button', { name: 'Delete' })).toBeVisible();
+        await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+        await expect(page.getByRole('menuitem', { name: 'Hapus' })).toBeVisible();
+        await page.keyboard.press('Escape');
 
         let deleteRequestCount = 0;
         await page.route(DELETE_URL_PATTERN, async (route) => {
@@ -153,20 +160,21 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
             });
         });
 
-        await row.getByRole('button', { name: 'Delete' }).click();
+        await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+        await page.getByRole('menuitem', { name: 'Hapus' }).click();
         const dialog = page.getByRole('alertdialog');
         await expect(dialog).toBeVisible();
 
-        await dialog.getByRole('button', { name: 'Delete' }).click();
+        await dialog.getByRole('button', { name: 'Hapus' }).click();
         await expect.poll(() => deleteRequestCount, { timeout: 5_000 }).toBe(1);
 
         // Dialog must NOT close after the failed request...
         await expect(dialog).toBeVisible({ timeout: 10_000 });
         // ...and the buttons must re-enable so the user can retry.
-        await expect(dialog.getByRole('button', { name: 'Delete' })).toBeEnabled({
+        await expect(dialog.getByRole('button', { name: 'Hapus' })).toBeEnabled({
             timeout: 10_000,
         });
-        await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeEnabled();
+        await expect(dialog.getByRole('button', { name: 'Batal' })).toBeEnabled();
         await expect.poll(() => deleteRequestCount, { timeout: 5_000 }).toBe(1);
     } finally {
         if (name) {
@@ -176,12 +184,13 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
             await searchInput.fill(name);
             const residualRow = page.getByRole('row').filter({ hasText: name }).first();
             if (await residualRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
-                const deleteBtn = residualRow.getByRole('button', { name: 'Delete' });
-                if (await deleteBtn.isVisible().catch(() => false)) {
-                    await deleteBtn.click();
+                const menuButton = residualRow.getByRole('button', { name: 'Aksi lainnya' });
+                if (await menuButton.isVisible().catch(() => false)) {
+                    await menuButton.click();
+                    await page.getByRole('menuitem', { name: 'Hapus' }).click();
                     const confirmDialog = page.getByRole('alertdialog');
                     if (await confirmDialog.isVisible({ timeout: 5_000 }).catch(() => false)) {
-                        await confirmDialog.getByRole('button', { name: 'Delete' }).click();
+                        await confirmDialog.getByRole('button', { name: 'Hapus' }).click();
                         await expect(confirmDialog).not.toBeVisible({ timeout: 15_000 });
                     }
                 }

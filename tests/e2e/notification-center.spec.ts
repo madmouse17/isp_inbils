@@ -202,7 +202,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         });
         expect(before.unreadCount).toBeGreaterThanOrEqual(2);
         const bell = page.getByRole('button', {
-            name: `Notifications, ${before.unreadCount} unread`,
+            name: `Notifikasi, ${before.unreadCount} belum dibaca`,
             exact: true,
         });
         await tabTo(page, bell);
@@ -276,7 +276,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         await expect(article(page, owned[0]).getByText('Unread', { exact: true })).toHaveCount(0);
         await expect(
             page.getByRole('button', {
-                name: `Notifications, ${before.unreadCount - 1} unread`,
+                name: `Notifikasi, ${before.unreadCount - 1} belum dibaca`,
                 exact: true,
             }),
         ).toBeVisible();
@@ -321,10 +321,10 @@ test('@notification-center owned assignments persist reads and reassignment noti
         };
         await page.route(inboxUrl, projectReadPage);
         try {
-            await page.getByRole('button', { name: /^Notifications(?:, \d+ unread)?$/ }).click();
+            await page.getByRole('button', { name: /^Notifikasi(?:, \d+ belum dibaca)?$/ }).click();
             await projectionReady;
             await expect(
-                page.getByRole('button', { name: 'Notifications, 1 unread', exact: true }),
+                page.getByRole('button', { name: 'Notifikasi, 1 belum dibaca', exact: true }),
             ).toBeVisible();
             await expect(
                 page.getByRole('article').getByText('Unread', { exact: true }),
@@ -389,9 +389,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         expect((await notificationById(page, newRow!.id)).read_at).not.toBeNull();
         expect((await notificationById(page, rows[0].id)).read_at).toBe(opened.read_at);
         expect((await notificationById(page, rows[1].id)).read_at).toBe(marked.read_at);
-        await expect(
-            page.getByRole('button', { name: 'Notifications', exact: true }),
-        ).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Notifikasi', exact: true })).toBeVisible();
     } finally {
         if (owned.length > 0) {
             await switchTo(page, 'manager');

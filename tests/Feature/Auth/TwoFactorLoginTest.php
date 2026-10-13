@@ -148,7 +148,7 @@ class TwoFactorLoginTest extends TestCase
 
         $this->withCookie(config('session.cookie'), $parkedId)
             ->post(route('two-factor.login'), ['code' => '000000'])
-            ->assertSessionHasErrors(['code' => 'The provided two-factor code was invalid.']);
+            ->assertSessionHasErrors(['code' => 'Kode autentikasi dua langkah tidak valid.']);
 
         $this->assertGuest();
         $this->assertSame($parkedId, session()->getId(), 'no regeneration without a pass');
@@ -217,11 +217,11 @@ class TwoFactorLoginTest extends TestCase
 
         for ($attempt = 1; $attempt <= 5; $attempt++) {
             $this->post(route('two-factor.login'), ['code' => '000000'])
-                ->assertSessionHasErrors(['code' => 'The provided two-factor code was invalid.']);
+                ->assertSessionHasErrors(['code' => 'Kode autentikasi dua langkah tidak valid.']);
         }
 
         $this->post(route('two-factor.login'), ['code' => $this->totp($this->secret)])->assertSessionHasErrors('code');
-        $this->assertStringContainsString('Too many', session('errors')->first('code'));
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('code'));
         $this->assertGuest();
 
         $this->travel(61)->seconds();
@@ -250,7 +250,7 @@ class TwoFactorLoginTest extends TestCase
         }
 
         $this->passwordLogin()->assertSessionHasErrors('email');
-        $this->assertStringContainsString('Too many', session('errors')->first('email'));
+        $this->assertStringContainsString('Terlalu banyak', session('errors')->first('email'));
         $this->assertNull(session('login.two_factor'), 'even the right password is not parked while throttled');
     }
 

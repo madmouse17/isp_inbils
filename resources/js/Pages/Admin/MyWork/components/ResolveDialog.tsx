@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
-import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle, Badge, Button, Textarea } from '@/Components/ui';
 import {
     Dialog,
@@ -163,7 +163,7 @@ function ResolveDialogInner({
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge
                             variant={getDomainVariant(item.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getDomainLabel(item.domain)}
                         </Badge>
@@ -196,7 +196,7 @@ function ResolveDialogInner({
                         <div className="wrap-break-word">
                             <span className="font-semibold text-foreground">Pelanggan: </span>
                             <span className="text-muted-foreground">
-                                {item.customer?.name ?? '—'}
+                                {item.customer?.name ?? '-'}
                             </span>
                         </div>
                     </div>
@@ -216,7 +216,7 @@ function ResolveDialogInner({
                             disabled={submitting || isStale || isReloading}
                             error={noteError ?? undefined}
                         />
-                        <p className="text-[11px] text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                             Catatan ini akan tersimpan dalam riwayat audit tiket dan dapat ditinjau
                             saat penutupan (close).
                         </p>
@@ -229,7 +229,7 @@ function ResolveDialogInner({
                             variant="destructive"
                             aria-live="assertive"
                         >
-                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>
                                 {isStale ? 'Item Sudah Berubah' : 'Gagal Menyimpan'}
                             </AlertTitle>
@@ -268,7 +268,7 @@ function ResolveDialogInner({
                         loading={submitting}
                         disabled={submitting || isStale || isReloading}
                     >
-                        <CheckCircleIcon className="mr-1.5 h-4 w-4" />
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" />
                         Selesaikan Tiket
                     </Button>
                 </DialogFooter>

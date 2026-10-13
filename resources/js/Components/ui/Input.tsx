@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
+import { controlHeight } from './controlSize';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -22,7 +23,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     >
                         {label}
                         {props.required ? (
-                            <span aria-hidden="true" className="text-destructive">
+                            <span aria-hidden="true" className="text-destructive-text">
                                 {' '}
                                 *
                             </span>
@@ -39,9 +40,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         type={type}
                         id={inputId}
                         className={cn(
-                            'flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+                            'flex w-full rounded-md border border-input bg-transparent px-3 py-1 text-base transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+                            controlHeight.md,
                             leftIcon && 'pl-9',
-                            error && 'border-destructive focus-visible:ring-destructive',
+                            error && 'border-destructive-text focus-visible:ring-destructive-text',
                             className,
                         )}
                         ref={ref}
@@ -51,7 +53,7 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
                 </div>
                 {error ? (
-                    <p id={`${inputId}-error`} className="text-sm text-red-700 dark:text-red-400">
+                    <p id={`${inputId}-error`} className="text-sm text-destructive-text">
                         {error}
                     </p>
                 ) : null}

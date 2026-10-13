@@ -198,7 +198,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.getByLabel('NAS address').fill('10.99.9.1');
         await secret.fill('short');
         await page.getByRole('button', { name: 'Register router' }).click();
-        await expect(page.getByText(/must be at least 8 characters/)).toBeVisible();
+        await expect(page.getByText(/minimal 8 karakter/)).toBeVisible();
 
         await secret.fill(FAKE_NAS_SECRET);
         await page.getByRole('button', { name: 'Register router' }).click();
@@ -251,7 +251,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.getByRole('button', { name: 'Remove router' }).click();
         const dialog = page.getByRole('alertdialog');
         await expect(dialog.getByText('Remove this NAS router?')).toBeVisible();
-        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await dialog.getByRole('button', { name: 'Batal' }).click();
         await expect(dialog).toHaveCount(0);
     });
 

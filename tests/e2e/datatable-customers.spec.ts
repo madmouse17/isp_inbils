@@ -26,7 +26,7 @@ test('@kanban-t_41ed9a9c customers index renders DataTable with rows, sort, filt
         page.locator('tbody tr').filter({ hasText: datatableCustomerNames[0] }).first(),
     ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Next page' }).click();
+    await page.getByRole('button', { name: 'Halaman berikutnya' }).click();
     await expect(page).toHaveURL(/page=2/);
     await expect(
         page.locator('tbody tr').filter({ hasText: datatableCustomerNames[10] }).first(),

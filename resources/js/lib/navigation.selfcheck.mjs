@@ -193,7 +193,13 @@ test('service.manage alone opens every service item (6a)', () => {
     assert.deepEqual(outline(view(['service.manage'])), [
         [
             'Pelanggan & Layanan',
-            ['Paket Layanan', 'Profil Bandwidth', 'Profil Kecepatan', 'Tingkat SLA'],
+            [
+                'Paket Layanan',
+                'Kategori Paket',
+                'Profil Bandwidth',
+                'Profil Kecepatan',
+                'Tingkat SLA',
+            ],
         ],
     ]);
 });

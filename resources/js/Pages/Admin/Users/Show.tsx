@@ -257,7 +257,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                             </Button>
                             <Button
                                 type="button"
-                                variant="warning"
+                                variant="outline"
                                 onClick={() => router.get(route('admin.users.edit', user.data.id))}
                             >
                                 Edit
@@ -288,7 +288,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                             </p>
                             {history.linked_customer ? (
                                 <p className="text-surface-700 md:col-span-2 dark:text-surface-300">
-                                    Customer: {history.linked_customer.code} —{' '}
+                                    Customer: {history.linked_customer.code} -{' '}
                                     {history.linked_customer.name}
                                 </p>
                             ) : null}
@@ -374,7 +374,7 @@ export default function Show({ user, history, historyAccess }: ShowProps) {
                             ) : null}
                             {(user.data.activity_log ?? []).map((item) => (
                                 <p key={item.id}>
-                                    {formatDateTime(item.created_at)} — {item.description}
+                                    {formatDateTime(item.created_at)} - {item.description}
                                 </p>
                             ))}
                         </CardContent>

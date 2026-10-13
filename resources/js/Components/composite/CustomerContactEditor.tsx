@@ -134,7 +134,7 @@ export function CustomerContactEditor({
                     {canManage ? (
                         <Button
                             type="button"
-                            variant="success"
+                            variant="primary"
                             size="sm"
                             onClick={startCreate}
                             disabled={processing}
@@ -166,14 +166,14 @@ export function CustomerContactEditor({
                                     <p className="text-sm text-muted-foreground">
                                         {[row.position, row.phone, row.email]
                                             .filter(Boolean)
-                                            .join(' · ') || '—'}
+                                            .join(' · ') || '-'}
                                     </p>
                                 </div>
                                 {canManage ? (
                                     <div className="flex gap-2">
                                         <Button
                                             type="button"
-                                            variant="warning"
+                                            variant="outline"
                                             size="sm"
                                             onClick={() => startEdit(row)}
                                             disabled={processing}
@@ -256,7 +256,7 @@ export function CustomerContactEditor({
                                 </Button>
                                 <Button
                                     type="submit"
-                                    variant="success"
+                                    variant="primary"
                                     loading={processing}
                                     disabled={processing}
                                 >

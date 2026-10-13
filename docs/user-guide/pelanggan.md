@@ -185,6 +185,7 @@ Setiap baris memuat nama paket, biaya bulanan, dan status. Ketuk satu baris untu
 | --- | --- |
 | Status | Status langganan (tabel di bawah). |
 | Paket | Nama paket. |
+| Kategori | Kategori paket, misalnya Rumahan, Bisnis atau Korporat. Muncul bila ISP memberi paket itu kategori. |
 | Biaya bulanan | Tarif per bulan. |
 | Tanggal aktivasi | Tanggal layanan mulai aktif. |
 | Tanggal tagihan | "Setiap tanggal N" tiap bulan. |

@@ -46,7 +46,7 @@ export type ServiceSubscription = {
     mrc_amount?: number | string | null;
     otc_installation_fee?: number | string | null;
     contract_months?: number | null;
-    package?: { name?: string | null } | null;
+    package?: { name?: string | null; category?: { id: number; name: string } | null } | null;
     customer?: { id?: Id; name?: string | null } | null;
     installation_address?: { label?: string | null } | null;
     serving_pop?: { name?: string | null } | null;

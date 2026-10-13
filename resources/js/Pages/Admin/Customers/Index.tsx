@@ -189,7 +189,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                             {can.create ? (
                                 <Button
                                     type="button"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => router.get(route('admin.customers.create'))}
                                 >
                                     Create Customer

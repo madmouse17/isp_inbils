@@ -11,6 +11,7 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\OrganizationService;
 use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
 
@@ -202,6 +203,7 @@ final class FoundationDemo
     private static function catalogue(): void
     {
         $tiers = SLATier::query()->pluck('id', 'name');
+        $residential = ServicePackageCategory::ensureDefaults((int) CompanyService::currentId())['RUMAHAN'];
 
         foreach (self::PACKAGES as $code => [$name, $bandwidth, $speed, $tier, $mrc, $otc, $months, $description]) {
             $bandwidthProfile = BandwidthProfile::query()->create([
@@ -228,6 +230,7 @@ final class FoundationDemo
                 'bandwidth_profile_id' => $bandwidthProfile->id,
                 'speed_profile_id' => $speedProfile->id,
                 'sla_tier_id' => $tiers[$tier],
+                'service_package_category_id' => $residential,
                 'price_mrc' => $mrc,
                 'price_otc' => $otc,
                 'contract_min_months' => $months,

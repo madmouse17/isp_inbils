@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -100,7 +100,7 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
                             ) : null}
                         </div>
                     ) : (
-                        '—'
+                        '-'
                     ),
             },
             {
@@ -109,22 +109,22 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
                 sortable: true,
                 sortKey: 'quantity',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.quantity ?? '—'),
+                cell: (row) => String(row.quantity ?? '-'),
             },
             {
                 key: 'from',
                 header: 'From',
-                cell: (row) => row.from_location?.name ?? '—',
+                cell: (row) => row.from_location?.name ?? '-',
             },
             {
                 key: 'to',
                 header: 'To',
-                cell: (row) => row.to_location?.name ?? '—',
+                cell: (row) => row.to_location?.name ?? '-',
             },
             {
                 key: 'note',
                 header: 'Note',
-                cell: (row) => row.note ?? '—',
+                cell: (row) => row.note ?? '-',
             },
             {
                 key: 'created_at',
@@ -138,9 +138,8 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
     );
 
     return (
-        <AppLayout>
-            <Head title="Mutasi Stok" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Mutasi Stok">
+            <div className="space-y-4">
                 <PageHeader
                     title="Mutasi Stok"
                     description="Inbound, outbound, transfer, and adjustment history."
@@ -213,6 +212,6 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
                     onPerPageChange={(n) => set('per_page', n)}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

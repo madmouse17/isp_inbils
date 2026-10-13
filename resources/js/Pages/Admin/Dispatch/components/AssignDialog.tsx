@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
-import { ExclamationTriangleIcon, UserIcon } from '@heroicons/react/24/outline';
+import { AlertTriangle, User } from 'lucide-react';
 import { NativeSelect } from '@/Components/composite/NativeSelect';
 import { Alert, AlertDescription, AlertTitle, Badge, Button } from '@/Components/ui';
 import {
@@ -203,7 +203,7 @@ function AssignDialogInner({
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge
                             variant={getDomainVariant(item.domain)}
-                            className="text-[10px] font-semibold uppercase"
+                            className="text-xs font-semibold"
                         >
                             {getDomainLabel(item.domain)}
                         </Badge>
@@ -228,7 +228,7 @@ function AssignDialogInner({
                     {/* Informative Context Panel */}
                     <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3.5">
                         <div>
-                            <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <span className="text-sm font-semibold text-muted-foreground">
                                 Judul / Permintaan:
                             </span>
                             <p className="font-medium text-foreground">{item.title}</p>
@@ -238,14 +238,14 @@ function AssignDialogInner({
                             <div>
                                 <span className="text-muted-foreground">Pemohon: </span>
                                 <span className="font-medium text-foreground">
-                                    {item.requester?.name ?? '—'}
+                                    {item.requester?.name ?? '-'}
                                 </span>
                             </div>
                             <div>
                                 <span className="text-muted-foreground">Prioritas: </span>
                                 <Badge
                                     variant={getPriorityVariant(item.priority)}
-                                    className="ml-1 text-[10px] font-semibold uppercase"
+                                    className="ml-1 text-xs font-semibold"
                                 >
                                     {getPriorityLabel(item.priority)}
                                 </Badge>
@@ -271,8 +271,8 @@ function AssignDialogInner({
                         </div>
 
                         {item.sla_breached && (
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive">
-                                <ExclamationTriangleIcon className="h-4 w-4 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive-text">
+                                <AlertTriangle className="h-4 w-4 shrink-0" />
                                 <span>Peringatan: SLA telah terlampaui!</span>
                             </div>
                         )}
@@ -331,7 +331,7 @@ function AssignDialogInner({
                             role="alert"
                             aria-live="assertive"
                         >
-                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>
                                 {isConflict ? 'Konflik Konkurensi' : 'Terjadi Kesalahan'}
                             </AlertTitle>
@@ -352,7 +352,7 @@ function AssignDialogInner({
                     )}
                     {reloadError && (
                         <Alert variant="warning" className="mt-2">
-                            <ExclamationTriangleIcon className="h-4 w-4" />
+                            <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>Muat ulang belum berhasil</AlertTitle>
                             <AlertDescription>{reloadError}</AlertDescription>
                         </Alert>
@@ -395,7 +395,7 @@ function AssignDialogInner({
                             }
                             className="min-h-11"
                         >
-                            <UserIcon className="mr-1.5 h-4 w-4" />
+                            <User className="mr-1.5 h-4 w-4" />
                             Simpan Penugasan
                         </Button>
                     )}

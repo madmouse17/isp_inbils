@@ -1,11 +1,11 @@
 import { Link } from '@inertiajs/react';
+import { Badge, type BadgeVariant } from '@/Components/ui/Badge';
 import { Card } from '@/Components/ui';
 import { formatNumber, formatRupiah } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type { Company } from '@/types';
 import type { DashboardSection, DashboardSeverity } from '@/types/dashboard';
 import { SlaTicketList } from './SlaTicketList';
-import { ToneBadge, type Tone } from './ToneBadge';
 
 interface SectionCardProps {
     section: DashboardSection;
@@ -20,7 +20,7 @@ interface Detail {
 
 interface SeverityStyle {
     /** Words next to the color, so severity never rests on color alone. */
-    chip: { label: string; tone: Tone } | null;
+    chip: { label: string; tone: BadgeVariant } | null;
     count: string;
 }
 
@@ -75,7 +75,11 @@ export function SectionCard({ section, company, className }: SectionCardProps) {
             >
                 <div className="flex items-start justify-between gap-3">
                     <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
-                    {style.chip && <ToneBadge tone={style.chip.tone}>{style.chip.label}</ToneBadge>}
+                    {style.chip && (
+                        <Badge variant={style.chip.tone} className="shrink-0 whitespace-nowrap">
+                            {style.chip.label}
+                        </Badge>
+                    )}
                 </div>
                 <p
                     className={cn(

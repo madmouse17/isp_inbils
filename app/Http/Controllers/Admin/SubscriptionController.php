@@ -27,6 +27,7 @@ use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\Service\Http\Resources\ServicePackageResource;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Services\ServicePackageOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SubscriptionController extends Controller
@@ -46,6 +47,7 @@ class SubscriptionController extends Controller
                 $this->filteredQuery($customer, $request)->paginate(10)->withQueryString()
             ),
             'packages' => ServicePackageResource::collection(ServicePackage::query()->where('is_active', true)->orderBy('name')->get()),
+            'packageGroups' => ServicePackageOptions::grouped($customer->type),
             'addresses' => CustomerAddressResource::collection($customer->addresses()->latest()->get()),
             'filters' => $request->only(['search', 'service_package_id', 'status', 'sort', 'direction']),
             'can' => ['export' => (bool) ($request->user()?->can('customer.subscription.export'))],
@@ -71,7 +73,7 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.view');
 
-        $subscription->load(['servicePackage', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,name']);
+        $subscription->load(['servicePackage.category', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,name']);
 
         $user = $request->user();
         $canAssignIp = $user?->can('ipam.assign') ?? false;
@@ -247,7 +249,7 @@ class SubscriptionController extends Controller
     {
         $query = $customer->subscriptions()
             ->getQuery()
-            ->with(['servicePackage', 'installationAddress', 'servingPop'])
+            ->with(['servicePackage.category', 'installationAddress', 'servingPop'])
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

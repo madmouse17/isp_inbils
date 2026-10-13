@@ -56,7 +56,7 @@ export function MobileItemCard({ item, onReview }: MobileItemCardProps) {
                     <p className="mt-1 text-xs text-muted-foreground">
                         Pemohon:{' '}
                         <span className="font-medium text-foreground">
-                            {item.requester?.name ?? `#${item.requester?.id ?? '—'}`}
+                            {item.requester?.name ?? `#${item.requester?.id ?? '-'}`}
                         </span>
                     </p>
                 </div>
@@ -76,14 +76,14 @@ export function MobileItemCard({ item, onReview }: MobileItemCardProps) {
                             <span className="font-medium text-foreground">
                                 {item.submitted_at
                                     ? new Date(item.submitted_at).toLocaleDateString('id-ID')
-                                    : '—'}
+                                    : '-'}
                             </span>{' '}
                             ({formatAge(item.age_seconds)})
                         </p>
                         <p className="mt-0.5">
                             {isInventory ? 'Tanggal dibutuhkan: ' : 'Jadwal pengerjaan: '}
                             <span className="font-medium text-foreground">
-                                {item.scheduled_date || '—'}
+                                {item.scheduled_date || '-'}
                             </span>
                         </p>
                     </div>

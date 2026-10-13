@@ -133,8 +133,8 @@ test.describe('@sla-targets', () => {
         const row = main.getByRole('row').filter({ hasText: tierName });
         await expect(row).toBeVisible();
         // No ticket yet on a new tier: both rates are empty, not 0%.
-        await expect(row.getByRole('cell').nth(3)).toHaveText('—');
-        await expect(row.getByRole('cell').nth(4)).toHaveText('—');
+        await expect(row.getByRole('cell').nth(3)).toHaveText('-');
+        await expect(row.getByRole('cell').nth(4)).toHaveText('-');
         await expect(row.getByRole('cell').nth(5)).toHaveText('0');
     });
 

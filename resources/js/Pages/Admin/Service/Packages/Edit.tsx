@@ -24,6 +24,7 @@ interface PkgData {
     id: number;
     code: string;
     name: string;
+    service_package_category_id: number;
     bandwidth_profile_id: number | null;
     speed_profile_id: number | null;
     sla_tier_id: number | null;
@@ -39,6 +40,7 @@ interface EditProps extends Record<string, unknown> {
     bandwidthProfiles: { data: OptRow[] };
     speedProfiles: { data: OptRow[] };
     slaTiers: { data: OptRow[] };
+    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
 }
 
 export default function Edit({
@@ -46,11 +48,13 @@ export default function Edit({
     bandwidthProfiles,
     speedProfiles,
     slaTiers,
+    packageCategories,
 }: EditProps) {
     const p = servicePackage.data;
     const { data, setData, put, processing, errors } = useForm({
         code: p.code,
         name: p.name,
+        service_package_category_id: String(p.service_package_category_id),
         bandwidth_profile_id: p.bandwidth_profile_id ? String(p.bandwidth_profile_id) : '',
         speed_profile_id: p.speed_profile_id ? String(p.speed_profile_id) : '',
         sla_tier_id: p.sla_tier_id ? String(p.sla_tier_id) : '',
@@ -103,6 +107,22 @@ export default function Edit({
                                 error={errors.name}
                                 required
                             />
+                            <NativeSelect
+                                label="Kategori"
+                                value={data.service_package_category_id}
+                                onChange={(e) =>
+                                    setData('service_package_category_id', e.target.value)
+                                }
+                                error={errors.service_package_category_id}
+                                required
+                            >
+                                <option value="">Pilih kategori...</option>
+                                {packageCategories.map((c) => (
+                                    <option key={c.id} value={c.id}>
+                                        {c.is_active ? c.name : `${c.name} (nonaktif)`}
+                                    </option>
+                                ))}
+                            </NativeSelect>
                             <NativeSelect
                                 label="Bandwidth Profile"
                                 value={data.bandwidth_profile_id}

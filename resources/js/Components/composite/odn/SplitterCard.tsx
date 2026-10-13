@@ -39,7 +39,7 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                 <div className="space-y-1.5">
                     <CardTitle>
                         Splitter {ratio}
-                        {splitter.label ? ` — ${splitter.label}` : ''}
+                        {splitter.label ? ` - ${splitter.label}` : ''}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
                         Input: {splitter.input ? splitter.input.label : 'not connected'} · {inUse}{' '}

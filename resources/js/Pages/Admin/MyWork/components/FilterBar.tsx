@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { usePage } from '@inertiajs/react';
-import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Search, X } from 'lucide-react';
 import { NativeSelect } from '@/Components/composite/NativeSelect';
 import { Button, DateRangePicker } from '@/Components/ui';
 import { Input } from '@/Components/ui/Input';
@@ -60,7 +60,7 @@ export function FilterBar({
                     value={params.search ?? ''}
                     onChange={(event) => set('search', event.target.value)}
                     placeholder="Cari kode, judul, atau nama pelanggan..."
-                    leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
+                    leftIcon={<Search className="h-4 w-4" />}
                     disabled={disabled}
                 />
             </div>
@@ -139,7 +139,7 @@ export function FilterBar({
                         disabled={disabled}
                         aria-label="Atur ulang filter pekerjaan"
                     >
-                        <XMarkIcon className="mr-1.5 h-4 w-4" />
+                        <X className="mr-1.5 h-4 w-4" />
                         Reset
                     </Button>
                 )}

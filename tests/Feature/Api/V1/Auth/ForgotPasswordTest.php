@@ -17,7 +17,7 @@ class ForgotPasswordTest extends TestCase
     use InteractsWithMobileApi;
     use RefreshDatabase;
 
-    private const MESSAGE = 'If an account exists for that email address, we have emailed a password reset link.';
+    private const MESSAGE = 'Jika ada akun dengan alamat email tersebut, kami telah mengirim tautan pengaturan ulang kata sandi.';
 
     public function test_a_known_an_unknown_and_a_broker_throttled_address_get_exactly_the_same_202(): void
     {

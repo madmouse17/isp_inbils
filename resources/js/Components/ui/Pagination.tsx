@@ -45,8 +45,8 @@ export function Pagination({
         >
             <p className="text-sm text-muted-foreground">
                 {rangeFrom != null && rangeTo != null
-                    ? `Showing ${rangeFrom}–${rangeTo} of ${totalCount}`
-                    : `${totalCount} total`}
+                    ? `Menampilkan ${rangeFrom}–${rangeTo} dari ${totalCount}`
+                    : `Total ${totalCount}`}
             </p>
             <div className="flex items-center gap-2">
                 <Button
@@ -56,10 +56,10 @@ export function Pagination({
                     disabled={disabled || page <= 1}
                     onClick={() => onPageChange(page - 1)}
                 >
-                    Previous
+                    Sebelumnya
                 </Button>
                 <span className="text-sm text-muted-foreground">
-                    Page {page} of {last}
+                    Halaman {page} dari {last}
                 </span>
                 <Button
                     type="button"
@@ -68,7 +68,7 @@ export function Pagination({
                     disabled={disabled || page >= last}
                     onClick={() => onPageChange(page + 1)}
                 >
-                    Next
+                    Berikutnya
                 </Button>
             </div>
         </div>

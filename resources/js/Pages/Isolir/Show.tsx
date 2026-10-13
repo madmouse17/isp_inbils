@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
 import { Button } from '@/Components/ui';
@@ -41,15 +40,6 @@ function ContactRow({ label, children }: { label: string; children: React.ReactN
  * the login link, nothing about a subscriber.
  */
 export default function Show({ company, loginUrl }: ShowProps) {
-    // A guest page has no layout that applies the saved or system theme, so it does it itself.
-    useEffect(() => {
-        document.documentElement.classList.toggle(
-            'dark',
-            localStorage.getItem('darkMode') === 'true' ||
-                window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-    }, []);
-
     const phoneDigits = company.phone?.replace(/\D/g, '') ?? '';
     const telHref = phoneDigits
         ? `tel:${company.phone?.trim().startsWith('+') ? '+' : ''}${phoneDigits}`
@@ -84,7 +74,8 @@ export default function Show({ company, loginUrl }: ShowProps) {
 
                 <Button
                     asChild
-                    className="h-auto min-h-11 w-full py-2 text-center text-base whitespace-normal"
+                    size="auto"
+                    className="w-full text-center text-base whitespace-normal sm:min-h-11"
                 >
                     <a href={loginUrl}>Masuk untuk melihat dan membayar tagihan</a>
                 </Button>

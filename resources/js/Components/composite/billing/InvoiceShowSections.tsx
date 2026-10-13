@@ -94,7 +94,7 @@ export function InvoiceDetailsCard({ invoice }: { invoice: InvoiceData }) {
                     </p>
                 )}
                 {invoice.cancel_reason && (
-                    <p className="text-destructive">
+                    <p className="text-destructive-text">
                         <span className="text-muted-foreground">Cancel Reason: </span>
                         {invoice.cancel_reason}
                     </p>

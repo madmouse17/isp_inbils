@@ -205,7 +205,7 @@
                                     "properties": {
                                         "message": {
                                             "type": "string",
-                                            "const": "If an account exists for that email address, we have emailed a password reset link."
+                                            "const": "Jika ada akun dengan alamat email tersebut, kami telah mengirim tautan pengaturan ulang kata sandi."
                                         }
                                     },
                                     "required": [
@@ -4117,11 +4117,27 @@
                             },
                             "name": {
                                 "type": "string"
+                            },
+                            "category": {
+                                "type": "object",
+                                "properties": {
+                                    "id": {
+                                        "type": "integer"
+                                    },
+                                    "name": {
+                                        "type": "string"
+                                    }
+                                },
+                                "required": [
+                                    "id",
+                                    "name"
+                                ]
                             }
                         },
                         "required": [
                             "id",
-                            "name"
+                            "name",
+                            "category"
                         ]
                     },
                     "mrc_amount": {

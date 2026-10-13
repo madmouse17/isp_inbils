@@ -133,7 +133,7 @@ export default function Index({ users, filters, can }: UsersProps) {
                             {can.create ? (
                                 <Button
                                     type="button"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => router.get(route('admin.users.create'))}
                                 >
                                     Create User

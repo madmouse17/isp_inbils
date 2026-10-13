@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\Company;
+use App\Models\Core\Location;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ComponentGalleryAuthorizationTest extends TestCase
@@ -70,6 +73,42 @@ class ComponentGalleryAuthorizationTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/components')
             ->assertNotFound();
+    }
+
+    public function test_component_gallery_is_open_in_the_e2e_environment_and_closed_in_staging(): void
+    {
+        $user = $this->verifiedUser();
+        $user->givePermissionTo('developer.components.view');
+
+        $this->app['env'] = 'e2e';
+        $this->actingAs($user)->get('/admin/components')->assertOk();
+
+        $this->app['env'] = 'staging';
+        $this->actingAs($user)->get('/admin/components')->assertNotFound();
+    }
+
+    public function test_demo_options_load_only_on_request_and_stay_in_the_company(): void
+    {
+        $user = $this->verifiedUser();
+        $user->givePermissionTo('developer.components.view');
+        $mine = Location::factory()->create(['company_id' => $user->company_id, 'name' => 'Gudang Pusat']);
+        Location::factory()->create(['company_id' => Company::factory()->create(['is_active' => true])->id, 'name' => 'Gudang Asing']);
+
+        $this->actingAs($user)
+            ->get('/admin/components')
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Components')->missing('demoOptions'));
+
+        $this->actingAs($user)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(request()),
+                'X-Inertia-Partial-Component' => 'Admin/Components',
+                'X-Inertia-Partial-Data' => 'demoOptions',
+            ])
+            ->get('/admin/components?demo_search=gudang')
+            ->assertOk()
+            ->assertJsonPath('props.demoOptions.0.value', $mine->id)
+            ->assertJsonCount(1, 'props.demoOptions');
     }
 
     private function verifiedUser(): User

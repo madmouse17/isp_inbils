@@ -95,6 +95,10 @@ export default function Show({
                                 {s.package?.name ?? `#${s.service_package_id}`}
                             </p>
                             <p>
+                                <span className="text-muted-foreground">Kategori paket: </span>
+                                {s.package?.category?.name ?? '-'}
+                            </p>
+                            <p>
                                 <span className="text-muted-foreground">Customer: </span>
                                 {s.customer?.name ?? `#${s.customer_id}`}
                             </p>

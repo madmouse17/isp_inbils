@@ -1,9 +1,4 @@
-import {
-    BriefcaseIcon,
-    CheckCircleIcon,
-    ClockIcon,
-    WrenchScrewdriverIcon,
-} from '@heroicons/react/24/outline';
+import { Briefcase, CheckCircle2, Clock, Wrench } from 'lucide-react';
 import { Button, Card, CardContent } from '@/Components/ui';
 import type { MyWorkSummary } from '@/types';
 
@@ -20,7 +15,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             label: 'Total Tugas Saya',
             value: summary.total,
             description: 'Seluruh tiket & SPK yang dialokasikan ke Anda',
-            icon: <BriefcaseIcon className="h-6 w-6" aria-hidden="true" />,
+            icon: <Briefcase className="h-6 w-6" aria-hidden="true" />,
             iconClassName: 'bg-primary/10 text-primary dark:bg-primary/20',
         },
         {
@@ -28,7 +23,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             label: 'Belum Dimulai',
             value: summary.assigned,
             description: 'Tugas baru yang siap Anda kerjakan',
-            icon: <ClockIcon className="h-6 w-6" aria-hidden="true" />,
+            icon: <Clock className="h-6 w-6" aria-hidden="true" />,
             iconClassName:
                 'bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
         },
@@ -37,7 +32,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             label: 'Sedang Dikerjakan',
             value: summary.in_progress,
             description: 'Dalam tahap investigasi atau pengerjaan aktif',
-            icon: <WrenchScrewdriverIcon className="h-6 w-6" aria-hidden="true" />,
+            icon: <Wrench className="h-6 w-6" aria-hidden="true" />,
             iconClassName: 'bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400',
         },
         {
@@ -45,7 +40,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
             label: 'Menunggu Tindakan Lanjutan',
             value: summary.waiting_action,
             description: 'Tiket terselesaikan / SPK siap diajukan review',
-            icon: <CheckCircleIcon className="h-6 w-6" aria-hidden="true" />,
+            icon: <CheckCircle2 className="h-6 w-6" aria-hidden="true" />,
             iconClassName:
                 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400',
         },
@@ -74,7 +69,7 @@ export function SummaryCards({ summary, activeStatus, onSelectStatus }: SummaryC
                                 onClick={() => onSelectStatus?.(card.key)}
                             >
                                 <span className="space-y-1">
-                                    <span className="block text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                                    <span className="block text-sm font-medium text-muted-foreground">
                                         {card.label}
                                     </span>
                                     <span className="block text-2xl font-bold tracking-tight text-foreground">

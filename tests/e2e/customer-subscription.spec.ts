@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './support/fixtures';
+import { selectFirstSearchOption } from './support/demo';
 
 const seederSource = readFileSync('database/seeders/DemoUserSeeder.php', 'utf8');
 const demoPassword = seederSource.match(/(?:public|private) const PASSWORD = '([^']+)';/)?.[1];
@@ -21,7 +22,8 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     const customerEmail = `e2e-${suffix}@example.test`;
     const addressLabel = `E2E Installation ${suffix}`;
     const billingDay = '17';
-    const mrcAmount = '150000';
+    // Not the MRC of any seeded package: the onboarding row carries its package's MRC, this one carries the typed value.
+    const mrcAmount = '175000';
 
     await loginAsAdmin(page);
     await page.goto('/admin/customers/create');
@@ -39,30 +41,30 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
     await page.getByLabel('Label').fill(addressLabel);
     await page.getByLabel('Address *', { exact: true }).fill('17 E2E Fiber Street');
-    await page.getByLabel('Province *', { exact: true }).click();
+    await page.getByLabel('Provinsi *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /jakarta/i })
+        .getByRole('option', { name: /jakarta/i })
         .first()
         .click();
-    await page.getByLabel('City / Regency *', { exact: true }).click();
+    await page.getByLabel('Kota / Kabupaten *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /jakarta pusat/i })
+        .getByRole('option', { name: /jakarta pusat/i })
         .first()
         .click();
-    await page.getByLabel('District *', { exact: true }).click();
+    await page.getByLabel('Kecamatan *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
-    await page.getByLabel('Village / Subdistrict *', { exact: true }).click();
+    await page.getByLabel('Kelurahan / Desa *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
-    await page.getByRole('button', { name: 'Lat / Long' }).click();
-    await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
-    await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
-    await page.getByRole('button', { name: 'Find' }).click();
+    await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
+    await page.getByLabel('Lintang', { exact: true }).fill('-6.2100000');
+    await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
+    await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
     // The create form also requires a primary contact.
     await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
@@ -73,7 +75,7 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     // Subscription & SPK section: package + serving POP are required; the E2E
     // seeder provisions "Home 10Mbps" and "Default POP".
     await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-    await page.getByLabel('Service Package').selectOption({ index: 1 });
+    await selectFirstSearchOption(page, 'Service Package');
     const popSelect = page.getByLabel('Serving POP / Location');
     const popValue = await popSelect
         .locator('option')
@@ -117,13 +119,9 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByRole('button', { name: 'Create Subscription' }).click();
 
     const subscriptionDialog = page.getByRole('dialog', { name: 'Create Subscription' });
-    const packageSelect = subscriptionDialog.getByLabel('Service Package');
-    const packageName = (await packageSelect.locator('option').nth(1).textContent())?.split(
-        ' (MRC:',
-    )[0];
+    const packageName = await selectFirstSearchOption(page, 'Service Package');
 
     expect(packageName).toBeTruthy();
-    await packageSelect.selectOption({ index: 1 });
     const addressSelect = subscriptionDialog.getByLabel('Installation Address');
     const addressOption = addressSelect.locator('option').filter({ hasText: addressLabel });
     const addressValue = await addressOption.getAttribute('value');
@@ -136,7 +134,6 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     if (addressValue) {
         await addressSelect.selectOption(addressValue);
     } else {
-        await packageSelect.selectOption({ index: 1 });
         for (let i = 1; i < (await addressSelect.locator('option').count()); i += 1) {
             await addressSelect.selectOption({ index: i });
         }
@@ -166,7 +163,7 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
 async function loginAsAdmin(page: Page) {
     await page.goto('/login');
     await page.getByLabel('Email').fill(adminEmail!);
-    await page.getByLabel('Password').fill(demoPassword!);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill(demoPassword!);
+    await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(/\/admin\/dashboard$/);
 }

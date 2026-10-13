@@ -129,7 +129,7 @@ const COMMON_MODULES = [
 ];
 
 function formatSubjectShort(type?: string | null, id?: number | string | null): string {
-    if (!type && id == null) return '—';
+    if (!type && id == null) return '-';
     const cleanType = type ? (type.split('\\').pop() ?? type) : 'Entitas';
     return id != null ? `${cleanType} #${id}` : cleanType;
 }
@@ -463,7 +463,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                         <span className="font-medium text-foreground">
                             {formatDateTime(row.created_at)}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                             {row.created_at
                                 ? new Date(row.created_at).toISOString().slice(11, 19) + ' UTC'
                                 : '-'}
@@ -477,7 +477,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 sortable: true,
                 sortKey: 'log_name',
                 cell: (row) => (
-                    <Badge variant="outline" className="font-mono text-xs uppercase">
+                    <Badge variant="outline" className="font-mono text-xs">
                         {row.log_name || 'umum'}
                     </Badge>
                 ),
@@ -519,7 +519,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     {row.causer.name}
                                 </span>
                                 {row.causer.email && (
-                                    <span className="text-[11px] text-muted-foreground">
+                                    <span className="text-xs text-muted-foreground">
                                         {row.causer.email}
                                     </span>
                                 )}
@@ -873,7 +873,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <Badge
                                                         variant="outline"
-                                                        className="font-mono text-[10px] uppercase"
+                                                        className="font-mono text-xs"
                                                     >
                                                         {row.log_name || 'umum'}
                                                     </Badge>
@@ -883,7 +883,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                         {formatEventLabel(row.event)}
                                                     </Badge>
                                                 </div>
-                                                <span className="text-[11px] whitespace-nowrap text-muted-foreground">
+                                                <span className="text-xs whitespace-nowrap text-muted-foreground">
                                                     {formatDateTime(row.created_at)}
                                                 </span>
                                             </div>
@@ -896,9 +896,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                             {/* Metadata */}
                                             <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                                                 <div>
-                                                    <span className="block text-[10px] uppercase">
-                                                        Pelaku:
-                                                    </span>
+                                                    <span className="block text-xs">Pelaku:</span>
                                                     <span className="font-medium text-foreground">
                                                         {row.causer?.name ??
                                                             (row.causer_id
@@ -907,9 +905,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                     </span>
                                                 </div>
                                                 <div>
-                                                    <span className="block text-[10px] uppercase">
-                                                        Subjek:
-                                                    </span>
+                                                    <span className="block text-xs">Subjek:</span>
                                                     <span className="font-medium text-foreground">
                                                         {formatSubjectShort(
                                                             row.subject_type,
@@ -998,7 +994,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                     <div className="space-y-5">
                         {/* Section 1: Overview Details */}
                         <div className="rounded-lg border border-border bg-muted/30 p-4">
-                            <h4 className="mb-3 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                            <h4 className="mb-3 text-sm font-semibold text-muted-foreground">
                                 Informasi Ringkasan
                             </h4>
                             <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
@@ -1009,7 +1005,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     <span className="font-medium text-foreground">
                                         {formatDateTime(selectedRow.created_at)}
                                     </span>
-                                    <span className="ml-1 text-[11px] text-muted-foreground">
+                                    <span className="ml-1 text-xs text-muted-foreground">
                                         ({selectedRow.created_at})
                                     </span>
                                 </div>
@@ -1018,10 +1014,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         Modul & Aksi:
                                     </span>
                                     <div className="mt-0.5 flex items-center gap-1.5">
-                                        <Badge
-                                            variant="outline"
-                                            className="font-mono text-[10px] uppercase"
-                                        >
+                                        <Badge variant="outline" className="font-mono text-xs">
                                             {selectedRow.log_name}
                                         </Badge>
                                         <Badge variant={getEventBadgeVariant(selectedRow.event)}>
@@ -1040,7 +1033,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                 : 'Sistem / Otomatis')}
                                     </span>
                                     {selectedRow.causer?.email && (
-                                        <span className="block text-[11px] text-muted-foreground">
+                                        <span className="block text-xs text-muted-foreground">
                                             {selectedRow.causer.email}
                                         </span>
                                     )}
@@ -1050,10 +1043,10 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         Objek / Subjek:
                                     </span>
                                     <span className="font-mono font-medium text-foreground">
-                                        {selectedRow.subject_type ?? '—'}
+                                        {selectedRow.subject_type ?? '-'}
                                     </span>
                                     {selectedRow.subject_id != null && (
-                                        <span className="block text-[11px] text-muted-foreground">
+                                        <span className="block text-xs text-muted-foreground">
                                             ID: #{selectedRow.subject_id}
                                         </span>
                                     )}
@@ -1072,7 +1065,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                         {/* Section 2: Properties & Data Changes */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                <h4 className="text-sm font-semibold text-muted-foreground">
                                     Properti & Perubahan Nilai
                                 </h4>
                                 {hasSelectedProps && canViewAudit && (
@@ -1117,7 +1110,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     <div className="max-h-72 overflow-x-auto rounded-md border border-border">
                                         <Table>
                                             <THead>
-                                                <TR className="bg-muted/50 text-[11px]">
+                                                <TR className="bg-muted/50 text-xs">
                                                     <TH className="w-1/3">Kolom / Field</TH>
                                                     <TH className="w-1/3">
                                                         Nilai Lama (Sebelumnya)
@@ -1148,12 +1141,12 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                             <TD className="font-mono text-muted-foreground">
                                                                 {oldVal !== undefined
                                                                     ? String(JSON.stringify(oldVal))
-                                                                    : '—'}
+                                                                    : '-'}
                                                             </TD>
                                                             <TD className="font-mono font-medium text-foreground">
                                                                 {newVal !== undefined
                                                                     ? String(JSON.stringify(newVal))
-                                                                    : '—'}
+                                                                    : '-'}
                                                             </TD>
                                                         </TR>
                                                     );
@@ -1167,7 +1160,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
                                             Lihat JSON Lengkap
                                         </summary>
-                                        <pre className="mt-2 max-h-48 overflow-auto rounded bg-muted/60 p-3 font-mono text-[11px] text-foreground">
+                                        <pre className="mt-2 max-h-48 overflow-auto rounded bg-muted/60 p-3 font-mono text-xs text-foreground">
                                             {JSON.stringify(selectedProps, null, 2)}
                                         </pre>
                                     </details>

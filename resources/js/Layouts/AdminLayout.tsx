@@ -1,14 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
-import {
-    ArrowRightStartOnRectangleIcon,
-    Bars3Icon,
-    ChevronDownIcon,
-    MoonIcon,
-    SunIcon,
-    UserCircleIcon,
-} from '@heroicons/react/24/outline';
+import { ChevronDown, CircleUser, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import {
     Button,
     Dropdown,
@@ -24,43 +17,26 @@ import { CompanySwitcher } from '@/Components/composite/CompanySwitcher';
 import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import { useNavigationBusy } from '@/hooks/useNavigationBusy';
+import { useTheme } from '@/hooks/useTheme';
 import { useToast } from '@/hooks/useToast';
 import { activeNavHref, visibleNavGroups } from '@/lib/navigation';
 
 interface AdminLayoutProps {
-    title?: string;
+    /** Names the page in the tab and the top bar; every page passes one. */
+    title: string;
     children: React.ReactNode;
 }
 
 export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const toggleRef = useRef<HTMLButtonElement>(null);
-    const [darkMode, setDarkMode] = useState(() => {
-        if (typeof window === 'undefined') {
-            return false;
-        }
-
-        return (
-            localStorage.getItem('darkMode') === 'true' ||
-            window.matchMedia('(prefers-color-scheme: dark)').matches
-        );
-    });
+    const { dark, toggle: toggleDark } = useTheme();
     const { url, props } = usePage<PageProps>();
     const user = props.auth.user;
     const company = useCompany();
     const { permissions } = usePermission();
     useToast();
     const navigating = useNavigationBusy();
-
-    useEffect(() => {
-        document.documentElement.classList.toggle('dark', darkMode);
-    }, [darkMode]);
-
-    const toggleDark = () => {
-        const enabled = !darkMode;
-        setDarkMode(enabled);
-        localStorage.setItem('darkMode', String(enabled));
-    };
 
     const logout = () => router.post(route('logout'));
 
@@ -83,7 +59,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                     open={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
                     returnFocusRef={toggleRef}
-                    brandName={company?.name ?? 'inbils'}
+                    brandName={company?.name ?? 'Inbils'}
                     brandLogo={company?.logo}
                 >
                     <div className="flex flex-col gap-6">
@@ -124,10 +100,10 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                 size="sm"
                                 onClick={() => setSidebarOpen(!sidebarOpen)}
                                 className="lg:hidden"
-                                aria-label="Toggle sidebar"
+                                aria-label="Menu navigasi"
                                 aria-expanded={sidebarOpen}
                             >
-                                <Bars3Icon className="h-5 w-5" />
+                                <Menu className="h-5 w-5" aria-hidden="true" />
                             </Button>
                         }
                         right={
@@ -141,13 +117,19 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                                 variant="ghost"
                                                 size="sm"
                                                 className="gap-2"
-                                                aria-label="Open user menu"
+                                                aria-label="Menu pengguna"
                                             >
-                                                <UserCircleIcon className="h-5 w-5" />
+                                                <CircleUser
+                                                    className="h-5 w-5"
+                                                    aria-hidden="true"
+                                                />
                                                 <span className="hidden max-w-36 truncate sm:inline">
                                                     {user.name}
                                                 </span>
-                                                <ChevronDownIcon className="h-4 w-4 text-muted-foreground" />
+                                                <ChevronDown
+                                                    className="h-4 w-4 text-muted-foreground"
+                                                    aria-hidden="true"
+                                                />
                                             </Button>
                                         }
                                     >
@@ -163,21 +145,21 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                                         <DropdownItem
                                             onClick={() => router.get(route('profile.edit'))}
                                         >
-                                            <UserCircleIcon className="h-4 w-4" />
-                                            Profile
+                                            <CircleUser className="h-4 w-4" aria-hidden="true" />
+                                            Profil
                                         </DropdownItem>
                                         <DropdownItem onClick={toggleDark}>
-                                            {darkMode ? (
-                                                <SunIcon className="h-4 w-4" />
+                                            {dark ? (
+                                                <Sun className="h-4 w-4" aria-hidden="true" />
                                             ) : (
-                                                <MoonIcon className="h-4 w-4" />
+                                                <Moon className="h-4 w-4" aria-hidden="true" />
                                             )}
-                                            {darkMode ? 'Light mode' : 'Dark mode'}
+                                            {dark ? 'Mode terang' : 'Mode gelap'}
                                         </DropdownItem>
                                         <DropdownSeparator />
                                         <DropdownItem onClick={logout} destructive>
-                                            <ArrowRightStartOnRectangleIcon className="h-4 w-4" />
-                                            Logout
+                                            <LogOut className="h-4 w-4" aria-hidden="true" />
+                                            Keluar
                                         </DropdownItem>
                                     </Dropdown>
                                 )}

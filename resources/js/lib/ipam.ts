@@ -29,7 +29,7 @@ export const usageVariants: Record<IpUsage, 'outline' | 'info' | 'success' | 'se
 
 /** Exact decimal string with thousands separators; an IPv6 size must not pass through a JS number. */
 export function formatCount(value: string | number | null | undefined): string {
-    if (value === null || value === undefined) return '—';
+    if (value === null || value === undefined) return '-';
 
     const text = String(value);
 

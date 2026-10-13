@@ -104,7 +104,7 @@ export default function Index({ roles, filters, can }: RolesProps) {
                             {can.create ? (
                                 <Button
                                     type="button"
-                                    variant="success"
+                                    variant="primary"
                                     onClick={() => router.get(route('admin.roles.create'))}
                                 >
                                     Create Role

@@ -67,7 +67,7 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
                         { value: '', label: 'Company-wide' },
                         ...locations.map((pop) => ({
                             value: String(pop.id),
-                            label: `${pop.code} — ${pop.name}`,
+                            label: `${pop.code} - ${pop.name}`,
                         })),
                     ]}
                 />
@@ -83,11 +83,7 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button
-                        type="submit"
-                        variant={vlan ? 'default' : 'success'}
-                        loading={processing}
-                    >
+                    <Button type="submit" variant="primary" loading={processing}>
                         {vlan ? 'Save' : 'Register VLAN'}
                     </Button>
                 </div>

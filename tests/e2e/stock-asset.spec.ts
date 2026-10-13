@@ -162,7 +162,7 @@ async function openLinkedAsset(page: Page) {
     await page
         .getByRole('row')
         .filter({ hasText: 'E2E-LINKED-ASSET-001' })
-        .getByRole('link', { name: 'Show' })
+        .getByRole('link', { name: 'Lihat', exact: true })
         .click();
 }
 
@@ -170,7 +170,7 @@ async function selectFirstRealOption(select: Locator) {
     const option = select.locator('option').nth(1);
     const value = await option.getAttribute('value');
     const fullLabel = (await option.textContent())?.trim();
-    const displayLabel = fullLabel?.split(' — ').pop()?.trim();
+    const displayLabel = fullLabel?.split(' - ').pop()?.trim();
 
     expect(value).toBeTruthy();
     expect(fullLabel).toBeTruthy();

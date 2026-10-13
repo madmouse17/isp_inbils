@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Search, X } from 'lucide-react';
 import { NativeSelect } from '@/Components/composite/NativeSelect';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
@@ -51,7 +51,7 @@ export function FilterBar({
                     value={params.search ?? ''}
                     onChange={(event) => set('search', event.target.value)}
                     placeholder="Cari kode, judul, atau alasan..."
-                    leftIcon={<MagnifyingGlassIcon className="h-4 w-4" />}
+                    leftIcon={<Search className="h-4 w-4" />}
                     disabled={disabled}
                 />
             </div>
@@ -112,7 +112,7 @@ export function FilterBar({
                         size="md"
                         onClick={handleReset}
                         disabled={disabled}
-                        leftIcon={<XMarkIcon className="h-4 w-4" />}
+                        leftIcon={<X className="h-4 w-4" />}
                         className="w-full sm:w-auto"
                     >
                         Reset Filter

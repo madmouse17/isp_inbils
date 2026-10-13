@@ -53,7 +53,7 @@ export function DropPortSelect({
             {[...groups].map(([code, ports]) => (
                 <optgroup
                     key={code}
-                    label={`${code} — ${ports[0].location_path} (${ports[0].free_count} free)`}
+                    label={`${code} - ${ports[0].location_path} (${ports[0].free_count} free)`}
                 >
                     {ports.map((port) => (
                         <option key={port.port_id} value={port.port_id}>

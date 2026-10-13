@@ -261,7 +261,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" variant="success" onClick={openCreate}>
+                            <Button type="button" variant="primary" onClick={openCreate}>
                                 Add Unit
                             </Button>
                         </div>
@@ -366,11 +366,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

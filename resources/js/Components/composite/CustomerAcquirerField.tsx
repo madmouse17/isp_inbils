@@ -6,16 +6,16 @@ interface CustomerAcquirerValueProps {
     acquirer?: CustomerAcquirer | null;
 }
 
-/** Acquirer name with an "Inactive" marker, or a muted "Unassigned". Text carries the state. */
+/** Acquirer name with a "Nonaktif" marker, or a muted "Belum ditentukan". Text carries the state. */
 export function CustomerAcquirerValue({ acquirer }: CustomerAcquirerValueProps) {
     if (!acquirer) {
-        return <span className="text-muted-foreground">Unassigned</span>;
+        return <span className="text-muted-foreground">Belum ditentukan</span>;
     }
 
     return (
         <span className="inline-flex flex-wrap items-center gap-2">
             <span className="font-medium">{acquirer.name}</span>
-            {!acquirer.is_active ? <Badge variant="warning">Inactive</Badge> : null}
+            {!acquirer.is_active ? <Badge variant="warning">Nonaktif</Badge> : null}
         </span>
     );
 }
@@ -23,7 +23,7 @@ export function CustomerAcquirerValue({ acquirer }: CustomerAcquirerValueProps) 
 interface CustomerAcquirerFieldProps {
     /** Eligible acquirers from the server; the only selectable choices. */
     options: AcquirerOption[];
-    /** Selected acquirer id as a string, `''` = Unassigned. */
+    /** Selected acquirer id as a string, `''` = none. */
     value: string;
     onChange: (value: string) => void;
     error?: string;
@@ -67,7 +67,7 @@ export function CustomerAcquirerField({
     if (readOnly) {
         return (
             <div className="space-y-1.5">
-                <p className="text-sm leading-none font-medium">Acquired by</p>
+                <p className="text-sm leading-none font-medium">Diperoleh oleh</p>
                 <div className="text-sm" data-testid="customer-acquirer-readonly">
                     <CustomerAcquirerValue acquirer={current} />
                 </div>
@@ -80,37 +80,38 @@ export function CustomerAcquirerField({
     return (
         <div className="space-y-3">
             <SearchSelect
-                label="Acquired by"
+                label="Diperoleh oleh"
                 value={value}
                 onChange={onChange}
                 options={selectOptions}
-                placeholder="Unassigned - search employee"
-                emptyText="No eligible employees found."
+                placeholder="Belum ditentukan, cari karyawan"
+                emptyText="Tidak ada karyawan yang memenuhi syarat."
                 error={error}
                 hint={hint}
                 disabled={disabled}
-                clearValueOnSearch={false}
             />
             {isHistorical && current ? (
                 <div className="space-y-1 text-sm">
                     <div className="flex flex-wrap items-center gap-2">
                         <span>
-                            Current acquirer: <span className="font-medium">{current.name}</span>
+                            Saat ini diperoleh oleh:{' '}
+                            <span className="font-medium">{current.name}</span>
                         </span>
-                        {!current.is_active ? <Badge variant="warning">Inactive</Badge> : null}
+                        {!current.is_active ? <Badge variant="warning">Nonaktif</Badge> : null}
                     </div>
                     <p className="text-muted-foreground">
-                        Not selectable. Pick an eligible employee or clear the field to correct it.
+                        Tidak bisa dipilih. Pilih karyawan yang memenuhi syarat atau kosongkan isian
+                        ini untuk mengoreksi.
                     </p>
                 </div>
             ) : null}
             {requireReason ? (
                 <Textarea
-                    label="Correction reason"
+                    label="Alasan koreksi"
                     value={reason}
                     onChange={(event) => onReasonChange?.(event.target.value)}
                     error={reasonError}
-                    hint="Recorded in the audit log with the old and new acquirer."
+                    hint="Dicatat di log audit bersama nilai lama dan barunya."
                     disabled={disabled}
                     maxLength={500}
                     rows={3}

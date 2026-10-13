@@ -9,6 +9,7 @@ import {
     loginAs,
     logout,
     selectFirstRealOption,
+    selectFirstSearchOption,
     selectOptionByText,
     technicianUserId,
 } from './support/demo';
@@ -55,10 +56,11 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         const assignDialog = page.getByRole('dialog', { name: 'Assign' });
         // The SPK assign dialog exposes a combobox (SearchSelect) labeled
         // "Technician", not a numeric "Technician ID" input: type to filter the
-        // technician employees and pick the option by its employee name.
+        // technician employees and pick the option by its employee name. The options
+        // are role=option items in a popover outside the dialog.
         await assignDialog.getByLabel('Technician').fill('Demo Technician');
-        await assignDialog
-            .getByRole('button', { name: /Demo Technician/ })
+        await page
+            .getByRole('option', { name: /Demo Technician/ })
             .first()
             .click();
         await assignDialog.getByRole('button', { name: 'Confirm' }).click();
@@ -97,7 +99,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         // customer-scoped row (one invoice per fresh customer in this journey).
         await expect(page).toHaveURL(/\/admin\/invoices$/);
         const invoiceRow = page.getByRole('row').filter({ hasText: customerName }).first();
-        await invoiceRow.getByRole('link', { name: 'Show' }).click();
+        await invoiceRow.getByRole('link', { name: 'Lihat', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
         await expectDetail(page, 'Status', 'draft');
 
@@ -228,30 +230,30 @@ async function createCustomer(page: Page, key: string) {
     await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
     await page.getByLabel('Label').fill(`E2E Address ${key}`);
     await page.getByLabel('Address *', { exact: true }).fill('8 E2E Fiber Street');
-    await page.getByLabel('Province *', { exact: true }).click();
+    await page.getByLabel('Provinsi *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /jakarta/i })
+        .getByRole('option', { name: /jakarta/i })
         .first()
         .click();
-    await page.getByLabel('City / Regency *', { exact: true }).click();
+    await page.getByLabel('Kota / Kabupaten *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /jakarta pusat/i })
+        .getByRole('option', { name: /jakarta pusat/i })
         .first()
         .click();
-    await page.getByLabel('District *', { exact: true }).click();
+    await page.getByLabel('Kecamatan *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
-    await page.getByLabel('Village / Subdistrict *', { exact: true }).click();
+    await page.getByLabel('Kelurahan / Desa *', { exact: true }).click();
     await page
-        .getByRole('button', { name: /menteng/i })
+        .getByRole('option', { name: /menteng/i })
         .first()
         .click();
-    await page.getByRole('button', { name: 'Lat / Long' }).click();
-    await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
-    await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
-    await page.getByRole('button', { name: 'Find' }).click();
+    await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
+    await page.getByLabel('Lintang', { exact: true }).fill('-6.2100000');
+    await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
+    await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
     // The create form also requires a primary contact.
     await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
@@ -265,7 +267,7 @@ async function createCustomer(page: Page, key: string) {
     // seeded "Default POP" by substring — the same loose pattern as
     // customer-subscription.spec.ts — instead of an exact label match.
     await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-    await page.getByLabel('Service Package').selectOption({ index: 1 });
+    await selectFirstSearchOption(page, 'Service Package');
     const popSelect = page.getByLabel('Serving POP / Location');
     const popValue = await popSelect
         .locator('option')

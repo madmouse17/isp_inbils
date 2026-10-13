@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/Components/ui';
 import GuestLayout from '@/Layouts/GuestLayout';
@@ -18,15 +17,6 @@ const roleLabels: Record<AppOnlyRole, string> = {
 
 /** Where technician and customer accounts land: their work happens in the Android app, not on the web. */
 export default function AppOnly({ role, appName, playStoreUrl }: AppOnlyProps) {
-    // GuestLayout does not apply the saved or system theme itself.
-    useEffect(() => {
-        document.documentElement.classList.toggle(
-            'dark',
-            localStorage.getItem('darkMode') === 'true' ||
-                window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-    }, []);
-
     return (
         <GuestLayout>
             <Head title="Gunakan aplikasi Inbils" />

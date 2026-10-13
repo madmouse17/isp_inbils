@@ -310,7 +310,7 @@ export default function Show({ asset, locations }: ShowProps) {
                                         <TR key={i.id}>
                                             <TD>{i.location?.name ?? '-'}</TD>
                                             <TD className="text-sm">{i.installed_at}</TD>
-                                            <TD className="text-sm">{i.removed_at ?? '—'}</TD>
+                                            <TD className="text-sm">{i.removed_at ?? '-'}</TD>
                                             <TD>{i.removal_reason ?? '-'}</TD>
                                         </TR>
                                     ))

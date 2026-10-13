@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
@@ -67,7 +67,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                 sortable: true,
                 sortKey: 'download_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.download_mbps ?? '—'),
+                cell: (row) => String(row.download_mbps ?? '-'),
             },
             {
                 key: 'upload_mbps',
@@ -75,7 +75,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                 sortable: true,
                 sortKey: 'upload_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.upload_mbps ?? '—'),
+                cell: (row) => String(row.upload_mbps ?? '-'),
             },
             {
                 key: 'created_at',
@@ -101,9 +101,8 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
     );
 
     return (
-        <AppLayout>
-            <Head title="Profil Bandwidth" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Profil Bandwidth">
+            <div className="space-y-4">
                 <PageHeader
                     title="Profil Bandwidth"
                     description="QoS / bandwidth templates for packages."
@@ -117,7 +116,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild variant="success" size="sm">
+                                <Button asChild variant="primary" size="sm">
                                     <Link href={route('admin.bandwidth-profiles.create')}>
                                         <Plus className="size-4" />
                                         New profile
@@ -158,6 +157,6 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                     loading={processing}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

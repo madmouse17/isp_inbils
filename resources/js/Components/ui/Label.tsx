@@ -18,7 +18,7 @@ export function Label({ htmlFor, children, required, className, ...props }: Labe
             {required && (
                 <>
                     {' '}
-                    <span className="text-danger" aria-hidden="true">
+                    <span className="text-destructive-text" aria-hidden="true">
                         *
                     </span>
                 </>

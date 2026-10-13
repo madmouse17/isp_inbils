@@ -153,7 +153,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" variant="success" onClick={openCreate}>
+                            <Button type="button" variant="primary" onClick={openCreate}>
                                 Add Type
                             </Button>
                         </div>
@@ -247,11 +247,7 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                variant={editId ? 'default' : 'success'}
-                                loading={processing}
-                            >
+                            <Button type="submit" variant="primary" loading={processing}>
                                 {editId ? 'Save' : 'Add'}
                             </Button>
                         </div>

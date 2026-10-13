@@ -6,6 +6,18 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        {{-- The saved theme, or the system one, is applied before first paint so a dark page never flashes white. --}}
+        <script>
+            (function () {
+                var saved = null;
+                try {
+                    saved = localStorage.getItem('darkMode');
+                } catch (error) {}
+                var dark = saved === null ? window.matchMedia('(prefers-color-scheme: dark)').matches : saved === 'true';
+                document.documentElement.classList.toggle('dark', dark);
+            })();
+        </script>
+
         <!-- Scripts -->
         @routes
         @viteReactRefresh

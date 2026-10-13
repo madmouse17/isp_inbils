@@ -1,4 +1,4 @@
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { Search } from 'lucide-react';
 import { Fragment, useId, useMemo, useState } from 'react';
 import { Badge, Checkbox, Input } from '@/Components/ui';
 import { cn } from '@/lib/utils';
@@ -50,7 +50,7 @@ export function PermissionGroupSelector({
                     type="search"
                     label="Cari hak akses"
                     placeholder="Nama atau label, mis. export"
-                    leftIcon={<MagnifyingGlassIcon className="h-4 w-4" aria-hidden="true" />}
+                    leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     // The selector lives inside the role form: Enter must not submit it.
@@ -85,7 +85,7 @@ export function PermissionGroupSelector({
                             return (
                                 <Fragment key={group}>
                                     {showSection ? (
-                                        <p className="px-3 pt-3 pb-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                        <p className="px-3 pt-3 pb-1 text-sm font-semibold text-muted-foreground">
                                             {section}
                                         </p>
                                     ) : null}

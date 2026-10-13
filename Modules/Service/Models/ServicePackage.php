@@ -26,6 +26,7 @@ class ServicePackage extends Model
         'bandwidth_profile_id',
         'speed_profile_id',
         'sla_tier_id',
+        'service_package_category_id',
         'price_mrc',
         'price_otc',
         'contract_min_months',
@@ -54,6 +55,12 @@ class ServicePackage extends Model
     public function slaTier(): BelongsTo
     {
         return $this->belongsTo(SLATier::class, 'sla_tier_id');
+    }
+
+    /** @return BelongsTo<ServicePackageCategory, $this> */
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(ServicePackageCategory::class, 'service_package_category_id');
     }
 
     public function subscriptions(): HasMany

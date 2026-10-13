@@ -217,7 +217,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 </p>
                             )}
                             {inv.cancel_reason && (
-                                <p className="text-destructive">
+                                <p className="text-destructive-text">
                                     <span className="text-muted-foreground">Cancel Reason: </span>
                                     {inv.cancel_reason}
                                 </p>
@@ -282,7 +282,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                             {inv.status === 'draft' && (
                                 <Button
                                     type="button"
-                                    variant="success"
+                                    variant="outline"
                                     onClick={() => setItemModal(true)}
                                 >
                                     Add Item
@@ -453,7 +453,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                     </StatusBadge>
                                                     {a.status_reason && (
                                                         <p
-                                                            className={`mt-1 max-w-xs text-xs ${a.status === 'exception' ? 'text-destructive' : 'text-muted-foreground'}`}
+                                                            className={`mt-1 max-w-xs text-xs ${a.status === 'exception' ? 'text-destructive-text' : 'text-muted-foreground'}`}
                                                         >
                                                             Reason: {a.status_reason}
                                                         </p>
@@ -522,7 +522,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" variant="success" loading={processing}>
+                            <Button type="submit" variant="primary" loading={processing}>
                                 Record
                             </Button>
                         </div>
@@ -577,7 +577,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                             >
                                 Cancel
                             </Button>
-                            <Button type="submit" variant="success" loading={processing}>
+                            <Button type="submit" variant="primary" loading={processing}>
                                 Add
                             </Button>
                         </div>

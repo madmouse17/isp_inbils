@@ -1,7 +1,7 @@
 import type { BadgeProps } from '@/Components/ui';
 
 export function formatAge(seconds: number | null): string {
-    if (seconds == null) return '—';
+    if (seconds == null) return '-';
 
     if (seconds < 60) {
         return `${Math.max(0, Math.floor(seconds))} dtk yang lalu`;
@@ -46,7 +46,7 @@ export function getPriorityLabel(priority: string): string {
         case 'low':
             return 'Rendah';
         default:
-            return priority || '—';
+            return priority || '-';
     }
 }
 
@@ -58,7 +58,7 @@ export function getDomainLabel(domain?: string | null): string {
         case 'spk':
             return 'SPK';
         default:
-            return domain || '—';
+            return domain || '-';
     }
 }
 
@@ -85,7 +85,7 @@ export function getStatusLabel(status?: string | null): string {
         case 'rejected':
             return 'Ditolak';
         default:
-            return status || '—';
+            return status || '-';
     }
 }
 

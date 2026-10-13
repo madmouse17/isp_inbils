@@ -1,7 +1,7 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -103,7 +103,7 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                             <div className="text-xs text-muted-foreground">{row.customer.code}</div>
                         </div>
                     ) : (
-                        '—'
+                        '-'
                     ),
             },
             {
@@ -156,9 +156,8 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
     );
 
     return (
-        <AppLayout>
-            <Head title="Tagihan" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Tagihan">
+            <div className="space-y-4">
                 <PageHeader
                     title="Tagihan"
                     description="Customer invoices and balances."
@@ -174,12 +173,12 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                                     <Button
                                         type="button"
                                         size="sm"
-                                        variant="success"
+                                        variant="outline"
                                         onClick={() => setGenerateOpen(true)}
                                     >
                                         Generate Tagihan
                                     </Button>
-                                    <Button asChild size="sm" variant="success">
+                                    <Button asChild size="sm" variant="primary">
                                         <Link href={route('admin.invoices.create')}>
                                             <Plus className="size-4" />
                                             New invoice
@@ -254,6 +253,6 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 />
                 <GenerateDialog open={generateOpen} onClose={() => setGenerateOpen(false)} />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }

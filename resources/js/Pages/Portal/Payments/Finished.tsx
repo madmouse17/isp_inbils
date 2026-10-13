@@ -1,18 +1,8 @@
-import { useEffect } from 'react';
 import { Head } from '@inertiajs/react';
-import { ClockIcon } from '@heroicons/react/24/outline';
+import { Clock } from 'lucide-react';
 import GuestLayout from '@/Layouts/GuestLayout';
 
 export default function Finished() {
-    // GuestLayout does not apply the saved or system theme itself.
-    useEffect(() => {
-        document.documentElement.classList.toggle(
-            'dark',
-            localStorage.getItem('darkMode') === 'true' ||
-                window.matchMedia('(prefers-color-scheme: dark)').matches,
-        );
-    }, []);
-
     return (
         <GuestLayout>
             <Head title="Pembayaran sedang diproses" />
@@ -21,7 +11,7 @@ export default function Finished() {
                     className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"
                     aria-hidden="true"
                 >
-                    <ClockIcon className="size-7" />
+                    <Clock className="size-7" />
                 </div>
 
                 <header className="space-y-2">

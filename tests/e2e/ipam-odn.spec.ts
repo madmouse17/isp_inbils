@@ -6,6 +6,7 @@ import {
     loginAs,
     logout,
     refreshSession,
+    selectFirstSearchOption,
     unique,
     type DemoRole,
 } from './support/demo';
@@ -258,7 +259,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
 
         // The pick list of every card names this splitter's outputs too, so a card is found by its heading.
         const card = page.locator('div[id^="splitter-"]').filter({
-            has: page.getByRole('heading', { name: `Splitter 1:8 — ${splitterLabel}` }),
+            has: page.getByRole('heading', { name: `Splitter 1:8 - ${splitterLabel}` }),
         });
         await expect(card).toHaveCount(1);
         await expect(card.getByText(`Input: ${oltCode} · PON 5`)).toBeVisible();
@@ -286,30 +287,30 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
         await page.getByLabel('Label').fill(`E2E ODN address ${suffix}`);
         await page.getByLabel('Address *', { exact: true }).fill('9 E2E Fiber Street');
-        await page.getByLabel('Province *', { exact: true }).click();
+        await page.getByLabel('Provinsi *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /jakarta/i })
+            .getByRole('option', { name: /jakarta/i })
             .first()
             .click();
-        await page.getByLabel('City / Regency *', { exact: true }).click();
+        await page.getByLabel('Kota / Kabupaten *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /jakarta pusat/i })
+            .getByRole('option', { name: /jakarta pusat/i })
             .first()
             .click();
-        await page.getByLabel('District *', { exact: true }).click();
+        await page.getByLabel('Kecamatan *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /menteng/i })
+            .getByRole('option', { name: /menteng/i })
             .first()
             .click();
-        await page.getByLabel('Village / Subdistrict *', { exact: true }).click();
+        await page.getByLabel('Kelurahan / Desa *', { exact: true }).click();
         await page
-            .getByRole('button', { name: /menteng/i })
+            .getByRole('option', { name: /menteng/i })
             .first()
             .click();
-        await page.getByRole('button', { name: 'Lat / Long' }).click();
-        await page.getByLabel('Latitude', { exact: true }).fill('-6.2100000');
-        await page.getByLabel('Longitude', { exact: true }).fill('106.8200000');
-        await page.getByRole('button', { name: 'Find' }).click();
+        await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
+        await page.getByLabel('Lintang', { exact: true }).fill('-6.2100000');
+        await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
+        await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
         await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
         await page.getByLabel('Name').fill(`${customerName} Contact`);
@@ -317,7 +318,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page.getByLabel('Email').fill(`contact.${customerKey.toLowerCase()}@example.test`);
 
         await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-        await page.getByLabel('Service Package').selectOption({ index: 1 });
+        await selectFirstSearchOption(page, 'Service Package');
 
         // No serving POP yet: the picker waits for one.
         const ports = page.getByLabel('Drop port (ODP)');
@@ -369,7 +370,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page
             .getByRole('row')
             .filter({ hasText: 'pending' })
-            .getByRole('link', { name: 'Show' })
+            .getByRole('link', { name: 'Lihat', exact: true })
             .click();
         await expect(page.getByRole('heading', { name: 'Drop port' })).toBeVisible();
         await expect(page.getByText('Port 1 on')).toBeVisible();

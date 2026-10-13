@@ -72,6 +72,13 @@
         },
         {
             "group": "Pelanggan & Layanan",
+            "label": "Kategori Paket",
+            "href": "/admin/service-package-categories",
+            "route": "admin.service-package-categories.index",
+            "anyOf": ["service.view", "service.manage"]
+        },
+        {
+            "group": "Pelanggan & Layanan",
             "label": "Profil Bandwidth",
             "href": "/admin/bandwidth-profiles",
             "route": "admin.bandwidth-profiles.index",

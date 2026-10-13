@@ -327,6 +327,7 @@ class AdminMenuAuthorizationTest extends TestCase
 
         foreach ([
             'admin.service-packages.index',
+            'admin.service-package-categories.index',
             'admin.bandwidth-profiles.index',
             'admin.speed-profiles.index',
             'admin.sla-tiers.index',
@@ -410,29 +411,32 @@ class AdminMenuAuthorizationTest extends TestCase
     }
 
     /**
-     * @return array<string, array{string, bool}>
+     * Environment, expected nav flag, expected route status. e2e opens the route for the Playwright
+     * picker specs but keeps the nav link hidden.
+     *
+     * @return array<string, array{string, bool, bool}>
      */
     public static function environments(): array
     {
         return [
-            'local' => ['local', true],
-            'testing' => ['testing', true],
-            'staging' => ['staging', false],
-            'production' => ['production', false],
-            'e2e' => ['e2e', false],
+            'local' => ['local', true, true],
+            'testing' => ['testing', true, true],
+            'staging' => ['staging', false, false],
+            'production' => ['production', false, false],
+            'e2e' => ['e2e', false, true],
         ];
     }
 
     #[DataProvider('environments')]
-    public function test_developer_gallery_flag_matches_the_components_route(string $environment, bool $open): void
+    public function test_developer_gallery_flag_matches_the_components_route(string $environment, bool $flag, bool $routeOpen): void
     {
         $this->app['env'] = $environment;
         $this->actingAs($this->userWithRole('admin'));
 
         $this->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('developerGalleryEnabled', $open));
-        $this->get(route('admin.components'))->assertStatus($open ? 200 : 404);
+            ->assertInertia(fn (Assert $page) => $page->where('developerGalleryEnabled', $flag));
+        $this->get(route('admin.components'))->assertStatus($routeOpen ? 200 : 404);
     }
 
     private function userWithRole(string $roleName): User

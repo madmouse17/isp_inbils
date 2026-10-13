@@ -74,7 +74,7 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                         { value: '', label: 'Not tied to a POP' },
                         ...locations.map((pop) => ({
                             value: String(pop.id),
-                            label: `${pop.code} — ${pop.name}`,
+                            label: `${pop.code} - ${pop.name}`,
                         })),
                     ]}
                 />
@@ -104,11 +104,7 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Cancel
                     </Button>
-                    <Button
-                        type="submit"
-                        variant={prefix ? 'default' : 'success'}
-                        loading={processing}
-                    >
+                    <Button type="submit" variant="primary" loading={processing}>
                         {prefix ? 'Save' : 'Register prefix'}
                     </Button>
                 </div>

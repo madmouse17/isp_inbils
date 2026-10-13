@@ -32,3 +32,7 @@ PE1 amber-700/red-700 (dark red-400) and ≥ 12px on Penugasan; PE2 summary coun
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).
 
 ## Comments
+
+Carried from ticket 02 Part B (2026-10-14): migrate this module's Radix `Select` filters to `NativeSelect` (or `SearchSelect` for DB lists) per G22; `Select.selfcheck.mjs` and E2E `combobox` lookups change with them. Delete `ui/Select.tsx` in the last of 04/05/06/08 to land.
+
+Carried from ticket 02 Part A (2026-10-14): derive `TicketStatus`, `TicketPriority`, `SpkStatus` in `resources/js/types/models.ts` from `lib/statuses` maps (`keyof typeof`); delete this module's duplicate status maps listed in ticket 02 Part A comment.

@@ -114,7 +114,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                     </ol>
 
                     {localError && (
-                        <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger">
+                        <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-destructive-text">
                             {localError}
                         </p>
                     )}

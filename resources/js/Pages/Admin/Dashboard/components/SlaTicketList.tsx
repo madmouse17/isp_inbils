@@ -1,7 +1,7 @@
 import { Link } from '@inertiajs/react';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import type { SlaTicketItem } from '@/types/dashboard';
-import { ToneBadge, type Tone } from './ToneBadge';
+import { Badge, type BadgeVariant } from '@/Components/ui/Badge';
 
 interface SlaTicketListProps {
     items: SlaTicketItem[];
@@ -9,7 +9,7 @@ interface SlaTicketListProps {
     total: number;
 }
 
-const priorities: Record<string, { label: string; tone: Tone }> = {
+const priorities: Record<string, { label: string; tone: BadgeVariant }> = {
     urgent: { label: 'Mendesak', tone: 'danger' },
     high: { label: 'Tinggi', tone: 'warning' },
     medium: { label: 'Sedang', tone: 'info' },
@@ -37,7 +37,12 @@ export function SlaTicketList({ items, total }: SlaTicketListProps) {
                                     <p className="truncate text-sm font-medium text-foreground">
                                         {item.code}
                                     </p>
-                                    <ToneBadge tone={priority.tone}>{priority.label}</ToneBadge>
+                                    <Badge
+                                        variant={priority.tone}
+                                        className="shrink-0 whitespace-nowrap"
+                                    >
+                                        {priority.label}
+                                    </Badge>
                                 </div>
                                 <p className="truncate text-sm text-foreground">{item.title}</p>
                                 <p className="text-xs text-muted-foreground">

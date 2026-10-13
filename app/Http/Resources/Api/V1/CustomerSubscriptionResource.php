@@ -26,6 +26,10 @@ class CustomerSubscriptionResource extends JsonResource
             'package' => $package === null ? null : [
                 'id' => $package->id,
                 'name' => $package->name,
+                'category' => [
+                    'id' => $package->category->id,
+                    'name' => $package->category->name,
+                ],
             ],
             'mrc_amount' => $subscription->mrc_amount,
             'installation_address' => $address instanceof CustomerAddress ? [

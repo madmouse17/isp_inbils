@@ -1,7 +1,7 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
-import AppLayout from '@/Layouts/AppLayout';
+import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
@@ -66,7 +66,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                 sortable: true,
                 sortKey: 'download_max_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.download_max_mbps ?? '—'),
+                cell: (row) => String(row.download_max_mbps ?? '-'),
             },
             {
                 key: 'upload_max_mbps',
@@ -74,7 +74,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                 sortable: true,
                 sortKey: 'upload_max_mbps',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.upload_max_mbps ?? '—'),
+                cell: (row) => String(row.upload_max_mbps ?? '-'),
             },
             {
                 key: 'created_at',
@@ -100,9 +100,8 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
     );
 
     return (
-        <AppLayout>
-            <Head title="Profil Kecepatan" />
-            <div className="space-y-4 p-4 md:p-6">
+        <AdminLayout title="Profil Kecepatan">
+            <div className="space-y-4">
                 <PageHeader
                     title="Profil Kecepatan"
                     description="Marketing speed labels linked to packages."
@@ -116,7 +115,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                                 />
                             ) : null}
                             {can.create ? (
-                                <Button asChild variant="success" size="sm">
+                                <Button asChild variant="primary" size="sm">
                                     <Link href={route('admin.speed-profiles.create')}>
                                         <Plus className="size-4" />
                                         New profile
@@ -157,6 +156,6 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                     loading={processing}
                 />
             </div>
-        </AppLayout>
+        </AdminLayout>
     );
 }
