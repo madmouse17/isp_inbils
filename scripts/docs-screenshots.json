@@ -1,81 +1,250 @@
 {
-    "viewport": { "width": 1280, "height": 800 },
+    "viewport": {
+        "width": 1280,
+        "height": 800
+    },
     "screens": [
-        { "slug": "login", "url": "/login", "auth": false },
-        { "slug": "dashboard", "url": "/admin/dashboard" },
-        { "slug": "notifications", "url": "/admin/notifications" },
-        { "slug": "profile", "url": "/profile" },
-
-        { "slug": "my-work", "url": "/admin/my-work" },
-        { "slug": "dispatch", "url": "/admin/dispatch" },
-        { "slug": "approvals", "url": "/admin/approvals" },
-        { "slug": "spk-index", "url": "/admin/spk" },
-        { "slug": "spk-create", "url": "/admin/spk/create" },
+        {
+            "slug": "login",
+            "url": "/login",
+            "auth": false
+        },
+        {
+            "slug": "dashboard",
+            "url": "/admin/dashboard"
+        },
+        {
+            "slug": "notifications",
+            "url": "/admin/notifications"
+        },
+        {
+            "slug": "profile",
+            "url": "/profile"
+        },
+        {
+            "slug": "my-work",
+            "url": "/admin/my-work"
+        },
+        {
+            "slug": "dispatch",
+            "url": "/admin/dispatch"
+        },
+        {
+            "slug": "approvals",
+            "url": "/admin/approvals"
+        },
+        {
+            "slug": "spk-index",
+            "url": "/admin/spk"
+        },
+        {
+            "slug": "spk-create",
+            "url": "/admin/spk/create"
+        },
         {
             "slug": "spk-show",
             "url": "/admin/spk",
-            "actions": [{ "click": "main table tbody tr a >> nth=0" }]
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                }
+            ]
         },
-        { "slug": "tickets-index", "url": "/admin/tickets" },
-        { "slug": "tickets-create", "url": "/admin/tickets/create" },
+        {
+            "slug": "tickets-index",
+            "url": "/admin/tickets"
+        },
+        {
+            "slug": "tickets-create",
+            "url": "/admin/tickets/create"
+        },
         {
             "slug": "tickets-show",
             "url": "/admin/tickets",
-            "actions": [{ "click": "main table tbody tr a >> nth=0" }]
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                }
+            ]
         },
-        { "slug": "evaluations", "url": "/admin/evaluations" },
-
-        { "slug": "customers-index", "url": "/admin/customers" },
-        { "slug": "customers-create", "url": "/admin/customers/create" },
+        {
+            "slug": "evaluations",
+            "url": "/admin/evaluations"
+        },
+        {
+            "slug": "customers-index",
+            "url": "/admin/customers"
+        },
+        {
+            "slug": "customers-create",
+            "url": "/admin/customers/create"
+        },
         {
             "slug": "customers-show",
             "url": "/admin/customers",
-            "actions": [{ "click": "main table tbody tr a >> nth=0" }]
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                }
+            ]
         },
-        { "slug": "service-packages", "url": "/admin/service-packages" },
-        { "slug": "bandwidth-profiles", "url": "/admin/bandwidth-profiles" },
-        { "slug": "speed-profiles", "url": "/admin/speed-profiles" },
-        { "slug": "sla-tiers", "url": "/admin/sla-tiers" },
-
-        { "slug": "locations", "url": "/admin/locations" },
-        { "slug": "network-assets", "url": "/admin/network-assets" },
-        { "slug": "nas-devices", "url": "/admin/nas-devices" },
-        { "slug": "ipam-prefixes", "url": "/admin/ipam/prefixes" },
-        { "slug": "odn", "url": "/admin/odn" },
-
-        { "slug": "inventory-requests", "url": "/admin/inventory/requests" },
-        { "slug": "inventory-requests-create", "url": "/admin/inventory/requests/create" },
-        { "slug": "inventory-returns", "url": "/admin/inventory/returns" },
-        { "slug": "products", "url": "/admin/products" },
-        { "slug": "categories", "url": "/admin/categories" },
-        { "slug": "units", "url": "/admin/units" },
-        { "slug": "stocks", "url": "/admin/stocks" },
-        { "slug": "inventory-find", "url": "/admin/inventory/find" },
-        { "slug": "stock-movements", "url": "/admin/stock-movements" },
-
-        { "slug": "invoices-index", "url": "/admin/invoices" },
-        { "slug": "invoices-create", "url": "/admin/invoices/create" },
+        {
+            "slug": "service-packages",
+            "url": "/admin/service-packages"
+        },
+        {
+            "slug": "bandwidth-profiles",
+            "url": "/admin/bandwidth-profiles"
+        },
+        {
+            "slug": "speed-profiles",
+            "url": "/admin/speed-profiles"
+        },
+        {
+            "slug": "sla-tiers",
+            "url": "/admin/sla-tiers"
+        },
+        {
+            "slug": "locations",
+            "url": "/admin/locations"
+        },
+        {
+            "slug": "network-assets",
+            "url": "/admin/network-assets"
+        },
+        {
+            "slug": "nas-devices",
+            "url": "/admin/nas-devices"
+        },
+        {
+            "slug": "ipam-prefixes",
+            "url": "/admin/ipam/prefixes"
+        },
+        {
+            "slug": "odn",
+            "url": "/admin/odn"
+        },
+        {
+            "slug": "inventory-requests",
+            "url": "/admin/inventory/requests"
+        },
+        {
+            "slug": "inventory-requests-create",
+            "url": "/admin/inventory/requests/create"
+        },
+        {
+            "slug": "inventory-returns",
+            "url": "/admin/inventory/requests?tab=returns",
+            "actions": [
+                {
+                    "waitFor": "text=Antrean Penerimaan Gudang"
+                }
+            ]
+        },
+        {
+            "slug": "products",
+            "url": "/admin/products"
+        },
+        {
+            "slug": "categories",
+            "url": "/admin/categories"
+        },
+        {
+            "slug": "units",
+            "url": "/admin/units"
+        },
+        {
+            "slug": "stocks",
+            "url": "/admin/stocks"
+        },
+        {
+            "slug": "inventory-find",
+            "url": "/admin/inventory/find"
+        },
+        {
+            "slug": "stock-movements",
+            "url": "/admin/stock-movements"
+        },
+        {
+            "slug": "invoices-index",
+            "url": "/admin/invoices"
+        },
+        {
+            "slug": "invoices-create",
+            "url": "/admin/invoices/create"
+        },
         {
             "slug": "invoices-show",
             "url": "/admin/invoices",
-            "actions": [{ "click": "main table tbody tr a >> nth=0" }]
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                }
+            ]
         },
-        { "slug": "receivables", "url": "/admin/billing/receivables" },
-        { "slug": "reports", "url": "/admin/reports" },
-        { "slug": "reports-technician", "url": "/admin/reports/technician" },
-        { "slug": "reports-sales", "url": "/admin/reports/sales" },
-        { "slug": "reports-consolidated", "url": "/admin/reports/consolidated" },
-        { "slug": "reports-audit-log", "url": "/admin/reports/audit-log" },
-
-        { "slug": "company-profile", "url": "/admin/company/profile" },
-        { "slug": "company-settings", "url": "/admin/company/settings" },
-        { "slug": "organizations", "url": "/admin/organizations" },
-        { "slug": "employees", "url": "/admin/employees" },
-        { "slug": "vehicles", "url": "/admin/vehicles" },
-        { "slug": "users", "url": "/admin/users" },
-        { "slug": "roles", "url": "/admin/roles" },
-        { "slug": "permissions", "url": "/admin/permissions" },
-        { "slug": "documents", "url": "/admin/documents" },
-        { "slug": "number-sequences", "url": "/admin/number-sequences" }
+        {
+            "slug": "receivables",
+            "url": "/admin/billing/receivables"
+        },
+        {
+            "slug": "reports",
+            "url": "/admin/reports"
+        },
+        {
+            "slug": "reports-technician",
+            "url": "/admin/reports/technician"
+        },
+        {
+            "slug": "reports-sales",
+            "url": "/admin/reports/sales"
+        },
+        {
+            "slug": "reports-consolidated",
+            "url": "/admin/reports/consolidated"
+        },
+        {
+            "slug": "reports-audit-log",
+            "url": "/admin/reports/audit-log"
+        },
+        {
+            "slug": "company-profile",
+            "url": "/admin/company/profile"
+        },
+        {
+            "slug": "company-settings",
+            "url": "/admin/company/settings"
+        },
+        {
+            "slug": "organizations",
+            "url": "/admin/organizations"
+        },
+        {
+            "slug": "employees",
+            "url": "/admin/employees"
+        },
+        {
+            "slug": "vehicles",
+            "url": "/admin/vehicles"
+        },
+        {
+            "slug": "users",
+            "url": "/admin/users"
+        },
+        {
+            "slug": "roles",
+            "url": "/admin/roles"
+        },
+        {
+            "slug": "permissions",
+            "url": "/admin/permissions"
+        },
+        {
+            "slug": "documents",
+            "url": "/admin/documents"
+        },
+        {
+            "slug": "number-sequences",
+            "url": "/admin/number-sequences"
+        }
     ]
 }

@@ -272,6 +272,33 @@ class MaterialReturnWorkflowTest extends TestCase
         $this->assertEquals(0, (float) $stock->quantity);
     }
 
+    public function test_warehouse_physical_reject_over_http_reads_the_posted_reason(): void
+    {
+        [$company, $location] = $this->createCompanyAndLocation();
+        $product = $this->createProduct($company);
+        $technician = User::factory()->create(['company_id' => $company->id]);
+        $technician->givePermissionTo(['inventory.request.view.own', 'inventory.request.create', 'inventory.return.declare']);
+        $warehouseStaff = User::factory()->create(['company_id' => $company->id, 'email_verified_at' => now(), 'is_active' => true]);
+        $warehouseStaff->givePermissionTo([
+            'inventory.request.view.all', 'inventory.request.approve', 'inventory.request.prepare', 'inventory.request.issue',
+            'inventory.return.receive',
+        ]);
+
+        [$ir, $case] = $this->setupIssuedRequestWithCase($company, $location, $product, $technician, $warehouseStaff, 10);
+        $line = $case->lines->first();
+        MaterialReturnService::declareUsage($case, $technician, [
+            'lines' => [['id' => $line->id, 'actual_used_qty' => 10, 'declared_good_return_qty' => 0, 'declared_discrepancy_qty' => 0]],
+        ]);
+
+        // The dialog posts `reason`; the controller used to read `rejection_reason` and crash on null.
+        $this->actingAs($warehouseStaff)
+            ->postJson(route('admin.inventory.returns.receive-reject', $case), ['reason' => 'Barang belum dibawa ke gudang'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'correction_required');
+
+        $this->assertSame('Barang belum dibawa ke gudang', $case->fresh()->rejection_reason);
+    }
+
     public function test_warehouse_physical_accept_increments_good_stock_only_and_discrepancies_delta_zero(): void
     {
         [$company, $location] = $this->createCompanyAndLocation();

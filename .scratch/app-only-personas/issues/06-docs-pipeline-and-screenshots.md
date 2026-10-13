@@ -1,6 +1,6 @@
 # DOCS: PDF command, Blade template, screenshot scripts
 
-Status: in-progress
+Status: done
 Role: backend+qa
 Blocked by: 02, 03 (web UI final), 04, 05 (app UI final)
 Spec: `../spec.md`
@@ -15,9 +15,9 @@ Spec: `../spec.md`
 ## Acceptance criteria
 
 - [x] `php artisan inbils:docs:pdf` produces three PDFs from the Markdown written in ticket 07 (coordinate: run once 07 lands; until then test with the fixture). Pipeline proven with the fixture (see Comments); the three real PDFs still need `php artisan inbils:docs:pdf` after 07 lands.
-- [ ] Web screenshots and app screenshots exist in `docs/user-guide/images/**` (list the files).
+- [x] Web screenshots and app screenshots exist in `docs/user-guide/images/**` (list the files).
 
-Ticket stays in-progress: box 2 (screenshots) not run, UI still changing.
+2026-10-14 (orchestrator): `npm run docs:screenshots` → 54 PNG in `images/web/` (after fixing the ESM `cwd`/`outputDir` in `scripts/docs-screenshots.config.ts` and pointing `inventory-returns` at `/admin/inventory/requests?tab=returns`). `flutter drive … --dart-define=DOCS_SCREENSHOTS=true` on AVD `inbils_pixel7` → 22 PNG in `images/technician/`, 17 in `images/customer/`, no debug banner (mobile `3470a40`). Template got `img { max-height: 11cm }` so phone shots fit with their step text. `php -d memory_limit=1G artisan inbils:docs:pdf` → web 166 pages, teknisi 30, pelanggan 26.
 
 ## Comments
 

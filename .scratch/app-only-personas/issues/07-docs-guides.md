@@ -1,6 +1,6 @@
 # DOCS: the three Indonesian guides
 
-Status: in-progress
+Status: done
 Role: docs
 Blocked by: 06 (images available)
 Spec: `../spec.md`
@@ -11,6 +11,8 @@ Spec: `../spec.md`
 
 ## Acceptance criteria
 
-- [ ] Every image referenced exists; `php artisan inbils:docs:pdf` renders all three without warnings; PDFs committed.
+- [x] Every image referenced exists; `php artisan inbils:docs:pdf` renders all three without warnings; PDFs committed.
 
 ## Comments
+
+- 2026-10-14 (orchestrator): `web.md` (10 H1, 60 H2, 54 images, all slugs used once), `teknisi.md` (35 headings, 22 images), `pelanggan.md` (35 headings, 17 images). All three render with no warning. The web guide states current UI defects as limitations (listed in `.scratch/HANDOFF-2026-10-14.md`); remove each caveat when its defect is fixed. Fix found while writing: `MaterialReturnController::receiveReject` read `rejection_reason` instead of the validated `reason` (500 on "Tolak Penyerahan"); fixed with an HTTP test.

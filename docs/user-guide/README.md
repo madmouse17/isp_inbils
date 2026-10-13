@@ -44,10 +44,12 @@ otomatis ikut.
 flutter emulators --launch inbils_pixel7      # tunggu sampai emulator-5554 muncul di `flutter devices`
 cd ../inbils-mobile/technician
 flutter drive --driver=test_driver/integration_test.dart \
-  --target=integration_test/docs_screenshots_test.dart -d emulator-5554
+  --target=integration_test/docs_screenshots_test.dart -d emulator-5554 \
+  --dart-define=DOCS_SCREENSHOTS=true
 cd ../customer
 flutter drive --driver=test_driver/integration_test.dart \
-  --target=integration_test/docs_screenshots_test.dart -d emulator-5554
+  --target=integration_test/docs_screenshots_test.dart -d emulator-5554 \
+  --dart-define=DOCS_SCREENSHOTS=true
 ```
 
 Hasil ditulis driver ke `../../inbils/docs/user-guide/images/<technician|customer>/` (relatif terhadap folder

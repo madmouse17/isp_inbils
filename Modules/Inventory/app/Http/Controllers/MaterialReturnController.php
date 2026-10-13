@@ -87,7 +87,7 @@ class MaterialReturnController extends Controller
     {
         Gate::authorize('receive', $material_return);
 
-        $updated = MaterialReturnService::receiveReject($material_return, $request->user(), $request->validated('rejection_reason'));
+        $updated = MaterialReturnService::receiveReject($material_return, $request->user(), $request->validated('reason'));
 
         return response()->json([
             'message' => 'Penyerahan fisik material return ditolak.',

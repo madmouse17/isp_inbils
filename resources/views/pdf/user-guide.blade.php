@@ -13,7 +13,8 @@
         h1, h2, h3, h4 { page-break-after: avoid; }
         p, ul, ol { margin: 0 0 8px; }
         li { margin-bottom: 3px; }
-        img { max-width: 100%; border: 1px solid #ccc; margin: 4px 0 10px; }
+        /* Phone screenshots are 1080×2400: cap the height so one fits with its step text. */
+        img { max-width: 100%; max-height: 11cm; border: 1px solid #ccc; margin: 4px 0 10px; }
         table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; }
         th, td { border: 1px solid #999; padding: 4px 6px; text-align: left; vertical-align: top; }
         th { background: #eee; }
