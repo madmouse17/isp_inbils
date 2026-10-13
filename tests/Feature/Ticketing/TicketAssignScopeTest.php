@@ -13,11 +13,13 @@ use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class TicketAssignScopeTest extends TestCase
 {
     use CreatesCompanyUser;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

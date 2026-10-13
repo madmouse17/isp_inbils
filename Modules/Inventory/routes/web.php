@@ -8,7 +8,7 @@ use Modules\Inventory\Http\Controllers\ProductController;
 use Modules\Inventory\Http\Controllers\StockController;
 use Modules\Inventory\Http\Controllers\UnitController;
 
-Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
     // Inventory Requests
     Route::get('inventory/requests', [InventoryRequestController::class, 'index'])->name('inventory.requests.index');
     Route::get('inventory/requests/create', [InventoryRequestController::class, 'create'])->name('inventory.requests.create');

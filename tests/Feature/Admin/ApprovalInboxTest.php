@@ -19,10 +19,12 @@ use Modules\SPK\Models\WorkOrder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class ApprovalInboxTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

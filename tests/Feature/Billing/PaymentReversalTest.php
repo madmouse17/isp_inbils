@@ -207,20 +207,17 @@ class PaymentReversalTest extends TestCase
         $this->assertSame('cancelled', $invoice->fresh()->status);
     }
 
-    // AC8: staff/technician cannot reverse -> 403
+    // AC8: staff cannot reverse -> 403; a technician (app-only) never reaches the admin routes at all
     public function test_staff_and_technician_cannot_reverse(): void
     {
         $recorder = $this->createCompanyUser();
         $this->actingAs($recorder);
         $invoice = $this->makeInvoice($recorder, 100000);
         $payment = BillingService::recordPayment($invoice, 40000, 'cash', 'PAY-RBAC');
+        $url = route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]);
 
-        foreach (['staff', 'technician'] as $role) {
-            $user = $this->userWithRole($role, (int) $recorder->company_id);
-            $this->actingAs($user)
-                ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'sneaky'])
-                ->assertForbidden();
-        }
+        $this->actingAs($this->userWithRole('staff', (int) $recorder->company_id))->post($url, ['reason' => 'sneaky'])->assertForbidden();
+        $this->actingAs($this->userWithRole('technician', (int) $recorder->company_id))->post($url, ['reason' => 'sneaky'])->assertRedirect(route('app-only'));
 
         $this->assertNull($payment->fresh()->cancelled_at);
     }

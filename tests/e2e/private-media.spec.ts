@@ -4,7 +4,7 @@
  * Coverage:
  * - staff uploads a ticket attachment; preview, open and download all use /admin/media/{id}
  * - the preview holds at 320 and 1280 px in light and dark
- * - the owning customer previews the same attachment; another customer's attachment is denied (403)
+ * - the owning customer's app fetches the same attachment through the API; another customer's is 404
  * - a PDF attachment is a download only: no Open link, served as an attachment
  * - a guest is sent to login; the file lives on the private disk and /storage serves nothing
  *
@@ -14,6 +14,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
 
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import {
     PNG_1X1,
@@ -112,18 +113,20 @@ test.describe('@private-media ticket attachment', () => {
         await page.evaluate(() => localStorage.setItem('darkMode', 'false'));
     });
 
-    test("the owning customer previews it; another customer's attachment is denied", async ({
-        page,
+    test("the owning customer's app fetches it; another customer's attachment is not found", async ({
+        request,
     }) => {
-        test.setTimeout(120_000);
-        await loginAs(page, 'customer');
-        await settleAppChunks(page);
-        await page.goto(`/admin/tickets/${ownTicketId}`);
-        await expect(page.getByRole('main').getByRole('heading', { name: ownTitle })).toBeVisible();
-        await expectPreview(page, ownMediaUrl);
+        // Customers use the app, so the media is fetched through the mobile API (a token of the customer app).
+        const api = await apiLogin(request, 'customer');
+        const mediaId = (url: string) => url.match(/\/(\d+)$/)?.[1] ?? '';
 
-        expect((await page.request.get(ownMediaUrl)).status()).toBe(200);
-        expect((await page.request.get(otherMediaUrl)).status()).toBe(403);
+        const own = await api.get(`media/${mediaId(ownMediaUrl)}`);
+        expect(own.status()).toBe(200);
+        expect(own.headers()['content-type']).toMatch(/^image\/png/);
+        expect((await api.get(`media/${mediaId(otherMediaUrl)}`)).status()).toBe(404);
+
+        const ticket = await api.get(`customer/tickets/${ownTicketId}`);
+        expect(ticket.status()).toBe(200);
     });
 
     test('a PDF attachment is a download only: no Open link, served as an attachment', async ({

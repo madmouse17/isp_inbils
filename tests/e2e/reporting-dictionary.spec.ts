@@ -339,26 +339,13 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         await page.evaluate(() => localStorage.setItem('darkMode', 'false'));
     });
 
-    test('roles without the report capability get 403, staff keeps its access but never the audit log', async ({
+    test('staff keeps its report access but not the sales report or the audit log', async ({
         page,
         expectHttpError,
     }) => {
-        await loginAs(page, 'technician');
-        for (const path of [
-            '/admin/reports/dictionary',
-            '/admin/reports/sales',
-            ...legacyReportPaths,
-        ]) {
-            expectHttpError({ url: path, method: 'GET', status: 403 });
-            const response = await page.goto(path);
-            expect(response?.status(), path).toBe(403);
-        }
-        await logout(page);
-
         await loginAs(page, 'staff');
-        // A distinct query keeps this 403 attributable apart from the technician's visit above.
-        expectHttpError({ url: '/admin/reports/sales?as=staff', method: 'GET', status: 403 });
-        const sales = await page.goto('/admin/reports/sales?as=staff');
+        expectHttpError({ url: '/admin/reports/sales', method: 'GET', status: 403 });
+        const sales = await page.goto('/admin/reports/sales');
         expect(sales?.status()).toBe(403);
         for (const path of ['/admin/reports/dictionary', ...legacyReportPaths]) {
             const response = await page.goto(path);

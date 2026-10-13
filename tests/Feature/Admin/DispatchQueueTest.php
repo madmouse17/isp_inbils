@@ -27,10 +27,12 @@ use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class DispatchQueueTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

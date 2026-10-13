@@ -20,10 +20,12 @@ use Modules\Inventory\Notifications\InventoryRequestSubmittedNotification;
 use Modules\Inventory\Services\InventoryRequestService;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class InventoryRequestWorkflowTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $companyA;
 

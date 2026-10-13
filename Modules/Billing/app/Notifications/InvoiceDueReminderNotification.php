@@ -36,7 +36,7 @@ class InvoiceDueReminderNotification extends InvoiceWhatsAppNotification
             $invoice->number,
             $this->formatMoney($invoice->sisa),
             $this->formatDate($invoice->due_date),
-            route('portal.invoices.show', $invoice),
+            $this->appUrl(),
         ], 'invoice', $invoice->id, 'invoice_reminder:'.$invoice->id.':'.$this->stage.':'.$invoice->due_date->toDateString());
     }
 

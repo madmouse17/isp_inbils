@@ -26,7 +26,7 @@ use Modules\Ticketing\Models\Ticket;
  * scoped to the actor's company. Queue cards delegate to the queue read models and badge services
  * behind the sidebar; the SLA, overdue and low-stock cards restate their destination list's
  * predicate, and DashboardExceptionCountsTest pins each to that list. Persona is the derived group
- * order (operations, approvals, warehouse, finance, personal), never a role name.
+ * order (operations, approvals, warehouse, finance), never a role name.
  */
 final class DashboardQuery
 {
@@ -50,14 +50,12 @@ final class DashboardQuery
         return array_values(array_filter([
             self::myWork($request, $user),
             self::dispatchUnassigned($request, $user),
-            self::slaBreached($user) ?? self::ticketsLink($user),
+            self::slaBreached($user),
             self::approvals($request, $user),
             self::warehouseRequests($user, $inventory['requests']),
             self::returnQueue($user, $inventory['returns']),
             self::lowStock($user),
             self::overdueInvoices($user),
-            self::myRequests($user, $inventory['requests']),
-            self::myReturns($user, $inventory['returns']),
         ]));
     }
 
@@ -105,9 +103,8 @@ final class DashboardQuery
     }
 
     /**
-     * Open tickets past their SLA deadline, plus the oldest few. ticket.view alone is the customer's
-     * capability and gets the plain tickets link; this card also needs to handle, dispatch or report
-     * on tickets.
+     * Open tickets past their SLA deadline, plus the oldest few. ticket.view alone is not enough: the
+     * actor must also handle, dispatch or report on tickets.
      *
      * @return array<string, mixed>|null
      */
@@ -137,16 +134,6 @@ final class DashboardQuery
         return self::section('sla_breached', 'operations', 'SLA terlampaui', $count, route('admin.tickets.index', ['sla_breached' => 1]), 'danger', [
             'items' => $items,
         ]);
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    private static function ticketsLink(User $user): ?array
-    {
-        return $user->can('ticket.view')
-            ? self::section('tickets', 'operations', 'Tiket', null, route('admin.tickets.index'), 'neutral')
-            : null;
     }
 
     /**
@@ -252,36 +239,6 @@ final class DashboardQuery
     }
 
     /**
-     * @param  array<string, int|null>|null  $requests
-     * @return array<string, mixed>|null
-     */
-    private static function myRequests(User $user, ?array $requests): ?array
-    {
-        $mine = $requests['my_requests'] ?? null;
-
-        if ($mine === null || ! $user->can('inventory.request.create')) {
-            return null;
-        }
-
-        return self::section('my_requests', 'personal', 'Permintaan barang saya', $mine, route('admin.inventory.requests.index', ['tab' => 'my']), 'info');
-    }
-
-    /**
-     * @param  array<string, int|null>|null  $returns
-     * @return array<string, mixed>|null
-     */
-    private static function myReturns(User $user, ?array $returns): ?array
-    {
-        $mine = $returns['my_pending_returns'] ?? null;
-
-        if ($mine === null || ! $user->can('inventory.return.declare')) {
-            return null;
-        }
-
-        return self::section('my_returns', 'personal', 'Retur material saya', $mine, route('admin.inventory.requests.index', ['tab' => 'returns', 'return_status' => 'awaiting_declaration']), 'info');
-    }
-
-    /**
      * The inventory badge services, called once and only for an actor who can open the requests page,
      * because the returns list is a tab of that page.
      *
@@ -339,7 +296,7 @@ final class DashboardQuery
      * @param  array<string, mixed>  $extra
      * @return array<string, mixed>
      */
-    private static function section(string $key, string $group, string $title, ?int $count, string $href, string $severity, array $extra = []): array
+    private static function section(string $key, string $group, string $title, int $count, string $href, string $severity, array $extra = []): array
     {
         return [
             'key' => $key,
@@ -347,7 +304,7 @@ final class DashboardQuery
             'title' => $title,
             'count' => $count,
             'href' => $href,
-            'severity' => $count === null || $count === 0 ? 'neutral' : $severity,
+            'severity' => $count === 0 ? 'neutral' : $severity,
             ...$extra,
         ];
     }

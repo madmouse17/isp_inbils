@@ -316,14 +316,14 @@ class RolePermissionSeeder extends Seeder
             'spk.view', 'spk.start', 'spk.submit',
             'spk.evidence.upload', 'spk.evidence.view',
             'ticket.view', 'ticket.create', 'ticket.start', 'ticket.resolve',
-            'ticket.comment.create',
+            'ticket.comment.create', 'ticket.attachment.upload',
             'evaluation.view.own',
             'report.technician',
         ]);
 
         $customer->syncPermissions([
             'dashboard.view',
-            'ticket.view', 'ticket.create', 'ticket.comment.create',
+            'ticket.view', 'ticket.create', 'ticket.comment.create', 'ticket.attachment.upload',
             'evaluation.customer.submit',
             'portal.invoice.view', 'portal.invoice.pay',
         ]);

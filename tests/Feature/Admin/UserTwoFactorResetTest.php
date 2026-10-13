@@ -12,6 +12,7 @@ use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
 use Tests\Traits\EnrollsTwoFactor;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * An administrator restoring access for a colleague who lost both authenticator and recovery codes:
@@ -23,6 +24,7 @@ class UserTwoFactorResetTest extends TestCase
     use BuildsCompanyGroup;
     use EnrollsTwoFactor;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

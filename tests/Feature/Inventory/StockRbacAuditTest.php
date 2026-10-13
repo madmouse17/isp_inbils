@@ -17,10 +17,12 @@ use Modules\Inventory\Services\StockService;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class StockRbacAuditTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

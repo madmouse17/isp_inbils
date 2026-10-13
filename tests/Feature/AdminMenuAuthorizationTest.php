@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
-use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
 use App\Models\User;
@@ -226,11 +225,6 @@ class AdminMenuAuthorizationTest extends TestCase
             $this->makeEmployee($user, $inOrganization);
         }
 
-        if ($roleName === 'customer') {
-            // Portal pages need the account to belong to a customer, as every real portal account does.
-            Customer::factory()->create(['company_id' => $user->company_id, 'user_id' => $user->id]);
-        }
-
         $this->actingAs($user);
         $context = $this->sidebarContext($this->get(route('admin.dashboard'))->assertOk());
 
@@ -256,11 +250,11 @@ class AdminMenuAuthorizationTest extends TestCase
         }
     }
 
-    public function test_customer_sidebar_offers_dashboard_invoices_and_ticketing_only(): void
+    public function test_customer_sidebar_offers_dashboard_and_ticketing_only(): void
     {
         $this->actingAs($this->userWithRole('customer'));
 
-        $this->assertSame(['Dasbor', 'Tiket', 'Tagihan Saya'], $this->shownSidebarLabels());
+        $this->assertSame(['Dasbor', 'Tiket'], $this->shownSidebarLabels());
     }
 
     public function test_seeded_roles_get_the_network_register_entries_their_permissions_give_them(): void
@@ -281,12 +275,12 @@ class AdminMenuAuthorizationTest extends TestCase
         }
     }
 
-    public function test_admin_sidebar_offers_everything_but_my_work_portal_and_consolidation_in_a_single_company(): void
+    public function test_admin_sidebar_offers_everything_but_my_work_and_consolidation_in_a_single_company(): void
     {
         $this->actingAs($this->userWithRole('admin'));
 
         $this->assertSame(
-            array_values(array_diff(array_column($this->sidebarDestinations(), 'label'), ['Pekerjaan Saya', 'Tagihan Saya', 'Metrik Konsolidasi'])),
+            array_values(array_diff(array_column($this->sidebarDestinations(), 'label'), ['Pekerjaan Saya', 'Metrik Konsolidasi'])),
             $this->shownSidebarLabels(),
         );
     }
@@ -439,6 +433,12 @@ class AdminMenuAuthorizationTest extends TestCase
         ]);
 
         $user->assignRole(Role::where('name', $roleName)->firstOrFail());
+
+        // Technician and customer accounts are app-only on the web. A permission-less extra role keeps
+        // their permission matrix reachable here without being redirected to /app-only.
+        if (in_array($roleName, ['technician', 'customer'], true)) {
+            $user->assignRole(Role::findOrCreate('web-access', 'web'));
+        }
 
         return $user;
     }

@@ -6,7 +6,7 @@ use Modules\Service\Http\Controllers\ServicePackageController;
 use Modules\Service\Http\Controllers\SLATierController;
 use Modules\Service\Http\Controllers\SpeedProfileController;
 
-Route::middleware(['auth', 'verified', 'require.has.company'])->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->group(function () {
     Route::group(['prefix' => 'admin', 'as' => 'admin.'], function () {
         Route::get('service-packages/export', [ServicePackageController::class, 'export'])->name('service-packages.export');
         Route::resource('service-packages', ServicePackageController::class);

@@ -86,9 +86,7 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
     assert.equal(new Set(items.map((item) => item.href)).size, items.length);
     assert.equal(new Set(items.map((item) => item.label)).size, items.length);
     assert.equal(new Set(items.map((item) => item.icon)).size, items.length, 'one icon per item');
-    assert.ok(
-        items.every((item) => item.href.startsWith('/admin/') || item.href.startsWith('/portal/')),
-    );
+    assert.ok(items.every((item) => item.href.startsWith('/admin/')));
     assert.ok(items.every((item) => (item.anyOf?.length ?? 0) > 0 || item.flag !== undefined));
 });
 
@@ -102,7 +100,7 @@ test('dashboard needs dashboard.view (decision 3a)', () => {
     assert.ok(!outline(view(['ticket.view'])).some(([, labels]) => labels.includes('Dasbor')));
 });
 
-test('customer sees Dasbor, Tagihan Saya and Tiket only', () => {
+test('customer sees Dasbor and Tiket only; the portal invoices live in the app', () => {
     const customer = [
         'dashboard.view',
         'ticket.view',
@@ -115,7 +113,6 @@ test('customer sees Dasbor, Tagihan Saya and Tiket only', () => {
     assert.deepEqual(outline(view(customer)), [
         [null, ['Dasbor']],
         ['Operasional', ['Tiket']],
-        ['Keuangan & Laporan', ['Tagihan Saya']],
     ]);
 });
 

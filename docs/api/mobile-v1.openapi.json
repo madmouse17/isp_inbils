@@ -529,6 +529,106 @@
                         "$ref": "#/components/responses/ValidationException"
                     }
                 }
+            },
+            "post": {
+                "operationId": "v1.technician.inventory-requests.store",
+                "summary": "A request from the app is queued for the warehouse at once: the app has no draft step",
+                "tags": [
+                    "InventoryRequest"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreTechnicianInventoryRequestRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`TechnicianInventoryRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TechnicianInventoryRequestResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/technician/inventory-requests/{inventoryRequest}/cancel": {
+            "post": {
+                "operationId": "v1.technician.inventory-requests.cancel",
+                "tags": [
+                    "InventoryRequest"
+                ],
+                "parameters": [
+                    {
+                        "name": "inventoryRequest",
+                        "in": "path",
+                        "required": true,
+                        "description": "The inventory request ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CancelTechnicianInventoryRequestRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`TechnicianInventoryRequestResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TechnicianInventoryRequestResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
             }
         },
         "/customer/invoices": {
@@ -1317,6 +1417,71 @@
                         }
                     }
                 }
+            },
+            "patch": {
+                "operationId": "v1.me.update",
+                "tags": [
+                    "MeProfile"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateMeRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`MeResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/MeResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/me/password": {
+            "post": {
+                "operationId": "v1.me.password",
+                "summary": "Saving the new password deletes every token of the user (User::booted), this one included: the app signs in again",
+                "tags": [
+                    "MePassword"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePasswordRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
             }
         },
         "/media/{media}": {
@@ -2037,6 +2202,191 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/technician/products": {
+            "get": {
+                "operationId": "v1.technician.products.index",
+                "tags": [
+                    "Product"
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    },
+                    {
+                        "name": "search",
+                        "in": "query",
+                        "schema": {
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "maxLength": 100
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `TechnicianProductResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TechnicianProductResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -2830,6 +3180,176 @@
                 }
             }
         },
+        "/customer/tickets/{id}/attachments": {
+            "post": {
+                "operationId": "v1.customer.tickets.attachments.store",
+                "tags": [
+                    "TicketAttachment"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreTicketAttachmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`TicketAttachmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TicketAttachmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/customer/tickets/{id}/attachments/{media}": {
+            "delete": {
+                "operationId": "v1.customer.tickets.attachments.destroy",
+                "tags": [
+                    "TicketAttachment"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                }
+            }
+        },
+        "/technician/tickets/{id}/attachments": {
+            "post": {
+                "operationId": "v1.technician.tickets.attachments.store",
+                "tags": [
+                    "TicketAttachment"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreTicketAttachmentRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`TicketAttachmentResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TicketAttachmentResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/technician/tickets/{id}/attachments/{media}": {
+            "delete": {
+                "operationId": "v1.technician.tickets.attachments.destroy",
+                "tags": [
+                    "TicketAttachment"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "media",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    }
+                }
+            }
+        },
         "/customer/ticket-categories": {
             "get": {
                 "operationId": "v1.customer.ticket-categories.index",
@@ -2971,6 +3491,40 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/technician/warehouses": {
+            "get": {
+                "operationId": "v1.technician.warehouses.index",
+                "tags": [
+                    "Warehouse"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Array of `TechnicianWarehouseResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/TechnicianWarehouseResource"
+                                            }
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -3256,6 +3810,101 @@
                     }
                 }
             }
+        },
+        "/technician/work-orders/{wo}/items": {
+            "post": {
+                "operationId": "v1.technician.work-orders.items.store",
+                "tags": [
+                    "WorkOrderItem"
+                ],
+                "parameters": [
+                    {
+                        "name": "wo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The wo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AddWorkOrderItemRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "`TechnicianWorkOrderItemResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TechnicianWorkOrderItemResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/technician/work-orders/{wo}/items/{item}": {
+            "delete": {
+                "operationId": "v1.technician.work-orders.items.destroy",
+                "description": "A line the manager planned (a reservation or a note) stays with `quantity_used` 0; a line that held nothing but this use is deleted. The answer is 204 either way, so read the SPK again to see which. A serialized asset line is refused with 422.",
+                "summary": "Withdraw the technician's use of a product",
+                "tags": [
+                    "WorkOrderItem"
+                ],
+                "parameters": [
+                    {
+                        "name": "wo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The wo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "item",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -3266,6 +3915,60 @@
             }
         },
         "schemas": {
+            "AddWorkOrderItemRequest": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "integer",
+                        "description": "A serialized asset needs a chosen unit, which the app cannot pick: the web adds those."
+                    },
+                    "quantity": {
+                        "type": "number",
+                        "description": "The column is decimal(15,2).",
+                        "maximum": 9999999999999.99
+                    }
+                },
+                "required": [
+                    "product_id",
+                    "quantity"
+                ],
+                "title": "AddWorkOrderItemRequest"
+            },
+            "CancelTechnicianInventoryRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "cancellation_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 1000
+                    }
+                },
+                "title": "CancelTechnicianInventoryRequestRequest"
+            },
+            "ChangePasswordRequest": {
+                "type": "object",
+                "description": "Changing the password from the app. The current password is the only step-up a bearer token has, so a stolen\ntoken must not be a free place to guess it: wrong guesses are limited per user and address with the key and\nbudget of the web's confirm-password step (ConfirmablePasswordController), counted before the password is\nchecked. The check is therefore not a validation rule: rules run before the controller can claim an attempt.",
+                "properties": {
+                    "current_password": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "password_confirmation": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "current_password",
+                    "password",
+                    "password_confirmation"
+                ],
+                "title": "ChangePasswordRequest"
+            },
             "CustomerPaymentResource": {
                 "type": "object",
                 "properties": {
@@ -3964,6 +4667,12 @@
                             "name",
                             "phone"
                         ]
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
                     }
                 },
                 "required": [
@@ -3974,7 +4683,8 @@
                     "two_factor_enabled",
                     "company",
                     "customer",
-                    "employee"
+                    "employee",
+                    "phone"
                 ],
                 "title": "MeResource"
             },
@@ -4644,6 +5354,78 @@
                 ],
                 "title": "StoreCustomerTicketRequest"
             },
+            "StoreTechnicianInventoryRequestRequest": {
+                "type": "object",
+                "properties": {
+                    "warehouse_location_id": {
+                        "type": "integer"
+                    },
+                    "reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Left blank, the service writes its own reason.",
+                        "maxLength": 2000
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "product_id": {
+                                    "type": "integer"
+                                },
+                                "quantity_requested": {
+                                    "type": "number",
+                                    "maximum": 9999999999999.99
+                                },
+                                "note": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "maxLength": 255
+                                }
+                            },
+                            "required": [
+                                "product_id",
+                                "quantity_requested"
+                            ]
+                        },
+                        "minItems": 1,
+                        "maxItems": 100,
+                        "uniqueItems": true
+                    }
+                },
+                "required": [
+                    "warehouse_location_id",
+                    "items"
+                ],
+                "title": "StoreTechnicianInventoryRequestRequest"
+            },
+            "StoreTicketAttachmentRequest": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "format": "binary",
+                        "contentMediaType": "application/octet-stream",
+                        "description": "Maximum file size: 10240 kilobytes."
+                    },
+                    "caption": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "file"
+                ],
+                "title": "StoreTicketAttachmentRequest"
+            },
             "StoreTicketCommentRequest": {
                 "type": "object",
                 "properties": {
@@ -4751,6 +5533,18 @@
                             "string",
                             "null"
                         ]
+                    },
+                    "actions": {
+                        "type": "object",
+                        "properties": {
+                            "cancel": {
+                                "type": "boolean",
+                                "description": "Own request, still waiting for the warehouse: InventoryRequestPolicy::cancel."
+                            }
+                        },
+                        "required": [
+                            "cancel"
+                        ]
                     }
                 },
                 "required": [
@@ -4759,7 +5553,8 @@
                     "status",
                     "items",
                     "work_order",
-                    "updated_at"
+                    "updated_at",
+                    "actions"
                 ],
                 "title": "TechnicianInventoryRequestResource"
             },
@@ -4969,6 +5764,33 @@
                     "updated_at"
                 ],
                 "title": "TechnicianMaterialReturnResource"
+            },
+            "TechnicianProductResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "sku": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "sku",
+                    "name",
+                    "unit"
+                ],
+                "title": "TechnicianProductResource"
             },
             "TechnicianTicketCommentResource": {
                 "type": "object",
@@ -5237,6 +6059,67 @@
                 ],
                 "title": "TechnicianTicketResource"
             },
+            "TechnicianWarehouseResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "code"
+                ],
+                "title": "TechnicianWarehouseResource"
+            },
+            "TechnicianWorkOrderItemResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "unit": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "quantity_reserved": {
+                        "type": "number"
+                    },
+                    "quantity_used": {
+                        "type": "number"
+                    },
+                    "note": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "product_name",
+                    "unit",
+                    "quantity_reserved",
+                    "quantity_used",
+                    "note"
+                ],
+                "title": "TechnicianWorkOrderItemResource"
+            },
             "TechnicianWorkOrderResource": {
                 "type": "object",
                 "properties": {
@@ -5478,44 +6361,7 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {
-                                    "type": "integer"
-                                },
-                                "product_name": {
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ]
-                                },
-                                "unit": {
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ]
-                                },
-                                "quantity_reserved": {
-                                    "type": "number"
-                                },
-                                "quantity_used": {
-                                    "type": "number"
-                                },
-                                "note": {
-                                    "type": [
-                                        "string",
-                                        "null"
-                                    ]
-                                }
-                            },
-                            "required": [
-                                "id",
-                                "product_name",
-                                "unit",
-                                "quantity_reserved",
-                                "quantity_used",
-                                "note"
-                            ]
+                            "$ref": "#/components/schemas/TechnicianWorkOrderItemResource"
                         }
                     },
                     "evidence": {
@@ -5554,12 +6400,17 @@
                             },
                             "submit": {
                                 "type": "boolean"
+                            },
+                            "edit_items": {
+                                "type": "boolean",
+                                "description": "Whoever may submit the SPK (its assigned technician, while it is in progress) keeps its material lines."
                             }
                         },
                         "required": [
                             "start",
                             "upload_evidence",
-                            "submit"
+                            "submit",
+                            "edit_items"
                         ]
                     }
                 },
@@ -5603,13 +6454,28 @@
                     },
                     "size": {
                         "type": "integer"
+                    },
+                    "caption": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "mine": {
+                        "type": "boolean"
+                    },
+                    "can_delete": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "id",
                     "file_name",
                     "mime_type",
-                    "size"
+                    "size",
+                    "caption",
+                    "mine",
+                    "can_delete"
                 ],
                 "title": "TicketAttachmentResource"
             },
@@ -5647,6 +6513,25 @@
                     "code"
                 ],
                 "title": "TwoFactorRequest"
+            },
+            "UpdateMeRequest": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "phone": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The web's customer rule, plus the space people type inside a number; null clears it.",
+                        "pattern": "^[0-9()+\\- ]+$",
+                        "maxLength": 50
+                    }
+                },
+                "title": "UpdateMeRequest"
             }
         },
         "responses": {

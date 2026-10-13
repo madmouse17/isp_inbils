@@ -180,11 +180,6 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Save Customer' })).toHaveCount(0);
         await page.unroute(/\/admin\/customers\/\d+\/edit$/);
-
-        // The technician (customer.view only) is refused by the server instead.
-        await logout(page);
-        await loginAs(page, 'technician');
-        expect((await page.request.get(`/admin/customers/${plainId}/edit`)).status()).toBe(403);
     });
 
     test('consent is recorded when a customer is created', async ({ page }) => {

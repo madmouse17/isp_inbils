@@ -23,13 +23,17 @@ if (!demoPassword || demoUsers.length !== 5) {
     throw new Error('Could not derive DemoUserSeeder credentials.');
 }
 
+// Technician and customer accounts are app-only on the web: they land on /app-only (app-only.spec.ts).
+type WebRole = Exclude<DemoRole, 'technician' | 'customer'>;
+
+const appOnlyRoles: DemoRole[] = ['technician', 'customer'];
+
 const roleExpectations: Record<
-    DemoRole,
+    WebRole,
     {
         allowedPath: string;
         visible: string[];
         hidden: string[];
-        forbiddenPath?: string;
     }
 > = {
     admin: {
@@ -114,57 +118,6 @@ const roleExpectations: Record<
             'Komponen',
         ],
     },
-    technician: {
-        allowedPath: '/admin/spk',
-        visible: [
-            'Dasbor',
-            'Pelanggan',
-            'Barang',
-            'Aset Jaringan',
-            'SPK',
-            'Tiket',
-            'Permintaan Barang',
-            'Pekerjaan Saya',
-            'Evaluasi',
-            'Kinerja Teknisi',
-        ],
-        hidden: [
-            'Pengguna',
-            'Peran',
-            'Paket Layanan',
-            'Tagihan',
-            'Laporan',
-            'Dokumen',
-            'Penomoran',
-            'Organisasi',
-            'Perusahaan',
-            'Persetujuan',
-            'Penugasan',
-            'Komponen',
-        ],
-    },
-    customer: {
-        allowedPath: '/admin/tickets',
-        visible: ['Dasbor', 'Tiket'],
-        hidden: [
-            'Pengguna',
-            'Peran',
-            'Pelanggan',
-            'Barang',
-            'Aset Jaringan',
-            'SPK',
-            'Tagihan',
-            'Laporan',
-            'Paket Layanan',
-            'Permintaan Barang',
-            'Persetujuan',
-            'Penugasan',
-            'Pekerjaan Saya',
-            'Kinerja Teknisi',
-            'Komponen',
-        ],
-        forbiddenPath: '/admin/customers',
-    },
 };
 
 test('@kanban-t_525dca8a landing hydrates and exposes login only', async ({ page }) => {
@@ -211,15 +164,19 @@ test('@kanban-t_525dca8a register endpoint stays unavailable', async ({ page }) 
 test('@kanban-t_525dca8a seeded demo roles can login and see permitted shell', async ({ page }) => {
     for (const demoUser of demoUsers) {
         await login(page, demoUser);
+
+        if (isAppOnly(demoUser.role)) {
+            await expect(
+                page.getByRole('main').getByRole('heading', { name: 'Gunakan aplikasi Inbils' }),
+            ).toBeVisible();
+            await page.getByRole('button', { name: 'Keluar' }).click();
+            await expect(page.getByRole('link', { name: 'Log in' })).toBeVisible();
+            continue;
+        }
+
         await expectShellFor(page, demoUser);
         await expectRoleSidebar(page, demoUser.role);
         await expectPermittedAccess(page, demoUser.role);
-
-        if (demoUser.role === 'customer') {
-            const response = await page.request.get(roleExpectations.customer.forbiddenPath!);
-
-            expect(response.status()).toBe(403);
-        }
 
         await logout(page);
     }
@@ -260,7 +217,11 @@ async function login(page: Page, demoUser: DemoUser) {
     await page.getByLabel('Email').fill(demoUser.email);
     await page.getByLabel('Password').fill(demoPassword!);
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page).toHaveURL(/\/admin\/dashboard$/);
+    await expect(page).toHaveURL(isAppOnly(demoUser.role) ? /\/app-only$/ : /\/admin\/dashboard$/);
+}
+
+function isAppOnly(role: DemoRole): role is Extract<DemoRole, 'technician' | 'customer'> {
+    return appOnlyRoles.includes(role);
 }
 
 async function logout(page: Page) {
@@ -280,7 +241,7 @@ async function expectShellFor(page: Page, demoUser: DemoUser) {
     await expect(page.getByText(demoUser.name)).toBeVisible();
 }
 
-async function expectRoleSidebar(page: Page, role: DemoRole) {
+async function expectRoleSidebar(page: Page, role: WebRole) {
     const sidebar = page.locator('aside');
     const expectation = roleExpectations[role];
 
@@ -312,7 +273,7 @@ async function expandSidebarSections(sidebar: ReturnType<Page['locator']>) {
     }
 }
 
-async function expectPermittedAccess(page: Page, role: DemoRole) {
+async function expectPermittedAccess(page: Page, role: WebRole) {
     const response = await page.goto(roleExpectations[role].allowedPath);
 
     expect(response?.status()).toBe(200);

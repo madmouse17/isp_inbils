@@ -6,6 +6,7 @@ use App\Http\Middleware\Api\EnsureApiAppAccess;
 use App\Http\Middleware\Api\EnsureApiUserIsActive;
 use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\RedirectAppOnlyRoles;
 use App\Http\Middleware\RedirectIfNoCompany;
 use App\Http\Middleware\RequireHasCompany;
 use App\Http\Middleware\RequireNoCompany;
@@ -61,6 +62,7 @@ return Application::configure(basePath: dirname(__DIR__))
         }
 
         $middleware->alias([
+            'redirect.app.only' => RedirectAppOnlyRoles::class,
             'require.no.company' => RequireNoCompany::class,
             'require.has.company' => RequireHasCompany::class,
             'abilities' => CheckAbilities::class,

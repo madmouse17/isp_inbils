@@ -10,11 +10,13 @@ use Modules\Reporting\Registry\MetricRegistry;
 use Modules\Reporting\Registry\ReportType;
 use Tests\TestCase;
 use Tests\Traits\CreatesReportingUsers;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class ReportDictionaryTest extends TestCase
 {
     use CreatesReportingUsers;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

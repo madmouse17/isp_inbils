@@ -188,14 +188,6 @@ test.describe('@smoke @reporting-export report drill-down', () => {
         await expect(page.getByRole('status').filter({ hasText: 'Ties out' })).toBeVisible();
     });
 
-    test('a drill URL is refused without the source module permission', async ({ page }) => {
-        await loginAs(page, 'technician');
-
-        // The technician role holds report.technician only: no company-wide report opens.
-        expect((await download(page, '/admin/reports/business/drill/mrr')).status).toBe(403);
-        expect((await download(page, '/admin/reports/sla/drill/total_resolved')).status).toBe(403);
-    });
-
     test('export menu, drill links and tie-out stay usable across widths and themes', async ({
         page,
     }) => {

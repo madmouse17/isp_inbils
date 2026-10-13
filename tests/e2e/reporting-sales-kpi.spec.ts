@@ -61,7 +61,7 @@ const metricLabels = [
 ] as const;
 
 const hubRoles = ['admin', 'manager'] as const;
-const deniedRoles = ['staff', 'technician', 'customer'] as const;
+const deniedRoles = ['staff'] as const;
 
 const squash = (text: string) => text.replace(/\s+/g, ' ').trim();
 const digits = (text: string) => Number(text.replace(/\D/g, ''));

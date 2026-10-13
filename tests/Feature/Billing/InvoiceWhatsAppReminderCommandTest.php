@@ -90,7 +90,7 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
         ], $this->rowKeys());
         Http::assertSent(fn (Request $request): bool => $request->data()['template']['name'] === 'tagihan_pengingat' && $request->data()['to'] === '6281234567890');
         $this->assertSame(
-            ['PT Contoh Net', $h3->number, 'Rp 250.000', '17 Okt 2026', route('portal.invoices.show', $h3)],
+            ['PT Contoh Net', $h3->number, 'Rp 250.000', '17 Okt 2026', route('login')],
             array_column($this->graphRequests()->first()->data()['template']['components'][0]['parameters'], 'text'),
         );
         $row = $this->whatsAppRows()->first();
@@ -197,8 +197,8 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
         $byRecipient = $this->graphRequests()->mapWithKeys(fn (Request $request): array => [
             $request->data()['to'] => array_column($request->data()['template']['components'][0]['parameters'], 'text'),
         ])->all();
-        $this->assertSame(['PT Contoh Net', 'INV-DUP-1', 'Rp 250.000', '15 Okt 2026', route('portal.invoices.show', $mine)], $byRecipient['6281234567890']);
-        $this->assertSame(['CV Lain', 'INV-DUP-1', 'Rp 900.000', '15 Okt 2026', route('portal.invoices.show', $theirs)], $byRecipient['6281399990001']);
+        $this->assertSame(['PT Contoh Net', 'INV-DUP-1', 'Rp 250.000', '15 Okt 2026', route('login')], $byRecipient['6281234567890']);
+        $this->assertSame(['CV Lain', 'INV-DUP-1', 'Rp 900.000', '15 Okt 2026', route('login')], $byRecipient['6281399990001']);
         $this->assertSame([$mine->id], $this->whatsAppRows($this->company->id)->pluck('subject_id')->all());
         $this->assertSame([$theirs->id], $this->whatsAppRows($other->id)->pluck('subject_id')->all());
     }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AppOnlyController;
 use App\Http\Controllers\Operations\ReadinessController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Setup\SetupWizardController;
@@ -22,6 +23,8 @@ Route::get('/dashboard', fn () => redirect()->route('admin.dashboard'))
     ->name('dashboard');
 
 Route::get('/ready', ReadinessController::class);
+
+Route::get('/app-only', AppOnlyController::class)->middleware(['auth', 'verified'])->name('app-only');
 
 Route::middleware(['auth', 'verified', 'require.no.company'])->prefix('setup')->name('setup.')->group(function () {
     Route::get('/', [SetupWizardController::class, 'index'])->name('index');

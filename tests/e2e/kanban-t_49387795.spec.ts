@@ -1,5 +1,6 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import {
     expectDetail,
@@ -19,6 +20,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 
     test('@kanban-t_49387795 creates, assigns, and starts SPK with visible lifecycle states', async ({
         page,
+        request,
     }) => {
         const customerName = await createCustomer(page, `SPK-${runId}`);
         const title = 'E2E T49387795 SPK lifecycle';
@@ -64,17 +66,17 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await expectSpkState(page, 'assigned');
         await expectDetail(page, 'Technician', 'Demo Technician');
 
-        // Starting is limited to the assigned technician (WorkOrderPolicy::start).
+        // Starting is limited to the assigned technician (WorkOrderPolicy::start), who works in the app.
         await logout(page);
-        await loginAs(page, 'technician');
+        const api = await apiLogin(request, 'technician');
+        const started = await api.post(
+            `technician/work-orders/${spkUrl.split('/').pop()}/start`,
+            {},
+        );
+        expect(started.status()).toBe(200);
+
+        await loginAs(page, 'admin');
         await page.goto(spkUrl);
-        await expectSpkState(page, 'assigned');
-        await expect(page.getByRole('button', { name: 'Start' })).toBeVisible();
-
-        await page.getByRole('button', { name: 'Start' }).click();
-        const startDialog = page.getByRole('dialog', { name: 'Start' });
-        await startDialog.getByRole('button', { name: 'Confirm' }).click();
-
         await expectSpkState(page, 'in_progress');
         await expect(page.getByRole('button', { name: 'Submit for Review' })).toBeVisible();
     });
@@ -137,6 +139,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
 
     test('@kanban-t_49387795 creates ticket, assigns, starts, comments, and spawns SPK', async ({
         page,
+        request,
     }) => {
         const customerName = await createCustomer(page, `TICKET-${runId}`);
         const handlerId = await technicianUserId(page);
@@ -176,15 +179,14 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         // Starting is limited to the assigned handler (TicketPolicy::start).
         const ticketUrl = page.url();
         await logout(page);
-        await loginAs(page, 'technician');
-        await page.goto(ticketUrl);
-        await page.getByRole('button', { name: 'Start' }).click();
-        await expectDetail(page, 'Status', 'on_progress');
+        const api = await apiLogin(request, 'technician');
+        const started = await api.post(`technician/tickets/${ticketId}/start`, {});
+        expect(started.status()).toBe(200);
 
-        // Internal comments and SPK spawning are abilities the technician lacks.
-        await logout(page);
+        // Internal comments and SPK spawning are staff abilities.
         await loginAs(page, 'admin');
         await page.goto(ticketUrl);
+        await expectDetail(page, 'Status', 'on_progress');
         await expect(page.getByRole('button', { name: 'Spawn SPK' })).toBeVisible();
 
         await page.getByRole('button', { name: 'Add Comment' }).click();

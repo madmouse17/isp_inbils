@@ -11,7 +11,7 @@ use Modules\Reporting\Registry\ReportType;
 
 // Each report is gated by its own capability (see Modules\Reporting\Registry\ReportType);
 // `report.view` only opens the Reports hub.
-Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('reports', [ReportController::class, 'index'])
         ->middleware('can:report.view')
         ->name('reports.index');

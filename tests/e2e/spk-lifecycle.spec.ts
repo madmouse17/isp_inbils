@@ -8,6 +8,7 @@
  */
 import type { Page } from '@playwright/test';
 
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import {
     PNG_1X1,
@@ -92,28 +93,38 @@ test.describe('@lifecycle SPK installation', () => {
         await expectDetail(page, 'Technician', 'Demo Technician');
     });
 
-    test('technician starts, uploads evidence, submits for review', async ({ page }) => {
+    test('technician starts, uploads evidence, submits for review through the app API', async ({
+        page,
+        request,
+    }) => {
         expect(spkUrl).toBeTruthy();
-        await loginAs(page, 'technician');
+        const id = spkUrl.match(/\/admin\/spk\/(\d+)/)?.[1];
+        expect(id, 'SPK id in the URL').toBeTruthy();
+
+        const api = await apiLogin(request, 'technician');
+        const woPath = `technician/work-orders/${id}`;
+        const status = async () =>
+            ((await (await api.get(woPath)).json()) as { data: { status: string } }).data.status;
+        expect(await status()).toBe('assigned');
+
+        expect((await api.post(`${woPath}/start`, {})).status()).toBe(200);
+        expect(await status()).toBe('in_progress');
+
+        const evidence = await api.postFile(
+            `${woPath}/evidence`,
+            { name: `evidence-${runId}.png`, mimeType: 'image/png', buffer: PNG_1X1 },
+            { caption: `caption-${runId}` },
+        );
+        expect(evidence.status()).toBe(201);
+
+        expect((await api.post(`${woPath}/submit`, {})).status()).toBe(200);
+        expect(await status()).toBe('waiting_review');
+
+        // Staff see the evidence and the review state on the web.
+        await loginAs(page, 'admin');
         await page.goto(spkUrl);
-
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
-        await expectSpkState(page, 'assigned');
-
-        await page.getByRole('button', { name: 'Start' }).click();
-        await page
-            .getByRole('dialog', { name: 'Start' })
-            .getByRole('button', { name: 'Confirm' })
-            .click();
-        await expectSpkState(page, 'in_progress');
-
-        await page.locator('input[type="file"]').setInputFiles({
-            name: `evidence-${runId}.png`,
-            mimeType: 'image/png',
-            buffer: PNG_1X1,
-        });
-        await page.getByLabel('Caption').fill(`caption-${runId}`);
-        await page.getByRole('button', { name: 'Upload' }).click();
+        await expectSpkState(page, 'waiting_review');
         await expect(page.getByText(`caption-${runId}`)).toBeVisible();
         const preview = page.getByRole('img', { name: `evidence-${runId}` });
         await expect(preview).toHaveAttribute('src', /^\/admin\/media\/\d+$/);
@@ -122,33 +133,14 @@ test.describe('@lifecycle SPK installation', () => {
                 preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
             )
             .toBe(true);
-
-        await page.getByRole('button', { name: 'Submit for Review' }).click();
-        await page
-            .getByRole('dialog', { name: 'Submit' })
-            .getByRole('button', { name: 'Confirm' })
-            .click();
-        await expectSpkState(page, 'waiting_review');
     });
 
-    test('technician is denied approve; manager approves to completed', async ({ page }) => {
+    test('manager approves to completed', async ({ page }) => {
         test.setTimeout(60_000);
         await logout(page);
         if (!spkUrl) {
             spkUrl = await createWaitingReviewSpk(page, title, runId, e2eCustomerName);
         }
-
-        await loginAs(page, 'technician');
-        await page.goto(spkUrl);
-        await expectSpkState(page, 'waiting_review');
-        await expect(page.getByRole('button', { name: 'Approve' })).toBeHidden();
-        await expect(page.getByRole('button', { name: 'Reject' })).toBeHidden();
-
-        const denied = await page.request.post(
-            spkUrl.replace(/\/admin\/spk\/(\d+).*/, '/admin/spk/$1/approve'),
-        );
-        expect([403, 419, 405, 302]).toContain(denied.status());
-        expect(denied.status()).not.toBe(200);
 
         await logout(page);
         await loginAs(page, 'manager');

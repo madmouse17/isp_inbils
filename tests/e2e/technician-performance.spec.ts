@@ -68,12 +68,7 @@ async function updateEmployee(
     expect(updated.status).toBe(status);
 }
 
-async function assertLayout(
-    page: Page,
-    width: number,
-    dark: boolean,
-    hasTechnicianSelector: boolean,
-) {
+async function assertLayout(page: Page, width: number, dark: boolean) {
     // The reload below would abort a chart chunk that is still loading.
     for (const title of chartTitles) await expectChartSettled(chartCard(page, title));
     await page.setViewportSize({ width, height: 800 });
@@ -84,20 +79,16 @@ async function assertLayout(
     const run = page.getByRole('button', { name: 'Run' });
     await expect(period).toBeVisible();
     await expect(run).toBeVisible();
-    await expect(page.getByLabel('Technician')).toHaveCount(hasTechnicianSelector ? 1 : 0);
+    await expect(page.getByLabel('Technician')).toHaveCount(1);
     // The charts load lazily: wait until they are drawn so the overflow check sees them.
     for (const title of chartTitles) await expectChartSettled(chartCard(page, title));
     expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
-    if (hasTechnicianSelector) {
-        await page.getByLabel('Technician').focus();
-        await expect(page.getByLabel('Technician')).toBeFocused();
-        await page.keyboard.press('Tab');
-    } else {
-        await period.focus();
-    }
+    await page.getByLabel('Technician').focus();
+    await expect(page.getByLabel('Technician')).toBeFocused();
+    await page.keyboard.press('Tab');
     await expect(period).toBeFocused();
     // The calendar button, and the clear button once a range is set, sit between the field and Run.
     for (let i = 0; i < 5 && !(await run.evaluate((el) => el === document.activeElement)); i++) {
@@ -114,7 +105,7 @@ async function assertLayout(
     ).toBe(true);
 }
 
-test('technician self and manager hierarchy use canonical report filters and capability navigation', async ({
+test('manager hierarchy uses canonical report filters and capability navigation', async ({
     page,
     expectHttpError,
 }) => {
@@ -149,38 +140,6 @@ test('technician self and manager hierarchy use canonical report filters and cap
 
         await updateEmployee(page, manager, created[0].id);
         await updateEmployee(page, technician, created[0].id);
-        await logout(page);
-
-        await loginAs(page, 'technician');
-        await page
-            .locator('details')
-            .filter({ has: page.locator('summary', { hasText: 'Keuangan & Laporan' }) })
-            .locator('summary')
-            .click();
-        await expect(page.getByRole('link', { name: 'Kinerja Teknisi' })).toBeVisible();
-        await page.getByRole('link', { name: 'Kinerja Teknisi' }).focus();
-        await page.keyboard.press('Enter');
-        await expect(page.getByRole('heading', { name: 'Kinerja Teknisi' }).first()).toBeVisible();
-        await expect(page.getByLabel('Technician')).toHaveCount(0);
-        await expect(page.getByRole('link', { name: 'Laporan', exact: true })).toHaveCount(0);
-        const selfRequest = page.waitForRequest(
-            (request) =>
-                request.method() === 'GET' &&
-                request.url().includes('/admin/reports/technician?date_from='),
-        );
-        await typeDateRange(
-            page,
-            page.getByLabel('Periode', { exact: true }),
-            '2026-01-01',
-            '2026-01-31',
-        );
-        await page.getByRole('button', { name: 'Run' }).click();
-        const selfUrl = new URL((await selfRequest).url());
-        expect(selfUrl.searchParams.has('technician_id')).toBe(false);
-        expect(selfUrl.searchParams.get('date_from')).toBe('2026-01-01');
-        expect(selfUrl.searchParams.get('date_to')).toBe('2026-01-31');
-        for (const dark of [false, true])
-            for (const width of [1280, 320]) await assertLayout(page, width, dark, false);
         await logout(page);
 
         await loginAs(page, 'manager');
@@ -221,7 +180,7 @@ test('technician self and manager hierarchy use canonical report filters and cap
         expect(teamUrl.searchParams.get('date_to')).toBe('2026-02-28');
         await expect(page.getByText('SPK Completed')).toBeVisible();
         for (const dark of [false, true])
-            for (const width of [1280, 320]) await assertLayout(page, width, dark, true);
+            for (const width of [1280, 320]) await assertLayout(page, width, dark);
         await logout(page);
 
         await loginAs(page, 'admin');

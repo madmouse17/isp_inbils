@@ -24,6 +24,7 @@ use Modules\Inventory\Services\MaterialReturnService;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Database\Factories\ServicePackageFactory;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
+use Modules\SPK\Models\WorkOrderItem;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
@@ -158,11 +159,16 @@ trait BuildsMatrixWorld
         $this->ids['customer_ticket'] = $customerTicket->id;
         $this->ids['ticket_attachment'] = $customerTicket->addMediaFromString('png')->usingFileName('photo.png')
             ->withCustomProperties(['company_id' => $companyId])->toMediaCollection('attachments')->id;
+        $this->ids['customer_attachment'] = $customerTicket->addMediaFromString('png')->usingFileName('mine.png')
+            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->customerUser->id])->toMediaCollection('attachments')->id;
 
-        $this->ids['technician_ticket'] = $make([
+        $technicianTicket = $make([
             'source' => 'internal', 'status' => 'assigned', 'assigned_to' => $this->technician->id,
             'customer_id' => Customer::factory()->create(['company_id' => $companyId])->id,
-        ])->id;
+        ]);
+        $this->ids['technician_ticket'] = $technicianTicket->id;
+        $this->ids['technician_attachment'] = $technicianTicket->addMediaFromString('png')->usingFileName('site.png')
+            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->technician->id])->toMediaCollection('attachments')->id;
     }
 
     private function buildFieldWork(): void
@@ -191,6 +197,14 @@ trait BuildsMatrixWorld
             'source_location_id' => $location->id, 'quantity_requested' => 10, 'quantity_approved' => 10, 'quantity_issued' => 10,
         ]);
         $this->ids['material_return'] = MaterialReturnService::createForIssuedRequest($request)->id;
+
+        $this->ids['work_order_item'] = WorkOrderItem::query()->create([
+            'company_id' => $companyId, 'work_order_id' => $workOrder->id, 'product_id' => $product->id, 'quantity_used' => 2,
+        ])->id;
+        $this->ids['inventory_request'] = InventoryRequest::query()->create([
+            'company_id' => $companyId, 'code' => 'REQ-'.Str::upper(Str::random(6)), 'requested_by' => $this->technician->id,
+            'warehouse_location_id' => $location->id, 'status' => 'submitted', 'reason' => 'Need cable', 'submitted_at' => now(),
+        ])->id;
     }
 
     private function buildNotifications(): void
@@ -264,14 +278,18 @@ trait BuildsMatrixWorld
         return match ($name) {
             'customer.subscriptions.show' => [$this->ids['subscription']],
             'customer.invoices.show', 'customer.invoices.pay' => [$this->ids['invoice']],
-            'customer.tickets.show', 'customer.tickets.comments.store' => [$this->ids['customer_ticket']],
+            'customer.tickets.show', 'customer.tickets.comments.store', 'customer.tickets.attachments.store' => [$this->ids['customer_ticket']],
+            'customer.tickets.attachments.destroy' => [$this->ids['customer_ticket'], $this->ids['customer_attachment']],
             'devices.destroy' => [$this->ids['customer_device']],
             'media.show' => [$this->ids['ticket_attachment']],
             'notifications.read' => [$this->ids['customer_notification']],
-            'technician.tickets.show', 'technician.tickets.start', 'technician.tickets.resolve', 'technician.tickets.comments.store' => [$this->ids['technician_ticket']],
-            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.submit', 'technician.work-orders.evidence.store' => [$this->ids['work_order']],
+            'technician.tickets.show', 'technician.tickets.start', 'technician.tickets.resolve', 'technician.tickets.comments.store', 'technician.tickets.attachments.store' => [$this->ids['technician_ticket']],
+            'technician.tickets.attachments.destroy' => [$this->ids['technician_ticket'], $this->ids['technician_attachment']],
+            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.submit', 'technician.work-orders.evidence.store', 'technician.work-orders.items.store' => [$this->ids['work_order']],
             'technician.work-orders.evidence.destroy' => [$this->ids['work_order'], $this->ids['evidence']],
+            'technician.work-orders.items.destroy' => [$this->ids['work_order'], $this->ids['work_order_item']],
             'technician.material-returns.show', 'technician.material-returns.declare' => [$this->ids['material_return']],
+            'technician.inventory-requests.cancel' => [$this->ids['inventory_request']],
             default => [],
         };
     }

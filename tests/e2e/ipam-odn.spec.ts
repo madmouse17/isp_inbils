@@ -451,23 +451,6 @@ test('@ipam-odn staff sees the menu entries but no manage control', async ({ pag
     await expect(page.getByRole('button', { name: 'Set drop port' })).toBeVisible();
 });
 
-test('@ipam-odn technician reads the registers and cannot change them', async ({ page }) => {
-    await loginAs(page, 'technician');
-
-    await page.goto('/admin/ipam/prefixes');
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New prefix' })).toHaveCount(0);
-
-    await page.goto(`/admin/odn/assets/${await odnAssetId(page, 'odp', odpCode)}`);
-    await expect(page.getByRole('main').getByRole('heading', { name: odpCode })).toBeVisible();
-    await expect(page.getByRole('group', { name: /^Port \d+, free$/ }).first()).toBeVisible();
-    await expect(
-        page.getByRole('button', {
-            name: /^(Add splitter|Save connection|Delete splitter|Release)/,
-        }),
-    ).toHaveCount(0);
-});
-
 /**
  * Role x route matrix. Writes are sent with an empty body: a role that may write passes authorization
  * and gets 422 from validation, a role that may not gets 403 before validation. Nothing is stored.
@@ -475,16 +458,12 @@ test('@ipam-odn technician reads the registers and cannot change them', async ({
 test('@ipam-odn role matrix: who may read, who may write', async ({ page }) => {
     test.setTimeout(180_000);
 
-    type Row = Record<DemoRole, number>;
-    const read: Row = { admin: 200, manager: 200, staff: 200, technician: 200, customer: 403 };
-    const manage: Row = { admin: 422, manager: 422, staff: 403, technician: 403, customer: 403 };
-    const assignDrop: Row = {
-        admin: 422,
-        manager: 422,
-        staff: 422,
-        technician: 403,
-        customer: 403,
-    };
+    // Technician and customer accounts are app-only on the web (app-only.spec.ts), so they have no row.
+    type WebRole = Exclude<DemoRole, 'technician' | 'customer'>;
+    type Row = Record<WebRole, number>;
+    const read: Row = { admin: 200, manager: 200, staff: 200 };
+    const manage: Row = { admin: 422, manager: 422, staff: 403 };
+    const assignDrop: Row = { admin: 422, manager: 422, staff: 422 };
 
     await loginAs(page, 'admin');
     const subscriptionId = await linkedSubscriptionId(page);
@@ -511,7 +490,7 @@ test('@ipam-odn role matrix: who may read, who may write', async ({ page }) => {
         { url: `/admin/odn/ports/${portId}/drop`, expected: assignDrop },
     ];
 
-    for (const role of ['admin', 'manager', 'staff', 'technician', 'customer'] as DemoRole[]) {
+    for (const role of ['admin', 'manager', 'staff'] as WebRole[]) {
         await logout(page);
         await loginAs(page, role);
         const token = await refreshSession(page, '/admin/ipam/prefixes');

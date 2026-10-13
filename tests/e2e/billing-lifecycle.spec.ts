@@ -134,21 +134,6 @@ test.describe('@lifecycle billing', () => {
         ).toBeVisible();
         await gen.getByRole('button', { name: 'Batal' }).click();
     });
-
-    test('technician denied billing routes', async ({ page }) => {
-        await loginAs(page, 'technician');
-        await expect(
-            page.locator('aside').getByRole('link', { name: 'Tagihan', exact: true }),
-        ).toHaveCount(0);
-
-        const list = await page.request.get('/admin/invoices');
-        expect(list.status()).toBe(403);
-
-        const create = await page.request.get('/admin/invoices/create');
-        expect(create.status()).toBe(403);
-
-        await logout(page);
-    });
 });
 
 async function openDraftInvoice(page: import('@playwright/test').Page, customerName: string) {

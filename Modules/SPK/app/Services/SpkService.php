@@ -257,6 +257,63 @@ class SpkService
         });
     }
 
+    /**
+     * What the assigned technician used on site: sets the used quantity of a product's line (one line per product,
+     * as on the web) and leaves a planned reservation on it alone. Only while the SPK is in progress, so the manager
+     * reviewing the SPK sees the lines as the technician left them.
+     *
+     * @param  array{product_id: int, quantity: numeric-string|float|int}  $data
+     */
+    public static function addMaterial(WorkOrder $wo, User $actor, array $data): WorkOrderItem
+    {
+        return DB::transaction(function () use ($wo, $actor, $data): WorkOrderItem {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            Gate::forUser($actor)->authorize('submit', $wo);
+            self::assertItemReferences($wo, ['product_id' => $data['product_id']]);
+
+            $item = WorkOrderItem::query()->firstOrNew(['work_order_id' => $wo->id, 'product_id' => $data['product_id']]);
+            $item->quantity_used = $data['quantity'];
+            $item->save();
+
+            AuditService::log('work_order', 'item_recorded', ['product_id' => $item->product_id, 'quantity_used' => $item->quantity_used, 'recorded_by' => $actor->id], $wo);
+
+            return $item;
+        });
+    }
+
+    /**
+     * Takes back what the technician recorded and never erases the manager's plan: the used quantity goes to 0, and
+     * the line is deleted only when nothing else is on it. A reservation or a note keeps it; a serialized asset line
+     * is not the app's to touch (it cannot add one either). Withdrawing twice changes nothing.
+     */
+    public static function removeMaterial(WorkOrder $wo, int $itemId, User $actor): void
+    {
+        DB::transaction(function () use ($wo, $itemId, $actor): void {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            Gate::forUser($actor)->authorize('submit', $wo);
+            $item = $wo->items()->find($itemId);
+            abort_unless($item instanceof WorkOrderItem, 404);
+            abort_if($item->network_asset_id !== null, 422, 'A serialized asset line is managed by the office.');
+
+            if ((float) $item->quantity_reserved > 0 || filled($item->note)) {
+                $previous = $item->quantity_used;
+                $item->update(['quantity_used' => 0]);
+
+                if ($item->wasChanged('quantity_used')) {
+                    AuditService::log('work_order', 'item_usage_cleared', ['product_id' => $item->product_id, 'previous_quantity_used' => $previous, 'cleared_by' => $actor->id], $wo);
+                }
+
+                return;
+            }
+
+            $item->delete();
+
+            AuditService::log('work_order', 'item_removed', ['product_id' => $item->product_id, 'removed_by' => $actor->id], $wo);
+        });
+    }
+
     public static function submitForReview(WorkOrder $wo): WorkOrder
     {
         $expectedStatus = $wo->status;

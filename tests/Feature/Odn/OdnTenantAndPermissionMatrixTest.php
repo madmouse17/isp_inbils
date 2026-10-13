@@ -15,6 +15,7 @@ use Modules\NetworkAsset\Models\OdnSplitter;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsOdnTopology;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Ticket 07: the tenant boundary and the permission floor of every /admin/odn route, driven by the route
@@ -26,6 +27,7 @@ class OdnTenantAndPermissionMatrixTest extends TestCase
     use BuildsIpamOdnFixtures;
     use BuildsOdnTopology;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     /** No record in the URL, so it cannot be 404; the floor test covers it. */
     private const COLLECTION_ROUTES = ['admin.odn.index'];

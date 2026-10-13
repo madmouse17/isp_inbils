@@ -28,7 +28,7 @@ SubscriptionService.
 | noc | view invoice + subscription status (suspend flag) (no edit) |
 | staff | view + create draft + send + record payment (no suspend/delete) |
 | technician | no access (billing = back-office) |
-| customer (portal pilot) | view own invoices + pay online (Midtrans sandbox pilot, lihat "Pembayaran online") |
+| customer | tidak ada akses web; tagihan dan bayar online lewat aplikasi Android Inbils Pelanggan (lihat "Pembayaran online"). Web hanya menyisakan halaman return/finish Midtrans. |
 
 ## Entity
 
@@ -279,7 +279,7 @@ Lihat `docs/API.md` Section 7 (Billing group). Ringkas:
 - `POST   /admin/subscriptions/{sub}/suspend` (body: reason, `source` opsional `manual|overdue`, default `manual`)
 - `POST   /admin/subscriptions/{sub}/reactivate` (manual)
 - `GET    /admin/invoices/export`
-- `GET    /portal/invoices`, `GET /portal/invoices/{id}`, `POST /portal/invoices/{id}/pay`, `GET /portal/payments/return`, `GET|PUT /portal/password` (role customer, route name `portal.*`)
+- `GET /portal/payments/return` (role customer, route `portal.payments.return`; target Midtrans untuk pembayaran lama) dan `GET /pembayaran/selesai` (publik). Halaman web `/portal/invoices*` dan `/portal/password*` dihapus: pelanggan memakai aplikasi (`/api/v1/customer/*`); login teknisi/pelanggan murni di web diarahkan ke `/app-only`.
 - `POST   /webhooks/midtrans` (publik, bertanda tangan Midtrans; lihat "Pembayaran online")
 
 ## Pembayaran online (Midtrans Snap, pilot sandbox)
@@ -300,14 +300,14 @@ uji tercatat sebagai pembayaran sungguhan pada invoice). `MIDTRANS_BASE_URL`
 
 ### Alur
 1. Pelanggan (role `customer` yang tertaut ke `customers.user_id`, permission
-   `portal.invoice.view` / `portal.invoice.pay`) membuka `/portal/invoices`,
-   membuka invoice `sent|partial|overdue`, menekan **Bayar**. Akun lama yang
+   `portal.invoice.view` / `portal.invoice.pay`) membuka tagihan di aplikasi
+   Inbils Pelanggan (`GET /api/v1/customer/invoices`), membuka invoice
+   `sent|partial|overdue`, menekan **Bayar**. Akun lama yang
    passwordnya nomor telepon ditandai `users.must_change_password` (migrasi
    backfill) dan **password lamanya dimatikan**: `customers:rotate-legacy-passwords`
    (langkah deploy) menggantinya dengan password acak 32 karakter dan
-   mengantrekan link atur kata sandi. Selama bendera menyala semua halaman
-   invoice mengarah ke `/portal/password`, yang hanya menjelaskan dan menawarkan
-   "Kirim link baru" (throttle 3/menit). Bendera hanya dibersihkan oleh reset
+   mengantrekan link atur kata sandi. Selama bendera menyala API menolak login
+   aplikasi (lihat `ApiTokenService`). Bendera hanya dibersihkan oleh reset
    password yang selesai lewat link email (event `PasswordReset`), yang juga
    memutar `remember_token` dan menghapus sesi database akun itu. Batas: sesi
    driver `file`/`redis` tidak bisa dicari per user, jadi hanya cookie
@@ -464,8 +464,9 @@ yang bisa menandai attempt lunas.
 - [ ] Feature test ≥ 80% coverage.
 - [ ] UI: invoice list (filter type/status/source/customer/periode),
   detail (items table + payments timeline + linked subscription/spk +
-  suspend/reactivate buttons for recurring), form (add line dynamic),
-  portal pelanggan (invoice list, detail, bayar online, status pembayaran).
+  suspend/reactivate buttons for recurring), form (add line dynamic).
+  Layanan mandiri pelanggan (daftar tagihan, detail, bayar online) pindah ke
+  aplikasi Android; web hanya punya halaman return/finish Midtrans.
 - [ ] UI pakai Components/ui + composite.
 - [ ] Dark mode + responsive.
 
@@ -520,7 +521,7 @@ hanya bila `whatsapp_enabled` company aktif, eventnya dicentang, dan customer se
 
 Parameter positional `{{1}}`… urut seperti di `config/whatsapp.php`. Contoh nilai wajib diisi saat mendaftar.
 
-`tagihan_terbit` — params: nama company, nomor tagihan, total, jatuh tempo, link portal
+`tagihan_terbit` — params: nama company, nomor tagihan, total, jatuh tempo, link aplikasi pelanggan (setting `play_store_url_customer`; kosong → halaman login)
 
 ```
 Halo, tagihan layanan internet Anda dari {{1}} sudah terbit.
@@ -530,16 +531,16 @@ Jatuh tempo: {{4}}
 Rincian tagihan: {{5}}
 Terima kasih.
 ```
-Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://inbils.example/portal/invoices/12`
+Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://play.google.com/store/apps/details?id=id.inbils.customer`
 
-`tagihan_pengingat` — params: nama company, nomor tagihan, sisa tagihan, jatuh tempo, link portal (dipakai H-3, H-1, H+1)
+`tagihan_pengingat` — params: nama company, nomor tagihan, sisa tagihan, jatuh tempo, link aplikasi pelanggan (dipakai H-3, H-1, H+1)
 
 ```
 Pengingat dari {{1}}: tagihan {{2}} dengan sisa pembayaran {{3}} jatuh tempo pada {{4}}.
 Rincian tagihan: {{5}}
 Abaikan pesan ini jika Anda sudah membayar.
 ```
-Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://inbils.example/portal/invoices/12`
+Contoh: `PT Contoh Net`, `INV-2026-00012`, `Rp 250.000`, `14 Okt 2026`, `https://play.google.com/store/apps/details?id=id.inbils.customer`
 
 `pembayaran_diterima` — params: nama company, nomor tagihan, jumlah dibayar, sisa tagihan, tanggal bayar (timezone company)
 

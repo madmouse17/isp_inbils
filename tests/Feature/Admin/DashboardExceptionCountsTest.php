@@ -422,45 +422,6 @@ class DashboardExceptionCountsTest extends TestCase
         );
     }
 
-    public function test_personal_inventory_cards_use_the_actors_own_requests_and_returns(): void
-    {
-        $company = $this->makeCompany();
-        $other = $this->makeCompany();
-        $technician = $this->userWithRole($company, 'technician');
-        $colleague = $this->userWithRole($company, 'technician');
-
-        $this->inventoryRequest($company, $technician, 'draft');
-        $this->inventoryRequest($company, $technician, 'draft');
-        $this->inventoryRequest($company, $technician, 'ready_for_pickup');
-        $this->inventoryRequest($company, $technician, 'submitted');
-        $this->inventoryRequest($company, $technician, 'issued');
-        $this->inventoryRequest($company, $colleague, 'draft');
-        $this->inventoryRequest($other, $this->userWithRole($other, 'technician'), 'draft');
-
-        $this->returnCase($company, $technician, 'awaiting_declaration');
-        $this->returnCase($company, $technician, 'correction_required');
-        $this->returnCase($company, $technician, 'awaiting_receipt');
-        $this->returnCase($company, $colleague, 'awaiting_declaration');
-
-        $requests = $this->section($technician, 'my_requests');
-        $returns = $this->section($technician, 'my_returns');
-        $this->actingAs($technician);
-
-        $this->assertSame(3, $requests['count']);
-        $this->assertSame(InventoryRequestService::getBadgeCounts($technician)['my_requests'], $requests['count']);
-        $this->assertSame('info', $requests['severity']);
-        $this->assertSame('personal', $requests['group']);
-        $this->assertSame(route('admin.inventory.requests.index', ['tab' => 'my']), $requests['href']);
-
-        $this->assertSame(2, $returns['count']);
-        $this->assertSame(MaterialReturnService::getBadgeCounts($technician)['my_pending_returns'], $returns['count']);
-        $this->assertSame('info', $returns['severity']);
-        $this->assertSame(
-            route('admin.inventory.requests.index', ['tab' => 'returns', 'return_status' => 'awaiting_declaration']),
-            $returns['href'],
-        );
-    }
-
     public function test_warehouse_queue_cards_need_the_view_all_permission_that_makes_the_list_match(): void
     {
         $company = $this->makeCompany();
@@ -545,9 +506,7 @@ class DashboardExceptionCountsTest extends TestCase
         $this->invoice($company);
         $this->stockRow($company, '0.00', '1.00');
         $this->inventoryRequest($company, $creator, 'preparing');
-        $this->inventoryRequest($company, $admin, 'draft');
         $this->returnCase($company, $creator, 'awaiting_receipt');
-        $this->returnCase($company, $admin, 'awaiting_declaration');
 
         $severities = collect($this->sectionsOf($this->actingAs($admin)->get(route('admin.dashboard'))))->pluck('severity', 'key')->all();
 
@@ -560,8 +519,6 @@ class DashboardExceptionCountsTest extends TestCase
             'return_queue' => 'warning',
             'low_stock' => 'warning',
             'overdue_invoices' => 'danger',
-            'my_requests' => 'info',
-            'my_returns' => 'info',
         ], $severities);
     }
 

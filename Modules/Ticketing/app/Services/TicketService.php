@@ -10,7 +10,9 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -21,6 +23,7 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Models\TicketComment;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
 use Modules\Ticketing\Notifications\TicketCustomerUpdateNotification;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
 class TicketService
@@ -28,6 +31,9 @@ class TicketService
     private const MISSING_EXPECTED_ASSIGNED_TO = '__missing_expected_assigned_to__';
 
     private const MISSING_EXPECTED_UPDATED_AT = '__missing_expected_updated_at__';
+
+    /** A ticket is still being worked in these statuses; a file may be withdrawn only until it leaves them. */
+    private const OPEN_STATUSES = ['open', 'assigned', 'on_progress'];
 
     public static function create(array $data, int $createdBy): Ticket
     {
@@ -178,6 +184,88 @@ class TicketService
             'body' => $data['body'],
             'is_internal' => $data['is_internal'] ?? false,
         ]);
+    }
+
+    /**
+     * A ticket as the app user may reach it: any ticket of the company for a technician (the policy then narrows
+     * it to the assigned handler), only the customer's own for a customer, so a stranger's id is a plain 404.
+     */
+    public static function findForApp(int $id, ?Customer $customer): Ticket
+    {
+        return Ticket::query()
+            ->when($customer, fn (Builder $query, Customer $own): Builder => $query->where('customer_id', $own->id))
+            ->findOrFail($id);
+    }
+
+    /** The web's rules for attaching: the permission, plus the ticket policy (company, assignment or ownership). */
+    public static function mayAttach(User $user, Ticket $ticket): bool
+    {
+        return $user->can('ticket.attachment.upload')
+            && $user->can('view', $ticket)
+            && $user->can('attach', $ticket);
+    }
+
+    /** Whoever uploaded a file may withdraw it, but only while the ticket is still being worked. */
+    public static function mayRemoveAttachment(User $user, Ticket $ticket, Media $media): bool
+    {
+        return in_array($ticket->status, self::OPEN_STATUSES, true)
+            && (int) $media->getCustomProperty('uploaded_by') === (int) $user->id
+            && self::mayAttach($user, $ticket);
+    }
+
+    /**
+     * Files go to the private disk. The Idempotency-Key is kept on the media, so a retry that outlives the
+     * response cache still finds the file it already stored instead of adding a second one.
+     *
+     * @param  array{file: UploadedFile, caption?: ?string}  $data
+     */
+    public static function addAttachment(Ticket $ticket, User $actor, array $data, ?string $idempotencyKey = null): Media
+    {
+        return DB::transaction(function () use ($ticket, $actor, $data, $idempotencyKey): Media {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+            abort_unless(self::mayAttach($actor, $ticket), 403);
+
+            if ($idempotencyKey !== null) {
+                $existing = $ticket->getMedia('attachments')->first(
+                    fn (Media $media): bool => $media->getCustomProperty('idempotency_key') === $idempotencyKey
+                );
+                if ($existing instanceof Media) {
+                    return $existing;
+                }
+            }
+
+            $properties = [
+                'company_id' => $ticket->company_id,
+                'uploaded_by' => $actor->id,
+                'caption' => $data['caption'] ?? null,
+            ];
+            if ($idempotencyKey !== null) {
+                $properties['idempotency_key'] = $idempotencyKey;
+            }
+
+            $media = $ticket->addMedia($data['file'])->withCustomProperties($properties)->toMediaCollection('attachments');
+
+            AuditService::log('ticket', 'attachment_uploaded', ['media_id' => $media->id, 'uploaded_by' => $actor->id], $ticket);
+
+            return $media;
+        });
+    }
+
+    public static function removeAttachment(Ticket $ticket, int $mediaId, User $actor): void
+    {
+        DB::transaction(function () use ($ticket, $mediaId, $actor): void {
+            $ticket = self::lockedTicket($ticket->id);
+            self::assertCompany($ticket);
+            abort_unless(self::mayAttach($actor, $ticket), 403);
+            $media = $ticket->getMedia('attachments')->first(fn (Media $item): bool => (int) $item->id === $mediaId);
+            abort_unless($media instanceof Media, 404);
+            abort_unless(self::mayRemoveAttachment($actor, $ticket, $media), 403);
+
+            $media->delete();
+
+            AuditService::log('ticket', 'attachment_removed', ['media_id' => $mediaId, 'removed_by' => $actor->id], $ticket);
+        });
     }
 
     public static function resolve(Ticket $ticket, string $resolutionNote): Ticket

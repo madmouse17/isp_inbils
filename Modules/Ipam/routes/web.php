@@ -7,7 +7,7 @@ use Modules\Ipam\Http\Controllers\IpReservationController;
 use Modules\Ipam\Http\Controllers\SubscriptionAddressController;
 use Modules\Ipam\Http\Controllers\VlanController;
 
-Route::middleware(['auth', 'verified', 'require.has.company'])->prefix('admin/ipam')->name('admin.ipam.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin/ipam')->name('admin.ipam.')->group(function () {
     Route::get('prefixes', [IpPrefixController::class, 'index'])->name('prefixes.index');
     Route::post('prefixes', [IpPrefixController::class, 'store'])->name('prefixes.store');
     Route::get('prefixes/{prefix}', [IpPrefixController::class, 'show'])->name('prefixes.show');

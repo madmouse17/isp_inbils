@@ -16,6 +16,14 @@ class SettingService
         });
     }
 
+    /** The Play Store listing of an app ('technician'|'customer'), or null unless the owner set a https://play.google.com/ URL. */
+    public static function playStoreUrl(string $role): ?string
+    {
+        $url = self::get('play_store_url_'.$role);
+
+        return is_string($url) && str_starts_with($url, 'https://play.google.com/') ? $url : null;
+    }
+
     public static function set(string $key, mixed $value): Setting
     {
         $type = self::typeFor($value);

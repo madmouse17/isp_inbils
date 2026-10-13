@@ -35,6 +35,10 @@ class TechnicianInventoryRequestResource extends JsonResource
             'work_order' => $source instanceof WorkOrder ? ['id' => $source->id, 'code' => $source->code] : null,
             /** @var string|null */
             'updated_at' => $inventoryRequest->getAttribute('updated_at'),
+            'actions' => [
+                // Own request, still waiting for the warehouse: InventoryRequestPolicy::cancel.
+                'cancel' => $request->user()?->can('cancel', $inventoryRequest) ?? false,
+            ],
         ];
     }
 }

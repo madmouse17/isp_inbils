@@ -12,7 +12,8 @@
         "format:check": "prettier --check \"resources/js/**/*.{ts,tsx,css}\"",
         "test:e2e": "node scripts/e2e-canonical.mjs",
         "test:e2e:smoke": "node scripts/e2e-canonical.mjs --grep @smoke",
-        "test:e2e:ops-smoke": "node scripts/e2e-canonical.mjs --ops-smoke tests/e2e/ops-api-smoke.spec.ts"
+        "test:e2e:ops-smoke": "node scripts/e2e-canonical.mjs --ops-smoke tests/e2e/ops-api-smoke.spec.ts",
+        "docs:screenshots": "node scripts/docs-screenshots.mjs"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",

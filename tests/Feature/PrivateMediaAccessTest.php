@@ -20,11 +20,13 @@ use Spatie\MediaLibrary\HasMedia;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class PrivateMediaAccessTest extends TestCase
 {
     use CreatesCompanyUser;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     /** A 1x1 grey PNG. */
     private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';

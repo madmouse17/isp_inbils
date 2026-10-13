@@ -18,10 +18,12 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class TechnicianPerformanceAuthorizationTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

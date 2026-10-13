@@ -11,6 +11,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Reporting\Services\TechnicianReportAccess;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * `canTechnicianReport` (shared by the Reporting module) must equal what the report route answers.
@@ -18,6 +19,7 @@ use Tests\TestCase;
 class TechnicianReportFlagTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

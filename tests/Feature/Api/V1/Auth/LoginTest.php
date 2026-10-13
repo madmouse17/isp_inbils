@@ -46,6 +46,7 @@ class LoginTest extends TestCase
             'company' => ['id' => $user->company_id, 'name' => Company::query()->findOrFail($user->company_id)->name],
             'customer' => ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => null,
+            'phone' => $customer->phone,
         ], $response->json('data.user'));
         $this->assertSame(['data'], array_keys($response->json()));
         $this->assertTrue(Carbon::parse($response->json('data.expires_at'))->equalTo(now()->addDays(90)));

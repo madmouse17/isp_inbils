@@ -99,12 +99,6 @@ test.describe('@datatable-e Receivables', () => {
         }
     });
 
-    test('denies receivables access to a customer role', async ({ page }) => {
-        await loginAs(page, 'customer');
-        const denied = await page.request.get(path);
-        expect(denied.status()).toBe(403);
-    });
-
     test('preserves the existing suspension action and modal without submitting it', async ({
         page,
     }) => {

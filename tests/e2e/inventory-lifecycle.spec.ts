@@ -9,9 +9,8 @@
  * - The Stocks page is receive-only since the Indonesian UI refresh (modal
  *   "Terima Barang"); issue/transfer/adjust have no modal UI anymore, so those
  *   journey legs drive the same guarded POST endpoints through the
- *   authenticated request context (X-XSRF-TOKEN pattern proven by the
- *   technician-denial test below), while receive and movement evidence stay on
- *   real UI selectors.
+ *   authenticated request context (X-XSRF-TOKEN pattern), while receive and
+ *   movement evidence stay on real UI selectors.
  */
 import { expect, test } from './support/fixtures';
 import { inertiaProps, loginAs, logout, refreshSession, unique } from './support/demo';
@@ -103,43 +102,6 @@ test.describe('@lifecycle inventory', () => {
         for (const note of [receiveNote, issueNote, transferNote, adjustNote]) {
             await expect(page.getByRole('row').filter({ hasText: note }).first()).toBeVisible();
         }
-    });
-
-    test('technician denied stock adjust; can open stocks view', async ({ page }) => {
-        // Resolve a real product/location pair (no fixed IDs) via the admin stocks props.
-        await loginAs(page, 'admin');
-        const stocksProps = await inertiaProps(page, '/admin/stocks');
-        const productId = stocksProps?.props?.products?.data?.[0]?.id;
-        const locationId = stocksProps?.props?.locations?.data?.[0]?.id;
-        expect(productId).toBeTruthy();
-        expect(locationId).toBeTruthy();
-        await logout(page);
-
-        await loginAs(page, 'technician');
-        const stocks = await page.request.get('/admin/stocks');
-        expect([200, 403]).toContain(stocks.status());
-
-        // Warehouse-scoped technician lacks inventory.stock.adjust.request and the break-glass
-        // inventory.stock.adjust permission; both attempts must be forbidden, never a mutation.
-        // Refresh against a technician-reachable page (/admin/spk, the same landing
-        // page loginAs uses) so the session/XSRF cookies match the live technician
-        // session before the raw POST; a stale token surfaces as 419, not the
-        // required 403. This mirrors the proven ticket denial pattern.
-        const csrf = await refreshSession(page, '/admin/spk');
-        for (const path of ['/admin/stocks/adjust', '/admin/stocks/adjust/direct']) {
-            const adjust = await page.request.post(path, {
-                headers: { 'X-XSRF-TOKEN': csrf },
-                form: {
-                    product_id: String(productId),
-                    location_id: String(locationId),
-                    new_quantity: '0',
-                    note: `deny-${runId}`,
-                },
-            });
-            expect(adjust.status(), path).toBe(403);
-        }
-
-        await logout(page);
     });
 
     test('staff requests an adjustment and a different manager approves it', async ({ page }) => {

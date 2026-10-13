@@ -15,11 +15,13 @@ use Modules\Reporting\Registry\ReportType;
 use Modules\Service\Models\ServicePackage;
 use Tests\TestCase;
 use Tests\Traits\CreatesReportingUsers;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class ReportCapabilityTest extends TestCase
 {
     use CreatesReportingUsers;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     /** Route name => Inertia component of every report URL, hub included. */
     private const COMPONENTS = [

@@ -15,6 +15,7 @@ use Modules\Inventory\Models\Product;
 use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\StockService;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Bounded remediation verification: stock adjust/transfer are gated by
@@ -26,6 +27,7 @@ use Tests\TestCase;
 class StockPermissionTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

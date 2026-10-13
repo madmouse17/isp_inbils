@@ -1,8 +1,11 @@
 import { expect, test } from './support/fixtures';
 import { demoUsers, loginAs, type DemoRole } from './support/demo';
 
+// Technician and customer accounts are app-only on the web (app-only.spec.ts); they have no dashboard.
+type WebRole = Exclude<DemoRole, 'technician' | 'customer'>;
+
 const roleVisibility: Record<
-    DemoRole,
+    WebRole,
     {
         groups: string[];
         cards: string[];
@@ -11,15 +14,7 @@ const roleVisibility: Record<
     }
 > = {
     admin: {
-        groups: [
-            'Operasional',
-            'Persetujuan',
-            'Gudang',
-            'Keuangan',
-            'Aktivitas saya',
-            'Notifikasi',
-            'Administrasi',
-        ],
+        groups: ['Operasional', 'Persetujuan', 'Gudang', 'Keuangan', 'Notifikasi', 'Administrasi'],
         cards: [
             'Belum ditugaskan',
             'SLA terlampaui',
@@ -28,10 +23,8 @@ const roleVisibility: Record<
             'Antrean retur material',
             'Stok di bawah minimum',
             'Invoice jatuh tempo',
-            'Permintaan barang saya',
-            'Retur material saya',
         ],
-        hiddenGroups: [],
+        hiddenGroups: ['Aktivitas saya'],
         adminStats: true,
     },
     manager: {
@@ -63,37 +56,17 @@ const roleVisibility: Record<
         hiddenGroups: ['Persetujuan', 'Aktivitas saya', 'Administrasi'],
         adminStats: false,
     },
-    technician: {
-        groups: ['Operasional', 'Gudang', 'Aktivitas saya', 'Notifikasi'],
-        cards: [
-            'Pekerjaan saya',
-            'SLA terlampaui',
-            'Stok di bawah minimum',
-            'Permintaan barang saya',
-            'Retur material saya',
-        ],
-        hiddenGroups: ['Persetujuan', 'Keuangan', 'Administrasi'],
-        adminStats: false,
-    },
-    customer: {
-        groups: ['Operasional', 'Notifikasi'],
-        cards: ['Tiket'],
-        hiddenGroups: ['Persetujuan', 'Gudang', 'Keuangan', 'Aktivitas saya', 'Administrasi'],
-        adminStats: false,
-    },
 };
 
 for (const demoUser of demoUsers) {
     const { role } = demoUser;
+    if (role === 'technician' || role === 'customer') continue;
     const expectations = roleVisibility[role];
 
     test(`@dashboard-persona ${role} sees assigned capability groups and cards`, async ({
         page,
     }) => {
         await loginAs(page, role);
-        if (role === 'technician') {
-            await page.goto('/admin/dashboard');
-        }
 
         const main = page.getByRole('main');
         await expect(main.getByRole('heading', { name: 'Dasbor', level: 1 })).toBeVisible();
@@ -118,9 +91,6 @@ for (const demoUser of demoUsers) {
 
     test(`@dashboard-persona ${role} card links return 200 responses`, async ({ page }) => {
         await loginAs(page, role);
-        if (role === 'technician') {
-            await page.goto('/admin/dashboard');
-        }
 
         const main = page.getByRole('main');
 

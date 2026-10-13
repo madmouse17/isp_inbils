@@ -28,7 +28,7 @@ class TechnicianTicketResource extends CustomerTicketResource
                 'lng' => $this->location->lng === null ? null : (float) $this->location->lng,
             ] : null,
             'comments' => TechnicianTicketCommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media')),
+            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media', fn () => $this->resource->media->each->setRelation('model', $this->resource))),
         ]);
     }
 }

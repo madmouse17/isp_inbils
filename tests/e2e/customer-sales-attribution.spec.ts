@@ -291,48 +291,6 @@ test.describe('@customer-sales-attribution', () => {
         }
     });
 
-    test('technician sees no attribution anywhere and cannot open Edit', async ({
-        page,
-        expectHttpError,
-    }) => {
-        await loginAs(page, 'technician');
-
-        const { props } = await inertiaProps(
-            page,
-            `/admin/customers?search=${encodeURIComponent(filterSearch)}`,
-        );
-        const rows = (props?.customers?.data ?? []) as CustomerRow[];
-        expect(rows.map((row) => row.name).sort()).toEqual(
-            [filterManager, filterNone, filterStaff].sort(),
-        );
-        for (const row of rows) {
-            expect(row, `${row.name} row carries no attribution`).not.toHaveProperty('acquirer');
-            expect(row, `${row.name} row carries no attribution id`).not.toHaveProperty(
-                'acquired_by_user_id',
-            );
-        }
-
-        await page.goto(`/admin/customers?search=${encodeURIComponent(filterSearch)}`);
-        const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
-        await expect(main.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-        await expect(page.locator('tbody tr')).toHaveCount(3);
-        await expect(main.getByRole('columnheader', { name: 'Acquired by' })).toHaveCount(0);
-        await expect(acquiredByField(page)).toHaveCount(0);
-        await expect(main.getByText('Unassigned')).toHaveCount(0);
-
-        const id = rows.find((row) => row.name === filterManager)!.id;
-        await page.goto(`/admin/customers/${id}`);
-        await expect(main.getByRole('heading', { name: filterManager })).toBeVisible();
-        await expect(main.getByText(/^Acquired by:?\s*$/)).toHaveCount(0);
-        await expect(main.getByText(manager)).toHaveCount(0);
-
-        const editPath = `/admin/customers/${id}/edit`;
-        expectHttpError({ url: editPath, method: 'GET', status: 403 });
-        const edit = await page.goto(editPath);
-        expect(edit?.status()).toBe(403);
-    });
-
     test('manager Index filters by acquirer and Unassigned, reflects acquired_by in the URL, and has no sort control', async ({
         page,
     }) => {

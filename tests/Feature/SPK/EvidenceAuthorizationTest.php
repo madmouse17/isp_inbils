@@ -15,6 +15,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Who may add and remove SPK evidence on the web: the assigned technician while the SPK is in progress, and a
@@ -25,6 +26,7 @@ class EvidenceAuthorizationTest extends TestCase
 {
     use InteractsWithMobileApi;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

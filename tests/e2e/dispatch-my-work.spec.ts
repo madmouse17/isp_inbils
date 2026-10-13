@@ -1,23 +1,7 @@
-import type { Locator, Page, Request, Route } from '@playwright/test';
+import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test';
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
 import { loginAs, logout } from './support/demo';
-
-type InertiaPage = {
-    component: string;
-    props: Record<string, unknown>;
-    url: string;
-    version?: string | null;
-};
-
-async function currentInertiaPage(page: Page): Promise<InertiaPage> {
-    return page.evaluate(() => {
-        const pageState = (history.state as { page?: unknown } | null)?.page;
-        if (!pageState || typeof pageState !== 'object') {
-            throw new Error('Expected the current Inertia page state');
-        }
-        return pageState as InertiaPage;
-    });
-}
 
 function staleAssignmentBody(route: Route): string {
     const request = route.request();
@@ -58,15 +42,15 @@ async function openAssignedDispatchDialog(page: Page) {
     return dialog;
 }
 
-async function openAssignedMyWorkDialog(page: Page) {
-    await page.goto('/admin/my-work');
-    const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
-    await expect(row).toBeVisible();
-    await row.getByRole('button', { name: 'Mulai' }).click();
+/** Titles in the technician app's My Work list: the dispatcher's assignments land there. */
+async function myWorkTitles(request: APIRequestContext) {
+    const api = await apiLogin(request, 'technician');
+    const response = await api.get('technician/my-work?per_page=100');
+    expect(response.status()).toBe(200);
 
-    const dialog = page.getByRole('alertdialog');
-    await expect(dialog).toBeVisible();
-    return dialog;
+    return ((await response.json()) as { data: { title: string }[] }).data.map(
+        (item) => item.title,
+    );
 }
 
 function pageUrlForExpectedError(page: Page) {
@@ -98,15 +82,11 @@ async function cancelInertiaRequests(page: Page) {
 
 async function exerciseReload(
     page: Page,
-    queue: 'dispatch' | 'my-work',
     outcome: 'success' | 'failure' | 'cancel',
     expectHttpError: (error: { url: string; method: string; status: number }) => void,
 ) {
-    const isDispatch = queue === 'dispatch';
-    const dialog = page.getByRole(isDispatch ? 'dialog' : 'alertdialog');
-    const reload = dialog.getByRole('button', {
-        name: isDispatch ? 'Muat Ulang Antrean' : 'Muat Ulang Pekerjaan',
-    });
+    const dialog = page.getByRole('dialog');
+    const reload = dialog.getByRole('button', { name: 'Muat Ulang Antrean' });
     const reloadUrl = page.url();
 
     if (outcome === 'success') {
@@ -159,25 +139,15 @@ async function exerciseReload(
         } else {
             await reload.click();
             await seen;
-            if (isDispatch) {
-                await expect(
-                    dialog.getByRole('button', { name: 'Memuat Ulang...' }),
-                ).toBeDisabled();
-            } else {
-                await expect(
-                    dialog.getByRole('button', { name: 'Mulai Kerja', exact: true }),
-                ).toBeDisabled();
-            }
+            await expect(dialog.getByRole('button', { name: 'Memuat Ulang...' })).toBeDisabled();
             await expect(dialog.getByRole('button', { name: 'Batal', exact: true })).toBeDisabled();
             await cancelInertiaRequests(page);
         }
 
         const message =
             outcome === 'failure'
-                ? `Gagal memuat ulang ${isDispatch ? 'antrean' : 'pekerjaan'}. Terjadi gangguan koneksi atau respons tidak valid.`
-                : isDispatch
-                  ? 'Pemuatan ulang antrean dibatalkan. Status antrean belum dapat diperbarui.'
-                  : 'Pemuatan ulang pekerjaan dibatalkan. Status item belum dapat diperbarui.';
+                ? 'Gagal memuat ulang antrean. Terjadi gangguan koneksi atau respons tidak valid.'
+                : 'Pemuatan ulang antrean dibatalkan. Status antrean belum dapat diperbarui.';
         await expect(dialog.getByText(message, { exact: true }).last()).toBeVisible();
         expect(intercepted).toBe(1);
     } finally {
@@ -200,7 +170,10 @@ async function expectMobileBounds(page: Page, locator: Locator) {
 test.describe('@lifecycle dispatch-my-work', () => {
     test.describe.configure({ mode: 'serial' });
 
-    test('dispatches a seeded ticket and SPK into technician My Work', async ({ page }) => {
+    test('dispatches a seeded ticket and SPK into the technician work queue', async ({
+        page,
+        request,
+    }) => {
         await loginAs(page, 'admin');
         await page.goto('/admin/dispatch');
         await expect(
@@ -242,17 +215,14 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await assignFromQueue('E2E Dispatch Ticket', 'Pilih Petugas Tiket (Handler)');
         await assignFromQueue('E2E Dispatch SPK', 'Pilih Teknisi Lapangan');
 
+        // The technician works in the app: the assigned items show up in the app's My Work API.
         await logout(page);
-        await loginAs(page, 'technician');
-        await page.goto('/admin/my-work');
-        await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Pekerjaan Saya' }),
-        ).toBeVisible();
-        await expect(page.getByRole('table').getByText('E2E Dispatch Ticket')).toBeVisible();
-        await expect(page.getByRole('table').getByText('E2E Dispatch SPK')).toBeVisible();
+        const mine = await myWorkTitles(request);
+        expect(mine).toContain('E2E Dispatch Ticket');
+        expect(mine).toContain('E2E Dispatch SPK');
     });
 
-    test('keeps ordinary assignment validation retryable', async ({ page }) => {
+    test('keeps ordinary assignment validation retryable', async ({ page, request }) => {
         await loginAs(page, 'admin');
         await page.goto('/admin/dispatch?status=assigned');
 
@@ -338,12 +308,10 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await page.goto('/admin/dispatch?status=assigned');
         await expect(page.getByRole('table').getByText('E2E Dispatch Ticket')).toBeVisible();
         await logout(page);
-        await loginAs(page, 'technician');
-        await page.goto('/admin/my-work');
-        await expect(page.getByRole('table').getByText('E2E Dispatch Ticket')).toBeVisible();
+        expect(await myWorkTitles(request)).toContain('E2E Dispatch Ticket');
     });
 
-    test('deduplicates rapid native assignment submits', async ({ page }) => {
+    test('deduplicates rapid native assignment submits', async ({ page, request }) => {
         await logout(page);
         await loginAs(page, 'admin');
         await page.goto('/admin/dispatch?status=assigned');
@@ -427,9 +395,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await expect(page.getByRole('row').filter({ hasText: title })).toHaveCount(1);
 
         await logout(page);
-        await loginAs(page, 'technician');
-        await page.goto('/admin/my-work');
-        await expect(page.getByRole('row').filter({ hasText: title })).toHaveCount(1);
+        expect((await myWorkTitles(request)).filter((mine) => mine === title)).toHaveLength(1);
     });
 
     for (const outcome of ['success', 'failure', 'cancel'] as const) {
@@ -463,7 +429,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
                 await expect(dialog.getByRole('status')).toBeFocused();
                 expect(assignments).toBe(1);
 
-                await exerciseReload(page, 'dispatch', outcome, expectHttpError);
+                await exerciseReload(page, outcome, expectHttpError);
 
                 if (outcome === 'success') {
                     await expect(
@@ -491,170 +457,83 @@ test.describe('@lifecycle dispatch-my-work', () => {
                 await page.unroute(assignUrl, staleHandler);
             }
         });
-
-        test(`keeps stale My Work action fail-closed through reload ${outcome}`, async ({
-            page,
-            expectHttpError,
-        }) => {
-            await loginAs(page, 'technician');
-            const dialog = await openAssignedMyWorkDialog(page);
-            const currentPage = await currentInertiaPage(page);
-            expect(currentPage.component).toBe('Admin/MyWork/Index');
-            const items = currentPage.props.items as {
-                data: { id: number; domain: string; title: string; status: string }[];
-            };
-            const tickets = items.data.filter(
-                (item) => item.domain === 'ticket' && item.title === 'E2E Dispatch Ticket',
-            );
-            expect(tickets, 'Expected the assigned lifecycle ticket in My Work').toHaveLength(1);
-            expect(tickets[0].status).toBe('assigned');
-            const startUrl = new URL(`/admin/tickets/${tickets[0].id}/start`, page.url()).href;
-            let starts = 0;
-            const conflictMessage = 'Ticket start conflict: item state changed by another user.';
-            const staleHandler = async (route: Route) => {
-                if (route.request().method() !== 'POST') {
-                    await route.continue();
-                    return;
-                }
-                starts += 1;
-                await route.fulfill({
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json', 'X-Inertia': 'true' },
-                    body: JSON.stringify({
-                        ...currentPage,
-                        props: { ...currentPage.props, errors: { conflict: conflictMessage } },
-                    }),
-                });
-            };
-
-            try {
-                await page.route(startUrl, staleHandler);
-                await dialog.getByRole('button', { name: 'Mulai Kerja', exact: true }).click();
-                await expect(dialog.getByText('Item Sudah Berubah', { exact: true })).toBeVisible();
-                await expect(dialog.getByText(conflictMessage, { exact: true })).toBeVisible();
-                await expect(
-                    dialog.getByRole('button', { name: 'Mulai Kerja', exact: true }),
-                ).toBeDisabled();
-                expect(starts).toBe(1);
-
-                await exerciseReload(page, 'my-work', outcome, expectHttpError);
-
-                if (outcome === 'success') {
-                    await expect(
-                        dialog.getByText('Item Sudah Berubah', { exact: true }),
-                    ).toHaveCount(0);
-                    await expect(
-                        dialog.getByRole('button', { name: 'Mulai Kerja', exact: true }),
-                    ).toBeEnabled();
-                    await dialog.getByRole('button', { name: 'Batal', exact: true }).click();
-                    await expect(dialog).toBeHidden();
-                    await expect(
-                        page
-                            .getByRole('row')
-                            .filter({ hasText: 'E2E Dispatch Ticket' })
-                            .getByRole('button', { name: 'Mulai', exact: true }),
-                    ).toBeEnabled();
-                } else {
-                    await expect(dialog).toBeVisible();
-                    await expect(
-                        dialog.getByRole('button', { name: 'Mulai Kerja', exact: true }),
-                    ).toBeDisabled();
-                    await expect(
-                        dialog.getByRole('button', { name: 'Muat Ulang Pekerjaan' }),
-                    ).toBeEnabled();
-                }
-                expect(starts).toBe(1);
-            } finally {
-                await page.unroute(startUrl, staleHandler);
-            }
-        });
     }
 
-    for (const queue of ['dispatch', 'my-work'] as const) {
-        test(`opens and cancels ${queue} by keyboard without mutation`, async ({ page }) => {
-            const isDispatch = queue === 'dispatch';
-            await loginAs(page, isDispatch ? 'admin' : 'technician');
-            await page.goto(isDispatch ? '/admin/dispatch?status=assigned' : '/admin/my-work');
-            const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
-            const opener = row.getByRole('button', {
-                name: isDispatch ? 'Ganti Petugas' : 'Mulai',
+    test('opens and cancels dispatch by keyboard without mutation', async ({ page }) => {
+        await loginAs(page, 'admin');
+        await page.goto('/admin/dispatch?status=assigned');
+        const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
+        const opener = row.getByRole('button', { name: 'Ganti Petugas', exact: true });
+        const dialog = page.getByRole('dialog');
+        let mutations = 0;
+        const onRequest = (request: Request) => {
+            if (
+                request.method() === 'POST' &&
+                /\/admin\/(dispatch\/assign|tickets\/\d+\/start)$/.test(
+                    new URL(request.url()).pathname,
+                )
+            ) {
+                mutations += 1;
+            }
+        };
+
+        page.on('request', onRequest);
+        try {
+            await opener.focus();
+            await expect(opener).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(dialog).toBeVisible();
+            const cancel = dialog.getByRole('button', { name: 'Batal', exact: true });
+            await cancel.focus();
+            await expect(cancel).toBeFocused();
+            await page.keyboard.press('Enter');
+            await expect(dialog).toBeHidden();
+
+            await opener.focus();
+            await page.keyboard.press('Enter');
+            await expect(dialog).toBeVisible();
+            await page.keyboard.press('Escape');
+            await expect(dialog).toBeHidden();
+            expect(mutations).toBe(0);
+            await page.reload();
+            await expect(opener).toBeEnabled();
+        } finally {
+            page.removeListener('request', onRequest);
+        }
+    });
+
+    test('keeps dispatch cards and dialog actions within 320px', async ({ page }) => {
+        await loginAs(page, 'admin');
+        await page.setViewportSize({ width: 320, height: 800 });
+        await page.goto('/admin/dispatch?status=assigned');
+        await expect(page.getByRole('table')).toBeHidden();
+
+        for (const title of ['E2E Dispatch Ticket', 'E2E Dispatch SPK']) {
+            const card = page
+                .locator('div.md\\:hidden .rounded-lg.border')
+                .filter({ has: page.getByText(title, { exact: true }) })
+                .last();
+            await expectMobileBounds(page, card);
+            const opener = card.getByRole('button', { name: 'Ganti Petugas', exact: true });
+            await expectMobileBounds(page, opener);
+            expect((await opener.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+            await opener.click();
+
+            const dialog = page.getByRole('dialog');
+            await expectMobileBounds(page, dialog);
+            const submit = dialog.getByRole('button', {
+                name: 'Simpan Penugasan',
                 exact: true,
             });
-            const dialog = page.getByRole(isDispatch ? 'dialog' : 'alertdialog');
-            let mutations = 0;
-            const onRequest = (request: Request) => {
-                if (
-                    request.method() === 'POST' &&
-                    /\/admin\/(dispatch\/assign|tickets\/\d+\/start)$/.test(
-                        new URL(request.url()).pathname,
-                    )
-                ) {
-                    mutations += 1;
-                }
-            };
-
-            page.on('request', onRequest);
-            try {
-                await opener.focus();
-                await expect(opener).toBeFocused();
-                await page.keyboard.press('Enter');
-                await expect(dialog).toBeVisible();
-                const cancel = dialog.getByRole('button', { name: 'Batal', exact: true });
-                await cancel.focus();
-                await expect(cancel).toBeFocused();
-                await page.keyboard.press('Enter');
-                await expect(dialog).toBeHidden();
-
-                await opener.focus();
-                await page.keyboard.press('Enter');
-                await expect(dialog).toBeVisible();
-                await page.keyboard.press('Escape');
-                await expect(dialog).toBeHidden();
-                expect(mutations).toBe(0);
-                await page.reload();
-                await expect(opener).toBeEnabled();
-            } finally {
-                page.removeListener('request', onRequest);
+            const cancel = dialog.getByRole('button', { name: 'Batal', exact: true });
+            for (const action of [submit, cancel]) {
+                await action.scrollIntoViewIfNeeded();
+                await expectMobileBounds(page, action);
+                expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
             }
-        });
-
-        test(`keeps ${queue} cards and dialog actions within 320px`, async ({ page }) => {
-            const isDispatch = queue === 'dispatch';
-            await loginAs(page, isDispatch ? 'admin' : 'technician');
-            await page.setViewportSize({ width: 320, height: 800 });
-            await page.goto(isDispatch ? '/admin/dispatch?status=assigned' : '/admin/my-work');
-            await expect(page.getByRole('table')).toBeHidden();
-
-            for (const title of ['E2E Dispatch Ticket', 'E2E Dispatch SPK']) {
-                const card = page
-                    .locator('div.md\\:hidden .rounded-lg.border')
-                    .filter({ has: page.getByText(title, { exact: true }) })
-                    .last();
-                await expectMobileBounds(page, card);
-                const opener = card.getByRole('button', {
-                    name: isDispatch ? 'Ganti Petugas' : 'Mulai Kerja',
-                    exact: true,
-                });
-                await expectMobileBounds(page, opener);
-                expect((await opener.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-                await opener.click();
-
-                const dialog = page.getByRole(isDispatch ? 'dialog' : 'alertdialog');
-                await expectMobileBounds(page, dialog);
-                const submit = dialog.getByRole('button', {
-                    name: isDispatch ? 'Simpan Penugasan' : 'Mulai Kerja',
-                    exact: true,
-                });
-                const cancel = dialog.getByRole('button', { name: 'Batal', exact: true });
-                for (const action of [submit, cancel]) {
-                    await action.scrollIntoViewIfNeeded();
-                    await expectMobileBounds(page, action);
-                    expect((await action.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-                }
-                await cancel.click();
-                await expect(dialog).toBeHidden();
-                await expect(opener).toBeEnabled();
-            }
-        });
-    }
+            await cancel.click();
+            await expect(dialog).toBeHidden();
+            await expect(opener).toBeEnabled();
+        }
+    });
 });

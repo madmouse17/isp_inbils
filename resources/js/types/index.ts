@@ -113,6 +113,8 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
     canMyWork?: boolean;
     /** Shared by the Reporting module: true when the user may open Technician Performance. */
     canTechnicianReport?: boolean;
+    /** True when the user holds only technician and/or customer roles: they work in the Android app. */
+    appOnly?: boolean;
     /** True only where the `admin.components` route exists (local/testing). */
     developerGalleryEnabled?: boolean;
     notifications?: {

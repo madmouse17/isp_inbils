@@ -11,7 +11,6 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\SPK\Models\WorkOrder;
-use Modules\SPK\Models\WorkOrderItem;
 
 /**
  * What the technician app may see of an SPK: an allow-list, never the admin resource.
@@ -52,22 +51,15 @@ class TechnicianWorkOrderResource extends JsonResource
                 'package_name' => $wo->subscription->servicePackage?->name,
             ],
             'site' => $this->siteBlock(),
-            'items' => $wo->items->map(fn (WorkOrderItem $item): array => [
-                'id' => $item->id,
-                /** @var string|null */
-                'product_name' => data_get($item, 'product.name'),
-                /** @var string|null */
-                'unit' => data_get($item, 'product.unit.symbol') ?? data_get($item, 'product.unit.name'),
-                'quantity_reserved' => (float) $item->quantity_reserved,
-                'quantity_used' => (float) $item->quantity_used,
-                'note' => $item->note,
-            ])->values()->all(),
+            'items' => TechnicianWorkOrderItemResource::collection($wo->items),
             'evidence' => $user === null ? [] : EvidenceResource::many($wo->getMedia('evidence'), $user),
             'material_returns' => $this->materialReturns(),
             'actions' => [
                 'start' => $user?->can('start', $wo) ?? false,
                 'upload_evidence' => $user?->can('uploadEvidence', $wo) ?? false,
                 'submit' => $user?->can('submit', $wo) ?? false,
+                // Whoever may submit the SPK (its assigned technician, while it is in progress) keeps its material lines.
+                'edit_items' => $user?->can('submit', $wo) ?? false,
             ],
         ];
     }

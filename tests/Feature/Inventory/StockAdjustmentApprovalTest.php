@@ -19,6 +19,7 @@ use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Two-step stock adjustment (role-persona-sod D2=A): operator requests,
@@ -27,6 +28,7 @@ use Tests\TestCase;
 class StockAdjustmentApprovalTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $company;
 

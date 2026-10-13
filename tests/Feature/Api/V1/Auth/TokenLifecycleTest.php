@@ -49,6 +49,7 @@ class TokenLifecycleTest extends TestCase
             'company' => ['id' => $user->company_id, 'name' => $user->company->name],
             'customer' => ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => null,
+            'phone' => $customer->phone,
         ]], $response->json());
         foreach (['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token', 'token'] as $secret) {
             $response->assertJsonMissingPath('data.'.$secret);

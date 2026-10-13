@@ -16,7 +16,7 @@ class CustomerTicketResource extends JsonResource
             'description' => $this->when($this->resource->relationLoaded('comments'), $this->description),
             'resolution_note' => $this->when($this->resource->relationLoaded('comments'), $this->resolution_note),
             'comments' => CustomerTicketCommentResource::collection($this->whenLoaded('comments')),
-            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media')),
+            'attachments' => TicketAttachmentResource::collection($this->whenLoaded('media', fn () => $this->resource->media->each->setRelation('model', $this->resource))),
         ]);
     }
 

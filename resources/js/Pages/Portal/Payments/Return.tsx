@@ -1,14 +1,13 @@
-import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
 import {
     CheckCircleIcon,
     ClockIcon,
     ExclamationTriangleIcon,
     XCircleIcon,
 } from '@heroicons/react/24/outline';
-import { Button, Card, CardContent, EmptyState } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-import PortalLayout from '@/Layouts/PortalLayout';
+import { Button } from '@/Components/ui';
+import GuestLayout from '@/Layouts/GuestLayout';
 import { formatDateTime, formatMoney } from '@/lib/format';
 import type { PaymentAttemptStatus, PortalPaymentAttempt } from '@/types/portal';
 
@@ -34,13 +33,13 @@ const outcomes: Record<
     },
     failed: {
         title: 'Pembayaran gagal atau dibatalkan',
-        body: 'Tidak ada dana yang diterima. Anda dapat mencoba membayar lagi dari halaman tagihan.',
+        body: 'Tidak ada dana yang diterima. Anda dapat mencoba membayar lagi dari aplikasi Inbils.',
         Icon: XCircleIcon,
         tone: 'text-destructive',
     },
     expired: {
         title: 'Halaman pembayaran kedaluwarsa',
-        body: 'Batas waktu pembayaran sudah lewat. Buka tagihan untuk membuat halaman pembayaran baru.',
+        body: 'Batas waktu pembayaran sudah lewat. Buka tagihan di aplikasi Inbils untuk membuat halaman pembayaran baru.',
         Icon: XCircleIcon,
         tone: 'text-destructive',
     },
@@ -56,28 +55,40 @@ export default function Return({ attempt }: ReturnProps) {
     const [checking, setChecking] = useState(false);
     const outcome = attempt === null ? null : outcomes[attempt.status];
 
-    return (
-        <PortalLayout title="Status pembayaran">
-            <PageHeader
-                title="Status pembayaran"
-                subtitle="Status pembayaran terakhir yang tercatat di sistem kami."
-            />
+    // GuestLayout does not apply the saved or system theme itself.
+    useEffect(() => {
+        document.documentElement.classList.toggle(
+            'dark',
+            localStorage.getItem('darkMode') === 'true' ||
+                window.matchMedia('(prefers-color-scheme: dark)').matches,
+        );
+    }, []);
 
-            {attempt === null || outcome === null ? (
-                <Card>
-                    <EmptyState
-                        title="Tidak ada pembayaran yang ditemukan"
-                        description="Mulai pembayaran dari halaman tagihan. Statusnya akan tampil di sini."
-                        action={
-                            <Button asChild className="min-h-11">
-                                <Link href={route('portal.invoices.index')}>Lihat tagihan</Link>
-                            </Button>
-                        }
-                    />
-                </Card>
-            ) : (
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
+    return (
+        <GuestLayout>
+            <Head title="Status pembayaran" />
+            <main lang="id" className="space-y-5">
+                <header className="space-y-2">
+                    <h1 className="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+                        Status pembayaran
+                    </h1>
+                    <p className="text-sm text-muted-foreground">
+                        Status pembayaran terakhir yang tercatat di sistem kami.
+                    </p>
+                </header>
+
+                {attempt === null || outcome === null ? (
+                    <div role="status" className="space-y-1">
+                        <h2 className="text-lg font-semibold">
+                            Tidak ada pembayaran yang ditemukan
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            Mulai pembayaran dari tagihan di aplikasi Inbils. Statusnya akan tampil
+                            di sini.
+                        </p>
+                    </div>
+                ) : (
+                    <>
                         <div role="status" className="flex items-start gap-3">
                             <outcome.Icon
                                 className={`mt-0.5 size-7 shrink-0 ${outcome.tone}`}
@@ -106,36 +117,29 @@ export default function Return({ attempt }: ReturnProps) {
                             )}
                         </dl>
 
-                        <div className="flex flex-wrap gap-2">
-                            {attempt.status === 'pending' && (
-                                <Button
-                                    type="button"
-                                    className="min-h-11"
-                                    loading={checking}
-                                    onClick={() =>
-                                        router.reload({
-                                            only: ['attempt'],
-                                            onStart: () => setChecking(true),
-                                            onFinish: () => setChecking(false),
-                                        })
-                                    }
-                                >
-                                    Periksa status
-                                </Button>
-                            )}
+                        {attempt.status === 'pending' && (
                             <Button
-                                asChild
-                                variant={attempt.status === 'pending' ? 'outline' : 'default'}
+                                type="button"
                                 className="min-h-11"
+                                loading={checking}
+                                onClick={() =>
+                                    router.reload({
+                                        only: ['attempt'],
+                                        onStart: () => setChecking(true),
+                                        onFinish: () => setChecking(false),
+                                    })
+                                }
                             >
-                                <Link href={route('portal.invoices.show', attempt.invoice.id)}>
-                                    Buka tagihan
-                                </Link>
+                                Periksa status
                             </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
-        </PortalLayout>
+                        )}
+
+                        <p className="text-sm text-muted-foreground">
+                            Kembali ke aplikasi Inbils untuk melihat tagihan Anda.
+                        </p>
+                    </>
+                )}
+            </main>
+        </GuestLayout>
     );
 }

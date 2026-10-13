@@ -13,11 +13,13 @@ use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class MyWorkTest extends TestCase
 {
     use InteractsWithMobileApi;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     public function test_my_work_matches_the_web_items_and_summary_for_same_filters(): void
     {

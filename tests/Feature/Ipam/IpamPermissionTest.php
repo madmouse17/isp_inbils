@@ -13,6 +13,7 @@ use Modules\Ipam\Services\IpPrefixService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Q14: admin and manager hold all three IPAM permissions; staff and technician only view; the customer
@@ -22,6 +23,7 @@ class IpamPermissionTest extends TestCase
 {
     use BuildsIpamOdnFixtures;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private const ENDPOINTS = [
         'view' => ['prefixes.index', 'prefixes.show', 'vlans.index'],

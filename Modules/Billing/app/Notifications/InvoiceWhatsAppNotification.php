@@ -3,6 +3,7 @@
 namespace Modules\Billing\Notifications;
 
 use App\Notifications\WhatsAppNotification;
+use App\Services\Core\SettingService;
 use Modules\Billing\Models\Invoice;
 
 /**
@@ -16,6 +17,12 @@ abstract class InvoiceWhatsAppNotification extends WhatsAppNotification
     public function __construct(int $companyId, public readonly int $invoiceId)
     {
         parent::__construct($companyId);
+    }
+
+    /** Where the template's link points now that invoices live in the customer app: its Play Store listing, else the sign-in page. */
+    protected function appUrl(): string
+    {
+        return SettingService::playStoreUrl('customer') ?: route('login');
     }
 
     /**

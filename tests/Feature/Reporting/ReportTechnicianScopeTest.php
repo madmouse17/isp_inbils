@@ -15,6 +15,7 @@ use Tests\TestCase;
 use Tests\Traits\BuildsReportingWorld;
 use Tests\Traits\CreatesReportingUsers;
 use Tests\Traits\ParsesCsvDownloads;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Export and drill-down of Technician Performance reuse the report screen's own authorization:
@@ -28,6 +29,7 @@ class ReportTechnicianScopeTest extends TestCase
     use CreatesReportingUsers;
     use ParsesCsvDownloads;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private const JANUARY = ['date_from' => '2026-01-01', 'date_to' => '2026-01-31'];
 

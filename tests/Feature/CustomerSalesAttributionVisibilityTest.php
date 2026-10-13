@@ -11,11 +11,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 use Tests\Traits\BuildsCustomerAcquirers;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class CustomerSalesAttributionVisibilityTest extends TestCase
 {
     use BuildsCustomerAcquirers;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private Company $otherCompany;
 

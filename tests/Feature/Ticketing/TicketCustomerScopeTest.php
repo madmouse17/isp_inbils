@@ -19,11 +19,13 @@ use Modules\Ticketing\Services\TicketService;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class TicketCustomerScopeTest extends TestCase
 {
     use CreatesCompanyUser;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private User $admin;
 

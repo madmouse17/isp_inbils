@@ -15,6 +15,7 @@ use Modules\Reporting\Registry\ReportType;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\CreatesReportingUsers;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Who may take a report out as a file. Export needs `report.export` AND the report's own
@@ -24,6 +25,7 @@ class ReportExportAccessTest extends TestCase
 {
     use CreatesReportingUsers;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private const SLUGS = ['business', 'sla', 'asset', 'technician', 'stock-card', 'audit-log'];
 

@@ -47,7 +47,7 @@ class CustomerAccountCreated extends WhatsAppNotification
         return (new MailMessage())
             ->subject('Akun pelanggan Anda sudah dibuat')
             ->greeting('Halo '.$notifiable->name.',')
-            ->line('Akun pelanggan Anda sudah dibuat. Atur kata sandi lewat tombol di bawah untuk masuk ke portal.')
+            ->line('Akun pelanggan Anda sudah dibuat. Atur kata sandi lewat tombol di bawah, lalu masuk di aplikasi Inbils Pelanggan dengan email ini.')
             ->action('Atur kata sandi', $url)
             ->line('Tautan ini berlaku '.$minutes.' menit. Jika sudah kedaluwarsa, minta petugas kami mengirim ulang tautan akses.')
             ->line('Jika Anda tidak merasa mendaftar, abaikan email ini.');

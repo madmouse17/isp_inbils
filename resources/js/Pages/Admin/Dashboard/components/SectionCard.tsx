@@ -77,18 +77,14 @@ export function SectionCard({ section, company, className }: SectionCardProps) {
                     <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
                     {style.chip && <ToneBadge tone={style.chip.tone}>{style.chip.label}</ToneBadge>}
                 </div>
-                {count === null ? (
-                    <p className="mt-2 text-sm text-muted-foreground">Buka daftar tiket.</p>
-                ) : (
-                    <p
-                        className={cn(
-                            'mt-2 text-3xl font-bold tabular-nums',
-                            count === 0 ? 'text-muted-foreground' : style.count,
-                        )}
-                    >
-                        {formatNumber(count)}
-                    </p>
-                )}
+                <p
+                    className={cn(
+                        'mt-2 text-3xl font-bold tabular-nums',
+                        count === 0 ? 'text-muted-foreground' : style.count,
+                    )}
+                >
+                    {formatNumber(count)}
+                </p>
                 {count === 0 && (
                     <p className="mt-1 text-xs text-muted-foreground">
                         Tidak ada yang perlu ditangani.

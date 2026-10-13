@@ -208,7 +208,7 @@ class InvoicesTest extends TestCase
         $this->list('?page=0')->assertStatus(422)->assertJsonValidationErrors('page');
     }
 
-    public function test_the_detail_matches_what_the_portal_shows_for_the_same_invoice(): void
+    public function test_the_detail_carries_items_payments_and_the_payment_block(): void
     {
         $invoice = $this->invoiceOf($this->customer, ['status' => 'partial', 'paid_amount' => 54600, 'notes' => 'INTERNAL: customer owes us a favour']);
         $invoice->items()->create(['company_id' => $invoice->company_id, 'description' => 'Internet 20 Mbps', 'quantity' => 1, 'unit_price' => 154600, 'discount_amount' => 0, 'tax_rate' => 0, 'line_total' => 154600]);
@@ -216,12 +216,6 @@ class InvoicesTest extends TestCase
         $this->reverse($this->paymentOn($invoice, ['amount' => '1000.00']));
 
         $api = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
-        $portal = $this->actingAs($this->customerUser)->get(route('portal.invoices.show', $invoice->id))->assertOk()->viewData('page')['props'];
-
-        $this->assertEquals(
-            json_decode((string) json_encode($portal['invoice']['data'] + ['payment' => $portal['payment']]), true),
-            $api->json('data'),
-        );
         $api->assertJsonPath('data.sisa', '100000.00')
             ->assertJsonCount(1, 'data.items')
             ->assertJsonCount(1, 'data.payments')

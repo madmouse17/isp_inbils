@@ -5,8 +5,8 @@
  * Snap and Status APIs (.env.e2e points MIDTRANS_BASE_URL at it, with a fake server key), and the
  * notification the real gateway would POST is delivered by this spec, signed with the same fake key.
  *
- * Flow: staff issue an invoice -> the linked customer pays it from the portal (double click, then a
- * second visit) -> Midtrans "settles" -> the webhook books exactly one payment, replays change nothing
+ * Flow: staff issue an invoice -> the linked customer pays it through the app API (twice, one payment
+ * page) -> Midtrans "settles" -> the webhook books exactly one payment, replays change nothing
  * -> the return page and the invoice show the truth -> staff see the attempt. A second invoice shows
  * the amount-mismatch quarantine to staff.
  */
@@ -21,9 +21,9 @@ import {
     inertiaProps,
     loginAs,
     logout,
-    refreshSession,
     selectOptionByText,
 } from './support/demo';
+import { apiLogin } from './support/api';
 
 const MOCK_PORT = 18911;
 const MOCK_ORIGIN = `http://127.0.0.1:${MOCK_PORT}`;
@@ -232,43 +232,38 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await mock.stop();
     });
 
-    test('the customer pays from the portal, the webhook books one payment, staff see the attempt', async ({
+    test('the customer pays through the app API, the webhook books one payment, staff see the attempt', async ({
         page,
-        expectHttpError,
+        request,
     }) => {
-        // Inertia answers a POST that must leave the app with 409 + X-Inertia-Location.
-        expectHttpError({ url: /\/portal\/invoices\/\d+\/pay$/, status: 409, method: 'POST' });
-
         const invoice = await issueInvoice(page);
         await logout(page);
-        await loginAs(page, 'customer');
+        const api = await apiLogin(request, 'customer');
 
-        // The customer finds the invoice in their own list and opens it.
-        await page.goto('/portal/invoices');
-        await expect(page.getByRole('heading', { name: 'Tagihan Saya', level: 1 })).toBeVisible();
-        await page.getByRole('link', { name: new RegExp(`Bayar.*${invoice.number}`) }).click();
-        await expect(page.getByRole('heading', { name: `Tagihan ${invoice.number}`, level: 1 })).toBeVisible();
+        // The invoice is in the customer's own unpaid list and may be paid.
+        const list = await api.get('customer/invoices?status=unpaid');
+        expect(list.status()).toBe(200);
+        const listed = ((await list.json()) as { data: { id: number; number: string }[] }).data;
+        expect(listed.map((row) => row.number)).toContain(invoice.number);
+        const shown = await api.get(`customer/invoices/${invoice.id}`);
+        expect(((await shown.json()) as { data: { payment: { can_pay: boolean } } }).data.payment.can_pay).toBe(true);
 
-        // A double click on Pay still creates one payment page and lands on it.
-        const pay = page.getByRole('button', { name: /^Bayar Rp\s*100\.000$/ });
-        await expect(pay).toBeEnabled();
-        await pay.dblclick();
-        await page.waitForURL(`${MOCK_ORIGIN}/snap/pay/**`);
-        await expect(page.getByRole('heading', { name: 'Mock Midtrans hosted payment page' })).toBeVisible();
-        const hostedUrl = page.url();
+        // Paying twice (a double tap) creates one payment page and returns the same address.
+        const first = await api.post(`customer/invoices/${invoice.id}/pay`);
+        expect(first.status()).toBe(200);
+        const hostedUrl = ((await first.json()) as { data: { redirect_url: string } }).data.redirect_url;
+        const second = await api.post(`customer/invoices/${invoice.id}/pay`);
+        expect(second.status()).toBe(200);
+        expect(((await second.json()) as { data: { redirect_url: string } }).data.redirect_url).toBe(hostedUrl);
         const orderId = orderIdFrom(hostedUrl);
         expect(mock.snapRequests).toBe(1);
         expect(mock.orders.get(orderId)?.grossAmount).toBe(100000);
 
-        // Paying again reuses the open page instead of creating another one. Asked through the API:
-        // the fail-closed browser watcher admits exactly one expected 409 per test.
-        const token = await refreshSession(page, `/portal/invoices/${invoice.id}`);
-        const again = await page.request.post(`/portal/invoices/${invoice.id}/pay`, {
-            headers: { 'X-XSRF-TOKEN': token, 'X-Inertia': 'true' },
-        });
-        expect(again.status()).toBe(409);
-        expect(again.headers()['x-inertia-location']).toBe(hostedUrl);
-        expect(mock.snapRequests).toBe(1);
+        await page.goto(hostedUrl);
+        await expect(page.getByRole('heading', { name: 'Mock Midtrans hosted payment page' })).toBeVisible();
+
+        // The return page is the only customer web page left; it needs the customer web session.
+        await loginAs(page, 'customer');
 
         // Before the money arrives the return page tells the truth, whatever the address claims.
         await page.goto(`/portal/payments/return?order_id=${orderId}&transaction_status=settlement&status_code=200`);
@@ -293,29 +288,25 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await page.goto(`/portal/payments/return?order_id=${orderId}`);
         await expect(page.getByRole('heading', { name: 'Pembayaran diterima' })).toBeVisible();
 
-        await page.goto(`/portal/invoices/${invoice.id}`);
-        await expect(page.getByText('Lunas', { exact: true }).first()).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Bayar', exact: true })).toBeDisabled();
-        await expect(page.getByText('Tagihan sudah lunas.')).toBeVisible();
-        await expect(page.getByText('Pembayaran online', { exact: true })).toBeVisible();
+        // The app sees the invoice paid and no longer payable.
+        const paid = await api.get(`customer/invoices/${invoice.id}`);
+        const paidBody = ((await paid.json()) as { data: { status: string; payment: { can_pay: boolean } } }).data;
+        expect(paidBody.status).toBe('paid');
+        expect(paidBody.payment.can_pay).toBe(false);
+        expect((await api.post(`customer/invoices/${invoice.id}/pay`)).status()).toBe(422);
 
-        // At 320px nothing spills sideways on any portal page, and the dark theme still renders them.
+        // At 320px nothing spills sideways on the return page, and the dark theme still renders it.
         await page.setViewportSize({ width: 320, height: 800 });
         for (const dark of [false, true]) {
             await page.evaluate((enabled) => {
                 localStorage.setItem('darkMode', String(enabled));
             }, dark);
-            for (const path of [
-                '/portal/invoices',
-                `/portal/invoices/${invoice.id}`,
-                `/portal/payments/return?order_id=${orderId}`,
-            ]) {
-                await page.goto(path);
-                await expect(page.getByRole('main')).toBeVisible();
-                await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark).*$/);
-                const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-                expect(overflow, `${path} overflows horizontally at 320px (dark=${dark})`).toBeLessThanOrEqual(0);
-            }
+            const path = `/portal/payments/return?order_id=${orderId}`;
+            await page.goto(path);
+            await expect(page.getByRole('main')).toBeVisible();
+            await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark).*$/);
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+            expect(overflow, `${path} overflows horizontally at 320px (dark=${dark})`).toBeLessThanOrEqual(0);
         }
         await page.evaluate(() => localStorage.setItem('darkMode', 'false'));
         await page.setViewportSize({ width: 1280, height: 720 });
@@ -333,19 +324,15 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await expect(attemptRow).toContainText('bank_transfer');
     });
 
-    test('money that does not match the attempt is quarantined and shown to staff', async ({ page }) => {
+    test('money that does not match the attempt is quarantined and shown to staff', async ({ page, request }) => {
         const invoice = await issueInvoice(page);
         await logout(page);
-        await loginAs(page, 'customer');
 
-        // Start the payment the way the button does and read where the server sends the browser.
-        const token = await refreshSession(page, `/portal/invoices/${invoice.id}`);
-        const started = await page.request.post(`/portal/invoices/${invoice.id}/pay`, {
-            headers: { 'X-XSRF-TOKEN': token, 'X-Inertia': 'true' },
-        });
-        expect(started.status()).toBe(409);
-        const hostedUrl = started.headers()['x-inertia-location'];
-        if (!hostedUrl) throw new Error('The pay endpoint did not send the browser anywhere.');
+        // Start the payment the way the app does and read where it sends the customer.
+        const api = await apiLogin(request, 'customer');
+        const started = await api.post(`customer/invoices/${invoice.id}/pay`);
+        expect(started.status()).toBe(200);
+        const hostedUrl = ((await started.json()) as { data: { redirect_url: string } }).data.redirect_url;
         const orderId = orderIdFrom(hostedUrl);
 
         mock.settle(orderId, 1000);
@@ -353,6 +340,7 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         expect(delivered.status()).toBe(200);
 
         // The customer is told it is being checked, never shown the internal reason.
+        await loginAs(page, 'customer');
         await page.goto(`/portal/payments/return?order_id=${orderId}`);
         await expect(page.getByRole('heading', { name: 'Pembayaran sedang diperiksa' })).toBeVisible();
         await expect(page.getByText('gross_amount')).toHaveCount(0);

@@ -27,11 +27,13 @@ use Modules\Ticketing\Models\TicketCategory;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\AllowsManualCodes;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class P0CriticalPathTest extends TestCase
 {
     use AllowsManualCodes;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

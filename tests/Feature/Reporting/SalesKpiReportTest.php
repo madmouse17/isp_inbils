@@ -17,6 +17,7 @@ use Modules\Billing\Models\Payment;
 use Modules\Service\Models\ServicePackage;
 use Tests\TestCase;
 use Tests\Traits\BuildsCustomerAcquirers;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * HTTP contract of the Sales KPI report: authorization, props, tenancy, sorting, paging and validation.
@@ -26,6 +27,7 @@ class SalesKpiReportTest extends TestCase
 {
     use BuildsCustomerAcquirers;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private const METRIC_KEYS = [
         'customers_acquired', 'subscriptions_activated', 'active_mrr', 'invoiced',

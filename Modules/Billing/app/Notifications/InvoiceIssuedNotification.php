@@ -3,7 +3,7 @@
 namespace Modules\Billing\Notifications;
 
 /**
- * "Tagihan terbit": the invoice number, total, due date and its portal link. A batch message, so it waits
+ * "Tagihan terbit": the invoice number, total, due date and the link to the customer app. A batch message, so it waits
  * out the company's quiet hours.
  */
 class InvoiceIssuedNotification extends InvoiceWhatsAppNotification
@@ -21,7 +21,7 @@ class InvoiceIssuedNotification extends InvoiceWhatsAppNotification
             $invoice->number,
             $this->formatMoney($invoice->total),
             $this->formatDate($invoice->due_date),
-            route('portal.invoices.show', $invoice),
+            $this->appUrl(),
         ], 'invoice', $invoice->id, 'invoice_issued:'.$invoice->id);
     }
 

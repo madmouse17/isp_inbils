@@ -173,6 +173,16 @@ class RolePermissionSeederTest extends TestCase
         }
     }
 
+    public function test_ticket_attachment_upload_is_held_by_admin_staff_technician_and_customer(): void
+    {
+        $this->assertTrue(Permission::where('name', 'ticket.attachment.upload')->exists());
+
+        // The two app personas upload through the mobile API (docs/SECURITY.md 4.7); the manager never did.
+        foreach (['admin' => true, 'manager' => false, 'staff' => true, 'technician' => true, 'customer' => true] as $role => $holds) {
+            $this->assertSame($holds, Role::findByName($role)->hasPermissionTo('ticket.attachment.upload'), $role);
+        }
+    }
+
     public function test_seeding_again_keeps_the_customer_sales_grants_unchanged(): void
     {
         $before = ['manager' => $this->salesPermissionsOf('manager'), 'staff' => $this->salesPermissionsOf('staff')];

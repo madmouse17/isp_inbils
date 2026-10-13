@@ -15,6 +15,7 @@ use Modules\Ipam\Models\Vlan;
 use Modules\Ipam\Services\IpAssignmentService;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Ticket 07: the tenant boundary and the permission floor of every /admin/ipam route, driven by the route
@@ -32,6 +33,7 @@ class IpamTenantAndPermissionMatrixTest extends TestCase
 {
     use BuildsIpamOdnFixtures;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     /** No record in the URL, so they cannot be 404; the body test and the floor test cover them. */
     private const COLLECTION_ROUTES = [

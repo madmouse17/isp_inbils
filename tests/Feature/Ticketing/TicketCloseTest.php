@@ -11,11 +11,13 @@ use Modules\Ticketing\Services\TicketService;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class TicketCloseTest extends TestCase
 {
     use CreatesCompanyUser;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private User $admin;
 

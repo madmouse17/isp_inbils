@@ -9,6 +9,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Core\SettingService;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -103,7 +104,7 @@ class InvoiceWhatsAppNotificationTest extends TestCase
         $invoice = Invoice::query()->where('type', 'recurring')->sole();
         $this->assertCount(1, $this->graphRequests());
         Http::assertSent(fn (Request $request): bool => $request->data()['to'] === '6281234567890' && $request->data()['template']['name'] === 'tagihan_terbit');
-        $this->assertSame(['PT Contoh Net', $invoice->number, 'Rp 333.000', '15 Jun 2026', route('portal.invoices.show', $invoice)], $this->parameters());
+        $this->assertSame(['PT Contoh Net', $invoice->number, 'Rp 333.000', '15 Jun 2026', route('login')], $this->parameters());
 
         $row = $this->whatsAppRows()->sole();
         $this->assertSame('sent', $row->status);
@@ -112,6 +113,26 @@ class InvoiceWhatsAppNotificationTest extends TestCase
         $this->assertSame($invoice->id, $row->subject_id);
         $this->assertSame('invoice_issued:'.$invoice->id, $row->dedupe_key);
         $this->assertSame($this->customer->id, $row->recipient_id);
+    }
+
+    public function test_the_message_link_is_the_customer_app_listing_when_the_owner_set_one(): void
+    {
+        SettingService::set('play_store_url_customer', 'https://play.google.com/store/apps/details?id=id.inbils.customer');
+        $this->subscription();
+
+        BillingService::generateForPeriod('2026-06');
+
+        $this->assertSame('https://play.google.com/store/apps/details?id=id.inbils.customer', $this->parameters()[4]);
+    }
+
+    public function test_a_message_link_outside_google_play_falls_back_to_the_login_page(): void
+    {
+        SettingService::set('play_store_url_customer', 'https://evil.example/app');
+        $this->subscription();
+
+        BillingService::generateForPeriod('2026-06');
+
+        $this->assertSame(route('login'), $this->parameters()[4]);
     }
 
     public function test_a_forced_rollback_after_the_insert_sends_nothing(): void
@@ -155,7 +176,7 @@ class InvoiceWhatsAppNotificationTest extends TestCase
         $this->actingAs($this->admin)->post(route('admin.invoices.send', $draft))->assertRedirect();
 
         $this->assertCount(1, $this->graphRequests());
-        $this->assertSame(['PT Contoh Net', $draft->number, 'Rp 100.000', '20 Jun 2026', route('portal.invoices.show', $draft)], $this->parameters());
+        $this->assertSame(['PT Contoh Net', $draft->number, 'Rp 100.000', '20 Jun 2026', route('login')], $this->parameters());
         $this->assertSame('invoice_issued:'.$draft->id, $this->whatsAppRows()->sole()->dedupe_key);
     }
 

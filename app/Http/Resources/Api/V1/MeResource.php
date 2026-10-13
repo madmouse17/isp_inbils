@@ -50,6 +50,7 @@ class MeResource extends JsonResource
             ],
             'customer' => $customer === null ? null : ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => $profile === null ? null : ['name' => $user->name, 'phone' => $profile->phone],
+            'phone' => $customer->phone ?? $profile?->phone,
         ];
     }
 }

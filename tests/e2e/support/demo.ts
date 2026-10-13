@@ -96,15 +96,25 @@ export function userFor(role: DemoRole): DemoUser {
 
 export async function loginAs(page: Page, role: DemoRole = 'admin') {
     const user = userFor(role);
-    const intendedUrl = role === 'technician' ? '/admin/spk' : null;
+    const appOnly = role === 'technician' || role === 'customer';
 
-    await page.goto(intendedUrl ?? '/login');
+    await page.goto('/login');
     await page.getByLabel('Email').fill(user.email);
     await page.getByLabel('Password').fill(demoPassword);
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: intendedUrl ? 'SPK' : 'Dasbor' }),
-    ).toBeVisible({ timeout: 15_000 });
+
+    // Technician and customer accounts are app-only on the web: they land on /app-only.
+    if (appOnly) {
+        await expect(page).toHaveURL(/\/app-only$/, { timeout: 15_000 });
+        await expect(
+            page.getByRole('main').getByRole('heading', { name: 'Gunakan aplikasi Inbils' }),
+        ).toBeVisible();
+        return;
+    }
+
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Dasbor' })).toBeVisible({
+        timeout: 15_000,
+    });
 }
 
 export async function logout(page: Page) {

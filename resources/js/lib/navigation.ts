@@ -13,7 +13,6 @@ import {
     ClipboardDocumentListIcon,
     ClockIcon,
     CpuChipIcon,
-    CreditCardIcon,
     CubeIcon,
     DocumentTextIcon,
     ExclamationCircleIcon,
@@ -307,12 +306,6 @@ export const navGroups: readonly NavGroup[] = [
                 href: '/admin/billing/receivables',
                 icon: ExclamationCircleIcon,
                 anyOf: ['billing.view'],
-            },
-            {
-                label: 'Tagihan Saya',
-                href: '/portal/invoices',
-                icon: CreditCardIcon,
-                anyOf: ['portal.invoice.view'],
             },
             {
                 label: 'Laporan',

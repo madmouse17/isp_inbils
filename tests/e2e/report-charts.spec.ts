@@ -13,6 +13,17 @@ const empty = { from: '2000-01-01', to: '2000-01-31' };
 
 const range = ({ from, to }: { from: string; to: string }) => `date_from=${from}&date_to=${to}`;
 
+/** Admin must pick a technician; the demo technician is the only eligible one in the fixtures. */
+async function technicianQuery(page: Page): Promise<string> {
+    const { props } = await inertiaProps(page, '/admin/reports/technician');
+    const list = props!.technicians as
+        { data?: Array<{ id: number; name: string }> } | Array<{ id: number; name: string }>;
+    const rows = Array.isArray(list) ? list : (list.data ?? []);
+    const demo = rows.find((row) => row.name === 'Demo Technician') ?? rows[0];
+    if (!demo) throw new Error('no eligible technician in the fixtures');
+    return `technician_id=${demo.id}&`;
+}
+
 /** A chart is drawn when its payload holds something and shows the empty message otherwise. */
 async function expectDrawnWhen(card: Locator, hasData: boolean) {
     if (hasData) {
@@ -253,8 +264,9 @@ test.describe('@report-charts report charts', () => {
     test('Technician names the bucket size and shows the empty message without finished work', async ({
         page,
     }) => {
-        await loginAs(page, 'technician');
-        await page.goto(`/admin/reports/technician?${range(empty)}`);
+        await loginAs(page, 'admin');
+        const tech = await technicianQuery(page);
+        await page.goto(`/admin/reports/technician?${tech}${range(empty)}`);
 
         for (const title of [
             'SPK selesai per hari',
@@ -267,11 +279,11 @@ test.describe('@report-charts report charts', () => {
         // A whole year: months. Each chart is drawn exactly when the server found something.
         const year = new Date().getFullYear();
         const wholeYear = `date_from=${year}-01-01&date_to=${year}-12-31`;
-        const { props } = await inertiaProps(page, `/admin/reports/technician?${wholeYear}`);
+        const { props } = await inertiaProps(page, `/admin/reports/technician?${tech}${wholeYear}`);
         const points = props!.charts.series.points as Array<{ spk_completed: number }>;
         const hasKeys = (map: unknown) => Object.keys((map ?? {}) as object).length > 0;
 
-        await page.goto(`/admin/reports/technician?${wholeYear}`);
+        await page.goto(`/admin/reports/technician?${tech}${wholeYear}`);
         await expectDrawnWhen(
             chartCard(page, 'SPK selesai per bulan'),
             points.some((point) => point.spk_completed > 0),
@@ -336,12 +348,13 @@ test.describe('@report-charts report charts', () => {
             );
             await logout(page);
 
-            await loginAs(page, 'technician');
+            await loginAs(page, 'admin');
+            const tech = await technicianQuery(page);
             await expectChartsFit(
                 page,
                 testInfo,
                 'technician',
-                `/admin/reports/technician?${range(february)}`,
+                `/admin/reports/technician?${tech}${range(february)}`,
                 technician,
             );
         } finally {

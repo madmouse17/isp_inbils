@@ -231,7 +231,7 @@ test.describe('@smoke @head-company head company', () => {
         await logout(page);
 
         // The manager may switch (company.switch) but belongs to one company only.
-        for (const role of ['manager', 'staff', 'technician', 'customer'] as const) {
+        for (const role of ['manager', 'staff'] as const) {
             await loginAs(page, role);
 
             const other = await sharedProps(page);
@@ -371,7 +371,7 @@ test.describe('@smoke @head-company head company', () => {
         await logout(page);
 
         // The other roles lack report.consolidated.view; the manager may switch but is no member of the subsidiary.
-        for (const role of ['manager', 'staff', 'technician', 'customer'] as const) {
+        for (const role of ['manager', 'staff'] as const) {
             await loginAs(page, role);
             const before = await sharedProps(page);
 

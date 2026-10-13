@@ -18,10 +18,12 @@ use Modules\SPK\Services\SpkService;
 use Spatie\Permission\Models\Role;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 class WorkOrderItemAssignmentValidationTest extends TestCase
 {
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     protected function setUp(): void
     {

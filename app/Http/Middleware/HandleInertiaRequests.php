@@ -56,6 +56,8 @@ class HandleInertiaRequests extends Middleware
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
+            // Technician/customer-only logins use the apps; the few web pages they still reach drop the admin chrome.
+            'appOnly' => $user !== null && RedirectAppOnlyRoles::isAppOnly($user),
             'company' => $company ? [
                 'id' => $company->id,
                 'name' => $company->name,

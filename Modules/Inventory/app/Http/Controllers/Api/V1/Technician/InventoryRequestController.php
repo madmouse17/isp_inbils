@@ -5,11 +5,15 @@ namespace Modules\Inventory\Http\Controllers\Api\V1\Technician;
 use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Http\Requests\Api\V1\CancelTechnicianInventoryRequestRequest;
+use Modules\Inventory\Http\Requests\Api\V1\StoreTechnicianInventoryRequestRequest;
 use Modules\Inventory\Http\Resources\Api\V1\TechnicianInventoryRequestResource;
 use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Services\InventoryRequestService;
 use Modules\SPK\Models\WorkOrder;
 
 class InventoryRequestController extends Controller
@@ -38,6 +42,29 @@ class InventoryRequestController extends Controller
         $this->loadWorkOrderSources($paginator->getCollection(), CompanyService::idFor($request->user()));
 
         return TechnicianInventoryRequestResource::collection($paginator);
+    }
+
+    /** A request from the app is queued for the warehouse at once: the app has no draft step. */
+    public function store(StoreTechnicianInventoryRequestRequest $request): JsonResponse
+    {
+        $created = InventoryRequestService::create($request->user(), [...$request->validated(), 'submit' => true]);
+
+        return (new TechnicianInventoryRequestResource($this->detail($created)))->response()->setStatusCode(201);
+    }
+
+    public function cancel(CancelTechnicianInventoryRequestRequest $request, InventoryRequest $inventoryRequest): TechnicianInventoryRequestResource
+    {
+        $cancelled = InventoryRequestService::cancel($inventoryRequest, $request->user(), $request->validated('cancellation_reason'));
+
+        return new TechnicianInventoryRequestResource($this->detail($cancelled));
+    }
+
+    private function detail(InventoryRequest $inventoryRequest): InventoryRequest
+    {
+        $inventoryRequest->load('items.product.unit');
+        $this->loadWorkOrderSources(new Collection([$inventoryRequest]), $inventoryRequest->company_id);
+
+        return $inventoryRequest;
     }
 
     /** @param Collection<int, InventoryRequest> $requests */

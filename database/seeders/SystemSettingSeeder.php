@@ -28,5 +28,13 @@ class SystemSettingSeeder extends Seeder
                 $setting
             );
         }
+
+        // Owner-edited listing URLs: a re-seed must not blank them.
+        foreach (['technician', 'customer'] as $role) {
+            Setting::query()->firstOrCreate(
+                ['key' => 'play_store_url_'.$role],
+                ['value' => '', 'group' => 'system', 'type' => 'string', 'is_public' => false]
+            );
+        }
     }
 }

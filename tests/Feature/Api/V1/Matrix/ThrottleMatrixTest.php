@@ -32,6 +32,8 @@ class ThrottleMatrixTest extends TestCase
             'auth.forgot-password' => 'api-forgot-password',
             'customer.invoices.pay' => 'api-pay',
             'technician.work-orders.evidence.store' => 'api-upload',
+            'customer.tickets.attachments.store' => 'api-upload',
+            'technician.tickets.attachments.store' => 'api-upload',
         ];
 
         foreach ($this->apiRoutes() as $route) {

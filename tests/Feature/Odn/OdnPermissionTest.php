@@ -12,6 +12,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsOdnTopology;
+use Tests\Traits\WithoutAppOnlyRedirect;
 
 /**
  * Q14: admin and manager hold all three ODN permissions; staff may view and assign drops (they onboard
@@ -22,6 +23,7 @@ class OdnPermissionTest extends TestCase
     use BuildsIpamOdnFixtures;
     use BuildsOdnTopology;
     use RefreshDatabase;
+    use WithoutAppOnlyRedirect;
 
     private const ENDPOINTS = [
         'view' => ['odn.index', 'odn.assets.show'],

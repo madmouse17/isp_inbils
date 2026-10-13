@@ -1,9 +1,9 @@
 import type { Company } from '@/types';
 
 /** Capability group of a card, in the order the server returns them. */
-export type DashboardGroup = 'operations' | 'approvals' | 'warehouse' | 'finance' | 'personal';
+export type DashboardGroup = 'operations' | 'approvals' | 'warehouse' | 'finance';
 
-/** The server sends `neutral` whenever the count is 0 or null. */
+/** The server sends `neutral` whenever the count is 0. */
 export type DashboardSeverity = 'neutral' | 'info' | 'warning' | 'danger';
 
 interface SectionBase<K extends string, G extends DashboardGroup> {
@@ -41,8 +41,6 @@ export type DashboardSection =
       })
     /** At most five items, oldest deadline first; empty when the count is 0. */
     | (CountSection<'sla_breached', 'operations'> & { items: SlaTicketItem[] })
-    /** Plain link for an actor who may open tickets but handles none; never sent with `sla_breached`. */
-    | (SectionBase<'tickets', 'operations'> & { count: null })
     | CountSection<'approvals', 'approvals'>
     | CountSection<'warehouse_requests', 'warehouse'>
     /** `count` is awaiting receipt plus exceptions. */
@@ -50,9 +48,7 @@ export type DashboardSection =
     /** Stock rows (product x location), as the Stocks list shows them. */
     | CountSection<'low_stock', 'warehouse'>
     /** `outstanding` is a decimal string with two decimals, for example "1550000.50". */
-    | (CountSection<'overdue_invoices', 'finance'> & { outstanding: string })
-    | CountSection<'my_requests', 'personal'>
-    | CountSection<'my_returns', 'personal'>;
+    | (CountSection<'overdue_invoices', 'finance'> & { outstanding: string });
 
 export interface DashboardNotification {
     id: string;

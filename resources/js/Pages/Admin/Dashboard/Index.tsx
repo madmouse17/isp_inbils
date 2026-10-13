@@ -14,7 +14,6 @@ const groupTitles: Record<DashboardGroup, string> = {
     approvals: 'Persetujuan',
     warehouse: 'Gudang',
     finance: 'Keuangan',
-    personal: 'Aktivitas saya',
 };
 
 /** Buckets sections by group, in the order the server sent them. */

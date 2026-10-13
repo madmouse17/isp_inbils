@@ -191,13 +191,6 @@
         },
         {
             "group": "Keuangan & Laporan",
-            "label": "Tagihan Saya",
-            "href": "/portal/invoices",
-            "route": "portal.invoices.index",
-            "anyOf": ["portal.invoice.view"]
-        },
-        {
-            "group": "Keuangan & Laporan",
             "label": "Laporan",
             "href": "/admin/reports",
             "route": "admin.reports.index",

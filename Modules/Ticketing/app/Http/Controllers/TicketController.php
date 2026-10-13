@@ -371,15 +371,12 @@ class TicketController extends Controller
         return back()->with('success', 'Attachment uploaded.');
     }
 
-    public function removeAttachment(Ticket $ticket, Media $attachment): RedirectResponse
+    public function removeAttachment(Request $request, Ticket $ticket, Media $attachment): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
-        Gate::authorize('attach', $ticket);
-        abort_unless($attachment->model_type === $ticket::class && (int) $attachment->model_id === $ticket->id, 404);
-        abort_unless($attachment->collection_name === 'attachments', 404);
-        Gate::authorize('ticket.attachment.upload');
 
-        $attachment->delete();
+        // One rule with the apps: the uploader, while the ticket is still being worked. The permission alone is not enough.
+        TicketService::removeAttachment($ticket, $attachment->id, $request->user());
 
         return back()->with('success', 'Attachment removed.');
     }

@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
  */
 class PortalCredentials
 {
-    /** The customer finished a password reset from the emailed link: the mailbox is proven and the invoice pages open. */
+    /** The customer finished a password reset from the emailed link: the mailbox is proven and the customer app opens (see ApiTokenService). */
     public static function completeReset(User $user): void
     {
         if ($user->getAttribute('must_change_password')) {

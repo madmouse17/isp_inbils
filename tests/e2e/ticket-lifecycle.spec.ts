@@ -6,25 +6,17 @@
  * - resolve + SLA assertion (resolved before deadline, non-empty timestamps)
  * - closure
  * - SPK spawn + backlink verification
- * - denied actions (technician close denied, customer admin-create denied)
  *
  * Deterministic: no fixed IDs, unique records per run, owned data.
  *
- * Handler/checker split: start/resolve are limited to the assigned handler (technician);
+ * Handler/checker split: start/resolve are limited to the assigned handler (technician, through the app API);
  * close is open to any ticket.close holder (manager) once the ticket is resolved.
  */
 import type { Page } from '@playwright/test';
 
+import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
-import {
-    csrfToken,
-    e2eCustomerName,
-    expectDetail,
-    loginAs,
-    logout,
-    refreshSession,
-    unique,
-} from './support/demo';
+import { e2eCustomerName, expectDetail, loginAs, logout, unique } from './support/demo';
 
 const runId = unique('TKT');
 
@@ -33,6 +25,7 @@ test.describe('@lifecycle ticket', () => {
 
     test('full journey: create, assign, first response, resolve with SLA, close, SPK backlink', async ({
         page,
+        request,
     }) => {
         const title = `E2E ticket lifecycle ${runId}`;
         const resolution = `resolved-${runId}`;
@@ -48,40 +41,49 @@ test.describe('@lifecycle ticket', () => {
         // --- Assign via UI (resolve handler id dynamically, no fixed ID) ---
         await assignToHandlerViaUi(page, 'Demo Technician');
 
-        // --- Technician handles the ticket ---
-        await settleAppChunks(page);
+        // --- Technician handles the ticket through the app API ---
         await logout(page);
-        await loginAs(page, 'technician');
+        const api = await apiLogin(request, 'technician');
+
+        // Start (records first_response_at)
+        const started = await api.post(`technician/tickets/${ticketId}/start`, {});
+        expect(started.status()).toBe(200);
+        expect(((await started.json()) as { data: { status: string } }).data.status).toBe(
+            'on_progress',
+        );
+
+        // Public comment
+        const comment = `first-response-${runId}`;
+        const commented = await api.post(`technician/tickets/${ticketId}/comments`, {
+            body: comment,
+        });
+        expect(commented.status()).toBe(201);
+
+        // Resolve
+        const resolved = await api.post(`technician/tickets/${ticketId}/resolve`, {
+            resolution_note: resolution,
+        });
+        expect(resolved.status()).toBe(200);
+        expect(((await resolved.json()) as { data: { status: string } }).data.status).toBe(
+            'resolved',
+        );
+
+        // --- Staff see first response, comment, resolution and the SLA outcome ---
+        await loginAs(page, 'admin');
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
+        await expect(page.getByText('resolved').first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText(comment)).toBeVisible();
+        await expect(page.getByText(resolution)).toBeVisible();
 
-        // --- Start (records first_response_at) ---
-        await page.getByRole('button', { name: 'Start', exact: true }).click();
-        await expect(page.getByText('on_progress').first()).toBeVisible({ timeout: 15_000 });
         const firstResponse = await detailValue(page, 'First Response:');
         expect(firstResponse.trim()).not.toBe('');
         expect(firstResponse.trim()).not.toBe('-');
 
-        // --- Public comment ---
-        const comment = `first-response-${runId}`;
-        await page.getByRole('button', { name: 'Add Comment' }).click();
-        const commentDialog = page.getByRole('dialog', { name: 'Comment' });
-        await commentDialog.getByLabel('Comment').fill(comment);
-        await commentDialog.getByRole('button', { name: 'Confirm' }).click();
-        await expect(page.getByText(comment)).toBeVisible({ timeout: 15_000 });
-
-        // --- Resolve + SLA assertion ---
         const deadlineText = await detailValue(page, 'SLA Deadline:');
         expect(deadlineText.trim()).not.toBe('-');
         const deadline = parseDate(deadlineText);
-        await page.getByRole('button', { name: 'Resolve', exact: true }).click();
-        const resolveDialog = page.getByRole('dialog', { name: 'Resolve' });
-        await resolveDialog.getByLabel('Resolution Note').fill(resolution);
-        await resolveDialog.getByRole('button', { name: 'Confirm' }).click();
-        await expect(page.getByText('resolved').first()).toBeVisible({ timeout: 15_000 });
-        await expect(page.getByText(resolution)).toBeVisible();
-
         const resolvedText = await detailValue(page, 'Resolved:');
         const resolvedAt = parseDate(resolvedText);
         expect(resolvedAt.getTime()).toBeLessThanOrEqual(deadline.getTime());
@@ -128,54 +130,6 @@ test.describe('@lifecycle ticket', () => {
         const wo = spkProps?.props?.workOrder?.data;
         expect(wo?.source).toBe('ticket');
         expect(wo?.title).toContain('SPK from Ticket');
-    });
-
-    test('technician denied close; customer denied close', async ({ page }) => {
-        const denyTitle = `deny-close ${runId}`;
-
-        await loginAs(page, 'admin');
-        const csrf = await csrfToken(page);
-
-        // Seed an open ticket via API to keep the denial surface stable.
-        const createResp = await page.request.post('/admin/tickets', {
-            headers: { 'X-XSRF-TOKEN': csrf },
-            maxRedirects: 0,
-            form: {
-                title: denyTitle,
-                source: 'customer',
-                category_id: await firstOptionValue(page, '/admin/tickets/create', 'Category'),
-                priority: 'low',
-                customer_id: await firstOptionValue(page, '/admin/tickets/create', 'Customer'),
-                description: 'deny path',
-            },
-        });
-        expect(createResp.status()).toBe(302);
-
-        const ticketId = await findTicketId(page, denyTitle);
-        expect(ticketId).toBeTruthy();
-
-        await logout(page);
-        await loginAs(page, 'technician');
-        // Refresh against a technician-reachable page so the session/XSRF cookies
-        // match the live technician session before the raw close POST (a stale
-        // token would surface as 419, not the required 403).
-        const techCsrf = await refreshSession(page, '/admin/spk');
-        // Technician cannot view this unassigned ticket, so the route model-binding
-        // renders the page-level denial; the close attempt must be forbidden.
-        const close = await page.request.post(`/admin/tickets/${ticketId}/close`, {
-            headers: { 'X-XSRF-TOKEN': techCsrf },
-        });
-        expect(close.status()).toBe(403);
-
-        await logout(page);
-        await loginAs(page, 'customer');
-        // Customer has ticket.create but not ticket.close; verify the close
-        // action is denied via the API (the route requires a valid ticket id).
-        const custCsrf = await refreshSession(page, '/admin/dashboard');
-        const custClose = await page.request.post(`/admin/tickets/${ticketId}/close`, {
-            headers: { 'X-XSRF-TOKEN': custCsrf },
-        });
-        expect(custClose.status()).toBe(403);
     });
 });
 
@@ -277,21 +231,6 @@ async function settleAppChunks(page: import('@playwright/test').Page) {
         { timeout: 20_000 },
     );
     await page.waitForLoadState('networkidle');
-}
-
-/** Return the first non-empty option value for a labelled select on a page. */
-async function firstOptionValue(page: import('@playwright/test').Page, url: string, label: string) {
-    // The page we navigate away from (post-login Dashboard, Tickets Index, ...)
-    // lazily loads table/nav chunks; a hard goto() that starts while those are
-    // in flight aborts them with net::ERR_ABORTED (fail-closed watcher). Settle
-    // first, mirroring createTicketViaUi.
-    await settleAppChunks(page);
-    await page.goto(url);
-    const select = page.getByLabel(label);
-    const option = select.locator('option').nth(1);
-    const value = await option.getAttribute('value');
-    if (!value) throw new Error(`No option value for ${label}`);
-    return value;
 }
 
 function parseDate(text: string): Date {

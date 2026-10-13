@@ -55,7 +55,7 @@ class PortalCredentialsTest extends TestCase
         DB::table('sessions')->insert(['id' => $id, 'user_id' => $userId, 'ip_address' => '127.0.0.1', 'user_agent' => 'phpunit', 'payload' => '', 'last_activity' => time()]);
     }
 
-    public function test_a_completed_password_reset_opens_the_portal_and_retires_the_phone_number(): void
+    public function test_a_completed_password_reset_clears_the_flag_and_retires_the_phone_number(): void
     {
         $token = Password::broker()->createToken($this->customerUser);
 
@@ -70,10 +70,9 @@ class PortalCredentialsTest extends TestCase
         $this->assertFalse((bool) $fresh->getAttribute('must_change_password'));
         $this->assertTrue(Hash::check('N3w-Passw0rd-xyz', $fresh->password));
         $this->assertFalse(Hash::check('0800005195', $fresh->password));
-        $this->actingAs($fresh)->get(route('portal.invoices.index'))->assertOk();
     }
 
-    public function test_a_failed_reset_leaves_the_flag_and_the_portal_closed(): void
+    public function test_a_failed_reset_leaves_the_flag_set(): void
     {
         $this->post(route('password.store'), [
             'token' => 'not-a-real-token',
@@ -85,7 +84,6 @@ class PortalCredentialsTest extends TestCase
         $fresh = $this->customerUser->fresh();
         $this->assertTrue((bool) $fresh->getAttribute('must_change_password'));
         $this->assertTrue(Hash::check('0800005195', $fresh->password));
-        $this->actingAs($fresh)->get(route('portal.invoices.index'))->assertRedirect(route('portal.password.edit'));
     }
 
     public function test_the_reset_event_clears_the_flag_and_rotates_the_remember_token(): void

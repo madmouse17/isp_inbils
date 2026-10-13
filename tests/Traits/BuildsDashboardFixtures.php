@@ -61,6 +61,12 @@ trait BuildsDashboardFixtures
         ]);
         $user->assignRole(Role::where('name', $role)->firstOrFail());
 
+        // Technician and customer accounts are app-only on the web. A permission-less extra role keeps
+        // their permission sets reachable here without them being redirected to /app-only.
+        if (in_array($role, ['technician', 'customer'], true)) {
+            $user->assignRole(Role::findOrCreate('web-access', 'web'));
+        }
+
         return $user;
     }
 

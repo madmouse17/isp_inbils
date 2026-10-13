@@ -40,7 +40,7 @@ class DashboardPersonaTest extends TestCase
             'admin' => ['admin', [
                 'dispatch_unassigned', 'sla_breached', 'approvals',
                 'warehouse_requests', 'return_queue', 'low_stock',
-                'overdue_invoices', 'my_requests', 'my_returns',
+                'overdue_invoices',
             ]],
             'manager' => ['manager', [
                 'dispatch_unassigned', 'sla_breached', 'approvals',
@@ -53,8 +53,8 @@ class DashboardPersonaTest extends TestCase
                 'warehouse_requests', 'return_queue', 'low_stock',
                 'overdue_invoices',
             ]],
-            'technician' => ['technician', ['sla_breached', 'low_stock', 'my_requests', 'my_returns']],
-            'customer' => ['customer', ['tickets']],
+            // The technician's own web dashboard is closed (app-only); the role keeps its permission set.
+            'technician' => ['technician', ['sla_breached', 'low_stock']],
         ];
     }
 
@@ -79,7 +79,7 @@ class DashboardPersonaTest extends TestCase
 
         $keys = $this->sectionKeys($this->dashboard($user)->assertOk());
 
-        $this->assertSame($role === 'customer' ? $expected : ['my_work', ...$expected], $keys, $role);
+        $this->assertSame(['my_work', ...$expected], $keys, $role);
     }
 
     public function test_my_work_is_absent_not_zero_without_an_active_employee_profile(): void
@@ -101,7 +101,7 @@ class DashboardPersonaTest extends TestCase
         $this->activeEmployeeProfile($admin);
 
         $this->assertSame(
-            ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance', 'personal', 'personal'],
+            ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance'],
             array_column($this->sections($this->dashboard($admin)), 'group'),
         );
     }
@@ -131,29 +131,11 @@ class DashboardPersonaTest extends TestCase
         }
     }
 
-    public function test_customer_gets_the_minimal_landing_with_only_a_tickets_link(): void
-    {
-        $company = $this->makeCompany();
-        $customer = $this->userWithRole($company, 'customer');
-        $this->ticket($company, ['sla_deadline' => now()->subDay()]);
-
-        $response = $this->dashboard($customer)->assertOk();
-
-        $sections = $this->sections($response);
-        $this->assertCount(1, $sections);
-        $this->assertSame('tickets', $sections[0]['key']);
-        $this->assertNull($sections[0]['count']);
-        $this->assertSame('neutral', $sections[0]['severity']);
-        $this->assertSame(route('admin.tickets.index'), $sections[0]['href']);
-        $this->assertArrayNotHasKey('items', $sections[0]);
-        $response->assertInertia(fn (Assert $page) => $page->missing('admin'));
-    }
-
     /** @return array<string, array{0: list<string>, 1: list<string>}> */
     public static function ticketCapabilities(): array
     {
         return [
-            'ticket.view alone is the customer capability' => [['ticket.view'], ['tickets']],
+            'ticket.view alone opens no card' => [['ticket.view'], []],
             'an SLA report reader' => [['ticket.view', 'report.sla.view'], ['sla_breached']],
             'a ticket starter' => [['ticket.view', 'ticket.start'], ['sla_breached']],
             'a ticket reassigner also dispatches' => [['ticket.view', 'ticket.reassign'], ['dispatch_unassigned', 'sla_breached']],
@@ -205,7 +187,7 @@ class DashboardPersonaTest extends TestCase
     {
         $company = Company::factory()->create(['name' => 'Persona ISP', 'code' => 'PERSONA', 'is_active' => true]);
 
-        foreach (['admin', 'manager', 'staff', 'technician', 'customer'] as $role) {
+        foreach (['admin', 'manager', 'staff', 'technician'] as $role) {
             $this->dashboard($this->userWithRole($company, $role))
                 ->assertOk()
                 ->assertInertia(fn (Assert $page) => $page
@@ -217,7 +199,7 @@ class DashboardPersonaTest extends TestCase
 
     public function test_company_wide_statistics_are_no_longer_top_level_props(): void
     {
-        foreach (['admin', 'manager', 'technician', 'customer'] as $role) {
+        foreach (['admin', 'manager', 'technician'] as $role) {
             $props = $this->dashboard($this->userWithRole($this->makeCompany(), $role))->assertOk()->inertiaProps();
 
             foreach (self::LEGACY_PROPS as $legacy) {
@@ -229,7 +211,7 @@ class DashboardPersonaTest extends TestCase
     /** @return array<string, array{0: string}> */
     public static function nonAdminRoles(): array
     {
-        return ['manager' => ['manager'], 'staff' => ['staff'], 'technician' => ['technician'], 'customer' => ['customer']];
+        return ['manager' => ['manager'], 'staff' => ['staff'], 'technician' => ['technician']];
     }
 
     #[DataProvider('nonAdminRoles')]
@@ -271,7 +253,7 @@ class DashboardPersonaTest extends TestCase
         $other = $this->makeCompany();
         $admin = $this->userWithRole($company, 'admin');
         $this->userWithRole($company, 'staff');
-        $this->userWithRole($company, 'technician', active: false);
+        $this->userWithRole($company, 'staff', active: false);
         $this->userWithRole($other, 'staff');
         $this->userWithRole($other, 'manager');
 
@@ -335,7 +317,7 @@ class DashboardPersonaTest extends TestCase
     {
         return [
             'admin' => ['admin'], 'manager' => ['manager'], 'staff' => ['staff'],
-            'technician' => ['technician'], 'customer' => ['customer'],
+            'technician' => ['technician'],
         ];
     }
 
@@ -370,7 +352,7 @@ class DashboardPersonaTest extends TestCase
     {
         $company = $this->makeCompany();
         $teammate = $this->userWithRole($company, 'staff');
-        $actor = $this->userWithRole($company, 'customer');
+        $actor = $this->userWithRole($company, 'staff');
 
         foreach (range(1, 6) as $minutesAgo) {
             $this->notification($actor, ['type' => 'billing_schedule_failed'], now()->subMinutes($minutesAgo));

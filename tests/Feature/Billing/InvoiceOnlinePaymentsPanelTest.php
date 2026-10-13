@@ -110,7 +110,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $technician = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now()]);
         $technician->assignRole('technician');
 
-        $this->actingAs($technician)->get(route('admin.invoices.show', $invoice->id))->assertForbidden();
+        $this->actingAs($technician)->get(route('admin.invoices.show', $invoice->id))->assertRedirect(route('app-only'));
     }
 
     public function test_no_staff_route_can_change_an_attempt(): void

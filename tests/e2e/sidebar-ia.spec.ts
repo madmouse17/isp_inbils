@@ -27,8 +27,6 @@ type RoleSidebar = {
     placed: Partial<Record<GroupTitle, readonly string[]>>;
     /** Links the role must not see anywhere. */
     absent: readonly string[];
-    /** When set, the complete list of link labels, Dashboard included. */
-    onlyLinks?: readonly string[];
 };
 
 const serviceLinks = ['Paket Layanan', 'Profil Bandwidth', 'Profil Kecepatan', 'Tingkat SLA'];
@@ -59,7 +57,10 @@ const adminOnlyLinks = [
 
 // APP_ENV=e2e closes the developer gallery (route answers 404, `developerGalleryEnabled` is
 // false), so Komponen is absent for every role, admin included.
-const roleSidebars: Record<DemoRole, RoleSidebar> = {
+// Technician and customer accounts are app-only on the web (app-only.spec.ts): no sidebar to check.
+type WebRole = Exclude<DemoRole, 'technician' | 'customer'>;
+
+const roleSidebars: Record<WebRole, RoleSidebar> = {
     admin: {
         groups: groupTitles,
         placed: {
@@ -119,48 +120,9 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
         // Staff is the operator persona (role-persona-sod): no approve/reject, so no Approval inbox.
         absent: [...adminOnlyLinks, 'Persetujuan', 'Penugasan', 'Kinerja Teknisi', 'Komponen'],
     },
-    technician: {
-        groups: [
-            'Operasional',
-            'Pelanggan & Layanan',
-            'Jaringan',
-            'Inventaris',
-            'Keuangan & Laporan',
-        ],
-        placed: {
-            Operasional: ['Pekerjaan Saya', 'SPK', 'Tiket', 'Evaluasi'],
-            'Pelanggan & Layanan': ['Pelanggan'],
-            Jaringan: ['Lokasi', 'Aset Jaringan', ...networkRegisterLinks],
-            Inventaris: inventoryLinks,
-            'Keuangan & Laporan': ['Kinerja Teknisi'],
-        },
-        absent: [
-            'Pengguna',
-            'Peran',
-            'Hak Akses',
-            'Dokumen',
-            'Penomoran',
-            'Organisasi',
-            'Perusahaan',
-            ...serviceLinks,
-            'Persetujuan',
-            'Penugasan',
-            'Router NAS',
-            'Tagihan',
-            'Tunggakan',
-            'Laporan',
-            'Komponen',
-        ],
-    },
-    customer: {
-        groups: ['Operasional', 'Keuangan & Laporan'],
-        placed: { Operasional: ['Tiket'], 'Keuangan & Laporan': ['Tagihan Saya'] },
-        absent: ['Komponen'],
-        onlyLinks: ['Dasbor', 'Tiket', 'Tagihan Saya'],
-    },
 };
 
-const roles = Object.keys(roleSidebars) as DemoRole[];
+const roles = Object.keys(roleSidebars) as WebRole[];
 
 type SidebarLink = { label: string; href: string; current: boolean };
 type SidebarGroup = { title: string; open: boolean; links: SidebarLink[] };
@@ -205,8 +167,6 @@ for (const role of roles) {
         for (const label of expected.absent) {
             expect(labels, `${role} must not see ${label}`).not.toContain(label);
         }
-
-        if (expected.onlyLinks) expect(labels).toEqual(expected.onlyLinks);
 
         // Every link is actually reachable once the groups are expanded.
         await expect(page.locator('aside a[href]:visible')).toHaveCount(labels.length);

@@ -6,6 +6,8 @@ use App\Http\Controllers\Api\V1\Customer\SubscriptionController;
 use App\Http\Controllers\Api\V1\DeviceController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MediaController;
+use App\Http\Controllers\Api\V1\MePasswordController;
+use App\Http\Controllers\Api\V1\MeProfileController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Technician\MyWorkController;
 use Illuminate\Support\Facades\Route;
@@ -33,6 +35,8 @@ Route::prefix('auth')->name('auth.')->group(function () {
 
 Route::middleware('api.any')->group(function () {
     Route::get('me', MeController::class)->name('me');
+    Route::patch('me', MeProfileController::class)->name('me.update');
+    Route::post('me/password', MePasswordController::class)->name('me.password');
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::delete('devices/{id}', [DeviceController::class, 'destroy'])->whereNumber('id')->name('devices.destroy');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
