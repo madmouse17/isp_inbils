@@ -87,7 +87,7 @@ async function expandSidebarGroups(page: Page) {
 }
 
 function consolidatedLink(page: Page) {
-    return page.locator('aside').getByRole('link', { name: 'Consolidated Metrics', exact: true });
+    return page.locator('aside').getByRole('link', { name: 'Metrik Konsolidasi', exact: true });
 }
 
 async function switchTo(page: Page, company: string) {
@@ -109,7 +109,7 @@ function brand(page: Page, company: string) {
 async function expectCustomer(page: Page, name: string, shown: boolean) {
     await page.goto(`/admin/customers?search=${encodeURIComponent(name)}`);
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Customers', level: 1 }),
+        page.getByRole('main').getByRole('heading', { name: 'Pelanggan', level: 1 }),
     ).toBeVisible();
     await expect(page.locator('tbody tr').filter({ hasText: name })).toHaveCount(shown ? 1 : 0);
 }
@@ -272,10 +272,10 @@ test.describe('@smoke @head-company head company', () => {
         await main.getByRole('link', { name: 'Open Consolidated Metrics', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/consolidated$/);
         await expect(
-            main.getByRole('heading', { name: 'Consolidated Metrics', level: 1 }),
+            main.getByRole('heading', { name: 'Metrik Konsolidasi', level: 1 }),
         ).toBeVisible();
         await expect(
-            page.locator('aside').getByRole('link', { name: 'Consolidated Metrics', exact: true }),
+            page.locator('aside').getByRole('link', { name: 'Metrik Konsolidasi', exact: true }),
         ).toHaveAttribute('aria-current', 'page');
         await expect(
             main.getByText(
@@ -392,7 +392,7 @@ test.describe('@smoke @head-company head company', () => {
                 await expect(
                     page
                         .getByRole('main')
-                        .getByRole('heading', { name: 'Consolidated Metrics', level: 1 }),
+                        .getByRole('heading', { name: 'Metrik Konsolidasi', level: 1 }),
                 ).toBeVisible();
 
                 // The table needs about 840px beside the sidebar: below 1200px each company is a card.

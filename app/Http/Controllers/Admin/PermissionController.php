@@ -20,7 +20,7 @@ class PermissionController extends Controller
 
     public function index(Request $request): Response
     {
-        Gate::authorize('users.manage');
+        Gate::authorize('roles.manage');
 
         $query = Permission::query()
             ->when($request->input('search'), function (Builder $query, string $value): void {

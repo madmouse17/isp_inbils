@@ -170,7 +170,7 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
             await loginAs(page, role);
             await page.goto('/admin/reports');
             const main = page.getByRole('main');
-            await expect(main.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible();
+            await expect(main.getByRole('heading', { name: 'Laporan', level: 1 })).toBeVisible();
 
             for (const name of hubRoles[role].shown) {
                 await expect(main.getByRole('link', { name, exact: true })).toBeVisible();

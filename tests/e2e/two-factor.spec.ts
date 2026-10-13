@@ -8,7 +8,7 @@ import { totp } from './support/totp';
  * Two-factor authentication from the user's side (docs/SECURITY.md section 3): enrol from the
  * Profile, see the recovery codes once, then log in with an authenticator code and with a recovery
  * code; an admin resets a colleague. A disposable staff user keeps the demo accounts untouched for
- * every other spec. The reset test needs `user.two_factor.reset` on the admin role, which the
+ * every other spec. The reset test needs `users.two_factor.reset` on the admin role, which the
  * integration step adds to RolePermissionSeeder; until then it reports itself as skipped.
  */
 
@@ -84,8 +84,8 @@ test('@two-factor an admin resets a colleague who lost the authenticator', async
     await loginAs(page, 'admin');
     const dashboard = await inertiaProps(page, '/admin/dashboard');
     test.skip(
-        !dashboard.props?.auth?.user?.permissions?.includes('user.two_factor.reset'),
-        'RolePermissionSeeder does not grant user.two_factor.reset to admin yet (needs-change in the lane report)',
+        !dashboard.props?.auth?.user?.permissions?.includes('users.two_factor.reset'),
+        'RolePermissionSeeder does not grant users.two_factor.reset to admin yet (needs-change in the lane report)',
     );
 
     const found = await inertiaProps(page, `/admin/users?search=${encodeURIComponent(email)}`);
@@ -164,7 +164,7 @@ async function submitCode(page: Page, label: string, code: string) {
 
 async function expectDashboard(page: Page) {
     await expect(page).toHaveURL(/\/admin\/dashboard$/);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Dashboard' })).toBeVisible({
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Dasbor' })).toBeVisible({
         timeout: 15_000,
     });
 }

@@ -12,7 +12,7 @@ test('@kanban-t_41ed9a9c customers index renders DataTable with rows, sort, filt
 
     await page.goto('/admin/customers?per_page=10');
     await expect(page).toHaveURL(/\/admin\/customers\/?\?per_page=10$/);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Customers' })).toBeVisible({
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Pelanggan' })).toBeVisible({
         timeout: 30_000,
     });
 

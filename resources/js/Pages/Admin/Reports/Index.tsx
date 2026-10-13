@@ -30,10 +30,10 @@ export default function Index({ reports }: Props) {
     const cards = canConsolidate ? withConsolidatedCard(reports) : reports;
 
     return (
-        <AdminLayout title="Reports">
+        <AdminLayout title="Laporan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Reports"
+                    title="Laporan"
                     subtitle="Real-time read-only reports from workflow history."
                 />
                 {cards.length === 0 ? (

@@ -150,7 +150,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         state.subscriptionId = await subscriptionIdOf(page, SUBSCRIPTION);
 
         await page.goto('/admin/nas-devices');
-        await expect(mainOf(page).getByRole('heading', { name: 'NAS Routers' })).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
         const fixture = page.getByRole('row').filter({ hasText: REGISTERED_ROUTER_ASSET });
         await expect(fixture).toContainText('10.99.9.2');
         await expect(fixture).toContainText('Waiting to be written');
@@ -603,7 +603,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     }) => {
         await loginAs(page, 'manager');
         await page.goto('/admin/nas-devices');
-        await expect(mainOf(page).getByRole('heading', { name: 'NAS Routers' })).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
         await expect(page.getByRole('link', { name: 'Register router' })).toHaveCount(0);
         await page.goto(`/admin/nas-devices/${state.routerId}`);
         await expect(
@@ -635,7 +635,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     }) => {
         await loginAs(page, 'staff');
         await page.goto('/admin/nas-devices');
-        await expect(mainOf(page).getByRole('heading', { name: 'NAS Routers' })).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
         await expect(page.getByRole('link', { name: 'Register router' })).toHaveCount(0);
         expect((await page.request.get('/admin/nas-devices/create')).status()).toBe(403);
 
@@ -667,11 +667,11 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await expect(page.getByRole('link', { name: 'Network access' })).toBeVisible();
         // The item sits in a collapsed sidebar group; open it to see the link.
-        const navLink = page.locator('aside a', { hasText: 'NAS Routers' });
+        const navLink = page.locator('aside a', { hasText: 'Router NAS' });
         await expect(navLink).toHaveCount(1);
         await page
             .locator('aside details')
-            .filter({ has: page.locator('summary', { hasText: 'Network' }) })
+            .filter({ has: page.locator('summary', { hasText: 'Jaringan' }) })
             .locator('summary')
             .click();
         await expect(navLink).toBeVisible();
@@ -701,7 +701,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
             mainOf(page).getByRole('heading', { name: `Subscription ${SUBSCRIPTION}` }),
         ).toBeVisible();
         await expect(page.getByRole('link', { name: 'Network access' })).toHaveCount(0);
-        await expect(page.locator('aside a', { hasText: 'NAS Routers' })).toHaveCount(0);
+        await expect(page.locator('aside a', { hasText: 'Router NAS' })).toHaveCount(0);
         await page.unroute('**/admin/**');
     });
 

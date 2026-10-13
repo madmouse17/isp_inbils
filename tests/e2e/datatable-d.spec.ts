@@ -12,7 +12,7 @@ type TableCase = {
 
 const cases: TableCase[] = [
     {
-        name: 'Tickets',
+        name: 'Tiket',
         path: '/admin/tickets',
         sortHeader: 'Number',
         prefix: 'DTD-TICKET-',
@@ -22,7 +22,7 @@ const cases: TableCase[] = [
         ],
     },
     {
-        name: 'SPK / Work Orders',
+        name: 'SPK',
         path: '/admin/spk',
         sortHeader: 'Number',
         prefix: 'DTD-SPK-',
@@ -32,7 +32,7 @@ const cases: TableCase[] = [
         ],
     },
     {
-        name: 'Network Assets',
+        name: 'Aset Jaringan',
         path: '/admin/network-assets',
         sortHeader: 'Code',
         prefix: 'DTD-ASSET-',

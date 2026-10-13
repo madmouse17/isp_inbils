@@ -247,10 +247,10 @@ export default function Index({ organizations, parentOptions, filters, can }: In
     );
 
     return (
-        <AdminLayout title="Organization">
+        <AdminLayout title="Organisasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Organization Units"
+                    title="Organisasi"
                     subtitle="Branch, area, unit, team hierarchy."
                     actions={
                         <div className="flex flex-wrap gap-2">

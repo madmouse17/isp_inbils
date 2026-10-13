@@ -1136,6 +1136,7 @@ Owner picked from `.scratch/isp-roadmap/spec.md`; specs written by architect. Ow
 | `ipam-odn` | 8 | done | IPAM (`Modules/Ipam`, mlocati/ip-lib) + ODN port register; security review APPROVED 2026-10-12 (ticket 08). |
 | `mobile-api` | 9 | done | Sanctum `/api/v1` for the two apps; security review APPROVED. |
 | `flutter-customer` / `flutter-technician` | 8 / 11 | done except release (08 / 10) | Play Store release waits on the owner's signing key and a public HTTPS host. Repo `madmouse17/inbils-mobile`. |
+| `nav-access-polish` | 7 | done | Sidebar in Bahasa Indonesia with one icon per item; Permissions page gated by `roles.manage`; `user.two_factor.reset` → `users.two_factor.reset` and `document.export` → `system.document.export` (reversible migration); role editor search; mobile drawer a11y; `canTechnicianReport` flag. Security review SIGNED. |
 
 Urutan tabrakan file saat lane berjalan (historis): `SubscriptionService.php`, `BillingService::recordPayment`, `routes/console.php`, `RolePermissionSeeder.php`, `navigation.ts` disentuh lebih dari satu lane, jadi lane tersebut dikerjakan berurutan (ipam-odn 01 → mikrotik-radius → whatsapp; kemudian freeradius menggantikan mikrotik-radius).
 

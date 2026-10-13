@@ -31,7 +31,7 @@ const DELETE_URL_PATTERN = /\/admin\/users\/\d+$/;
 async function openUsersIndex(page: import('@playwright/test').Page) {
     await loginAs(page, 'admin');
     await page.goto('/admin/users');
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Users' })).toBeVisible({
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible({
         timeout: 15_000,
     });
 }
@@ -49,7 +49,7 @@ async function createDisposableUser(page: import('@playwright/test').Page) {
     await page.getByLabel('Password', { exact: false }).first().fill('Password123!');
     await page.getByRole('button', { name: /save|create/i }).click();
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Users' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible();
     return name;
 }
 

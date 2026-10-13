@@ -314,7 +314,7 @@ test.describe('@customer-sales-attribution', () => {
 
         await page.goto(`/admin/customers?search=${encodeURIComponent(filterSearch)}`);
         const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Customers' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
         await expect(main.getByRole('columnheader', { name: 'Name' })).toBeVisible();
         await expect(page.locator('tbody tr')).toHaveCount(3);
         await expect(main.getByRole('columnheader', { name: 'Acquired by' })).toHaveCount(0);
@@ -352,7 +352,7 @@ test.describe('@customer-sales-attribution', () => {
         const acquiredBy = (url: URL) => url.searchParams.get('acquired_by');
         const filter = acquiredByField(page);
 
-        await expect(main.getByRole('heading', { name: 'Customers' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
         await expect(rows).toHaveCount(3);
         await expect(rowOf(filterManager)).toContainText(manager);
         await expect(rowOf(filterStaff)).toContainText(staff);
@@ -432,7 +432,7 @@ test.describe('@customer-sales-attribution', () => {
 
                 await page.goto(`/admin/customers?search=${encodeURIComponent(filterSearch)}`);
                 await expect(
-                    page.getByRole('main').getByRole('heading', { name: 'Customers' }),
+                    page.getByRole('main').getByRole('heading', { name: 'Pelanggan' }),
                 ).toBeVisible();
                 await setTheme(page, width, dark);
                 const filter = acquiredByField(page);

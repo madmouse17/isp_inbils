@@ -3,6 +3,8 @@
 namespace Modules\Reporting\Providers;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Inertia\Inertia;
+use Modules\Reporting\Services\TechnicianReportAccess;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ReportingServiceProvider extends ModuleServiceProvider
@@ -33,6 +35,15 @@ class ReportingServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
+
+    public function boot(): void
+    {
+        parent::boot();
+
+        // Sidebar flag for Technician Performance: same rule as the route's own 403, shared from the
+        // module so Core never imports it. Lazy: only evaluated when a page renders.
+        Inertia::share('canTechnicianReport', fn (): bool => TechnicianReportAccess::allows(request()->user()));
+    }
 
     /**
      * Define module schedules.

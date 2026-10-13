@@ -207,10 +207,10 @@ export default function DispatchIndex({
 
     if (!canDispatch && !canMyWork) {
         return (
-            <AdminLayout title="Dispatch & Penugasan">
+            <AdminLayout title="Penugasan">
                 <div className="space-y-6">
                     <PageHeader
-                        title="Dispatch & Penugasan"
+                        title="Penugasan"
                         subtitle="Antrean penugasan tiket dan surat perintah kerja (SPK)"
                     />
                     <ForbiddenState
@@ -677,10 +677,10 @@ export default function DispatchIndex({
     const hasItems = items.data && items.data.length > 0;
 
     return (
-        <AdminLayout title="Dispatch & Penugasan">
+        <AdminLayout title="Penugasan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Dispatch & Penugasan"
+                    title="Penugasan"
                     subtitle="Pusat alokasi dan pemantauan penugasan operasional tiket dan SPK lapangan"
                 />
 

@@ -84,7 +84,7 @@ export default function Components() {
     const [page, setPage] = useState(1);
 
     return (
-        <AdminLayout title="Galeri Komponen">
+        <AdminLayout title="Komponen">
             <div className="mx-auto flex max-w-7xl gap-8 p-6 lg:p-8">
                 <nav className="sticky top-8 space-y-1 hidden w-56 shrink-0 self-start lg:block">
                     {sections.map((s) => (
@@ -100,7 +100,7 @@ export default function Components() {
 
                 <div className="space-y-10 flex-1">
                     <PageHeader
-                        title="Galeri Komponen"
+                        title="Komponen"
                         subtitle="Semua komponen UI sistem desain inbils."
                         breadcrumbs={[{ label: 'Admin' }, { label: 'Komponen' }]}
                     />

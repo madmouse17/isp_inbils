@@ -40,13 +40,13 @@ trait EnrollsTwoFactor
     }
 
     /**
-     * The seeder grants `user.two_factor.reset` to admin; this keeps the tests independent of whether
+     * The seeder grants `users.two_factor.reset` to admin; this keeps the tests independent of whether
      * the seeded database already has it. Idempotent.
      */
     protected function grantTwoFactorResetToAdmin(): void
     {
-        Permission::findOrCreate('user.two_factor.reset', 'web');
-        Role::findOrCreate('admin', 'web')->givePermissionTo('user.two_factor.reset');
+        Permission::findOrCreate('users.two_factor.reset', 'web');
+        Role::findOrCreate('admin', 'web')->givePermissionTo('users.two_factor.reset');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 

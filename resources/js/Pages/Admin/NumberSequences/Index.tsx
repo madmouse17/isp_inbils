@@ -32,10 +32,10 @@ export default function Index({ sequences }: IndexProps) {
     const { pending, callbacks } = useVisitPending();
 
     return (
-        <AdminLayout title="Number Sequences">
+        <AdminLayout title="Penomoran">
             <div className="space-y-6">
                 <PageHeader
-                    title="Number Sequences"
+                    title="Penomoran"
                     subtitle="Centralized code generation for entities."
                 />
                 <Card>

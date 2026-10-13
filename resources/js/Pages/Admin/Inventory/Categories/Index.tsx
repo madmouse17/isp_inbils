@@ -1,4 +1,4 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -140,10 +140,10 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
     ];
 
     return (
-        <AdminLayout title="Categories">
+        <AdminLayout title="Kategori">
             <div className="space-y-6">
                 <PageHeader
-                    title="Categories"
+                    title="Kategori"
                     subtitle="Manage product categories and default unit."
                     actions={
                         <div className="flex flex-wrap gap-2">

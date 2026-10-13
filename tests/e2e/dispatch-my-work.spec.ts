@@ -204,7 +204,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/dispatch');
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Dispatch & Penugasan' }),
+            page.getByRole('main').getByRole('heading', { name: 'Penugasan' }),
         ).toBeVisible();
         await expect(page.getByRole('table').getByText('E2E Dispatch Ticket')).toBeVisible();
         await expect(page.getByRole('table').getByText('E2E Dispatch SPK')).toBeVisible();

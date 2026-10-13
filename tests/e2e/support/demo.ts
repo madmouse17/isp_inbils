@@ -103,9 +103,7 @@ export async function loginAs(page: Page, role: DemoRole = 'admin') {
     await page.getByLabel('Password').fill(demoPassword);
     await page.getByRole('button', { name: 'Log in' }).click();
     await expect(
-        page
-            .getByRole('main')
-            .getByRole('heading', { name: intendedUrl ? 'SPK / Work Orders' : 'Dashboard' }),
+        page.getByRole('main').getByRole('heading', { name: intendedUrl ? 'SPK' : 'Dasbor' }),
     ).toBeVisible({ timeout: 15_000 });
 }
 
@@ -174,7 +172,7 @@ export async function createCustomer(page: Page, name: string) {
     }
     await page.getByRole('button', { name: /save|create|simpan/i }).click();
     await expect(page).toHaveURL(/\/admin\/customers\/?$/);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Customers' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
 
     return name;
 }

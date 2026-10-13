@@ -115,10 +115,10 @@ export default function Index({ users, filters, can }: UsersProps) {
     );
 
     return (
-        <AdminLayout title="Users">
+        <AdminLayout title="Pengguna">
             <div className="space-y-6">
                 <PageHeader
-                    title="Users"
+                    title="Pengguna"
                     subtitle="Manage company users and roles."
                     actions={
                         <div className="flex flex-wrap gap-2">

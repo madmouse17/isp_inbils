@@ -140,10 +140,10 @@ export default function NetworkAssetsIndex({
 
     return (
         <AppLayout>
-            <Head title="Network Assets" />
+            <Head title="Aset Jaringan" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Network Assets"
+                    title="Aset Jaringan"
                     description="Physical and logical network inventory."
                     actions={
                         <div className="flex flex-wrap gap-2">

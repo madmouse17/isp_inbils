@@ -155,10 +155,10 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
 
     return (
         <AppLayout>
-            <Head title="Invoices" />
+            <Head title="Tagihan" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Invoices"
+                    title="Tagihan"
                     description="Customer invoices and balances."
                     actions={
                         <div className="flex flex-wrap gap-2">

@@ -33,10 +33,10 @@ export default function Index({ company, sections, notifications, admin }: Dashb
     const { unreadCount } = notifications;
 
     return (
-        <AdminLayout title="Dashboard">
+        <AdminLayout title="Dasbor">
             <div className="space-y-6">
                 <PageHeader
-                    title="Dashboard"
+                    title="Dasbor"
                     subtitle="Antrean dan pengecualian yang perlu Anda tangani."
                 />
 

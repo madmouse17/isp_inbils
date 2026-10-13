@@ -122,10 +122,10 @@ export default function SpkIndex({
 
     return (
         <AppLayout>
-            <Head title="SPK / Work Orders" />
+            <Head title="SPK" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="SPK / Work Orders"
+                    title="SPK"
                     description="Field work orders and installation jobs."
                     actions={
                         <div className="flex flex-wrap gap-2">

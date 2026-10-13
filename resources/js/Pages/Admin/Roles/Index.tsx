@@ -86,10 +86,10 @@ export default function Index({ roles, filters, can }: RolesProps) {
     );
 
     return (
-        <AdminLayout title="Roles">
+        <AdminLayout title="Peran">
             <div className="space-y-6">
                 <PageHeader
-                    title="Roles"
+                    title="Peran"
                     subtitle="Manage RBAC roles and permission sets."
                     actions={
                         <div className="flex flex-wrap gap-2">

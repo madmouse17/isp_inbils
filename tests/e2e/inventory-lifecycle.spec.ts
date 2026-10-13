@@ -40,7 +40,7 @@ test.describe('@lifecycle inventory', () => {
         const adjustNote = `adj-${runId}`;
 
         await page.goto('/admin/stocks');
-        await expect(page.getByRole('main').getByRole('heading', { name: 'Stocks' })).toBeVisible();
+        await expect(page.getByRole('main').getByRole('heading', { name: 'Stok' })).toBeVisible();
         await page.waitForTimeout(500);
 
         // Receive through the current Indonesian UI.
@@ -95,9 +95,9 @@ test.describe('@lifecycle inventory', () => {
         });
 
         // Movement evidence through the UI.
-        await page.getByRole('link', { name: 'Stock Movements' }).click();
+        await page.getByRole('link', { name: 'Mutasi Stok' }).click();
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Stock Movements' }),
+            page.getByRole('main').getByRole('heading', { name: 'Mutasi Stok' }),
         ).toBeVisible();
 
         for (const note of [receiveNote, issueNote, transferNote, adjustNote]) {
@@ -225,7 +225,7 @@ test.describe('@lifecycle inventory', () => {
         // and search for the unique note, expecting zero rows.
         await page.goto('/admin/stock-movements');
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Stock Movements' }),
+            page.getByRole('main').getByRole('heading', { name: 'Mutasi Stok' }),
         ).toBeVisible({ timeout: 15_000 });
         const search = page.getByLabel(/search/i).first();
         await search.fill(`overissue-${runId}`);

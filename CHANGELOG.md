@@ -4,6 +4,14 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Changed - Navigation and access polish (2026-10-12)
+
+- Sidebar group titles, item labels and the matching page headings are Bahasa Indonesia (`.scratch/nav-access-polish`); page body copy is unchanged. Every sidebar item has its own icon. The mobile drawer is `inert` while closed, closes on Escape, moves focus in and back to the toggle and keeps Tab inside while open; the sidebars are labelled `<nav>` landmarks. The role permission editor has a search field that filters permissions by name or label across categories.
+- The Permissions page (`/admin/permissions`) now needs `roles.manage` instead of `users.manage` (controller and sidebar). Every seeded role that held `users.manage` also holds `roles.manage`; a custom role with only `users.manage` loses the page.
+- Permission renames: `user.two_factor.reset` is now `users.two_factor.reset` and `document.export` is now `system.document.export`. A reversible data migration renames the rows in place, so role and user grants keep their permission ids; it aborts if a target name already exists and skips a missing source row. `UserPolicy`, `DocumentController`, `RolePermissionSeeder` and the tests use the new names.
+- The Reporting module shares `canTechnicianReport` (lazy), computed by `TechnicianReportAccess::allows()`, the non-aborting twin of the rule that guards the Technician Performance route. The sidebar shows Kinerja Teknisi only when it is true, so a manager without an organization no longer lands on a 403.
+- Deploy: `php artisan migrate --force` then `php artisan db:seed --class=RolePermissionSeeder --force`. Rolling back that migration restores the old permission names; re-run the seeder of the previous release afterwards.
+
 ### Changed - Sidebar regrouped by domain (2026-10-12)
 
 - The admin sidebar is regrouped into a standalone Dashboard plus six domain groups: Operations (Pekerjaan Saya, Dispatch, Approval, SPK, Ticketing, Evaluations), Customers & Services (Customers, service catalogue), Network (Locations, Network Assets, NAS Routers, IP Addresses, ODN), Inventory, Finance & Reports and Administration. Labels, links, icons and gates are unchanged, so the same roles see the same items. The role permission editor now lists permission categories in the same order as the sidebar, under the sidebar group title as a section heading, and opens on the first category; `user` (2FA reset) sits with Users and `document` (export) with the system settings, and a selfcheck fails if a seeded permission category has no sidebar section.

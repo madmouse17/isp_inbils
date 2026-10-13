@@ -69,10 +69,10 @@ export default function Index({ vehicles }: IndexProps) {
     };
 
     return (
-        <AdminLayout title="Vehicles">
+        <AdminLayout title="Kendaraan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Vehicles"
+                    title="Kendaraan"
                     subtitle="Technician transport."
                     actions={
                         <Button type="button" variant="success" onClick={openCreate}>

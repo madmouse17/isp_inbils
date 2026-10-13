@@ -128,10 +128,10 @@ export default function PackagesIndex({ servicePackages, slaTiers, filters, can 
 
     return (
         <AppLayout>
-            <Head title="Packages" />
+            <Head title="Paket Layanan" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Packages"
+                    title="Paket Layanan"
                     description="Service packages sold to customers."
                     actions={
                         <div className="flex flex-wrap gap-2">

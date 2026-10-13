@@ -33,7 +33,7 @@ class DocumentController extends Controller
         return Inertia::render('Admin/Documents/Index', [
             'documentTypes' => DocumentTypeResource::collection($types),
             'filters' => $request->only(['search', 'sort', 'direction']),
-            'can' => ['export' => (bool) ($request->user()?->can('document.export'))],
+            'can' => ['export' => (bool) ($request->user()?->can('system.document.export'))],
         ]);
     }
 
@@ -77,7 +77,7 @@ class DocumentController extends Controller
 
     public function export(Request $request): HttpResponse|StreamedResponse
     {
-        Gate::authorize('document.export');
+        Gate::authorize('system.document.export');
 
         $export = ExportQuery::make($this->filteredQuery($request))
             ->defaultSort('name', 'asc')

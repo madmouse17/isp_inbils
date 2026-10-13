@@ -40,10 +40,10 @@ export default function Find({ results, search }: FindProps) {
     };
 
     return (
-        <AdminLayout title="Item Finder">
+        <AdminLayout title="Cari Barang">
             <div className="space-y-6">
                 <PageHeader
-                    title="Item Finder"
+                    title="Cari Barang"
                     subtitle="Search consumable items by name or SKU."
                 />
                 <Card>

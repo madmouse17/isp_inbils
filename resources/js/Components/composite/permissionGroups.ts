@@ -9,20 +9,11 @@ export interface PermissionOption {
 const OTHER_SECTION = 'Other';
 
 /**
- * Permission groups whose page is gated by another group's permission: they sit right after that group.
- * `user.two_factor.reset` is used on the Users pages, `document.export` on the Documents page (`system.setting`).
- */
-const companionGroups: Record<string, readonly string[]> = {
-    users: ['user'],
-    system: ['document'],
-};
-
-/**
  * Permission groups in sidebar order, each tied to the sidebar group that first reaches it.
- * An item contributes the prefix of its first `anyOf` permission, then that prefix's companion groups;
- * flag-only items contribute none.
+ * An item contributes the prefix of its first `anyOf` permission; flag-only items contribute none.
  * A standalone sidebar entry has no title, so its section is `null`: the editor shows no heading.
  */
+
 const sidebarSections = new Map<string, string | null>();
 
 for (const navGroup of navGroups) {
@@ -33,9 +24,7 @@ for (const navGroup of navGroups) {
             continue;
         }
 
-        for (const group of [prefix, ...(companionGroups[prefix] ?? [])]) {
-            sidebarSections.set(group, navGroup.title ?? null);
-        }
+        sidebarSections.set(prefix, navGroup.title ?? null);
     }
 }
 
@@ -44,6 +33,33 @@ const permissionGroupOrder = [...sidebarSections.keys()];
 /** Heading shown above a permission group in the editor: its sidebar group title, `null` for none. */
 export function permissionGroupSection(group: string): string | null {
     return sidebarSections.has(group) ? (sidebarSections.get(group) ?? null) : OTHER_SECTION;
+}
+
+/** Human label of a permission: its name without the group prefix, words capitalised. */
+export function formatPermission(permission: string, group: string): string {
+    return permission
+        .replace(`${group}.`, '')
+        .split(/[._-]/)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+/** Permissions whose name or label contains the trimmed query, case-insensitive; a blank query keeps all. */
+export function filterPermissions(
+    permissions: PermissionOption[],
+    query: string,
+): PermissionOption[] {
+    const needle = query.trim().toLowerCase();
+
+    if (needle === '') {
+        return permissions;
+    }
+
+    return permissions.filter(
+        (permission) =>
+            permission.name.toLowerCase().includes(needle) ||
+            formatPermission(permission.name, permission.group).toLowerCase().includes(needle),
+    );
 }
 
 export function groupPermissions(permissions: PermissionOption[]) {

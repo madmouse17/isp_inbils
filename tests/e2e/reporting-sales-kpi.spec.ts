@@ -180,7 +180,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await page.goto(febUrl);
         const main = page.getByRole('main');
 
-        await expect(main.getByRole('heading', { name: 'Sales KPI', level: 1 })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'KPI Penjualan', level: 1 })).toBeVisible();
         await expect(
             main.getByText(
                 'Customers acquired, invoiced, collected and outstanding per acquirer.',
@@ -471,7 +471,9 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             const main = page.getByRole('main');
             await main.getByRole('link', { name: 'Open Sales KPI', exact: true }).click();
             await expect(page).toHaveURL(/\/admin\/reports\/sales$/);
-            await expect(main.getByRole('heading', { name: 'Sales KPI', level: 1 })).toBeVisible();
+            await expect(
+                main.getByRole('heading', { name: 'KPI Penjualan', level: 1 }),
+            ).toBeVisible();
             await logout(page);
         }
 
@@ -482,14 +484,14 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             expectHttpError({ url: deniedUrl, method: 'GET', status: 403 });
             const response = await page.goto(deniedUrl);
             expect(response?.status(), role).toBe(403);
-            await expect(page.getByRole('heading', { name: 'Sales KPI' })).toHaveCount(0);
+            await expect(page.getByRole('heading', { name: 'KPI Penjualan' })).toHaveCount(0);
 
             if (role === 'staff') {
                 // Staff keeps the hub but is not offered the Sales KPI card.
                 await page.goto('/admin/reports');
                 const main = page.getByRole('main');
                 await expect(
-                    main.getByRole('heading', { name: 'Reports', level: 1 }),
+                    main.getByRole('heading', { name: 'Laporan', level: 1 }),
                 ).toBeVisible();
                 await expect(
                     main.getByRole('link', { name: 'Open Sales KPI', exact: true }),
@@ -508,7 +510,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         expectHttpError({ url: path, method: 'GET', status: 403 });
         const response = await page.goto(path);
         expect(response?.status()).toBe(403);
-        await expect(page.getByRole('heading', { name: 'Sales KPI' })).toHaveCount(0);
+        await expect(page.getByRole('heading', { name: 'KPI Penjualan' })).toHaveCount(0);
     });
 
     test('stays usable without overflow, keyboard reachable and focus visible across widths and themes', async ({
@@ -524,7 +526,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     await expect(
                         page
                             .getByRole('main')
-                            .getByRole('heading', { name: 'Sales KPI', level: 1 }),
+                            .getByRole('heading', { name: 'KPI Penjualan', level: 1 }),
                     ).toBeVisible();
                     await expect(bodyRow(page, manager)).toHaveCount(1);
 

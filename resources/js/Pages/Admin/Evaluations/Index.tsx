@@ -61,10 +61,10 @@ export default function Index({ evaluations, employees, filters, can }: IndexPro
     };
 
     return (
-        <AdminLayout title="Evaluations">
+        <AdminLayout title="Evaluasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Employee Evaluations"
+                    title="Evaluasi"
                     subtitle="Performance evaluations for SPK and tickets."
                     actions={
                         can.create && (

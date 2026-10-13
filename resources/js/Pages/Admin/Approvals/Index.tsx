@@ -160,10 +160,10 @@ export default function ApprovalInboxIndex({
 
     if (!isEligible) {
         return (
-            <AdminLayout title="Approval">
+            <AdminLayout title="Persetujuan">
                 <div className="space-y-6">
                     <PageHeader
-                        title="Approval Inbox"
+                        title="Persetujuan"
                         subtitle="Antrean peninjauan dan persetujuan yang membutuhkan tindakan Anda"
                     />
                     <ForbiddenState
@@ -360,10 +360,10 @@ export default function ApprovalInboxIndex({
     const showDomainTabs = canSpk && canInventory;
 
     return (
-        <AdminLayout title="Approval">
+        <AdminLayout title="Persetujuan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Approval Inbox"
+                    title="Persetujuan"
                     subtitle="Antrean peninjauan dan persetujuan yang membutuhkan tindakan Anda"
                 />
 

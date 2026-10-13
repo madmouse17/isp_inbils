@@ -387,10 +387,10 @@ export default function InventoryRequestsIndex({
 
     return (
         <AppLayout>
-            <Head title="Permintaan Barang & Logistik Gudang" />
+            <Head title="Permintaan Barang" />
             <div className="space-y-6 p-4 md:p-6">
                 <PageHeader
-                    title="Permintaan Barang (Inventory Requests)"
+                    title="Permintaan Barang"
                     description="Kelola pengajuan kebutuhan material teknisi, reservasi stok gudang, penyerahan barang, dan pelaporan sisa/pengembalian fisik."
                     actions={
                         (capabilities.create ?? can('inventory.request.create')) ? (

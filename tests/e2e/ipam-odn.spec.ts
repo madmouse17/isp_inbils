@@ -74,7 +74,7 @@ async function odpCounts(page: Page) {
 async function openNetworkGroup(page: Page) {
     const group = page
         .locator('aside details')
-        .filter({ has: page.locator('summary', { hasText: 'Network' }) });
+        .filter({ has: page.locator('summary', { hasText: 'Jaringan' }) });
 
     if (!(await group.evaluate((details: HTMLDetailsElement) => details.open))) {
         await group.locator('summary').click();
@@ -412,13 +412,11 @@ test('@ipam-odn staff sees the menu entries but no manage control', async ({ pag
     await loginAs(page, 'staff');
 
     const group = await openNetworkGroup(page);
-    await expect(group.getByRole('link', { name: 'IP Addresses' })).toBeVisible();
+    await expect(group.getByRole('link', { name: 'Alamat IP' })).toBeVisible();
     await expect(group.getByRole('link', { name: 'ODN' })).toBeVisible();
 
-    await group.getByRole('link', { name: 'IP Addresses' }).click();
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'IP Addresses' }),
-    ).toBeVisible();
+    await group.getByRole('link', { name: 'Alamat IP' }).click();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New prefix' })).toHaveCount(0);
 
     await page.getByRole('link', { name: '10.99.0.0/24', exact: true }).click();
@@ -458,9 +456,7 @@ test('@ipam-odn technician reads the registers and cannot change them', async ({
     await loginAs(page, 'technician');
 
     await page.goto('/admin/ipam/prefixes');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'IP Addresses' }),
-    ).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'New prefix' })).toHaveCount(0);
 
     await page.goto(`/admin/odn/assets/${await odnAssetId(page, 'odp', odpCode)}`);

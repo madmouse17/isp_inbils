@@ -102,10 +102,10 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
 
     return (
         <AppLayout>
-            <Head title="Bandwidth Profiles" />
+            <Head title="Profil Bandwidth" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Bandwidth Profiles"
+                    title="Profil Bandwidth"
                     description="QoS / bandwidth templates for packages."
                     actions={
                         <div className="flex flex-wrap gap-2">

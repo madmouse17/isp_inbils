@@ -171,10 +171,10 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
     };
 
     return (
-        <AdminLayout title="Customers">
+        <AdminLayout title="Pelanggan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Customers"
+                    title="Pelanggan"
                     subtitle="Manage customer master data."
                     actions={
                         <div className="flex flex-wrap gap-2">

@@ -48,7 +48,7 @@ class UserPolicy
      */
     public function resetTwoFactor(User $user, User $model): bool
     {
-        return $user->can('user.two_factor.reset') && ! $user->is($model) && $this->mayChange($user, $model);
+        return $user->can('users.two_factor.reset') && ! $user->is($model) && $this->mayChange($user, $model);
     }
 
     /** Only an administrator may edit or remove an administrator, and only one who answers for the user's companies. */

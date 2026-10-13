@@ -101,10 +101,10 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
 
     return (
         <AppLayout>
-            <Head title="SLA Tiers" />
+            <Head title="Tingkat SLA" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="SLA Tiers"
+                    title="Tingkat SLA"
                     description="Response and resolution targets."
                     actions={
                         <div className="flex flex-wrap gap-2">

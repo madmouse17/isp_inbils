@@ -48,9 +48,9 @@ export default function Index({ permissions, filters }: PermissionsProps) {
     );
 
     return (
-        <AdminLayout title="Permissions">
+        <AdminLayout title="Hak Akses">
             <div className="space-y-6">
-                <PageHeader title="Permissions" subtitle="Read-only permission matrix." />
+                <PageHeader title="Hak Akses" subtitle="Read-only permission matrix." />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">

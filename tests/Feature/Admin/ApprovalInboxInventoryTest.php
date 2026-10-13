@@ -685,7 +685,8 @@ class ApprovalInboxInventoryTest extends TestCase
         $queryCount = count(DB::getQueryLog());
         DB::disableQueryLog();
 
-        $this->assertLessThan(25, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
+        // 24 + 1: the shared `canTechnicianReport` prop reads a manager's employee profile once per page.
+        $this->assertLessThan(26, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
     }
 
     public function test_unified_approval_inbox_pagination_title_sorting_with_reason_zero_preserves_page_boundaries(): void

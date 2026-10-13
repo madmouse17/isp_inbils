@@ -88,10 +88,10 @@ export default function Index({ units, filters, can }: IndexProps) {
     ];
 
     return (
-        <AdminLayout title="Units">
+        <AdminLayout title="Satuan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Units"
+                    title="Satuan"
                     subtitle="Manage measurement units."
                     actions={
                         <div className="flex flex-wrap gap-2">

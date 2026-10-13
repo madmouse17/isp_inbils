@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import type { PageProps } from '@/types';
 import {
@@ -34,6 +34,7 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const toggleRef = useRef<HTMLButtonElement>(null);
     const [darkMode, setDarkMode] = useState(() => {
         if (typeof window === 'undefined') {
             return false;
@@ -66,6 +67,7 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
     const groups = visibleNavGroups({
         permissions,
         canMyWork: props.canMyWork === true,
+        canTechnicianReport: props.canTechnicianReport === true,
         canConsolidate: props.companyHierarchy?.can_consolidate === true,
         developerGalleryEnabled: props.developerGalleryEnabled === true,
         isActiveUser: user?.is_active !== false,
@@ -80,29 +82,34 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                 <Sidebar
                     open={sidebarOpen}
                     onClose={() => setSidebarOpen(false)}
+                    returnFocusRef={toggleRef}
                     brandName={company?.name ?? 'inbils'}
                     brandLogo={company?.logo}
                 >
                     <div className="flex flex-col gap-6">
                         <CompanySwitcher onSwitched={() => setSidebarOpen(false)} />
-                        {groups.map((group) => (
-                            <SidebarSection
-                                key={group.id}
-                                title={group.title}
-                                defaultOpen={group.items.some((item) => item.href === activeHref)}
-                            >
-                                {group.items.map((item) => (
-                                    <SidebarItem
-                                        key={item.href}
-                                        href={item.href}
-                                        icon={<item.icon />}
-                                        label={item.label}
-                                        active={item.href === activeHref}
-                                        badge={item.badge}
-                                    />
-                                ))}
-                            </SidebarSection>
-                        ))}
+                        <nav aria-label="Navigasi utama" className="flex flex-col gap-6">
+                            {groups.map((group) => (
+                                <SidebarSection
+                                    key={group.id}
+                                    title={group.title}
+                                    defaultOpen={group.items.some(
+                                        (item) => item.href === activeHref,
+                                    )}
+                                >
+                                    {group.items.map((item) => (
+                                        <SidebarItem
+                                            key={item.href}
+                                            href={item.href}
+                                            icon={<item.icon />}
+                                            label={item.label}
+                                            active={item.href === activeHref}
+                                            badge={item.badge}
+                                        />
+                                    ))}
+                                </SidebarSection>
+                            ))}
+                        </nav>
                     </div>
                 </Sidebar>
 
@@ -111,12 +118,14 @@ export default function AdminLayout({ title, children }: AdminLayoutProps) {
                         title={title}
                         left={
                             <Button
+                                ref={toggleRef}
                                 type="button"
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => setSidebarOpen(!sidebarOpen)}
                                 className="lg:hidden"
                                 aria-label="Toggle sidebar"
+                                aria-expanded={sidebarOpen}
                             >
                                 <Bars3Icon className="h-5 w-5" />
                             </Button>

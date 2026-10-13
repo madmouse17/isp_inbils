@@ -16,7 +16,7 @@ class AdminPermissionRoleTest extends TestCase
 
     public function test_permissions_index_paginates_permissions_and_keeps_group_data(): void
     {
-        $this->actingAs($this->userWithPermissions('users.manage'));
+        $this->actingAs($this->userWithPermissions('roles.manage'));
 
         foreach (range(1, 16) as $number) {
             Permission::create(['name' => sprintf('alpha.%02d', $number), 'guard_name' => 'web']);
@@ -43,7 +43,7 @@ class AdminPermissionRoleTest extends TestCase
 
     public function test_permissions_index_supports_server_side_search_sort_and_per_page(): void
     {
-        $this->actingAs($this->userWithPermissions('users.manage'));
+        $this->actingAs($this->userWithPermissions('roles.manage'));
 
         Permission::create(['name' => 'billing.view', 'guard_name' => 'web']);
         Permission::create(['name' => 'billing.update', 'guard_name' => 'web']);

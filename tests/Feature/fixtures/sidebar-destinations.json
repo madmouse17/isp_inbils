@@ -2,13 +2,13 @@
     "destinations": [
         {
             "group": null,
-            "label": "Dashboard",
+            "label": "Dasbor",
             "href": "/admin/dashboard",
             "route": "admin.dashboard",
             "anyOf": ["dashboard.view"]
         },
         {
-            "group": "Operations",
+            "group": "Operasional",
             "label": "Pekerjaan Saya",
             "href": "/admin/my-work",
             "route": "admin.my-work.index",
@@ -16,16 +16,16 @@
             "flag": "canMyWork"
         },
         {
-            "group": "Operations",
-            "label": "Dispatch",
+            "group": "Operasional",
+            "label": "Penugasan",
             "href": "/admin/dispatch",
             "route": "admin.dispatch.index",
             "anyOf": ["ticket.assign", "ticket.reassign", "spk.assign", "spk.reassign"],
             "flag": "isActiveUser"
         },
         {
-            "group": "Operations",
-            "label": "Approval",
+            "group": "Operasional",
+            "label": "Persetujuan",
             "href": "/admin/approvals",
             "route": "admin.approvals.index",
             "anyOf": [
@@ -36,260 +36,261 @@
             ]
         },
         {
-            "group": "Operations",
+            "group": "Operasional",
             "label": "SPK",
             "href": "/admin/spk",
             "route": "admin.spk.index",
             "anyOf": ["spk.view"]
         },
         {
-            "group": "Operations",
-            "label": "Ticketing",
+            "group": "Operasional",
+            "label": "Tiket",
             "href": "/admin/tickets",
             "route": "admin.tickets.index",
             "anyOf": ["ticket.view"]
         },
         {
-            "group": "Operations",
-            "label": "Evaluations",
+            "group": "Operasional",
+            "label": "Evaluasi",
             "href": "/admin/evaluations",
             "route": "admin.evaluations.index",
             "anyOf": ["evaluation.view", "evaluation.view.own"]
         },
         {
-            "group": "Customers & Services",
-            "label": "Customers",
+            "group": "Pelanggan & Layanan",
+            "label": "Pelanggan",
             "href": "/admin/customers",
             "route": "admin.customers.index",
             "anyOf": ["customer.view"]
         },
         {
-            "group": "Customers & Services",
-            "label": "Service",
+            "group": "Pelanggan & Layanan",
+            "label": "Paket Layanan",
             "href": "/admin/service-packages",
             "route": "admin.service-packages.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Customers & Services",
-            "label": "Bandwidth Profiles",
+            "group": "Pelanggan & Layanan",
+            "label": "Profil Bandwidth",
             "href": "/admin/bandwidth-profiles",
             "route": "admin.bandwidth-profiles.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Customers & Services",
-            "label": "Speed Profiles",
+            "group": "Pelanggan & Layanan",
+            "label": "Profil Kecepatan",
             "href": "/admin/speed-profiles",
             "route": "admin.speed-profiles.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Customers & Services",
-            "label": "SLA Tiers",
+            "group": "Pelanggan & Layanan",
+            "label": "Tingkat SLA",
             "href": "/admin/sla-tiers",
             "route": "admin.sla-tiers.index",
             "anyOf": ["service.view", "service.manage"]
         },
         {
-            "group": "Network",
-            "label": "Locations",
+            "group": "Jaringan",
+            "label": "Lokasi",
             "href": "/admin/locations",
             "route": "admin.locations.index",
             "anyOf": ["location.view"]
         },
         {
-            "group": "Network",
-            "label": "Network Assets",
+            "group": "Jaringan",
+            "label": "Aset Jaringan",
             "href": "/admin/network-assets",
             "route": "admin.network-assets.index",
             "anyOf": ["network_asset.view"]
         },
         {
-            "group": "Network",
-            "label": "NAS Routers",
+            "group": "Jaringan",
+            "label": "Router NAS",
             "href": "/admin/nas-devices",
             "route": "admin.nas-devices.index",
             "anyOf": ["network_asset.nas.view"]
         },
         {
-            "group": "Network",
-            "label": "IP Addresses",
+            "group": "Jaringan",
+            "label": "Alamat IP",
             "href": "/admin/ipam/prefixes",
             "route": "admin.ipam.prefixes.index",
             "anyOf": ["ipam.view"]
         },
         {
-            "group": "Network",
+            "group": "Jaringan",
             "label": "ODN",
             "href": "/admin/odn",
             "route": "admin.odn.index",
             "anyOf": ["odn.view"]
         },
         {
-            "group": "Inventory",
+            "group": "Inventaris",
             "label": "Permintaan Barang",
             "href": "/admin/inventory/requests",
             "route": "admin.inventory.requests.index",
             "anyOf": ["inventory.request.view.own", "inventory.request.view.all"]
         },
         {
-            "group": "Inventory",
-            "label": "Inventory",
+            "group": "Inventaris",
+            "label": "Barang",
             "href": "/admin/products",
             "route": "admin.products.index",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Inventory",
-            "label": "Categories",
+            "group": "Inventaris",
+            "label": "Kategori",
             "href": "/admin/categories",
             "route": "admin.categories.index",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Inventory",
-            "label": "Units",
+            "group": "Inventaris",
+            "label": "Satuan",
             "href": "/admin/units",
             "route": "admin.units.index",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Inventory",
-            "label": "Stocks",
+            "group": "Inventaris",
+            "label": "Stok",
             "href": "/admin/stocks",
             "route": "admin.stocks.index",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Inventory",
-            "label": "Item Finder",
+            "group": "Inventaris",
+            "label": "Cari Barang",
             "href": "/admin/inventory/find",
             "route": "admin.inventory.find",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Inventory",
-            "label": "Stock Movements",
+            "group": "Inventaris",
+            "label": "Mutasi Stok",
             "href": "/admin/stock-movements",
             "route": "admin.stock-movements.index",
             "anyOf": ["inventory.view"]
         },
         {
-            "group": "Finance & Reports",
-            "label": "Billing",
+            "group": "Keuangan & Laporan",
+            "label": "Tagihan",
             "href": "/admin/invoices",
             "route": "admin.invoices.index",
             "anyOf": ["billing.view"]
         },
         {
-            "group": "Finance & Reports",
+            "group": "Keuangan & Laporan",
             "label": "Tunggakan",
             "href": "/admin/billing/receivables",
             "route": "admin.billing.receivables",
             "anyOf": ["billing.view"]
         },
         {
-            "group": "Finance & Reports",
+            "group": "Keuangan & Laporan",
             "label": "Tagihan Saya",
             "href": "/portal/invoices",
             "route": "portal.invoices.index",
             "anyOf": ["portal.invoice.view"]
         },
         {
-            "group": "Finance & Reports",
-            "label": "Reports",
+            "group": "Keuangan & Laporan",
+            "label": "Laporan",
             "href": "/admin/reports",
             "route": "admin.reports.index",
             "anyOf": ["report.view"]
         },
         {
-            "group": "Finance & Reports",
-            "label": "Technician Performance",
+            "group": "Keuangan & Laporan",
+            "label": "Kinerja Teknisi",
             "href": "/admin/reports/technician",
             "route": "admin.reports.technician",
-            "anyOf": ["report.technician"]
+            "anyOf": ["report.technician"],
+            "flag": "canTechnicianReport"
         },
         {
-            "group": "Finance & Reports",
-            "label": "Sales KPI",
+            "group": "Keuangan & Laporan",
+            "label": "KPI Penjualan",
             "href": "/admin/reports/sales",
             "route": "admin.reports.sales",
             "anyOf": ["report.sales.view"]
         },
         {
-            "group": "Finance & Reports",
-            "label": "Consolidated Metrics",
+            "group": "Keuangan & Laporan",
+            "label": "Metrik Konsolidasi",
             "href": "/admin/reports/consolidated",
             "route": "admin.reports.consolidated",
             "anyOf": ["report.consolidated.view"],
             "flag": "canConsolidate"
         },
         {
-            "group": "Administration",
-            "label": "Company",
+            "group": "Administrasi",
+            "label": "Perusahaan",
             "href": "/admin/company/profile",
             "route": "admin.company.profile.edit",
             "anyOf": ["company.manage"]
         },
         {
-            "group": "Administration",
-            "label": "Organization",
+            "group": "Administrasi",
+            "label": "Organisasi",
             "href": "/admin/organizations",
             "route": "admin.organizations.index",
             "anyOf": ["organization.view"]
         },
         {
-            "group": "Administration",
-            "label": "Employees",
+            "group": "Administrasi",
+            "label": "Karyawan",
             "href": "/admin/employees",
             "route": "admin.employees.index",
             "anyOf": ["employee.view"]
         },
         {
-            "group": "Administration",
-            "label": "Vehicles",
+            "group": "Administrasi",
+            "label": "Kendaraan",
             "href": "/admin/vehicles",
             "route": "admin.vehicles.index",
             "anyOf": ["vehicle.view"]
         },
         {
-            "group": "Administration",
-            "label": "Users",
+            "group": "Administrasi",
+            "label": "Pengguna",
             "href": "/admin/users",
             "route": "admin.users.index",
             "anyOf": ["users.manage"]
         },
         {
-            "group": "Administration",
-            "label": "Roles",
+            "group": "Administrasi",
+            "label": "Peran",
             "href": "/admin/roles",
             "route": "admin.roles.index",
             "anyOf": ["roles.manage"]
         },
         {
-            "group": "Administration",
-            "label": "Permissions",
+            "group": "Administrasi",
+            "label": "Hak Akses",
             "href": "/admin/permissions",
             "route": "admin.permissions.index",
-            "anyOf": ["users.manage"]
+            "anyOf": ["roles.manage"]
         },
         {
-            "group": "Administration",
-            "label": "Documents",
+            "group": "Administrasi",
+            "label": "Dokumen",
             "href": "/admin/documents",
             "route": "admin.documents.index",
             "anyOf": ["system.setting"]
         },
         {
-            "group": "Administration",
-            "label": "Number Sequences",
+            "group": "Administrasi",
+            "label": "Penomoran",
             "href": "/admin/number-sequences",
             "route": "admin.number-sequences.index",
             "anyOf": ["system.setting"]
         },
         {
-            "group": "Administration",
+            "group": "Administrasi",
             "label": "Komponen",
             "href": "/admin/components",
             "route": "admin.components",

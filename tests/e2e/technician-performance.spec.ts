@@ -157,17 +157,15 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await loginAs(page, 'technician');
         await page
             .locator('details')
-            .filter({ has: page.locator('summary', { hasText: 'Finance & Reports' }) })
+            .filter({ has: page.locator('summary', { hasText: 'Keuangan & Laporan' }) })
             .locator('summary')
             .click();
-        await expect(page.getByRole('link', { name: 'Technician Performance' })).toBeVisible();
-        await page.getByRole('link', { name: 'Technician Performance' }).focus();
+        await expect(page.getByRole('link', { name: 'Kinerja Teknisi' })).toBeVisible();
+        await page.getByRole('link', { name: 'Kinerja Teknisi' }).focus();
         await page.keyboard.press('Enter');
-        await expect(
-            page.getByRole('heading', { name: 'Technician Performance' }).first(),
-        ).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Kinerja Teknisi' }).first()).toBeVisible();
         await expect(page.getByLabel('Technician')).toHaveCount(0);
-        await expect(page.getByRole('link', { name: 'Reports', exact: true })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Laporan', exact: true })).toHaveCount(0);
         const selfRequest = page.waitForRequest(
             (request) =>
                 request.method() === 'GET' &&
@@ -187,17 +185,17 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await loginAs(page, 'manager');
         await page.goto('/admin/reports/technician');
         await expect(page.getByText('Pilih teknisi untuk melihat laporan.')).toBeVisible();
-        // Reports and Technician Performance both exist here: only the longer href is current.
+        // Laporan and Kinerja Teknisi both exist here: only the longer href is current.
         const sidebar = page.locator('aside');
-        await expect(sidebar.getByRole('link', { name: 'Reports', exact: true })).toHaveCount(1);
+        await expect(sidebar.getByRole('link', { name: 'Laporan', exact: true })).toHaveCount(1);
         await expect(
-            sidebar.getByRole('link', { name: 'Technician Performance', exact: true }),
+            sidebar.getByRole('link', { name: 'Kinerja Teknisi', exact: true }),
         ).toHaveAttribute('aria-current', 'page');
         await expect(sidebar.locator('a[aria-current="page"]')).toHaveCount(1);
         await expect(
             sidebar
                 .locator('details')
-                .filter({ has: page.locator('summary', { hasText: 'Finance & Reports' }) }),
+                .filter({ has: page.locator('summary', { hasText: 'Keuangan & Laporan' }) }),
         ).toHaveJSProperty('open', true);
         await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled();
         await expect(
@@ -240,6 +238,8 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await updateEmployee(page, manager, null);
         await logout(page);
         await loginAs(page, 'manager');
+        // Without an organization the server withholds the report, so the sidebar offers no link either.
+        await expect(page.getByRole('link', { name: 'Kinerja Teknisi' })).toHaveCount(0);
         const noOrgPath = '/admin/reports/technician?check=no-organization';
         expectHttpError({ url: noOrgPath, method: 'GET', status: 403 });
         const noOrg = await page.goto(noOrgPath);
@@ -247,7 +247,7 @@ test('technician self and manager hierarchy use canonical report filters and cap
         await logout(page);
 
         await loginAs(page, 'staff');
-        await expect(page.getByRole('link', { name: 'Technician Performance' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Kinerja Teknisi' })).toHaveCount(0);
         const staffPath = '/admin/reports/technician?check=staff-denied';
         expectHttpError({ url: staffPath, method: 'GET', status: 403 });
         const staff = await page.goto(staffPath);

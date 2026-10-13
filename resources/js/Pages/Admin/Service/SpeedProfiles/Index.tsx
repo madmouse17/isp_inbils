@@ -101,10 +101,10 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
 
     return (
         <AppLayout>
-            <Head title="Speed Profiles" />
+            <Head title="Profil Kecepatan" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Speed Profiles"
+                    title="Profil Kecepatan"
                     description="Marketing speed labels linked to packages."
                     actions={
                         <div className="flex flex-wrap gap-2">

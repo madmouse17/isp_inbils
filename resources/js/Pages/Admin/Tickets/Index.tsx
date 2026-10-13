@@ -121,10 +121,10 @@ export default function TicketsIndex({
 
     return (
         <AppLayout>
-            <Head title="Tickets" />
+            <Head title="Tiket" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Tickets"
+                    title="Tiket"
                     description="Support tickets and escalations."
                     actions={
                         <div className="flex flex-wrap gap-2">

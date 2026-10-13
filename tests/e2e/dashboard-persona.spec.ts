@@ -11,7 +11,15 @@ const roleVisibility: Record<
     }
 > = {
     admin: {
-        groups: ['Operasional', 'Persetujuan', 'Gudang', 'Keuangan', 'Aktivitas saya', 'Notifikasi', 'Administrasi'],
+        groups: [
+            'Operasional',
+            'Persetujuan',
+            'Gudang',
+            'Keuangan',
+            'Aktivitas saya',
+            'Notifikasi',
+            'Administrasi',
+        ],
         cards: [
             'Belum ditugaskan',
             'SLA terlampaui',
@@ -88,7 +96,7 @@ for (const demoUser of demoUsers) {
         }
 
         const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Dasbor', level: 1 })).toBeVisible();
 
         for (const title of expectations.groups) {
             await expect(main.getByRole('region', { name: title })).toBeVisible();
@@ -103,7 +111,9 @@ for (const demoUser of demoUsers) {
         }
 
         const notifRegion = main.getByRole('region', { name: 'Notifikasi' });
-        await expect(notifRegion.getByRole('link', { name: 'Lihat semua notifikasi' })).toBeVisible();
+        await expect(
+            notifRegion.getByRole('link', { name: 'Lihat semua notifikasi' }),
+        ).toBeVisible();
     });
 
     test(`@dashboard-persona ${role} card links return 200 responses`, async ({ page }) => {
@@ -113,16 +123,18 @@ for (const demoUser of demoUsers) {
         }
 
         const main = page.getByRole('main');
-        
+
         // Wait for page to finish any lazy loaded chunks before grabbing hrefs
-        await expect(main.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Dasbor', level: 1 })).toBeVisible();
 
         // Collect all distinct hrefs from section cards and SLA items, excluding notifications
-        const links = main.locator('section:not([aria-labelledby="dashboard-notifications"]):not([aria-labelledby="dashboard-admin"]) a[href]');
-        
+        const links = main.locator(
+            'section:not([aria-labelledby="dashboard-notifications"]):not([aria-labelledby="dashboard-admin"]) a[href]',
+        );
+
         const count = await links.count();
         const hrefs = new Set<string>();
-        
+
         for (let i = 0; i < count; i++) {
             const href = await links.nth(i).getAttribute('href');
             if (href) hrefs.add(href);
@@ -145,9 +157,11 @@ test('@dashboard-persona admin block contents visible only for admin', async ({ 
 
     await expect(adminRegion.getByText('Pengguna', { exact: true })).toBeVisible();
     await expect(adminRegion.getByRole('heading', { name: 'Perusahaan', level: 3 })).toBeVisible();
-    await expect(adminRegion.getByRole('heading', { name: 'Aktivitas terbaru', level: 3 })).toBeVisible();
+    await expect(
+        adminRegion.getByRole('heading', { name: 'Aktivitas terbaru', level: 3 }),
+    ).toBeVisible();
     await expect(adminRegion.getByRole('heading', { name: 'Modul', level: 3 })).toBeVisible();
-    
+
     // Check one module link exists
     await expect(adminRegion.getByRole('link').first()).toBeVisible();
 
@@ -170,7 +184,7 @@ for (const dark of [false, true]) {
         await expect(html).toHaveClass(dark ? /dark/ : /^(?!.*dark)/);
 
         const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Dasbor', level: 1 })).toBeVisible();
 
         const overflow = await page.evaluate(() => {
             const root = document.documentElement;
@@ -178,7 +192,9 @@ for (const dark of [false, true]) {
 
             return {
                 document: root.scrollWidth - root.clientWidth,
-                main: scrollableMain ? scrollableMain.scrollWidth - scrollableMain.clientWidth : null,
+                main: scrollableMain
+                    ? scrollableMain.scrollWidth - scrollableMain.clientWidth
+                    : null,
             };
         });
 

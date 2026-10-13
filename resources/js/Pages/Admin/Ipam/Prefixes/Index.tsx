@@ -123,10 +123,10 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
     ) : undefined;
 
     return (
-        <AdminLayout title="IP Addresses">
+        <AdminLayout title="Alamat IP">
             <div className="space-y-6">
                 <PageHeader
-                    title="IP Addresses"
+                    title="Alamat IP"
                     description="Prefixes registered for this company and how full each one is."
                     actions={
                         <>

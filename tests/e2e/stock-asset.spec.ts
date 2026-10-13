@@ -14,7 +14,7 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await loginAs(page, 'admin');
         await settleAppChunks(page);
         await page.goto('/admin/stocks');
-        await expect(page.getByRole('main').getByRole('heading', { name: 'Stocks' })).toBeVisible();
+        await expect(page.getByRole('main').getByRole('heading', { name: 'Stok' })).toBeVisible();
         await page.getByRole('button', { name: 'Terima Barang' }).click();
 
         const dialog = page.getByRole('dialog', { name: 'Terima Barang' });
@@ -24,9 +24,9 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await dialog.getByLabel('Catatan').fill(note);
         await dialog.getByRole('button', { name: 'Simpan' }).click();
 
-        await page.getByRole('link', { name: 'Stock Movements' }).click();
+        await page.getByRole('link', { name: 'Mutasi Stok' }).click();
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Stock Movements' }),
+            page.getByRole('main').getByRole('heading', { name: 'Mutasi Stok' }),
         ).toBeVisible();
         await page.getByLabel('Type').selectOption('receive');
         await page.getByRole('button', { name: 'Filter' }).click();
@@ -157,7 +157,7 @@ async function settleAppChunks(page: Page) {
 async function openLinkedAsset(page: Page) {
     await page.goto('/admin/network-assets?search=E2E-LINKED-ASSET-001');
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Network Assets' }),
+        page.getByRole('main').getByRole('heading', { name: 'Aset Jaringan' }),
     ).toBeVisible();
     await page
         .getByRole('row')

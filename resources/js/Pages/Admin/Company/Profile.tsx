@@ -56,10 +56,10 @@ export default function Profile({ company, can }: ProfileProps) {
     };
 
     return (
-        <AdminLayout title="Company Profile">
+        <AdminLayout title="Perusahaan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Company Profile"
+                    title="Perusahaan"
                     subtitle="Identity and contact data."
                     actions={
                         <Link

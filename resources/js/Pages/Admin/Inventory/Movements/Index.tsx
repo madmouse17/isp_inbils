@@ -139,10 +139,10 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
 
     return (
         <AppLayout>
-            <Head title="Stock Movements" />
+            <Head title="Mutasi Stok" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Stock Movements"
+                    title="Mutasi Stok"
                     description="Inbound, outbound, transfer, and adjustment history."
                     actions={
                         <div className="flex flex-wrap gap-2">

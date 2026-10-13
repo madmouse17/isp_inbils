@@ -42,7 +42,7 @@ const seededCases: Case[] = [
     {
         name: 'Users',
         path: '/admin/users',
-        heading: 'Users',
+        heading: 'Pengguna',
         search: 'Demo',
         sortHeader: 'Name',
         sortKey: 'name',
@@ -54,7 +54,7 @@ const seededCases: Case[] = [
     {
         name: 'Roles',
         path: '/admin/roles',
-        heading: 'Roles',
+        heading: 'Peran',
         search: 'a',
         sortHeader: 'Name',
         sortKey: 'name',
@@ -66,7 +66,7 @@ const seededCases: Case[] = [
     {
         name: 'Permissions',
         path: '/admin/permissions',
-        heading: 'Permissions',
+        heading: 'Hak Akses',
         search: 'billing.',
         sortHeader: 'Name',
         sortKey: 'name',
@@ -78,7 +78,7 @@ const seededCases: Case[] = [
     {
         name: 'Customers',
         path: '/admin/customers',
-        heading: 'Customers',
+        heading: 'Pelanggan',
         search: 'Fiber',
         submit: 'Filter',
         sortHeader: 'Name',
@@ -91,7 +91,7 @@ const seededCases: Case[] = [
     {
         name: 'Employees',
         path: '/admin/employees',
-        heading: 'Employee Profiles',
+        heading: 'Karyawan',
         search: 'DEMO-',
         sortHeader: 'Emp No',
         sortKey: 'employee_number',
@@ -103,7 +103,7 @@ const seededCases: Case[] = [
     {
         name: 'Service Packages',
         path: '/admin/service-packages',
-        heading: 'Packages',
+        heading: 'Paket Layanan',
         search: 'PKG-BIZ',
         sortHeader: 'Monthly',
         sortKey: 'price_mrc',
@@ -115,7 +115,7 @@ const seededCases: Case[] = [
     {
         name: 'Bandwidth Profiles',
         path: '/admin/bandwidth-profiles',
-        heading: 'Bandwidth Profiles',
+        heading: 'Profil Bandwidth',
         search: 'Home',
         sortHeader: 'Download (Mbps)',
         sortKey: 'download_mbps',
@@ -127,7 +127,7 @@ const seededCases: Case[] = [
     {
         name: 'Speed Profiles',
         path: '/admin/speed-profiles',
-        heading: 'Speed Profiles',
+        heading: 'Profil Kecepatan',
         search: 'SP-Home',
         sortHeader: 'Download (Mbps)',
         sortKey: 'download_max_mbps',
@@ -139,7 +139,7 @@ const seededCases: Case[] = [
     {
         name: 'SLA Tiers',
         path: '/admin/sla-tiers',
-        heading: 'SLA Tiers',
+        heading: 'Tingkat SLA',
         search: 'l',
         sortHeader: 'Response (h)',
         sortKey: 'response_time_hours',
@@ -294,7 +294,7 @@ test.describe('@datatable-ab replacement matrix', () => {
             await exerciseTable(page, {
                 name: 'Organizations',
                 path: '/admin/organizations',
-                heading: 'Organization Units',
+                heading: 'Organisasi',
                 search: prefix,
                 sortHeader: 'Code',
                 sortKey: 'code',
@@ -351,7 +351,7 @@ test.describe('@datatable-ab replacement matrix', () => {
                 name: 'Invoices',
                 path: '/admin/invoices',
                 query: range,
-                heading: 'Invoices',
+                heading: 'Tagihan',
                 search: e2eCustomerName,
                 sortHeader: 'Number',
                 sortKey: 'number',

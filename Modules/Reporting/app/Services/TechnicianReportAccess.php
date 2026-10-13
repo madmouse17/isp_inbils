@@ -18,8 +18,25 @@ final class TechnicianReportAccess
     /** Company of an actor allowed on the report; aborts 403 for everybody else. */
     public static function companyId(?User $actor): int
     {
-        $companyId = $actor === null ? null : CompanyService::idFor($actor);
+        $companyId = self::allowedCompanyId($actor);
         abort_unless($companyId !== null, 403);
+
+        return $companyId;
+    }
+
+    /** The non-aborting twin of companyId(): may this actor open the report at all (sidebar flag). */
+    public static function allows(?User $actor): bool
+    {
+        return self::allowedCompanyId($actor) !== null;
+    }
+
+    private static function allowedCompanyId(?User $actor): ?int
+    {
+        $companyId = $actor === null ? null : CompanyService::idFor($actor);
+        if ($companyId === null) {
+            return null;
+        }
+
         if ($actor->can('report.manage')) {
             return $companyId;
         }
@@ -36,15 +53,10 @@ final class TechnicianReportAccess
                 ->with('organization')
                 ->first();
 
-            $path = $profile?->organization?->path;
-            abort_unless(self::isValidOrganizationPath($path), 403);
-
-            return $companyId;
+            return self::isValidOrganizationPath($profile?->organization?->path) ? $companyId : null;
         }
 
-        abort_unless($actor->hasRole('technician') && $actor->can('report.technician'), 403);
-
-        return $companyId;
+        return $actor->hasRole('technician') && $actor->can('report.technician') ? $companyId : null;
     }
 
     /**

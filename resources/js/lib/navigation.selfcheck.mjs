@@ -23,6 +23,7 @@ const closed = {
     canConsolidate: false,
     developerGalleryEnabled: false,
     isActiveUser: true,
+    canTechnicianReport: false,
     workQueues: {},
 };
 const view = (permissions, flags = {}) => visibleNavGroups({ ...closed, permissions, ...flags });
@@ -31,12 +32,12 @@ const outline = (groups) =>
 
 const inventoryItems = [
     'Permintaan Barang',
-    'Inventory',
-    'Categories',
-    'Units',
-    'Stocks',
-    'Item Finder',
-    'Stock Movements',
+    'Barang',
+    'Kategori',
+    'Satuan',
+    'Stok',
+    'Cari Barang',
+    'Mutasi Stok',
 ];
 
 test('config equals the destination table the server is checked against', () => {
@@ -68,22 +69,23 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
         navGroups.map((group) => group.title ?? null),
         [
             null,
-            'Operations',
-            'Customers & Services',
-            'Network',
-            'Inventory',
-            'Finance & Reports',
-            'Administration',
+            'Operasional',
+            'Pelanggan & Layanan',
+            'Jaringan',
+            'Inventaris',
+            'Keuangan & Laporan',
+            'Administrasi',
         ],
     );
     assert.deepEqual(
         navGroups[0].items.map((item) => item.label),
-        ['Dashboard'],
+        ['Dasbor'],
     );
 
     const items = navGroups.flatMap((group) => group.items);
     assert.equal(new Set(items.map((item) => item.href)).size, items.length);
     assert.equal(new Set(items.map((item) => item.label)).size, items.length);
+    assert.equal(new Set(items.map((item) => item.icon)).size, items.length, 'one icon per item');
     assert.ok(
         items.every((item) => item.href.startsWith('/admin/') || item.href.startsWith('/portal/')),
     );
@@ -92,15 +94,15 @@ test('seven entries at most: six titled groups and a standalone Dashboard', () =
 
 test('a user with nothing sees nothing, and no group header outlives its items', () => {
     assert.deepEqual(view([]), []);
-    assert.deepEqual(outline(view(['ticket.view'])), [['Operations', ['Ticketing']]]);
+    assert.deepEqual(outline(view(['ticket.view'])), [['Operasional', ['Tiket']]]);
 });
 
 test('dashboard needs dashboard.view (decision 3a)', () => {
-    assert.deepEqual(outline(view(['dashboard.view'])), [[null, ['Dashboard']]]);
-    assert.ok(!outline(view(['ticket.view'])).some(([, labels]) => labels.includes('Dashboard')));
+    assert.deepEqual(outline(view(['dashboard.view'])), [[null, ['Dasbor']]]);
+    assert.ok(!outline(view(['ticket.view'])).some(([, labels]) => labels.includes('Dasbor')));
 });
 
-test('customer sees Dashboard, Tagihan Saya and Ticketing only', () => {
+test('customer sees Dasbor, Tagihan Saya and Tiket only', () => {
     const customer = [
         'dashboard.view',
         'ticket.view',
@@ -111,9 +113,9 @@ test('customer sees Dashboard, Tagihan Saya and Ticketing only', () => {
     ];
 
     assert.deepEqual(outline(view(customer)), [
-        [null, ['Dashboard']],
-        ['Operations', ['Ticketing']],
-        ['Finance & Reports', ['Tagihan Saya']],
+        [null, ['Dasbor']],
+        ['Operasional', ['Tiket']],
+        ['Keuangan & Laporan', ['Tagihan Saya']],
     ]);
 });
 
@@ -135,13 +137,13 @@ test('technician sees no Administration group and no service items', () => {
         'odn.view',
     ];
 
-    assert.deepEqual(outline(view(technician, { canMyWork: true })), [
-        [null, ['Dashboard']],
-        ['Operations', ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations']],
-        ['Customers & Services', ['Customers']],
-        ['Network', ['Locations', 'Network Assets', 'IP Addresses', 'ODN']],
-        ['Inventory', inventoryItems],
-        ['Finance & Reports', ['Technician Performance']],
+    assert.deepEqual(outline(view(technician, { canMyWork: true, canTechnicianReport: true })), [
+        [null, ['Dasbor']],
+        ['Operasional', ['Pekerjaan Saya', 'SPK', 'Tiket', 'Evaluasi']],
+        ['Pelanggan & Layanan', ['Pelanggan']],
+        ['Jaringan', ['Lokasi', 'Aset Jaringan', 'Alamat IP', 'ODN']],
+        ['Inventaris', inventoryItems],
+        ['Keuangan & Laporan', ['Kinerja Teknisi']],
     ]);
 });
 
@@ -169,34 +171,39 @@ test('manager keeps Approval and Dispatch but no administration (story 4)', () =
     const titles = view(manager).map((group) => group.title);
     const labels = view(manager).flatMap((group) => group.items.map((item) => item.label));
 
-    assert.ok(!titles.includes('Administration'));
-    assert.ok(['Approval', 'Dispatch', 'Service'].every((label) => labels.includes(label)));
+    assert.ok(!titles.includes('Administrasi'));
     assert.ok(
-        ['Users', 'Roles', 'Permissions', 'Employees', 'Vehicles', 'Documents'].every(
+        ['Persetujuan', 'Penugasan', 'Paket Layanan'].every((label) => labels.includes(label)),
+    );
+    assert.ok(
+        ['Pengguna', 'Peran', 'Hak Akses', 'Karyawan', 'Kendaraan', 'Dokumen'].every(
             (label) => !labels.includes(label),
         ),
     );
 });
 
 test('Permintaan Barang needs a request capability, inventory.view alone is not enough (5a)', () => {
-    assert.deepEqual(outline(view(['inventory.view'])), [['Inventory', inventoryItems.slice(1)]]);
+    assert.deepEqual(outline(view(['inventory.view'])), [['Inventaris', inventoryItems.slice(1)]]);
     assert.deepEqual(outline(view(['inventory.request.view.own'])), [
-        ['Inventory', ['Permintaan Barang']],
+        ['Inventaris', ['Permintaan Barang']],
     ]);
     assert.deepEqual(outline(view(['inventory.request.view.all'])), [
-        ['Inventory', ['Permintaan Barang']],
+        ['Inventaris', ['Permintaan Barang']],
     ]);
 });
 
 test('service.manage alone opens every service item (6a)', () => {
     assert.deepEqual(outline(view(['service.manage'])), [
-        ['Customers & Services', ['Service', 'Bandwidth Profiles', 'Speed Profiles', 'SLA Tiers']],
+        [
+            'Pelanggan & Layanan',
+            ['Paket Layanan', 'Profil Bandwidth', 'Profil Kecepatan', 'Tingkat SLA'],
+        ],
     ]);
 });
 
 test('system.setting puts Documents and Number Sequences under Administration only (7a)', () => {
     assert.deepEqual(outline(view(['system.setting'])), [
-        ['Administration', ['Documents', 'Number Sequences']],
+        ['Administrasi', ['Dokumen', 'Penomoran']],
     ]);
 });
 
@@ -206,27 +213,27 @@ test('Komponen needs the permission and the environment flag (2a)', () => {
     assert.deepEqual(view(component), []);
     assert.deepEqual(view([], { developerGalleryEnabled: true }), []);
     assert.deepEqual(outline(view(component, { developerGalleryEnabled: true })), [
-        ['Administration', ['Komponen']],
+        ['Administrasi', ['Komponen']],
     ]);
 });
 
 test('IP Addresses, ODN and NAS Routers each follow their own view permission', () => {
-    assert.deepEqual(outline(view(['ipam.view'])), [['Network', ['IP Addresses']]]);
-    assert.deepEqual(outline(view(['odn.view'])), [['Network', ['ODN']]]);
-    assert.deepEqual(outline(view(['network_asset.nas.view'])), [['Network', ['NAS Routers']]]);
+    assert.deepEqual(outline(view(['ipam.view'])), [['Jaringan', ['Alamat IP']]]);
+    assert.deepEqual(outline(view(['odn.view'])), [['Jaringan', ['ODN']]]);
+    assert.deepEqual(outline(view(['network_asset.nas.view'])), [['Jaringan', ['Router NAS']]]);
     // Managing or assigning alone opens no page: the pages are gated by view.
     assert.deepEqual(view(['ipam.manage', 'ipam.assign', 'odn.manage', 'odn.assign']), []);
 });
 
 test('Dispatch follows assign or reassign for an active user', () => {
     for (const permission of ['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign']) {
-        assert.deepEqual(outline(view([permission])), [['Operations', ['Dispatch']]]);
+        assert.deepEqual(outline(view([permission])), [['Operasional', ['Penugasan']]]);
     }
     assert.deepEqual(view(['ticket.assign'], { isActiveUser: false }), []);
 });
 
 test('Pekerjaan Saya follows the server flag, not a permission', () => {
-    assert.deepEqual(outline(view([], { canMyWork: true })), [['Operations', ['Pekerjaan Saya']]]);
+    assert.deepEqual(outline(view([], { canMyWork: true })), [['Operasional', ['Pekerjaan Saya']]]);
     assert.deepEqual(view(['spk.start', 'ticket.start']), []);
 });
 
@@ -237,12 +244,27 @@ test('Approval is offered for any approve or reject capability', () => {
         'inventory.request.approve',
         'inventory.request.reject',
     ]) {
-        assert.deepEqual(outline(view([permission])), [['Operations', ['Approval']]]);
+        assert.deepEqual(outline(view([permission])), [['Operasional', ['Persetujuan']]]);
     }
 });
 
 test('Evaluations accepts the own-scope capability', () => {
-    assert.deepEqual(outline(view(['evaluation.view.own'])), [['Operations', ['Evaluations']]]);
+    assert.deepEqual(outline(view(['evaluation.view.own'])), [['Operasional', ['Evaluasi']]]);
+});
+
+test('Kinerja Teknisi needs report.technician and the server flag, the permission alone is not enough', () => {
+    const report = ['report.technician'];
+
+    assert.deepEqual(view(report), []);
+    assert.deepEqual(view([], { canTechnicianReport: true }), []);
+    assert.deepEqual(outline(view(report, { canTechnicianReport: true })), [
+        ['Keuangan & Laporan', ['Kinerja Teknisi']],
+    ]);
+});
+
+test('Hak Akses follows roles.manage, users.manage alone does not open it', () => {
+    assert.deepEqual(outline(view(['roles.manage'])), [['Administrasi', ['Peran', 'Hak Akses']]]);
+    assert.deepEqual(outline(view(['users.manage'])), [['Administrasi', ['Pengguna']]]);
 });
 
 test('Consolidated Metrics needs the permission and a Head company, which only the server knows', () => {
@@ -251,7 +273,7 @@ test('Consolidated Metrics needs the permission and a Head company, which only t
     assert.deepEqual(view(consolidate), []);
     assert.deepEqual(view([], { canConsolidate: true }), []);
     assert.deepEqual(outline(view(consolidate, { canConsolidate: true })), [
-        ['Finance & Reports', ['Consolidated Metrics']],
+        ['Keuangan & Laporan', ['Metrik Konsolidasi']],
     ]);
 });
 
@@ -261,6 +283,7 @@ test('an administrator sees all items in seven entries', () => {
         canMyWork: true,
         canConsolidate: true,
         developerGalleryEnabled: true,
+        canTechnicianReport: true,
     });
 
     assert.equal(groups.length, 7);
@@ -284,7 +307,7 @@ test('queue badges appear only for a positive count, and Pekerjaan Saya only whe
             myWorkPending: 2,
             myWorkEligible: true,
         }),
-        { Approval: 3, Dispatch: undefined, 'Pekerjaan Saya': 2 },
+        { Persetujuan: 3, Penugasan: undefined, 'Pekerjaan Saya': 2 },
     );
     assert.deepEqual(
         badges({
@@ -293,11 +316,11 @@ test('queue badges appear only for a positive count, and Pekerjaan Saya only whe
             myWorkPending: 2,
             myWorkEligible: false,
         }),
-        { Approval: undefined, Dispatch: 4, 'Pekerjaan Saya': undefined },
+        { Persetujuan: undefined, Penugasan: 4, 'Pekerjaan Saya': undefined },
     );
     assert.deepEqual(badges({ approvalPending: -1 }), {
-        Approval: undefined,
-        Dispatch: undefined,
+        Persetujuan: undefined,
+        Penugasan: undefined,
         'Pekerjaan Saya': undefined,
     });
 });
@@ -307,6 +330,7 @@ test('exactly one item is active, the longest matching href (story 10)', () => {
         canMyWork: true,
         canConsolidate: true,
         developerGalleryEnabled: true,
+        canTechnicianReport: true,
     });
     const active = (url) => activeNavHref(groups, url);
 

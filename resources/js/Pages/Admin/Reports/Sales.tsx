@@ -167,10 +167,10 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
             : 'Period: all time. Set both From and To to limit the period.';
 
     return (
-        <AdminLayout title="Sales KPI">
+        <AdminLayout title="KPI Penjualan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Sales KPI"
+                    title="KPI Penjualan"
                     subtitle="Customers acquired, invoiced, collected and outstanding per acquirer."
                     actions={<FormulaVersionLabel version={meta.formula_version} />}
                 />

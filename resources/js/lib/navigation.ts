@@ -1,24 +1,44 @@
 import {
     ArchiveBoxIcon,
+    ArrowTrendingUpIcon,
+    ArrowsRightLeftIcon,
     BanknotesIcon,
+    BoltIcon,
     BriefcaseIcon,
     BuildingOfficeIcon,
     ChartBarIcon,
+    ChartPieIcon,
     ChatBubbleLeftRightIcon,
     ClipboardDocumentCheckIcon,
-    ClipboardDocumentIcon,
     ClipboardDocumentListIcon,
+    ClockIcon,
+    CpuChipIcon,
+    CreditCardIcon,
+    CubeIcon,
+    DocumentTextIcon,
+    ExclamationCircleIcon,
+    FolderIcon,
     GlobeAltIcon,
+    HashtagIcon,
     HomeIcon,
+    IdentificationIcon,
+    InboxArrowDownIcon,
     KeyIcon,
+    MagnifyingGlassIcon,
     MapPinIcon,
+    PresentationChartLineIcon,
+    RectangleGroupIcon,
+    ScaleIcon,
     ServerStackIcon,
     ShareIcon,
     ShieldCheckIcon,
+    SignalIcon,
     Squares2X2Icon,
-    TagIcon,
+    StarIcon,
     TruckIcon,
+    UserGroupIcon,
     UsersIcon,
+    WifiIcon,
     WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import type { PageProps } from '@/types';
@@ -37,7 +57,12 @@ import type { PageProps } from '@/types';
 type NavIcon = typeof HomeIcon;
 
 /** Booleans the server shares that gate an item on top of, or instead of, permissions. */
-type NavFlag = 'canMyWork' | 'canConsolidate' | 'developerGalleryEnabled' | 'isActiveUser';
+type NavFlag =
+    | 'canMyWork'
+    | 'canConsolidate'
+    | 'developerGalleryEnabled'
+    | 'isActiveUser'
+    | 'canTechnicianReport';
 
 export interface NavContext {
     /** `auth.user.permissions` */
@@ -50,6 +75,8 @@ export interface NavContext {
     developerGalleryEnabled: boolean;
     /** `auth.user.is_active` */
     isActiveUser: boolean;
+    /** `canTechnicianReport`, computed by the Reporting module: the user may open the technician report. */
+    canTechnicianReport: boolean;
     workQueues: NonNullable<PageProps['workQueues']>;
 }
 
@@ -80,7 +107,7 @@ export const navGroups: readonly NavGroup[] = [
         id: 'dashboard',
         items: [
             {
-                label: 'Dashboard',
+                label: 'Dasbor',
                 href: '/admin/dashboard',
                 icon: HomeIcon,
                 anyOf: ['dashboard.view'],
@@ -89,7 +116,7 @@ export const navGroups: readonly NavGroup[] = [
     },
     {
         id: 'operations',
-        title: 'Operations',
+        title: 'Operasional',
         items: [
             {
                 // MyWorkQuery::isEligible: work permissions plus an active employee profile.
@@ -104,7 +131,7 @@ export const navGroups: readonly NavGroup[] = [
             },
             {
                 // DispatchQueueQuery::isEligible also requires an active user.
-                label: 'Dispatch',
+                label: 'Penugasan',
                 href: '/admin/dispatch',
                 icon: BriefcaseIcon,
                 anyOf: ['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign'],
@@ -112,7 +139,7 @@ export const navGroups: readonly NavGroup[] = [
                 badge: ({ workQueues }) => positive(workQueues.dispatchUnassigned),
             },
             {
-                label: 'Approval',
+                label: 'Persetujuan',
                 href: '/admin/approvals',
                 icon: ClipboardDocumentCheckIcon,
                 anyOf: [
@@ -130,80 +157,80 @@ export const navGroups: readonly NavGroup[] = [
                 anyOf: ['spk.view'],
             },
             {
-                label: 'Ticketing',
+                label: 'Tiket',
                 href: '/admin/tickets',
                 icon: ChatBubbleLeftRightIcon,
                 anyOf: ['ticket.view'],
             },
             {
-                label: 'Evaluations',
+                label: 'Evaluasi',
                 href: '/admin/evaluations',
-                icon: ClipboardDocumentListIcon,
+                icon: StarIcon,
                 anyOf: ['evaluation.view', 'evaluation.view.own'],
             },
         ],
     },
     {
         id: 'customers-services',
-        title: 'Customers & Services',
+        title: 'Pelanggan & Layanan',
         items: [
             {
-                label: 'Customers',
+                label: 'Pelanggan',
                 href: '/admin/customers',
-                icon: BriefcaseIcon,
+                icon: UserGroupIcon,
                 anyOf: ['customer.view'],
             },
             // The four service policies accept `service.manage` as well as `service.view`.
             {
-                label: 'Service',
+                label: 'Paket Layanan',
                 href: '/admin/service-packages',
-                icon: TagIcon,
+                icon: WifiIcon,
                 anyOf: ['service.view', 'service.manage'],
             },
             {
-                label: 'Bandwidth Profiles',
+                label: 'Profil Bandwidth',
                 href: '/admin/bandwidth-profiles',
-                icon: WrenchScrewdriverIcon,
+                icon: SignalIcon,
                 anyOf: ['service.view', 'service.manage'],
             },
             {
-                label: 'Speed Profiles',
+                label: 'Profil Kecepatan',
                 href: '/admin/speed-profiles',
-                icon: WrenchScrewdriverIcon,
+                icon: BoltIcon,
                 anyOf: ['service.view', 'service.manage'],
             },
             {
-                label: 'SLA Tiers',
+                label: 'Tingkat SLA',
                 href: '/admin/sla-tiers',
-                icon: WrenchScrewdriverIcon,
+                icon: ClockIcon,
                 anyOf: ['service.view', 'service.manage'],
             },
         ],
     },
     {
         id: 'network',
-        title: 'Network',
+        title: 'Jaringan',
         items: [
             {
-                label: 'Locations',
+                label: 'Lokasi',
                 href: '/admin/locations',
                 icon: MapPinIcon,
                 anyOf: ['location.view'],
             },
             {
-                label: 'Network Assets',
+                label: 'Aset Jaringan',
                 href: '/admin/network-assets',
                 icon: ServerStackIcon,
                 anyOf: ['network_asset.view'],
             },
             {
-                label: 'NAS Routers',
+                label: 'Router NAS',
                 href: '/admin/nas-devices',
-                icon: ServerStackIcon,
+                icon: CpuChipIcon,
                 anyOf: ['network_asset.nas.view'],
             },
             {
-                label: 'IP Addresses',
+                label: 'Alamat IP',
                 href: '/admin/ipam/prefixes',
                 icon: GlobeAltIcon,
                 anyOf: ['ipam.view'],
@@ -218,59 +245,59 @@ export const navGroups: readonly NavGroup[] = [
     },
     {
         id: 'inventory',
-        title: 'Inventory',
+        title: 'Inventaris',
         items: [
             {
                 // InventoryRequestPolicy::viewAny; `inventory.view` alone does not open it.
                 label: 'Permintaan Barang',
                 href: '/admin/inventory/requests',
-                icon: ClipboardDocumentListIcon,
+                icon: InboxArrowDownIcon,
                 anyOf: ['inventory.request.view.own', 'inventory.request.view.all'],
             },
             {
-                label: 'Inventory',
+                label: 'Barang',
                 href: '/admin/products',
-                icon: TagIcon,
+                icon: CubeIcon,
                 anyOf: ['inventory.view'],
             },
             {
-                label: 'Categories',
+                label: 'Kategori',
                 href: '/admin/categories',
-                icon: ArchiveBoxIcon,
+                icon: FolderIcon,
                 anyOf: ['inventory.view'],
             },
             {
-                label: 'Units',
+                label: 'Satuan',
                 href: '/admin/units',
-                icon: ArchiveBoxIcon,
+                icon: ScaleIcon,
                 anyOf: ['inventory.view'],
             },
             {
-                label: 'Stocks',
+                label: 'Stok',
                 href: '/admin/stocks',
                 icon: ArchiveBoxIcon,
                 anyOf: ['inventory.view'],
             },
             {
-                label: 'Item Finder',
+                label: 'Cari Barang',
                 href: '/admin/inventory/find',
-                icon: ArchiveBoxIcon,
+                icon: MagnifyingGlassIcon,
                 anyOf: ['inventory.view'],
             },
             {
-                label: 'Stock Movements',
+                label: 'Mutasi Stok',
                 href: '/admin/stock-movements',
-                icon: ArchiveBoxIcon,
+                icon: ArrowsRightLeftIcon,
                 anyOf: ['inventory.view'],
             },
         ],
     },
     {
         id: 'finance-reports',
-        title: 'Finance & Reports',
+        title: 'Keuangan & Laporan',
         items: [
             {
-                label: 'Billing',
+                label: 'Tagihan',
                 href: '/admin/invoices',
                 icon: BanknotesIcon,
                 anyOf: ['billing.view'],
@@ -278,41 +305,42 @@ export const navGroups: readonly NavGroup[] = [
             {
                 label: 'Tunggakan',
                 href: '/admin/billing/receivables',
-                icon: BanknotesIcon,
+                icon: ExclamationCircleIcon,
                 anyOf: ['billing.view'],
             },
             {
                 label: 'Tagihan Saya',
                 href: '/portal/invoices',
-                icon: BanknotesIcon,
+                icon: CreditCardIcon,
                 anyOf: ['portal.invoice.view'],
             },
             {
-                label: 'Reports',
+                label: 'Laporan',
                 href: '/admin/reports',
                 icon: ChartBarIcon,
                 anyOf: ['report.view'],
             },
             {
-                // shortcut: the route gate only. ReportController also needs the technician role or,
-                // for managers, an organization; upgrade by sharing a server-computed flag.
-                label: 'Technician Performance',
+                // TechnicianReportAccess: the technician role, or a manager placed in an organization.
+                // The permission alone cannot tell, so the server shares `canTechnicianReport`.
+                label: 'Kinerja Teknisi',
                 href: '/admin/reports/technician',
-                icon: ChartBarIcon,
+                icon: PresentationChartLineIcon,
                 anyOf: ['report.technician'],
+                flag: 'canTechnicianReport',
             },
             {
-                label: 'Sales KPI',
+                label: 'KPI Penjualan',
                 href: '/admin/reports/sales',
-                icon: ChartBarIcon,
+                icon: ArrowTrendingUpIcon,
                 anyOf: ['report.sales.view'],
             },
             {
                 // The permission is global; the route also needs the effective company to be a Head,
                 // which the server shares as `companyHierarchy.can_consolidate`.
-                label: 'Consolidated Metrics',
+                label: 'Metrik Konsolidasi',
                 href: '/admin/reports/consolidated',
-                icon: ChartBarIcon,
+                icon: ChartPieIcon,
                 anyOf: ['report.consolidated.view'],
                 flag: 'canConsolidate',
             },
@@ -320,60 +348,60 @@ export const navGroups: readonly NavGroup[] = [
     },
     {
         id: 'administration',
-        title: 'Administration',
+        title: 'Administrasi',
         items: [
             {
-                label: 'Company',
+                label: 'Perusahaan',
                 href: '/admin/company/profile',
                 icon: BuildingOfficeIcon,
                 anyOf: ['company.manage'],
             },
             {
-                label: 'Organization',
+                label: 'Organisasi',
                 href: '/admin/organizations',
-                icon: BuildingOfficeIcon,
+                icon: RectangleGroupIcon,
                 anyOf: ['organization.view'],
             },
             {
-                label: 'Employees',
+                label: 'Karyawan',
                 href: '/admin/employees',
-                icon: UsersIcon,
+                icon: IdentificationIcon,
                 anyOf: ['employee.view'],
             },
             {
-                label: 'Vehicles',
+                label: 'Kendaraan',
                 href: '/admin/vehicles',
                 icon: TruckIcon,
                 anyOf: ['vehicle.view'],
             },
             {
-                label: 'Users',
+                label: 'Pengguna',
                 href: '/admin/users',
                 icon: UsersIcon,
                 anyOf: ['users.manage'],
             },
             {
-                label: 'Roles',
+                label: 'Peran',
                 href: '/admin/roles',
                 icon: ShieldCheckIcon,
                 anyOf: ['roles.manage'],
             },
             {
-                label: 'Permissions',
+                label: 'Hak Akses',
                 href: '/admin/permissions',
                 icon: KeyIcon,
-                anyOf: ['users.manage'],
+                anyOf: ['roles.manage'],
             },
             {
-                label: 'Documents',
+                label: 'Dokumen',
                 href: '/admin/documents',
-                icon: ClipboardDocumentIcon,
+                icon: DocumentTextIcon,
                 anyOf: ['system.setting'],
             },
             {
-                label: 'Number Sequences',
+                label: 'Penomoran',
                 href: '/admin/number-sequences',
-                icon: KeyIcon,
+                icon: HashtagIcon,
                 anyOf: ['system.setting'],
             },
             {

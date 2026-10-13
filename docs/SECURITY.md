@@ -58,7 +58,7 @@ Accepted residuals (not permission-level splits): the manager keeps `spk.create`
 | `report.sales.view` | Yes | Yes | - | - | - |
 | `report.export` | Yes | Yes | - | - | - |
 | `report.technician` | Yes | Yes | - | Yes | - |
-| `user.two_factor.reset` | Yes | - | - | - | - |
+| `users.two_factor.reset` | Yes | - | - | - | - |
 
 ### 2.4 Stock adjustment workflow and break-glass
 1. An operator (`inventory.stock.adjust.request`) posts `POST /admin/stocks/adjust`; a `pending` `stock_adjustment_requests` row records the requester, the quantity before and after, and the reason. Stock does not move.
@@ -88,11 +88,11 @@ Opt-in for every user, customer portal accounts included. Enforcing it per role 
 
 ### 3.3 Lost device
 - The user spends a recovery code at the challenge and then regenerates codes from the Profile.
-- An administrator resets the user: `POST /admin/users/{user}/two-factor/reset`, permission `user.two_factor.reset` (admin only, section 2.3). Never one's own account; `UserPolicy::resetTwoFactor` applies the same rule as editing the user (only an admin may reset an admin; the actor must belong to every company the target belongs to). The user then logs in with the password alone and can enrol again.
+- An administrator resets the user: `POST /admin/users/{user}/two-factor/reset`, permission `users.two_factor.reset` (admin only, section 2.3; named `user.two_factor.reset` before 2026-10-12, renamed by migration). Never one's own account; `UserPolicy::resetTwoFactor` applies the same rule as editing the user (only an admin may reset an admin; the actor must belong to every company the target belongs to). The user then logs in with the password alone and can enrol again.
 - A locked-out sole administrator has nobody to reset them: run `php artisan tinker --execute="app(App\Services\Core\TwoFactorService::class)->disable(App\Models\User::where('email', '<email>')->firstOrFail());"`.
 
 ### 3.4 Deploying and rolling back
-Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder --force` (adds `user.two_factor.reset`, see 2.5). Rolling back the migration discards every secret and recovery code; users simply log in with the password again. Rotating `APP_KEY` makes enrolled secrets undecryptable: reset two-factor for those users (3.3) first.
+Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder --force` (adds `users.two_factor.reset`, see 2.5). Rolling back the migration discards every secret and recovery code; users simply log in with the password again. Rotating `APP_KEY` makes enrolled secrets undecryptable: reset two-factor for those users (3.3) first.
 
 ### 3.5 Accepted residuals
 - The challenge throttle is 5 per minute per user and IP plus 10 per 15 minutes per user. Someone who holds the password and rotates addresses is held to 10 guesses per 15 minutes (about 960 a day, against 3 valid codes in a million) and can keep the real user out of the challenge for up to 15 minutes; an admin reset clears two-factor, so that user can still be restored.

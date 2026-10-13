@@ -152,10 +152,10 @@ export default function Index({
     );
 
     return (
-        <AdminLayout title="Employees">
+        <AdminLayout title="Karyawan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Employee Profiles"
+                    title="Karyawan"
                     subtitle="Manage employee profiles linked to users."
                     actions={
                         <div className="flex flex-wrap gap-2">

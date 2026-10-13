@@ -10,12 +10,12 @@ import { expect, test } from './support/fixtures';
  */
 
 const groupTitles = [
-    'Operations',
-    'Customers & Services',
-    'Network',
-    'Inventory',
-    'Finance & Reports',
-    'Administration',
+    'Operasional',
+    'Pelanggan & Layanan',
+    'Jaringan',
+    'Inventaris',
+    'Keuangan & Laporan',
+    'Administrasi',
 ] as const;
 
 type GroupTitle = (typeof groupTitles)[number];
@@ -31,30 +31,30 @@ type RoleSidebar = {
     onlyLinks?: readonly string[];
 };
 
-const serviceLinks = ['Service', 'Bandwidth Profiles', 'Speed Profiles', 'SLA Tiers'];
+const serviceLinks = ['Paket Layanan', 'Profil Bandwidth', 'Profil Kecepatan', 'Tingkat SLA'];
 const inventoryLinks = [
     'Permintaan Barang',
-    'Inventory',
-    'Categories',
-    'Units',
-    'Stocks',
-    'Item Finder',
-    'Stock Movements',
+    'Barang',
+    'Kategori',
+    'Satuan',
+    'Stok',
+    'Cari Barang',
+    'Mutasi Stok',
 ];
-const financeLinks = ['Billing', 'Tunggakan', 'Reports', 'Technician Performance'];
+const financeLinks = ['Tagihan', 'Tunggakan', 'Laporan', 'Kinerja Teknisi'];
 // IPAM and ODN are readable by every staff-side role (Q14 of .scratch/ipam-odn/spec.md); NAS routers
 // need their own read permission, which the technician lacks.
-const networkRegisterLinks = ['IP Addresses', 'ODN'];
+const networkRegisterLinks = ['Alamat IP', 'ODN'];
 const adminOnlyLinks = [
-    'Users',
-    'Roles',
-    'Permissions',
-    'Employees',
-    'Vehicles',
-    'Documents',
-    'Number Sequences',
-    'Organization',
-    'Company',
+    'Pengguna',
+    'Peran',
+    'Hak Akses',
+    'Karyawan',
+    'Kendaraan',
+    'Dokumen',
+    'Penomoran',
+    'Organisasi',
+    'Perusahaan',
 ];
 
 // APP_ENV=e2e closes the developer gallery (route answers 404, `developerGalleryEnabled` is
@@ -63,88 +63,100 @@ const roleSidebars: Record<DemoRole, RoleSidebar> = {
     admin: {
         groups: groupTitles,
         placed: {
-            Operations: ['SPK', 'Approval', 'Dispatch', 'Ticketing', 'Evaluations'],
-            'Customers & Services': ['Customers', ...serviceLinks],
-            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
-            Inventory: inventoryLinks,
-            'Finance & Reports': financeLinks,
-            Administration: [
-                'Company',
-                'Organization',
-                'Employees',
-                'Vehicles',
-                'Users',
-                'Roles',
-                'Permissions',
-                'Documents',
-                'Number Sequences',
+            Operasional: ['SPK', 'Persetujuan', 'Penugasan', 'Tiket', 'Evaluasi'],
+            'Pelanggan & Layanan': ['Pelanggan', ...serviceLinks],
+            Jaringan: ['Lokasi', 'Aset Jaringan', 'Router NAS', ...networkRegisterLinks],
+            Inventaris: inventoryLinks,
+            'Keuangan & Laporan': financeLinks,
+            Administrasi: [
+                'Perusahaan',
+                'Organisasi',
+                'Karyawan',
+                'Kendaraan',
+                'Pengguna',
+                'Peran',
+                'Hak Akses',
+                'Dokumen',
+                'Penomoran',
             ],
         },
         // The admin demo user has no employee profile, hence no Pekerjaan Saya.
         absent: ['Komponen', 'Pekerjaan Saya'],
     },
     manager: {
-        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
+        groups: [
+            'Operasional',
+            'Pelanggan & Layanan',
+            'Jaringan',
+            'Inventaris',
+            'Keuangan & Laporan',
+        ],
         placed: {
-            Operations: [
-                'Pekerjaan Saya',
-                'Dispatch',
-                'Approval',
-                'SPK',
-                'Ticketing',
-                'Evaluations',
-            ],
-            'Customers & Services': ['Customers', ...serviceLinks],
-            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
-            Inventory: inventoryLinks,
-            'Finance & Reports': financeLinks,
+            Operasional: ['Pekerjaan Saya', 'Penugasan', 'Persetujuan', 'SPK', 'Tiket', 'Evaluasi'],
+            'Pelanggan & Layanan': ['Pelanggan', ...serviceLinks],
+            Jaringan: ['Lokasi', 'Aset Jaringan', 'Router NAS', ...networkRegisterLinks],
+            Inventaris: inventoryLinks,
+            'Keuangan & Laporan': ['Tagihan', 'Tunggakan', 'Laporan'],
         },
-        absent: [...adminOnlyLinks, 'Komponen'],
+        // The demo manager sits in no organization, so the server withholds the technician report.
+        absent: [...adminOnlyLinks, 'Kinerja Teknisi', 'Komponen'],
     },
     staff: {
-        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
+        groups: [
+            'Operasional',
+            'Pelanggan & Layanan',
+            'Jaringan',
+            'Inventaris',
+            'Keuangan & Laporan',
+        ],
         placed: {
-            Operations: ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations'],
-            'Customers & Services': ['Customers', ...serviceLinks],
-            Network: ['Locations', 'Network Assets', 'NAS Routers', ...networkRegisterLinks],
-            Inventory: inventoryLinks,
-            'Finance & Reports': ['Billing', 'Tunggakan', 'Reports'],
+            Operasional: ['Pekerjaan Saya', 'SPK', 'Tiket', 'Evaluasi'],
+            'Pelanggan & Layanan': ['Pelanggan', ...serviceLinks],
+            Jaringan: ['Lokasi', 'Aset Jaringan', 'Router NAS', ...networkRegisterLinks],
+            Inventaris: inventoryLinks,
+            'Keuangan & Laporan': ['Tagihan', 'Tunggakan', 'Laporan'],
         },
         // Staff is the operator persona (role-persona-sod): no approve/reject, so no Approval inbox.
-        absent: [...adminOnlyLinks, 'Approval', 'Dispatch', 'Technician Performance', 'Komponen'],
+        absent: [...adminOnlyLinks, 'Persetujuan', 'Penugasan', 'Kinerja Teknisi', 'Komponen'],
     },
     technician: {
-        groups: ['Operations', 'Customers & Services', 'Network', 'Inventory', 'Finance & Reports'],
+        groups: [
+            'Operasional',
+            'Pelanggan & Layanan',
+            'Jaringan',
+            'Inventaris',
+            'Keuangan & Laporan',
+        ],
         placed: {
-            Operations: ['Pekerjaan Saya', 'SPK', 'Ticketing', 'Evaluations'],
-            'Customers & Services': ['Customers'],
-            Network: ['Locations', 'Network Assets', ...networkRegisterLinks],
-            Inventory: inventoryLinks,
-            'Finance & Reports': ['Technician Performance'],
+            Operasional: ['Pekerjaan Saya', 'SPK', 'Tiket', 'Evaluasi'],
+            'Pelanggan & Layanan': ['Pelanggan'],
+            Jaringan: ['Lokasi', 'Aset Jaringan', ...networkRegisterLinks],
+            Inventaris: inventoryLinks,
+            'Keuangan & Laporan': ['Kinerja Teknisi'],
         },
         absent: [
-            'Users',
-            'Roles',
-            'Permissions',
-            'Documents',
-            'Number Sequences',
-            'Organization',
-            'Company',
+            'Pengguna',
+            'Peran',
+            'Hak Akses',
+            'Dokumen',
+            'Penomoran',
+            'Organisasi',
+            'Perusahaan',
             ...serviceLinks,
-            'Approval',
-            'Dispatch',
-            'NAS Routers',
-            'Billing',
+            'Persetujuan',
+            'Penugasan',
+            'Router NAS',
+            'Tagihan',
             'Tunggakan',
-            'Reports',
+            'Laporan',
             'Komponen',
         ],
     },
     customer: {
-        groups: ['Operations', 'Finance & Reports'],
-        placed: { Operations: ['Ticketing'], 'Finance & Reports': ['Tagihan Saya'] },
+        groups: ['Operasional', 'Keuangan & Laporan'],
+        placed: { Operasional: ['Tiket'], 'Keuangan & Laporan': ['Tagihan Saya'] },
         absent: ['Komponen'],
-        onlyLinks: ['Dashboard', 'Ticketing', 'Tagihan Saya'],
+        onlyLinks: ['Dasbor', 'Tiket', 'Tagihan Saya'],
     },
 };
 
@@ -169,10 +181,10 @@ for (const role of roles) {
         const titles = snapshot.groups.map((group) => group.title);
         expect(titles).toEqual(expected.groups);
         expect(titles).not.toContain('System/Developer');
-        expect(titles).not.toContain('Dashboard');
+        expect(titles).not.toContain('Dasbor');
 
         // Dashboard is the only entry outside a group: titled groups + 1 stay within 7.
-        expect(snapshot.standalone.map((link) => link.label)).toEqual(['Dashboard']);
+        expect(snapshot.standalone.map((link) => link.label)).toEqual(['Dasbor']);
         const entries = snapshot.groups.length + snapshot.standalone.length;
         expect(entries).toBe(expected.groups.length + 1);
         expect(entries).toBeLessThanOrEqual(7);
@@ -216,12 +228,7 @@ for (const role of roles) {
         const failures: string[] = [];
         for (const href of hrefs) {
             const status = (await page.request.get(href)).status();
-            // Known accepted gap: the manager sees Technician Performance (gate `report.technician`)
-            // but ReportController::authorizeTechnicianReportActor also requires an organization,
-            // which the demo manager lacks, so that one pair may answer 403.
-            const gap = role === 'manager' && href === '/admin/reports/technician';
-            const accepted = gap ? [200, 403] : [200];
-            if (!accepted.includes(status)) failures.push(`${href} answered ${status}`);
+            if (status !== 200) failures.push(`${href} answered ${status}`);
         }
         expect(failures).toEqual([]);
 
@@ -233,15 +240,15 @@ for (const role of roles) {
 
 test('@sidebar-ia active link and default-open group follow the route', async ({ page }) => {
     const cases: { path: string; open: GroupTitle[]; current: string }[] = [
-        { path: '/admin/dashboard', open: [], current: 'Dashboard' },
+        { path: '/admin/dashboard', open: [], current: 'Dasbor' },
         {
             path: '/admin/reports/technician',
-            open: ['Finance & Reports'],
-            current: 'Technician Performance',
+            open: ['Keuangan & Laporan'],
+            current: 'Kinerja Teknisi',
         },
-        { path: '/admin/reports', open: ['Finance & Reports'], current: 'Reports' },
-        { path: '/admin/reports/business', open: ['Finance & Reports'], current: 'Reports' },
-        { path: '/admin/users', open: ['Administration'], current: 'Users' },
+        { path: '/admin/reports', open: ['Keuangan & Laporan'], current: 'Laporan' },
+        { path: '/admin/reports/business', open: ['Keuangan & Laporan'], current: 'Laporan' },
+        { path: '/admin/users', open: ['Administrasi'], current: 'Pengguna' },
     ];
 
     await loginAs(page, 'admin');
@@ -272,7 +279,7 @@ test('@sidebar-ia keyboard opens a group, reaches its link and navigates', async
 
     const group = page
         .locator('aside details')
-        .filter({ has: page.locator('summary', { hasText: 'Customers & Services' }) });
+        .filter({ has: page.locator('summary', { hasText: 'Pelanggan & Layanan' }) });
     const summary = group.locator('summary');
 
     await expect(group).toHaveJSProperty('open', false);
@@ -287,7 +294,7 @@ test('@sidebar-ia keyboard opens a group, reaches its link and navigates', async
     await expect(group).toHaveJSProperty('open', true);
 
     await page.keyboard.press('Tab');
-    const customers = group.getByRole('link', { name: sidebarLabel('Customers') });
+    const customers = group.getByRole('link', { name: sidebarLabel('Pelanggan') });
     await expect(customers).toBeFocused();
     await expect(customers).not.toHaveCSS('box-shadow', 'none');
 
@@ -331,12 +338,39 @@ for (const dark of [false, true]) {
         // Following a link closes the drawer on the next page.
         await toggle.click();
         await expect(aside).toBeInViewport();
-        await openGroup(page, 'Customers & Services');
-        await aside.getByRole('link', { name: sidebarLabel('Customers') }).click();
+        await openGroup(page, 'Pelanggan & Layanan');
+        await aside.getByRole('link', { name: sidebarLabel('Pelanggan') }).click();
         await expect(page).toHaveURL(/\/admin\/customers$/);
         await expect(aside).not.toBeInViewport();
     });
 }
+
+test('@sidebar-ia mobile drawer is out of the tab order until opened, Escape returns focus', async ({
+    page,
+}) => {
+    await loginAs(page, 'admin');
+    await page.setViewportSize({ width: 375, height: 812 });
+    await expect(page.locator('aside')).not.toBeInViewport();
+
+    const toggle = page.getByRole('button', { name: 'Toggle sidebar' });
+    const focusedInDrawer = page.locator('aside :focus');
+
+    // Closed: Tab never lands on a sidebar link, however far it travels.
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    for (let step = 0; step < 12; step++) {
+        await page.keyboard.press('Tab');
+        await expect(focusedInDrawer, `Tab stop ${step + 1}`).toHaveCount(0);
+    }
+
+    await toggle.click();
+    await expect(page.locator('aside')).toBeInViewport();
+    await expect(page.getByRole('navigation', { name: 'Navigasi utama' })).toHaveCount(1);
+    await expect(focusedInDrawer).toHaveCount(1);
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('aside')).not.toBeInViewport();
+    await expect(toggle).toBeFocused();
+});
 
 // Approval, Dispatch and Pekerjaan Saya append a queue count to the accessible name
 // ("Approval 3"), so a link is matched by its label plus an optional trailing number.
@@ -348,7 +382,7 @@ async function expandAllGroups(page: Page) {
     // Only the group holding the active route starts open; the rest keep their links in the
     // DOM but hidden until the <summary> is activated.
     await expect(
-        page.locator('aside').getByRole('link', { name: sidebarLabel('Dashboard') }),
+        page.locator('aside').getByRole('link', { name: sidebarLabel('Dasbor') }),
     ).toBeVisible();
     const closed = page.locator('aside details:not([open]) > summary');
 
@@ -412,7 +446,7 @@ async function applyLayout(page: Page, width: number, dark: boolean) {
     await page.reload();
     await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark)/);
     await expect(
-        page.locator('aside').getByRole('link', { name: sidebarLabel('Dashboard') }),
+        page.locator('aside').getByRole('link', { name: sidebarLabel('Dasbor') }),
     ).toBeAttached();
 }
 

@@ -235,7 +235,7 @@ const cases: TableCase[] = [
     {
         name: 'Products',
         path: '/admin/products',
-        heading: 'Products',
+        heading: 'Barang',
         search: { label: 'Search', value: 'DTC-P' },
         submit: 'Filter',
         sortHeader: 'SKU',
@@ -253,7 +253,7 @@ const cases: TableCase[] = [
     {
         name: 'Categories',
         path: '/admin/categories',
-        heading: 'Categories',
+        heading: 'Kategori',
         search: { label: 'Search', value: 'DTC Category' },
         submit: 'Filter',
         sortHeader: 'Code',
@@ -268,7 +268,7 @@ const cases: TableCase[] = [
         // Units has an existing backend search parameter, but no search control.
         name: 'Units',
         path: '/admin/units?search=DTC%20Unit',
-        heading: 'Units',
+        heading: 'Satuan',
         sortHeader: 'Name',
         sortKey: 'name',
         sortParam: 'sort',
@@ -280,7 +280,7 @@ const cases: TableCase[] = [
     {
         name: 'Stocks',
         path: '/admin/stocks?low_stock=1',
-        heading: 'Stocks',
+        heading: 'Stok',
         search: { label: 'Search', value: 'DTC Product' },
         sortHeader: 'Quantity',
         sortKey: 'quantity',
@@ -317,7 +317,7 @@ const cases: TableCase[] = [
     {
         name: 'Stock Movements',
         path: '/admin/stock-movements',
-        heading: 'Stock Movements',
+        heading: 'Mutasi Stok',
         search: { label: 'Search', value: 'DTC Movement' },
         submit: 'Filter',
         sortHeader: 'Qty',
@@ -332,7 +332,7 @@ const cases: TableCase[] = [
     {
         name: 'Inventory Requests',
         path: '/admin/inventory/requests?tab=all',
-        heading: 'Permintaan Barang (Inventory Requests)',
+        heading: 'Permintaan Barang',
         search: { label: 'Cari permintaan', value: 'DTC-REQ-' },
         sortHeader: 'No. Permintaan',
         sortKey: 'code',
@@ -348,7 +348,7 @@ const cases: TableCase[] = [
     {
         name: 'Returns',
         path: '/admin/inventory/requests?tab=returns&search=DTC-REQ-&status=draft&sort=code&direction=desc&per_page=10&page=2',
-        heading: 'Permintaan Barang (Inventory Requests)',
+        heading: 'Permintaan Barang',
         search: { label: 'Cari pengembalian', value: 'DTC-RET-', key: 'return_search' },
         sortHeader: 'No. Pengembalian',
         sortKey: 'id',

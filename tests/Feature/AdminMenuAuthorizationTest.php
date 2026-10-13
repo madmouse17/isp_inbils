@@ -87,7 +87,7 @@ class AdminMenuAuthorizationTest extends TestCase
         }
     }
 
-    public function test_user_with_users_manage_can_open_filtered_permissions_index(): void
+    public function test_user_with_roles_manage_can_open_filtered_permissions_index(): void
     {
         $this->actingAs($this->userWithRole('admin'));
 
@@ -106,19 +106,9 @@ class AdminMenuAuthorizationTest extends TestCase
                 ->where('filters.per_page', '25'));
     }
 
-    public function test_custom_role_without_users_manage_cannot_open_permissions_index(): void
+    public function test_users_manage_without_roles_manage_cannot_open_permissions_index(): void
     {
-        $company = Company::factory()->create(['is_active' => true]);
-        $user = User::factory()->create([
-            'company_id' => $company->id,
-            'email_verified_at' => now(),
-            'is_active' => true,
-        ]);
-        $role = Role::create(['name' => 'permissions-viewer', 'guard_name' => 'web']);
-        $role->syncPermissions([]);
-        $user->assignRole($role);
-
-        $this->actingAs($user);
+        $this->actingAs($this->userWithPermissions(['users.manage']));
 
         foreach ([
             route('admin.permissions.index'),
@@ -210,16 +200,17 @@ class AdminMenuAuthorizationTest extends TestCase
     }
 
     /**
-     * @return array<string, array{string, bool}>
+     * @return array<string, array{string, bool, bool}>
      */
     public static function seededRoles(): array
     {
         return [
-            'admin' => ['admin', false],
-            'manager in an organization' => ['manager', true],
-            'staff employee' => ['staff', true],
-            'technician employee' => ['technician', true],
-            'customer' => ['customer', false],
+            'admin' => ['admin', false, false],
+            'manager in an organization' => ['manager', true, true],
+            'manager without an organization' => ['manager', true, false],
+            'staff employee' => ['staff', true, false],
+            'technician employee' => ['technician', true, false],
+            'customer' => ['customer', false, false],
         ];
     }
 
@@ -227,13 +218,12 @@ class AdminMenuAuthorizationTest extends TestCase
     public function test_every_sidebar_link_a_seeded_role_sees_opens_and_every_hidden_one_is_denied(
         string $roleName,
         bool $employee,
+        bool $inOrganization,
     ): void {
         $user = $this->userWithRole($roleName);
 
         if ($employee) {
-            // The manager sits in an organization: the technician report also needs one, which
-            // the sidebar gate (report.technician) cannot know.
-            $this->makeEmployee($user, inOrganization: $roleName === 'manager');
+            $this->makeEmployee($user, $inOrganization);
         }
 
         if ($roleName === 'customer') {
@@ -243,6 +233,11 @@ class AdminMenuAuthorizationTest extends TestCase
 
         $this->actingAs($user);
         $context = $this->sidebarContext($this->get(route('admin.dashboard'))->assertOk());
+
+        if ($roleName === 'manager') {
+            // The report needs an organization the sidebar permission cannot see: the server flag decides.
+            $this->assertSame($inOrganization, $context['canTechnicianReport'], $roleName);
+        }
 
         foreach ($this->sidebarDestinations() as $destination) {
             $shown = $this->sidebarShows($destination, $context);
@@ -265,19 +260,19 @@ class AdminMenuAuthorizationTest extends TestCase
     {
         $this->actingAs($this->userWithRole('customer'));
 
-        $this->assertSame(['Dashboard', 'Ticketing', 'Tagihan Saya'], $this->shownSidebarLabels());
+        $this->assertSame(['Dasbor', 'Tiket', 'Tagihan Saya'], $this->shownSidebarLabels());
     }
 
     public function test_seeded_roles_get_the_network_register_entries_their_permissions_give_them(): void
     {
         // The seeded matrix: IPAM and ODN are readable by every staff-side role, NAS routers by all but the technician.
-        $entries = ['NAS Routers', 'IP Addresses', 'ODN'];
+        $entries = ['Router NAS', 'Alamat IP', 'ODN'];
 
         foreach ([
-            'admin' => ['NAS Routers', 'IP Addresses', 'ODN'],
-            'manager' => ['NAS Routers', 'IP Addresses', 'ODN'],
-            'staff' => ['NAS Routers', 'IP Addresses', 'ODN'],
-            'technician' => ['IP Addresses', 'ODN'],
+            'admin' => ['Router NAS', 'Alamat IP', 'ODN'],
+            'manager' => ['Router NAS', 'Alamat IP', 'ODN'],
+            'staff' => ['Router NAS', 'Alamat IP', 'ODN'],
+            'technician' => ['Alamat IP', 'ODN'],
             'customer' => [],
         ] as $roleName => $expected) {
             $this->actingAs($this->userWithRole($roleName));
@@ -291,7 +286,7 @@ class AdminMenuAuthorizationTest extends TestCase
         $this->actingAs($this->userWithRole('admin'));
 
         $this->assertSame(
-            array_values(array_diff(array_column($this->sidebarDestinations(), 'label'), ['Pekerjaan Saya', 'Tagihan Saya', 'Consolidated Metrics'])),
+            array_values(array_diff(array_column($this->sidebarDestinations(), 'label'), ['Pekerjaan Saya', 'Tagihan Saya', 'Metrik Konsolidasi'])),
             $this->shownSidebarLabels(),
         );
     }
@@ -392,7 +387,7 @@ class AdminMenuAuthorizationTest extends TestCase
 
         $this->get(route('admin.dashboard'))
             ->assertInertia(fn (Assert $page) => $page->where('companyHierarchy.can_consolidate', false));
-        $this->assertNotContains('Consolidated Metrics', $this->shownSidebarLabels());
+        $this->assertNotContains('Metrik Konsolidasi', $this->shownSidebarLabels());
         $this->get(route('admin.reports.consolidated'))->assertForbidden();
 
         app(CompanyHierarchyService::class)->createSubsidiary(
@@ -402,7 +397,7 @@ class AdminMenuAuthorizationTest extends TestCase
 
         $this->get(route('admin.dashboard'))
             ->assertInertia(fn (Assert $page) => $page->where('companyHierarchy.can_consolidate', true));
-        $this->assertContains('Consolidated Metrics', $this->shownSidebarLabels());
+        $this->assertContains('Metrik Konsolidasi', $this->shownSidebarLabels());
         $this->get(route('admin.reports.consolidated'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->component('Admin/Reports/Consolidated'));
@@ -502,7 +497,7 @@ class AdminMenuAuthorizationTest extends TestCase
     /**
      * What the sidebar receives from the server: the shared props of a page the user opened.
      *
-     * @return array{permissions: list<string>, canMyWork: bool, canConsolidate: bool, developerGalleryEnabled: bool, isActiveUser: bool}
+     * @return array{permissions: list<string>, canMyWork: bool, canConsolidate: bool, developerGalleryEnabled: bool, isActiveUser: bool, canTechnicianReport: bool}
      */
     private function sidebarContext(TestResponse $page): array
     {
@@ -512,12 +507,13 @@ class AdminMenuAuthorizationTest extends TestCase
             'canConsolidate' => $page->inertiaProps('companyHierarchy.can_consolidate') === true,
             'developerGalleryEnabled' => $page->inertiaProps('developerGalleryEnabled') === true,
             'isActiveUser' => $page->inertiaProps('auth.user.is_active') !== false,
+            'canTechnicianReport' => $page->inertiaProps('canTechnicianReport') === true,
         ];
     }
 
     /**
      * @param  array{anyOf: list<string>, flag?: string}  $destination
-     * @param  array{permissions: list<string>, canMyWork: bool, canConsolidate: bool, developerGalleryEnabled: bool, isActiveUser: bool}  $context
+     * @param  array{permissions: list<string>, canMyWork: bool, canConsolidate: bool, developerGalleryEnabled: bool, isActiveUser: bool, canTechnicianReport: bool}  $context
      */
     private function sidebarShows(array $destination, array $context): bool
     {

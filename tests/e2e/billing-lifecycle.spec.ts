@@ -138,7 +138,7 @@ test.describe('@lifecycle billing', () => {
     test('technician denied billing routes', async ({ page }) => {
         await loginAs(page, 'technician');
         await expect(
-            page.locator('aside').getByRole('link', { name: 'Billing', exact: true }),
+            page.locator('aside').getByRole('link', { name: 'Tagihan', exact: true }),
         ).toHaveCount(0);
 
         const list = await page.request.get('/admin/invoices');

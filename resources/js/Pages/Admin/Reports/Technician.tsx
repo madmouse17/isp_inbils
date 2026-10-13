@@ -112,10 +112,10 @@ export default function Technician({ data, technicians, filters, can, drill }: P
     };
 
     return (
-        <AdminLayout title="Technician Performance">
+        <AdminLayout title="Kinerja Teknisi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Technician Performance"
+                    title="Kinerja Teknisi"
                     subtitle="SPK/ticket counts, avg completion, SLA, rating, and FRT."
                     actions={
                         showMetrics && data ? (

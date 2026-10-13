@@ -351,10 +351,10 @@ export default function StockIndex({
 
     return (
         <AppLayout>
-            <Head title="Stocks" />
+            <Head title="Stok" />
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
-                    title="Stocks"
+                    title="Stok"
                     description="Current stock per product and location."
                     actions={
                         <div className="flex flex-wrap gap-2">

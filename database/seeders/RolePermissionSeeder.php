@@ -17,7 +17,7 @@ class RolePermissionSeeder extends Seeder
             'roles.export',
             'company.manage',
             // Reset another user's two-factor authentication (admin only).
-            'user.two_factor.reset',
+            'users.two_factor.reset',
             // Switch the active company: needs a membership of the target company on top (CompanyPolicy).
             'company.switch',
             'system.setting',
@@ -65,7 +65,7 @@ class RolePermissionSeeder extends Seeder
             'organization.manage',
             'organization.export',
 
-            'document.export',
+            'system.document.export',
             'customer.contact.export',
             'customer.subscription.export',
             'customer.address.export',

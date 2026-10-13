@@ -288,10 +288,10 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
             : 'Period: all time. Set both From and To to limit the period.';
 
     return (
-        <AdminLayout title="Consolidated Metrics">
+        <AdminLayout title="Metrik Konsolidasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Consolidated Metrics"
+                    title="Metrik Konsolidasi"
                     subtitle={subtitle}
                     actions={
                         <>

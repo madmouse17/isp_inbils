@@ -99,7 +99,36 @@ class PermissionServerTableTest extends TestCase
             );
     }
 
-    public function test_index_is_forbidden_without_users_manage(): void
+    public function test_index_is_forbidden_without_roles_manage_even_with_users_manage(): void
+    {
+        $user = $this->userWithPermission('users.manage');
+
+        $this->actingAs($user)
+            ->get(route('admin.permissions.index'))
+            ->assertForbidden();
+    }
+
+    public function test_index_is_forbidden_without_any_permission(): void
+    {
+        $this->actingAs($this->userWithPermission(null))
+            ->get(route('admin.permissions.index'))
+            ->assertForbidden();
+    }
+
+    public function test_index_opens_with_roles_manage_alone(): void
+    {
+        $this->actingAs($this->userWithPermission('roles.manage'))
+            ->get(route('admin.permissions.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Permissions/Index'));
+    }
+
+    public function test_guest_is_redirected_to_login(): void
+    {
+        $this->get(route('admin.permissions.index'))->assertRedirect(route('login'));
+    }
+
+    private function userWithPermission(?string $permission): User
     {
         $user = User::factory()->create([
             'company_id' => $this->admin->company_id,
@@ -107,8 +136,10 @@ class PermissionServerTableTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($user)
-            ->get(route('admin.permissions.index'))
-            ->assertForbidden();
+        if ($permission !== null) {
+            $user->givePermissionTo($permission);
+        }
+
+        return $user;
     }
 }

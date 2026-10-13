@@ -1,6 +1,6 @@
 import { ChevronDownIcon } from '@heroicons/react/20/solid';
 import { Link } from '@inertiajs/react';
-import { Children, useState } from 'react';
+import { Children, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { cn } from '@/lib/utils';
 
 interface SidebarItemProps {
@@ -57,7 +57,7 @@ export function SidebarSection({
     if (!title) {
         return (
             <div className={cn(className)}>
-                <nav className="space-y-1">{children}</nav>
+                <div className="space-y-1">{children}</div>
             </div>
         );
     }
@@ -72,15 +72,30 @@ export function SidebarSection({
                 <span className="truncate">{title}</span>
                 <ChevronDownIcon className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180" />
             </summary>
-            <nav className="space-y-1">{children}</nav>
+            <div className="space-y-1">{children}</div>
         </details>
     );
 }
+
+/** Tailwind `lg`: from here the sidebar is a static column, below it a drawer. */
+const DESKTOP_QUERY = '(min-width: 1024px)';
+
+function subscribeDesktop(onChange: () => void) {
+    const query = window.matchMedia(DESKTOP_QUERY);
+    query.addEventListener('change', onChange);
+
+    return () => query.removeEventListener('change', onChange);
+}
+
+const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 interface SidebarProps {
     children: React.ReactNode;
     open?: boolean;
     onClose?: () => void;
+    /** Element that regains focus when the drawer closes (the button that opened it). */
+    returnFocusRef?: React.RefObject<HTMLElement>;
     className?: string;
     brandName?: string;
     brandLogo?: string | null;
@@ -90,10 +105,19 @@ export function Sidebar({
     children,
     open,
     onClose,
+    returnFocusRef,
     className,
     brandName = 'inbils',
     brandLogo,
 }: SidebarProps) {
+    const asideRef = useRef<HTMLElement>(null);
+    const isDesktop = useSyncExternalStore(
+        subscribeDesktop,
+        () => window.matchMedia(DESKTOP_QUERY).matches,
+        () => true,
+    );
+    const drawerOpen = open === true && !isDesktop;
+    const drawerClosed = open === false && !isDesktop;
     const initials = brandName
         .split(/\s+/)
         .map((word) => word[0])
@@ -101,12 +125,65 @@ export function Sidebar({
         .slice(0, 2)
         .toLowerCase();
 
+    useEffect(() => {
+        if (!drawerOpen) {
+            return;
+        }
+
+        asideRef.current?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+        const opener = returnFocusRef?.current;
+
+        return () => opener?.focus();
+    }, [drawerOpen, returnFocusRef]);
+
+    const handleKeyDown = (event: React.KeyboardEvent<HTMLElement>) => {
+        const aside = asideRef.current;
+
+        // Keys from portaled menus bubble through React but are not ours to handle.
+        if (
+            !drawerOpen ||
+            !aside ||
+            event.defaultPrevented ||
+            !aside.contains(event.target as Node)
+        ) {
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            onClose?.();
+
+            return;
+        }
+
+        if (event.key !== 'Tab') {
+            return;
+        }
+
+        const focusable = [...aside.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+            (element) => element.offsetParent !== null,
+        );
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+        }
+    };
+
     return (
         <>
             {open !== undefined && open && (
                 <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={onClose} />
             )}
             <aside
+                ref={asideRef}
+                onKeyDown={handleKeyDown}
+                // A closed drawer is only translated off-screen: inert keeps its links out of the tab order.
+                {...(drawerClosed ? { inert: '' } : {})}
                 className={cn(
                     'fixed inset-y-0 left-0 z-50 flex h-screen w-72 transform flex-col border-r border-border bg-card text-card-foreground shadow-xl transition-transform lg:static lg:translate-x-0 lg:shadow-none dark:bg-card',
                     open === undefined

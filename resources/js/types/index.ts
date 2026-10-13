@@ -111,6 +111,8 @@ export type PageProps<T extends Record<string, unknown> = Record<string, unknown
         myWorkPending?: number | null;
     };
     canMyWork?: boolean;
+    /** Shared by the Reporting module: true when the user may open Technician Performance. */
+    canTechnicianReport?: boolean;
     /** True only where the `admin.components` route exists (local/testing). */
     developerGalleryEnabled?: boolean;
     notifications?: {

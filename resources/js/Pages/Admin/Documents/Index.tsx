@@ -139,10 +139,10 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
     };
 
     return (
-        <AdminLayout title="Document Types">
+        <AdminLayout title="Dokumen">
             <div className="space-y-6">
                 <PageHeader
-                    title="Document Types"
+                    title="Dokumen"
                     subtitle="Business document categories. Files stored via Spatie MediaLibrary."
                     actions={
                         <div className="flex flex-wrap gap-2">

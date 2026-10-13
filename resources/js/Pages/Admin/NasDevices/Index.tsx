@@ -101,10 +101,10 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
     );
 
     return (
-        <AdminLayout title="NAS Routers">
+        <AdminLayout title="Router NAS">
             <div className="space-y-6">
                 <PageHeader
-                    title="NAS Routers"
+                    title="Router NAS"
                     subtitle="Routers that authenticate subscribers against FreeRADIUS."
                     actions={can.create ? registerLink : undefined}
                 />

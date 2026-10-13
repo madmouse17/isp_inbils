@@ -351,10 +351,10 @@ export default function Index({
     );
 
     return (
-        <AdminLayout title="Locations">
+        <AdminLayout title="Lokasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Locations"
+                    title="Lokasi"
                     subtitle="Region, area, POP, rack, and site topology."
                     actions={
                         can.create ? (

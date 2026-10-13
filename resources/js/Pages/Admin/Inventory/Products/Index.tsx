@@ -1,4 +1,4 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -84,10 +84,10 @@ export default function Index({ products, categories, filters, can }: IndexProps
     ];
 
     return (
-        <AdminLayout title="Products">
+        <AdminLayout title="Barang">
             <div className="space-y-6">
                 <PageHeader
-                    title="Products"
+                    title="Barang"
                     subtitle="Manage product master data."
                     actions={
                         <>

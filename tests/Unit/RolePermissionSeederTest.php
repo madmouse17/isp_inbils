@@ -50,9 +50,9 @@ class RolePermissionSeederTest extends TestCase
 
     public function test_two_factor_reset_permission_is_admin_only(): void
     {
-        $this->assertTrue(Role::findByName('admin')->hasPermissionTo('user.two_factor.reset'));
+        $this->assertTrue(Role::findByName('admin')->hasPermissionTo('users.two_factor.reset'));
         foreach (['manager', 'staff', 'technician', 'customer'] as $role) {
-            $this->assertFalse(Role::findByName($role)->hasPermissionTo('user.two_factor.reset'), $role);
+            $this->assertFalse(Role::findByName($role)->hasPermissionTo('users.two_factor.reset'), $role);
         }
     }
 

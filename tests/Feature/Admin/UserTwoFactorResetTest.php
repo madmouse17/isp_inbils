@@ -15,7 +15,7 @@ use Tests\Traits\EnrollsTwoFactor;
 
 /**
  * An administrator restoring access for a colleague who lost both authenticator and recovery codes:
- * permission `user.two_factor.reset`, never your own, only for a user you may change, always audited.
+ * permission `users.two_factor.reset`, never your own, only for a user you may change, always audited.
  * The tests grant the permission themselves, so they hold whether or not the seeded database has it yet.
  */
 class UserTwoFactorResetTest extends TestCase
@@ -130,7 +130,7 @@ class UserTwoFactorResetTest extends TestCase
 
     public function test_a_non_admin_holding_the_permission_may_reset_others_but_never_an_admin(): void
     {
-        Role::findByName('manager')->givePermissionTo('user.two_factor.reset');
+        Role::findByName('manager')->givePermissionTo('users.two_factor.reset');
         app(PermissionRegistrar::class)->forgetCachedPermissions();
         $manager = $this->groupUser($this->head, 'manager');
         $staff = $this->groupUser($this->head, 'staff');
