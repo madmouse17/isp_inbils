@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DateRangeIndexRequest;
 use App\Http\Resources\DispatchItemResource;
 use App\Http\Resources\MyWorkItemResource;
 use App\Queries\Admin\DispatchQueueQuery;
@@ -22,7 +23,7 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class DispatchQueueController extends Controller
 {
-    public function index(Request $request): Response|RedirectResponse
+    public function index(DateRangeIndexRequest $request): Response|RedirectResponse
     {
         $companyId = CompanyService::currentId();
         abort_if($companyId === null, 403, 'Company context is required.');

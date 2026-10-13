@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { csrfToken, inertiaProps, loginAs, logout, refreshSession, unique } from './support/demo';
+import { chartCard, expectChartSettled } from './support/charts';
+import { typeDateRange } from './support/dateRange';
 
 type Employee = {
     id: number;
@@ -11,6 +13,13 @@ type Employee = {
 };
 
 type Organization = { id: number; code: string };
+
+// The Technician report draws three charts under its cards; the first is named after the bucket size.
+const chartTitles = [
+    /^SPK selesai per (hari|minggu|bulan)$/,
+    'SPK selesai menurut jenis',
+    'Tiket selesai menurut kategori',
+];
 
 async function employeeByNumber(page: Page, number: string): Promise<Employee> {
     const response = await inertiaProps(
@@ -65,14 +74,19 @@ async function assertLayout(
     dark: boolean,
     hasTechnicianSelector: boolean,
 ) {
+    // The reload below would abort a chart chunk that is still loading.
+    for (const title of chartTitles) await expectChartSettled(chartCard(page, title));
     await page.setViewportSize({ width, height: 800 });
     await page.evaluate((value) => localStorage.setItem('darkMode', String(value)), dark);
     await page.reload();
     await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark)/);
-    await expect(page.getByLabel('From')).toBeVisible();
-    await expect(page.getByLabel('To', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Run' })).toBeVisible();
+    const period = page.getByLabel('Periode', { exact: true });
+    const run = page.getByRole('button', { name: 'Run' });
+    await expect(period).toBeVisible();
+    await expect(run).toBeVisible();
     await expect(page.getByLabel('Technician')).toHaveCount(hasTechnicianSelector ? 1 : 0);
+    // The charts load lazily: wait until they are drawn so the overflow check sees them.
+    for (const title of chartTitles) await expectChartSettled(chartCard(page, title));
     expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
@@ -82,40 +96,21 @@ async function assertLayout(
         await expect(page.getByLabel('Technician')).toBeFocused();
         await page.keyboard.press('Tab');
     } else {
-        await page.getByLabel('From').focus();
+        await period.focus();
     }
-    await expect(page.getByLabel('From')).toBeFocused();
-    for (
-        let i = 0;
-        i < 5 &&
-        !(await page
-            .getByLabel('To', { exact: true })
-            .evaluate((el) => el === document.activeElement));
-        i++
-    ) {
+    await expect(period).toBeFocused();
+    // The calendar button, and the clear button once a range is set, sit between the field and Run.
+    for (let i = 0; i < 5 && !(await run.evaluate((el) => el === document.activeElement)); i++) {
         await page.keyboard.press('Tab');
     }
-    await expect(page.getByLabel('To', { exact: true })).toBeFocused();
-    for (
-        let i = 0;
-        i < 5 &&
-        !(await page
-            .getByRole('button', { name: 'Run' })
-            .evaluate((el) => el === document.activeElement));
-        i++
-    ) {
-        await page.keyboard.press('Tab');
-    }
-    await expect(page.getByRole('button', { name: 'Run' })).toBeFocused();
-    await page.getByLabel('From').focus();
+    await expect(run).toBeFocused();
+    await period.focus();
     expect(
-        await page
-            .getByLabel('From')
-            .evaluate(
-                (el) =>
-                    getComputedStyle(el).outlineStyle !== 'none' ||
-                    getComputedStyle(el).boxShadow !== 'none',
-            ),
+        await period.evaluate(
+            (el) =>
+                getComputedStyle(el).outlineStyle !== 'none' ||
+                getComputedStyle(el).boxShadow !== 'none',
+        ),
     ).toBe(true);
 }
 
@@ -123,6 +118,8 @@ test('technician self and manager hierarchy use canonical report filters and cap
     page,
     expectHttpError,
 }) => {
+    // Three lazy charts plus eight layout checks across two reports: well over the default 30 s.
+    test.slow();
     const managerCode = unique('TP').slice(0, 36);
     const siblingCode = unique('TP').slice(0, 36);
     const created: Organization[] = [];
@@ -171,8 +168,12 @@ test('technician self and manager hierarchy use canonical report filters and cap
                 request.method() === 'GET' &&
                 request.url().includes('/admin/reports/technician?date_from='),
         );
-        await page.getByLabel('From').fill('2026-01-01');
-        await page.getByLabel('To', { exact: true }).fill('2026-01-31');
+        await typeDateRange(
+            page,
+            page.getByLabel('Periode', { exact: true }),
+            '2026-01-01',
+            '2026-01-31',
+        );
         await page.getByRole('button', { name: 'Run' }).click();
         const selfUrl = new URL((await selfRequest).url());
         expect(selfUrl.searchParams.has('technician_id')).toBe(false);
@@ -202,8 +203,12 @@ test('technician self and manager hierarchy use canonical report filters and cap
             page.getByLabel('Technician').locator(`option[value="${technician.user_id}"]`),
         ).toHaveCount(1);
         await page.getByLabel('Technician').selectOption(String(technician.user_id));
-        await page.getByLabel('From').fill('2026-02-01');
-        await page.getByLabel('To', { exact: true }).fill('2026-02-28');
+        await typeDateRange(
+            page,
+            page.getByLabel('Periode', { exact: true }),
+            '2026-02-01',
+            '2026-02-28',
+        );
         const teamRequest = page.waitForRequest(
             (request) =>
                 request.method() === 'GET' &&

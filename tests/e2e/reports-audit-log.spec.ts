@@ -1,5 +1,6 @@
 import { expect, test } from './support/fixtures';
 import { loginAs } from './support/demo';
+import { typeDateRange } from './support/dateRange';
 
 test.describe('@smoke @audit-log UI report audit log', () => {
     test('renders audit log table, controls, filtering, and property disclosure modal', async ({
@@ -24,15 +25,24 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         ).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Modul' })).toBeVisible();
         await expect(page.getByLabel('ID Pengguna (Causer)')).toBeVisible();
-        await expect(page.getByLabel('Dari Tanggal', { exact: true })).toBeVisible();
-        await expect(page.getByLabel('Sampai Tanggal', { exact: true })).toBeVisible();
+        const rangeField = page.getByLabel('Periode', { exact: true });
+        await expect(rangeField).toBeVisible();
 
-        // Verify Quick Presets
-        await expect(page.getByRole('button', { name: 'Hari Ini' })).toBeVisible();
-        await expect(page.getByRole('button', { name: '7 Hari' })).toBeVisible();
-        await expect(page.getByRole('button', { name: '30 Hari' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Bulan Ini' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Reset Tanggal' })).toBeVisible();
+        // Verify Quick Presets (inside the range calendar popover)
+        await page.getByRole('button', { name: 'Buka kalender' }).click();
+        const calendar = page.getByRole('dialog', { name: 'Pilih rentang tanggal' });
+        for (const preset of [
+            'Hari ini',
+            '7 hari terakhir',
+            '30 hari terakhir',
+            'Bulan ini',
+            'Bulan lalu',
+            'Tahun ini',
+        ]) {
+            await expect(calendar.getByRole('button', { name: preset, exact: true })).toBeVisible();
+        }
+        await page.keyboard.press('Escape');
+        await expect(calendar).toBeHidden();
 
         // Verify Action Buttons
         await expect(page.getByRole('button', { name: 'Atur Ulang', exact: true })).toBeVisible();
@@ -62,16 +72,21 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         await expect(previousPage).toBeDisabled();
         await expect(detailButtons.first()).toHaveAttribute('aria-label', firstLogName!);
 
-        // Test Date Validation Alert: set Date To earlier than Date From
-        await page.getByLabel('Dari Tanggal', { exact: true }).fill('2026-09-10');
-        await page.getByLabel('Sampai Tanggal', { exact: true }).fill('2026-09-01');
-        await expect(page.getByText('Rentang Tanggal Tidak Valid')).toBeVisible();
+        // An inverted typed range is rejected inline and never reaches the URL
+        await typeDateRange(page, rangeField, '2026-09-10', '2026-09-01');
+        await expect(
+            page
+                .getByRole('alert')
+                .filter({ hasText: 'Tanggal akhir tidak boleh sebelum tanggal mulai.' }),
+        ).toBeVisible();
 
-        // Clear invalid dates using Reset Tanggal preset
-        await page.getByRole('button', { name: 'Reset Tanggal' }).click();
-        await expect(page.getByText('Rentang Tanggal Tidak Valid')).not.toBeVisible();
-        await expect(page.getByLabel('Dari Tanggal', { exact: true })).toHaveValue('');
-        await expect(page.getByLabel('Sampai Tanggal', { exact: true })).toHaveValue('');
+        // Clear the range with the picker's clear button
+        await typeDateRange(page, rangeField, '2026-09-01', '2026-09-10');
+        await page.getByRole('button', { name: 'Hapus rentang tanggal' }).click();
+        await expect(
+            page.getByText('Tanggal akhir tidak boleh sebelum tanggal mulai.'),
+        ).toBeHidden();
+        await expect(rangeField).toHaveValue('');
 
         // Test search input interaction: submit filter and assert URL & dataset changes
         const searchInput = page.getByPlaceholder('Cari deskripsi, modul, event, pelaku...');
@@ -82,7 +97,9 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         const customerRows = page.locator('tbody tr');
         await expect(customerRows.first()).toBeVisible();
         for (const row of await customerRows.all()) {
-            const searchedCells = await row.locator('td:nth-child(n+2):nth-child(-n+5)').allInnerTexts();
+            const searchedCells = await row
+                .locator('td:nth-child(n+2):nth-child(-n+5)')
+                .allInnerTexts();
             expect(searchedCells.join(' ')).toMatch(/customer/i);
         }
 

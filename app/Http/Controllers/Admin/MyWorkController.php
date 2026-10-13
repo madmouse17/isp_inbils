@@ -3,17 +3,17 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DateRangeIndexRequest;
 use App\Http\Resources\MyWorkItemResource;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Queries\Admin\MyWorkQuery;
 use App\Services\Core\CompanyService;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class MyWorkController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(DateRangeIndexRequest $request): Response
     {
         $companyId = CompanyService::currentId();
         abort_if($companyId === null, 403, 'Company context is required.');

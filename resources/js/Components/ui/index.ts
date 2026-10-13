@@ -95,3 +95,8 @@ export { StatCard } from './StatCard';
 export { Sidebar, SidebarItem, SidebarSection } from './Sidebar';
 export { Topbar } from './Topbar';
 export { RadioGroup, Radio } from './RadioGroup';
+export { DateRangePicker } from './DateRangePicker';
+export type { DateRange, DateRangePickerProps } from './DateRangePicker';
+// Lazy chart wrappers only: Chart.tsx (and recharts) load on first render, never with the barrel.
+export { BarChartLazy, DonutChartLazy, LineChartLazy } from './ChartLazy';
+export type { BarChartProps, ChartSeries, DonutChartProps, LineChartProps } from './Chart';

@@ -9,11 +9,13 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
-    Input,
+    DateRangePicker,
     NativeSelect,
 } from '@/Components/ui';
+import type { TechnicianChartData } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
+import { TechnicianCharts } from './components/TechnicianCharts';
 
 interface TechData extends Record<string, unknown> {
     technician_id?: number;
@@ -26,6 +28,8 @@ interface TechData extends Record<string, unknown> {
     avg_score?: number | null;
     avg_customer_rating?: number | null;
     active_workload?: number;
+    spk_by_type?: Record<string, number>;
+    tickets_by_category?: Record<string, number>;
 }
 
 interface TechRow {
@@ -35,13 +39,14 @@ interface TechRow {
 
 interface Props extends Record<string, unknown> {
     data?: TechData | null;
+    charts: TechnicianChartData | null;
     technicians?: { data?: unknown } | null;
     filters: { technician_id?: string; date_from?: string; date_to?: string };
     can: { export: boolean };
     drill: DrillLinks;
 }
 
-export default function Technician({ data, technicians, filters, can, drill }: Props) {
+export default function Technician({ data, charts, technicians, filters, can, drill }: Props) {
     const isSelf =
         typeof data?.technician_id === 'number' &&
         Number.isFinite(data.technician_id) &&
@@ -150,22 +155,21 @@ export default function Technician({ data, technicians, filters, can, drill }: P
                                     </NativeSelect>
                                 </div>
                             )}
-                            <div className="w-full min-w-0 sm:w-48">
-                                <Input
-                                    label="From"
-                                    type="date"
-                                    value={formData.date_from}
-                                    onChange={(e) => setData('date_from', e.target.value)}
-                                    error={errors.date_from}
-                                />
-                            </div>
-                            <div className="w-full min-w-0 sm:w-48">
-                                <Input
-                                    label="To"
-                                    type="date"
-                                    value={formData.date_to}
-                                    onChange={(e) => setData('date_to', e.target.value)}
-                                    error={errors.date_to}
+                            <div className="w-full min-w-0 sm:w-80">
+                                <DateRangePicker
+                                    label="Periode"
+                                    value={{
+                                        from: formData.date_from || null,
+                                        to: formData.date_to || null,
+                                    }}
+                                    onChange={({ from, to }) =>
+                                        setData((values) => ({
+                                            ...values,
+                                            date_from: from ?? '',
+                                            date_to: to ?? '',
+                                        }))
+                                    }
+                                    error={errors.date_from ?? errors.date_to}
                                 />
                             </div>
                             <Button
@@ -252,6 +256,13 @@ export default function Technician({ data, technicians, filters, can, drill }: P
                                 : 'Pilih teknisi untuk melihat laporan.'}
                         </p>
                     )
+                )}
+                {showMetrics && data && charts && (
+                    <TechnicianCharts
+                        charts={charts}
+                        spkByType={data.spk_by_type}
+                        ticketsByCategory={data.tickets_by_category}
+                    />
                 )}
             </div>
         </AdminLayout>

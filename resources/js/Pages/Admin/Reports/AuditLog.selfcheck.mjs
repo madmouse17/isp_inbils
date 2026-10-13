@@ -38,7 +38,8 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
     // 5. States: Loading / Empty / Error / Stale / Truncated
     assert.match(source, /isTruncated/);
     assert.match(source, /500/);
-    assert.match(source, /isDateRangeInvalid/);
+    assert.match(source, /<DateRangePicker/);
+    assert.doesNotMatch(source, /type="date"/);
     assert.match(source, /Tidak Ada Log Aktivitas/);
     assert.match(source, /Memperbarui data/);
 
@@ -140,16 +141,6 @@ test('Truncated state detector detects 500 limit reached', () => {
 
     assert.equal(list499.length >= 500, false);
     assert.equal(list500.length >= 500, true);
-});
-
-test('Date range validator flags invalid range when date_to is before date_from', () => {
-    const isValid = (from, to) => !(from && to && to < from);
-
-    assert.equal(isValid('2026-09-01', '2026-09-07'), true);
-    assert.equal(isValid('2026-09-07', '2026-09-07'), true);
-    assert.equal(isValid('2026-09-08', '2026-09-01'), false);
-    assert.equal(isValid('', '2026-09-01'), true);
-    assert.equal(isValid('2026-09-01', ''), true);
 });
 
 test('Model diff key extraction extracts combined unique sorted keys', () => {

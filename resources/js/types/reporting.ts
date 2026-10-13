@@ -49,6 +49,41 @@ export interface DictionaryReport {
 /** A money figure: a decimal string, or a plain number when the query had nothing to sum. */
 export type MetricAmount = string | number;
 
+/** One bucket of a report time series: its ISO start date, an axis label, and one number per metric. */
+export interface SeriesPoint {
+    bucket: string;
+    label: string;
+    [metric: string]: number | string;
+}
+
+/** Bucket size follows the range: days up to 31 days, ISO weeks up to 184 days, months beyond. */
+export interface Series {
+    granularity: 'day' | 'week' | 'month';
+    points: SeriesPoint[];
+}
+
+/** The `charts` prop of the Business report: revenue and MRR per bucket, invoices per status. */
+export interface BusinessChartData {
+    series: Series;
+    invoice_status: Array<{ status: string; count: number }>;
+}
+
+/** The `charts` prop of the Sales report: every acquirer, unpaginated, in the table's sort order. */
+export interface SalesChartData {
+    series: Series;
+    acquirers: Array<{ name: string; customers_acquired: number; collected: number }>;
+}
+
+/** The `charts` prop of the SLA report: resolved tickets inside and outside their SLA deadline. */
+export interface SlaChartData {
+    compliance: { compliant: number; breached: number };
+}
+
+/** The `charts` prop of the Technician report; null while no technician is selected. */
+export interface TechnicianChartData {
+    series: Series;
+}
+
 /** The payload of `BusinessMetricsQuery`: one company's figures, or the consolidated total. */
 export interface BusinessMetrics {
     mrr: MetricAmount;

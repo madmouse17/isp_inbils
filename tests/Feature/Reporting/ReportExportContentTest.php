@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Models\Core\Company;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -43,6 +44,8 @@ class ReportExportContentTest extends TestCase
         $this->otherAdmin = $this->userWithRole('admin');
         $this->companyId = (int) $this->admin->company_id;
         $this->otherCompanyId = (int) $this->otherAdmin->company_id;
+        // The edge fixtures are pinned to calendar days of the storage timezone (UTC).
+        Company::query()->whereKey([$this->companyId, $this->otherCompanyId])->update(['timezone' => 'UTC']);
     }
 
     public function test_business_file_carries_the_figures_the_screen_shows(): void
@@ -100,9 +103,14 @@ class ReportExportContentTest extends TestCase
 
         $unfiltered = collect($this->csvRecords($this->get(route('admin.reports.business.export'))))
             ->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
-        $this->assertSame('Period: no complete range set', $unfiltered['Revenue (Paid)|']['Scope']);
+        $this->assertSame('Period: no range set', $unfiltered['Revenue (Paid)|']['Scope']);
         $this->assertSame('none', $unfiltered['Revenue (Paid)|']['Filters']);
-        // Without a complete range the period figures cover every record.
+        // Without a range the period figures cover every record.
+        foreach (['Period: from 2026-01-01' => ['date_from' => '2026-01-01'], 'Period: up to 2026-01-31' => ['date_to' => '2026-01-31']] as $scope => $half) {
+            $records = collect($this->csvRecords($this->get(route('admin.reports.business.export', $half))))
+                ->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
+            $this->assertSame($scope, $records['Revenue (Paid)|']['Scope']);
+        }
         $this->assertEquals(7496000, (float) $unfiltered['Revenue (Paid)|']['Value']);   // I1 + I2 + I3 + the December I4 of 7000000
     }
 

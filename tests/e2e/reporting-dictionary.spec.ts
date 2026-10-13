@@ -280,7 +280,8 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
                 main.getByRole('heading', { name: title, level: 3, exact: true }),
             ).toBeVisible();
         }
-        await expect(main.getByRole('heading', { level: 3 })).toHaveCount(businessCards.length);
+        // The two charts under the cards (revenue and MRR, invoice status) are headed like the cards.
+        await expect(main.getByRole('heading', { level: 3 })).toHaveCount(businessCards.length + 2);
         for (const title of hiddenBusinessMetrics) {
             await expect(main.getByRole('heading', { name: title, exact: true })).toHaveCount(0);
         }

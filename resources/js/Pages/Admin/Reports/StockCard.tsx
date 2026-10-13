@@ -9,7 +9,16 @@ import {
     PageHeader,
     type DataTableColumn,
 } from '@/Components/composite';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    DateRangePicker,
+    Input,
+    type DateRange,
+} from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import type { ReportMeta } from '@/types';
@@ -59,12 +68,19 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
         only: ['movements', 'filters'],
     });
     const [productId, setProductId] = useState(filters.product_id ?? '');
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [range, setRange] = useState<DateRange>({
+        from: filters.date_from || null,
+        to: filters.date_to || null,
+    });
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        table.visit({ product_id: productId, date_from: dateFrom, date_to: dateTo, page: 1 });
+        table.visit({
+            product_id: productId,
+            date_from: range.from ?? '',
+            date_to: range.to ?? '',
+            page: 1,
+        });
     };
 
     const columns: DataTableColumn<Movement>[] = [
@@ -136,18 +152,14 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
                                 onChange={(e) => setProductId(e.target.value)}
                                 required
                             />
-                            <Input
-                                label="From"
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                            />
-                            <Input
-                                label="To"
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => setDateTo(e.target.value)}
-                            />
+                            <div className="w-full sm:w-96">
+                                <DateRangePicker
+                                    id="stock-card-range"
+                                    label="Periode"
+                                    value={range}
+                                    onChange={setRange}
+                                />
+                            </div>
                             <div className="self-end">
                                 <Button type="submit" disabled={table.visiting}>
                                     Run

@@ -293,8 +293,11 @@ final class ReportExporter
             return 'Snapshot: period filter not applied';
         }
 
-        return $filters->dateFrom !== null && $filters->dateTo !== null
-            ? "Period: {$filters->dateFrom} to {$filters->dateTo}"
-            : 'Period: no complete range set';
+        return match (true) {
+            $filters->dateFrom !== null && $filters->dateTo !== null => "Period: {$filters->dateFrom} to {$filters->dateTo}",
+            $filters->dateFrom !== null => "Period: from {$filters->dateFrom}",
+            $filters->dateTo !== null => "Period: up to {$filters->dateTo}",
+            default => 'Period: no range set',
+        };
     }
 }

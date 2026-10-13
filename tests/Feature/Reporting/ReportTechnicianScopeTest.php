@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Models\Core\Company;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
@@ -55,6 +56,8 @@ class ReportTechnicianScopeTest extends TestCase
 
         $this->admin = $this->userWithRole('admin');
         $this->companyId = (int) $this->admin->company_id;
+        // The edge fixtures are pinned to calendar days of the storage timezone (UTC).
+        Company::query()->whereKey($this->companyId)->update(['timezone' => 'UTC']);
 
         $ops = $this->unit('OPS');
         $field = $this->unit('OPS > FIELD', $ops);

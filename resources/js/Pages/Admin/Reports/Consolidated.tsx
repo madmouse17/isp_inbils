@@ -17,14 +17,15 @@ import {
     Button,
     Card,
     CardContent,
+    DateRangePicker,
     ExportMenu,
-    Input,
+    type DateRange,
     TD,
     TR,
 } from '@/Components/ui';
 import { usePermission } from '@/hooks/usePermission';
 import { useVisitPending } from '@/hooks/useVisitPending';
-import { formatMoney, formatNumber } from '@/lib/format';
+import { formatDate, formatMoney, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import type {
     BusinessMetrics,
@@ -32,6 +33,7 @@ import type {
     ConsolidatedContext,
     ConsolidatedReport,
     ConsolidationRefusal,
+    PageProps,
     ReportMeta,
     SlaCounts,
 } from '@/types';
@@ -262,17 +264,22 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
 }
 
 export default function Consolidated({ context, data, refusal, filters, meta, can }: Props) {
-    const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
+    const { company, errors: pageErrors } = usePage<PageProps>().props as PageProps & {
+        errors?: Record<string, string | undefined>;
+    };
+    const errors = pageErrors ?? {};
     const permitted = usePermission();
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [range, setRange] = useState<DateRange>({
+        from: filters.date_from || null,
+        to: filters.date_to || null,
+    });
     const { pending, callbacks } = useVisitPending();
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
         router.get(
             route('admin.reports.consolidated'),
-            { date_from: dateFrom, date_to: dateTo },
+            { date_from: range.from ?? '', date_to: range.to ?? '' },
             { preserveState: true, ...callbacks },
         );
     };
@@ -282,10 +289,16 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
         `Consolidated business metrics of ${context.head.name} and ${subsidiaries} ` +
         `${subsidiaries === 1 ? 'subsidiary' : 'subsidiaries'}.` +
         (context.currency ? ` Amounts in ${context.currency}.` : '');
+    const periodFrom = formatDate(filters.date_from, company);
+    const periodTo = formatDate(filters.date_to, company);
     const period =
         filters.date_from && filters.date_to
-            ? `Period: ${filters.date_from} to ${filters.date_to}, both days included.`
-            : 'Period: all time. Set both From and To to limit the period.';
+            ? `Period: ${periodFrom} to ${periodTo}, both days included.`
+            : filters.date_from
+              ? `Period: ${periodFrom} to today, both days included.`
+              : filters.date_to
+                ? `Period: everything up to ${periodTo}, that day included.`
+                : 'Period: all time. Pick a date range to limit the period.';
 
     return (
         <AdminLayout title="Metrik Konsolidasi">
@@ -308,24 +321,13 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="grid gap-2 sm:flex sm:flex-wrap">
-                            <div className="min-w-0 sm:w-44">
-                                <Input
-                                    label="From"
-                                    type="date"
-                                    className="h-11 min-w-0"
-                                    value={dateFrom}
-                                    onChange={(event) => setDateFrom(event.target.value)}
-                                    error={errors.date_from}
-                                />
-                            </div>
-                            <div className="min-w-0 sm:w-44">
-                                <Input
-                                    label="To"
-                                    type="date"
-                                    className="h-11 min-w-0"
-                                    value={dateTo}
-                                    onChange={(event) => setDateTo(event.target.value)}
-                                    error={errors.date_to}
+                            <div className="min-w-0 sm:w-96">
+                                <DateRangePicker
+                                    id="consolidated-range"
+                                    label="Periode"
+                                    value={range}
+                                    onChange={setRange}
+                                    error={errors.date_from ?? errors.date_to}
                                 />
                             </div>
                             <div className="self-end">

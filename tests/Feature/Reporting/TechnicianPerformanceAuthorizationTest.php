@@ -354,7 +354,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
     /** @return array{0: Company, 1: User} */
     private function makeUserWithRole(string $role): array
     {
-        $company = Company::factory()->create(['is_active' => true]);
+        $company = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
         $user = User::factory()->create([
             'company_id' => $company->id,
             'is_active' => true,

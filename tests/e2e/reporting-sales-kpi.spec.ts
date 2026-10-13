@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { loginAs, logout } from './support/demo';
+import { companyDateFormat, formatIsoAs, typeDateRange } from './support/dateRange';
 
 // Fixtures: E2eFixtureSeeder::seedSalesKpiFixtures (E2E-KPI-* customers, subscriptions, invoices
 // and payments with fixed dates in February and March 2025). Every expected number below is
@@ -69,6 +70,13 @@ const rupiah = /^Rp ?\d{1,3}(\.\d{3})*$/;
 
 function query(page: Page, key: string) {
     return new URL(page.url()).searchParams.get(key);
+}
+
+/** Renders ISO days in the company date format, as the picker and the period line print them. */
+async function dayFormatter(page: Page): Promise<(iso: string) => string> {
+    const format = await companyDateFormat(page);
+
+    return (iso) => formatIsoAs(iso, format);
 }
 
 async function useTheme(page: Page, width: number, dark: boolean) {
@@ -188,8 +196,9 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             ),
         ).toBeVisible();
         await expect(main.getByText('Formula version sales.v1')).toBeVisible();
+        const fmt = await dayFormatter(page);
         await expect(
-            main.getByText('Period: 2025-02-01 to 2025-02-28, both days included.', {
+            main.getByText(`Periode: ${fmt('2025-02-01')} – ${fmt('2025-02-28')}`, {
                 exact: true,
             }),
         ).toBeVisible();
@@ -320,25 +329,25 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expectFigures(footRow(page, 'Total'), febTotal);
     });
 
-    test('period form changes the figures, a lone From means all time, a reversed range is rejected', async ({
+    test('period picker changes the figures, a half range applies as set, a reversed range is blocked', async ({
         page,
     }) => {
         await loginAs(page, 'manager');
         await page.goto(febUrl);
-        const from = page.getByLabel('From', { exact: true });
-        const to = page.getByLabel('To', { exact: true });
+        const period = page.getByLabel('Periode', { exact: true });
         const run = page.getByRole('button', { name: 'Run', exact: true });
         const main = page.getByRole('main');
+        const fmt = await dayFormatter(page);
         await expectFigures(bodyRow(page, manager), febManager);
+        await expect(period).toHaveValue(`${fmt('2025-02-01')} – ${fmt('2025-02-28')}`);
 
         // March: collected (payments dated in March) can exceed invoiced; no invoices means n/a.
-        await from.fill('2025-03-01');
-        await to.fill('2025-03-31');
+        await typeDateRange(page, period, '2025-03-01', '2025-03-31');
         await run.click();
         await expect.poll(() => query(page, 'date_from')).toBe('2025-03-01');
         expect(query(page, 'date_to')).toBe('2025-03-31');
         await expect(
-            main.getByText('Period: 2025-03-01 to 2025-03-31, both days included.', {
+            main.getByText(`Periode: ${fmt('2025-03-01')} – ${fmt('2025-03-31')}`, {
                 exact: true,
             }),
         ).toBeVisible();
@@ -380,33 +389,42 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             await expectFigures(bodyRow(page, staff), none);
         }
 
-        // A lone From is ignored: same figures as the unfiltered report.
+        // A lone From applies from that day on and a lone To up to that day; far from the fixtures
+        // nothing is left. The old behaviour (a half range ignored) would show the all-time figures.
         await page.goto('/admin/reports/sales?per_page=50');
-        await expect(
-            main.getByText('Period: all time. Set both From and To to limit the period.', {
-                exact: true,
-            }),
-        ).toBeVisible();
+        await expect(main.getByText('Periode: semua waktu', { exact: true })).toBeVisible();
         await expect(bodyRow(page, manager)).toHaveCount(1);
-        const allTime = await cellsOf(bodyRow(page, manager));
-        await from.fill('2025-03-01');
+        await typeDateRange(page, period, '2099-01-01', null);
         await run.click();
-        await expect.poll(() => query(page, 'date_from')).toBe('2025-03-01');
+        await expect.poll(() => query(page, 'date_from')).toBe('2099-01-01');
         expect(query(page, 'date_to')).toBeNull();
         await expect(
-            main.getByText('Period: all time. Set both From and To to limit the period.', {
-                exact: true,
-            }),
+            main.getByText(`Periode: dari ${fmt('2099-01-01')}`, { exact: true }),
         ).toBeVisible();
-        expect(await cellsOf(bodyRow(page, manager))).toEqual(allTime);
+        await expectFigures(bodyRow(page, manager), none);
+        await expectFigures(bodyRow(page, staff), none);
 
-        // To before From: the server message sits under To and the figures stay.
-        await to.fill('2025-02-01');
+        await typeDateRange(page, period, null, '2000-01-01');
         await run.click();
-        await expect(to).toHaveAttribute('aria-invalid', 'true');
-        await expect(to).toHaveAccessibleDescription(/after or equal to date from/i);
-        await expect(from).not.toHaveAttribute('aria-invalid', 'true');
-        expect(await cellsOf(bodyRow(page, manager))).toEqual(allTime);
+        await expect.poll(() => query(page, 'date_to')).toBe('2000-01-01');
+        expect(query(page, 'date_from')).toBeNull();
+        await expect(
+            main.getByText(`Periode: sampai ${fmt('2000-01-01')}`, { exact: true }),
+        ).toBeVisible();
+        await expectFigures(bodyRow(page, manager), none);
+        await expectFigures(bodyRow(page, staff), none);
+
+        // To before From: the picker flags it and sends nothing, so the last applied range stays.
+        await period.fill(`${fmt('2025-03-01')} – ${fmt('2025-02-01')}`);
+        await period.press('Tab');
+        await expect(period).toHaveAttribute('aria-invalid', 'true');
+        await expect(period).toHaveAccessibleDescription(
+            /Tanggal akhir tidak boleh sebelum tanggal mulai/,
+        );
+        await run.click();
+        await expect.poll(() => query(page, 'date_to')).toBe('2000-01-01');
+        expect(query(page, 'date_from')).toBeNull();
+        await expectFigures(bodyRow(page, manager), none);
     });
 
     test('sorting and rows per page are server side and keep the filters', async ({ page }) => {
@@ -457,8 +475,10 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect(
             page.getByRole('columnheader', { name: 'Acquirer', exact: true }),
         ).toHaveAttribute('aria-sort', 'descending');
-        await expect(page.getByLabel('From', { exact: true })).toHaveValue('2025-02-01');
-        await expect(page.getByLabel('To', { exact: true })).toHaveValue('2025-02-28');
+        const fmt = await dayFormatter(page);
+        await expect(page.getByLabel('Periode', { exact: true })).toHaveValue(
+            `${fmt('2025-02-01')} – ${fmt('2025-02-28')}`,
+        );
     });
 
     test('admin and manager open it from the hub, everyone else gets 403', async ({
@@ -543,7 +563,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                             .getByRole('button'),
                     );
 
-                    await page.getByLabel('From', { exact: true }).focus();
+                    await page.getByLabel('Periode', { exact: true }).focus();
                     const reached = new Set<string>();
                     for (let step = 0; step < 40; step += 1) {
                         await page.keyboard.press('Tab');
@@ -561,7 +581,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                         );
                     }
                     for (const expected of [
-                        'INPUT:To',
+                        'BUTTON:Buka kalender',
                         'SELECT:Acquirer',
                         'BUTTON:Run',
                         'BUTTON:Acquirer',

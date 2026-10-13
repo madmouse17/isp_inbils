@@ -74,7 +74,9 @@ class SalesKpiFormulaV1Test extends TestCase
         parent::setUp();
 
         $this->seedRolesAndCompany();
-        $this->companyB = Company::factory()->create(['is_active' => true]);
+        // The edge fixtures are pinned to calendar days of the storage timezone (UTC).
+        $this->company->update(['timezone' => 'UTC']);
+        $this->companyB = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
 
         $this->admin = $this->employee('admin', null, ['name' => 'Admin Actor'], false);
         $this->ayu = $this->employee('staff', null, ['name' => 'Ayu Active']);
@@ -143,14 +145,33 @@ class SalesKpiFormulaV1Test extends TestCase
         ], $this->report(), 'all time');
     }
 
-    public function test_a_single_date_is_ignored_like_every_other_report(): void
+    public function test_a_single_date_limits_the_period_from_or_up_to_that_day(): void
     {
         $this->seedWorld();
 
-        $allTime = $this->normalized($this->report());
+        // From alone: the 2026-02-28 23:59:59 rows (C3, S2, I4, P1b and Citra's February invoice) drop out; April rows stay in.
+        $this->assertReport([
+            'rows' => [
+                $this->row($this->ayu, true, 3, 2, '300000.00', '2050000.00', '1300000.00', '750000.00', '63.41'),
+                $this->row($this->budi, true, 1, 3, '50000.00', '1400000.00', '600000.00', '800000.00', '42.86'),
+                $this->row($this->citra, false, 1, 1, '25000.00', '150000.00', '200000.00', '0.00', '133.33'),
+                $this->row($this->dewi, true, 0, 0, '0.00', '0.00', '0.00', '0.00', null),
+            ],
+            'unassigned' => $this->figures(2, 1, '10000.00', '150000.00', '40000.00', '110000.00', '26.67'),
+            'totals' => $this->figures(7, 7, '385000.00', '3750000.00', '2140000.00', '1660000.00', '57.07'),
+        ], $this->report('2026-03-01', null), 'only From');
 
-        $this->assertSame($allTime, $this->normalized($this->report('2026-03-01', null)), 'only From');
-        $this->assertSame($allTime, $this->normalized($this->report(null, '2026-03-31')), 'only To');
+        // To alone: the April rows (C4, S4, I3, P2b) drop out; everything before March stays in.
+        $this->assertReport([
+            'rows' => [
+                $this->row($this->ayu, true, 3, 3, '300000.00', '2150000.00', '1600000.00', '750000.00', '74.42'),
+                $this->row($this->budi, true, 1, 2, '50000.00', '1400000.00', '600000.00', '800000.00', '42.86'),
+                $this->row($this->citra, false, 1, 1, '25000.00', '200000.00', '200000.00', '0.00', '100.00'),
+                $this->row($this->dewi, true, 0, 0, '0.00', '0.00', '0.00', '0.00', null),
+            ],
+            'unassigned' => $this->figures(2, 1, '10000.00', '150000.00', '40000.00', '110000.00', '26.67'),
+            'totals' => $this->figures(7, 7, '385000.00', '3900000.00', '2440000.00', '1660000.00', '62.56'),
+        ], $this->report(null, '2026-03-31'), 'only To');
     }
 
     public function test_the_last_day_of_the_range_is_inclusive_to_its_last_second(): void

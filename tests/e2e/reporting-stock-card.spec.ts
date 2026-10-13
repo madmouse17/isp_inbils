@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { inertiaProps, loginAs } from './support/demo';
+import { companyDateFormat, formatIsoAs, typeDateRange } from './support/dateRange';
 
 const movementNotes = Array.from(
     { length: 11 },
@@ -42,8 +43,12 @@ test.describe('@smoke stock card reporting', () => {
 
         const productInput = page.getByRole('spinbutton', { name: 'Product ID', exact: true });
         await productInput.fill(productId);
-        await page.getByLabel('From', { exact: true }).fill('2026-08-01');
-        await page.getByLabel('To', { exact: true }).fill('2026-08-11');
+        await typeDateRange(
+            page,
+            page.getByLabel('Periode', { exact: true }),
+            '2026-08-01',
+            '2026-08-11',
+        );
         await page.getByRole('button', { name: 'Run', exact: true }).click();
         await expect.poll(() => query(page, 'product_id')).toBe(productId);
         await expect.poll(() => query(page, 'date_from')).toBe('2026-08-01');
@@ -82,8 +87,10 @@ test.describe('@smoke stock card reporting', () => {
 
         await page.reload();
         await expect(productInput).toHaveValue(productId);
-        await expect(page.getByLabel('From', { exact: true })).toHaveValue('2026-08-01');
-        await expect(page.getByLabel('To', { exact: true })).toHaveValue('2026-08-11');
+        const format = await companyDateFormat(page);
+        await expect(page.getByLabel('Periode', { exact: true })).toHaveValue(
+            `${formatIsoAs('2026-08-01', format)} – ${formatIsoAs('2026-08-11', format)}`,
+        );
         await expect(page.getByLabel('Rows per page')).toHaveValue('25');
         await expect(qtyHeader).toHaveAttribute('aria-sort', 'descending');
         await expectRowsToContainExactly(page, movementNotes);
@@ -108,8 +115,12 @@ test.describe('@smoke stock card reporting', () => {
         await expectRowsToContainExactly(page, movementNotes);
 
         // A single-day range yields only that day's movement, proving both inclusive bounds.
-        await page.getByLabel('From', { exact: true }).fill('2026-08-06');
-        await page.getByLabel('To', { exact: true }).fill('2026-08-06');
+        await typeDateRange(
+            page,
+            page.getByLabel('Periode', { exact: true }),
+            '2026-08-06',
+            '2026-08-06',
+        );
         await page.getByRole('button', { name: 'Run', exact: true }).click();
         await expect.poll(() => query(page, 'date_from')).toBe('2026-08-06');
         await expect.poll(() => query(page, 'date_to')).toBe('2026-08-06');

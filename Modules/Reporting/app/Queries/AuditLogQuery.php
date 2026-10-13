@@ -4,7 +4,6 @@ namespace Modules\Reporting\Queries;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
-use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
@@ -92,13 +91,7 @@ class AuditLogQuery
             });
         }
 
-        if ($dateFrom && $dateTo) {
-            self::applyDateRange($query, 'created_at', $dateFrom, $dateTo);
-        } elseif ($dateFrom) {
-            $query->where('created_at', '>=', Carbon::parse($dateFrom)->startOfDay()->toDateTimeString());
-        } elseif ($dateTo) {
-            $query->where('created_at', '<=', Carbon::parse($dateTo)->endOfDay()->toDateTimeString());
-        }
+        self::applyDateRange($query, 'created_at', $dateFrom, $dateTo);
 
         return $query;
     }

@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     FormulaVersionLabel,
@@ -8,11 +8,24 @@ import {
     MetricDefinitionNote,
     PageHeader,
 } from '@/Components/composite';
-import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    DateRangePicker,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+    type DateRange,
+} from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
-import type { ReportMeta } from '@/types';
+import type { ReportMeta, SlaChartData } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
+import { SlaCharts } from './components/SlaCharts';
 
 type SlaMetricKey =
     'total_resolved' | 'sla_rate' | 'breach_count' | 'avg_resolution_minutes' | 'by_category';
@@ -29,22 +42,26 @@ interface SlaData extends Record<string, unknown> {
 
 interface Props extends Record<string, unknown> {
     data?: SlaData;
+    charts: SlaChartData;
     filters: { date_from?: string; date_to?: string; category_id?: string };
     meta: ReportMeta<SlaMetricKey>;
     can: { export: boolean };
     drill: DrillLinks;
 }
 
-export default function Sla({ data, filters, meta, can, drill }: Props) {
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+export default function Sla({ data, charts, filters, meta, can, drill }: Props) {
+    const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
+    const [range, setRange] = useState<DateRange>({
+        from: filters.date_from ?? null,
+        to: filters.date_to ?? null,
+    });
     const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.reports.sla'),
-            { date_from: dateFrom, date_to: dateTo },
+            { date_from: range.from ?? '', date_to: range.to ?? '' },
             { preserveState: true, ...callbacks },
         );
     };
@@ -69,17 +86,12 @@ export default function Sla({ data, filters, meta, can, drill }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="grid gap-2 sm:flex">
-                            <Input
-                                label="From"
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                            />
-                            <Input
-                                label="To"
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => setDateTo(e.target.value)}
+                            <DateRangePicker
+                                label="Periode"
+                                value={range}
+                                onChange={setRange}
+                                error={errors.date_from ?? errors.date_to}
+                                className="sm:w-80"
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
@@ -152,6 +164,7 @@ export default function Sla({ data, filters, meta, can, drill }: Props) {
                                 </CardContent>
                             </Card>
                         </div>
+                        <SlaCharts charts={charts} byCategory={data.by_category ?? []} />
                         <Card>
                             <CardContent className="space-y-4 pt-6">
                                 <div className="min-w-0">

@@ -10,6 +10,7 @@
 @import 'filepond/dist/filepond.min.css' layer(components);
 @import 'filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css' layer(components);
 @import 'leaflet/dist/leaflet.css' layer(components);
+@import 'react-day-picker/style.css' layer(components);
 
 @plugin '@tailwindcss/forms';
 
@@ -91,6 +92,20 @@
     --color-danger: #dc2626;
 }
 
+/*
+ * Chart series colours, read by Components/ui/Chart.tsx as var(--chart-n). Static: no utility names
+ * them, so Tailwind would otherwise drop them. Dark values are in .dark below. Each one keeps 3:1 or
+ * more against the card (white / #020817); 1 and 2 stay apart for colour-blind readers.
+ */
+@theme static {
+    --chart-1: #2563eb;
+    --chart-2: #ea580c;
+    --chart-3: #059669;
+    --chart-4: #7c3aed;
+    --chart-5: #e11d48;
+    --chart-6: #0891b2;
+}
+
 /* inline: utilities read the variables where they are used, so a nested .dark or --radius still applies. */
 @theme inline {
     --radius-lg: var(--radius);
@@ -169,6 +184,13 @@
         --border: 217.2 32.6% 17.5%;
         --input: 217.2 32.6% 17.5%;
         --ring: 224.3 76.3% 48%;
+
+        --chart-1: #60a5fa;
+        --chart-2: #fb923c;
+        --chart-3: #34d399;
+        --chart-4: #a78bfa;
+        --chart-5: #fb7185;
+        --chart-6: #22d3ee;
     }
 
     /* Tailwind v4 defaults borders to currentColor; keep the themed border color everywhere. */
@@ -257,5 +279,106 @@
 
     .dark .filepond--root .filepond--label-action {
         @apply text-brand-400 decoration-brand-400/40;
+    }
+}
+
+/*
+ * react-day-picker: the vendor layout stays; accent, focus ring and day size follow the app. brand-600
+ * is the accent in both themes (white day numbers reach 5.2:1 on it, and it keeps 3:1 against the dark
+ * popover); today and the focus ring use brand-400 on dark. Day cells are 44px. They shrink only where
+ * the months would not fit the screen: seven cells under `sm` (one month), fourteen from `sm` to `lg`
+ * (two months, the presets above them). From `lg` the presets sit beside the months.
+ */
+@layer components {
+    .rdp-root {
+        --rdp-accent-color: var(--color-brand-600);
+        --rdp-accent-background-color: var(--color-brand-100);
+        --rdp-today-color: var(--color-brand-700);
+        --rdp-range_start-color: var(--color-white);
+        --rdp-range_end-color: var(--color-white);
+        --rdp-weekday-opacity: 1;
+        --rdp-months-gap: 1.5rem;
+        --rdp-day-width: min(2.75rem, calc((100vw - 2rem) / 7));
+        --rdp-day-height: var(--rdp-day-width);
+        /* The cell keeps 1px of padding on each side (the global td rule), so the button is 2px smaller. */
+        --rdp-day_button-width: calc(var(--rdp-day-width) - 2px);
+        --rdp-day_button-height: calc(var(--rdp-day-height) - 2px);
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+    }
+
+    .dark .rdp-root {
+        --rdp-accent-background-color: var(--color-brand-900);
+        --rdp-today-color: var(--color-brand-400);
+    }
+
+    @media (min-width: 40rem) {
+        .rdp-root {
+            --rdp-day-width: min(2.75rem, calc((100vw - 4.5rem) / 14));
+        }
+    }
+
+    @media (min-width: 64rem) {
+        .rdp-root {
+            --rdp-day-width: 2.75rem;
+        }
+    }
+
+    .rdp-month_caption {
+        font-size: 0.875rem;
+        font-weight: 600;
+    }
+
+    .rdp-weekday {
+        font-size: 0.75rem;
+        color: hsl(var(--muted-foreground));
+    }
+
+    .rdp-selected {
+        font-size: inherit;
+        font-weight: 600;
+    }
+
+    /* Today also gets a ring, so it does not rest on colour alone; inside a range it keeps the range's text colour. */
+    .rdp-today:not(.rdp-outside, .rdp-selected) .rdp-day_button {
+        border-color: currentcolor;
+    }
+
+    .rdp-today.rdp-selected {
+        color: inherit;
+    }
+
+    /* First click of a range: the day is chosen, the range is not complete yet (no range_start class until it is). */
+    .rdp-pending .rdp-day_button {
+        background-color: var(--rdp-accent-color);
+        color: var(--rdp-range_start-color);
+    }
+
+    .rdp-day:not(.rdp-selected) .rdp-day_button:hover:not(:disabled),
+    .rdp-button_previous:hover:not(:disabled),
+    .rdp-button_next:hover:not(:disabled) {
+        background-color: hsl(var(--accent));
+    }
+
+    .rdp-button_previous,
+    .rdp-button_next {
+        border-radius: calc(var(--radius) - 2px);
+    }
+
+    .rdp-chevron {
+        fill: currentcolor;
+    }
+
+    .rdp-day_button:focus-visible,
+    .rdp-button_previous:focus-visible,
+    .rdp-button_next:focus-visible {
+        outline: 2px solid var(--color-brand-600);
+        outline-offset: 2px;
+    }
+
+    .dark .rdp-day_button:focus-visible,
+    .dark .rdp-button_previous:focus-visible,
+    .dark .rdp-button_next:focus-visible {
+        outline-color: var(--color-brand-400);
     }
 }

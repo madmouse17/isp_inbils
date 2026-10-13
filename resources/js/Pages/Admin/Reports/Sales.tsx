@@ -17,15 +17,17 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
-    Input,
+    DateRangePicker,
     TD,
     TR,
+    type DateRange,
 } from '@/Components/ui';
 import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
-import { formatMoney, formatNumber } from '@/lib/format';
+import { formatDate, formatMoney, formatNumber } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import type { Company, ReportMeta } from '@/types';
+import type { Company, ReportMeta, SalesChartData } from '@/types';
+import { SalesCharts } from './components/SalesCharts';
 
 const SALES_METRIC_KEYS = [
     'customers_acquired',
@@ -67,6 +69,7 @@ interface Props extends Record<string, unknown> {
         unassigned: Metrics | null;
         totals: Metrics;
     };
+    charts: SalesChartData;
     acquirers: Acquirer[];
     filters: {
         date_from: string | null;
@@ -115,7 +118,7 @@ function FooterRow({
     );
 }
 
-export default function Sales({ data, acquirers, filters, meta }: Props) {
+export default function Sales({ data, charts, acquirers, filters, meta }: Props) {
     const company = useCompany();
     const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
     const table = useServerTable({
@@ -128,15 +131,22 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
             direction: filters.sort_dir,
             per_page: filters.per_page,
         },
-        only: ['data', 'filters'],
+        only: ['data', 'filters', 'charts'],
     });
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [range, setRange] = useState<DateRange>({
+        from: filters.date_from,
+        to: filters.date_to,
+    });
     const [acquirerId, setAcquirerId] = useState(filters.acquirer_id ?? '');
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        table.visit({ date_from: dateFrom, date_to: dateTo, acquirer_id: acquirerId, page: 1 });
+        table.visit({
+            date_from: range.from ?? '',
+            date_to: range.to ?? '',
+            acquirer_id: acquirerId,
+            page: 1,
+        });
     };
 
     const columns: DataTableColumn<Row>[] = [
@@ -161,10 +171,15 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
         })),
     ];
 
+    const { date_from: from, date_to: to } = filters;
     const period =
-        filters.date_from && filters.date_to
-            ? `Period: ${filters.date_from} to ${filters.date_to}, both days included.`
-            : 'Period: all time. Set both From and To to limit the period.';
+        from && to
+            ? `${formatDate(from, company)} – ${formatDate(to, company)}`
+            : from
+              ? `dari ${formatDate(from, company)}`
+              : to
+                ? `sampai ${formatDate(to, company)}`
+                : 'semua waktu';
 
     return (
         <AdminLayout title="KPI Penjualan">
@@ -177,24 +192,13 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="grid gap-2 sm:flex sm:flex-wrap">
-                            <div className="min-w-0 sm:w-44">
-                                <Input
-                                    label="From"
-                                    type="date"
-                                    className="h-11 min-w-0"
-                                    value={dateFrom}
-                                    onChange={(e) => setDateFrom(e.target.value)}
-                                    error={errors.date_from}
-                                />
-                            </div>
-                            <div className="min-w-0 sm:w-44">
-                                <Input
-                                    label="To"
-                                    type="date"
-                                    className="h-11 min-w-0"
-                                    value={dateTo}
-                                    onChange={(e) => setDateTo(e.target.value)}
-                                    error={errors.date_to}
+                            <div className="min-w-0 sm:w-80">
+                                <DateRangePicker
+                                    label="Periode"
+                                    value={range}
+                                    onChange={setRange}
+                                    error={errors.date_from ?? errors.date_to}
+                                    className="[&_input]:h-11"
                                 />
                             </div>
                             <div className="min-w-0 sm:w-64">
@@ -226,7 +230,7 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
                             </div>
                         </form>
                         <div className="space-y-1 text-sm text-muted-foreground">
-                            <p>{period}</p>
+                            <p>Periode: {period}</p>
                             <p>
                                 Each figure follows the customer&apos;s current acquirer. Correcting
                                 an acquirer moves that customer&apos;s whole history, so past
@@ -257,6 +261,7 @@ export default function Sales({ data, acquirers, filters, meta }: Props) {
                         ))}
                     </div>
                 </section>
+                <SalesCharts charts={charts} />
                 <Card>
                     <CardContent className="pt-6">
                         <DataTable

@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import AppLayout from '@/Layouts/AppLayout';
@@ -8,6 +8,7 @@ import { DataTable, type DataTableColumn } from '@/Components/composite/DataTabl
 import { DataTableActions } from '@/Components/composite/DataTableActions';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
+import { DateRangePicker } from '@/Components/ui';
 import { Input } from '@/Components/ui/Input';
 import GenerateDialog from '@/Pages/Admin/Billing/Invoices/GenerateDialog';
 import {
@@ -60,6 +61,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 export default function InvoicesIndex({ invoices, filters, statusOptions }: Props) {
     const can = useCan();
+    const { errors } = usePage().props as { errors?: Record<string, string | undefined> };
     const [generateOpen, setGenerateOpen] = useState(false);
     const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
@@ -223,32 +225,16 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                             </SelectContent>
                         </Select>
                     </div>
-                    <div className="space-y-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="inv-from"
-                        >
-                            From
-                        </label>
-                        <Input
-                            id="inv-from"
-                            type="date"
-                            value={params.date_from ?? ''}
-                            onChange={(e) => set('date_from', e.target.value)}
-                        />
-                    </div>
-                    <div className="space-y-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="inv-to"
-                        >
-                            To
-                        </label>
-                        <Input
-                            id="inv-to"
-                            type="date"
-                            value={params.date_to ?? ''}
-                            onChange={(e) => set('date_to', e.target.value)}
+                    <div className="w-full md:w-80">
+                        <DateRangePicker
+                            id="inv-range"
+                            error={errors?.date_from ?? errors?.date_to}
+                            label="Periode"
+                            value={{ from: params.date_from || null, to: params.date_to || null }}
+                            onChange={(range) => {
+                                set('date_from', range.from);
+                                set('date_to', range.to);
+                            }}
                         />
                     </div>
                 </div>

@@ -2,8 +2,6 @@ export { DataTable } from './DataTable';
 export type { DataTableColumn, PaginatorShape, SortDirection } from './DataTable';
 export { DataTableActions } from './DataTableActions';
 export type { DataTableActionsProps } from './DataTableActions';
-export { DateRangeFilter } from './DateRangeFilter';
-export type { DateRangeValue } from './DateRangeFilter';
 export { DynamicBadge } from './DynamicBadge';
 export type { DynamicBadgeProps } from './DynamicBadge';
 export { FormField } from './FormField';

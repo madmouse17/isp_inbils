@@ -5,11 +5,13 @@ namespace Modules\Reporting\Queries;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Modules\Reporting\Queries\Sources\SlaSources;
 use Modules\Reporting\Queries\Sources\TechnicianSources;
+use Modules\Reporting\Support\TimeBuckets;
 
 class TechnicianPerformanceQuery
 {
@@ -106,6 +108,30 @@ class TechnicianPerformanceQuery
             'spk_by_type' => $spkByType,
             'tickets_by_category' => $ticketsByCategory,
         ];
+    }
+
+    /**
+     * What the Technician page draws besides the figures of execute(): SPK completed per time bucket. A bucket is
+     * a calendar day of the company timezone; the figures of execute() read days of the application timezone, so
+     * a row near midnight can sit in another day. The caller has already authorized the technician.
+     *
+     * @return array{series: array{granularity: string, points: list<array<string, int|float|string>>}}
+     */
+    public static function charts(int $technicianId, ?string $dateFrom = null, ?string $dateTo = null, ?int $companyId = null): array
+    {
+        $companyId ??= self::companyId(auth()->user());
+        $timezone = TimeBuckets::timezoneOf($companyId);
+
+        $completed = TechnicianSources::completedWorkOrders($companyId, $technicianId, null, null);
+        self::applyDateRange($completed, 'completed_at', $dateFrom, $dateTo, $timezone);
+
+        $oldest = $dateFrom === null ? (clone $completed)->min('completed_at') : null;
+        $buckets = TimeBuckets::forPeriod($dateFrom, $dateTo, $timezone, $oldest === null ? null : CarbonImmutable::parse($oldest, (string) config('app.timezone')));
+        $counts = $completed->selectRaw($buckets->sqlExpression('work_orders.completed_at').' as bucket, count(*) as total')
+            ->groupBy('bucket')->pluck('total', 'bucket')
+            ->map(fn ($total): int => (int) $total)->all();
+
+        return ['series' => $buckets->series(['spk_completed' => $counts])];
     }
 
     private static function activeTechnicianQuery(?int $companyId): Builder

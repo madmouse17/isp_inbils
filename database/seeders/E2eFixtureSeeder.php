@@ -851,11 +851,12 @@ class E2eFixtureSeeder extends Seeder
      * Customers use updateOrInsert on (company_id, code): `acquired_by_user_id` is not mass assignable
      * and the soft-deleted customer must stay findable, so the query builder is used throughout.
      *
-     * Customers (code: name, acquirer, created_at, deleted):
-     *   E2E-KPI-M1   E2E KPI Manager First    Demo Manager  2025-02-01 00:00:00  (first second: in)
-     *   E2E-KPI-M2   E2E KPI Manager Last     Demo Manager  2025-02-28 23:59:59  (last second: in)
-     *   E2E-KPI-M3   E2E KPI Manager Before   Demo Manager  2025-01-31 23:59:59  (just before: out)
-     *   E2E-KPI-M4   E2E KPI Manager After    Demo Manager  2025-03-01 00:00:00  (just after: out)
+     * Customers (code: name, acquirer, created_at in UTC, deleted). The demo company is Asia/Jakarta and
+     * reports read the period as company-local days, so the edges are 17:00 UTC of the day before:
+     *   E2E-KPI-M1   E2E KPI Manager First    Demo Manager  2025-01-31 17:00:00  (first second of 1 Feb WIB: in)
+     *   E2E-KPI-M2   E2E KPI Manager Last     Demo Manager  2025-02-28 16:59:59  (last second of 28 Feb WIB: in)
+     *   E2E-KPI-M3   E2E KPI Manager Before   Demo Manager  2025-01-31 16:59:59  (just before: out)
+     *   E2E-KPI-M4   E2E KPI Manager After    Demo Manager  2025-02-28 17:00:00  (just after: out)
      *   E2E-KPI-MDEL E2E KPI Manager Deleted  Demo Manager  2025-02-10 12:00:00  soft-deleted 2025-02-20 (history counts, customer does not)
      *   E2E-KPI-S1   E2E KPI Staff Only       Demo Staff    2025-02-15 09:00:00
      *   E2E-KPI-U1   E2E KPI Unassigned Only  none          2025-02-12 10:00:00
@@ -870,8 +871,8 @@ class E2eFixtureSeeder extends Seeder
      *   E2E-KPI-SUB-U1  U1    activation 2025-02-17  in
      *
      * Invoices (number: customer, status, issue_date, total, payments [amount @ paid_at]):
-     *   E2E-KPI-INV-M1     M1    paid       2025-02-01  1000000  [600000 @ 2025-02-01 00:00:00, 400000 @ 2025-02-28 23:59:59]  invoiced, collected 1000000
-     *   E2E-KPI-INV-M2     M2    paid       2025-02-28   500000  [500000 @ 2025-03-01 00:00:00]  invoiced, payment after period
+     *   E2E-KPI-INV-M1     M1    paid       2025-02-01  1000000  [600000 @ 2025-01-31 17:00:00 UTC, 400000 @ 2025-02-28 16:59:59 UTC]  invoiced, collected 1000000
+     *   E2E-KPI-INV-M2     M2    paid       2025-02-28   500000  [500000 @ 2025-02-28 17:00:00 UTC]  invoiced, payment after period
      *   E2E-KPI-INV-M3     M3    paid       2025-01-31   300000  [300000 @ 2025-02-02 10:00:00]  collected only (issued before period)
      *   E2E-KPI-INV-M4     M4    paid       2025-03-01   250000  [250000 @ 2025-03-01 08:00:00]  neither
      *   E2E-KPI-INV-MDEL   MDEL  paid       2025-02-10   800000  [800000 @ 2025-02-12 09:00:00]  invoiced + collected (soft-deleted customer)
@@ -890,7 +891,7 @@ class E2eFixtureSeeder extends Seeder
      *   Total:        4, 4, 3400000,                                 3000000,                                88.24  (3000000/3400000 = 88.2352...)
      * Single-day edges (Manager / Staff), all other days of the year behave as "out":
      *   2025-02-01..2025-02-01: Manager 1 (M1), 1 (SUB-M1), 1000000 (INV-M1), 600000 (INV-M1 first payment), 60.00; Staff 0, 0, 0, 0, n/a
-     *   2025-02-28..2025-02-28: Manager 1 (M2), 1 (SUB-MDEL), 500000 (INV-M2), 400000 (INV-M1 second payment @ 23:59:59), 80.00; Staff 0, 0, 0, 0, n/a
+     *   2025-02-28..2025-02-28: Manager 1 (M2), 1 (SUB-MDEL), 500000 (INV-M2), 400000 (INV-M1 second payment @ 16:59:59 UTC), 80.00; Staff 0, 0, 0, 0, n/a
      * March 2025 (2025-03-01..2025-03-31), Manager / Staff:
      *   Manager 1 (M4), 1 (SUB-M4), 250000 (INV-M4), 750000 (500000 INV-M2 + 250000 INV-M4), 300.00
      *   Staff   0, 0, 0, 200000 (INV-S2 payment), n/a
@@ -919,10 +920,10 @@ class E2eFixtureSeeder extends Seeder
         ];
 
         $customers = [
-            ['E2E-KPI-M1', 'E2E KPI Manager First', 'manager', '2025-02-01 00:00:00', null],
-            ['E2E-KPI-M2', 'E2E KPI Manager Last', 'manager', '2025-02-28 23:59:59', null],
-            ['E2E-KPI-M3', 'E2E KPI Manager Before', 'manager', '2025-01-31 23:59:59', null],
-            ['E2E-KPI-M4', 'E2E KPI Manager After', 'manager', '2025-03-01 00:00:00', null],
+            ['E2E-KPI-M1', 'E2E KPI Manager First', 'manager', '2025-01-31 17:00:00', null],
+            ['E2E-KPI-M2', 'E2E KPI Manager Last', 'manager', '2025-02-28 16:59:59', null],
+            ['E2E-KPI-M3', 'E2E KPI Manager Before', 'manager', '2025-01-31 16:59:59', null],
+            ['E2E-KPI-M4', 'E2E KPI Manager After', 'manager', '2025-02-28 17:00:00', null],
             ['E2E-KPI-MDEL', 'E2E KPI Manager Deleted', 'manager', '2025-02-10 12:00:00', '2025-02-20 12:00:00'],
             ['E2E-KPI-S1', 'E2E KPI Staff Only', 'staff', '2025-02-15 09:00:00', null],
             ['E2E-KPI-U1', 'E2E KPI Unassigned Only', 'none', '2025-02-12 10:00:00', null],
@@ -987,8 +988,8 @@ class E2eFixtureSeeder extends Seeder
 
         // [suffix, customer, status, issue_date, total, deleted_at, payments: [[amount, paid_at, reversed_at|null]]]
         $invoices = [
-            ['M1', 'M1', 'paid', '2025-02-01', 1000000, null, [[600000, '2025-02-01 00:00:00', null], [400000, '2025-02-28 23:59:59', null]]],
-            ['M2', 'M2', 'paid', '2025-02-28', 500000, null, [[500000, '2025-03-01 00:00:00', null]]],
+            ['M1', 'M1', 'paid', '2025-02-01', 1000000, null, [[600000, '2025-01-31 17:00:00', null], [400000, '2025-02-28 16:59:59', null]]],
+            ['M2', 'M2', 'paid', '2025-02-28', 500000, null, [[500000, '2025-02-28 17:00:00', null]]],
             ['M3', 'M3', 'paid', '2025-01-31', 300000, null, [[300000, '2025-02-02 10:00:00', null]]],
             ['M4', 'M4', 'paid', '2025-03-01', 250000, null, [[250000, '2025-03-01 08:00:00', null]]],
             ['MDEL', 'MDEL', 'paid', '2025-02-10', 800000, null, [[800000, '2025-02-12 09:00:00', null]]],

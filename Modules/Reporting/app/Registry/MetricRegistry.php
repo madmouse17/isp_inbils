@@ -105,7 +105,7 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function business(): array
     {
-        $periodRule = 'The range applies only when both From and To are set; otherwise every matching record is used.';
+        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every matching record is used.';
 
         return [
             new MetricDefinition(
@@ -164,7 +164,7 @@ final class MetricRegistry
                 sources: ['service_subscriptions.created_at'],
                 dateColumn: 'service_subscriptions.created_at',
                 caveats: [
-                    'Returns 0 unless both From and To are set.',
+                    'Returns 0 when neither From nor To is set.',
                     'Counts subscriptions of every status, including ones that are no longer active.',
                 ],
             ),
@@ -182,7 +182,7 @@ final class MetricRegistry
                 statuses: ['terminated'],
                 caveats: [
                     'A count of terminations, not a percentage: version v1 has no churn-rate denominator.',
-                    'Returns 0 unless both From and To are set.',
+                    'Returns 0 when neither From nor To is set.',
                 ],
             ),
             new MetricDefinition(
@@ -289,7 +289,7 @@ final class MetricRegistry
     private static function sales(): array
     {
         $scope = 'Company, per acquirer';
-        $periodRule = 'The range applies only when both From and To are set; otherwise every matching record is used.';
+        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every matching record is used.';
         $attribution = 'Follows the current acquirer of each customer: correcting an acquirer moves that customer\'s whole history '
             .'to the new acquirer, so figures of past periods change. Customers without an acquirer, or whose acquirer is not a '
             .'user of the company, are reported as Unassigned.';
@@ -475,7 +475,7 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function sla(): array
     {
-        $periodRule = 'The range applies only when both From and To are set; otherwise all resolved tickets are used.';
+        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise all resolved tickets are used.';
 
         return [
             new MetricDefinition(
@@ -631,7 +631,7 @@ final class MetricRegistry
                 sources: ['network_asset_installations.installed_at'],
                 dateColumn: 'network_asset_installations.installed_at',
                 caveats: [
-                    'The range applies only when both From and To are set; otherwise every installation is counted.',
+                    'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every installation is counted.',
                     'Ignores the Asset Type and location filters.',
                     'Counts asset installation records, unlike Business Metrics installation_count, which counts '
                         .'completed work orders.',
@@ -670,7 +670,7 @@ final class MetricRegistry
     private static function technician(): array
     {
         $scope = 'Company, selected technician';
-        $periodRule = 'The range applies only when both From and To are set; otherwise all matching records are used.';
+        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise all matching records are used.';
 
         return [
             new MetricDefinition(
@@ -898,7 +898,7 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     'Lists recorded movements only: there is no opening balance or reconciliation row.',
-                    'The range applies only when both From and To are set; otherwise every movement is listed.',
+                    'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every movement is listed.',
                 ],
             ),
             new MetricDefinition(

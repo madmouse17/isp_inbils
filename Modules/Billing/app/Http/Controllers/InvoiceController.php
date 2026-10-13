@@ -4,6 +4,7 @@ namespace Modules\Billing\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\DateRangeIndexRequest;
 use App\Http\Resources\CustomerResource;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
@@ -44,7 +45,7 @@ class InvoiceController extends Controller
 
     private const SORTABLE = ['number', 'status', 'issue_date', 'due_date', 'total', 'created_at'];
 
-    public function index(Request $request): InertiaResponse
+    public function index(DateRangeIndexRequest $request): InertiaResponse
     {
         Gate::authorize('viewAny', Invoice::class);
 

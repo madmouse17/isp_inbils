@@ -80,4 +80,21 @@ final readonly class ReportFilters
             default => throw new LogicException("{$report->value} has no aggregate payload."),
         };
     }
+
+    /**
+     * What the page of an aggregate report draws besides its payload: series and splits the figures of the
+     * payload do not hold. Kept apart from payload() on purpose: every payload key is a registered metric.
+     *
+     * @param  array<string, mixed>  $payload  the result of payload() for the same report
+     * @return array<string, mixed>
+     */
+    public function charts(ReportType $report, array $payload): array
+    {
+        return match ($report) {
+            ReportType::Business => BusinessMetricsQuery::charts($this->dateFrom, $this->dateTo, $this->companyId),
+            ReportType::Sla => SlaComplianceQuery::charts($payload),
+            ReportType::Technician => TechnicianPerformanceQuery::charts((int) $this->technicianId, $this->dateFrom, $this->dateTo, $this->companyId),
+            default => throw new LogicException("{$report->value} has no charts payload."),
+        };
+    }
 }

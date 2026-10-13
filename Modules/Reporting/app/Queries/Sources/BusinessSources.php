@@ -32,9 +32,9 @@ final class BusinessSources
     }
 
     /**
-     * Created inside the period. v1: the period applies only when both dates are set, otherwise
-     * the figure is 0, so the source is empty too. A timezone makes the dates calendar days of
-     * that zone (consolidation); without one they are days of the application timezone, as in v1.
+     * Created inside the period. v1: without any range the figure is 0, so the source is empty too. A half range
+     * (From or To alone) applies as set. The dates are calendar days of the given timezone (consolidation) or,
+     * without one, of the current company's timezone.
      *
      * @return Builder<ServiceSubscription>
      */
@@ -52,7 +52,7 @@ final class BusinessSources
     }
 
     /**
-     * Terminated inside the period; empty unless both dates are set (v1).
+     * Terminated inside the period; empty when no range is set (v1).
      *
      * @return Builder<ServiceSubscription>
      */
@@ -70,7 +70,7 @@ final class BusinessSources
     }
 
     /**
-     * Fully paid invoices issued inside the period (every invoice when no complete range is set).
+     * Fully paid invoices issued inside the period (every invoice when no range is set).
      * issue_date is a calendar date, so no timezone applies to it.
      *
      * @return Builder<Invoice>
@@ -78,7 +78,7 @@ final class BusinessSources
     public static function paidInvoices(?int $companyId, ?string $dateFrom, ?string $dateTo, ?string $type = null): Builder
     {
         $query = self::scoped(Invoice::class, $companyId)->where('status', 'paid');
-        self::applyDateRange($query, 'issue_date', $dateFrom, $dateTo);
+        self::applyDateOnlyRange($query, 'issue_date', $dateFrom, $dateTo);
 
         return $type === null ? $query : $query->where('type', $type);
     }

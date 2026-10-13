@@ -1,7 +1,6 @@
 import { type FormEvent, useCallback, useId, useMemo, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
 import {
-    AlertCircle,
     AlertTriangle,
     Check,
     Clock,
@@ -29,6 +28,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
+    DateRangePicker,
     EmptyState,
     ExportMenu,
     Input,
@@ -128,13 +128,6 @@ const COMMON_MODULES = [
     'setting',
 ];
 
-function toDateInputString(d: Date): string {
-    const year = d.getFullYear();
-    const month = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-}
-
 function formatSubjectShort(type?: string | null, id?: number | string | null): string {
     if (!type && id == null) return '—';
     const cleanType = type ? (type.split('\\').pop() ?? type) : 'Entitas';
@@ -185,8 +178,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
     const searchInputId = useId();
     const moduleSelectId = useId();
     const userIdInputId = useId();
-    const dateFromId = useId();
-    const dateToId = useId();
+    const dateRangeId = useId();
 
     const userPermissions = auth.user?.permissions ?? [];
     const userRoles = auth.user?.roles ?? [];
@@ -355,14 +347,11 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
     }, [meta, safeRows, sortedRows, activeCurrentPage, perPage]);
 
     // Validation & State Checks
-    const isDateRangeInvalid = Boolean(localDateFrom && localDateTo && localDateTo < localDateFrom);
     const isTruncated = !meta && safeRows.length >= 500;
 
     // Handle form submit (Sync to server)
     const handleFilterSubmit = (e?: FormEvent) => {
         if (e) e.preventDefault();
-        if (isDateRangeInvalid) return;
-
         setCurrentPage(1);
         setMany({
             user_id: localUserId || '',
@@ -377,41 +366,6 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
             page: 1,
             per_page: perPage,
         });
-    };
-
-    // Quick Date Presets
-    const handleQuickDate = (type: 'all' | 'today' | 'last7' | 'last30' | 'thisMonth') => {
-        const now = new Date();
-        if (type === 'all') {
-            setLocalDateFrom('');
-            setLocalDateTo('');
-            return;
-        }
-        if (type === 'today') {
-            const str = toDateInputString(now);
-            setLocalDateFrom(str);
-            setLocalDateTo(str);
-            return;
-        }
-        if (type === 'last7') {
-            const past = new Date();
-            past.setDate(now.getDate() - 7);
-            setLocalDateFrom(toDateInputString(past));
-            setLocalDateTo(toDateInputString(now));
-            return;
-        }
-        if (type === 'last30') {
-            const past = new Date();
-            past.setDate(now.getDate() - 30);
-            setLocalDateFrom(toDateInputString(past));
-            setLocalDateTo(toDateInputString(now));
-            return;
-        }
-        if (type === 'thisMonth') {
-            const first = new Date(now.getFullYear(), now.getMonth(), 1);
-            setLocalDateFrom(toDateInputString(first));
-            setLocalDateTo(toDateInputString(now));
-        }
     };
 
     // Reset all filters
@@ -695,18 +649,6 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                     }
                 />
 
-                {/* Date range validation alert */}
-                {isDateRangeInvalid && (
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" aria-hidden="true" />
-                        <AlertTitle>Rentang Tanggal Tidak Valid</AlertTitle>
-                        <AlertDescription>
-                            Tanggal akhir tidak boleh lebih awal dari tanggal awal. Silakan periksa
-                            kembali pilihan tanggal Anda.
-                        </AlertDescription>
-                    </Alert>
-                )}
-
                 {/* Truncated data notice */}
                 {isTruncated && (
                     <Alert variant="warning" className="border-amber-500/30 bg-amber-500/10">
@@ -820,90 +762,17 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 </div>
                             </div>
 
-                            {/* Row 2: Date From, Date To, Quick Presets, Action Buttons */}
-                            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor={dateFromId}
-                                        className="text-xs font-medium text-muted-foreground"
-                                    >
-                                        Dari Tanggal
-                                    </label>
-                                    <Input
-                                        id={dateFromId}
-                                        type="date"
-                                        value={localDateFrom}
-                                        onChange={(e) => setLocalDateFrom(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor={dateToId}
-                                        className="text-xs font-medium text-muted-foreground"
-                                    >
-                                        Sampai Tanggal
-                                    </label>
-                                    <Input
-                                        id={dateToId}
-                                        type="date"
-                                        value={localDateTo}
-                                        onChange={(e) => setLocalDateTo(e.target.value)}
-                                    />
-                                </div>
-
-                                <div className="space-y-1 lg:col-span-2">
-                                    <span className="block text-xs font-medium text-muted-foreground">
-                                        Preset Rentang Waktu
-                                    </span>
-                                    <div className="flex flex-wrap items-center gap-1.5">
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            onClick={() => handleQuickDate('today')}
-                                        >
-                                            Hari Ini
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            onClick={() => handleQuickDate('last7')}
-                                        >
-                                            7 Hari
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            onClick={() => handleQuickDate('last30')}
-                                        >
-                                            30 Hari
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            onClick={() => handleQuickDate('thisMonth')}
-                                        >
-                                            Bulan Ini
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="ghost"
-                                            size="sm"
-                                            className="h-8 px-2 text-xs"
-                                            onClick={() => handleQuickDate('all')}
-                                        >
-                                            Reset Tanggal
-                                        </Button>
-                                    </div>
-                                </div>
+                            {/* Row 2: Date range */}
+                            <div className="max-w-xl">
+                                <DateRangePicker
+                                    id={dateRangeId}
+                                    label="Periode"
+                                    value={{ from: localDateFrom || null, to: localDateTo || null }}
+                                    onChange={(range) => {
+                                        setLocalDateFrom(range.from ?? '');
+                                        setLocalDateTo(range.to ?? '');
+                                    }}
+                                />
                             </div>
 
                             {/* Buttons */}
@@ -934,7 +803,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         type="submit"
                                         variant="default"
                                         size="sm"
-                                        disabled={isDateRangeInvalid || visiting}
+                                        disabled={visiting}
                                         className="gap-1 text-xs"
                                     >
                                         <Filter className="h-3.5 w-3.5" aria-hidden="true" />

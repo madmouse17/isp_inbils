@@ -44,4 +44,16 @@ class SlaComplianceQuery
             'by_category' => $byCategory,
         ];
     }
+
+    /**
+     * What the SLA page draws besides the figures of execute(): resolved tickets split by outcome. Both numbers are
+     * figures of $payload, so the chart cannot disagree with the cards. A ticket without a deadline is in neither.
+     *
+     * @param  array<string, mixed>  $payload  the result of execute()
+     * @return array{compliance: array{compliant: int, breached: int}}
+     */
+    public static function charts(array $payload): array
+    {
+        return ['compliance' => ['compliant' => $payload['sla_compliant'], 'breached' => $payload['breach_count']]];
+    }
 }

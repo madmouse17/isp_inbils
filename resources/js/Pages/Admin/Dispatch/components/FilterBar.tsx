@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react';
+import { usePage } from '@inertiajs/react';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { NativeSelect } from '@/Components/composite/NativeSelect';
-import { Button } from '@/Components/ui/Button';
+import { Button, DateRangePicker } from '@/Components/ui';
 import { Input } from '@/Components/ui/Input';
 import type { ServerTableFilterValue } from '@/hooks/useServerTable';
 import type { QueueDomainOption } from '@/types';
@@ -23,6 +24,7 @@ export function FilterBar({
     onSubmitSearch,
     disabled = false,
 }: FilterBarProps) {
+    const { errors } = usePage().props as { errors?: Record<string, string | undefined> };
     const hasActiveFilters = Boolean(
         params.search ||
         params.domain ||
@@ -111,24 +113,15 @@ export function FilterBar({
                 />
             </div>
 
-            <div className="w-full sm:w-36">
-                <Input
-                    id="dispatch-date-from"
-                    label="Dari Tanggal"
-                    type="date"
-                    value={params.date_from ?? ''}
-                    onChange={(event) => set('date_from', event.target.value)}
-                    disabled={disabled}
-                />
-            </div>
-
-            <div className="w-full sm:w-36">
-                <Input
-                    id="dispatch-date-to"
-                    label="Sampai Tanggal"
-                    type="date"
-                    value={params.date_to ?? ''}
-                    onChange={(event) => set('date_to', event.target.value)}
+            <div className="w-full sm:w-80">
+                <DateRangePicker
+                    id="dispatch-date-range"
+                    error={errors?.date_from ?? errors?.date_to}
+                    label="Periode"
+                    value={{ from: params.date_from || null, to: params.date_to || null }}
+                    onChange={(range) =>
+                        setMany({ date_from: range.from ?? '', date_to: range.to ?? '', page: 1 })
+                    }
                     disabled={disabled}
                 />
             </div>

@@ -83,8 +83,9 @@ class ReportFormulaV1Test extends TestCase
     {
         parent::setUp();
 
-        $this->companyA = Company::factory()->create(['is_active' => true]);
-        $this->companyB = Company::factory()->create(['is_active' => true]);
+        // The edge fixtures below are pinned to calendar days of the storage timezone (UTC); the Jakarta case has its own test.
+        $this->companyA = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
+        $this->companyB = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
 
         foreach ([$this->companyA, $this->companyB] as $company) {
             $this->users[$company->id] = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
@@ -145,21 +146,35 @@ class ReportFormulaV1Test extends TestCase
         );
     }
 
-    public function test_business_ignores_a_range_with_only_one_end(): void
+    public function test_business_applies_a_range_with_only_one_end(): void
     {
         $this->seedBusinessWorld();
 
-        // Both From and To are required: a lone end is dropped, so revenue and installations become
-        // all-time figures while new subscriptions and churn fall back to 0.
+        // From alone: everything created, terminated, issued or completed from 2026-01-01 on.
         $this->assertPayload(
             ReportType::Business,
-            $this->businessFiguresOfAWithoutRange(),
+            $this->businessFiguresOfA([
+                'new_subscriptions' => 6,       // S1 S2 S4 S5 S9 S12
+                'churn' => 4,                   // S5 S6 S8 S12
+                'revenue_paid' => 1096000,      // I1 300000 + I2 150000 + I3 46000 + I5 600000
+                'recurring_revenue' => 450000,  // I1 + I2
+                'one_time_revenue' => 646000,   // I3 + I5
+                'installation_count' => 4,      // W1 W2 W4 W7
+            ]),
             BusinessMetricsQuery::execute(dateFrom: '2026-01-01'),
             'only From',
         );
+        // To alone: everything up to the last second of 2026-01-31.
         $this->assertPayload(
             ReportType::Business,
-            $this->businessFiguresOfAWithoutRange(),
+            $this->businessFiguresOfA([
+                'new_subscriptions' => 11,      // every subscription but S5 (created 2026-02-01)
+                'churn' => 4,                   // S5 S6 S7 S12; S8 is one second late, S11 has no date
+                'revenue_paid' => 7496000,      // I1 + I2 + I3 + I4 7000000
+                'recurring_revenue' => 7450000, // I1 + I2 + I4
+                'one_time_revenue' => 46000,    // I3
+                'installation_count' => 4,      // W1 W2 W3 W7
+            ]),
             BusinessMetricsQuery::execute(dateTo: '2026-01-31'),
             'only To',
         );
@@ -327,19 +342,37 @@ class ReportFormulaV1Test extends TestCase
         $this->assertPayload(ReportType::Sla, $this->slaFiguresOfAWithoutRange(), SlaComplianceQuery::execute());
     }
 
-    public function test_sla_ignores_a_range_with_only_one_end(): void
+    public function test_sla_applies_a_range_with_only_one_end(): void
     {
         $this->seedTickets();
 
+        // From alone: T7 (resolved one second before January) drops out; by_category stays all-time.
         $this->assertPayload(
             ReportType::Sla,
-            $this->slaFiguresOfAWithoutRange(),
+            [
+                'total_resolved' => 8,              // T1 T2 T3 T4 T5 T8 T9 T10
+                'sla_compliant' => 4,               // T1 T2 T5 T8
+                'sla_rate' => 50.0,                 // 4 / 8
+                'breach_count' => 3,                // T3 T9 T10
+                'avg_resolution_minutes' => 97,     // (60 + 120 + 240 + 30 + 90 + 60 + 119 + 60) / 8 = 97.4
+                'avg_frt_minutes' => 16,            // T1 T3 T4 T5: 16.25
+                'by_category' => $this->slaByCategoryOfA(),
+            ],
             SlaComplianceQuery::execute(dateFrom: '2026-01-01'),
             'only From',
         );
+        // To alone: T10 (resolved one second after January) drops out.
         $this->assertPayload(
             ReportType::Sla,
-            $this->slaFiguresOfAWithoutRange(),
+            [
+                'total_resolved' => 8,              // T1 T2 T3 T4 T5 T7 T8 T9
+                'sla_compliant' => 5,               // T1 T2 T5 T7 T8
+                'sla_rate' => 62.5,                 // 5 / 8
+                'breach_count' => 2,                // T3 T9
+                'avg_resolution_minutes' => 120,    // (60 + 120 + 240 + 30 + 90 + 239 + 60 + 119) / 8 = 119.75
+                'avg_frt_minutes' => 16,            // T1 T3 T4 T5: 16.25
+                'by_category' => $this->slaByCategoryOfA(),
+            ],
             SlaComplianceQuery::execute(dateTo: '2026-01-31'),
             'only To',
         );
@@ -544,19 +577,19 @@ class ReportFormulaV1Test extends TestCase
         );
     }
 
-    public function test_asset_ignores_a_range_with_only_one_end(): void
+    public function test_asset_applies_a_range_with_only_one_end(): void
     {
         $this->seedAssets();
 
         $this->assertPayload(
             ReportType::Asset,
-            $this->assetFiguresOfA(),
+            $this->assetFiguresOfA(['installation_count' => 3]),      // N1 N2 N4; N3 is one second before From
             AssetUtilizationQuery::execute(dateFrom: '2026-01-01'),
             'only From',
         );
         $this->assertPayload(
             ReportType::Asset,
-            $this->assetFiguresOfA(),
+            $this->assetFiguresOfA(['installation_count' => 3]),      // N1 N2 N3; N4 is one second after To
             AssetUtilizationQuery::execute(dateTo: '2026-01-31'),
             'only To',
         );
@@ -673,8 +706,8 @@ class ReportFormulaV1Test extends TestCase
     private function businessFiguresOfAWithoutRange(): array
     {
         return $this->businessFiguresOfA([
-            'new_subscriptions' => 0,           // needs both dates
-            'churn' => 0,                       // needs both dates
+            'new_subscriptions' => 0,           // no range: 0
+            'churn' => 0,                       // no range: 0
             'revenue_paid' => 8096000,          // I1 300000 + I2 150000 + I3 46000 + I4 7000000 + I5 600000
             'recurring_revenue' => 7450000,     // I1 + I2 + I4
             'one_time_revenue' => 646000,       // I3 + I5

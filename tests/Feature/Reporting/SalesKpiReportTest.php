@@ -604,19 +604,25 @@ class SalesKpiReportTest extends TestCase
             ->assertJsonValidationErrors(['date_to']);
     }
 
-    public function test_a_single_date_is_ignored_and_the_report_stays_all_time(): void
+    public function test_a_single_date_limits_the_period_from_or_up_to_that_day(): void
     {
         $this->customerAcquiredBy($this->acquirer('Ayu Seller'), ['created_at' => '2020-05-01 09:00:00']);
-        $allTime = $this->figuresOf($this->props());
 
-        foreach ([['date_from' => '2026-01-01'], ['date_to' => '2019-12-31']] as $query) {
+        $cases = [
+            [['date_from' => '2020-05-01'], 1],
+            [['date_from' => '2026-01-01'], 0],
+            [['date_to' => '2020-05-01'], 1],
+            [['date_to' => '2019-12-31'], 0],
+        ];
+
+        foreach ($cases as [$query, $acquired]) {
             $props = $this->props($query);
 
-            $this->assertSame($allTime, $this->figuresOf($props), json_encode($query));
+            $this->assertSame($acquired, $props['data']['totals']['customers_acquired'], json_encode($query));
             $this->assertSame($query['date_from'] ?? null, $props['filters']['date_from']);
             $this->assertSame($query['date_to'] ?? null, $props['filters']['date_to']);
         }
-        $this->assertSame(1, $allTime['totals']['customers_acquired']);
+        $this->assertSame(1, $this->figuresOf($this->props())['totals']['customers_acquired']);
     }
 
     public function test_both_dates_limit_the_period_and_are_echoed(): void

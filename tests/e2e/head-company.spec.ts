@@ -1,6 +1,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { csrfToken, inertiaProps, loginAs, logout } from './support/demo';
+import { companyDateFormat, formatIsoAs, typeDateRange } from './support/dateRange';
 
 /**
  * Head company lane (.scratch/head-company/spec.md): the company switcher and the consolidated
@@ -296,12 +297,19 @@ test.describe('@smoke @head-company head company', () => {
         );
 
         // The date filter reaches every company and the total still adds up.
-        await page.getByLabel('From', { exact: true }).fill('2026-01-01');
-        await page.getByLabel('To', { exact: true }).fill('2026-01-31');
+        await typeDateRange(
+            page,
+            page.getByLabel('Periode', { exact: true }),
+            '2026-01-01',
+            '2026-01-31',
+        );
         await page.getByRole('button', { name: 'Run' }).click();
         await expect(page).toHaveURL(/date_from=2026-01-01&date_to=2026-01-31/);
+        const periodFormat = await companyDateFormat(page);
         await expect(
-            main.getByText('Period: 2026-01-01 to 2026-01-31, both days included.'),
+            main.getByText(
+                `Period: ${formatIsoAs('2026-01-01', periodFormat)} to ${formatIsoAs('2026-01-31', periodFormat)}, both days included.`,
+            ),
         ).toBeVisible();
         const filtered = await expectTotalIsTheSum(page);
 

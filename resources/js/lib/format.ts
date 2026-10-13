@@ -1,4 +1,7 @@
+import { format as formatPattern } from 'date-fns';
 import type { Company } from '@/types';
+import { localeId, phpToDateFns } from './dateFormat';
+import { isoToLocalDate } from './dateRange';
 
 export function formatRupiah(amount: number | string, company?: Company | null): string {
     const value = typeof amount === 'string' ? Number(amount) : amount;
@@ -29,34 +32,41 @@ export function formatNumber(value: number | string): string {
     return new Intl.NumberFormat('id-ID').format(Number.isFinite(number) ? number : 0);
 }
 
+/** A bare ISO day is a calendar day: `new Date('2026-10-13')` is midnight UTC, the 12th west of Greenwich. */
+function toDate(value: string | number | Date): Date | null {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return isoToLocalDate(value);
+    }
+
+    const date = value instanceof Date ? value : new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+/** In the company `date_format` (`13 Okt 2026` for `d M Y`); `13/10/2026` when it has none or an unsupported one. */
 export function formatDate(
     value: string | Date | null | undefined,
     company?: Company | null,
 ): string {
     if (!value) return '-';
 
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
+    const date = toDate(value);
+    if (!date) return '-';
 
-    const dateFormat = company?.settings?.date_format;
-    const format = typeof dateFormat === 'string' ? dateFormat : 'd/m/Y';
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear());
-
-    return format.replace('d', day).replace('m', month).replace('Y', year);
+    return formatPattern(date, phpToDateFns(company?.settings?.date_format), { locale: localeId });
 }
 
-export function formatDateTime(value: string | number | Date | null | undefined): string {
+/** The date as `formatDate` writes it, then the 24-hour time in the browser's clock. */
+export function formatDateTime(
+    value: string | number | Date | null | undefined,
+    company?: Company | null,
+): string {
     if (value == null || value === '') return '-';
-    const date = value instanceof Date ? value : new Date(value);
-    if (Number.isNaN(date.getTime())) return '-';
 
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = String(date.getFullYear());
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const date = toDate(value);
+    if (!date) return '-';
 
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return formatPattern(date, `${phpToDateFns(company?.settings?.date_format)} HH:mm`, {
+        locale: localeId,
+    });
 }

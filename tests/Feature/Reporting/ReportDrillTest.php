@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Models\Core\Company;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -53,6 +54,8 @@ class ReportDrillTest extends TestCase
         $this->otherAdmin = $this->userWithRole('admin');
         $this->companyId = (int) $this->admin->company_id;
         $this->otherCompanyId = (int) $this->otherAdmin->company_id;
+        // The edge fixtures are pinned to calendar days of the storage timezone (UTC).
+        Company::query()->whereKey([$this->companyId, $this->otherCompanyId])->update(['timezone' => 'UTC']);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -206,22 +209,26 @@ class ReportDrillTest extends TestCase
         }
     }
 
-    public function test_period_lists_are_empty_without_a_complete_range_exactly_like_their_figure(): void
+    public function test_period_lists_follow_a_half_range_and_are_empty_without_any_range_exactly_like_their_figure(): void
     {
         $this->seedBusinessWorld();
         $this->actingAs($this->admin);
 
-        // v1: new subscriptions and churn are 0 unless both dates are set; the source is empty too.
-        foreach (['new_subscriptions', 'churn'] as $metric) {
-            foreach ([[], ['date_from' => '2026-01-01'], ['date_to' => '2026-01-31']] as $period) {
+        // v1: new subscriptions and churn are 0 without a range; the source is empty too. A half range applies as set.
+        $expected = [
+            'new_subscriptions' => [0, 3, 6],   // none / From 2026-01-01: s_active_1, s_active_2, s_suspended / To 2026-01-31: all six live subscriptions
+            'churn' => [0, 1, 2],               // none / From: s_churn / To: s_churn + s_terminated_early
+        ];
+        foreach ($expected as $metric => [$none, $from, $to]) {
+            foreach ([[[], $none], [['date_from' => '2026-01-01'], $from], [['date_to' => '2026-01-31'], $to]] as [$period, $rows]) {
                 $response = $this->drill('business', $metric, $period);
 
-                $this->assertSame(0, $response->inertiaProps('tie_out.rows'), $metric);
+                $this->assertSame($rows, $response->inertiaProps('tie_out.rows'), $metric.' '.json_encode($period));
                 $this->assertTrue($response->inertiaProps('tie_out.matches'), $metric);
             }
         }
 
-        // Revenue without a complete range covers every paid invoice, the one of December included.
+        // Revenue without a range covers every paid invoice, the one of December included.
         $all = $this->drill('business', 'revenue_paid', []);
         $this->assertSame(4, $all->inertiaProps('tie_out.rows'));
         $this->assertSame('7496000.00', $all->inertiaProps('tie_out.sum'));

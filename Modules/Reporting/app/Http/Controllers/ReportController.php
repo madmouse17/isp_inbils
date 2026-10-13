@@ -40,9 +40,11 @@ class ReportController extends Controller
     public function business(ReportFilterRequest $request): InertiaResponse
     {
         $filters = ReportFilters::fromRequest($request);
+        $data = $filters->payload(ReportType::Business);
 
         return Inertia::render('Admin/Reports/Business', [
-            'data' => $filters->payload(ReportType::Business),
+            'data' => $data,
+            'charts' => $filters->charts(ReportType::Business, $data),
             'filters' => $request->only(['date_from', 'date_to']),
             'meta' => MetricRegistry::meta(ReportType::Business),
             ...$this->exportAndDrill($request, ReportType::Business, $filters),
@@ -57,12 +59,14 @@ class ReportController extends Controller
         $sortDir = strtolower((string) ($request->input('sort_dir') ?? $request->input('direction') ?? 'asc'));
         $perPage = in_array($request->integer('per_page', 10), [10, 25, 50], true) ? $request->integer('per_page', 10) : 10;
         $page = max(1, $request->integer('page', 1));
+        $companyId = (int) CompanyService::currentId();
+        $acquirerId = $request->filled('acquirer_id') ? $request->integer('acquirer_id') : null;
 
         $report = SalesKpiQuery::execute(
-            (int) CompanyService::currentId(),
+            $companyId,
             $request->dateFrom(),
             $request->dateTo(),
-            $request->filled('acquirer_id') ? $request->integer('acquirer_id') : null,
+            $acquirerId,
             $sortBy,
             $sortDir,
         );
@@ -79,6 +83,7 @@ class ReportController extends Controller
                 'unassigned' => $report['unassigned'],
                 'totals' => $report['totals'],
             ],
+            'charts' => SalesKpiQuery::charts($report, $companyId, $request->dateFrom(), $request->dateTo(), $acquirerId),
             'acquirers' => $report['acquirers'],
             'filters' => [
                 'date_from' => $request->input('date_from'),
@@ -98,9 +103,11 @@ class ReportController extends Controller
         TechnicianReportAccess::companyId($actor);
         $technicianId = TechnicianReportAccess::target($actor, $request->input('technician_id'));
         $filters = ReportFilters::fromRequest($request, $technicianId);
+        $data = $technicianId ? $filters->payload(ReportType::Technician) : null;
 
         return Inertia::render('Admin/Reports/Technician', [
-            'data' => $technicianId ? $filters->payload(ReportType::Technician) : null,
+            'data' => $data,
+            'charts' => $data === null ? null : $filters->charts(ReportType::Technician, $data),
             'technicians' => UserResource::collection(
                 TechnicianPerformanceQuery::eligibleTechnicians($actor)->orderBy('name')->get()
             ),
@@ -125,9 +132,11 @@ class ReportController extends Controller
     public function sla(ReportFilterRequest $request): InertiaResponse
     {
         $filters = ReportFilters::fromRequest($request);
+        $data = $filters->payload(ReportType::Sla);
 
         return Inertia::render('Admin/Reports/Sla', [
-            'data' => $filters->payload(ReportType::Sla),
+            'data' => $data,
+            'charts' => $filters->charts(ReportType::Sla, $data),
             'filters' => $request->only(['date_from', 'date_to', 'category_id']),
             'meta' => MetricRegistry::meta(ReportType::Sla),
             ...$this->exportAndDrill($request, ReportType::Sla, $filters),

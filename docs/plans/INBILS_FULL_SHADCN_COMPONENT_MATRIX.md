@@ -53,7 +53,7 @@ Legend
 |---|---|---|---|
 | `CustomerRelatedTables.tsx` | C | table, badge, button | Keep domain; swap primitives only |
 | `DataTable.tsx` | C | table, button, checkbox, dropdown-menu | Keep; swap internal primitives only |
-| `DateRangeFilter.tsx` | C | button, input, popover (later) | Keep domain |
+| `DateRangeFilter.tsx` | — | — | Deleted 2026-10-13; replaced by `ui/DateRangePicker.tsx` (react-day-picker + popover) |
 | `FormField.tsx` | C | label, input, textarea | Keep form helper; use registry field bits |
 | `MoneyInput.tsx` | C | input | Keep domain currency input |
 | `PageHeader.tsx` | C | breadcrumb, button | Keep |

@@ -5,10 +5,12 @@ namespace Modules\Reporting\Queries;
 use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Support\Money;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Modules\Reporting\Models\SalesCustomer;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
+use Modules\Reporting\Support\TimeBuckets;
 
 /**
  * Sales KPI (formula sales.v1): customers, subscriptions, invoiced, collected and outstanding money per acquirer,
@@ -95,6 +97,43 @@ final class SalesKpiQuery
     }
 
     /**
+     * What the Sales page draws besides the figures of execute(): customers acquired per time bucket (days of the
+     * company timezone; the figures of execute() read days of the application timezone, so a row near midnight can
+     * sit in another day) and every acquirer of $report, not only the page of rows on screen. The unassigned
+     * customers are not an acquirer row; they stay in the report's own `unassigned` figures.
+     *
+     * @param  array{rows: list<array<string, mixed>>}  $report  the result of execute()
+     * @return array{
+     *     series: array{granularity: string, points: list<array<string, int|float|string>>},
+     *     acquirers: list<array{name: string, customers_acquired: int, collected: float}>
+     * }
+     */
+    public static function charts(array $report, int $companyId, ?string $dateFrom, ?string $dateTo, ?int $acquirerId = null): array
+    {
+        $timezone = TimeBuckets::timezoneOf($companyId);
+
+        $acquired = SalesCustomer::query()
+            ->forCompany($companyId)
+            ->when($acquirerId !== null, fn (Builder $query) => $query->where('customers.acquired_by_user_id', $acquirerId));
+        self::applyDateRange($acquired, 'customers.created_at', $dateFrom, $dateTo, $timezone);
+
+        $oldest = $dateFrom === null ? (clone $acquired)->min('customers.created_at') : null;
+        $buckets = TimeBuckets::forPeriod($dateFrom, $dateTo, $timezone, $oldest === null ? null : CarbonImmutable::parse($oldest, (string) config('app.timezone')));
+        $counts = $acquired->selectRaw($buckets->sqlExpression('customers.created_at').' as bucket, count(*) as total')
+            ->groupBy('bucket')->pluck('total', 'bucket')
+            ->map(fn ($total): int => (int) $total)->all();
+
+        return [
+            'series' => $buckets->series(['new_customers' => $counts]),
+            'acquirers' => array_map(static fn (array $row): array => [
+                'name' => $row['name'],
+                'customers_acquired' => $row['customers_acquired'],
+                'collected' => (float) $row['collected'],
+            ], $report['rows']),
+        ];
+    }
+
+    /**
      * Eligible acquirers of the company plus every user credited on a customer of the company, soft-deleted
      * customers included (their cash still counts), by name. Keyed by user id.
      *
@@ -140,14 +179,14 @@ final class SalesKpiQuery
             ->select(['customers.id', 'customers.acquired_by_user_id', 'customers.created_at', 'customers.deleted_at'])
             ->withCount(['subscriptions as activated' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
                 $query->forCompany($companyId)->whereNotNull('service_subscriptions.activation_date');
-                self::applyDateRange($query, 'service_subscriptions.activation_date', $dateFrom, $dateTo);
+                self::applyDateOnlyRange($query, 'service_subscriptions.activation_date', $dateFrom, $dateTo);
             }])
             ->withSum(['subscriptions as mrr' => static fn (Builder $query): Builder => $query
                 ->forCompany($companyId)
                 ->where('service_subscriptions.status', 'active')], 'mrc_amount')
             ->withSum(['invoices as invoiced' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
                 $query->forCompany($companyId)->whereIn('invoices.status', self::INVOICED_STATUSES);
-                self::applyDateRange($query, 'invoices.issue_date', $dateFrom, $dateTo);
+                self::applyDateOnlyRange($query, 'invoices.issue_date', $dateFrom, $dateTo);
             }], 'total')
             ->withSum(['payments as collected' => static function (Builder $query) use ($companyId, $dateFrom, $dateTo): void {
                 $query->forCompany($companyId)->whereNull('payments.cancelled_at');
@@ -174,7 +213,7 @@ final class SalesKpiQuery
 
     /**
      * @param  array<string, int|string>  $bucket
-     * @param  array{0: string, 1: string}|null  $range
+     * @param  array{0: string|null, 1: string|null}|null  $range
      */
     private static function accumulate(array &$bucket, SalesCustomer $customer, ?array $range): void
     {
@@ -192,7 +231,7 @@ final class SalesKpiQuery
         );
     }
 
-    /** @param array{0: string, 1: string} $range */
+    /** @param array{0: string|null, 1: string|null} $range */
     private static function within(?CarbonInterface $createdAt, array $range): bool
     {
         if ($createdAt === null) {
@@ -201,7 +240,7 @@ final class SalesKpiQuery
 
         $stamp = $createdAt->toDateTimeString();
 
-        return $stamp >= $range[0] && $stamp <= $range[1];
+        return ($range[0] === null || $stamp >= $range[0]) && ($range[1] === null || $stamp <= $range[1]);
     }
 
     /**

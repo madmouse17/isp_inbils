@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     FormulaVersionLabel,
@@ -12,7 +12,7 @@ import {
     Button,
     Card,
     CardContent,
-    Input,
+    DateRangePicker,
     NativeSelect,
     Table,
     TBody,
@@ -20,9 +20,12 @@ import {
     TH,
     THead,
     TR,
+    type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
 import type { ReportMeta } from '@/types';
+import { AssetCharts } from './components/AssetCharts';
+import { codeLabel } from './components/chartData';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
@@ -46,16 +49,19 @@ interface Props extends Record<string, unknown> {
 }
 
 export default function Asset({ data, filters, meta, can, drill }: Props) {
+    const errors = (usePage().props.errors ?? {}) as Record<string, string | undefined>;
     const [assetType, setAssetType] = useState(filters.asset_type ?? '');
-    const [dateFrom, setDateFrom] = useState(filters.date_from ?? '');
-    const [dateTo, setDateTo] = useState(filters.date_to ?? '');
+    const [range, setRange] = useState<DateRange>({
+        from: filters.date_from ?? null,
+        to: filters.date_to ?? null,
+    });
     const { pending, callbacks } = useVisitPending();
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
         router.get(
             route('admin.reports.asset'),
-            { asset_type: assetType, date_from: dateFrom, date_to: dateTo },
+            { asset_type: assetType, date_from: range.from ?? '', date_to: range.to ?? '' },
             { preserveState: true, ...callbacks },
         );
     };
@@ -93,17 +99,12 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                 <option value="radio">Radio</option>
                                 <option value="antenna">Antenna</option>
                             </NativeSelect>
-                            <Input
-                                label="From"
-                                type="date"
-                                value={dateFrom}
-                                onChange={(e) => setDateFrom(e.target.value)}
-                            />
-                            <Input
-                                label="To"
-                                type="date"
-                                value={dateTo}
-                                onChange={(e) => setDateTo(e.target.value)}
+                            <DateRangePicker
+                                label="Periode"
+                                value={range}
+                                onChange={setRange}
+                                error={errors.date_from ?? errors.date_to}
+                                className="sm:w-80"
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
@@ -165,6 +166,10 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                 </CardContent>
                             </Card>
                         </div>
+                        <AssetCharts
+                            statusDistribution={data.status_distribution}
+                            byLocation={data.by_location}
+                        />
                         <Card>
                             <CardContent>
                                 <p className="mb-2 font-medium">
@@ -196,7 +201,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                             Object.entries(data.status_distribution ?? {}).map(
                                                 ([s, c]) => (
                                                     <TR key={s}>
-                                                        <TD>{s}</TD>
+                                                        <TD>{codeLabel(s)}</TD>
                                                         <TD>
                                                             {c}
                                                             <DrillLink
