@@ -68,6 +68,7 @@ class HandleInertiaRequests extends Middleware
                 'currency' => $company->currency,
                 'timezone' => $company->timezone,
                 'settings' => $company->settings,
+                'map' => CompanyService::mapDefault($company),
             ] : null,
             // Hierarchy of the effective company. Separate from `company`: pages such as the dashboard replace that prop.
             // can_consolidate costs a query, so only users who may open the consolidated report pay for it.

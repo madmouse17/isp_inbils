@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -11,22 +12,39 @@ import {
     CardTitle,
     Checkbox,
     Input,
+    SearchSelect,
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { LatLngMapPicker } from '@/Components/composite/LatLngMapPicker';
+import { useMapDefault } from '@/hooks/useMapDefault';
 import { formatNumber } from '@/lib/format';
 import type { CompanyWhatsApp } from '@/types/whatsapp';
 
-type SettingValue = string | number | boolean | string[];
+type SettingValue = string | number | boolean | string[] | null;
+
+interface CityOption {
+    code: string;
+    name: string;
+    province_name: string;
+    lat: number;
+    lng: number;
+}
 
 interface SettingsProps {
     settings: Record<string, SettingValue>;
-    defaults: Record<string, SettingValue | null>;
+    defaults: Record<string, SettingValue>;
     whatsapp: CompanyWhatsApp;
+    cities: CityOption[];
     can: { update: boolean };
 }
 
 const WHATSAPP_PREFIX = 'whatsapp_';
+const MAP_PREFIX = 'map_';
+// Zoom a city is framed at when picked from the list.
+const CITY_ZOOM = '12';
+// Typed as text while editing; an emptied field must reach the server as empty, not become 0.
+const NUMERIC_TEXT_KEYS = ['whatsapp_monthly_cap', 'map_lat', 'map_lng', 'map_zoom'];
 
 const usageLabels: [keyof CompanyWhatsApp['usage'], string][] = [
     ['sent', 'Terkirim'],
@@ -35,13 +53,13 @@ const usageLabels: [keyof CompanyWhatsApp['usage'], string][] = [
     ['billable', 'Berbayar'],
 ];
 
-export default function Settings({ settings, defaults, whatsapp, can }: SettingsProps) {
+export default function Settings({ settings, defaults, whatsapp, cities, can }: SettingsProps) {
     const { data, setData, put, transform, processing, errors } = useForm({
         settings: { ...settings },
     });
-    // The WhatsApp keys have their own card; the generic list renders everything else.
+    // The WhatsApp and map keys have their own cards; the generic list renders everything else.
     const keys = Object.keys(data.settings)
-        .filter((key) => !key.startsWith(WHATSAPP_PREFIX))
+        .filter((key) => !key.startsWith(WHATSAPP_PREFIX) && !key.startsWith(MAP_PREFIX))
         .sort();
     const settingErrors = errors as Record<string, string | undefined>;
     const eventsError = Object.entries(settingErrors).find(([key]) =>
@@ -53,20 +71,73 @@ export default function Settings({ settings, defaults, whatsapp, can }: Settings
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        // The cap is typed as text: an emptied field must fail validation instead of becoming 0,
-        // which would mean "send nothing".
         transform((form) => {
-            const cap = form.settings.whatsapp_monthly_cap;
+            const next = { ...form.settings };
+            for (const key of NUMERIC_TEXT_KEYS) {
+                const value = next[key];
+                if (typeof value === 'string' && value !== '') {
+                    next[key] = Number(value);
+                }
+            }
 
-            return typeof cap === 'string' && cap !== ''
-                ? { settings: { ...form.settings, whatsapp_monthly_cap: Number(cap) } }
-                : form;
+            return { settings: next };
         });
         put(route('admin.company.settings.update'));
     };
 
     const setSetting = (key: string, value: SettingValue) =>
         setData('settings', { ...data.settings, [key]: value });
+
+    // Keys the company never set show what the maps resolve to today.
+    const mapDefault = useMapDefault();
+    const map = {
+        cityCode:
+            typeof data.settings.map_city_code === 'string' ? data.settings.map_city_code : '',
+        lat: String(data.settings.map_lat ?? mapDefault.center.lat),
+        lng: String(data.settings.map_lng ?? mapDefault.center.lng),
+        zoom: String(data.settings.map_zoom ?? mapDefault.zoom),
+    };
+    const zoomNumber = Number(map.zoom);
+    const zoomIsValid = Number.isInteger(zoomNumber) && zoomNumber >= 3 && zoomNumber <= 18;
+    const [citySelectKey, setCitySelectKey] = useState(0);
+    const cityOptions = useMemo(
+        () =>
+            cities.map((city) => ({
+                value: city.code,
+                label: city.name,
+                description: city.province_name,
+            })),
+        [cities],
+    );
+
+    const updateMap = (next: Partial<typeof map>) => {
+        const merged = { ...map, ...next };
+        setData('settings', {
+            ...data.settings,
+            map_city_code: merged.cityCode || null,
+            map_lat: merged.lat,
+            map_lng: merged.lng,
+            map_zoom: merged.zoom,
+        });
+    };
+
+    const selectCity = (code: string) => {
+        const city = cities.find((option) => option.code === code);
+        // Typing in the search box also reports '' while editing: keep the point, drop the label.
+        updateMap(
+            city
+                ? { cityCode: code, lat: String(city.lat), lng: String(city.lng), zoom: CITY_ZOOM }
+                : { cityCode: '' },
+        );
+    };
+
+    // A hand-set point no longer belongs to the picked city, so the city label goes.
+    const setMapPoint = (point: { lat: string; lng: string }) => {
+        if (map.cityCode) {
+            setCitySelectKey((key) => key + 1);
+        }
+        updateMap({ ...point, cityCode: '' });
+    };
 
     const toggleEvent = (eventKey: string, enabled: boolean) =>
         setSetting(
@@ -131,6 +202,80 @@ export default function Settings({ settings, defaults, whatsapp, can }: Settings
                                     />
                                 );
                             })}
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Peta</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Peta pelanggan, alamat, dan lokasi dibuka di wilayah ini. Titik yang
+                                sudah tersimpan pada data tetap lebih utama. Kosongkan lintang dan
+                                bujur untuk kembali ke seluruh Indonesia.
+                            </p>
+                            <SearchSelect
+                                key={citySelectKey}
+                                id="map-city"
+                                label="Wilayah default"
+                                value={map.cityCode}
+                                onChange={selectCity}
+                                options={cityOptions}
+                                placeholder="Cari kota atau kabupaten"
+                                emptyText="Wilayah tidak ditemukan."
+                                hint="Memilih wilayah mengisi lintang, bujur, dan zoom."
+                                error={settingErrors['settings.map_city_code']}
+                                disabled={!can.update}
+                            />
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <Input
+                                    label="Lintang (latitude)"
+                                    inputMode="decimal"
+                                    value={map.lat}
+                                    onChange={(e) =>
+                                        setMapPoint({ lat: e.target.value, lng: map.lng })
+                                    }
+                                    error={settingErrors['settings.map_lat']}
+                                    disabled={!can.update}
+                                />
+                                <Input
+                                    label="Bujur (longitude)"
+                                    inputMode="decimal"
+                                    value={map.lng}
+                                    onChange={(e) =>
+                                        setMapPoint({ lat: map.lat, lng: e.target.value })
+                                    }
+                                    error={settingErrors['settings.map_lng']}
+                                    disabled={!can.update}
+                                />
+                                <Input
+                                    label="Zoom"
+                                    type="number"
+                                    min={3}
+                                    max={18}
+                                    step={1}
+                                    value={map.zoom}
+                                    onChange={(e) => updateMap({ zoom: e.target.value })}
+                                    hint="3 untuk seluruh Indonesia, 12 untuk satu kota."
+                                    error={settingErrors['settings.map_zoom']}
+                                    disabled={!can.update}
+                                />
+                            </div>
+                            <LatLngMapPicker
+                                lat={map.lat}
+                                lng={map.lng}
+                                onChange={setMapPoint}
+                                defaultCenter={mapDefault.center}
+                                zoom={zoomIsValid ? zoomNumber : undefined}
+                                onZoomChange={(zoom) => {
+                                    if (String(zoom) !== map.zoom) {
+                                        updateMap({ zoom: String(zoom) });
+                                    }
+                                }}
+                                heightClassName="h-80"
+                                disabled={!can.update}
+                            />
                         </CardContent>
                     </Card>
 

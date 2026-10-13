@@ -2,12 +2,16 @@ import type { KeyboardEvent } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { Button } from './Button';
+import { INDONESIA_MAP_DEFAULT } from '@/hooks/mapDefault.helpers';
 import { Input } from './Input';
 
 export interface MapPickerProps {
     latitude: string | number | null;
     longitude: string | number | null;
     onChange: (latitude: number, longitude: number) => void;
+    /** Where the map opens when there are no coordinates yet; callers pass the company default. */
+    defaultCenter?: { lat: number; lng: number };
+    defaultZoom?: number;
     latitudeError?: string;
     longitudeError?: string;
     searchResults?: GeocodeResult[];
@@ -32,6 +36,8 @@ export function MapPicker({
     latitude,
     longitude,
     onChange,
+    defaultCenter = INDONESIA_MAP_DEFAULT.center,
+    defaultZoom = INDONESIA_MAP_DEFAULT.zoom,
     latitudeError,
     longitudeError,
     searchResults = [],
@@ -68,7 +74,17 @@ export function MapPicker({
             return;
         }
 
-        const map = L.map(containerRef.current).setView([-2.5489, 118.0149], 5);
+        const map = L.map(containerRef.current).setView(
+            [defaultCenter.lat, defaultCenter.lng],
+            defaultZoom,
+        );
+        const container = containerRef.current;
+        const publishCenter = () => {
+            const { lat, lng } = map.getCenter();
+            container.dataset.center = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+        };
+        map.on('moveend', publishCenter);
+        publishCenter();
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; OpenStreetMap contributors',
             maxZoom: 19,
@@ -81,6 +97,8 @@ export function MapPicker({
             mapRef.current = null;
             markerRef.current = null;
         };
+        // Mount once; the default only sets the first view.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {

@@ -5,8 +5,6 @@ export type LatLngStrings = {
     lng: string;
 };
 
-export const JAKARTA_CENTER = { lat: -6.2088, lng: 106.8456 } as const;
-
 export function formatCoord(value: number): string {
     return value.toFixed(7);
 }
@@ -22,7 +20,7 @@ export function parseCoord(value: string | null | undefined): number | null {
 export function resolveCenter(
     lat: string | null | undefined,
     lng: string | null | undefined,
-    defaultCenter: { lat: number; lng: number } = JAKARTA_CENTER,
+    defaultCenter: { lat: number; lng: number },
 ): { lat: number; lng: number } {
     const parsedLat = parseCoord(lat);
     const parsedLng = parseCoord(lng);

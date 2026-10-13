@@ -778,7 +778,8 @@ class ApprovalInboxTest extends TestCase
 
         // 25 + 1: the shared props now list the company memberships of a user who may switch company;
         // + 1: the shared `canTechnicianReport` prop reads a manager's employee profile once per page.
-        $this->assertLessThanOrEqual(27, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
+        // + 1: the shared `company.map` prop reads the system map defaults in one query when the company set none.
+        $this->assertLessThanOrEqual(28, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
     }
 
     public function test_summary_contract_role_matrix_and_unapproved_domain_handling(): void

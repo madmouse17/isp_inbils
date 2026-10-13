@@ -769,22 +769,39 @@ class E2eFixtureSeeder extends Seeder
     {
         $now = now();
 
-        DB::table('indonesia_provinces')->insertOrIgnore([
-            'code' => '31',
-            'name' => 'DAERAH KHUSUS IBUKOTA JAKARTA',
-            'meta' => json_encode(['lat' => -6.199048542607956, 'long' => 106.83437824682376]),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        // Coordinates as in the laravolt CSV; the default-map specs pick Surakarta, the demo company sits on Bandung.
+        $provinces = [
+            '31' => ['DAERAH KHUSUS IBUKOTA JAKARTA', -6.199048542607956, 106.83437824682376],
+            '32' => ['JAWA BARAT', -6.920631357785788, 107.60331918557674],
+            '33' => ['JAWA TENGAH', -7.259392265876053, 110.2014881759208],
+        ];
+        $cities = [
+            '3171' => ['31', 'KOTA ADMINISTRASI JAKARTA PUSAT', -6.181200074228588, 106.83512454642566],
+            '3174' => ['31', 'KOTA ADMINISTRASI JAKARTA SELATAN', -6.2726047320060445, 106.81003987805606],
+            '3273' => ['32', 'KOTA BANDUNG', -6.919241381150077, 107.6366006270422],
+            '3372' => ['33', 'KOTA SURAKARTA', -7.557893978396063, 110.82314485261672],
+        ];
 
-        DB::table('indonesia_cities')->insertOrIgnore([
-            'code' => '3171',
-            'province_code' => '31',
-            'name' => 'KOTA ADMINISTRASI JAKARTA PUSAT',
-            'meta' => json_encode(['lat' => -6.181200074228588, 'long' => 106.83512454642566]),
-            'created_at' => $now,
-            'updated_at' => $now,
-        ]);
+        foreach ($provinces as $code => [$name, $lat, $long]) {
+            DB::table('indonesia_provinces')->insertOrIgnore([
+                'code' => $code,
+                'name' => $name,
+                'meta' => json_encode(['lat' => $lat, 'long' => $long]),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
+
+        foreach ($cities as $code => [$provinceCode, $name, $lat, $long]) {
+            DB::table('indonesia_cities')->insertOrIgnore([
+                'code' => $code,
+                'province_code' => $provinceCode,
+                'name' => $name,
+                'meta' => json_encode(['lat' => $lat, 'long' => $long]),
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+        }
 
         DB::table('indonesia_districts')->insertOrIgnore([
             'code' => '317106',

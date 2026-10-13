@@ -4,6 +4,7 @@ import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { Badge } from '@/Components/ui/Badge';
 import { cn } from '@/lib/utils';
+import { useMapDefault } from '@/hooks/useMapDefault';
 
 /* ---------- Types ---------- */
 
@@ -78,10 +79,6 @@ function buildDivIcon(type: MapMarker['type'], isActive: boolean): L.DivIcon {
     });
 }
 
-/* ---------- Indonesia center ---------- */
-const INDONESIA_CENTER: L.LatLngExpression = [-2.5489, 118.0149];
-const DEFAULT_ZOOM = 5;
-
 /* ---------- Component ---------- */
 
 export function LocationsMapView({
@@ -92,6 +89,8 @@ export function LocationsMapView({
     onMapClick,
     className,
 }: LocationsMapViewProps) {
+    const mapDefault = useMapDefault();
+    const mapDefaultRef = useRef(mapDefault);
     const mapId = useId().replace(/:/g, '');
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
@@ -148,8 +147,8 @@ export function LocationsMapView({
         const savedMarkerElements = savedMarkerElementsRef.current;
 
         const map = L.map(el, {
-            center: INDONESIA_CENTER,
-            zoom: DEFAULT_ZOOM,
+            center: [mapDefaultRef.current.center.lat, mapDefaultRef.current.center.lng],
+            zoom: mapDefaultRef.current.zoom,
             zoomControl: true,
         });
 
@@ -454,7 +453,7 @@ export function LocationsMapView({
         });
 
         if (validMarkers.length === 0) {
-            map.setView(INDONESIA_CENTER, DEFAULT_ZOOM);
+            map.setView([mapDefault.center.lat, mapDefault.center.lng], mapDefault.zoom);
             return;
         }
 
@@ -462,7 +461,7 @@ export function LocationsMapView({
             validMarkers.map((m) => [Number(m.lat), Number(m.lng)] as L.LatLngExpression),
         );
         map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15, animate: false });
-    }, [filteredMarkers]);
+    }, [filteredMarkers, mapDefault]);
 
     return (
         <div className={cn('relative', className)}>

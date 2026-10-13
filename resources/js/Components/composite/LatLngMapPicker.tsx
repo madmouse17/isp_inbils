@@ -1,12 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import L from 'leaflet';
 import { Button } from '@/Components/ui/Button';
-import {
-    JAKARTA_CENTER,
-    resolveCenter,
-    toLatLngStrings,
-    type LatLngStrings,
-} from './latLngMapPicker.helpers';
+import { resolveCenter, toLatLngStrings, type LatLngStrings } from './latLngMapPicker.helpers';
 
 // Avoid broken Leaflet default icon asset paths under Vite: use a lightweight divIcon.
 const DefaultIcon = L.divIcon({
@@ -22,8 +17,11 @@ export type LatLngMapPickerProps = {
     lat?: string | null;
     lng?: string | null;
     onChange: (value: LatLngStrings) => void;
-    defaultCenter?: { lat: number; lng: number };
+    defaultCenter: { lat: number; lng: number };
     defaultZoom?: number;
+    /** Controlled zoom: the map follows it, and reports user zoom through `onZoomChange`. */
+    zoom?: number;
+    onZoomChange?: (zoom: number) => void;
     disabled?: boolean;
     heightClassName?: string;
     className?: string;
@@ -33,8 +31,10 @@ export function LatLngMapPicker({
     lat,
     lng,
     onChange,
-    defaultCenter = JAKARTA_CENTER,
+    defaultCenter,
     defaultZoom = 13,
+    zoom,
+    onZoomChange,
     disabled = false,
     heightClassName = 'h-64',
     className,
@@ -42,13 +42,16 @@ export function LatLngMapPicker({
     const mapId = useId().replace(/:/g, '');
     const containerRef = useRef<HTMLDivElement | null>(null);
     const mapRef = useRef<L.Map | null>(null);
+    const { lat: defaultLat, lng: defaultLng } = defaultCenter;
     const markerRef = useRef<L.Marker | null>(null);
     const onChangeRef = useRef(onChange);
+    const onZoomChangeRef = useRef(onZoomChange);
     const disabledRef = useRef(disabled);
 
     useEffect(() => {
         onChangeRef.current = onChange;
-    }, [onChange]);
+        onZoomChangeRef.current = onZoomChange;
+    }, [onChange, onZoomChange]);
 
     useEffect(() => {
         disabledRef.current = disabled;
@@ -70,7 +73,7 @@ export function LatLngMapPicker({
         const center = resolveCenter(lat, lng, defaultCenter);
         const map = L.map(el, {
             center: [center.lat, center.lng],
-            zoom: defaultZoom,
+            zoom: zoom ?? defaultZoom,
             zoomControl: true,
         });
 
@@ -103,6 +106,14 @@ export function LatLngMapPicker({
             emit(e.latlng);
         });
 
+        const publishCenter = () => {
+            const { lat: centerLat, lng: centerLng } = map.getCenter();
+            el.dataset.center = `${centerLat.toFixed(4)},${centerLng.toFixed(4)}`;
+        };
+        map.on('moveend', publishCenter);
+        publishCenter();
+        map.on('zoomend', () => onZoomChangeRef.current?.(map.getZoom()));
+
         mapRef.current = map;
         markerRef.current = marker;
 
@@ -121,21 +132,26 @@ export function LatLngMapPicker({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // Keep marker/view in sync when controlled lat/lng change.
+    // Keep marker/view in sync when controlled lat/lng/zoom change.
     useEffect(() => {
         const map = mapRef.current;
         const marker = markerRef.current;
         if (!map || !marker) {
             return;
         }
-        const center = resolveCenter(lat, lng, defaultCenter);
+        const center = resolveCenter(lat, lng, { lat: defaultLat, lng: defaultLng });
         const current = marker.getLatLng();
-        if (current.lat === center.lat && current.lng === center.lng) {
+        const targetZoom = zoom ?? map.getZoom();
+        if (
+            current.lat === center.lat &&
+            current.lng === center.lng &&
+            map.getZoom() === targetZoom
+        ) {
             return;
         }
         marker.setLatLng([center.lat, center.lng]);
-        map.panTo([center.lat, center.lng]);
-    }, [lat, lng, defaultCenter]);
+        map.setView([center.lat, center.lng], targetZoom);
+    }, [lat, lng, defaultLat, defaultLng, zoom]);
 
     const useMyLocation = () => {
         if (disabled || !navigator.geolocation) {

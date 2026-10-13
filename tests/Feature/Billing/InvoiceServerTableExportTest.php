@@ -258,6 +258,24 @@ class InvoiceServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('INV-CUSTOMER-FOREIGN', $content);
     }
 
+    public function test_customer_filter_with_a_foreign_customer_id_never_returns_foreign_rows(): void
+    {
+        $customer = Customer::factory()->create(['company_id' => $this->admin->company_id]);
+        $foreignCustomer = Customer::factory()->create(['company_id' => $this->otherCompany->id]);
+        $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-OWN-FILTER');
+        $this->makeInvoice((int) $this->otherCompany->id, $foreignCustomer, 'INV-FOREIGN-FILTER');
+        $this->assertDatabaseHas('invoices', ['number' => 'INV-FOREIGN-FILTER', 'customer_id' => $foreignCustomer->id]);
+        $filters = ['customer_id' => $foreignCustomer->id];
+
+        $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->has('invoices.data', 0)->where('invoices.meta.total', 0)
+            );
+        $content = $this->get(route('admin.invoices.export', [...$filters, 'format' => 'csv']))->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('INV-FOREIGN-FILTER', $content);
+        $this->assertStringNotContainsString('INV-OWN-FILTER', $content);
+    }
+
     public function test_export_forbidden_without_permission(): void
     {
         $user = User::factory()->create([

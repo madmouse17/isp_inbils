@@ -688,7 +688,8 @@ class ApprovalInboxInventoryTest extends TestCase
         DB::disableQueryLog();
 
         // 24 + 1: the shared `canTechnicianReport` prop reads a manager's employee profile once per page.
-        $this->assertLessThan(26, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
+        // + 1: the shared `company.map` prop reads the system map defaults in one query when the company set none.
+        $this->assertLessThan(27, $queryCount, "Expected bounded query count, got {$queryCount} queries.");
     }
 
     public function test_unified_approval_inbox_pagination_title_sorting_with_reason_zero_preserves_page_boundaries(): void

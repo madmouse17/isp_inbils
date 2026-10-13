@@ -175,6 +175,7 @@ class AuditLogTenantIsolationTest extends TestCase
         $this->expectException(HttpException::class);
         AuditLogQuery::query(companyId: $this->companyB->id);
     }
+
     public function test_foreign_user_filter_stays_empty_in_page_and_paginated_query(): void
     {
         $this->actingAs($this->adminB);
@@ -195,6 +196,40 @@ class AuditLogTenantIsolationTest extends TestCase
         $this->assertSame(0, AuditLogQuery::paginate(userId: (int) $this->adminB->id)->total());
     }
 
+    public function test_report_page_and_export_never_list_another_companys_activity(): void
+    {
+        $this->actingAs($this->adminB);
+        CompanyService::useCompanyForTests((int) $this->companyB->id);
+        AuditService::log('billing', 'beta_only_event');
+
+        $this->actingAs($this->adminA);
+        CompanyService::useCompanyForTests((int) $this->companyA->id);
+        AuditService::log('billing', 'alpha_only_event');
+        $this->assertDatabaseHas('activity_log', ['description' => 'beta_only_event', 'company_id' => $this->companyB->id]);
+
+        $descriptions = fn (array $query): array => array_column(
+            $this->get(route('admin.reports.audit-log', $query))->assertOk()->inertiaProps('data.data'),
+            'description',
+        );
+        $export = fn (array $query): string => $this->get(route('admin.reports.audit-log.export', $query))->assertOk()->streamedContent();
+
+        $this->assertContains('alpha_only_event', $descriptions([]));
+        $this->assertNotContains('beta_only_event', $descriptions([]));
+        $this->assertStringContainsString('alpha_only_event', $export([]));
+        $this->assertStringNotContainsString('beta_only_event', $export([]));
+
+        // The other company's actor by id, and the other company's actor and event in the free-text search.
+        foreach ([
+            ['user_id' => $this->adminB->id],
+            ['user_id' => $this->adminB->id, 'log_name' => 'billing'],
+            ['search' => 'Admin Beta'],
+            ['search' => 'admin.beta@example.test'],
+            ['search' => 'beta_only_event'],
+        ] as $filters) {
+            $this->assertSame([], $descriptions($filters), json_encode($filters));
+            $this->assertStringNotContainsString('beta_only_event', $export($filters), json_encode($filters));
+        }
+    }
 
     public function test_unauthenticated_and_no_company_access_denied(): void
     {

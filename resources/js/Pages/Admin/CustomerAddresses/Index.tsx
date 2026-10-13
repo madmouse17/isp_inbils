@@ -30,6 +30,7 @@ import {
     type GeocodeResult,
 } from '@/Components/ui';
 import type { CustomerAddress } from '@/types/models';
+import { useMapDefault } from '@/hooks/useMapDefault';
 
 interface AddressProps {
     customer: { id: number; code: string; name: string };
@@ -39,6 +40,7 @@ interface AddressProps {
 }
 
 export default function Index({ customer, addresses, regions, geocodeResults = [] }: AddressProps) {
+    const mapDefault = useMapDefault();
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | string | null>(null);
     const [geocodeSearching, setGeocodeSearching] = useState(false);
@@ -270,6 +272,8 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                         <MapPicker
                             latitude={data.lat}
                             longitude={data.lng}
+                            defaultCenter={mapDefault.center}
+                            defaultZoom={mapDefault.zoom}
                             onChange={(latitude, longitude) =>
                                 setData((current) => ({
                                     ...current,

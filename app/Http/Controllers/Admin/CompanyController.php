@@ -13,6 +13,7 @@ use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,8 +63,14 @@ class CompanyController extends Controller
                 'auto_suspend_enabled' => false,
                 'auto_suspend_overdue_days' => 7,
                 'auto_reactivate_on_payment' => true,
+                // Null = follow the system default; the resolved value is the shared `company.map` prop.
+                'map_city_code' => null,
+                'map_lat' => null,
+                'map_lng' => null,
+                'map_zoom' => null,
                 ...WhatsAppSettings::defaults(),
             ], $company->settings ?? []),
+            'cities' => $this->cities(),
             // Whether credentials exist, never their values; the usage counts this company's current month.
             'whatsapp' => [
                 'configured' => app(WhatsAppCloudClient::class)->isConfigured(),
@@ -92,5 +99,27 @@ class CompanyController extends Controller
         CompanyService::updateSettings($request->validated('settings'));
 
         return back()->with('success', 'Company settings updated.');
+    }
+
+    /** Every kota/kabupaten for the default-map picker, with the point the picker jumps to. @return list<array{code: string, name: string, province_name: string, lat: float, lng: float}> */
+    private function cities(): array
+    {
+        return DB::table('indonesia_cities as city')
+            ->join('indonesia_provinces as province', 'province.code', '=', 'city.province_code')
+            ->orderBy('province.name')
+            ->orderBy('city.name')
+            ->get(['city.code', 'city.name', 'province.name as province_name', 'city.meta'])
+            ->map(function (object $city): array {
+                $meta = json_decode((string) $city->meta, true) ?? [];
+
+                return [
+                    'code' => $city->code,
+                    'name' => $city->name,
+                    'province_name' => $city->province_name,
+                    'lat' => (float) ($meta['lat'] ?? 0),
+                    'lng' => (float) ($meta['long'] ?? 0),
+                ];
+            })
+            ->all();
     }
 }

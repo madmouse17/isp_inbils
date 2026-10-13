@@ -8,7 +8,6 @@ import {
     parseCoord,
     resolveCenter,
     toLatLngStrings,
-    JAKARTA_CENTER,
 } from './latLngMapPicker.helpers.ts';
 
 // RED target: coords must emit decimal(10,7) strings
@@ -23,14 +22,14 @@ assert.equal(parseCoord('not-a-number'), null);
 assert.equal(parseCoord('-6.2088'), -6.2088);
 assert.equal(parseCoord('106.8456'), 106.8456);
 
-// Empty/invalid falls back to Jakarta
-assert.deepEqual(resolveCenter('', ''), JAKARTA_CENTER);
-assert.deepEqual(resolveCenter(null, null), JAKARTA_CENTER);
-assert.deepEqual(resolveCenter('bad', '1'), JAKARTA_CENTER);
-assert.deepEqual(resolveCenter('-6.2', '106.8'), { lat: -6.2, lng: 106.8 });
-
-const custom = { lat: 1, lng: 2 };
+// Empty/invalid falls back to the caller's default (the company map default), never a hardcoded city
+const custom = { lat: -7.5579, lng: 110.8231 };
 assert.deepEqual(resolveCenter('', '', custom), custom);
+assert.deepEqual(resolveCenter(null, null, custom), custom);
+assert.deepEqual(resolveCenter('bad', '1', custom), custom);
+
+// Existing coordinates win over the default
+assert.deepEqual(resolveCenter('-6.2', '106.8', custom), { lat: -6.2, lng: 106.8 });
 
 assert.deepEqual(toLatLngStrings(-6.2088, 106.8456), {
     lat: '-6.2088000',

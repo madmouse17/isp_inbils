@@ -26,6 +26,7 @@ import {
 import { buttonVariants } from '@/Components/ui/Button';
 import { Spinner } from '@/Components/ui/Spinner';
 import { cn } from '@/lib/utils';
+import { useMapDefault } from '@/hooks/useMapDefault';
 import {
     IndonesiaRegionFields,
     type IndonesiaRegionOptions,
@@ -90,6 +91,7 @@ export function CustomerAddressEditor({
     geocodeIndex,
     canManage,
 }: CustomerAddressEditorProps) {
+    const mapDefault = useMapDefault();
     const {
         data,
         setData,
@@ -351,6 +353,8 @@ export function CustomerAddressEditor({
                                 />
                                 <MapPicker
                                     latitude={data.lat}
+                                    defaultCenter={mapDefault.center}
+                                    defaultZoom={mapDefault.zoom}
                                     longitude={data.lng}
                                     onChange={updateCoordinates}
                                     latitudeError={errors.lat}

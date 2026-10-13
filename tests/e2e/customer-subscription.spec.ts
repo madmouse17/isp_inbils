@@ -4,7 +4,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 
 const seederSource = readFileSync('database/seeders/DemoUserSeeder.php', 'utf8');
-const demoPassword = seederSource.match(/private const PASSWORD = '([^']+)';/)?.[1];
+const demoPassword = seederSource.match(/(?:public|private) const PASSWORD = '([^']+)';/)?.[1];
 const adminEmail = seederSource.match(
     /'admin' => \['name' => 'Demo Admin', 'email' => '([^']+)'/,
 )?.[1];

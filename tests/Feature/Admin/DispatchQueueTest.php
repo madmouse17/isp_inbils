@@ -17,9 +17,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
+use Modules\SPK\Models\WorkOrderAssignment;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
@@ -673,6 +676,98 @@ class DispatchQueueTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_dispatch_assign_rejects_a_user_of_another_company_under_every_assignee_field(): void
+    {
+        $company = Company::factory()->create(['is_active' => true]);
+        $foreignCompany = Company::factory()->create(['is_active' => true]);
+        $dispatcher = User::factory()->create([
+            'company_id' => $company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $dispatcher->givePermissionTo(['ticket.assign', 'spk.assign']);
+
+        // Built the same way: only the company differs, so only the company can be what rejects the foreign one.
+        $foreignTechnician = $this->technician($foreignCompany);
+        $ownTechnician = $this->technician($company);
+
+        $ticket = $this->makeOpenTicket($company, $dispatcher);
+        $spk = $this->makeUnassignedSpk($company, $dispatcher);
+        Notification::fake();
+
+        foreach ([$ticket, $spk] as $item) {
+            foreach (['assignee_id', 'handler_id', 'technician_id'] as $field) {
+                $this->postAssign($dispatcher, $item, [$field => $foreignTechnician->id])->assertNotFound();
+            }
+        }
+
+        $this->assertDatabaseHas('tickets', ['id' => $ticket->id, 'assigned_to' => null, 'status' => 'open']);
+        $this->assertDatabaseHas('work_orders', ['id' => $spk->id, 'assigned_to' => null, 'status' => 'draft']);
+        $this->assertSame(0, WorkOrderAssignment::withoutCompany()->where('work_order_id', $spk->id)->count());
+        Notification::assertNothingSent();
+
+        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $ownTechnician->id])->assertRedirect();
+        $this->postAssign($dispatcher, $spk, ['assignee_id' => $ownTechnician->id])->assertRedirect();
+        $this->assertSame($ownTechnician->id, $ticket->fresh()->assigned_to);
+        $this->assertSame($ownTechnician->id, $spk->fresh()->assigned_to);
+    }
+
+    public function test_dispatch_assign_rejects_same_company_users_the_eligible_lists_do_not_offer(): void
+    {
+        $company = Company::factory()->create(['is_active' => true]);
+        $foreignCompany = Company::factory()->create(['is_active' => true]);
+        $dispatcher = User::factory()->create([
+            'company_id' => $company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $dispatcher->givePermissionTo(['ticket.assign', 'spk.assign']);
+
+        $eligible = $this->technician($company);
+        $viewer = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $viewer->givePermissionTo(['ticket.view', 'spk.view']);
+        EmployeeProfile::factory()->create(['company_id' => $company->id, 'user_id' => $viewer->id, 'status' => 'active']);
+
+        // Rejected for both domains.
+        $rejectedEverywhere = [
+            'inactive user' => $this->technician($company, ['is_active' => false]),
+            'no start or submit permission' => $viewer,
+        ];
+        // Valid ticket handlers, but not SPK technicians: the employee profile is missing, inactive or of another company.
+        $rejectedForSpk = [
+            'no employee profile' => $this->technician($company, profile: null),
+            'inactive employee profile' => $this->technician($company, profile: ['status' => 'inactive']),
+            'employee profile of another company' => $this->technician($company, profile: ['company_id' => $foreignCompany->id]),
+        ];
+
+        $ticket = $this->makeOpenTicket($company, $dispatcher);
+        $spk = $this->makeUnassignedSpk($company, $dispatcher);
+
+        $page = $this->actingAs($dispatcher)->get(route('admin.dispatch.index'))->assertOk();
+        $handlers = array_column($page->inertiaProps('handlers'), 'id');
+        $technicians = array_column($page->inertiaProps('technicians'), 'id');
+        $this->assertContains($eligible->id, $handlers);
+        $this->assertContains($eligible->id, $technicians);
+
+        foreach ($rejectedEverywhere as $label => $user) {
+            $this->assertNotContains($user->id, $handlers, "{$label} is listed as a ticket handler");
+            $this->assertSame(404, $this->postAssign($dispatcher, $ticket, ['assignee_id' => $user->id])->getStatusCode(), "{$label} was assigned to a ticket");
+        }
+
+        foreach ([...$rejectedEverywhere, ...$rejectedForSpk] as $label => $user) {
+            $this->assertNotContains($user->id, $technicians, "{$label} is listed as an SPK technician");
+            $this->assertSame(404, $this->postAssign($dispatcher, $spk, ['assignee_id' => $user->id])->getStatusCode(), "{$label} was assigned to an SPK");
+        }
+
+        $this->assertNull($ticket->fresh()->assigned_to);
+        $this->assertNull($spk->fresh()->assigned_to);
+
+        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $eligible->id])->assertRedirect();
+        $this->postAssign($dispatcher, $spk, ['assignee_id' => $eligible->id])->assertRedirect();
+        $this->assertSame($eligible->id, $ticket->fresh()->assigned_to);
+        $this->assertSame($eligible->id, $spk->fresh()->assigned_to);
+    }
+
     public function test_dispatch_assign_mutation_rejects_forbid_self_assignment_when_configured(): void
     {
         $company = Company::factory()->create([
@@ -795,6 +890,44 @@ class DispatchQueueTest extends TestCase
             ->where('log_name', 'ticket')
             ->where('description', 'assigned')
             ->count());
+    }
+
+    /**
+     * @param  array<string, int>  $assignee  the assignee under whichever key the caller exercises
+     */
+    private function postAssign(User $actor, Ticket|WorkOrder $item, array $assignee): TestResponse
+    {
+        return $this->actingAs($actor)->post(route('admin.dispatch.assign'), [
+            'domain' => $item instanceof Ticket ? 'ticket' : 'spk',
+            'id' => $item->id,
+            'expected_assigned_to' => null,
+            'expected_updated_at' => $item->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
+            ...$assignee,
+        ]);
+    }
+
+    /**
+     * An eligible technician of the company; each override breaks one rule, and a null $profile leaves the
+     * employee profile out.
+     *
+     * @param  array<string, mixed>  $user
+     * @param  array<string, mixed>|null  $profile
+     */
+    private function technician(Company $company, array $user = [], ?array $profile = []): User
+    {
+        $technician = User::factory()->create(['company_id' => $company->id, 'is_active' => true, ...$user]);
+        $technician->assignRole('technician');
+
+        if ($profile !== null) {
+            EmployeeProfile::factory()->create([
+                'company_id' => $company->id,
+                'user_id' => $technician->id,
+                'status' => 'active',
+                ...$profile,
+            ]);
+        }
+
+        return $technician;
     }
 
     private function makeOpenTicket(Company $company, User $creator): Ticket

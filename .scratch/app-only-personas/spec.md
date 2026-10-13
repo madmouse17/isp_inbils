@@ -1,6 +1,6 @@
 # Technician and customer go app-only; user guides as PDF
 
-Status: in-progress
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `app-only-personas`
 Source: owner request 2026-10-13 (grill-me): remove the technician and customer menus from the web, they use the Flutter apps; then write complete user documentation for the web and the apps, with pictures, as PDF. Owner approved grilling round 1 (Q1–Q8) and asked for implementation with the mattpocock skills (to-spec → tickets → implement).
 

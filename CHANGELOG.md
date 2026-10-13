@@ -4,6 +4,14 @@ Semua perubahan notable di project inbils. Format [Keep a Changelog](https://kee
 versi mengikuti [Semantic Versioning](https://semver.org/lang/id/) (v0.x.x
 selama development, v1.0.0 saat release).
 
+### Added - Default map location per company and Indonesian region data (2026-10-14)
+
+- Company settings gain `map_city_code`, `map_lat`, `map_lng` and `map_zoom` (`.scratch/map-default-region`). Validation: `map_city_code` must exist in `indonesia_cities`, lat −11…6 and lng 94…142 (Indonesia's bounding box, only as a pair), zoom 3…18. Empty values follow the system default `default_map_lat`/`default_map_lng`/`default_map_zoom` (−2.5489, 118.0149, 5: all of Indonesia, added by `SystemSettingSeeder` without overwriting edits).
+- `CompanyService::mapDefault()` resolves company settings → system default → hardcoded; `HandleInertiaRequests` shares it as `company.map` (`lat`, `lng`, `zoom`, `city_code`, `city_name`). The Company Settings page gets a `cities` prop (code, name, province_name, lat, lng; ordered by province then name).
+- `IndonesiaRegionSeeder` loads provinces, kota/kabupaten, kecamatan and kelurahan from laravolt/indonesia, only when fewer than 38 provinces or no villages exist, and is part of `DatabaseSeeder` in every environment except `testing` and `e2e`. `DemoUserSeeder` sets the demo company's map to Kota Bandung (3273, zoom 12) when it has none. The E2E subset adds Kota Bandung, Kota Surakarta and Kota Administrasi Jakarta Selatan.
+- `DemoTeamSeeder` (local/demo only, refuses production) gives the demo company five active employees per role: 4 new admins, 4 managers, 2 staff and 1 technician with Indonesian names, `<first>.<last>@demo.inbils.test`, the demo password, a unit, employee number and phone, and an INB-HQ profile for the demo admin. Re-running changes nothing; `DatabaseSeeder` runs it after `DemoDataSeeder`.
+- Deploy: `php artisan db:seed --class=SystemSettingSeeder --force` and `php artisan db:seed --class=IndonesiaRegionSeeder --force` (about 80k village rows, once); demo only: `php artisan db:seed --class=DemoTeamSeeder --force`.
+
 ### Changed - Technician and customer are app-only on the web (2026-10-13)
 
 - A user whose roles are only `technician` and/or `customer` is redirected from every `admin/*` and `portal/*` page to `GET /app-only` (`.scratch/app-only-personas`), a page that names the Android app for the role, links to the Play Store when `play_store_url_technician` / `play_store_url_customer` is set (only `https://play.google.com/…` is accepted), to `/profile` (2FA management stays on the web, rendered without the admin sidebar) and to logout. Users who also hold admin, manager or staff are unaffected. Login, forgot/reset password, e-mail verification, the Midtrans pages `portal/payments/return` and `pembayaran/selesai`, and the public isolir page keep working.

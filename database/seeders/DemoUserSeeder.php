@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Hash;
 
 class DemoUserSeeder extends Seeder
 {
-    private const PASSWORD = 'password';
+    public const PASSWORD = 'password';
 
     /** @var array<string, array{name: string, email: string, employee: bool}> */
     private const USERS = [
@@ -70,6 +70,15 @@ class DemoUserSeeder extends Seeder
                 }
             }
         });
+
+        // The demo data sits in Kota Bandung, so demo maps open there; an owner's own choice is never overwritten.
+        $company->settings = ($company->settings ?? []) + [
+            'map_city_code' => '3273',
+            'map_lat' => -6.919241381150077,
+            'map_lng' => 107.6366006270422,
+            'map_zoom' => 12,
+        ];
+        $company->save();
 
         (new CompanySeeder())->runFor($company);
     }

@@ -29,6 +29,18 @@ class SystemSettingSeeder extends Seeder
             );
         }
 
+        // Where maps open when a company picked no region (all of Indonesia); owner-edited values survive a re-seed.
+        foreach ([
+            ['key' => 'default_map_lat', 'value' => '-2.5489', 'type' => 'string'],
+            ['key' => 'default_map_lng', 'value' => '118.0149', 'type' => 'string'],
+            ['key' => 'default_map_zoom', 'value' => '5', 'type' => 'integer'],
+        ] as $setting) {
+            Setting::query()->firstOrCreate(
+                ['key' => $setting['key']],
+                $setting + ['group' => 'default', 'is_public' => true]
+            );
+        }
+
         // Owner-edited listing URLs: a re-seed must not blank them.
         foreach (['technician', 'customer'] as $role) {
             Setting::query()->firstOrCreate(

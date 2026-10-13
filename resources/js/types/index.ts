@@ -55,6 +55,15 @@ export interface User {
     permissions?: string[];
 }
 
+/** The map view the company's maps open on, resolved server-side (company setting, system default, Indonesia). */
+export interface CompanyMap {
+    lat: number;
+    lng: number;
+    zoom: number;
+    city_code: string | null;
+    city_name: string | null;
+}
+
 export interface Company {
     id: number;
     name: string;
@@ -67,6 +76,7 @@ export interface Company {
     currency: string;
     timezone: string;
     settings?: Record<string, unknown>;
+    map?: CompanyMap;
     is_active?: boolean;
 }
 

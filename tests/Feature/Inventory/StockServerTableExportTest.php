@@ -195,6 +195,40 @@ class StockServerTableExportTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $pdf->streamedContent());
     }
 
+    public function test_movement_filters_with_foreign_ids_never_return_foreign_rows(): void
+    {
+        $own = $this->stock(5, 5, 'Own product');
+        $this->movement($own->product_id, 3, 'Own ledger row', now());
+
+        $foreignCompany = Company::factory()->create(['is_active' => true]);
+        $foreignProduct = Product::factory()->create(['company_id' => $foreignCompany->id]);
+        $foreignLocation = Location::factory()->create(['company_id' => $foreignCompany->id]);
+        StockMovement::withoutCompany()->forceCreate([
+            'company_id' => $foreignCompany->id,
+            'product_id' => $foreignProduct->id,
+            'to_location_id' => $foreignLocation->id,
+            'movement_type' => 'receive',
+            'quantity' => 9,
+            'balance_after' => 9,
+            'reserved_after' => 0,
+            'created_by' => $this->admin->id,
+            'note' => 'Foreign ledger row',
+        ]);
+        $this->assertDatabaseHas('stock_movements', ['note' => 'Foreign ledger row', 'to_location_id' => $foreignLocation->id]);
+
+        foreach ([
+            ['location_id' => $foreignLocation->id],
+            ['product_id' => $foreignProduct->id],
+            ['product_id' => $foreignProduct->id, 'location_id' => $foreignLocation->id],
+        ] as $filters) {
+            $this->get(route('admin.stock-movements.index', $filters))->assertOk()
+                ->assertInertia(fn (Assert $page) => $page->where('movements.meta.total', 0)->has('movements.data', 0));
+            $csv = $this->get(route('admin.stock-movements.export', [...$filters, 'format' => 'csv']))->assertOk()->streamedContent();
+            $this->assertStringNotContainsString('Foreign ledger row', $csv, json_encode($filters));
+            $this->assertStringNotContainsString('Own ledger row', $csv, json_encode($filters));
+        }
+    }
+
     public function test_direct_stock_and_movement_exports_require_export_permission(): void
     {
         $viewer = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true, 'email_verified_at' => now()]);

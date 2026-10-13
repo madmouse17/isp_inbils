@@ -102,6 +102,7 @@ docs/playbooks/*
 !docs/playbooks/performance.md
 !docs/playbooks/testing.md
 !docs/user-guide/
+!docs/PARKING_LOT.md
 .rtk/
 
 /_AdminLayout*.tsx

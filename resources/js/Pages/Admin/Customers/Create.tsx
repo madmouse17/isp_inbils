@@ -32,6 +32,7 @@ import {
     type IndonesiaRegionValue,
 } from '@/Components/composite';
 import type { AcquirerOption } from '@/types/models';
+import { useMapDefault } from '@/hooks/useMapDefault';
 import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
 
@@ -156,6 +157,7 @@ export default function Create({
     geocodeResults = [],
     geocodeIndex,
 }: CreateProps) {
+    const mapDefault = useMapDefault();
     const [tab, setTab] = useState('customer');
     const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
     const [loadingPorts, setLoadingPorts] = useState(false);
@@ -536,6 +538,8 @@ export default function Create({
                                                     />
                                                     <MapPicker
                                                         latitude={address.lat}
+                                                        defaultCenter={mapDefault.center}
+                                                        defaultZoom={mapDefault.zoom}
                                                         longitude={address.lng}
                                                         onChange={(latitude, longitude) =>
                                                             updateAddressCoordinates(

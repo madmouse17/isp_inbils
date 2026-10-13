@@ -3,9 +3,11 @@
 namespace App\Services\Core;
 
 use App\Models\Core\Company;
+use App\Models\Core\Setting;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\Auth;
+use Laravolt\Indonesia\Models\City;
 
 /**
  * The only authority on which company a request, job or command acts in.
@@ -145,6 +147,33 @@ class CompanyService
         }
 
         return SettingService::get('default_'.$key, $default);
+    }
+
+    /**
+     * Where maps open for a company: its own point (company settings), else the system default, else all of Indonesia.
+     * lat and lng only count as a pair; the city code is the label of that pair.
+     *
+     * @return array{lat: float, lng: float, zoom: int, city_code: string|null, city_name: string|null}
+     */
+    public static function mapDefault(?Company $company): array
+    {
+        $settings = $company->settings ?? [];
+        $ownPoint = isset($settings['map_lat'], $settings['map_lng']);
+        $ownZoom = isset($settings['map_zoom']);
+        $cityCode = $ownPoint ? ($settings['map_city_code'] ?? null) : null;
+
+        // One query for all three system defaults, and none when the company set its own point and zoom.
+        $defaults = $ownPoint && $ownZoom
+            ? []
+            : Setting::query()->whereIn('key', ['default_map_lat', 'default_map_lng', 'default_map_zoom'])->pluck('value', 'key')->all();
+
+        return [
+            'lat' => (float) ($ownPoint ? $settings['map_lat'] : ($defaults['default_map_lat'] ?? -2.5489)),
+            'lng' => (float) ($ownPoint ? $settings['map_lng'] : ($defaults['default_map_lng'] ?? 118.0149)),
+            'zoom' => (int) ($ownZoom ? $settings['map_zoom'] : ($defaults['default_map_zoom'] ?? 5)),
+            'city_code' => $cityCode ?: null,
+            'city_name' => $cityCode ? City::query()->where('code', $cityCode)->value('name') : null,
+        ];
     }
 
     public static function updateProfile(array $data): Company

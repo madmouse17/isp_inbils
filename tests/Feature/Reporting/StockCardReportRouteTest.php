@@ -139,6 +139,36 @@ class StockCardReportRouteTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_stock_card_location_filter_never_reaches_a_foreign_company_row(): void
+    {
+        $product = $this->productForCompany($this->admin->company_id);
+        $this->movement($product, 7, now());
+
+        $foreignCompany = Company::factory()->create(['is_active' => true]);
+        $foreignLocation = Location::factory()->create(['company_id' => $foreignCompany->id]);
+        // A row of the other company that points at this very product and at a location of its own.
+        StockMovement::withoutCompany()->forceCreate([
+            'company_id' => $foreignCompany->id,
+            'product_id' => $product->id,
+            'to_location_id' => $foreignLocation->id,
+            'movement_type' => 'receive',
+            'quantity' => 45,
+            'balance_after' => 45,
+            'reserved_after' => 0,
+            'created_by' => $this->admin->id,
+            'note' => 'Foreign ledger row',
+        ]);
+        $this->assertDatabaseHas('stock_movements', ['note' => 'Foreign ledger row', 'product_id' => $product->id, 'to_location_id' => $foreignLocation->id]);
+        $filters = ['product_id' => $product->id, 'location_id' => $foreignLocation->id];
+
+        $this->get(route('admin.reports.stock-card', $filters))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('movements.meta.total', 0)->has('movements.data', 0));
+
+        $csv = $this->get(route('admin.reports.stock-card.export', $filters))->assertOk()->streamedContent();
+        $this->assertStringNotContainsString('Foreign ledger row', $csv);
+    }
+
     private function productForCompany(int $companyId): Product
     {
         $unit = Unit::factory()->create(['company_id' => $companyId]);
