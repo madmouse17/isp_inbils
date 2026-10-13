@@ -21,6 +21,9 @@ class CompanyService
     /** Session key of the company the authenticated user switched into. */
     public const SESSION_KEY = 'active_company_id';
 
+    /** What a user is told when every company they could act in is suspended. */
+    public const SUSPENDED_MESSAGE = 'Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan.';
+
     /** Per-request memo of membership checks, kept on the request so it never outlives it. */
     private const MEMBERSHIP_MEMO = 'company.membership.';
 
@@ -47,35 +50,62 @@ class CompanyService
 
     /**
      * The company a given user acts in. The session belongs to the authenticated user, so any other
-     * user object resolves to its home company.
+     * user object resolves to its home company. Null when the home company is suspended and no
+     * switched-into company is left.
      */
     public static function idFor(User $user): ?int
     {
-        return self::switchedIdFor($user) ?? ($user->company_id !== null ? (int) $user->company_id : null);
+        if (($switched = self::switchedIdFor($user)) !== null) {
+            return $switched;
+        }
+
+        return $user->company_id !== null && self::canActIn($user, (int) $user->company_id) ? (int) $user->company_id : null;
     }
 
     /**
-     * May the user act in this company? The home company always, any other one only through a
-     * membership row and only while the company is active.
+     * May the user act in this company? Only while it is active, and then the home company always,
+     * any other one only through a membership row.
      */
     public static function canActIn(User $user, int $companyId): bool
     {
-        if ($user->company_id !== null && (int) $user->company_id === $companyId) {
-            return true;
-        }
-
         $bag = request()->attributes;
         $key = self::MEMBERSHIP_MEMO.$user->getKey().'.'.$companyId;
 
         if (! $bag->has($key)) {
+            $isHome = $user->company_id !== null && (int) $user->company_id === $companyId;
+
             $bag->set($key, Company::query()
                 ->whereKey($companyId)
                 ->where('is_active', true)
-                ->whereHas('members', fn ($members) => $members->whereKey($user->getKey()))
+                ->when(! $isHome, fn ($companies) => $companies->whereHas('members', fn ($members) => $members->whereKey($user->getKey())))
                 ->exists());
         }
 
         return (bool) $bag->get($key);
+    }
+
+    /** The first active company the user is a member of, for when their effective company is suspended. */
+    public static function fallbackIdFor(User $user): ?int
+    {
+        $id = Company::query()
+            ->where('is_active', true)
+            ->whereHas('members', fn ($members) => $members->whereKey($user->getKey()))
+            ->orderBy('id')
+            ->value('id');
+
+        return $id === null ? null : (int) $id;
+    }
+
+    /** A user with a home company who has no company to act in: it is suspended and nothing was switched into. */
+    public static function isSuspendedFor(User $user): bool
+    {
+        return $user->company_id !== null && self::idFor($user) === null;
+    }
+
+    /** May the user be let in at all: their home is active, or some other active membership remains. */
+    public static function canEnter(User $user): bool
+    {
+        return ! self::isSuspendedFor($user) || self::fallbackIdFor($user) !== null;
     }
 
     /**

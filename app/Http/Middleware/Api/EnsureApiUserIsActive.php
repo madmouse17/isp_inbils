@@ -4,6 +4,7 @@ namespace App\Http\Middleware\Api;
 
 use App\Exceptions\ApiException;
 use App\Services\Core\ApiTokenService;
+use App\Services\Core\CompanyService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -25,6 +26,11 @@ final class EnsureApiUserIsActive
             $this->tokens->revokeToken($user, $user->currentAccessToken(), 'account_inactive');
 
             throw new ApiException(401, 'account_inactive', 'This account is inactive.');
+        }
+
+        // The app acts in the home company only (no session to switch in): a suspended one is a refusal, not a sign-out.
+        if (CompanyService::isSuspendedFor($user)) {
+            throw new ApiException(403, 'company_inactive', 'The company of this account is suspended.');
         }
 
         return $next($request);

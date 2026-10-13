@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use App\Models\User;
+use App\Services\Core\CompanyService;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -62,6 +63,11 @@ class LoginRequest extends FormRequest
 
         /** @var User $user */
         $user = $guard->getLastAttempted();
+
+        // Only after the credentials proved right, so a wrong guess never learns that a company is suspended.
+        if (! CompanyService::canEnter($user)) {
+            throw ValidationException::withMessages(['email' => CompanyService::SUSPENDED_MESSAGE]);
+        }
 
         return $user;
     }

@@ -3,6 +3,8 @@
 namespace App\Models\Core;
 
 use App\Models\User;
+use App\Services\Core\ApiTokenService;
+use App\Services\Core\CompanyService;
 use Database\Factories\CompanyFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -41,6 +43,25 @@ class Company extends Model implements HasMedia
         'settings' => 'array',
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Membership checks are memoised per request, so a flip of is_active drops the memo. A suspended company must
+     * not keep a phone signed in either: the app tokens of the users it strands go with it.
+     */
+    protected static function booted(): void
+    {
+        static::updated(function (Company $company): void {
+            if (! $company->wasChanged('is_active')) {
+                return;
+            }
+
+            CompanyService::forgetResolution();
+
+            if (! $company->is_active) {
+                app(ApiTokenService::class)->revokeForSuspendedCompany($company);
+            }
+        });
+    }
 
     public function registerMediaCollections(): void
     {

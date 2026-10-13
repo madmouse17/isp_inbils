@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use App\Exceptions\ApiException;
 use App\Http\Middleware\EnsureCustomerAccess;
+use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
 use App\Queries\Admin\MyWorkQuery;
@@ -128,6 +129,26 @@ final class ApiTokenService
         if ($count > 0) {
             $this->auditRevocation($user, $reason, $count);
         }
+    }
+
+    /**
+     * A suspended company takes the app tokens of the users it leaves with no company to act in. Users who
+     * still have an active home or membership keep theirs. Called by the Company model on is_active true to false.
+     */
+    public function revokeForSuspendedCompany(Company $company): void
+    {
+        User::query()
+            ->whereHas('tokens')
+            ->where(fn ($users) => $users
+                ->where('company_id', $company->id)
+                ->orWhereHas('companies', fn ($companies) => $companies->whereKey($company->id)))
+            ->chunkById(200, function ($users): void {
+                foreach ($users as $user) {
+                    if (! CompanyService::canEnter($user)) {
+                        $this->revokeAll($user, 'company_suspended');
+                    }
+                }
+            });
     }
 
     /**
