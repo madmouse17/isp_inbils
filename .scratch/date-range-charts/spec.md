@@ -18,7 +18,7 @@ Q1–Q8 approved by the owner; R1–R7 taken by the assistant.
 - **Q1 DateRangePicker.** One `Components/ui/DateRangePicker.tsx`: a text input showing `from – to` in the company date format, a popover (existing `@radix-ui/react-popover`) with a two-month `react-day-picker` range calendar, a clear button. Typing is allowed in the same format; an invalid or inverted entry shows the field red with an Indonesian message and is not sent. The dead `composite/DateRangeFilter.tsx` is deleted.
 - **Q2 Presets** inside the popover: Hari ini, 7 hari terakhir, 30 hari terakhir, Bulan ini, Bulan lalu, Tahun ini. Computed in the company timezone. AuditLog's inline presets are replaced.
 - **Q3 Scope.** The 11 range filters move to the component. Single-date form fields are untouched.
-- **Q4 Half ranges.** `from` only = from that day to today; `to` only = everything up to that day. The backend applies that instead of ignoring the range. Invoices, Dispatch and My Work get `date` + `date_to after_or_equal:date_from` validation.
+- **Q4 Half ranges.** `from` only = from that day onward, no upper bound (future-dated rows included); `to` only = everything up to that day. The backend applies that instead of ignoring the range. Invoices, Dispatch and My Work get `date` + `date_to after_or_equal:date_from` validation.
 - **Q5 Charts** on five reports, below the existing cards and above the tables (tables and numbers stay):
   - Business: line revenue paid + MRR per bucket; donut invoice status.
   - Sales: bar per acquirer (new customers, revenue); line new customers per bucket.
