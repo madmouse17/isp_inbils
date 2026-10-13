@@ -13,12 +13,13 @@ class SLATierResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'uptime_pct' => $this->uptime_pct,
             'response_time_hours' => $this->response_time_hours,
             'resolution_time_hours' => $this->resolution_time_hours,
-            'credit_pct' => $this->credit_pct,
             'is_active' => $this->is_active,
             'created_at' => $this->created_at,
+            'resolution_on_time_rate_30d' => $this->whenHas('resolution_on_time_rate_30d'),
+            'response_on_time_rate_30d' => $this->whenHas('response_on_time_rate_30d'),
+            'tickets_30d' => $this->whenHas('tickets_30d'),
         ];
     }
 }

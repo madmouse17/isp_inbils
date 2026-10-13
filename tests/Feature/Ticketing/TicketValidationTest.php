@@ -208,6 +208,8 @@ class TicketValidationTest extends TestCase
 
         $customer = $this->companyCustomer($admin->company_id);
         $package = $this->servicePackage($admin->company_id);
+        // The package's tier drives the deadline (sla-targets S1); the factory picks random hours.
+        $package->slaTier->update(['response_time_hours' => 4, 'resolution_time_hours' => 24]);
         $address = $this->customerAddress($admin->company_id, $customer->id);
         $subscription = ServiceSubscription::factory()->create([
             'company_id' => $admin->company_id,

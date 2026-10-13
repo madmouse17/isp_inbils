@@ -25,6 +25,8 @@ type Case = {
     query?: string;
     heading: string;
     search: string;
+    /** Label of the search input; pages already translated use "Cari". */
+    searchLabel?: string;
     /** Customers submits filters with an explicit button instead of debounce. */
     submit?: string;
     sortHeader: string;
@@ -141,7 +143,8 @@ const seededCases: Case[] = [
         path: '/admin/sla-tiers',
         heading: 'Tingkat SLA',
         search: 'l',
-        sortHeader: 'Response (h)',
+        searchLabel: 'Cari',
+        sortHeader: 'Target respons (jam)',
         sortKey: 'response_time_hours',
         params: SERVER,
         ascFirst: 'Gold',
@@ -179,7 +182,7 @@ async function exerciseTable(page: Page, c: Case) {
     const heading = page.getByRole('main').getByRole('heading', { name: c.heading, exact: true });
     await expect(heading).toBeVisible();
 
-    const search = page.getByLabel('Search', { exact: true });
+    const search = page.getByLabel(c.searchLabel ?? 'Search', { exact: true });
     await search.fill(c.search);
     if (c.submit) await page.getByRole('button', { name: c.submit, exact: true }).click();
     await expectQuery(page, 'search', c.search);
@@ -199,7 +202,7 @@ async function exerciseTable(page: Page, c: Case) {
 
     await page.reload();
     await expect(page.getByLabel('Rows per page')).toHaveValue('25');
-    await expect(page.getByLabel('Search', { exact: true })).toHaveValue(c.search);
+    await expect(page.getByLabel(c.searchLabel ?? 'Search', { exact: true })).toHaveValue(c.search);
     await expect(page.getByRole('columnheader', { name: c.sortHeader })).toHaveAttribute(
         'aria-sort',
         'descending',

@@ -54,7 +54,7 @@ class ReportDictionaryTest extends TestCase
             'sales' => ['permission' => 'report.sales.view', 'count' => 7],
             'technician' => ['permission' => 'report.technician', 'count' => 11],
             'asset' => ['permission' => 'report.asset.view', 'count' => 5],
-            'sla' => ['permission' => 'report.sla.view', 'count' => 7],
+            'sla' => ['permission' => 'report.sla.view', 'count' => 11],
             'stock_card' => ['permission' => 'report.stock_card.view', 'count' => 3],
         ];
 
@@ -80,7 +80,7 @@ class ReportDictionaryTest extends TestCase
             }
         }
 
-        $this->assertSame(46, array_sum(array_map(fn (array $report): int => count($report['metrics']), $reports)));
+        $this->assertSame(50, array_sum(array_map(fn (array $report): int => count($report['metrics']), $reports)));
     }
 
     public function test_dictionary_exposes_every_registry_definition_in_full(): void

@@ -55,6 +55,7 @@ class ReportFormulaV1Test extends TestCase
         ],
         'sla' => [
             'total_resolved', 'sla_compliant', 'sla_rate', 'breach_count',
+            'response_on_time', 'response_breached', 'response_without_target', 'response_rate',
             'avg_resolution_minutes', 'avg_frt_minutes', 'by_category',
         ],
         'asset' => [
@@ -332,6 +333,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 103, // (60 + 120 + 240 + 30 + 90 + 60 + 119) / 7 = 102.7
             'avg_frt_minutes' => 16,        // (10 + 30 + 20 + 5) / 4 = 16.25 over the tickets with a first response
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(7),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31'));
     }
 
@@ -357,6 +359,7 @@ class ReportFormulaV1Test extends TestCase
                 'avg_resolution_minutes' => 97,     // (60 + 120 + 240 + 30 + 90 + 60 + 119 + 60) / 8 = 97.4
                 'avg_frt_minutes' => 16,            // T1 T3 T4 T5: 16.25
                 'by_category' => $this->slaByCategoryOfA(),
+                ...$this->withoutResponseTarget(8),
             ],
             SlaComplianceQuery::execute(dateFrom: '2026-01-01'),
             'only From',
@@ -372,6 +375,7 @@ class ReportFormulaV1Test extends TestCase
                 'avg_resolution_minutes' => 120,    // (60 + 120 + 240 + 30 + 90 + 239 + 60 + 119) / 8 = 119.75
                 'avg_frt_minutes' => 16,            // T1 T3 T4 T5: 16.25
                 'by_category' => $this->slaByCategoryOfA(),
+                ...$this->withoutResponseTarget(8),
             ],
             SlaComplianceQuery::execute(dateTo: '2026-01-31'),
             'only To',
@@ -392,6 +396,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 60,
             'avg_frt_minutes' => null,      // T8 has no first response
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(1),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-01'), 'first day');
 
         $this->assertPayload(ReportType::Sla, [
@@ -402,6 +407,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 119, // 1h59m59s counts as 119 whole minutes
             'avg_frt_minutes' => null,
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(1),
         ], SlaComplianceQuery::execute('2026-01-31', '2026-01-31'), 'last day');
     }
 
@@ -418,6 +424,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 110, // (240 + 30 + 60) / 3
             'avg_frt_minutes' => 25,        // (30 + 20) / 2
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(3),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31', $categories['outage']->id), 'Outage in January');
 
         // Support (SUP-1 only) in January: T1 T2 T9. The by_category row "Support" still holds 5 tickets:
@@ -430,6 +437,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 100, // (60 + 120 + 119) / 3 = 99.67
             'avg_frt_minutes' => 10,        // only T1 has a first response
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(3),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31', $categories['support']->id), 'Support in January');
 
         // Outage without a range: T3 T4 T8 T10.
@@ -441,6 +449,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 98, // (240 + 30 + 60 + 60) / 4 = 97.5 rounds up
             'avg_frt_minutes' => 25,
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(4),
         ], SlaComplianceQuery::execute(categoryId: $categories['outage']->id), 'Outage all time');
     }
 
@@ -473,6 +482,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => null,
             'avg_frt_minutes' => null,
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(0),
         ], SlaComplianceQuery::execute('2030-01-01', '2030-01-31'));
     }
 
@@ -497,12 +507,67 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 105, // (120 + 120 + 119 + 60) / 4 = 104.75
             'avg_frt_minutes' => null,      // no ticket has a first response
             'by_category' => [['name' => 'Support', 'total' => 4, 'compliant' => 2, 'rate' => 50.0]],
+            ...$this->withoutResponseTarget(4),
         ], $figures);
         $this->assertLessThan(
             $figures['total_resolved'],
             $figures['sla_compliant'] + $figures['breach_count'],
             'compliant + breach is lower than total when a resolved ticket has no deadline',
         );
+    }
+
+    public function test_sla_response_figures_judge_the_first_response_of_resolved_tickets_against_their_response_target(): void
+    {
+        $a = $this->companyA;
+        $support = $this->category($a, 'Support', 'SUP');
+        $outage = $this->category($a, 'Outage', 'OUT');
+
+        // Company A. Columns: category, created_at, first_response_at, resolved_at, sla_deadline, status, response_deadline.
+        $this->ticket($a, $support, '2026-01-10 08:00:00', '2026-01-10 08:30:00', '2026-01-10 12:00:00', '2026-01-10 16:00:00', null, '2026-01-10 09:00:00'); // R1 answered 30 minutes before its target: on time
+        $this->ticket($a, $support, '2026-01-11 08:00:00', '2026-01-11 09:00:00', '2026-01-11 12:00:00', '2026-01-11 16:00:00', null, '2026-01-11 09:00:00'); // R2 answered exactly at its target: on time
+        $this->ticket($a, $outage, '2026-01-12 08:00:00', '2026-01-12 09:00:01', '2026-01-12 12:00:00', '2026-01-12 16:00:00', null, '2026-01-12 09:00:00');  // R3 one second late: breached
+        $this->ticket($a, $outage, '2026-01-13 08:00:00', '2026-01-13 08:10:00', '2026-01-13 12:00:00', '2026-01-13 16:00:00');                              // R4 predates response targets: in neither figure, counted as without target
+        $this->ticket($a, $support, '2026-01-14 08:00:00', null, '2026-01-14 12:00:00', '2026-01-14 16:00:00', null, '2026-01-14 09:00:00');                 // R5 has a target but no recorded response: in neither figure
+        $this->ticket($a, $support, '2026-01-15 08:00:00', '2026-01-15 11:00:00', null, '2026-01-15 16:00:00', null, '2026-01-15 09:00:00');                 // R6 answered late but still open: in no figure
+        $this->ticket($a, $support, '2025-12-31 08:00:00', '2025-12-31 12:00:00', '2025-12-31 23:00:00', '2026-01-01 08:00:00', null, '2025-12-31 09:00:00'); // R7 answered late, resolved in December: outside January
+
+        // Company B: its own on-time ticket never reaches A, and A's never reach B.
+        $b = $this->companyB;
+        $supportB = $this->category($b, 'Support', 'SUP-B');
+        $this->ticket($b, $supportB, '2026-01-10 08:00:00', '2026-01-10 08:10:00', '2026-01-10 12:00:00', '2026-01-10 16:00:00', null, '2026-01-10 09:00:00'); // RB1 on time
+
+        $this->assertMetrics(ReportType::Sla, [
+            'total_resolved' => 5,              // R1 R2 R3 R4 R5
+            'response_on_time' => 2,            // R1 R2: the target is inclusive
+            'response_breached' => 1,           // R3
+            'response_without_target' => 1,     // R4
+            'response_rate' => 66.7,            // 2 / (2 + 1): R4 and R5 are not judged
+        ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31'), 'January');
+
+        $this->assertMetrics(ReportType::Sla, [
+            'total_resolved' => 6,              // R7 joins when no range is given
+            'response_on_time' => 2,
+            'response_breached' => 2,           // R3 R7
+            'response_without_target' => 1,
+            'response_rate' => 50.0,
+        ], SlaComplianceQuery::execute(), 'all time');
+
+        $this->assertMetrics(ReportType::Sla, [
+            'total_resolved' => 2,              // Outage in January: R3 R4
+            'response_on_time' => 0,
+            'response_breached' => 1,
+            'response_without_target' => 1,
+            'response_rate' => 0.0,
+        ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31', $outage->id), 'Outage in January');
+
+        $this->actingAsCompany($b);
+        $this->assertMetrics(ReportType::Sla, [
+            'total_resolved' => 1,
+            'response_on_time' => 1,
+            'response_breached' => 0,
+            'response_without_target' => 0,
+            'response_rate' => 100.0,
+        ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31'), 'company B');
     }
 
     public function test_sla_average_of_zero_minutes_is_zero_and_only_missing_data_is_empty(): void
@@ -520,6 +585,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 0,  // 0 minutes is a figure, not "empty"
             'avg_frt_minutes' => 0,
             'by_category' => [['name' => 'Support', 'total' => 1, 'compliant' => 0, 'rate' => 0.0]],
+            ...$this->withoutResponseTarget(1),
         ], SlaComplianceQuery::execute());
     }
 
@@ -537,6 +603,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 90, // (120 + 60) / 2
             'avg_frt_minutes' => 40,        // TB1 only
             'by_category' => [['name' => 'Support', 'total' => 2, 'compliant' => 1, 'rate' => 50.0]],
+            ...$this->withoutResponseTarget(2),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31'));
     }
 
@@ -550,6 +617,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => null,
             'avg_frt_minutes' => null,
             'by_category' => [],
+            ...$this->withoutResponseTarget(0),
         ], SlaComplianceQuery::execute('2026-01-01', '2026-01-31'));
     }
 
@@ -715,6 +783,22 @@ class ReportFormulaV1Test extends TestCase
         ]);
     }
 
+    /**
+     * The response figures of a world whose tickets all predate response targets: none is on time or late, every
+     * resolved ticket is "without target", and the rate has nothing to judge.
+     *
+     * @return array<string, int|null>
+     */
+    private function withoutResponseTarget(int $resolved): array
+    {
+        return [
+            'response_on_time' => 0,
+            'response_breached' => 0,
+            'response_without_target' => $resolved,
+            'response_rate' => null,
+        ];
+    }
+
     /** @return array<string, mixed> */
     private function slaFiguresOfAWithoutRange(): array
     {
@@ -726,6 +810,7 @@ class ReportFormulaV1Test extends TestCase
             'avg_resolution_minutes' => 113,    // (60 + 120 + 240 + 30 + 90 + 239 + 60 + 119 + 60) / 9 = 113.1
             'avg_frt_minutes' => 16,            // (10 + 30 + 20 + 5) / 4 = 16.25
             'by_category' => $this->slaByCategoryOfA(),
+            ...$this->withoutResponseTarget(9),
         ];
     }
 
@@ -981,6 +1066,7 @@ class ReportFormulaV1Test extends TestCase
         ?string $resolvedAt,
         ?string $slaDeadline,
         ?string $status = null,
+        ?string $responseDeadline = null,
     ): Ticket {
         // forceCreate: the Ticket factory builds a new company, category and user on every call.
         return Ticket::query()->forceCreate([
@@ -996,6 +1082,7 @@ class ReportFormulaV1Test extends TestCase
             'first_response_at' => $firstResponseAt,
             'resolved_at' => $resolvedAt,
             'sla_deadline' => $slaDeadline,
+            'response_deadline' => $responseDeadline,
         ]);
     }
 

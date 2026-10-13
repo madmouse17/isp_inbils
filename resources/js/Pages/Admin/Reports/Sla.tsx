@@ -28,7 +28,12 @@ import { ReportExportMenu } from './components/ReportExportMenu';
 import { SlaCharts } from './components/SlaCharts';
 
 type SlaMetricKey =
-    'total_resolved' | 'sla_rate' | 'breach_count' | 'avg_resolution_minutes' | 'by_category';
+    | 'total_resolved'
+    | 'sla_rate'
+    | 'response_rate'
+    | 'breach_count'
+    | 'avg_resolution_minutes'
+    | 'by_category';
 
 interface SlaData extends Record<string, unknown> {
     total_resolved?: number;
@@ -38,6 +43,10 @@ interface SlaData extends Record<string, unknown> {
     avg_resolution_minutes?: number | null;
     avg_frt_minutes?: number | null;
     by_category?: { name: string; total: number; compliant: number; rate: number }[];
+    response_on_time?: number;
+    response_breached?: number;
+    response_without_target?: number;
+    response_rate?: number | null;
 }
 
 interface Props extends Record<string, unknown> {
@@ -104,7 +113,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                 {pending && <LoadingState variant="section" />}
                 {!pending && data && (
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
                             <Card>
                                 <CardContent>
                                     <p className="text-sm text-surface-500">
@@ -131,6 +140,29 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                         label={meta.metrics.sla_rate.label}
                                     />
                                     <MetricDefinitionNote definition={meta.metrics.sla_rate} />
+                                </CardContent>
+                            </Card>
+                            <Card>
+                                <CardContent>
+                                    <p className="text-sm text-surface-500">
+                                        {meta.metrics.response_rate.label}
+                                    </p>
+                                    <p className="text-2xl font-bold">
+                                        {data.response_rate === null ||
+                                        data.response_rate === undefined
+                                            ? '-'
+                                            : `${data.response_rate}%`}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        {data.response_on_time ?? 0} tepat waktu,{' '}
+                                        {data.response_breached ?? 0} terlambat,{' '}
+                                        {data.response_without_target ?? 0} tanpa target respons
+                                    </p>
+                                    <DrillLink
+                                        href={drill.response_rate}
+                                        label={meta.metrics.response_rate.label}
+                                    />
+                                    <MetricDefinitionNote definition={meta.metrics.response_rate} />
                                 </CardContent>
                             </Card>
                             <Card>

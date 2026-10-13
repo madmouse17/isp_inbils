@@ -11,7 +11,8 @@ use Modules\Ticketing\Models\Ticket;
 /**
  * The tickets behind the SLA figures (also used by the Business SLA percentage). Shared by the
  * aggregates and the drill-down lists; v1 quirks stay: a ticket without a deadline is resolved but
- * neither on time nor breached.
+ * neither on time nor breached. The response figures follow the same rule: a ticket without a
+ * response target (every ticket created before targets existed) is in neither of them.
  */
 final class SlaSources
 {
@@ -55,6 +56,58 @@ final class SlaSources
     public static function breached(Builder $query): Builder
     {
         return $query->whereColumn('resolved_at', '>', 'sla_deadline');
+    }
+
+    /**
+     * Tickets whose first response came within their response target.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public static function respondedOnTime(Builder $query): Builder
+    {
+        return $query->whereColumn('first_response_at', '<=', 'response_deadline');
+    }
+
+    /**
+     * Tickets whose first response came after their response target.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public static function responseBreached(Builder $query): Builder
+    {
+        return $query->whereColumn('first_response_at', '>', 'response_deadline');
+    }
+
+    /**
+     * Tickets that were responded to and carry a response target: on time or breached, nothing else.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public static function responseJudged(Builder $query): Builder
+    {
+        return $query->whereNotNull('first_response_at')->whereNotNull('response_deadline');
+    }
+
+    /**
+     * Tickets created without a response target.
+     *
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $query
+     * @return Builder<TModel>
+     */
+    public static function withoutResponseTarget(Builder $query): Builder
+    {
+        return $query->whereNull('response_deadline');
     }
 
     /**

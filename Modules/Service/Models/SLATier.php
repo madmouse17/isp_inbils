@@ -11,6 +11,12 @@ use Modules\Service\Database\Factories\SLATierFactory;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property string $name
+ * @property int $response_time_hours
+ * @property int $resolution_time_hours
+ * @property bool $is_active
+ */
 class SLATier extends Model
 {
     use BelongsToCompany;
@@ -22,19 +28,15 @@ class SLATier extends Model
 
     protected $fillable = [
         'name',
-        'uptime_pct',
         'response_time_hours',
         'resolution_time_hours',
-        'credit_pct',
         'is_active',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'uptime_pct' => 'decimal:2',
         'response_time_hours' => 'integer',
         'resolution_time_hours' => 'integer',
-        'credit_pct' => 'decimal:2',
     ];
 
     public function servicePackages(): HasMany

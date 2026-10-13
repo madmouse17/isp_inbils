@@ -84,8 +84,8 @@
   is_active. Soft delete.
 - `speed_profiles` — company_id, name, down_mbps, up_mbps,
   is_active. Soft delete.
-- `sla_tiers` — company_id, name, uptime_pct, response_time_hours,
-  resolution_time_hours, credit_pct, is_active. Soft delete.
+- `sla_tiers` — company_id, name, response_time_hours,
+  resolution_time_hours, is_active. Soft delete.
 
 ### NetworkAsset (Modules/NetworkAsset/Models/)
 

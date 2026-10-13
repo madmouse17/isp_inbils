@@ -100,6 +100,7 @@ trait BuildsReportingWorld
         ?string $slaDeadline,
         ?string $status = null,
         ?int $assignedTo = null,
+        ?string $responseDeadline = null,
     ): Ticket {
         // forceCreate: the Ticket factory builds a new company, category and user on every call.
         return Ticket::query()->forceCreate([
@@ -116,6 +117,7 @@ trait BuildsReportingWorld
             'first_response_at' => $firstResponseAt,
             'resolved_at' => $resolvedAt,
             'sla_deadline' => $slaDeadline,
+            'response_deadline' => $responseDeadline,
         ]);
     }
 

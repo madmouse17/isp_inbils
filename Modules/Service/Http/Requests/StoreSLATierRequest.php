@@ -18,11 +18,28 @@ class StoreSLATierRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('sla_tiers')->where('company_id', CompanyService::currentId())],
-            'uptime_pct' => ['required', 'numeric', 'min:0', 'max:100'],
-            'response_time_hours' => ['required', 'integer', 'min:1'],
-            'resolution_time_hours' => ['required', 'integer', 'min:1'],
-            'credit_pct' => ['sometimes', 'numeric', 'min:0', 'max:100'],
+            'response_time_hours' => ['required', 'integer', 'min:1', 'max:720', 'lte:resolution_time_hours'],
+            'resolution_time_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'is_active' => ['boolean'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'response_time_hours.lte' => 'Target respons tidak boleh lebih lama dari target penyelesaian.',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'name' => 'nama',
+            'response_time_hours' => 'target respons',
+            'resolution_time_hours' => 'target penyelesaian',
+            'is_active' => 'status',
         ];
     }
 }

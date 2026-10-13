@@ -358,6 +358,56 @@ class ReportDrillTest extends TestCase
         $this->assertSame(10, $rows[$this->w['t_ontime']->id]['first_response_minutes']);
     }
 
+    public function test_sla_response_lists_tie_out_and_rows_show_the_response_outcome(): void
+    {
+        $a = $this->companyId;
+        $support = $this->worldCategory($a, 'Support', 'SUP-R');
+
+        // Company A. Columns: category, created_at, first_response_at, resolved_at, sla_deadline, then the response target.
+        $this->w['r_early'] = $this->worldTicket($a, $support, '2026-01-10 08:00:00', '2026-01-10 08:30:00', '2026-01-10 12:00:00', '2026-01-10 16:00:00', responseDeadline: '2026-01-10 09:00:00');
+        $this->w['r_equal'] = $this->worldTicket($a, $support, '2026-01-11 08:00:00', '2026-01-11 09:00:00', '2026-01-11 12:00:00', '2026-01-11 16:00:00', responseDeadline: '2026-01-11 09:00:00');
+        $this->w['r_late'] = $this->worldTicket($a, $support, '2026-01-12 08:00:00', '2026-01-12 09:00:01', '2026-01-12 12:00:00', '2026-01-12 16:00:00', responseDeadline: '2026-01-12 09:00:00');
+        $this->w['r_old'] = $this->worldTicket($a, $support, '2026-01-13 08:00:00', '2026-01-13 08:10:00', '2026-01-13 12:00:00', '2026-01-13 16:00:00');
+        $this->w['r_silent'] = $this->worldTicket($a, $support, '2026-01-14 08:00:00', null, '2026-01-14 12:00:00', '2026-01-14 16:00:00', responseDeadline: '2026-01-14 09:00:00');
+        $this->worldTicket($a, $support, '2026-01-15 08:00:00', '2026-01-15 11:00:00', null, '2026-01-15 16:00:00', responseDeadline: '2026-01-15 09:00:00');
+
+        $supportB = $this->worldCategory($this->otherCompanyId, 'Support', 'SUP-RB');
+        $this->worldTicket($this->otherCompanyId, $supportB, '2026-01-10 08:00:00', '2026-01-10 08:10:00', '2026-01-10 12:00:00', '2026-01-10 16:00:00', responseDeadline: '2026-01-10 09:00:00');
+        $this->actingAs($this->admin);
+
+        $cases = [
+            'response_on_time' => [2, ['r_early', 'r_equal']],
+            'response_breached' => [1, ['r_late']],
+            'response_without_target' => [1, ['r_old']],
+        ];
+        foreach ($cases as $metric => [$rows, $ids]) {
+            $response = $this->drill('sla', $metric, self::JANUARY);
+
+            $this->assertSame($rows, $response->inertiaProps('tie_out.rows'), $metric);
+            $this->assertEqualsCanonicalizing(
+                array_map(fn (string $name): int => $this->w[$name]->id, $ids),
+                array_column($response->inertiaProps('rows.data'), 'id'),
+                $metric,
+            );
+            $this->assertTrue($response->inertiaProps('tie_out.matches'), $metric);
+        }
+
+        // The rate judges the tickets that have a target and a first response: r_old and r_silent stay out.
+        $rate = $this->drill('sla', 'response_rate', self::JANUARY);
+        $this->assertSame(3, $rate->inertiaProps('tie_out.rows'));
+        $this->assertSame(2, $rate->inertiaProps('tie_out.compliant'));
+        $this->assertEquals(66.7, $rate->inertiaProps('tie_out.figure'));
+        $this->assertTrue($rate->inertiaProps('tie_out.matches'));
+
+        $rows = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id');
+        $this->assertSame('On time', $rows[$this->w['r_early']->id]['response']);
+        $this->assertSame('On time', $rows[$this->w['r_equal']->id]['response']);
+        $this->assertSame('Breached', $rows[$this->w['r_late']->id]['response']);
+        $this->assertSame('No target', $rows[$this->w['r_old']->id]['response']);
+        $this->assertSame('No response', $rows[$this->w['r_silent']->id]['response']);
+        $this->assertSame('2026-01-12 09:00:00', $rows[$this->w['r_late']->id]['response_deadline']);
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Asset
     // ---------------------------------------------------------------------------------------------

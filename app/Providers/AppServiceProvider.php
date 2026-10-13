@@ -85,6 +85,8 @@ use Modules\Service\Policies\SpeedProfilePolicy;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Policies\WorkOrderPolicy;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Models\TicketCategory;
+use Modules\Ticketing\Policies\TicketCategoryPolicy;
 use Modules\Ticketing\Policies\TicketPolicy;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Role;
@@ -128,6 +130,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(WorkOrder::class, WorkOrderPolicy::class);
         Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(Ticket::class, TicketPolicy::class);
+        Gate::policy(TicketCategory::class, TicketCategoryPolicy::class);
         Gate::policy(EmployeeEvaluation::class, EmployeeEvaluationPolicy::class);
         Gate::policy(OrganizationUnit::class, OrganizationPolicy::class);
         Gate::policy(EmployeeProfile::class, EmployeePolicy::class);

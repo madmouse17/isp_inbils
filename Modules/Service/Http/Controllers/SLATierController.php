@@ -16,19 +16,22 @@ use Modules\Service\Http\Requests\StoreSLATierRequest;
 use Modules\Service\Http\Requests\UpdateSLATierRequest;
 use Modules\Service\Http\Resources\SLATierResource;
 use Modules\Service\Models\SLATier;
+use Modules\Service\Services\SlaTierCompliance;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SLATierController extends Controller
 {
     use HasIndexQuery;
 
-    private const SORTABLE = ['name', 'uptime_pct', 'response_time_hours', 'resolution_time_hours', 'credit_pct', 'created_at'];
+    private const SORTABLE = ['name', 'response_time_hours', 'resolution_time_hours', 'created_at'];
 
-    public function index(Request $request): InertiaResponse
+    public function index(Request $request, SlaTierCompliance $compliance): InertiaResponse
     {
         Gate::authorize('viewAny', SLATier::class);
 
         $slaTiers = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
+        $results = $compliance->forTiers($slaTiers->getCollection()->pluck('id')->all());
+        $slaTiers->getCollection()->each(fn (SLATier $tier) => $tier->forceFill($results[$tier->id]));
 
         return Inertia::render('Admin/Service/SLATiers/Index', [
             'slaTiers' => SLATierResource::collection($slaTiers),
@@ -89,19 +92,15 @@ class SLATierController extends Controller
 
         $columns = [
             'name' => 'Name',
-            'uptime_pct' => 'Uptime %',
             'response_time_hours' => 'Response Time',
             'resolution_time_hours' => 'Resolution Time',
-            'credit_pct' => 'Credit %',
             'is_active' => 'Status',
         ];
 
         $map = static fn (SLATier $tier): array => [
             'name' => $tier->name,
-            'uptime_pct' => $tier->uptime_pct,
             'response_time_hours' => $tier->response_time_hours,
             'resolution_time_hours' => $tier->resolution_time_hours,
-            'credit_pct' => $tier->credit_pct,
             'is_active' => $tier->is_active ? 'Active' : 'Inactive',
         ];
 

@@ -50,6 +50,7 @@ class ServicePackage extends Model
         return $this->belongsTo(SpeedProfile::class);
     }
 
+    /** @return BelongsTo<SLATier, $this> */
     public function slaTier(): BelongsTo
     {
         return $this->belongsTo(SLATier::class, 'sla_tier_id');

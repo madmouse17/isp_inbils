@@ -92,6 +92,13 @@
             "anyOf": ["service.view", "service.manage"]
         },
         {
+            "group": "Pelanggan & Layanan",
+            "label": "Kategori Tiket",
+            "href": "/admin/ticket-categories",
+            "route": "admin.ticket-categories.index",
+            "anyOf": ["ticket.category.manage"]
+        },
+        {
             "group": "Jaringan",
             "label": "Lokasi",
             "href": "/admin/locations",

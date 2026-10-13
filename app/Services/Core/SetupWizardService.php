@@ -74,8 +74,6 @@ class SetupWizardService
             'tax_ppn_rate' => 11,
             'spk_auto_invoice' => false,
             'spk_stock_reservation_mode' => 'reserve_on_assign',
-            'ticket_default_sla_hours' => 24,
-            'ticket_sla_mode' => 'calendar',
             'billing_default_due_days' => 30,
             'invoice_prefix' => 'INV',
             'spk_prefix' => 'SPK',

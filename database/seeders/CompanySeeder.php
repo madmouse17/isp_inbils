@@ -109,14 +109,14 @@ class CompanySeeder extends Seeder
 
     private function seedSlaTiers(Company $company): void
     {
-        if (! Schema::hasTable('sla_tiers') || ! Schema::hasColumns('sla_tiers', ['company_id', 'name', 'uptime_pct', 'response_time_hours', 'resolution_time_hours', 'credit_pct'])) {
+        if (! Schema::hasTable('sla_tiers') || ! Schema::hasColumns('sla_tiers', ['company_id', 'name', 'response_time_hours', 'resolution_time_hours'])) {
             return;
         }
 
         foreach ([
-     ['name' => 'Bronze', 'uptime_pct' => 99.00, 'response_time_hours' => 24, 'resolution_time_hours' => 48, 'credit_pct' => 5],
-            ['name' => 'Silver', 'uptime_pct' => 99.50, 'response_time_hours' => 8, 'resolution_time_hours' => 24, 'credit_pct' => 10],
-            ['name' => 'Gold', 'uptime_pct' => 99.90, 'response_time_hours' => 4, 'resolution_time_hours' => 12, 'credit_pct' => 15],
+            ['name' => 'Bronze', 'response_time_hours' => 24, 'resolution_time_hours' => 48],
+            ['name' => 'Silver', 'response_time_hours' => 8, 'resolution_time_hours' => 24],
+            ['name' => 'Gold', 'response_time_hours' => 4, 'resolution_time_hours' => 12],
         ] as $tier) {
             DB::table('sla_tiers')->updateOrInsert(
                 ['company_id' => $company->id, 'name' => $tier['name']],

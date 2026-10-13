@@ -8,10 +8,8 @@ import { PageHeader } from '@/Components/composite';
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
-        uptime_pct: '',
         response_time_hours: '',
         resolution_time_hours: '',
-        credit_pct: '',
         is_active: true,
     });
 
@@ -21,11 +19,11 @@ export default function Create() {
     };
 
     return (
-        <AdminLayout title="Create SLA Tier">
+        <AdminLayout title="Tambah Tingkat SLA">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create SLA Tier"
-                    subtitle="Fill required fields, then save."
+                    title="Tambah Tingkat SLA"
+                    subtitle="Target layanan per paket. Hasil diukur otomatis dari tiket."
                     actions={
                         <Button
                             asChild
@@ -33,64 +31,56 @@ export default function Create() {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.sla-tiers.index')}>Back</Link>
+                            <Link href={route('admin.sla-tiers.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Target layanan</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <Input
-                                label="Uptime (%)"
+                                label="Target respons (jam)"
                                 type="number"
-                                step="0.01"
-                                value={data.uptime_pct}
-                                onChange={(e) => setData('uptime_pct', e.target.value)}
-                                error={errors.uptime_pct}
-                                required
-                            />
-                            <Input
-                                label="Response Time (hours)"
-                                type="number"
+                                min={1}
+                                max={720}
                                 value={data.response_time_hours}
                                 onChange={(e) => setData('response_time_hours', e.target.value)}
                                 error={errors.response_time_hours}
+                                hint="Batas waktu sampai teknisi menekan Mulai pada tiket."
                                 required
                             />
                             <Input
-                                label="Resolution Time (hours)"
+                                label="Target penyelesaian (jam)"
                                 type="number"
+                                min={1}
+                                max={720}
                                 value={data.resolution_time_hours}
                                 onChange={(e) => setData('resolution_time_hours', e.target.value)}
                                 error={errors.resolution_time_hours}
-                                required
-                            />
-                            <Input
-                                label="Credit (%)"
-                                type="number"
-                                step="0.01"
-                                value={data.credit_pct}
-                                onChange={(e) => setData('credit_pct', e.target.value)}
-                                error={errors.credit_pct}
+                                hint="Batas waktu sampai tiket diselesaikan."
                                 required
                             />
                             <div className="flex items-end">
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
                             </div>
+                            <p className="text-sm text-muted-foreground md:col-span-2">
+                                Tiket berprioritas urgent memakai setengah dari kedua target
+                                (dibulatkan ke atas). Jam dihitung kalender, bukan jam kerja.
+                            </p>
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
@@ -99,10 +89,10 @@ export default function Create() {
                             variant="outline"
                             onClick={() => router.get(route('admin.sla-tiers.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="success" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

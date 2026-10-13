@@ -59,6 +59,7 @@ Accepted residuals (not permission-level splits): the manager keeps `spk.create`
 | `report.export` | Yes | Yes | - | - | - |
 | `report.technician` | Yes | Yes | - | Yes | - |
 | `ticket.attachment.upload` | Yes | - | Yes | Yes | Yes |
+| `ticket.category.manage` | Yes | Yes | - | - | - |
 | `users.two_factor.reset` | Yes | - | - | - | - |
 
 ### 2.4 Stock adjustment workflow and break-glass
@@ -107,6 +108,16 @@ Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder 
 - **Inactive users**: `users.is_active` is part of the credentials lookup (`LoginRequest::validateCredentials`), so an inactive user gets exactly the wrong-password message and no session. A user deactivated between the password step and the challenge is sent back to the login without the code being checked. Sessions and remember-me cookies that exist when a user is deactivated are *not* ended: there is no per-request check for web sessions yet. API tokens are different (section 4.2).
 - **Forgot password**: `POST /forgot-password` is limited to 6 per minute per address and always answers with the same status ("If an account exists for that email address, we have emailed a password reset link."), whether or not the address has an account, and also inside the broker's 60 s wait time. The link is sent after the response (`Illuminate\Support\defer`), so the time it takes does not say either; a mail transport failure is reported to the log, not to the visitor.
 
+### 3.7 Tenant deactivation (`companies.is_active` false)
+A suspended company is refused wherever its users act, not only in scheduled jobs and the company switcher:
+- **Web login**: `LoginRequest::validateCredentials` (shared with the mobile API login) answers 422 "Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan." once the credentials are right, when the user's home company is suspended and no other active membership exists. No session and no token. A wrong credential never sees this message. A user with another active membership logs in and starts there (`active_company_id` is set by `OpensSession`).
+- **Every web request**: `CompanyService::canActIn` and `idFor` honour `is_active` for the home company too. `ResolveActiveCompany` (web group) moves a session whose effective company is suspended to the first active membership, or signs it out and redirects to the login with the same message.
+- **Mobile API**: `EnsureApiUserIsActive` answers 403 `company_inactive` when the home company is suspended (the apps act in the home company only). The token is not deleted: reactivating the company restores access.
+- **Tokens**: on `Company::updated` with `is_active` true to false, `ApiTokenService::revokeForSuspendedCompany` deletes all tokens of users who have that company as home or membership and no other active company, audited as `api.tokens_revoked` with reason `company_suspended`. Users who keep an active company keep their tokens. A writer that skips the model (bulk update) is still caught by the 403 above.
+- **Flip race**: a token minted during the flip survives the revocation but is refused with 403 `company_inactive` on every call.
+- **Two-factor window**: `OpensSession` (the end of both the password and the code step) re-checks `CompanyService::canEnter`, so a company suspended between the two opens no session.
+- Scheduled jobs are unchanged: they already skip inactive companies.
+
 ## 4. Mobile API (customer and technician apps)
 
 `/api/v1`, Laravel Sanctum bearer tokens, no session and no cookies (`statefulApi()` stays off). Specification and decisions: `.scratch/mobile-api/spec.md`; contract: `docs/api/mobile-v1.openapi.json`. Nothing in this section reaches the browser UI.
@@ -121,6 +132,7 @@ Run `php artisan migrate` and `php artisan db:seed --class=RolePermissionSeeder 
 Every one of these deletes all of the user's tokens, so the next call is 401:
 - the password changes by any path (reset, profile, admin edit);
 - the user is deactivated (`is_active` false) or deleted;
+- the company of the user is suspended and leaves them no active company (reason `company_suspended`, section 3.7);
 - two-factor is enabled, disabled, its recovery codes are regenerated, or an admin resets it (`TwoFactorService::endOtherLogins`).
 
 The hooks sit on the `User` model, so every writer is covered. Also: logout deletes the current token; `DELETE /api/v1/devices/{id}` deletes one of the user's own other tokens (a lost phone); an inactive user is refused on every request with 401 `account_inactive` and the token is deleted.

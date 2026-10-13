@@ -161,13 +161,13 @@ class MetricRegistryTest extends TestCase
     {
         $this->assertCount(13, MetricRegistry::forReport(ReportType::Business));
         $this->assertCount(7, MetricRegistry::forReport(ReportType::Sales));
-        $this->assertCount(7, MetricRegistry::forReport(ReportType::Sla));
+        $this->assertCount(11, MetricRegistry::forReport(ReportType::Sla));
         $this->assertCount(5, MetricRegistry::forReport(ReportType::Asset));
         $this->assertCount(11, MetricRegistry::forReport(ReportType::Technician));
         $this->assertCount(3, MetricRegistry::forReport(ReportType::StockCard));
         $this->assertCount(0, MetricRegistry::forReport(ReportType::AuditLog));
         $this->assertCount(0, MetricRegistry::forReport(ReportType::Dictionary));
-        $this->assertCount(46, MetricRegistry::all());
+        $this->assertCount(50, MetricRegistry::all());
     }
 
     public function test_keys_are_unique_within_a_report(): void

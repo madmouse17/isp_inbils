@@ -108,7 +108,8 @@ enum DrillKind: string
             ],
             self::Ticket => [
                 'code' => 'Ticket', 'title' => 'Title', 'category' => 'Category', 'status' => 'Status',
-                'created_at' => 'Created', 'first_response_at' => 'First response', 'resolved_at' => 'Resolved',
+                'created_at' => 'Created', 'first_response_at' => 'First response', 'response_deadline' => 'Response deadline',
+                'response' => 'Response', 'resolved_at' => 'Resolved',
                 'sla_deadline' => 'SLA deadline', 'sla' => 'SLA', 'resolution_minutes' => 'Resolution (min)',
                 'first_response_minutes' => 'First response (min)',
             ],
@@ -155,7 +156,7 @@ enum DrillKind: string
         return match ($this) {
             self::Subscription => ['code' => 'code', 'status' => 'status', 'mrc_amount' => 'mrc_amount', 'created_at' => 'created_at', 'terminated_at' => 'terminated_at'],
             self::Invoice => ['number' => 'number', 'type' => 'type', 'status' => 'status', 'issue_date' => 'issue_date', 'total' => 'total', 'paid_amount' => 'paid_amount'],
-            self::Ticket => ['code' => 'code', 'status' => 'status', 'created_at' => 'created_at', 'resolved_at' => 'resolved_at', 'sla_deadline' => 'sla_deadline'],
+            self::Ticket => ['code' => 'code', 'status' => 'status', 'created_at' => 'created_at', 'resolved_at' => 'resolved_at', 'sla_deadline' => 'sla_deadline', 'response_deadline' => 'response_deadline'],
             self::WorkOrder => ['code' => 'code', 'type' => 'type', 'status' => 'status', 'started_at' => 'started_at', 'completed_at' => 'completed_at', 'created_at' => 'created_at'],
             self::Asset => ['code' => 'code', 'name' => 'name', 'asset_type' => 'asset_type', 'status' => 'status', 'created_at' => 'created_at'],
             self::Installation => ['installed_at' => 'installed_at', 'removed_at' => 'removed_at'],
@@ -224,6 +225,8 @@ enum DrillKind: string
                 'status' => $get('status'),
                 'created_at' => self::moment($get('created_at')),
                 'first_response_at' => self::moment($get('first_response_at')),
+                'response_deadline' => self::moment($get('response_deadline')),
+                'response' => self::responseOutcome($get('first_response_at'), $get('response_deadline')),
                 'resolved_at' => self::moment($get('resolved_at')),
                 'sla_deadline' => self::moment($get('sla_deadline')),
                 'sla' => self::slaOutcome($get('resolved_at'), $get('sla_deadline')),
@@ -302,6 +305,16 @@ enum DrillKind: string
             $resolvedAt === null => '',
             $deadline === null => 'No deadline',
             $resolvedAt->lessThanOrEqualTo($deadline) => 'On time',
+            default => 'Breached',
+        };
+    }
+
+    private static function responseOutcome(?CarbonInterface $respondedAt, ?CarbonInterface $deadline): string
+    {
+        return match (true) {
+            $deadline === null => 'No target',
+            $respondedAt === null => 'No response',
+            $respondedAt->lessThanOrEqualTo($deadline) => 'On time',
             default => 'Breached',
         };
     }

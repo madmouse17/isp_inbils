@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Services\TicketService;
 
 /** @mixin Ticket */
 class TicketResource extends JsonResource
@@ -35,11 +36,13 @@ class TicketResource extends JsonResource
             'assigned_to' => $this->assigned_to,
             'spawned_spk_id' => $this->spawned_spk_id,
             'sla_deadline' => $this->sla_deadline,
+            'response_deadline' => $this->response_deadline,
             'first_response_at' => $this->first_response_at,
             'resolved_at' => $this->resolved_at,
             'closed_at' => $this->closed_at,
             'resolution_note' => $this->resolution_note,
             'is_sla_breached' => $this->is_sla_breached,
+            'is_response_breached' => $this->is_response_breached,
             'created_by' => $this->created_by,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
@@ -51,6 +54,8 @@ class TicketResource extends JsonResource
             'assignee' => new UserResource($this->whenLoaded('assignee')),
             'comments' => TicketCommentResource::collection($this->whenLoaded('comments')),
             'attachments' => MediaResource::collection($this->getMedia('attachments')),
+            // Show page only: naming the source loads the subscription's package and tier.
+            'deadline_source' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => TicketService::deadlineSource($this->resource)),
             'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?string => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : FieldCheckIn::summary($record)),
             // Show page only: lists and exports skip the per-row policy checks.
             'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [

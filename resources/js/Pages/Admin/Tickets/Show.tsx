@@ -23,6 +23,8 @@ import {
 } from '@/Components/ui';
 import { MediaPreview, PageHeader, StatusBadge } from '@/Components/composite';
 
+type DeadlineSource = { type: 'tier' | 'category'; name: string };
+
 interface TData {
     id: number;
     code: string;
@@ -36,6 +38,9 @@ interface TData {
     can?: { start: boolean; close: boolean };
     is_sla_breached: boolean;
     sla_deadline?: string | null;
+    response_deadline: string | null;
+    deadline_source: DeadlineSource;
+    is_response_breached: boolean;
     first_response_at?: string | null;
     resolved_at?: string | null;
     closed_at?: string | null;
@@ -81,6 +86,10 @@ const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 
 
 export default function Show({ ticket }: ShowProps) {
     const t = ticket.data;
+    const sourceLabel =
+        t.deadline_source.type === 'tier'
+            ? `Target ${t.deadline_source.name}`
+            : `Target kategori ${t.deadline_source.name}`;
     const { toast } = useToast();
     const [actionModal, setActionModal] = useState<
         'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
@@ -270,18 +279,33 @@ export default function Show({ ticket }: ShowProps) {
                                     {t.priority}
                                 </Badge>
                             </p>
-                            {t.is_sla_breached && (
-                                <p>
-                                    <Badge variant="danger">SLA Breached</Badge>
-                                </p>
-                            )}
                             <p>
-                                <span className="text-muted-foreground">SLA Deadline: </span>
-                                {t.sla_deadline ?? '-'}
+                                <span className="text-muted-foreground">Target respons: </span>
+                                {t.response_deadline ?? 'Tanpa target respons'}
+                                {t.response_deadline && (
+                                    <span className="text-muted-foreground"> ({sourceLabel})</span>
+                                )}
+                                {t.is_response_breached && (
+                                    <Badge variant="danger" className="ml-2">
+                                        Respons terlambat
+                                    </Badge>
+                                )}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">First Response: </span>
+                                <span className="text-muted-foreground">Respons pertama: </span>
                                 {t.first_response_at ?? '-'}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">Target penyelesaian: </span>
+                                {t.sla_deadline ?? '-'}
+                                {t.sla_deadline && (
+                                    <span className="text-muted-foreground"> ({sourceLabel})</span>
+                                )}
+                                {t.is_sla_breached && (
+                                    <Badge variant="danger" className="ml-2">
+                                        Penyelesaian terlambat
+                                    </Badge>
+                                )}
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Check-in: </span>

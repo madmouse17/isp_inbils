@@ -9,7 +9,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -43,16 +43,17 @@ class TicketService
 
             $category = TicketCategory::withoutCompany()->where('company_id', $companyId)->lockForUpdate()->findOrFail($data['category_id'] ?? null);
             self::assertCreateReferences($data, $companyId, $category);
-            $priority = $data['priority'] ?? $category->default_priority ?? 'medium';
 
             $data['company_id'] = $companyId;
             $data['category_id'] = $category->id;
             $data['code'] = NumberSequenceService::generate('ticket', $companyId);
             $data['status'] = $data['status'] ?? 'open';
             $data['created_by'] = $createdBy;
-            $data['sla_deadline'] = self::computeSlaDeadline($category, $priority);
 
-            $ticket = Ticket::create($data);
+            $ticket = new Ticket($data);
+            $ticket->setRelation('category', $category);
+            $deadlines = self::computeDeadlines($ticket);
+            $ticket->fill(['sla_deadline' => $deadlines['resolution'], 'response_deadline' => $deadlines['response']])->save();
 
             AuditService::log('ticket', 'created', [
                 'code' => $ticket->code,
@@ -65,15 +66,58 @@ class TicketService
         });
     }
 
-    public static function computeSlaDeadline(TicketCategory $category, string $priority): Carbon
+    /**
+     * When the ticket must get its first response and its resolution, counted in calendar hours from now.
+     * Priority urgent halves both targets, rounded up.
+     *
+     * @return array{response: ?CarbonImmutable, resolution: CarbonImmutable}
+     */
+    public static function computeDeadlines(Ticket $ticket): array
     {
-        $hours = (int) $category->default_sla_hours;
+        $target = self::slaTarget($ticket);
+        $urgent = ($ticket->priority ?? $ticket->category->default_priority) === 'urgent';
+        $from = now()->toImmutable();
+        $within = static fn (int $hours): CarbonImmutable => $from->addHours($urgent ? (int) ceil($hours / 2) : $hours);
 
-        if ($priority === 'urgent') {
-            $hours = (int) ceil($hours / 2);
+        return [
+            'response' => $target['response_hours'] === null ? null : $within($target['response_hours']),
+            'resolution' => $within($target['resolution_hours']),
+        ];
+    }
+
+    /**
+     * Where the targets of the ticket come from, as the ticket page names it: an SLA tier or a category.
+     *
+     * @return array{type: 'tier'|'category', name: string}
+     */
+    public static function deadlineSource(Ticket $ticket): array
+    {
+        ['type' => $type, 'name' => $name] = self::slaTarget($ticket);
+
+        return ['type' => $type, 'name' => $name];
+    }
+
+    /**
+     * The targets a ticket is held to: those of the active SLA tier of its subscription's package, else those of its
+     * category. Tiers and subscriptions of another company never load, so they never lend their targets.
+     *
+     * @return array{type: 'tier'|'category', name: string, response_hours: ?int, resolution_hours: int}
+     */
+    private static function slaTarget(Ticket $ticket): array
+    {
+        $ticket->loadMissing(['category', 'subscription.servicePackage.slaTier']);
+        $tier = $ticket->subscription?->servicePackage?->slaTier;
+
+        if ($tier?->is_active) {
+            return ['type' => 'tier', 'name' => $tier->name, 'response_hours' => $tier->response_time_hours, 'resolution_hours' => $tier->resolution_time_hours];
         }
 
-        return now()->addHours($hours);
+        return [
+            'type' => 'category',
+            'name' => $ticket->category->name,
+            'response_hours' => $ticket->category->default_response_hours,
+            'resolution_hours' => $ticket->category->default_sla_hours,
+        ];
     }
 
     public static function assign(Ticket $ticket, int $handlerId, int $assignedBy, mixed $expectedAssignedTo = self::MISSING_EXPECTED_ASSIGNED_TO, mixed $expectedUpdatedAt = self::MISSING_EXPECTED_UPDATED_AT): Ticket

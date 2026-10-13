@@ -38,6 +38,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?int $assigned_to
  * @property ?int $spawned_spk_id
  * @property ?Carbon $sla_deadline
+ * @property ?Carbon $response_deadline
  * @property ?Carbon $sla_breached_notified_at
  * @property ?Carbon $first_response_at
  * @property ?Carbon $resolved_at
@@ -48,6 +49,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?Carbon $updated_at
  * @property ?Carbon $deleted_at
  * @property-read bool $is_sla_breached
+ * @property-read bool $is_response_breached
  * @property-read TicketCategory|null $category
  * @property-read Customer|null $customer
  * @property-read ServiceSubscription|null $subscription
@@ -69,12 +71,13 @@ class Ticket extends Model implements HasMedia
     protected $fillable = [
         'company_id', 'code', 'title', 'description', 'source', 'category_id', 'status', 'priority',
         'customer_id', 'subscription_id', 'network_asset_id', 'location_id',
-        'assigned_to', 'spawned_spk_id', 'sla_deadline', 'first_response_at',
+        'assigned_to', 'spawned_spk_id', 'sla_deadline', 'response_deadline', 'first_response_at',
         'resolved_at', 'closed_at', 'resolution_note', 'created_by',
     ];
 
     protected $casts = [
         'sla_deadline' => 'datetime',
+        'response_deadline' => 'datetime',
         'first_response_at' => 'datetime',
         'resolved_at' => 'datetime',
         'closed_at' => 'datetime',
@@ -132,6 +135,16 @@ class Ticket extends Model implements HasMedia
         }
 
         return $this->sla_deadline !== null && $this->sla_deadline->isPast();
+    }
+
+    /** Late when the first response came after the target, or when none has come yet and the target has passed. */
+    public function getIsResponseBreachedAttribute(): bool
+    {
+        if ($this->response_deadline === null) {
+            return false;
+        }
+
+        return ($this->first_response_at ?? now())->greaterThan($this->response_deadline);
     }
 
     public function getActivitylogOptions(): LogOptions

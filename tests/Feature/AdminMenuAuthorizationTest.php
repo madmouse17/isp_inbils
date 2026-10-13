@@ -335,6 +335,18 @@ class AdminMenuAuthorizationTest extends TestCase
         }
     }
 
+    public function test_ticket_category_manage_alone_opens_ticket_categories_and_ticket_view_does_not(): void
+    {
+        $this->actingAs($this->userWithPermissions(['ticket.category.manage']))
+            ->get(route('admin.ticket-categories.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Tickets/Categories/Index'));
+
+        $this->actingAs($this->userWithPermissions(['ticket.view', 'service.manage']))
+            ->get(route('admin.ticket-categories.index'))
+            ->assertForbidden();
+    }
+
     public function test_dispatch_opens_for_assign_or_reassign_of_an_active_user_only(): void
     {
         foreach (['ticket.assign', 'ticket.reassign', 'spk.assign', 'spk.reassign'] as $permission) {

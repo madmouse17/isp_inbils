@@ -39,10 +39,10 @@ class ServiceCatalogSeeder extends Seeder
         ])->map(fn (array $data) => SpeedProfile::query()->firstOrCreate(['company_id' => $companyId, 'name' => $data['name']], $data + ['is_active' => true]));
 
         $slas = collect([
-            ['name' => 'Bronze', 'uptime_pct' => 99.00, 'response_time_hours' => 24, 'resolution_time_hours' => 48, 'credit_pct' => 0],
-            ['name' => 'Silver', 'uptime_pct' => 99.50, 'response_time_hours' => 8, 'resolution_time_hours' => 24, 'credit_pct' => 5],
-            ['name' => 'Gold', 'uptime_pct' => 99.90, 'response_time_hours' => 4, 'resolution_time_hours' => 12, 'credit_pct' => 10],
-            ['name' => 'Platinum', 'uptime_pct' => 99.95, 'response_time_hours' => 2, 'resolution_time_hours' => 8, 'credit_pct' => 15],
+            ['name' => 'Bronze', 'response_time_hours' => 24, 'resolution_time_hours' => 48],
+            ['name' => 'Silver', 'response_time_hours' => 8, 'resolution_time_hours' => 24],
+            ['name' => 'Gold', 'response_time_hours' => 4, 'resolution_time_hours' => 12],
+            ['name' => 'Platinum', 'response_time_hours' => 2, 'resolution_time_hours' => 8],
         ])->map(fn (array $data) => SLATier::query()->firstOrCreate(['company_id' => $companyId, 'name' => $data['name']], $data + ['is_active' => true]));
 
         foreach ([

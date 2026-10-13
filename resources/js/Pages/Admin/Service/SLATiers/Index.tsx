@@ -9,14 +9,16 @@ import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatNumber } from '@/lib/format';
 
 type Row = {
     id: number;
     name: string;
-    code?: string | null;
     response_time_hours?: number | string | null;
     resolution_time_hours?: number | string | null;
+    response_on_time_rate_30d: number | null;
+    resolution_on_time_rate_30d: number | null;
+    tickets_30d: number;
     created_at: string | null;
 };
 
@@ -48,7 +50,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
         () => [
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
                 cell: (row) => (
@@ -62,7 +64,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
             },
             {
                 key: 'response_time_hours',
-                header: 'Response (h)',
+                header: 'Target respons (jam)',
                 sortable: true,
                 sortKey: 'response_time_hours',
                 className: 'text-right tabular-nums',
@@ -70,28 +72,52 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
             },
             {
                 key: 'resolution_time_hours',
-                header: 'Resolution (h)',
+                header: 'Target penyelesaian (jam)',
                 sortable: true,
                 sortKey: 'resolution_time_hours',
                 className: 'text-right tabular-nums',
                 cell: (row) => String(row.resolution_time_hours ?? '—'),
             },
             {
+                key: 'response_on_time_rate_30d',
+                header: 'Respons tepat waktu (30 hari)',
+                className: 'text-right tabular-nums',
+                cell: (row) =>
+                    row.response_on_time_rate_30d === null
+                        ? '—'
+                        : `${row.response_on_time_rate_30d}%`,
+            },
+            {
+                key: 'resolution_on_time_rate_30d',
+                header: 'Penyelesaian tepat waktu (30 hari)',
+                className: 'text-right tabular-nums',
+                cell: (row) =>
+                    row.resolution_on_time_rate_30d === null
+                        ? '—'
+                        : `${row.resolution_on_time_rate_30d}%`,
+            },
+            {
+                key: 'tickets_30d',
+                header: 'Tiket (30 hari)',
+                className: 'text-right tabular-nums',
+                cell: (row) => formatNumber(row.tickets_30d),
+            },
+            {
                 key: 'created_at',
-                header: 'Created',
+                header: 'Dibuat',
                 sortable: true,
                 sortKey: 'created_at',
                 cell: (row) => formatDate(row.created_at),
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => (
                     <DataTableActions
                         editHref={route('admin.sla-tiers.edit', row.id)}
                         deleteHref={route('admin.sla-tiers.destroy', row.id)}
-                        deleteMessage={`Delete ${row.name}?`}
-                        deleteDescription={`This will permanently remove the SLA tier "${row.name}".`}
+                        deleteMessage={`Hapus ${row.name}?`}
+                        deleteDescription={`Tingkat SLA "${row.name}" akan dihapus permanen.`}
                     />
                 ),
             },
@@ -105,7 +131,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
             <div className="space-y-4 p-4 md:p-6">
                 <PageHeader
                     title="Tingkat SLA"
-                    description="Response and resolution targets."
+                    description="Target layanan per paket. Hasil diukur otomatis dari tiket. Tiket urgent memakai setengah dari target."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -119,7 +145,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                                 <Button asChild variant="success" size="sm">
                                     <Link href={route('admin.sla-tiers.create')}>
                                         <Plus className="size-4" />
-                                        New tier
+                                        Tingkat baru
                                     </Link>
                                 </Button>
                             ) : null}
@@ -133,13 +159,13 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                             className="text-xs font-medium text-muted-foreground"
                             htmlFor="sla-search"
                         >
-                            Search
+                            Cari
                         </label>
                         <Input
                             id="sla-search"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Name…"
+                            placeholder="Nama…"
                         />
                     </div>
                 </div>
@@ -152,8 +178,8 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     onSort={onSort}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(perPage) => set('per_page', perPage)}
-                    emptyTitle="No SLA tiers"
-                    emptyDescription="No SLA tiers match the current filters."
+                    emptyTitle="Belum ada tingkat SLA"
+                    emptyDescription="Tidak ada tingkat SLA yang cocok dengan filter."
                     loading={processing}
                 />
             </div>

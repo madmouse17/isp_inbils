@@ -26,6 +26,11 @@ class SlaComplianceQuery
 
         $breachCount = SlaSources::breached(clone $query)->count();
 
+        $responseOnTime = SlaSources::respondedOnTime(clone $query)->count();
+        $responseBreached = SlaSources::responseBreached(clone $query)->count();
+        $responseWithoutTarget = SlaSources::withoutResponseTarget(clone $query)->count();
+        $judged = $responseOnTime + $responseBreached;
+
         $byCategory = SlaSources::resolvedByCategory($companyId)
             ->select('ticket_categories.name',
                 DB::raw('count(*) as total'),
@@ -39,6 +44,10 @@ class SlaComplianceQuery
             'sla_compliant' => $compliant,
             'sla_rate' => $rate,
             'breach_count' => $breachCount,
+            'response_on_time' => $responseOnTime,
+            'response_breached' => $responseBreached,
+            'response_without_target' => $responseWithoutTarget,
+            'response_rate' => $judged > 0 ? round(($responseOnTime / $judged) * 100, 1) : null,
             'avg_resolution_minutes' => $avgResolution ? round($avgResolution) : null,
             'avg_frt_minutes' => $avgFrt ? round($avgFrt) : null,
             'by_category' => $byCategory,

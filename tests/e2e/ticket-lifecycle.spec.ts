@@ -77,17 +77,21 @@ test.describe('@lifecycle ticket', () => {
         await expect(page.getByText(comment)).toBeVisible();
         await expect(page.getByText(resolution)).toBeVisible();
 
-        const firstResponse = await detailValue(page, 'First Response:');
+        const firstResponse = await detailValue(page, 'Respons pertama:');
         expect(firstResponse.trim()).not.toBe('');
         expect(firstResponse.trim()).not.toBe('-');
 
-        const deadlineText = await detailValue(page, 'SLA Deadline:');
+        // The line ends with the target's source in parentheses, e.g. "(Target kategori Gangguan)".
+        const deadlineText = (await detailValue(page, 'Target penyelesaian:')).replace(
+            /\s*\(Target [^)]*\)$/,
+            '',
+        );
         expect(deadlineText.trim()).not.toBe('-');
         const deadline = parseDate(deadlineText);
         const resolvedText = await detailValue(page, 'Resolved:');
         const resolvedAt = parseDate(resolvedText);
         expect(resolvedAt.getTime()).toBeLessThanOrEqual(deadline.getTime());
-        await expect(page.getByText('SLA Breached')).toHaveCount(0);
+        await expect(page.getByText('Penyelesaian terlambat')).toHaveCount(0);
 
         // --- Close: the manager (checker, not the handler) closes the technician's work ---
         await settleAppChunks(page);

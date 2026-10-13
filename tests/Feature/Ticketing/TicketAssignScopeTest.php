@@ -272,26 +272,6 @@ class TicketAssignScopeTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_sla_deadline_halved_for_urgent_priority(): void
-    {
-        $admin = $this->createCompanyUser();
-        $this->actingAs($admin);
-        $category = TicketCategory::create([
-            'company_id' => $admin->company_id,
-            'name' => 'Support',
-            'code' => 'SUP-SLA',
-            'default_sla_hours' => 8,
-            'default_priority' => 'medium',
-            'is_active' => true,
-        ]);
-
-        $normal = TicketService::computeSlaDeadline($category, 'medium');
-        $urgent = TicketService::computeSlaDeadline($category, 'urgent');
-
-        $this->assertEqualsWithDelta(now()->addHours(8)->timestamp, $normal->timestamp, 2);
-        $this->assertEqualsWithDelta(now()->addHours(4)->timestamp, $urgent->timestamp, 2);
-    }
-
     private function makeOpenTicket(User $admin): Ticket
     {
         $category = TicketCategory::create([

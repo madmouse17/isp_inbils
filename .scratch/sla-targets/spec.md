@@ -1,6 +1,6 @@
 # SLA targets drive ticket deadlines; measurement stays automatic
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `sla-targets`
 Source: owner question 2026-10-14 (grill-me): "kenapa pada sla bisa create manual? bukannya itu dinilai langsung atas kinerjanya?". Owner approved round 1 (S1–S6, all recommended) and asked for specs/tickets and implementation ("ya buatkan tickets atau specs … langsung gunakan skill implement"). Round-2 items (D1–D4) decided by the assistant on the owner's behalf.
 
@@ -36,3 +36,7 @@ Source: owner question 2026-10-14 (grill-me): "kenapa pada sla bisa create manua
 ## Tickets
 
 01-backend-deadlines-and-metrics · 02-backend-cleanup-and-categories · 03-ui-tier-category-ticket · 04-qa-review-release
+
+## Order
+
+This lane runs before `ui-consistency` tickets 04, 05 and 08 (same files: SLA tier pages/requests/model, `TicketService` and ticket pages, SLA report and exports). Those tickets start after this lane is merged.

@@ -198,6 +198,17 @@ test('service.manage alone opens every service item (6a)', () => {
     ]);
 });
 
+test('Kategori Tiket needs ticket.category.manage; service.manage and ticket.view do not open it', () => {
+    assert.deepEqual(outline(view(['ticket.category.manage'])), [
+        ['Pelanggan & Layanan', ['Kategori Tiket']],
+    ]);
+    assert.ok(
+        !outline(view(['service.manage', 'ticket.view'])).some(([, labels]) =>
+            labels.includes('Kategori Tiket'),
+        ),
+    );
+});
+
 test('system.setting puts Documents and Number Sequences under Administration only (7a)', () => {
     assert.deepEqual(outline(view(['system.setting'])), [
         ['Administrasi', ['Dokumen', 'Penomoran']],

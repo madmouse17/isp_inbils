@@ -588,7 +588,7 @@ Pengguna yang memegang `ticket.start`, `ticket.resolve`, atau `ticket.close` tet
 
 3. Klik nomor tiket untuk membuka detail. Baris tidak punya tombol **Show**, **Edit**, atau **Delete**.
 
-Kartu **SLA terlampaui** di Dasbor (bagian 2.1) membuka daftar ini dengan filter tersembunyi `sla_breached`. Daftar hanya memuat tiket yang lewat **SLA Deadline** dan belum `resolved` atau `closed`. Layar tidak menampilkan filter itu, dan filter lain yang Anda ubah tetap membawanya. Klik **Tiket** di sidebar untuk melihat semua tiket lagi.
+Kartu **SLA terlampaui** di Dasbor (bagian 2.1) membuka daftar ini dengan filter tersembunyi `sla_breached`. Daftar hanya memuat tiket yang lewat **Target penyelesaian** dan belum `resolved` atau `closed`. Layar tidak menampilkan filter itu, dan filter lain yang Anda ubah tetap membawanya. Klik **Tiket** di sidebar untuk melihat semua tiket lagi.
 
 ### Status tiket
 
@@ -611,14 +611,14 @@ Mengganti petugas tiket `assigned` memakai `ticket.reassign` lewat Penugasan (ba
 2. Isi kartu **Details**:
    - **Title**: wajib, maksimal 255 karakter.
    - **Source**: wajib. Pilih **Customer** (isian awal), **NOC**, atau **Internal**.
-   - **Category**: wajib. Daftar memuat kategori aktif perusahaan. Kategori menentukan jam SLA.
+   - **Category**: wajib. Daftar memuat kategori aktif perusahaan. Kategori menjadi sumber target bila tiket tidak punya **Subscription** atau paket langganannya tidak punya tingkat SLA aktif. Bila ada tingkat SLA aktif, targetnya dipakai dan kategori tidak menentukan jam.
    - **Priority**: **Low**, **Medium** (isian awal), **High**, atau **Urgent**. Isian ini dipakai apa adanya, prioritas bawaan kategori tidak diterapkan form ini.
    - **Customer**: opsional di form. Isi untuk tiket dari pelanggan, karena pelanggan hanya menerima WhatsApp bila tiket punya **Customer**.
    - **Subscription**: opsional. Daftar memuat langganan `active` dan `suspended`, dan langganan harus milik pelanggan yang dipilih.
    - **Network Asset**: opsional. Daftar memuat paling banyak 100 aset pertama menurut kode (bukan aset `retired` atau `decommissioned`). Aset yang sudah terkait pelanggan atau langganan harus cocok dengan pilihan Anda.
    - **Location**: opsional, berisi lokasi aktif (kode dan nama).
    - **Description**: opsional.
-3. Klik **Create**. Daftar tiket terbuka dengan toast `Ticket created.` Tiket baru berstatus `open`, bernomor otomatis, dan **SLA Deadline** sudah terisi.
+3. Klik **Create**. Daftar tiket terbuka dengan toast `Ticket created.` Tiket baru berstatus `open`, bernomor otomatis, dan **Target respons** serta **Target penyelesaian** sudah terisi (bagian "SLA dan tenggat" di bawah).
 
 ### Membuka detail tiket
 
@@ -628,7 +628,7 @@ Mengganti petugas tiket `assigned` memakai `ticket.reassign` lewat Penugasan (ba
 
 2. Baca halaman dari atas ke bawah:
    - Kartu **Details** memuat **Category**, **Source**, **Customer**, **Subscription**, **Asset**, **Location**, **Handler**, dan **Description**. **Resolution** muncul setelah tiket diselesaikan.
-   - Kartu **Status** memuat **Code**, **Status**, **Priority**, lencana **SLA Breached** (bila lewat tenggat), **SLA Deadline**, **First Response**, **Check-in**, **Resolved**, dan **Closed**. Waktu tampil sebagai teks ISO dalam UTC, misalnya `2026-10-14T11:43:57.000000Z`.
+   - Kartu **Status** memuat **Code**, **Status**, **Priority**, **Target respons**, **Respons pertama**, **Target penyelesaian**, **Check-in**, **Resolved**, dan **Closed**. **Target respons** dan **Target penyelesaian** memuat waktu tenggat dan sumbernya dalam tanda kurung, misalnya `(Target Gold)` bila berasal dari tingkat SLA atau `(Target kategori No Internet)` bila berasal dari kategori. Tiket lama tanpa target respons menulis `Tanpa target respons`. Lencana **Respons terlambat** dan **Penyelesaian terlambat** tampil di samping tenggatnya bila terlewat. **Respons pertama** berisi waktu **Start**, atau `-` bila belum ada. Waktu tampil sebagai teks ISO dalam UTC, misalnya `2026-10-14T11:43:57.000000Z`.
    - **Check-in** memuat catatan lokasi dari aplikasi teknisi saat tiket dimulai. Tanpa catatan, tertulis `no location`.
    - Kartu **Actions** memuat tombol langkah berikut. **Assign** tampil pada tiket `open`, **Start** bagi petugas yang boleh memulai, **Resolve** pada `assigned` dan `on_progress`, **Close** bagi yang boleh menutup, dan **Spawn SPK** pada `assigned` dan `on_progress` selama belum ada catatan penyelesaian. **Add Comment** selalu tampil.
    - Kartu **Comments** dan **Attachments**.
@@ -694,11 +694,43 @@ Satu tiket hanya boleh melahirkan satu SPK. Halaman tiket tidak menampilkan taut
 
 ### SLA dan tenggat
 
-**SLA Deadline** dihitung saat tiket dibuat: waktu pembuatan ditambah jam SLA kategori. Prioritas **Urgent** memotong jam itu menjadi separuh, dibulatkan ke atas. Kategori bawaan perusahaan baru: **No Internet** 4 jam, **Slow Connection** 8, **Packet Loss** 8, **Device Issue** 12, **Fiber Issue** 12.
+Setiap tiket baru mendapat dua tenggat saat dibuat. Keduanya dihitung dalam jam kalender dari waktu pembuatan:
 
-Web tidak punya layar untuk mengubah kategori dan jam SLA-nya. Tingkat SLA paket layanan (bagian 4.5) tidak memengaruhi tenggat tiket.
+- **Target respons**: batas waktu sampai petugas menekan **Start**. Klik itu mengisi **Respons pertama**.
+- **Target penyelesaian**: batas waktu sampai tiket diselesaikan lewat **Resolve**. Isian ini tersimpan di kolom `sla_deadline`.
 
-Tiket yang lewat **SLA Deadline** dan belum `resolved` atau `closed` memakai lencana **SLA Breached**. Setiap 15 menit sistem memeriksa tiket terlambat dan mengirim notifikasi **SLA tiket terlampaui** kepada pembuat tiket, satu kali per tiket.
+Sumber kedua target:
+
+1. Tiket yang punya **Subscription** mengambil target dari tingkat SLA aktif pada paket langganan itu (bagian 4.5). Halaman tiket menulis `(Target <nama tingkat>)` di samping tenggat.
+2. Tiket tanpa **Subscription**, atau yang paket langganannya memakai tingkat nonaktif, mengambil target dari **Kategori Tiket** yang dipilih (lihat di bawah). Halaman tiket menulis `(Target kategori <nama kategori>)`.
+
+Prioritas **Urgent** memotong kedua target menjadi separuh, dibulatkan ke atas, apa pun sumbernya. Contoh: 5 jam menjadi 3 jam. Kategori bawaan perusahaan baru: **No Internet** 4 jam penyelesaian dan 2 jam respons, **Slow Connection** 8 dan 4, **Packet Loss** 8 dan 4, **Device Issue** 12 dan 6, **Fiber Issue** 12 dan 6. Target respons bawaan adalah separuh target penyelesaian, dibulatkan ke atas.
+
+Tenggat tersimpan di tiket saat tiket dibuat. Mengubah tingkat, kategori, atau prioritas sesudahnya tidak menghitung ulang tiket yang sudah ada. Tiket yang dibuat sebelum target respons ada tetap memakai tenggat penyelesaiannya dan tidak punya target respons: halaman menulis `Tanpa target respons`.
+
+Halaman tiket menandai pelanggaran dengan dua lencana:
+
+- **Respons terlambat**: respons pertama datang setelah **Target respons**, atau belum ada respons dan targetnya sudah lewat. Tiket tanpa target respons tidak pernah mendapat lencana ini.
+- **Penyelesaian terlambat**: tiket lewat **Target penyelesaian** dan belum `resolved` atau `closed`.
+
+Setiap 15 menit sistem memeriksa tiket yang lewat **Target penyelesaian** dan mengirim notifikasi **SLA tiket terlampaui** kepada pembuat tiket, satu kali per tiket. Pemeriksaan ini tidak memakai target respons, jadi respons terlambat tidak memicu notifikasi.
+
+### Kategori Tiket
+
+Kategori Tiket menyimpan target cadangan untuk tiket yang tidak bisa memakai tingkat SLA, yaitu tiket tanpa **Subscription** atau dengan paket yang tingkatnya nonaktif. Buka layar ini saat Anda ingin mengubah jam target kategori, mengganti namanya, atau menonaktifkannya. Sebelumnya jam itu hanya bisa diubah lewat basis data.
+
+Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin: `ticket.category.manage`. Tanpa izin ini menu tidak tampil dan alamat `/admin/ticket-categories` ditolak.
+
+1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Kategori Tiket** (di bawah **Tingkat SLA**).
+2. Baca daftar. Subjudulnya menyebut bahwa target ini cadangan untuk tiket tanpa langganan atau tanpa tingkat SLA aktif, dan bahwa tiket urgent memakai separuh target. Kolomnya **Kode**, **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Status** (**Aktif** atau **Nonaktif**) dan **Aksi**. Daftar kosong menulis `Belum ada kategori tiket untuk perusahaan ini.`
+3. Klik **Ubah** pada sebuah baris. Dialog **Ubah kategori** diikuti kode kategori terbuka dengan isian berikut:
+   - **Nama**: wajib.
+   - **Target respons (jam)**: wajib, bilangan bulat 1 sampai 720, tidak boleh melebihi target penyelesaian.
+   - **Target penyelesaian (jam)**: wajib, bilangan bulat 1 sampai 720. Hanya berlaku untuk tiket baru.
+   - **Aktif**: saklar. Kategori nonaktif tidak muncul di pilihan **Category** pada form tiket.
+4. Klik **Simpan**. Muncul toast `Kategori tiket diperbarui.` Klik **Batal** untuk menutup dialog tanpa menyimpan.
+
+Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan **Kode** tidak bisa diubah. Pesan `Target respons tidak boleh lebih lama dari target penyelesaian.` muncul bila target respons lebih besar dari target penyelesaian.
 
 ### Kesalahan umum
 
@@ -1182,39 +1214,42 @@ Paket yang profil kecepatannya tidak punya **RADIUS Profile Name** tidak dapat d
 
 ## 4.5 Tingkat SLA
 
-Tingkat SLA mencatat target layanan sebuah paket: persentase uptime, batas waktu respons dan batas waktu penyelesaian, serta persentase kredit. Buka menu ini saat Anda menambah tingkat layanan baru, misalnya untuk paket bisnis.
+Tingkat SLA mencatat target layanan sebuah paket: batas waktu respons dan batas waktu penyelesaian tiket. Target ini dipakai saat tiket dari langganan paket itu dibuat. Hasilnya tidak diisi manual: sistem mengukurnya dari tiket. Buka menu ini saat Anda menambah tingkat layanan baru, misalnya untuk paket bisnis.
 
 Peran yang dapat memakai: sama dengan bagian 4.2. Izin: `service.view` atau `service.manage` membuka menu, `service.create`, `service.update`, `service.delete` dan `service.export` untuk aksi masing-masing.
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Tingkat SLA**.
-2. Baca daftar. Kolomnya **Name**, **Response (h)**, **Resolution (h)**, **Created** dan **Actions**. Kotak **Search** mencari nama tingkat. Uptime, kredit dan status aktif hanya terlihat di form ubah. Tombol **Export** (pemegang `service.export`) menghasilkan CSV atau PDF dengan kolom Name, Uptime %, Response Time, Resolution Time, Credit % dan Status.
+2. Baca daftar. Kolomnya **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Respons tepat waktu (30 hari)**, **Penyelesaian tepat waktu (30 hari)**, **Tiket (30 hari)**, **Dibuat** dan **Aksi**. Kotak **Cari** mencari nama tingkat. Tiga kolom 30 hari dihitung dari tiket yang dibuat dalam 30 hari terakhir pada langganan paket bertingkat itu. Kolom persen bernilai **—** bila belum ada tiket yang bisa dinilai. Tombol **Export** (pemegang `service.export`) menghasilkan CSV atau PDF dengan kolom Name, Response Time, Resolution Time dan Status.
 
    ![Daftar Tingkat SLA](images/web/sla-tiers.png)
 
 ### Membuat tingkat SLA
 
-1. Klik **New tier**.
+1. Klik **Tingkat baru**. Halaman terbuka dengan judul **Tambah Tingkat SLA**.
 2. Isi form:
-   - **Name**: wajib, maksimal 255 karakter, unik per perusahaan. Contoh: `Silver`.
-   - **Uptime (%)**: wajib, angka 0 sampai 100, boleh dua desimal.
-   - **Response Time (hours)**: wajib, bilangan bulat minimal 1.
-   - **Resolution Time (hours)**: wajib, bilangan bulat minimal 1.
-   - **Credit (%)**: angka 0 sampai 100, boleh dua desimal. Isian ini bertanda wajib di layar.
-   - **Active**: saklar, aktif secara awal.
-3. Klik **Create**. Muncul toast `SLA tier created.`
+   - **Nama**: wajib, maksimal 255 karakter, unik per perusahaan. Contoh: `Silver`.
+   - **Target respons (jam)**: wajib, bilangan bulat 1 sampai 720. Batas waktu sampai teknisi menekan **Start** pada tiket. Nilainya tidak boleh melebihi target penyelesaian.
+   - **Target penyelesaian (jam)**: wajib, bilangan bulat 1 sampai 720. Batas waktu sampai tiket diselesaikan.
+   - **Aktif**: saklar, aktif secara awal.
+3. Klik **Simpan**. Muncul toast `SLA tier created.`
 
-Untuk mengubah, klik **Edit**, ubah isian, lalu klik **Save**. Untuk menghapus, klik **Delete** lalu konfirmasi (toast `SLA tier deleted.`).
+Untuk mengubah, klik **Edit** (halaman **Ubah Tingkat SLA**), ubah isian, lalu klik **Simpan**. Untuk menghapus, klik **Delete** lalu konfirmasi (toast `SLA tier deleted.`). Perubahan jam hanya berlaku untuk tiket yang dibuat sesudahnya. Tiket yang sudah ada tidak dihitung ulang.
 
-Sistem hanya menyimpan nilai tingkat dan menampilkannya pada pilihan **SLA Tier** di paket. Di checkout ini tidak ada kode lain yang membaca **Credit (%)** untuk memotong tagihan.
+Sebuah tingkat memengaruhi tiket seperti ini:
+
+- Tiket yang punya **Subscription** pada paket dengan tingkat ini mengambil kedua targetnya dari tingkat itu, selama tingkatnya **Aktif**. Tingkat nonaktif dilewati dan tiket memakai **Kategori Tiket** (bagian 3.4).
+- Tiket berprioritas **Urgent** memakai separuh dari kedua target, dibulatkan ke atas.
+- Jam dihitung kalender, bukan jam kerja.
+- Hasilnya muncul di kolom 30 hari pada daftar ini dan di laporan SLA Compliance (bagian 7.6). Sistem tidak memakai tingkat ini untuk menghitung uptime atau kredit tagihan. Kedua isian itu sudah dihapus dari tingkat SLA.
 
 ### Kesalahan umum
 
-- Tingkat tidak muncul di form paket: saklar **Active** mati. Nyalakan di **Edit**.
-- Uptime atau kredit ditolak: nilainya harus antara 0 dan 100.
-- Waktu respons atau penyelesaian ditolak: isi bilangan bulat jam, minimal 1. Angka desimal tidak diterima.
-- Tingkat yang masih dipakai paket bisa dihapus tanpa peringatan. Untuk berhenti memakainya, matikan **Active** saja.
+- Tingkat tidak muncul di form paket: saklar **Aktif** mati. Nyalakan di **Edit**.
+- Target respons atau penyelesaian ditolak: isi bilangan bulat jam antara 1 dan 720. Angka desimal tidak diterima.
+- Target respons ditolak dengan pesan `Target respons tidak boleh lebih lama dari target penyelesaian.`: turunkan target respons atau naikkan target penyelesaian.
+- Tingkat yang masih dipakai paket bisa dihapus tanpa peringatan. Untuk berhenti memakainya, matikan **Aktif** saja.
 
 
 # 5. Jaringan
@@ -2743,7 +2778,7 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.asset.view`. Tombo
 
 ## 7.6 SLA Compliance (kepatuhan SLA)
 
-SLA Compliance menghitung tiket selesai, tiket yang memenuhi batas SLA, pelanggaran, waktu penyelesaian, dan rincian kategori. Data sumbernya berasal dari Tiket (bagian 3.4).
+SLA Compliance menghitung tiket selesai, tiket yang memenuhi batas SLA, pelanggaran, kecepatan respons pertama, waktu penyelesaian, dan rincian kategori. Data sumbernya berasal dari Tiket (bagian 3.4).
 
 Peran yang dapat memakai: admin, manajer, staf. Izin: `report.sla.view`. Tombol **Export** memerlukan `report.export`.
 
@@ -2751,9 +2786,10 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.sla.view`. Tombol 
 
 1. Buka **Laporan**, lalu klik **Open SLA Compliance**.
 2. Pilih **Periode**, lalu klik **Run**. Layar tidak mempunyai filter tambahan. Header menampilkan **Formula version sla.v1**.
-3. Baca empat kartu:
+3. Baca lima kartu:
    - **Total Resolved** menghitung tiket yang mempunyai `resolved_at` dalam **Periode**, apa pun statusnya saat ini.
    - **SLA Rate** adalah persentase Total Resolved yang selesai paling lambat pada `sla_deadline`.
+   - **Response Rate** adalah persentase Total Resolved yang respons pertamanya (**Start**) datang paling lambat pada `response_deadline`. Hanya tiket yang sudah dinilai yang dihitung: tiket yang punya target respons dan punya catatan respons pertama. Di bawah angka tertulis `N tepat waktu, N terlambat, N tanpa target respons`. Angka kosong tampil sebagai **-**.
    - **Breaches** menghitung Total Resolved yang selesai setelah `sla_deadline`.
    - **Avg Resolution** adalah rata-rata menit dari pembuatan sampai penyelesaian. Nilai kosong tampil sebagai **- min**.
 4. Baca diagram **Tiket selesai menurut SLA**. Irisan **Sesuai SLA** dan **Melewati SLA** memakai angka pada kartu.
@@ -2763,9 +2799,11 @@ Peran yang dapat memakai: admin, manajer, staf. Izin: `report.sla.view`. Tombol 
 
 ### Kesalahan umum
 
-- Grafik dan tabel kategori mengabaikan **Periode**. Keduanya dapat berbeda dari empat kartu pada rentang yang sama.
+- Grafik dan tabel kategori mengabaikan **Periode**. Keduanya dapat berbeda dari lima kartu pada rentang yang sama.
 - Jumlah **SLA Compliant** ditambah **Breaches** dapat lebih kecil daripada **Total Resolved**. Tiket tanpa `sla_deadline` masuk Total Resolved, tetapi tidak dianggap patuh atau melanggar.
 - **SLA Rate** bernilai 0 bila tidak ada tiket selesai. **Avg Resolution** kosong pada kondisi yang sama.
+- **Response Rate** kosong (**-**) bila belum ada tiket yang dinilai. Tiket lama yang dibuat sebelum target respons ada tidak punya `response_deadline`. Tiket itu masuk hitungan **tanpa target respons** dan tidak masuk penyebut. Tiket yang punya target tetapi tidak punya catatan respons pertama juga tidak dinilai.
+- Definisi lengkap kartu respons ada di Data Dictionary (bagian 7.8): **Response On Time**, **Response Breaches**, **No Response Target**, dan **Response Rate**. Daftar tiket yang dibuka lewat **View records** dan ekspornya memuat kolom `Response deadline` dan `Response` (On time, Breached, No target, atau No response).
 - Kategori bernama sama bergabung menjadi satu baris.
 - Parameter `category_id` dapat diterima server, tetapi layar ini tidak menyediakan pemilih kategori.
 
@@ -3625,7 +3663,7 @@ Gangguan yang selesai dari jarak jauh berhenti di langkah 5 sampai 7 dan tidak b
 ### Langkah
 
 1. Catat tiket. Buka **Tiket** (bagian 3.4), klik **New ticket**, isi **Title**, **Source** (**Customer**, **NOC**, atau **Internal**), **Category**, **Priority**, dan **Customer** untuk tiket pelanggan, lalu klik **Create**. Isi **Subscription**, **Network Asset**, dan **Location** bila diketahui. Pelanggan juga dapat membuat tiket sendiri dari aplikasi pelanggan, dan tiketnya tampil di daftar yang sama.
-2. Tiket baru berstatus `open`. **SLA Deadline** dihitung dari waktu pembuatan ditambah jam SLA kategori, dan prioritas **Urgent** memotongnya jadi separuh. Tiket yang lewat tenggat tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
+2. Tiket baru berstatus `open`. **Target respons** dan **Target penyelesaian** dihitung dari waktu pembuatan. Sumbernya tingkat SLA paket langganan tiket itu, atau **Kategori Tiket** bila tidak ada langganan atau tingkatnya nonaktif. Prioritas **Urgent** memotong keduanya jadi separuh. Tiket yang lewat **Target penyelesaian** tampil di kartu **SLA terlampaui** di Dasbor (bagian 2.1).
 3. Tugaskan petugas. Admin atau manajer membuka **Penugasan** (bagian 3.1), mencari tiket itu, klik **Tugaskan**, pilih **Petugas Tiket (Handler)**, lalu klik **Simpan Penugasan**. Dari halaman tiket, tombol **Assign** meminta **Handler ID**. Status menjadi `assigned`. Petugas menerima email dan notifikasi di lonceng. Pada penugasan pertama, pelanggan menerima WhatsApp bahwa tiketnya ditangani, bila WhatsApp perusahaan aktif.
 4. Petugas memulai tiket. Teknisi melakukannya di aplikasi teknisi. Pengguna web yang memegang `ticket.start` memakai **Start** di halaman tiket atau di **Pekerjaan Saya** (bagian 3.6). Status menjadi `on_progress` dan **First Response** terisi.
 5. Bila gangguan butuh kunjungan, admin atau manajer dengan izin `ticket.spawn_spk` membuka tiket berstatus `assigned` atau `on_progress` yang belum punya catatan penyelesaian, klik **Spawn SPK**, lalu **Confirm**. Inbils membuka SPK `maintenance` berstatus `generated` dengan judul "SPK from Ticket &lt;kode tiket&gt;". **Customer**, **Subscription**, **Location**, **Priority**, dan deskripsi disalin dari tiket. Aset jaringan tiket tidak ikut disalin ke SPK.
@@ -3713,6 +3751,7 @@ Kolom izin menyebut izin yang membuka menu: satu saja sudah cukup. Menu hanya me
 | Profil Bandwidth | `service.view` atau `service.manage` | ya | ya | ya |
 | Profil Kecepatan | `service.view` atau `service.manage` | ya | ya | ya |
 | Tingkat SLA | `service.view` atau `service.manage` | ya | ya | ya |
+| Kategori Tiket | `ticket.category.manage` | ya | ya | tidak |
 | Lokasi | `location.view` | ya | ya | ya |
 | Aset Jaringan | `network_asset.view` | ya | ya | ya |
 | Router NAS | `network_asset.nas.view` | ya | ya | ya |
@@ -3756,6 +3795,7 @@ Catatan untuk menu bersyarat:
 | --- | --- | --- | --- | --- |
 | Menugaskan tiket dan SPK | `ticket.assign`, `spk.assign` | ya | ya | tidak |
 | Menugaskan ulang tiket dan SPK | `ticket.reassign`, `spk.reassign` | ya | ya | tidak |
+| Mengubah nama, target, dan status Kategori Tiket | `ticket.category.manage` | ya | ya | tidak |
 | Membuat SPK | `spk.create` | ya | ya | ya |
 | Mengubah SPK (item, bukti) | `spk.update` | ya | ya | tidak |
 | Menyetujui dan menolak SPK | `spk.approve`, `spk.reject` | ya | ya | tidak |
@@ -3938,7 +3978,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | RADIUS | Server otentikasi akses jaringan. Inbils mengisinya dengan akun dan grup kecepatan pelanggan (bagian 4.4 dan 5.3). |
 | Reserved | Jumlah stok yang dicadangkan oleh permintaan barang yang sudah disetujui (bagian 6.5). |
 | Serving POP | Lokasi POP yang melayani sebuah langganan (bagian 4.1 dan 5.5). |
-| SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5), dan SLA Deadline tiket dihitung dari kategorinya (bagian 3.4). |
+| SLA | Service Level Agreement, batas waktu layanan. Tingkat SLA dipilih di paket (bagian 4.5). Target respons dan penyelesaian sebuah tiket diambil dari tingkat SLA paket langganannya, atau dari Kategori Tiket bila tidak ada tingkat aktif (bagian 3.4). |
 | Splitter | Pembagi yang mengubah satu port hulu menjadi beberapa port output, dengan rasio 1:2 sampai 1:64 (bagian 5.5). |
 | SPK | Surat Perintah Kerja, perintah kerja lapangan untuk teknisi (bagian 3.3). |
 | Tunggakan | Tagihan terbuka yang sudah lewat jatuh tempo dan masih bersisa (bagian 7.2). |

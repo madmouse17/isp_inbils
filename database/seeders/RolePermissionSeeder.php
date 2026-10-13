@@ -178,6 +178,7 @@ class RolePermissionSeeder extends Seeder
             'ticket.spawn_spk',
             'ticket.export',
             'ticket.manage',
+            'ticket.category.manage',
 
             'evaluation.view',
             'evaluation.create',
@@ -262,7 +263,7 @@ class RolePermissionSeeder extends Seeder
 
             'ticket.view', 'ticket.create', 'ticket.update',
             'ticket.assign', 'ticket.reassign', 'ticket.close', 'ticket.spawn_spk',
-            'ticket.export', 'ticket.manage',
+            'ticket.export', 'ticket.manage', 'ticket.category.manage',
 
             'evaluation.view', 'evaluation.create', 'evaluation.update',
 
