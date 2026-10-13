@@ -23,6 +23,10 @@ E2E: `auth-roles`, `two-factor`, `head-company`, `sidebar-ia`, `number-sequences
 5. Update the E2E specs listed below to the new text and controls; add assertions where a control changed (picker instead of input).
 6. Fix the listed defects (R7) and add a regression test for each.
 
+## Antislop findings (A1)
+
+PF1 Company Settings: label map `{label, unit, help}` for every settings key (no raw snake_case, no "Settings JSON"), coordinates rounded to 6 decimals in display, `bank_account_info` rendered as lines; login page per ticket 02 G18.
+
 ## Acceptance criteria
 
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).

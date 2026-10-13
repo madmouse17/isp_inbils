@@ -23,6 +23,10 @@ E2E: `inventory-lifecycle`, `stock-asset`, `datatable-c`, `reporting-stock-card`
 5. Update the E2E specs listed below to the new text and controls; add assertions where a control changed (picker instead of input).
 6. Fix the listed defects (R7) and add a regression test for each.
 
+## Antislop findings (A1)
+
+ST1 quantities via `formatNumber` everywhere; pending-adjustments panel without card-in-card.
+
 ## Acceptance criteria
 
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).

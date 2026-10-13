@@ -23,6 +23,10 @@ E2E: `ipam-odn`, `radius-provisioning`, `stock-asset` (asset parts), `locations*
 5. Update the E2E specs listed below to the new text and controls; add assertions where a control changed (picker instead of input).
 6. Fix the listed defects (R7) and add a regression test for each.
 
+## Antislop findings (A1)
+
+LK1 Leaflet zoom control bottom-right (no overlap with search/chips); LK3 map colours from tokens/CSS variables, popup in theme with Indonesian text and ≥ 4.5:1 contrast, legend shows the marker shapes.
+
 ## Acceptance criteria
 
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).

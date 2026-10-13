@@ -23,6 +23,10 @@ E2E: `spk-lifecycle`, `ticket-lifecycle`, `dispatch-my-work`, `approval-*`, `das
 5. Update the E2E specs listed below to the new text and controls; add assertions where a control changed (picker instead of input).
 6. Fix the listed defects (R7) and add a regression test for each.
 
+## Antislop findings (A1)
+
+PE1 amber-700/red-700 (dark red-400) and ≥ 12px on Penugasan; PE2 summary counts as single-hue filter chips without icon tiles (Dispatch, Approvals, MyWork); PE3 filter cells wide enough; AP1 keep only real summary cards, shortcuts become tabs; AP2 fewer columns, no clipped actions at 1280; SP1 SPK items empty row with reason + "Tambah item", `<dl>` grid, status as badge; TK1 red only for breach; TK2 ticket dates via `formatDateTime`, localised empty check-in text; D1 dashboard counts link to their lists or go, humanised activity text, unread by weight.
+
 ## Acceptance criteria
 
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).

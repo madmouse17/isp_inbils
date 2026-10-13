@@ -1,30 +1,41 @@
 # Field trip status, customer contact and navigation on SPK
 
-Status: needs-owner-approval
-Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `field-trip-status` (add when the lane starts)
-Source: owner request 2026-10-14 (verbatim): "pada pelanggan ada step dalam perjalanan atau menuju lokasi, selesai, dan di teknisi juga ada untuk mengeset jika dia dalam perjalanan atau pemasangan spk sudah selesai dipasang, kasih no hp pelanggan dibuat step list pelanggan ada no telp dan lat lng atau maps menuju kerumah pelanggan di teknisi"
+Status: ready-for-agent
+Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `field-trip-status`
+Source: owner request 2026-10-14 (verbatim): "pada pelanggan ada step dalam perjalanan atau menuju lokasi, selesai, dan di teknisi juga ada untuk mengeset jika dia dalam perjalanan atau pemasangan spk sudah selesai dipasang, kasih no hp pelanggan dibuat step list pelanggan ada no telp dan lat lng atau maps menuju kerumah pelanggan di teknisi". The owner accepted the assistant's recommendations for every open lane ("ya saya ikut saran anda … jadikan tickets dan specs semuanya baik yang ini maupun sebelumnya"); decisions F1–F9 below are those recommendations, corrected by the facts.
 
-## What the owner wants (as understood)
+## Facts (2026-10-14, agent FieldTripFacts)
 
-1. Technician app: on an SPK the technician sets a trip status: "Dalam perjalanan" (menuju lokasi) and "Selesai dipasang" (installation done), in addition to the existing Mulai / Kirim untuk review.
-2. Customer app: the customer sees the same progress as a step list (e.g. Dijadwalkan → Teknisi dalam perjalanan → Sedang dikerjakan → Selesai dipasang), with the technician's phone number.
-3. Technician app: customer phone number shown as a step/contact row (call button already exists on SPK detail: "Telepon"), plus the customer's lat/lng with an "open in Maps" navigation link to the customer's home (the SPK detail already has "Buka di Maps" for the work location; verify it uses the customer address coordinates).
+- SPK statuses: draft, generated, assigned, in_progress, waiting_review, completed, rejected, cancelled (`docs/business/spk.md`). Technician API: `show`, `start`, `submit`, `evidence`, `items` (`Modules/SPK/routes/api.php:8-14`). `start` (assigned → in_progress) sets `started_at` and records a `check_in` Activity (lat, lng, accuracy, `distance_m` to the site) (`SpkService.php:~180-200`, `app/Support/FieldCheckIn.php`). Timestamps: `started_at`, `completed_at`, `approved_at`, `rejected_at`; none for "on the way".
+- Technician SPK resource exposes `customer {id, code, name, phone}` and `site {lat, lng, address, label}`; the app has "Telepon" and "Buka di Maps" (`mapsUri` → Google Maps directions) (`TechnicianWorkOrderResource.php:42-47,81-103`, `work_order_detail_screen.dart:130-185`).
+- **Defect:** `site` and the check-in distance prefer `work_orders.location_id` over the subscription's installation address, and onboarding sets `location_id = serving_pop_id` (`CreateCustomerOnboardingAction.php:58`), so an installation SPK's Maps/distance point at the POP, not the customer's home. `location_id` is also the stock location (`CompleteSpkAction.php:62,185,246`) and must stay.
+- `customer_addresses.lat/lng` exist (decimal 10,7). `employee_profiles.phone` exists.
+- Customer API has no work-order endpoint; the customer app has no SPK/visit screen. Customer WhatsApp `spk_scheduled_customer` gives the technician's first name only and deliberately never the technician's phone.
+- Web SPK Show lists Started/Completed/Check-in as plain rows; Dispatch is a queue with status badges; no "Dalam perjalanan" anywhere.
 
-## Facts to gather before grilling (scout)
+## Decisions
 
-- Current SPK status machine (`docs/business/spk.md`, `Modules/SPK/app/Enums|Models/WorkOrder`), the existing `check_in` field on technician SPK/ticket resources (committed 2026-10-12: what does it store? lat/lng + timestamp?), customer address coordinates (`customer_addresses.lat/lng`?), `Work order` `location_id` vs customer address, WhatsApp notification hooks (`docs/business/whatsapp`), the customer API `subscriptions`/`work-orders` exposure (does the customer app see SPKs at all today? audit says customer app has invoices, payments, subscriptions, tickets, notifications: no SPK screen).
-- Technician app SPK detail (`technician/lib/features/work_orders/work_order_detail_screen.dart`): existing "Telepon" and "Buka di Maps" buttons and their data source.
+- **F1 One new event: "Berangkat" (on the way).** Column `work_orders.en_route_at` (nullable datetime). Endpoint `POST /api/v1/technician/work-orders/{wo}/en-route` (idempotent; allowed only while `assigned` and only for the assigned technician; optional `check_in` fix reusing `FieldCheckIn` rules, stored as Activity `en_route`). No new status: the state machine is unchanged, "Berangkat" is a timestamp inside `assigned`.
+- **F2 Step list, same four steps for both apps and the web:** 1 Ditugaskan (`assigned`), 2 Dalam perjalanan (`en_route_at`), 3 Sedang dikerjakan (`in_progress`, `started_at`), 4 Selesai dipasang (`waiting_review` or `completed`; `submitted_at` = first transition to `waiting_review`, new nullable column set by `submit`). Rejected work goes back to step 3 ("Perlu perbaikan" badge). Cancelled shows "Dibatalkan" and no steps.
+- **F3 Technician app SPK detail:** a vertical stepper (F2) with the action for the current step: "Saya berangkat" (step 2), "Mulai" (existing, step 3), "Selesai dipasang · kirim untuk review" (existing submit, step 4, same evidence rules). A "Pelanggan" card shows name, phone (tap to call, plus "WhatsApp" deep link `https://wa.me/<E.164>`), installation address and "Buka di Maps".
+- **F4 Fix the site:** for SPKs with a subscription, `site` and the check-in distance use the installation address (lat/lng; address text fallback); `location` (the POP) is shown separately as "POP / gudang" with its own Maps link. SPKs without a subscription keep `location`. `location_id` semantics for stock are unchanged.
+- **F5 Customer visibility:** new endpoints `GET /api/v1/customer/work-orders` (open and last 30 days, own subscriptions only, `EnsureCustomerAccess`) and `GET /api/v1/customer/work-orders/{wo}`; allow-list resource: code, type label, scheduled date, step (F2) with timestamps, technician first name only (no phone, consistent with the WhatsApp rule), installation address label. Customer app: "Kunjungan teknisi" screen (list + detail with the stepper) and a home card for the next open visit.
+- **F6 Customer notification:** when "Berangkat" is set, an in-app database notification to the customer user ("Teknisi {nama depan} sedang menuju lokasi Anda") shown in the app's notifications; no new WhatsApp template (needs Meta approval; parked).
+- **F7 Web:** SPK Show gets a timeline component with the F2 steps and times (plus approve/reject); Dispatch rows show an `EnumBadge` "Dalam perjalanan" when `en_route_at` is set and status is `assigned`.
+- **F8 Coordinates source:** the existing `customer_addresses.lat/lng` (set on Customers/Create via the map picker, now opening on the company default map). No new columns for coordinates.
+- **F9 Docs:** the three user guides get the new steps and screenshots (technician stepper, customer visit screen, web timeline).
 
-## Grilling round 1 (draft questions, each with a recommended answer; ask the owner)
+## Order
 
-- Q1 Trip states: add two technician-settable events on an SPK, `en_route` (Dalam perjalanan) and `installed` (Selesai dipasang), stored as timestamped events on the work order (`work_order_events` or new columns `en_route_at`, `installed_at`), without changing the approval state machine (`in_progress` → `waiting_review` stays the gate for review). Recommended: timestamped columns on `work_orders`, set by new API endpoints `POST technician/work-orders/{wo}/en-route` and `.../installed`; web SPK show displays them on the timeline.
-- Q2 Customer visibility: new customer API `GET customer/work-orders` + `/{wo}` (only SPKs for the customer's own subscriptions, allow-list fields: code, type, scheduled date, status step, technician name + phone, timestamps) and a new "Kunjungan teknisi" screen in the customer app with a 4-step list; home screen shows the next visit. WhatsApp "teknisi dalam perjalanan" message optional (consent + template approval needed): recommended defer.
-- Q3 Technician phone to customer: show the assigned technician's `employee_profiles.phone` (verify field) only while the SPK is active (assigned → installed), never after completion. Recommended: yes, active only.
-- Q4 Navigation: technician SPK detail gets a "Rumah pelanggan" row with phone (tap to call) and address + lat/lng; "Buka di Maps" uses the customer address coordinates when present, else the work location. Recommended: use `geo:` intent / Google Maps URL `https://www.google.com/maps/dir/?api=1&destination=lat,lng`.
-- Q5 Where lat/lng come from: `customer_addresses` already has coordinates? If not, add `latitude`/`longitude` to customer addresses, editable on the web customer form (map picker exists? Leaflet is in the bundle for Locations) and visible in the customer app profile. Recommended: reuse Locations map picker pattern.
-- Q6 Web: SPK show page timeline shows en-route/installed times; Penugasan board shows a "Dalam perjalanan" badge. Recommended: yes, minimal.
-- Q7 Docs: update `docs/user-guide/{teknisi,pelanggan,web}.md` and re-shoot the affected screenshots.
+After `ui-consistency` (ticket 05 rewrites the SPK and Dispatch pages) and before `opaque-ids` (its new API endpoints are converted there once).
+
+## Testing decisions
+
+- Feature: `en-route` (assigned only, assigned technician only, idempotent, foreign 404, check-in optional), `submitted_at` set once, site resolution (subscription address first, POP fallback, address text fallback), customer endpoints (own only, allow-list fields, no technician phone), notification sent once.
+- Web: timeline renders from props; Dispatch badge.
+- Mobile: widget tests for the stepper (each step's action), customer visit list/detail, home card; integration journey: berangkat → mulai → selesai on the AVD.
+- E2E: SPK show timeline after API-driven transitions; Dispatch badge.
 
 ## Tickets
 
-Not written yet; write after the owner answers round 1.
+01-backend-trip-events-and-site · 02-backend-customer-visits-api · 03-ui-web-timeline · 04-mobile-technician-stepper · 05-mobile-customer-visits · 06-qa-review-release

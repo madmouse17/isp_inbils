@@ -22,6 +22,10 @@ E2E: `customer-*`, `datatable-customers`, `customer-subscription`, `customer-sal
 5. Update the E2E specs listed below to the new text and controls; add assertions where a control changed (picker instead of input).
 6. Fix the listed defects (R7) and add a regression test for each.
 
+## Antislop findings (A1)
+
+PL1 filter grid wraps (no overflow at 1280/1366); PL2 merge or drop the duplicate Account column, one container; PL3 mobile card list + filter sheet below `md`, name is the link, `whitespace-nowrap` on codes; PL4 map picker buttons use `primary`.
+
 ## Acceptance criteria
 
 - [ ] Checklist done for every owned page; `tsc`, ESLint, copy selfcheck (no denylisted English in owned files) clean; focused PHPUnit green; owned E2E specs type-check (orchestrator runs them).
