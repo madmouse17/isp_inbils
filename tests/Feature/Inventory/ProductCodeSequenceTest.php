@@ -97,6 +97,19 @@ class ProductCodeSequenceTest extends TestCase
         $this->assertSame('NEW-1', $product->fresh()->sku);
     }
 
+    public function test_an_empty_min_stock_is_stored_as_zero_on_create_and_update(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.products.store'), $this->payload(['min_stock' => null]))
+            ->assertRedirect(route('admin.products.index'));
+        $product = Product::query()->where('company_id', $this->company->id)->firstOrFail();
+        $this->assertSame('0.00', $product->min_stock);
+
+        $product->update(['min_stock' => 5]);
+        $this->actingAs($this->admin)->put(route('admin.products.update', $product), $this->payload(['sku' => $product->sku, 'min_stock' => '']))
+            ->assertRedirect(route('admin.products.index'));
+        $this->assertSame('0.00', $product->fresh()->min_stock);
+    }
+
     public function test_create_and_edit_pages_expose_the_code_sequence(): void
     {
         $product = Product::factory()->create(['company_id' => $this->company->id, 'category_id' => $this->category->id, 'unit_id' => $this->category->unit_id]);

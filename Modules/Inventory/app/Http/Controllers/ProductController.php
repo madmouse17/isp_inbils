@@ -63,8 +63,6 @@ class ProductController extends Controller
         DB::transaction(function () use ($request): void {
             $data = $request->validated();
             $data['sku'] = NumberSequenceService::resolve('product', $data['sku'] ?? null, 'sku');
-            // The form sends an empty field as null; the column is NOT NULL with a default of 0.
-            $data['min_stock'] ??= 0;
             Product::create($data);
         });
 

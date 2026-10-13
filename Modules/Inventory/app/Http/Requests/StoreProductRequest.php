@@ -23,6 +23,8 @@ class StoreProductRequest extends FormRequest
 
         $this->merge([
             'unit_id' => $category?->unit_id,
+            // An empty form field arrives as null; the column is NOT NULL with a default of 0.
+            'min_stock' => $this->filled('min_stock') ? $this->input('min_stock') : 0,
         ]);
     }
 
