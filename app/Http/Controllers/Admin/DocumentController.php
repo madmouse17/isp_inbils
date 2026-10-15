@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -28,11 +29,11 @@ class DocumentController extends Controller
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', DocumentType::class);
-        $types = $this->filteredQuery($request)->paginate(10)->withQueryString();
+        $types = $this->filteredQuery($request)->paginate($this->perPage($request))->withQueryString();
 
         return Inertia::render('Admin/Documents/Index', [
             'documentTypes' => DocumentTypeResource::collection($types),
-            'filters' => $request->only(['search', 'sort', 'direction']),
+            'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => ['export' => (bool) ($request->user()?->can('system.document.export'))],
         ]);
     }
@@ -40,17 +41,19 @@ class DocumentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         Gate::authorize('create', DocumentType::class);
+        $companyId = CompanyService::currentId();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50'],
+            'code' => ['required', 'string', 'max:50', Rule::unique('document_types', 'code')->where('company_id', $companyId)],
             'applies_to' => ['nullable', 'string', 'max:100'],
             'is_required' => ['boolean'],
             'expiry_days' => ['nullable', 'integer', 'min:1'],
+            'is_active' => ['boolean'],
         ]);
-        $data['company_id'] = CompanyService::currentId();
+        $data['company_id'] = $companyId;
         DocumentType::create($data);
 
-        return back()->with('success', 'Document type created.');
+        return back()->with('success', 'Jenis dokumen dibuat.');
     }
 
     public function update(Request $request, DocumentType $document_type): RedirectResponse
@@ -64,7 +67,7 @@ class DocumentController extends Controller
             'is_active' => ['boolean'],
         ]));
 
-        return back()->with('success', 'Document type updated.');
+        return back()->with('success', 'Jenis dokumen diperbarui.');
     }
 
     public function destroy(DocumentType $document_type): RedirectResponse
@@ -72,7 +75,7 @@ class DocumentController extends Controller
         Gate::authorize('delete', $document_type);
         $document_type->delete();
 
-        return back()->with('success', 'Document type deleted.');
+        return back()->with('success', 'Jenis dokumen dihapus.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -85,11 +88,11 @@ class DocumentController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
-            'applies_to' => 'Applies To',
-            'is_required' => 'Required',
-            'expiry_days' => 'Expiry Days',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'applies_to' => 'Berlaku untuk',
+            'is_required' => 'Wajib',
+            'expiry_days' => 'Masa berlaku (hari)',
             'is_active' => 'Status',
         ];
 
@@ -97,15 +100,15 @@ class DocumentController extends Controller
             'code' => $type->code,
             'name' => $type->name,
             'applies_to' => $type->applies_to ?? '-',
-            'is_required' => $type->is_required ? 'Yes' : 'No',
+            'is_required' => $type->is_required ? 'Ya' : 'Tidak',
             'expiry_days' => $type->expiry_days ?? '-',
-            'is_active' => $type->is_active ? 'Active' : 'Inactive',
+            'is_active' => $type->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'document-types-export-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Document Types', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Jenis dokumen', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 
@@ -131,14 +134,14 @@ class DocumentController extends Controller
             $request->input('collection', 'documents'),
         );
 
-        return back()->with('success', 'Document uploaded.');
+        return back()->with('success', 'Dokumen diunggah.');
     }
 
     public function deleteMedia(Media $media): RedirectResponse
     {
         DocumentService::delete($media);
 
-        return back()->with('success', 'Document removed.');
+        return back()->with('success', 'Dokumen dihapus.');
     }
 
     /** @return Builder<DocumentType> */

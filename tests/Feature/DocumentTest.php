@@ -11,6 +11,7 @@ use App\Services\Core\DocumentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\CreatesCompanyUser;
@@ -304,5 +305,63 @@ class DocumentTest extends TestCase
         $response = $this->actingAs($noPermUser)->delete(route('admin.documents.destroy', $dt->id));
         $response->assertForbidden();
         $this->assertDatabaseHas('document_types', ['id' => $dt->id, 'deleted_at' => null]);
+    }
+
+    public function test_create_keeps_the_active_switch_when_it_is_off(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.documents.store'), [
+            'name' => 'Kontrak lama',
+            'code' => 'KTR-OFF',
+            'is_required' => false,
+            'is_active' => false,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertFalse(DocumentType::withoutCompany()->where('code', 'KTR-OFF')->firstOrFail()->is_active);
+    }
+
+    public function test_update_leaves_the_code_as_it_was(): void
+    {
+        $type = DocumentType::withoutCompany()->forceCreate([
+            'company_id' => $this->admin->company_id,
+            'name' => 'KTP',
+            'code' => 'KTP-OLD',
+        ]);
+
+        $this->actingAs($this->admin)->put(route('admin.documents.update', $type->id), [
+            'name' => 'KTP baru',
+            'code' => 'KTP-NEW',
+            'is_required' => true,
+            'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $type->refresh();
+        $this->assertSame('KTP-OLD', $type->code);
+        $this->assertSame('KTP baru', $type->name);
+    }
+
+    public function test_code_is_unique_within_the_company(): void
+    {
+        DocumentType::withoutCompany()->forceCreate(['company_id' => $this->admin->company_id, 'name' => 'KTP', 'code' => 'KTP']);
+
+        $this->actingAs($this->admin)->post(route('admin.documents.store'), [
+            'name' => 'KTP kedua',
+            'code' => 'KTP',
+        ])->assertSessionHasErrors(['code' => 'kode sudah digunakan.']);
+    }
+
+    public function test_index_follows_the_rows_per_page_the_table_asks_for(): void
+    {
+        foreach (range(1, 12) as $number) {
+            DocumentType::withoutCompany()->forceCreate(['company_id' => $this->admin->company_id, 'name' => 'Jenis '.$number, 'code' => 'JNS-'.$number]);
+        }
+
+        $this->actingAs($this->admin)->get(route('admin.documents.index'))
+            ->assertInertia(fn (Assert $page) => $page->has('documentTypes.data', 10));
+
+        $this->actingAs($this->admin)->get(route('admin.documents.index', ['per_page' => 25]))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('documentTypes.data', 12)
+                ->where('documentTypes.meta.per_page', 25)
+                ->where('filters.per_page', '25'));
     }
 }

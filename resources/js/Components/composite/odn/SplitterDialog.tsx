@@ -1,7 +1,8 @@
 import type { FormEvent } from 'react';
 import { useForm } from '@inertiajs/react';
 import { Alert, AlertDescription, Button, Input, Modal, NativeSelect } from '@/Components/ui';
-import type { InputOption } from '@/types/ipam-odn';
+import { RemoteSearchSelect } from '@/Components/composite/RemoteSearchSelect';
+import type { PortOption } from '@/types/ipam-odn';
 
 const RATIOS = [2, 4, 8, 16, 32, 64] as const;
 
@@ -9,11 +10,12 @@ interface SplitterDialogProps {
     onClose: () => void;
     /** The ODC or ODP that gets the splitter. */
     host: { id: number; code: string };
-    inputOptions: InputOption[];
+    /** The `inputPortOptions` prop: free upstream ports that match the typed text. `undefined` until a search has run. */
+    inputPortOptions: PortOption[] | undefined;
 }
 
 /** Mount it only while open, so each opening starts empty with no stale errors. */
-export function SplitterDialog({ onClose, host, inputOptions }: SplitterDialogProps) {
+export function SplitterDialog({ onClose, host, inputPortOptions }: SplitterDialogProps) {
     const { data, setData, post, errors, processing } = useForm({
         outputs: '8',
         input_port_id: '',
@@ -31,18 +33,16 @@ export function SplitterDialog({ onClose, host, inputOptions }: SplitterDialogPr
     };
 
     return (
-        <Modal open onClose={onClose} title={`Add a splitter to ${host.code}`}>
+        <Modal open onClose={onClose} title={`Tambah splitter ke ${host.code}`}>
             <form onSubmit={submit} className="space-y-4">
                 {assetError && (
                     <Alert variant="danger">
-                        <AlertDescription className="text-red-700 dark:text-red-400">
-                            {assetError}
-                        </AlertDescription>
+                        <AlertDescription>{assetError}</AlertDescription>
                     </Alert>
                 )}
                 <NativeSelect
                     id="splitter-outputs"
-                    label="Ratio"
+                    label="Rasio"
                     value={data.outputs}
                     onChange={(event) => setData('outputs', event.target.value)}
                     error={errors.outputs}
@@ -52,20 +52,17 @@ export function SplitterDialog({ onClose, host, inputOptions }: SplitterDialogPr
                     }))}
                     required
                 />
-                <NativeSelect
+                <RemoteSearchSelect
+                    field="inputPort"
                     id="splitter-input"
-                    label="Upstream port"
+                    label="Port masukan"
                     value={data.input_port_id}
-                    onChange={(event) => setData('input_port_id', event.target.value)}
+                    onChange={(value) => setData('input_port_id', value)}
+                    options={inputPortOptions}
+                    placeholder="Cari kode aset atau label splitter"
+                    emptyText="Tidak ada port kosong yang cocok."
                     error={errors.input_port_id}
-                    hint="A free PON port or splitter output. Leave it open to connect later."
-                    options={[
-                        { value: '', label: 'Not connected yet' },
-                        ...inputOptions.map((option) => ({
-                            value: String(option.port_id),
-                            label: option.label,
-                        })),
-                    ]}
+                    hint="Port PON atau keluaran splitter yang masih kosong. Kosongkan untuk menghubungkan nanti."
                 />
                 <Input
                     id="splitter-label"
@@ -77,10 +74,10 @@ export function SplitterDialog({ onClose, host, inputOptions }: SplitterDialogPr
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        Add splitter
+                        Tambah splitter
                     </Button>
                 </div>
             </form>

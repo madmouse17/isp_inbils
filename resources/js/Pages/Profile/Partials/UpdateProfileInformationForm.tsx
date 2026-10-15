@@ -1,7 +1,5 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import { Transition } from '@headlessui/react';
 import { Link, useForm, usePage } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
@@ -31,73 +29,63 @@ export default function UpdateProfileInformation({
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    Profile Information
-                </h2>
+                <h2 className="text-lg font-medium text-foreground">Data akun</h2>
 
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Update your account&apos;s profile information and email address.
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Ubah nama dan email yang dipakai untuk masuk.
                 </p>
             </header>
 
             <form onSubmit={submit} className="space-y-6 mt-6">
-                <div>
-                    <InputLabel htmlFor="name" value="Name" />
+                <Input
+                    id="name"
+                    label="Nama"
+                    value={data.name}
+                    onChange={(e) => setData('name', e.target.value)}
+                    required
+                    autoComplete="name"
+                    error={errors.name}
+                />
 
-                    <TextInput
-                        id="name"
-                        className="mt-1 block w-full"
-                        value={data.name}
-                        onChange={(e) => setData('name', e.target.value)}
-                        required
-                        isFocused
-                        autoComplete="name"
-                    />
-
-                    <InputError className="mt-2" message={errors.name} />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
-
-                    <TextInput
-                        id="email"
-                        type="email"
-                        className="mt-1 block w-full"
-                        value={data.email}
-                        onChange={(e) => setData('email', e.target.value)}
-                        required
-                        autoComplete="username"
-                    />
-
-                    <InputError className="mt-2" message={errors.email} />
-                </div>
+                <Input
+                    id="email"
+                    label="Email"
+                    type="email"
+                    value={data.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                    required
+                    autoComplete="username"
+                    error={errors.email}
+                />
 
                 {mustVerifyEmail && user.email_verified_at === null && (
-                    <div>
-                        <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">
-                            Your email address is unverified.
+                    <div className="space-y-2 text-sm text-foreground">
+                        <p>
+                            Email Anda belum diverifikasi.{' '}
                             <Link
                                 href={route('verification.send')}
                                 method="post"
                                 as="button"
-                                className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
+                                className="rounded-md text-primary underline underline-offset-4 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
                             >
-                                Click here to re-send the verification email.
+                                Kirim ulang email verifikasi
                             </Link>
                         </p>
 
                         {status === 'verification-link-sent' && (
-                            <div className="mt-2 text-sm font-medium text-green-600 dark:text-green-400">
-                                A new verification link has been sent to your email address.
-                            </div>
+                            <p
+                                role="status"
+                                className="font-medium text-emerald-700 dark:text-emerald-400"
+                            >
+                                Tautan verifikasi baru sudah dikirim ke email Anda.
+                            </p>
                         )}
                     </div>
                 )}
 
                 <div className="flex items-center gap-4">
                     <Button type="submit" loading={processing}>
-                        Save
+                        Simpan
                     </Button>
 
                     <Transition
@@ -107,7 +95,9 @@ export default function UpdateProfileInformation({
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Saved.</p>
+                        <p role="status" className="text-sm text-muted-foreground">
+                            Tersimpan.
+                        </p>
                     </Transition>
                 </div>
             </form>

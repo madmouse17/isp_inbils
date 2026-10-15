@@ -6,7 +6,6 @@ import {
     FormulaVersionLabel,
     LoadingState,
     MetricDefinitionNote,
-    NativeSelect,
     PageHeader,
 } from '@/Components/composite';
 import {
@@ -16,11 +15,14 @@ import {
     CardHeader,
     CardTitle,
     DateRangePicker,
+    SearchSelect,
     type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { formatNumber } from '@/lib/format';
 import type { BusinessChartData, ReportMeta } from '@/types';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
+import { MoneyFigure } from './components/MoneyFigure';
 import { BusinessCharts } from './components/BusinessCharts';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
@@ -31,6 +33,16 @@ type BusinessMetricKey =
     | 'active_subscriptions'
     | 'suspended_subscriptions'
     | 'sla_compliance_pct';
+
+/** The six figure cards, in the order shown; `kind` picks how the value is written. */
+const FIGURES: { key: BusinessMetricKey; kind: 'money' | 'count' | 'percent' }[] = [
+    { key: 'mrr', kind: 'money' },
+    { key: 'revenue_paid', kind: 'money' },
+    { key: 'outstanding', kind: 'money' },
+    { key: 'active_subscriptions', kind: 'count' },
+    { key: 'suspended_subscriptions', kind: 'count' },
+    { key: 'sla_compliance_pct', kind: 'percent' },
+];
 
 interface BusinessData extends Record<string, unknown> {
     mrr?: string;
@@ -88,12 +100,19 @@ export default function Business({
         );
     };
 
+    const figure = (key: BusinessMetricKey, kind: 'count' | 'percent'): string => {
+        if (!data) return '';
+        if (kind === 'count') return formatNumber(data[key] ?? 0);
+
+        return `${data[key] ?? 0}%`;
+    };
+
     return (
-        <AdminLayout title="Business Metrics">
+        <AdminLayout title="Metrik Bisnis">
             <div className="space-y-6">
                 <PageHeader
-                    title="Business Metrics"
-                    subtitle="MRR, revenue, churn, outstanding, and asset utilization."
+                    title="Metrik Bisnis"
+                    subtitle="MRR, pendapatan, piutang, dan jumlah langganan perusahaan ini."
                     actions={
                         <>
                             <FormulaVersionLabel version={meta.formula_version} />
@@ -116,26 +135,24 @@ export default function Business({
                                 className="sm:w-80"
                             />
                             <div className="sm:w-64">
-                                <NativeSelect
+                                <SearchSelect
                                     label="Kategori paket"
                                     value={categoryId}
-                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    onChange={setCategoryId}
+                                    placeholder="Semua kategori"
                                     error={errors.service_package_category_id}
                                     hint="Aset, SLA, dan pelanggan baru tidak terpengaruh."
-                                    options={[
-                                        { value: '', label: 'Semua kategori' },
-                                        ...packageCategories.map((category) => ({
-                                            value: String(category.id),
-                                            label: category.is_active
-                                                ? category.name
-                                                : `${category.name} (nonaktif)`,
-                                        })),
-                                    ]}
+                                    options={packageCategories.map((category) => ({
+                                        value: String(category.id),
+                                        label: category.is_active
+                                            ? category.name
+                                            : `${category.name} (nonaktif)`,
+                                    }))}
                                 />
                             </div>
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
-                                    Run
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
@@ -144,93 +161,24 @@ export default function Business({
                 {pending && <LoadingState variant="section" />}
                 {!pending && data && (
                     <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.mrr.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{data.mrr ?? '0'}</p>
-                                <DrillLink href={drill.mrr} label={meta.metrics.mrr.label} />
-                                <MetricDefinitionNote definition={meta.metrics.mrr} />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.revenue_paid.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{data.revenue_paid ?? '0'}</p>
-                                <DrillLink
-                                    href={drill.revenue_paid}
-                                    label={meta.metrics.revenue_paid.label}
-                                />
-                                <MetricDefinitionNote definition={meta.metrics.revenue_paid} />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.outstanding.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">{data.outstanding ?? '0'}</p>
-                                <DrillLink
-                                    href={drill.outstanding}
-                                    label={meta.metrics.outstanding.label}
-                                />
-                                <MetricDefinitionNote definition={meta.metrics.outstanding} />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.active_subscriptions.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">
-                                    {data.active_subscriptions ?? 0}
-                                </p>
-                                <DrillLink
-                                    href={drill.active_subscriptions}
-                                    label={meta.metrics.active_subscriptions.label}
-                                />
-                                <MetricDefinitionNote
-                                    definition={meta.metrics.active_subscriptions}
-                                />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.suspended_subscriptions.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">
-                                    {data.suspended_subscriptions ?? 0}
-                                </p>
-                                <DrillLink
-                                    href={drill.suspended_subscriptions}
-                                    label={meta.metrics.suspended_subscriptions.label}
-                                />
-                                <MetricDefinitionNote
-                                    definition={meta.metrics.suspended_subscriptions}
-                                />
-                            </CardContent>
-                        </Card>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>{meta.metrics.sla_compliance_pct.label}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-2xl font-bold">
-                                    {data.sla_compliance_pct ?? 0}%
-                                </p>
-                                <DrillLink
-                                    href={drill.sla_compliance_pct}
-                                    label={meta.metrics.sla_compliance_pct.label}
-                                />
-                                <MetricDefinitionNote
-                                    definition={meta.metrics.sla_compliance_pct}
-                                />
-                            </CardContent>
-                        </Card>
+                        {FIGURES.map(({ key, kind }) => (
+                            <Card key={key} className="min-w-0">
+                                <CardHeader>
+                                    <CardTitle>{meta.metrics[key].label}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-2xl font-bold wrap-break-word tabular-nums">
+                                        {kind === 'money' ? (
+                                            <MoneyFigure value={data[key] ?? 0} />
+                                        ) : (
+                                            figure(key, kind)
+                                        )}
+                                    </p>
+                                    <DrillLink href={drill[key]} label={meta.metrics[key].label} />
+                                    <MetricDefinitionNote definition={meta.metrics[key]} />
+                                </CardContent>
+                            </Card>
+                        ))}
                     </div>
                 )}
                 {!pending && data && <BusinessCharts charts={charts} />}

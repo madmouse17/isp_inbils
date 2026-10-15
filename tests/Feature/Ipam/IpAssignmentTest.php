@@ -181,9 +181,9 @@ class IpAssignmentTest extends TestCase
         $subscription = $this->makeSubscription($this->company);
 
         $this->assign($subscription, $pool, '10.60.8.20')->assertStatus(422)
-            ->assertJsonPath('errors.address.0', "10.60.8.20 is already held by asset {$router->code}.");
+            ->assertJsonPath('errors.address.0', "10.60.8.20 sudah dipakai aset {$router->code}.");
         $this->assign($subscription, $pool, '10.60.8.30')->assertStatus(422)
-            ->assertJsonPath('errors.address.0', '10.60.8.30 is already reserved (gateway).');
+            ->assertJsonPath('errors.address.0', '10.60.8.30 sudah dicadangkan (gateway).');
     }
 
     public function test_the_same_address_can_be_held_in_two_companies(): void

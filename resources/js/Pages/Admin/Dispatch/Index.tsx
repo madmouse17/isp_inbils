@@ -1,16 +1,19 @@
 import { useState, type FormEvent } from 'react';
 import { Link, router } from '@inertiajs/react';
-import { CheckCircle2, AlertTriangle, Send, Play, User, XCircle } from 'lucide-react';
+import { AlertTriangle, User } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ForbiddenState, LoadingState, ResourceEmpty } from '@/Components/composite/ResourceState';
-import { Badge, Button, Card, CardContent } from '@/Components/ui';
+import { Badge, Button, Card, CardContent, EnumBadge } from '@/Components/ui';
 import { Pagination } from '@/Components/ui/Pagination';
 import { Tab, TabList, Tabs } from '@/Components/ui/Tabs';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable, type ServerTableFilters } from '@/hooks/useServerTable';
 import { useToast } from '@/hooks/useToast';
+import { formatDate, formatDateTime } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
+import { labelOf, PRIORITY, WORK_ITEM_DOMAIN, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type {
     DispatchItem,
     DispatchSummary,
@@ -28,30 +31,12 @@ import {
 import { FilterBar as MyWorkFilterBar } from '../MyWork/components/FilterBar';
 import { MobileMyWorkCard } from '../MyWork/components/MobileMyWorkCard';
 import { ResolveDialog } from '../MyWork/components/ResolveDialog';
-import { SummaryCards as MyWorkSummaryCards } from '../MyWork/components/SummaryCards';
-import {
-    formatAge as formatMyWorkAge,
-    formatDate as formatMyWorkDate,
-    getDomainLabel as getMyWorkDomainLabel,
-    getDomainVariant as getMyWorkDomainVariant,
-    getItemNextStatus,
-    getPriorityLabel as getMyWorkPriorityLabel,
-    getPriorityVariant as getMyWorkPriorityVariant,
-    getStatusLabel as getMyWorkStatusLabel,
-    getStatusVariant as getMyWorkStatusVariant,
-} from '../MyWork/components/utils';
+import { SummaryChips, type SummaryChip } from '../MyWork/components/SummaryChips';
+import { useMyWorkColumns } from '../MyWork/components/useMyWorkColumns';
+import { formatAge, MY_WORK_STATUS_FILTER } from '../MyWork/components/utils';
 import { AssignDialog, type DispatchReloadResult } from './components/AssignDialog';
 import { FilterBar as DispatchFilterBar } from './components/FilterBar';
 import { MobileDispatchCard } from './components/MobileDispatchCard';
-import { SummaryCards as DispatchSummaryCards } from './components/SummaryCards';
-import {
-    formatAge,
-    formatDate,
-    getDomainLabel,
-    getDomainVariant,
-    getPriorityLabel,
-    getPriorityVariant,
-} from './components/utils';
 
 interface DispatchIndexProps extends Record<string, unknown> {
     items: {
@@ -169,6 +154,7 @@ export default function DispatchIndex({
     canMyWork,
 }: DispatchIndexProps) {
     useToast();
+    const company = useCompany();
 
     const { params, set, setMany, sortBy, sortDir, onSort, setPage, processing, visiting } =
         useServerTable({
@@ -197,19 +183,21 @@ export default function DispatchIndex({
     const [confirmAction, setConfirmAction] = useState<ActionType | null>(null);
     const [confirmOpen, setConfirmOpen] = useState(false);
 
+    const myWorkColumns = useMyWorkColumns({
+        onConfirm: (item, action) => handleOpenConfirm(item, action),
+        onResolve: (item) => handleOpenResolve(item),
+    });
+
     if (!canDispatch && !canMyWork) {
         return (
             <AdminLayout title="Penugasan">
                 <div className="space-y-6">
-                    <PageHeader
-                        title="Penugasan"
-                        subtitle="Antrean penugasan tiket dan surat perintah kerja (SPK)"
-                    />
+                    <PageHeader title="Penugasan" subtitle="Antrean penugasan tiket dan SPK." />
                     <ForbiddenState
-                        title="Akses Ditolak"
-                        description="Anda tidak memiliki izin penugasan (dispatch) atau izin operasional pada domain apapun."
+                        title="Akses ditolak"
+                        description="Anda tidak punya izin penugasan atau izin operasional untuk jenis pekerjaan apa pun."
                         backHref="/admin/dashboard"
-                        backLabel="Kembali ke Dashboard"
+                        backLabel="Kembali ke Dasbor"
                     />
                 </div>
             </AdminLayout>
@@ -232,10 +220,10 @@ export default function DispatchIndex({
         set('search', params.search ?? '');
     };
 
-    const handleOpenAssign = (item: DispatchItem) => {
+    function handleOpenAssign(item: DispatchItem) {
         setSelectedDispatchItem(item);
         setAssignOpen(true);
-    };
+    }
 
     const handleReloadQueue = (): Promise<DispatchReloadResult> =>
         reloadDispatchQueue({
@@ -244,16 +232,16 @@ export default function DispatchIndex({
             setAssignOpen,
         });
 
-    const handleOpenResolve = (item: MyWorkItem) => {
+    function handleOpenResolve(item: MyWorkItem) {
         setResolveItem(item);
         setResolveOpen(true);
-    };
+    }
 
-    const handleOpenConfirm = (item: MyWorkItem, action: ActionType) => {
+    function handleOpenConfirm(item: MyWorkItem, action: ActionType) {
         setConfirmItem(item);
         setConfirmAction(action);
         setConfirmOpen(true);
-    };
+    }
 
     const reloadMyWork = (
         selectedItem: MyWorkItem | null,
@@ -329,46 +317,33 @@ export default function DispatchIndex({
             }
         });
 
-    const handleStatusCardClick = (statusValue: string) => {
-        setMany({
-            status: statusValue,
-            page: 1,
-        });
-    };
-
-    // Columns for Dispatch view
     const dispatchColumns: DataTableColumn<DispatchItem>[] = [
         {
             key: 'code',
-            header: 'Kode & Domain',
+            header: 'Kode',
             sortable: true,
             sortKey: 'code',
             cell: (row) => (
                 <div className="space-y-1">
                     {row.actions.view && row.detail_url ? (
-                        <a
+                        <Link
                             href={row.detail_url}
                             className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.code}
-                        </a>
+                        </Link>
                     ) : (
                         <span className="font-semibold text-foreground">{row.code}</span>
                     )}
                     <div>
-                        <Badge
-                            variant={getDomainVariant(row.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getDomainLabel(row.domain)}
-                        </Badge>
+                        <EnumBadge map={WORK_ITEM_DOMAIN} value={row.domain} />
                     </div>
                 </div>
             ),
         },
         {
             key: 'title',
-            header: 'Judul / Kebutuhan',
+            header: 'Judul dan kebutuhan',
             sortable: true,
             sortKey: 'title',
             cell: (row) => (
@@ -380,13 +355,15 @@ export default function DispatchIndex({
                         {row.domain === 'ticket' ? (
                             <span>Kategori: {row.summary?.category ?? 'Umum'}</span>
                         ) : (
-                            <span>Tipe: {row.type ?? row.summary?.type ?? 'SPK'}</span>
+                            <span>
+                                Jenis: {labelOf(WORK_ORDER_TYPE, row.type ?? row.summary?.type)}
+                            </span>
                         )}
                     </div>
                     {row.sla_breached && (
                         <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            <span>SLA Terlampaui</span>
+                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                            <span>SLA terlampaui</span>
                         </div>
                     )}
                 </div>
@@ -394,7 +371,7 @@ export default function DispatchIndex({
         },
         {
             key: 'requester',
-            header: 'Pemohon / Pelanggan',
+            header: 'Pemohon atau pelanggan',
             cell: (row) => (
                 <div className="space-y-0.5 text-xs">
                     <p className="font-medium text-foreground">{row.requester?.name ?? '-'}</p>
@@ -406,195 +383,35 @@ export default function DispatchIndex({
         },
         {
             key: 'priority',
-            header: 'Prioritas & Umur',
+            header: 'Prioritas dan umur',
             sortable: true,
             sortKey: 'priority',
             cell: (row) => (
                 <div className="space-y-1">
-                    <Badge
-                        variant={getPriorityVariant(row.priority)}
-                        className="text-xs font-semibold"
-                    >
-                        {getPriorityLabel(row.priority)}
-                    </Badge>
+                    <EnumBadge map={PRIORITY} value={row.priority} />
                     <p className="text-xs text-muted-foreground">{formatAge(row.age_seconds)}</p>
                 </div>
             ),
         },
         {
             key: 'due_at',
-            header: 'Batas / Jadwal',
+            header: 'Batas atau jadwal',
             cell: (row) => (
                 <div className="space-y-0.5 text-xs">
                     {row.domain === 'ticket' ? (
                         <>
                             <span className="text-muted-foreground">SLA: </span>
                             <span className="font-medium text-foreground">
-                                {formatDate(row.due_at ?? row.summary?.sla_deadline)}
+                                {formatDateTime(row.due_at ?? row.summary?.sla_deadline, company)}
                             </span>
                         </>
                     ) : (
                         <>
                             <span className="text-muted-foreground">Jadwal: </span>
                             <span className="font-medium text-foreground">
-                                {formatDate(row.scheduled_date ?? row.summary?.scheduled_date)}
-                            </span>
-                        </>
-                    )}
-                </div>
-            ),
-        },
-        {
-            key: 'assignee',
-            header: 'Petugas Saat Ini',
-            cell: (row) =>
-                row.assignee ? (
-                    <span className="text-xs font-medium text-foreground">{row.assignee.name}</span>
-                ) : (
-                    <Badge
-                        variant="outline"
-                        className="border-amber-300 text-xs text-amber-700 dark:text-amber-400"
-                    >
-                        Belum Ditugaskan
-                    </Badge>
-                ),
-        },
-        {
-            key: 'actions',
-            header: 'Tindakan',
-            className: 'text-right',
-            cell: (row) => (
-                <div className="flex flex-wrap items-center justify-end gap-2 [&>button]:min-h-11">
-                    {row.actions.view && row.detail_url && (
-                        <Link
-                            href={row.detail_url}
-                            className="inline-flex items-center text-xs font-medium text-primary hover:underline"
-                        >
-                            Detail
-                        </Link>
-                    )}
-                    {row.actions.assign && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenAssign(row)}
-                        >
-                            <User className="mr-1.5 h-3.5 w-3.5" />
-                            {row.assigned_to ? 'Ganti Petugas' : 'Tugaskan'}
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
-    ];
-
-    // Columns for My Work view (when activeTab === 'my_work')
-    const myWorkColumns: DataTableColumn<MyWorkItem>[] = [
-        {
-            key: 'code',
-            header: 'Kode & Domain',
-            sortable: true,
-            sortKey: 'code',
-            cell: (row) => (
-                <div className="space-y-1">
-                    {row.actions.view && row.detail_url ? (
-                        <a
-                            href={row.detail_url}
-                            className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
-                        >
-                            {row.code}
-                        </a>
-                    ) : (
-                        <span className="font-semibold text-foreground">{row.code}</span>
-                    )}
-                    <div>
-                        <Badge
-                            variant={getMyWorkDomainVariant(row.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getMyWorkDomainLabel(row.domain)}
-                        </Badge>
-                    </div>
-                </div>
-            ),
-        },
-        {
-            key: 'title',
-            header: 'Judul & Pelanggan',
-            sortable: true,
-            sortKey: 'title',
-            cell: (row) => (
-                <div className="space-y-1 max-w-xs">
-                    <span className="line-clamp-2 text-sm font-medium text-foreground">
-                        {row.title}
-                    </span>
-                    <div className="text-xs text-muted-foreground">
-                        Pelanggan:{' '}
-                        <span className="font-medium text-foreground">
-                            {row.customer?.name ?? '-'}
-                        </span>
-                    </div>
-                    {row.sla_breached && (
-                        <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            <span>SLA Terlampaui</span>
-                        </div>
-                    )}
-                </div>
-            ),
-        },
-        {
-            key: 'priority',
-            header: 'Prioritas & Umur',
-            sortable: true,
-            sortKey: 'priority',
-            cell: (row) => (
-                <div className="space-y-1">
-                    <Badge
-                        variant={getMyWorkPriorityVariant(row.priority)}
-                        className="text-xs font-semibold"
-                    >
-                        {getMyWorkPriorityLabel(row.priority)}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">
-                        {formatMyWorkAge(row.age_seconds)}
-                    </p>
-                </div>
-            ),
-        },
-        {
-            key: 'status',
-            header: 'Status & Alur',
-            sortable: true,
-            sortKey: 'status',
-            cell: (row) => (
-                <div className="space-y-1">
-                    <Badge variant={getMyWorkStatusVariant(row.status)}>
-                        {getMyWorkStatusLabel(row.status)}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">{getItemNextStatus(row)}</p>
-                </div>
-            ),
-        },
-        {
-            key: 'due_at',
-            header: 'Batas / Jadwal',
-            cell: (row) => (
-                <div className="space-y-0.5 text-xs">
-                    {row.domain === 'ticket' ? (
-                        <>
-                            <span className="text-muted-foreground">SLA: </span>
-                            <span className="font-medium text-foreground">
-                                {formatMyWorkDate(row.due_at ?? row.summary?.sla_deadline)}
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="text-muted-foreground">Jadwal: </span>
-                            <span className="font-medium text-foreground">
-                                {formatMyWorkDate(
+                                {formatDate(
                                     row.scheduled_date ?? row.summary?.scheduled_date,
+                                    company,
                                 )}
                             </span>
                         </>
@@ -603,84 +420,139 @@ export default function DispatchIndex({
             ),
         },
         {
+            key: 'assignee',
+            header: 'Petugas saat ini',
+            cell: (row) =>
+                row.assignee ? (
+                    <span className="text-xs font-medium text-foreground">{row.assignee.name}</span>
+                ) : (
+                    <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
+                        Belum ditugaskan
+                    </span>
+                ),
+        },
+        {
             key: 'actions',
-            header: 'Tindakan Operasional',
+            header: 'Tindakan',
             className: 'text-right',
-            cell: (row) => (
-                <div className="flex flex-wrap items-center justify-end gap-1.5 [&>button]:min-h-11">
-                    {row.actions.view && row.detail_url && (
-                        <a
-                            href={row.detail_url}
-                            className="mr-1 inline-flex items-center text-xs font-medium text-primary hover:underline"
-                        >
-                            Detail
-                        </a>
-                    )}
-                    {row.actions.start && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenConfirm(row, 'start')}
-                        >
-                            <Play className="mr-1 h-3.5 w-3.5" />
-                            Mulai
-                        </Button>
-                    )}
-                    {row.actions.resolve && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenResolve(row)}
-                        >
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                            Selesaikan
-                        </Button>
-                    )}
-                    {row.actions.submit && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenConfirm(row, 'submit')}
-                        >
-                            <Send className="mr-1 h-3.5 w-3.5" />
-                            Ajukan Review
-                        </Button>
-                    )}
-                    {row.actions.close && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenConfirm(row, 'close')}
-                        >
-                            <XCircle className="mr-1 h-3.5 w-3.5" />
-                            Tutup
-                        </Button>
-                    )}
-                </div>
-            ),
+            cell: (row) =>
+                row.actions.assign && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        leftIcon={<User className="h-3.5 w-3.5" aria-hidden="true" />}
+                        onClick={() => handleOpenAssign(row)}
+                    >
+                        {row.assigned_to ? 'Ganti petugas' : 'Tugaskan'}
+                    </Button>
+                ),
         },
     ];
 
     const hasItems = items.data && items.data.length > 0;
+    const hasFilters = Boolean(
+        params.search ||
+        params.domain ||
+        (params.status && params.status !== 'unassigned') ||
+        params.priority ||
+        params.date_from,
+    );
+    const resetFilters = () =>
+        setMany({
+            search: '',
+            domain: '',
+            status: activeTab === 'dispatch' ? 'unassigned' : '',
+            priority: '',
+            date_from: '',
+            date_to: '',
+            page: 1,
+        });
+
+    const status = String(params.status ?? 'unassigned');
+    const domain = String(params.domain ?? '');
+    const hasTicket = domains.some((option) => option.value === 'ticket');
+    const hasSpk = domains.some((option) => option.value === 'spk');
+    const dispatchChips: SummaryChip[] = [
+        {
+            key: 'unassigned',
+            label: 'Belum ditugaskan',
+            count: summary.unassigned,
+            active: status === 'unassigned' && domain === '',
+            onSelect: () => setMany({ status: 'unassigned', domain: '', page: 1 }),
+        },
+        ...(hasTicket
+            ? [
+                  {
+                      key: 'ticket',
+                      label: 'Tiket belum ditugaskan',
+                      count: summary.ticket_unassigned,
+                      active: status === 'unassigned' && domain === 'ticket',
+                      onSelect: () => setMany({ status: 'unassigned', domain: 'ticket', page: 1 }),
+                  },
+              ]
+            : []),
+        ...(hasSpk
+            ? [
+                  {
+                      key: 'spk',
+                      label: 'SPK belum ditugaskan',
+                      count: summary.spk_unassigned,
+                      active: status === 'unassigned' && domain === 'spk',
+                      onSelect: () => setMany({ status: 'unassigned', domain: 'spk', page: 1 }),
+                  },
+              ]
+            : []),
+        {
+            key: 'assigned',
+            label: 'Sudah ditugaskan',
+            count: summary.assigned,
+            active: status === 'assigned' && domain === '',
+            onSelect: () => setMany({ status: 'assigned', domain: '', page: 1 }),
+        },
+    ];
+
+    const myWorkStatus = String(params.status ?? '');
+    const myWorkCounts = myWorkSummary
+        ? {
+              assigned: myWorkSummary.assigned,
+              in_progress: myWorkSummary.in_progress,
+              resolved: myWorkSummary.waiting_action,
+          }
+        : null;
+    const myWorkChips: SummaryChip[] =
+        myWorkSummary && myWorkCounts
+            ? [
+                  {
+                      key: 'all',
+                      label: 'Semua tugas',
+                      count: myWorkSummary.total,
+                      active: myWorkStatus === '',
+                      onSelect: () => setMany({ status: '', page: 1 }),
+                  },
+                  ...MY_WORK_STATUS_FILTER.map(({ value, label }) => ({
+                      key: value,
+                      label,
+                      count: myWorkCounts[value],
+                      active: myWorkStatus === value,
+                      onSelect: () => setMany({ status: value, page: 1 }),
+                  })),
+              ]
+            : [];
 
     return (
         <AdminLayout title="Penugasan">
             <div className="space-y-6">
                 <PageHeader
                     title="Penugasan"
-                    subtitle="Pusat alokasi dan pemantauan penugasan operasional tiket dan SPK lapangan"
+                    subtitle="Tiket dan SPK yang menunggu petugas, dan siapa yang sedang mengerjakannya."
                 />
 
-                {/* Top Job-based Operational Tabs */}
                 {canMyWork && (
                     <Tabs value={activeTab} onValueChange={handleTabChange}>
                         <TabList
                             className="border-b border-border"
-                            aria-label="Pilihan Antrean Operasional"
+                            aria-label="Antrean operasional"
                         >
                             <Tab value="dispatch" className="gap-2">
                                 <span>Antrean Penugasan</span>
@@ -702,16 +574,11 @@ export default function DispatchIndex({
                     </Tabs>
                 )}
 
-                {/* View 1: Dispatch Queue */}
                 {activeTab === 'dispatch' && (
                     <>
-                        <DispatchSummaryCards
-                            summary={summary}
-                            activeStatus={String(params.status ?? 'unassigned')}
-                            onSelectStatus={handleStatusCardClick}
-                        />
+                        <SummaryChips label="Ringkasan antrean penugasan" chips={dispatchChips} />
 
-                        <Card className="border-border bg-card shadow-xs">
+                        <Card>
                             <CardContent className="space-y-4 pt-6">
                                 <DispatchFilterBar
                                     params={params}
@@ -722,7 +589,6 @@ export default function DispatchIndex({
                                     disabled={visiting}
                                 />
 
-                                {/* Desktop Table */}
                                 <div className="hidden md:block">
                                     <DataTable
                                         columns={dispatchColumns}
@@ -739,12 +605,14 @@ export default function DispatchIndex({
                                         onPageChange={setPage}
                                         onPerPageChange={(perPage) => set('per_page', perPage)}
                                         loading={processing}
+                                        hasFilters={hasFilters}
+                                        onResetFilters={resetFilters}
+                                        itemLabel="antrean"
                                         emptyTitle="Tidak ada antrean penugasan"
-                                        emptyDescription="Seluruh tiket dan SPK saat ini sudah ditugaskan kepada petugas pelaksana."
+                                        emptyDescription="Semua tiket dan SPK sudah punya petugas."
                                     />
                                 </div>
 
-                                {/* Mobile Stacked Cards */}
                                 <div className="space-y-4 md:hidden">
                                     {processing && !hasItems && (
                                         <LoadingState variant="rows" rows={4} />
@@ -753,7 +621,7 @@ export default function DispatchIndex({
                                     {!processing && !hasItems && (
                                         <ResourceEmpty
                                             title="Tidak ada antrean penugasan"
-                                            description="Seluruh tiket dan SPK saat ini sudah ditugaskan kepada petugas pelaksana."
+                                            description="Semua tiket dan SPK sudah punya petugas."
                                             className="my-4"
                                         />
                                     )}
@@ -781,7 +649,6 @@ export default function DispatchIndex({
                             </CardContent>
                         </Card>
 
-                        {/* Assign Dialog */}
                         <AssignDialog
                             open={assignOpen}
                             onOpenChange={setAssignOpen}
@@ -798,16 +665,11 @@ export default function DispatchIndex({
                     </>
                 )}
 
-                {/* View 2: My Work (when tab=my_work) */}
                 {activeTab === 'my_work' && myWorkSummary && (
                     <>
-                        <MyWorkSummaryCards
-                            summary={myWorkSummary}
-                            activeStatus={String(params.status ?? '')}
-                            onSelectStatus={handleStatusCardClick}
-                        />
+                        <SummaryChips label="Ringkasan pekerjaan saya" chips={myWorkChips} />
 
-                        <Card className="border-border bg-card shadow-xs">
+                        <Card>
                             <CardContent className="space-y-4 pt-6">
                                 <MyWorkFilterBar
                                     params={params}
@@ -818,7 +680,6 @@ export default function DispatchIndex({
                                     disabled={visiting}
                                 />
 
-                                {/* Desktop Table */}
                                 <div className="hidden md:block">
                                     <DataTable
                                         columns={myWorkColumns}
@@ -835,12 +696,14 @@ export default function DispatchIndex({
                                         onPageChange={setPage}
                                         onPerPageChange={(perPage) => set('per_page', perPage)}
                                         loading={processing}
-                                        emptyTitle="Tidak ada tugas aktif"
-                                        emptyDescription="Anda tidak memiliki tiket atau SPK aktif yang sedang ditugaskan kepada Anda saat ini."
+                                        hasFilters={hasFilters}
+                                        onResetFilters={resetFilters}
+                                        itemLabel="tugas"
+                                        emptyTitle="Belum ada tugas untuk Anda"
+                                        emptyDescription="Tiket atau SPK yang ditugaskan kepada Anda akan muncul di sini."
                                     />
                                 </div>
 
-                                {/* Mobile Stacked Cards */}
                                 <div className="space-y-4 md:hidden">
                                     {processing && !hasItems && (
                                         <LoadingState variant="rows" rows={4} />
@@ -848,8 +711,8 @@ export default function DispatchIndex({
 
                                     {!processing && !hasItems && (
                                         <ResourceEmpty
-                                            title="Tidak ada tugas aktif"
-                                            description="Anda tidak memiliki tiket atau SPK aktif yang sedang ditugaskan kepada Anda saat ini."
+                                            title="Belum ada tugas untuk Anda"
+                                            description="Tiket atau SPK yang ditugaskan kepada Anda akan muncul di sini."
                                             className="my-4"
                                         />
                                     )}
@@ -878,7 +741,6 @@ export default function DispatchIndex({
                             </CardContent>
                         </Card>
 
-                        {/* Operational Action Modals */}
                         <ResolveDialog
                             open={resolveOpen}
                             onOpenChange={setResolveOpen}

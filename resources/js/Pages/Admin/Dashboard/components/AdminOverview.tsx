@@ -3,6 +3,7 @@ import { Badge, Card, CardContent, CardHeader, CardTitle, StatCard } from '@/Com
 import { formatDateTime, formatNumber } from '@/lib/format';
 import type { Company } from '@/types';
 import type { DashboardAdminStats } from '@/types/dashboard';
+import { activityText } from './activityText';
 
 interface AdminOverviewProps {
     admin: DashboardAdminStats;
@@ -60,24 +61,14 @@ export function AdminOverview({ admin, company }: AdminOverviewProps) {
                                 {admin.recentActivity.map((activity) => (
                                     <li
                                         key={activity.id}
-                                        className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
+                                        className="rounded-lg border border-border p-3"
                                     >
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-medium wrap-break-word text-foreground">
-                                                {activity.description}
-                                            </p>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatDateTime(activity.created_at)}
-                                            </p>
-                                        </div>
-                                        {activity.log_name && (
-                                            <Badge
-                                                variant="info"
-                                                className="shrink-0 self-start sm:self-auto"
-                                            >
-                                                {activity.log_name}
-                                            </Badge>
-                                        )}
+                                        <p className="text-sm font-medium wrap-break-word text-foreground">
+                                            {activityText(activity)}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatDateTime(activity.created_at, company)}
+                                        </p>
                                     </li>
                                 ))}
                             </ul>

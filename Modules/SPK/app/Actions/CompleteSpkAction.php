@@ -29,7 +29,7 @@ class CompleteSpkAction
                 ->lockForUpdate()
                 ->findOrFail($workOrder->id);
 
-            abort_if($workOrder->getMedia('evidence')->isEmpty(), 422, 'Evidence required before completion.');
+            abort_if($workOrder->getMedia('evidence')->isEmpty(), 422, 'Bukti pekerjaan wajib diunggah sebelum SPK diselesaikan.');
 
             self::reconcileUsedQuantitiesFromMaterialReturns($workOrder);
             $workOrder->load(['items.product', 'items.networkAsset.product']);
@@ -247,11 +247,11 @@ class CompleteSpkAction
             return;
         }
 
-        abort_unless($workOrder->subscription && $workOrder->customer, 422, 'Installation SPK requires customer and subscription.');
+        abort_unless($workOrder->subscription && $workOrder->customer, 422, 'SPK instalasi wajib memiliki pelanggan dan langganan.');
         /** @var Customer|null $subCustomer */
         $subCustomer = $workOrder->subscription->customer;
-        abort_unless($subCustomer && $subCustomer->company_id === $workOrder->company_id, 422, 'Subscription must belong to the SPK company.');
-        abort_unless($workOrder->subscription->customer_id === $workOrder->customer_id, 422, 'Subscription must belong to the SPK customer.');
+        abort_unless($subCustomer && $subCustomer->company_id === $workOrder->company_id, 422, 'Langganan harus milik perusahaan yang sama dengan SPK.');
+        abort_unless($workOrder->subscription->customer_id === $workOrder->customer_id, 422, 'Langganan harus milik pelanggan pada SPK ini.');
 
         $serializedItems = $workOrder->items->filter(fn (WorkOrderItem $item) => Product::withoutCompany()->whereKey($item->product_id)->value('type') === 'asset');
         if ($serializedItems->isEmpty()) {
@@ -259,20 +259,20 @@ class CompleteSpkAction
         }
 
         $serializedItems->each(function (WorkOrderItem $item) use ($workOrder): void {
-            abort_unless((bool) $item->network_asset_id, 422, 'Serialized installation requires a selected network asset.');
+            abort_unless((bool) $item->network_asset_id, 422, 'Instalasi aset berserial wajib memilih aset jaringan.');
 
             $asset = NetworkAsset::withoutCompany()
                 ->lockForUpdate()
                 ->find($item->network_asset_id);
 
-            abort_unless($asset instanceof NetworkAsset, 422, 'Selected network asset is unavailable.');
-            abort_unless($asset->company_id === $workOrder->company_id, 422, 'Selected network asset must belong to the SPK company.');
+            abort_unless($asset instanceof NetworkAsset, 422, 'Aset jaringan yang dipilih tidak tersedia.');
+            abort_unless($asset->company_id === $workOrder->company_id, 422, 'Aset jaringan yang dipilih harus milik perusahaan yang sama dengan SPK.');
             $product = Product::withoutCompany()->find($item->product_id);
-            abort_unless($product instanceof Product, 422, 'Selected product must belong to the SPK company.');
-            abort_unless($product->company_id === $workOrder->company_id, 422, 'Selected product must belong to the SPK company.');
-            abort_unless($product->type === 'asset', 422, 'Selected product must be a serialized asset.');
-            abort_unless($asset->product_id === $item->product_id, 422, 'Selected network asset must match the SPK item product.');
-            abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
+            abort_unless($product instanceof Product, 422, 'Barang yang dipilih harus milik perusahaan yang sama dengan SPK.');
+            abort_unless($product->company_id === $workOrder->company_id, 422, 'Barang yang dipilih harus milik perusahaan yang sama dengan SPK.');
+            abort_unless($product->type === 'asset', 422, 'Barang yang dipilih harus berupa aset berserial.');
+            abort_unless($asset->product_id === $item->product_id, 422, 'Aset jaringan yang dipilih harus sesuai dengan barang pada item SPK.');
+            abort_unless($asset->status === 'available', 422, 'Aset jaringan yang dipilih harus berstatus tersedia.');
 
             NetworkAssetService::install(
                 $asset,

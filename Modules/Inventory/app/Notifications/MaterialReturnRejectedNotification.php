@@ -6,15 +6,18 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Inventory\Notifications\Concerns\LinksToReturnPage;
 
 class MaterialReturnRejectedNotification extends Notification implements ShouldQueue
 {
+    use LinksToReturnPage;
     use Queueable;
 
     public function __construct(
         public readonly int $caseId,
         public readonly string $reason,
         public readonly ?int $companyId = null,
+        public readonly ?int $inventoryRequestId = null,
     ) {
         $this->afterCommit();
     }
@@ -28,12 +31,12 @@ class MaterialReturnRejectedNotification extends Notification implements ShouldQ
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject('Penolakan Serah Terima Retur Material: Kasus #'.$this->caseId)
-            ->line('Serah terima fisik pengembalian material Anda ditolak oleh staf gudang.')
-            ->line('ID Kasus Retur: #'.$this->caseId)
+            ->subject('Penyerahan Pengembalian Material Ditolak: Kasus #'.$this->caseId)
+            ->line('Gudang menolak penyerahan fisik pengembalian material Anda.')
+            ->line('Nomor Kasus Pengembalian: #'.$this->caseId)
             ->line('Alasan Penolakan: '.$this->reason)
-            ->line('Silakan periksa kembali fisik material atau perbaiki deklarasi retur Anda.')
-            ->action('Lihat Detail Retur', url('/admin/inventory/returns/'.$this->caseId));
+            ->line('Periksa kembali barang fisik atau perbaiki deklarasi pengembalian Anda.')
+            ->action('Lihat Kasus Pengembalian', $this->returnPageUrl());
     }
 
     /** @return array<string, mixed> */
@@ -44,6 +47,7 @@ class MaterialReturnRejectedNotification extends Notification implements ShouldQ
             'case_id' => $this->caseId,
             'reason' => $this->reason,
             'company_id' => $this->companyId,
+            'inventory_request_id' => $this->inventoryRequestId,
         ];
     }
 }

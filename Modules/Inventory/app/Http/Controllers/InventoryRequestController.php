@@ -4,7 +4,6 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\Location;
-use App\Services\Core\CompanyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +18,8 @@ use Modules\Inventory\Http\Resources\InventoryRequestResource;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Services\InventoryRequestService;
+use Modules\Inventory\Support\InventoryOptions;
+use Modules\Inventory\Support\InventoryRequestSources;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class InventoryRequestController extends Controller
@@ -105,25 +106,11 @@ class InventoryRequestController extends Controller
     {
         Gate::authorize('create', InventoryRequest::class);
 
-        $companyId = CompanyService::currentId();
-
-        $warehouses = Location::withoutCompany()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->select('id', 'name', 'code', 'type')
-            ->get();
-
-        $products = Product::withoutCompany()
-            ->where('company_id', $companyId)
-            ->where('is_active', true)
-            ->where('type', '!=', 'asset')
-            ->select('id', 'name', 'sku as code', 'type', 'unit_id')
-            ->with('unit:id,name,symbol')
-            ->get();
-
         return Inertia::render('Admin/Inventory/Requests/Create', [
-            'warehouses' => $warehouses,
-            'products' => $products,
+            'warehouses' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'type']),
+            'productOptions' => InventoryOptions::products($request, Product::query()->where('is_active', true)->where('type', '!=', 'asset')),
+            'workOrderOptions' => InventoryRequestSources::workOrders($request),
+            'ticketOptions' => InventoryRequestSources::tickets($request),
         ]);
     }
 

@@ -1,11 +1,14 @@
 import { BarChartLazy, LineChartLazy } from '@/Components/ui/ChartLazy';
+import { useCompany } from '@/hooks/useCompany';
+import { todayInZone } from '@/lib/dateRange';
 import type { SalesChartData } from '@/types';
-import { periodUnit, topRows } from './chartData';
+import { markRunning, periodUnit, topRows } from './chartData';
 import { ReportChartCard } from './ReportChartCard';
 
 const MAX_ACQUIRERS = 10;
 
 export function SalesCharts({ charts }: { charts: SalesChartData }) {
+    const company = useCompany();
     const unit = periodUnit(charts.series);
     const customers = topRows(
         charts.acquirers.map(({ name, customers_acquired }) => ({
@@ -23,23 +26,23 @@ export function SalesCharts({ charts }: { charts: SalesChartData }) {
         <div className="grid gap-4 lg:grid-cols-2">
             <ReportChartCard title={`Pelanggan baru per ${unit}`} className="lg:col-span-2">
                 <LineChartLazy
-                    data={charts.series.points}
+                    data={markRunning(charts.series, todayInZone(company?.timezone))}
                     xKey="label"
                     lines={[{ key: 'new_customers', name: 'Pelanggan baru' }]}
                     ariaLabel={`Grafik garis pelanggan baru per ${unit}`}
                 />
             </ReportChartCard>
-            <ReportChartCard title="Pelanggan baru per acquirer">
+            <ReportChartCard title="Pelanggan baru per petugas penjualan">
                 <BarChartLazy
                     data={customers}
                     xKey="name"
                     bars={[{ key: 'value', name: 'Pelanggan baru' }]}
                     layout="vertical"
-                    ariaLabel="Grafik batang pelanggan baru per acquirer"
+                    ariaLabel="Grafik batang pelanggan baru per petugas penjualan"
                 />
             </ReportChartCard>
             <ReportChartCard
-                title="Pembayaran diterima per acquirer"
+                title="Pembayaran diterima per petugas penjualan"
                 description="Semua pembayaran yang tidak dibatalkan, menurut tanggal bayar."
             >
                 <BarChartLazy
@@ -48,7 +51,7 @@ export function SalesCharts({ charts }: { charts: SalesChartData }) {
                     bars={[{ key: 'value', name: 'Pembayaran diterima' }]}
                     layout="vertical"
                     valueFormat="currency"
-                    ariaLabel="Grafik batang pembayaran diterima per acquirer"
+                    ariaLabel="Grafik batang pembayaran diterima per petugas penjualan"
                 />
             </ReportChartCard>
         </div>

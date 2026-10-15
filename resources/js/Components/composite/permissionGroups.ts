@@ -1,3 +1,7 @@
+import {
+    PERMISSION_GROUP_LABELS,
+    PERMISSION_LABELS,
+} from '@/Components/composite/permissionLabels';
 import { navGroups } from '@/lib/navigation';
 
 export interface PermissionOption {
@@ -6,7 +10,7 @@ export interface PermissionOption {
     group: string;
 }
 
-const OTHER_SECTION = 'Other';
+const OTHER_SECTION = 'Lainnya';
 
 /**
  * Permission groups in sidebar order, each tied to the sidebar group that first reaches it.
@@ -35,13 +39,14 @@ export function permissionGroupSection(group: string): string | null {
     return sidebarSections.has(group) ? (sidebarSections.get(group) ?? null) : OTHER_SECTION;
 }
 
-/** Human label of a permission: its name without the group prefix, words capitalised. */
-export function formatPermission(permission: string, group: string): string {
-    return permission
-        .replace(`${group}.`, '')
-        .split(/[._-]/)
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
+/** What a group is called on screen; a group nobody named yet shows its code. */
+export function formatGroup(group: string): string {
+    return PERMISSION_GROUP_LABELS[group] ?? group;
+}
+
+/** What a permission lets a role do, in words; a permission nobody described yet shows its code. */
+export function formatPermission(permission: string): string {
+    return PERMISSION_LABELS[permission] ?? permission;
 }
 
 /** Permissions whose name or label contains the trimmed query, case-insensitive; a blank query keeps all. */
@@ -58,7 +63,7 @@ export function filterPermissions(
     return permissions.filter(
         (permission) =>
             permission.name.toLowerCase().includes(needle) ||
-            formatPermission(permission.name, permission.group).toLowerCase().includes(needle),
+            formatPermission(permission.name).toLowerCase().includes(needle),
     );
 }
 

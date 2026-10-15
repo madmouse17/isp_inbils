@@ -87,7 +87,7 @@ function MetricValue({ metric, metrics, sla, currency }: MetricValueProps) {
                 <>
                     {metrics.sla_compliance_pct}%
                     <span className="block text-xs font-normal text-muted-foreground">
-                        {sla.on_time} of {sla.resolved} on time
+                        {sla.on_time} dari {sla.resolved} tepat waktu
                     </span>
                 </>
             );
@@ -106,7 +106,7 @@ function CompanyLabel({ name, detail, isHead = false }: CompanyLabelProps) {
             <span className="block font-medium wrap-break-word">{name}</span>
             {(detail || isHead) && (
                 <div className="flex flex-wrap items-center gap-2 text-xs font-normal text-muted-foreground">
-                    {isHead && <Badge variant="secondary">Head</Badge>}
+                    {isHead && <Badge variant="secondary">Induk</Badge>}
                     {detail && <span>{detail}</span>}
                 </div>
             )}
@@ -133,7 +133,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
     const columns: DataTableColumn<CompanyRow>[] = [
         {
             key: 'company',
-            header: 'Company',
+            header: 'Perusahaan',
             cell: ({ company }) => (
                 <div className="min-w-48">
                     <CompanyLabel
@@ -172,7 +172,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
         })),
         {
             key: 'total',
-            label: <CompanyLabel name="Consolidated total" />,
+            label: <CompanyLabel name="Total konsolidasi" />,
             metrics: report.total,
             sla: report.sla,
             total: true,
@@ -185,7 +185,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
                 <LoadingState
                     variant="rows"
                     rows={3}
-                    label="Loading consolidated figures"
+                    label="Memuat angka konsolidasi"
                     className="min-[1200px]:hidden"
                 />
             ) : (
@@ -240,7 +240,7 @@ function CompanyTable({ context, report, meta, loading }: CompanyTableProps) {
                     footer={
                         loading ? undefined : (
                             <TR>
-                                <TD className="font-semibold">Consolidated total</TD>
+                                <TD className="font-semibold">Total konsolidasi</TD>
                                 {METRIC_KEYS.map((key) => (
                                     <TD
                                         key={key}
@@ -286,19 +286,18 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
 
     const subsidiaries = context.companies.length - 1;
     const subtitle =
-        `Consolidated business metrics of ${context.head.name} and ${subsidiaries} ` +
-        `${subsidiaries === 1 ? 'subsidiary' : 'subsidiaries'}.` +
-        (context.currency ? ` Amounts in ${context.currency}.` : '');
+        `Metrik bisnis gabungan ${context.head.name} dan ${subsidiaries} anak perusahaan.` +
+        (context.currency ? ` Nilai dalam ${context.currency}.` : '');
     const periodFrom = formatDate(filters.date_from, company);
     const periodTo = formatDate(filters.date_to, company);
     const period =
         filters.date_from && filters.date_to
-            ? `Period: ${periodFrom} to ${periodTo}, both days included.`
+            ? `Periode: ${periodFrom} sampai ${periodTo}, kedua hari dihitung.`
             : filters.date_from
-              ? `Period: ${periodFrom} to today, both days included.`
+              ? `Periode: ${periodFrom} sampai hari ini, kedua hari dihitung.`
               : filters.date_to
-                ? `Period: everything up to ${periodTo}, that day included.`
-                : 'Period: all time. Pick a date range to limit the period.';
+                ? `Periode: semua data sampai ${periodTo}, hari itu dihitung.`
+                : 'Periode: semua waktu. Pilih rentang tanggal untuk membatasi periode.';
 
     return (
         <AdminLayout title="Metrik Konsolidasi">
@@ -336,15 +335,16 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                                     className="h-11 w-full sm:w-auto"
                                     loading={pending}
                                 >
-                                    Run
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
                         <div className="space-y-1 text-sm text-muted-foreground">
                             <p>{period}</p>
                             <p>
-                                The report covers the Head company and its active subsidiaries. Each
-                                company&apos;s period runs on calendar days in its own timezone.
+                                Laporan mencakup perusahaan induk dan anak perusahaannya yang aktif.
+                                Periode tiap perusahaan dihitung per hari kalender di zona waktunya
+                                sendiri.
                             </p>
                         </div>
                     </CardContent>
@@ -353,16 +353,18 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                     <Alert variant="warning">
                         <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                         <div className="space-y-2">
-                            <p className="font-medium">These companies cannot be consolidated</p>
+                            <p className="font-medium">
+                                Perusahaan ini tidak bisa dikonsolidasikan
+                            </p>
                             <p>{refusal.message}</p>
                             {permitted('report.business.view') && (
                                 <p>
-                                    Each company&apos;s own figures stay available in{' '}
+                                    Angka tiap perusahaan tetap bisa dibuka di{' '}
                                     <Link
                                         href={route('admin.reports.business')}
                                         className="rounded-sm font-medium underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                     >
-                                        Business Metrics
+                                        Metrik Bisnis
                                     </Link>
                                     .
                                 </p>
@@ -377,7 +379,7 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                                     id="consolidated-figures"
                                     className="text-lg font-semibold tracking-tight"
                                 >
-                                    Figures by company
+                                    Angka per perusahaan
                                 </h2>
                                 <CompanyTable
                                     context={context}
@@ -386,9 +388,9 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                                     loading={pending}
                                 />
                                 <p className="text-sm text-muted-foreground">
-                                    The consolidated SLA compliance is pooled: the on-time tickets
-                                    of all companies over their resolved tickets, not an average of
-                                    the company percentages.
+                                    Kepatuhan SLA konsolidasi dihitung gabungan: tiket tepat waktu
+                                    dari semua perusahaan dibagi tiket yang selesai, bukan rata-rata
+                                    persentase tiap perusahaan.
                                 </p>
                             </section>
                             <section
@@ -399,7 +401,7 @@ export default function Consolidated({ context, data, refusal, filters, meta, ca
                                     id="consolidated-definitions"
                                     className="text-lg font-semibold tracking-tight"
                                 >
-                                    How each figure is calculated
+                                    Cara menghitung setiap angka
                                 </h2>
                                 <Card>
                                     <CardContent className="pt-6">

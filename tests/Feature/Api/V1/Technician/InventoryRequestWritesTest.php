@@ -89,7 +89,7 @@ class InventoryRequestWritesTest extends TestCase
             'items' => [['product_id' => $cable->id, 'quantity_requested' => 1]],
         ], $this->issueToken($technician, 'technician'))->assertCreated();
 
-        $this->assertSame('Permintaan material inventory', InventoryRequest::withoutCompany()->sole()->reason);
+        $this->assertSame('Permintaan material inventaris', InventoryRequest::withoutCompany()->sole()->reason);
     }
 
     public function test_the_request_is_validated_and_nothing_is_written_on_a_422(): void

@@ -6,9 +6,30 @@ import {
     PageHeader,
     type DataTableColumn,
 } from '@/Components/composite';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    EnumBadge,
+} from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
+import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import {
+    INVOICE_STATUS,
+    INVOICE_TYPE,
+    NETWORK_ASSET_STATUS,
+    NETWORK_ASSET_TYPE,
+    SUBSCRIPTION_STATUS,
+    TICKET_STATUS,
+    WORK_ORDER_STATUS,
+    WORK_ORDER_TYPE,
+    type StatusMap,
+} from '@/lib/statuses';
 import type { MetricDefinitionData } from '@/types';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
@@ -43,10 +64,14 @@ interface Reconciliation {
     difference: string;
 }
 
+type DrillKind =
+    'subscription' | 'invoice' | 'ticket' | 'work_order' | 'asset' | 'installation' | 'evaluation';
+
 interface Props extends Record<string, unknown> {
     report: { key: string; title: string; href: string };
     source: {
         key: string;
+        kind: DrillKind;
         label: string;
         group: string | null;
         noun: string;
@@ -60,6 +85,25 @@ interface Props extends Record<string, unknown> {
     export: { url: string; params: Record<string, string | number> } | null;
 }
 
+/** The columns of each kind that hold a state or a type, with the map that names them. */
+const ENUM_COLUMNS: Partial<Record<DrillKind, Record<string, StatusMap>>> = {
+    invoice: { status: INVOICE_STATUS, type: INVOICE_TYPE },
+    subscription: { status: SUBSCRIPTION_STATUS },
+    ticket: { status: TICKET_STATUS },
+    work_order: { status: WORK_ORDER_STATUS, type: WORK_ORDER_TYPE },
+    asset: { status: NETWORK_ASSET_STATUS, asset_type: NETWORK_ASSET_TYPE },
+};
+
+const MONEY_COLUMNS: Record<string, true> = {
+    mrc_amount: true,
+    total: true,
+    paid_amount: true,
+    outstanding: true,
+};
+const DECIMAL = /^-?\d+(\.\d+)?$/;
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_MOMENT = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
+
 export default function Drill({
     report,
     source,
@@ -71,6 +115,7 @@ export default function Drill({
     export: exportFile,
 }: Props) {
     const { url } = usePage();
+    const company = useCompany();
     const { sort_by: sortBy, sort_dir: sortDir, ...applied } = filters;
     const table = useServerTable({
         url: url.split('?')[0],
@@ -80,6 +125,18 @@ export default function Drill({
     const pagination = toPagination(rows);
 
     const title = source.group ? `${source.label}: ${source.group}` : source.label;
+    const enumMaps = ENUM_COLUMNS[source.kind] ?? {};
+
+    const formatCell = (key: string, value: Cell): string => {
+        if (value === null || value === undefined || value === '') return '-';
+        const text = String(value);
+
+        if (MONEY_COLUMNS[key] && DECIMAL.test(text)) return formatRupiah(text, company);
+        if (ISO_DATE.test(text)) return formatDate(text, company);
+        if (ISO_MOMENT.test(text)) return formatDateTime(text, company);
+
+        return text;
+    };
 
     const tableColumns: DataTableColumn<DrillRow>[] = columns.map((column, index) => ({
         key: column.key,
@@ -89,8 +146,13 @@ export default function Drill({
         headerClassName: column.numeric ? 'text-right' : undefined,
         cell: (row) => {
             const value = row[column.key];
-            const text =
-                value === null || value === undefined || value === '' ? '-' : String(value);
+            const map = enumMaps[column.key];
+
+            if (map && value !== null && value !== undefined && value !== '') {
+                return <EnumBadge map={map} value={String(value)} />;
+            }
+
+            const text = formatCell(column.key, value);
 
             return index === 0 && row.url ? (
                 <Link
@@ -108,21 +170,21 @@ export default function Drill({
     const verdict = tieOut.restricted
         ? {
               variant: 'info' as const,
-              text: 'You only see the rows assigned to you, so they cover a part of the figure.',
+              text: 'Anda hanya melihat baris yang ditugaskan kepada Anda, jadi ini sebagian dari angka.',
           }
         : tieOut.matches === true
           ? {
                 variant: 'success' as const,
-                text: 'Ties out: these rows add up to the figure on the report.',
+                text: 'Baris-baris ini berjumlah sama dengan angka di laporan.',
             }
           : tieOut.matches === false
             ? {
                   variant: 'warning' as const,
-                  text: 'Does not tie out: these rows differ from the figure on the report.',
+                  text: 'Baris-baris ini berbeda dari angka di laporan.',
               }
             : {
                   variant: 'info' as const,
-                  text: 'This figure is an average over these rows; compare it with the columns below.',
+                  text: 'Angka ini rata-rata dari baris-baris ini; bandingkan dengan kolom di bawah.',
               };
 
     return (
@@ -130,12 +192,12 @@ export default function Drill({
             <div className="space-y-6">
                 <PageHeader
                     title={title}
-                    subtitle={`Source ${source.noun} behind this figure of ${report.title}.`}
+                    subtitle={`Data ${source.noun} di balik angka ${report.title}.`}
                     breadcrumbs={[{ label: report.title, href: report.href }, { label: title }]}
                     actions={
                         <>
                             <Button asChild variant="outline" size="sm">
-                                <Link href={report.href}>Back to {report.title}</Link>
+                                <Link href={report.href}>Kembali ke {report.title}</Link>
                             </Button>
                             {exportFile && (
                                 <ReportExportMenu
@@ -150,19 +212,19 @@ export default function Drill({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Tie-out to the report</CardTitle>
+                        <CardTitle>Kecocokan dengan laporan</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <dl className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="min-w-0">
-                                <dt className="text-xs text-muted-foreground">Rows listed</dt>
+                                <dt className="text-xs text-muted-foreground">Baris ditampilkan</dt>
                                 <dd className="text-2xl font-bold">
                                     {tieOut.rows} {tieOut.noun}
                                 </dd>
                                 {tieOut.companion && (
                                     <dd className="text-xs text-muted-foreground">
-                                        plus {tieOut.companion.rows} {tieOut.companion.label} in the
-                                        sibling list
+                                        ditambah {tieOut.companion.rows} {tieOut.companion.label} di
+                                        daftar pendamping
                                     </dd>
                                 )}
                             </div>
@@ -178,15 +240,15 @@ export default function Drill({
                             )}
                             {tieOut.compliant !== null && (
                                 <div className="min-w-0">
-                                    <dt className="text-xs text-muted-foreground">On time</dt>
+                                    <dt className="text-xs text-muted-foreground">Tepat waktu</dt>
                                     <dd className="text-2xl font-bold">
-                                        {tieOut.compliant} of {tieOut.rows}
+                                        {tieOut.compliant} dari {tieOut.rows}
                                     </dd>
                                 </div>
                             )}
                             <div className="min-w-0">
                                 <dt className="text-xs text-muted-foreground">
-                                    Figure on {report.title}
+                                    Angka di {report.title}
                                 </dt>
                                 <dd className="text-2xl font-bold wrap-break-word">
                                     {tieOut.figure ?? '-'}
@@ -197,10 +259,10 @@ export default function Drill({
                         <div role="status" className="flex flex-wrap items-center gap-2 text-sm">
                             <Badge variant={verdict.variant}>
                                 {tieOut.matches === true
-                                    ? 'Ties out'
+                                    ? 'Cocok'
                                     : tieOut.matches === false
-                                      ? 'Differs'
-                                      : 'Not reconcilable by rows'}
+                                      ? 'Berbeda'
+                                      : 'Tidak bisa dicocokkan per baris'}
                             </Badge>
                             <span>{verdict.text}</span>
                         </div>
@@ -213,22 +275,22 @@ export default function Drill({
                 {reconciliation && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Reconciliation</CardTitle>
+                            <CardTitle>Rekonsiliasi</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <p className="text-sm">
-                                {reconciliation.label} shows{' '}
-                                <strong>{reconciliation.amount}</strong>; this list minus{' '}
-                                {reconciliation.label} is{' '}
+                                {reconciliation.label} menunjukkan{' '}
+                                <strong>{reconciliation.amount}</strong>; daftar ini dikurangi{' '}
+                                {reconciliation.label} adalah{' '}
                                 <strong>{reconciliation.difference}</strong>.
                             </p>
                             <p className="text-xs text-muted-foreground">
                                 {reconciliation.difference === '0.00'
-                                    ? 'Both surfaces agree.'
-                                    : `${reconciliation.label} applies its own inclusion rules, so a difference is reported here rather than hidden.`}
+                                    ? 'Kedua tampilan sama.'
+                                    : `${reconciliation.label} memakai aturan sendiri, jadi selisih dilaporkan di sini, bukan disembunyikan.`}
                             </p>
                             <Button asChild variant="outline" size="sm">
-                                <Link href={reconciliation.href}>Open {reconciliation.label}</Link>
+                                <Link href={reconciliation.href}>Buka {reconciliation.label}</Link>
                             </Button>
                         </CardContent>
                     </Card>
@@ -245,8 +307,8 @@ export default function Drill({
                     onPageChange={(page) => table.setPage(page)}
                     onPerPageChange={(perPage) => table.setPerPage(perPage)}
                     loading={table.processing}
-                    emptyTitle={`No ${tieOut.noun}`}
-                    emptyDescription="Nothing in the company matches this figure for the filters of the report."
+                    emptyTitle={`Tidak ada ${tieOut.noun}`}
+                    emptyDescription="Tidak ada data perusahaan yang cocok dengan angka ini untuk filter laporan."
                 />
             </div>
         </AdminLayout>

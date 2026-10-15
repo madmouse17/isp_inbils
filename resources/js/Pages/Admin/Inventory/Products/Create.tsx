@@ -1,4 +1,4 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -10,7 +10,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    NativeSelect,
+    SearchSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -34,12 +34,17 @@ export default function Create({ categories, codeSequence }: CreateProps) {
         is_active: true,
     });
 
+    const categoryChoices = categories.data.map((c) => ({
+        value: String(c.id),
+        label: `${c.code} - ${c.name}`,
+        description: c.unit ? `Satuan: ${c.unit.name} (${c.unit.symbol})` : undefined,
+    }));
     const selectedCategory = categories.data.find(
         (category) => String(category.id) === String(data.category_id),
     );
     const unitLabel = selectedCategory?.unit
         ? `${selectedCategory.unit.name} (${selectedCategory.unit.symbol})`
-        : 'Select category first';
+        : 'Pilih kategori dulu';
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -49,11 +54,11 @@ export default function Create({ categories, codeSequence }: CreateProps) {
     };
 
     return (
-        <AdminLayout title="Create Product">
+        <AdminLayout title="Buat Barang">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Product"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Barang"
+                    subtitle="Isi data barang, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -61,7 +66,7 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.products.index')}>Back</Link>
+                            <Link href={route('admin.products.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -69,7 +74,7 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Create Product</CardTitle>
+                            <CardTitle>Data Barang</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <SequenceCodeField
@@ -81,35 +86,32 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                                 mode="create"
                             />
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <NativeSelect
-                                label="Category"
+                            <SearchSelect
+                                id="product-category"
+                                label="Kategori"
+                                placeholder="Cari kategori"
+                                emptyText="Tidak ada kategori yang cocok."
+                                options={categoryChoices}
                                 value={data.category_id}
-                                onChange={(e) => setData('category_id', e.target.value)}
+                                onChange={(value) => setData('category_id', value)}
                                 error={errors.category_id}
                                 required
-                            >
-                                <option value="">Select category</option>
-                                {categories.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <Input
-                                label="Unit"
+                                label="Satuan"
                                 value={unitLabel}
                                 readOnly
                                 disabled
-                                hint="Unit follows selected category."
+                                hint="Satuan mengikuti kategori yang dipilih."
                             />
                             <Input
-                                label="Sell Price"
+                                label="Harga Jual"
                                 type="number"
                                 step="0.01"
                                 value={data.sell_price}
@@ -117,7 +119,7 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                                 error={errors.sell_price}
                             />
                             <Input
-                                label="Cost Price"
+                                label="Harga Pokok"
                                 type="number"
                                 step="0.01"
                                 value={data.cost_price}
@@ -125,7 +127,7 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                                 error={errors.cost_price}
                             />
                             <Input
-                                label="Min Stock"
+                                label="Stok Minimum"
                                 type="number"
                                 step="0.01"
                                 value={data.min_stock}
@@ -134,19 +136,19 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                             />
                             <div className="flex items-center gap-6">
                                 <Switch
-                                    label="Track Stock"
+                                    label="Lacak stok"
                                     checked={data.track_stock}
                                     onCheckedChange={(checked) => setData('track_stock', checked)}
                                 />
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
                                     onCheckedChange={(checked) => setData('is_active', checked)}
                                 />
                             </div>
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Description"
+                                    label="Deskripsi"
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     error={errors.description}
@@ -161,10 +163,10 @@ export default function Create({ categories, codeSequence }: CreateProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.products.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

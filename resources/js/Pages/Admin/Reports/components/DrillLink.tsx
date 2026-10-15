@@ -1,5 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { Button } from '@/Components/ui';
 
 /** Drill-down URLs of a report page keyed by figure; only the lists the viewer may open are present. */
 export type DrillLinks = Record<string, string>;
@@ -24,10 +23,12 @@ export function DrillLink({ href, label, group }: DrillLinkProps) {
             : `${href}${href.includes('?') ? '&' : '?'}group=${encodeURIComponent(group)}`;
 
     return (
-        <Button asChild variant="ghost" size="sm" className="mt-1 -ml-3">
-            <Link href={target} aria-label={`View records behind ${label}`}>
-                View records
-            </Link>
-        </Button>
+        <Link
+            href={target}
+            aria-label={`Lihat data di balik ${label}`}
+            className="mt-2 inline-block rounded-sm text-sm font-medium text-primary underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+        >
+            Lihat data
+        </Link>
     );
 }

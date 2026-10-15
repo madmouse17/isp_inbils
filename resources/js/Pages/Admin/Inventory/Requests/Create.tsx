@@ -1,53 +1,60 @@
-import React from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
+import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Button } from '@/Components/ui/Button';
+import { DatePicker } from '@/Components/ui/DatePicker';
+import { IconButton } from '@/Components/ui/IconButton';
 import { Input } from '@/Components/ui/Input';
-import { Label } from '@/Components/ui/Label';
+import { SearchSelect } from '@/Components/ui/SearchSelect';
 import { Textarea } from '@/Components/ui/Textarea';
 import { NativeSelect } from '@/Components/ui';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/Card';
-
-interface ProductOption {
-    id: number;
-    name: string;
-    code?: string | null;
-    type?: string;
-    unit?: {
-        id: number;
-        name: string;
-        symbol?: string | null;
-    } | null;
-}
+import { INVENTORY_REQUEST_SOURCE, optionsOf } from '@/lib/statuses';
 
 interface WarehouseOption {
     id: number;
     name: string;
     code?: string | null;
-    type?: string;
 }
 
+/** A form row. `uid` keeps a row's picker state when an earlier row is removed; it is not sent. */
 interface ItemRow {
-    product_id: string | number;
-    quantity_requested: string | number;
+    uid: number;
+    product_id: string;
+    quantity_requested: string;
     note: string;
 }
 
 interface Props {
     warehouses: WarehouseOption[];
-    products: ProductOption[];
+    /** Answers of the server-side search; only present after the first search. */
+    productOptions?: RemoteOption[];
+    workOrderOptions?: RemoteOption[];
+    ticketOptions?: RemoteOption[];
 }
 
-export default function InventoryRequestsCreate({ warehouses = [], products = [] }: Props) {
+const SOURCE_TYPE_OPTIONS = [
+    { value: '', label: 'Tanpa rujukan' },
+    ...optionsOf(INVENTORY_REQUEST_SOURCE),
+];
+
+export default function InventoryRequestsCreate({
+    warehouses = [],
+    productOptions,
+    workOrderOptions,
+    ticketOptions,
+}: Props) {
+    const nextUid = useRef(2);
+    const [mode, setMode] = useState<'draft' | 'submit'>('draft');
     const { data, setData, post, processing, errors, transform } = useForm<{
         warehouse_location_id: string;
         source_type: string;
         source_id: string;
         needed_at: string;
         reason: string;
-        submit: boolean;
         items: ItemRow[];
     }>({
         warehouse_location_id: warehouses[0]?.id ? String(warehouses[0].id) : '',
@@ -55,44 +62,51 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
         source_id: '',
         needed_at: '',
         reason: '',
-        submit: false,
-        items: [
-            {
-                product_id: products[0]?.id ? String(products[0].id) : '',
-                quantity_requested: 1,
-                note: '',
-            },
-        ],
+        items: [{ uid: 1, product_id: '', quantity_requested: '1', note: '' }],
     });
+    const errorMap: Record<string, string | undefined> = errors;
+
+    const warehouseChoices = useMemo(
+        () =>
+            warehouses.map((w) => ({
+                value: String(w.id),
+                label: w.code ? `${w.code} - ${w.name}` : w.name,
+            })),
+        [warehouses],
+    );
 
     const addItem = () => {
         setData('items', [
             ...data.items,
-            {
-                product_id: products[0]?.id ? String(products[0].id) : '',
-                quantity_requested: 1,
-                note: '',
-            },
+            { uid: nextUid.current++, product_id: '', quantity_requested: '1', note: '' },
         ]);
     };
 
     const removeItem = (index: number) => {
         if (data.items.length <= 1) return;
-        const newItems = [...data.items];
-        newItems.splice(index, 1);
-        setData('items', newItems);
+        setData(
+            'items',
+            data.items.filter((_, i) => i !== index),
+        );
     };
 
-    const updateItem = (index: number, field: keyof ItemRow, value: string | number) => {
-        const newItems = [...data.items];
-        newItems[index] = { ...newItems[index], [field]: value };
-        setData('items', newItems);
+    const updateItem = (index: number, field: keyof Omit<ItemRow, 'uid'>, value: string) => {
+        setData(
+            'items',
+            data.items.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+        );
     };
 
     const handleSubmit = (submitImmediately: boolean) => {
+        setMode(submitImmediately ? 'submit' : 'draft');
         transform((prev) => ({
             ...prev,
             submit: submitImmediately,
+            items: prev.items.map((item) => ({
+                product_id: item.product_id,
+                quantity_requested: item.quantity_requested,
+                note: item.note,
+            })),
         }));
         post(route('admin.inventory.requests.store'));
     };
@@ -102,7 +116,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
             <div className="mx-auto space-y-6 max-w-4xl">
                 <PageHeader
                     title="Buat Permintaan Barang"
-                    description="Ajukan permohonan material atau alat kerja kepada bagian gudang."
+                    description="Ajukan permohonan barang atau alat kerja kepada gudang."
                     actions={
                         <Button
                             asChild
@@ -116,7 +130,10 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                 />
 
                 {Object.keys(errors).length > 0 && (
-                    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text">
+                    <div
+                        role="alert"
+                        className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text"
+                    >
                         <div className="mb-1 flex items-center gap-2 font-medium">
                             <AlertCircle className="h-4 w-4" />
                             <span>Terdapat kesalahan pengisian formulir:</span>
@@ -139,88 +156,85 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                         <CardHeader>
                             <CardTitle>Informasi Pengajuan</CardTitle>
                             <CardDescription>
-                                Tentukan lokasi gudang tujuan, jadwal kebutuhan, dan alasan
+                                Tentukan gudang tujuan, tanggal barang dibutuhkan, dan alasan
                                 pengambilan.
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="warehouse_location_id">Gudang Tujuan</Label>
-                                    <NativeSelect
-                                        id="warehouse_location_id"
-                                        value={data.warehouse_location_id}
-                                        onChange={(e) =>
-                                            setData('warehouse_location_id', e.target.value)
-                                        }
-                                        className="h-9 text-sm"
-                                    >
-                                        <option value="">Pilih Gudang...</option>
-                                        {warehouses.map((w) => (
-                                            <option key={w.id} value={w.id}>
-                                                {w.name} {w.code ? `(${w.code})` : ''}
-                                            </option>
-                                        ))}
-                                    </NativeSelect>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label htmlFor="needed_at">Tanggal Dibutuhkan</Label>
-                                    <Input
-                                        id="needed_at"
-                                        type="date"
-                                        value={data.needed_at}
-                                        onChange={(e) => setData('needed_at', e.target.value)}
-                                        className="h-9"
-                                    />
-                                </div>
+                                <SearchSelect
+                                    id="warehouse_location_id"
+                                    label="Gudang Tujuan"
+                                    placeholder="Pilih gudang"
+                                    options={warehouseChoices}
+                                    value={data.warehouse_location_id}
+                                    onChange={(value) => setData('warehouse_location_id', value)}
+                                    error={errors.warehouse_location_id}
+                                />
+                                <DatePicker
+                                    id="needed_at"
+                                    label="Tanggal Dibutuhkan"
+                                    value={data.needed_at}
+                                    onChange={(value) => setData('needed_at', value)}
+                                    error={errors.needed_at}
+                                />
                             </div>
 
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="source_type">
-                                        Kategori Referensi (Opsional)
-                                    </Label>
-                                    <NativeSelect
-                                        id="source_type"
-                                        value={data.source_type}
-                                        onChange={(e) => setData('source_type', e.target.value)}
-                                        className="h-9 text-sm"
-                                    >
-                                        <option value="">Tidak ada referensi</option>
-                                        <option value="work_order">SPK / Work Order</option>
-                                        <option value="ticket">Tiket Layanan</option>
-                                    </NativeSelect>
-                                </div>
-
-                                {data.source_type && (
-                                    <div className="space-y-2">
-                                        <Label htmlFor="source_id">
-                                            ID {data.source_type === 'work_order' ? 'SPK' : 'Tiket'}
-                                        </Label>
-                                        <Input
-                                            id="source_id"
-                                            type="number"
-                                            placeholder="Masukkan ID referensi..."
-                                            value={data.source_id}
-                                            onChange={(e) => setData('source_id', e.target.value)}
-                                            className="h-9"
-                                        />
-                                    </div>
+                                <NativeSelect
+                                    id="source_type"
+                                    label="Rujukan (opsional)"
+                                    value={data.source_type}
+                                    onChange={(e) => {
+                                        setData((prev) => ({
+                                            ...prev,
+                                            source_type: e.target.value,
+                                            source_id: '',
+                                        }));
+                                    }}
+                                    options={SOURCE_TYPE_OPTIONS}
+                                    error={errors.source_type}
+                                />
+                                {data.source_type === 'work_order' && (
+                                    <RemoteSearchSelect
+                                        key="work_order"
+                                        id="source_id"
+                                        field="workOrder"
+                                        label="SPK"
+                                        placeholder="Cari kode atau judul SPK"
+                                        required
+                                        options={workOrderOptions}
+                                        value={data.source_id}
+                                        onChange={(value) => setData('source_id', value)}
+                                        error={errors.source_id}
+                                    />
+                                )}
+                                {data.source_type === 'ticket' && (
+                                    <RemoteSearchSelect
+                                        key="ticket"
+                                        id="source_id"
+                                        field="ticket"
+                                        label="Tiket"
+                                        placeholder="Cari kode atau judul tiket"
+                                        required
+                                        options={ticketOptions}
+                                        value={data.source_id}
+                                        onChange={(value) => setData('source_id', value)}
+                                        error={errors.source_id}
+                                    />
                                 )}
                             </div>
 
-                            <div className="space-y-2">
-                                <Label htmlFor="reason">Alasan Kebutuhan Barang *</Label>
-                                <Textarea
-                                    id="reason"
-                                    rows={3}
-                                    placeholder="Contoh: Kebutuhan penarikan kabel dropcore pelanggan baru di Perum Grihi Asri"
-                                    value={data.reason}
-                                    onChange={(e) => setData('reason', e.target.value)}
-                                    required
-                                />
-                            </div>
+                            <Textarea
+                                id="reason"
+                                label="Alasan Kebutuhan Barang"
+                                rows={3}
+                                placeholder="Jelaskan untuk apa barang dibutuhkan, misalnya pemasangan pelanggan baru."
+                                value={data.reason}
+                                onChange={(e) => setData('reason', e.target.value)}
+                                required
+                                error={errors.reason}
+                            />
                         </CardContent>
                     </Card>
 
@@ -229,8 +243,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                             <div>
                                 <CardTitle>Daftar Barang yang Diminta</CardTitle>
                                 <CardDescription>
-                                    Pilih jenis barang (consumable/material) dan jumlah kuantitas
-                                    yang diajukan.
+                                    Pilih barang habis pakai dan jumlah yang diminta.
                                 </CardDescription>
                             </div>
                             <Button
@@ -245,97 +258,57 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                             </Button>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            {data.items.map((item, idx) => {
-                                const selectedProduct = products.find(
-                                    (p) => String(p.id) === String(item.product_id),
-                                );
-                                const unitSymbol =
-                                    selectedProduct?.unit?.symbol ||
-                                    selectedProduct?.unit?.name ||
-                                    'unit';
-
-                                return (
-                                    <div
-                                        key={idx}
-                                        className="flex flex-col items-start gap-3 rounded-lg border border-border bg-card/50 p-3 sm:flex-row sm:items-center"
-                                    >
-                                        <div className="w-full flex-1 sm:w-auto">
-                                            <Label className="mb-1 block text-xs sm:hidden">
-                                                Barang
-                                            </Label>
-                                            <NativeSelect
-                                                value={item.product_id}
-                                                onChange={(e) =>
-                                                    updateItem(idx, 'product_id', e.target.value)
-                                                }
-                                                className="h-9 text-sm"
-                                            >
-                                                {products.map((p) => (
-                                                    <option key={p.id} value={p.id}>
-                                                        {p.name} {p.code ? `[${p.code}]` : ''}
-                                                    </option>
-                                                ))}
-                                            </NativeSelect>
-                                        </div>
-
-                                        <div className="w-full sm:w-32">
-                                            <Label className="mb-1 block text-xs sm:hidden">
-                                                Qty ({unitSymbol})
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    type="number"
-                                                    step="any"
-                                                    min="0.01"
-                                                    placeholder="Jumlah"
-                                                    value={item.quantity_requested}
-                                                    onChange={(e) =>
-                                                        updateItem(
-                                                            idx,
-                                                            'quantity_requested',
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    className="h-9 pr-10"
-                                                    required
-                                                />
-                                                <span className="pointer-events-none absolute top-2 right-2.5 text-xs text-muted-foreground">
-                                                    {unitSymbol}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        <div className="w-full flex-1 sm:w-auto">
-                                            <Label className="mb-1 block text-xs sm:hidden">
-                                                Catatan (opsional)
-                                            </Label>
-                                            <Input
-                                                type="text"
-                                                placeholder="Catatan item (cth: warna biru)"
-                                                value={item.note}
-                                                onChange={(e) =>
-                                                    updateItem(idx, 'note', e.target.value)
-                                                }
-                                                className="h-9 text-sm"
-                                            />
-                                        </div>
-
-                                        <div className="self-end sm:self-center">
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="icon"
-                                                onClick={() => removeItem(idx)}
-                                                disabled={data.items.length <= 1}
-                                                className="text-destructive-text hover:bg-destructive/10"
-                                                title="Hapus baris ini"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </div>
+                            {data.items.map((item, idx) => (
+                                <div
+                                    key={item.uid}
+                                    className="grid grid-cols-1 items-start gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,2fr)_8rem_minmax(0,1.5fr)_auto]"
+                                >
+                                    <RemoteSearchSelect
+                                        id={`item-product-${item.uid}`}
+                                        field="product"
+                                        label={`Barang ${idx + 1}`}
+                                        placeholder="Cari nama atau SKU"
+                                        required
+                                        options={productOptions}
+                                        value={item.product_id}
+                                        onChange={(value) => updateItem(idx, 'product_id', value)}
+                                        error={errorMap[`items.${idx}.product_id`]}
+                                    />
+                                    <Input
+                                        id={`item-quantity-${item.uid}`}
+                                        type="number"
+                                        step="any"
+                                        min="0.01"
+                                        label="Jumlah"
+                                        required
+                                        value={item.quantity_requested}
+                                        onChange={(e) =>
+                                            updateItem(idx, 'quantity_requested', e.target.value)
+                                        }
+                                        error={errorMap[`items.${idx}.quantity_requested`]}
+                                    />
+                                    <Input
+                                        id={`item-note-${item.uid}`}
+                                        type="text"
+                                        label="Catatan"
+                                        placeholder="Misalnya warna atau ukuran"
+                                        value={item.note}
+                                        onChange={(e) => updateItem(idx, 'note', e.target.value)}
+                                        error={errorMap[`items.${idx}.note`]}
+                                    />
+                                    <div className="sm:pt-6">
+                                        <IconButton
+                                            type="button"
+                                            label={`Hapus barang ${idx + 1}`}
+                                            onClick={() => removeItem(idx)}
+                                            disabled={data.items.length <= 1}
+                                            className="text-destructive-text hover:bg-destructive/10"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </IconButton>
                                     </div>
-                                );
-                            })}
+                                </div>
+                            ))}
                         </CardContent>
                     </Card>
 
@@ -345,7 +318,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                             variant="outline"
                             onClick={() => handleSubmit(false)}
                             disabled={processing}
-                            loading={processing && !data.submit}
+                            loading={processing && mode === 'draft'}
                         >
                             Simpan sebagai Draf
                         </Button>
@@ -354,7 +327,7 @@ export default function InventoryRequestsCreate({ warehouses = [], products = []
                             variant="primary"
                             onClick={() => handleSubmit(true)}
                             disabled={processing}
-                            loading={processing && data.submit}
+                            loading={processing && mode === 'submit'}
                             className="gap-2"
                         >
                             <CheckCircle2 className="h-4 w-4" />

@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -14,6 +14,8 @@ import {
     Input,
     SearchSelect,
     Switch,
+    Textarea,
+    TimeInput,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 import { LatLngMapPicker } from '@/Components/composite/LatLngMapPicker';
@@ -33,18 +35,111 @@ interface CityOption {
 
 interface SettingsProps {
     settings: Record<string, SettingValue>;
-    defaults: Record<string, SettingValue>;
     whatsapp: CompanyWhatsApp;
     cities: CityOption[];
     can: { update: boolean };
 }
 
-const WHATSAPP_PREFIX = 'whatsapp_';
-const MAP_PREFIX = 'map_';
+/** How one stored setting reads on screen. A key that is not listed here is kept as it is and not shown. */
+interface SettingField {
+    label: string;
+    kind: 'number' | 'text' | 'lines' | 'switch';
+    unit?: string;
+    help: string;
+    min?: number;
+    max?: number;
+    step?: number;
+}
+
+const SETTING_SECTIONS: { title: string; fields: Record<string, SettingField> }[] = [
+    {
+        title: 'Tagihan',
+        fields: {
+            tax_ppn_rate: {
+                label: 'Tarif PPN',
+                kind: 'number',
+                unit: '%',
+                min: 0,
+                max: 100,
+                step: 0.01,
+                help: 'Dipakai menghitung pajak pada tagihan baru.',
+            },
+            invoice_due_days: {
+                label: 'Jatuh tempo tagihan',
+                kind: 'number',
+                unit: 'hari',
+                min: 1,
+                max: 365,
+                step: 1,
+                help: 'Jumlah hari dari tanggal terbit sampai jatuh tempo.',
+            },
+            bank_account_info: {
+                label: 'Rekening pembayaran',
+                kind: 'lines',
+                help: 'Tampil di halaman tagihan. Tulis satu rekening per baris.',
+            },
+            spk_auto_invoice: {
+                label: 'Buat tagihan otomatis saat SPK selesai',
+                kind: 'switch',
+                help: 'Tagihan dibuat begitu SPK dinyatakan selesai.',
+            },
+        },
+    },
+    {
+        title: 'Penangguhan otomatis',
+        fields: {
+            auto_suspend_enabled: {
+                label: 'Tangguhkan langganan yang menunggak',
+                kind: 'switch',
+                help: 'Langganan ditangguhkan saat tagihannya lewat jatuh tempo melebihi batas di bawah.',
+            },
+            auto_suspend_overdue_days: {
+                label: 'Batas keterlambatan',
+                kind: 'number',
+                unit: 'hari',
+                min: 1,
+                max: 60,
+                step: 1,
+                help: 'Berapa hari setelah jatuh tempo langganan ditangguhkan.',
+            },
+            auto_reactivate_on_payment: {
+                label: 'Aktifkan kembali saat tagihan lunas',
+                kind: 'switch',
+                help: 'Langganan yang ditangguhkan otomatis aktif lagi setelah tunggakannya dibayar.',
+            },
+        },
+    },
+    {
+        title: 'Format tanggal',
+        fields: {
+            date_format: {
+                label: 'Format tanggal',
+                kind: 'text',
+                help: 'Pola penulisan tanggal di seluruh halaman, mis. d M Y atau d/m/Y.',
+            },
+            datetime_format: {
+                label: 'Format tanggal dan jam',
+                kind: 'text',
+                help: 'Pola penulisan tanggal beserta jam, mis. d M Y H:i.',
+            },
+        },
+    },
+];
+
 // Zoom a city is framed at when picked from the list.
 const CITY_ZOOM = '12';
 // Typed as text while editing; an emptied field must reach the server as empty, not become 0.
-const NUMERIC_TEXT_KEYS = ['whatsapp_monthly_cap', 'map_lat', 'map_lng', 'map_zoom'];
+const NUMERIC_TEXT_KEYS = [
+    'whatsapp_monthly_cap',
+    'map_lat',
+    'map_lng',
+    'map_zoom',
+    ...SETTING_SECTIONS.flatMap(({ fields }) =>
+        Object.entries(fields)
+            .filter(([, field]) => field.kind === 'number')
+            .map(([key]) => key),
+    ),
+];
 
 const usageLabels: [keyof CompanyWhatsApp['usage'], string][] = [
     ['sent', 'Terkirim'],
@@ -53,14 +148,30 @@ const usageLabels: [keyof CompanyWhatsApp['usage'], string][] = [
     ['billable', 'Berbayar'],
 ];
 
-export default function Settings({ settings, defaults, whatsapp, cities, can }: SettingsProps) {
+/** A coordinate with at most six decimals (about 10 cm): what the map and the city list hand over has more. */
+function roundCoord(value: string | number | null | undefined): string {
+    const number = Number(value);
+
+    return value === null || value === undefined || value === '' || !Number.isFinite(number)
+        ? String(value ?? '')
+        : String(Number(number.toFixed(6)));
+}
+
+/** The settings as the form starts with them: the stored map point at six decimals. */
+function withRoundedPoint(settings: Record<string, SettingValue>): Record<string, SettingValue> {
+    const next = { ...settings };
+    for (const key of ['map_lat', 'map_lng']) {
+        const value = next[key];
+        if (typeof value === 'number' || typeof value === 'string') next[key] = roundCoord(value);
+    }
+
+    return next;
+}
+
+export default function Settings({ settings, whatsapp, cities, can }: SettingsProps) {
     const { data, setData, put, transform, processing, errors } = useForm({
-        settings: { ...settings },
+        settings: withRoundedPoint(settings),
     });
-    // The WhatsApp and map keys have their own cards; the generic list renders everything else.
-    const keys = Object.keys(data.settings)
-        .filter((key) => !key.startsWith(WHATSAPP_PREFIX) && !key.startsWith(MAP_PREFIX))
-        .sort();
     const settingErrors = errors as Record<string, string | undefined>;
     const eventsError = Object.entries(settingErrors).find(([key]) =>
         key.startsWith('settings.whatsapp_events'),
@@ -93,13 +204,12 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
     const map = {
         cityCode:
             typeof data.settings.map_city_code === 'string' ? data.settings.map_city_code : '',
-        lat: String(data.settings.map_lat ?? mapDefault.center.lat),
-        lng: String(data.settings.map_lng ?? mapDefault.center.lng),
+        lat: String(data.settings.map_lat ?? roundCoord(mapDefault.center.lat)),
+        lng: String(data.settings.map_lng ?? roundCoord(mapDefault.center.lng)),
         zoom: String(data.settings.map_zoom ?? mapDefault.zoom),
     };
     const zoomNumber = Number(map.zoom);
     const zoomIsValid = Number.isInteger(zoomNumber) && zoomNumber >= 3 && zoomNumber <= 18;
-    const [citySelectKey, setCitySelectKey] = useState(0);
     const cityOptions = useMemo(
         () =>
             cities.map((city) => ({
@@ -126,18 +236,19 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
         // Typing in the search box also reports '' while editing: keep the point, drop the label.
         updateMap(
             city
-                ? { cityCode: code, lat: String(city.lat), lng: String(city.lng), zoom: CITY_ZOOM }
+                ? {
+                      cityCode: code,
+                      lat: roundCoord(city.lat),
+                      lng: roundCoord(city.lng),
+                      zoom: CITY_ZOOM,
+                  }
                 : { cityCode: '' },
         );
     };
 
-    // A hand-set point no longer belongs to the picked city, so the city label goes.
-    const setMapPoint = (point: { lat: string; lng: string }) => {
-        if (map.cityCode) {
-            setCitySelectKey((key) => key + 1);
-        }
-        updateMap({ ...point, cityCode: '' });
-    };
+    // A point picked on the map no longer belongs to the picked city, so the city label goes.
+    const setMapPoint = (point: { lat: string; lng: string }) =>
+        updateMap({ lat: roundCoord(point.lat), lng: roundCoord(point.lng), cityCode: '' });
 
     const toggleEvent = (eventKey: string, enabled: boolean) =>
         setSetting(
@@ -147,63 +258,94 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                 .filter((key) => (key === eventKey ? enabled : enabledEvents.includes(key))),
         );
 
+    const renderField = (key: string, field: SettingField) => {
+        const value = data.settings[key];
+        const error = settingErrors[`settings.${key}`];
+        const label = field.unit ? `${field.label} (${field.unit})` : field.label;
+
+        if (field.kind === 'switch') {
+            return (
+                <div key={key} className="space-y-1.5 md:col-span-2">
+                    <Switch
+                        label={label}
+                        checked={value === true}
+                        disabled={!can.update}
+                        onCheckedChange={(checked) => setSetting(key, checked)}
+                    />
+                    <p className="text-sm text-muted-foreground">{field.help}</p>
+                    {error && <p className="text-sm text-destructive-text">{error}</p>}
+                </div>
+            );
+        }
+
+        if (field.kind === 'lines') {
+            return (
+                <div key={key} className="md:col-span-2">
+                    <Textarea
+                        className="min-h-24"
+                        label={label}
+                        value={String(value ?? '')}
+                        onChange={(e) => setSetting(key, e.target.value)}
+                        hint={field.help}
+                        error={error}
+                        disabled={!can.update}
+                    />
+                </div>
+            );
+        }
+
+        return (
+            <Input
+                key={key}
+                label={label}
+                type={field.kind === 'number' ? 'number' : 'text'}
+                inputMode={field.kind === 'number' ? 'decimal' : undefined}
+                min={field.min}
+                max={field.max}
+                step={field.step}
+                value={String(value ?? '')}
+                onChange={(e) => setSetting(key, e.target.value)}
+                hint={field.help}
+                error={error}
+                disabled={!can.update}
+            />
+        );
+    };
+
     return (
-        <AdminLayout title="Company Settings">
+        <AdminLayout title="Pengaturan Perusahaan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Company Settings"
-                    subtitle={`Company-specific config. Defaults: ${Object.keys(defaults).join(', ')}`}
+                    title="Pengaturan Perusahaan"
+                    subtitle="Aturan tagihan, peta bawaan, dan WhatsApp untuk perusahaan ini."
                     actions={
-                        <Link
-                            href={route('admin.company.profile.edit')}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                        >
-                            Profile
-                        </Link>
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.company.profile.edit')}>
+                                Profil perusahaan
+                            </Link>
+                        </Button>
                     }
                 />
 
                 <form onSubmit={submit} className="space-y-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Settings JSON</CardTitle>
-                        </CardHeader>
-                        <CardContent className="grid gap-4 md:grid-cols-2">
-                            {keys.map((key) => {
-                                const value = data.settings[key];
-                                if (typeof value === 'boolean') {
-                                    return (
-                                        <Switch
-                                            key={key}
-                                            label={key}
-                                            checked={value}
-                                            disabled={!can.update}
-                                            onCheckedChange={(checked) => setSetting(key, checked)}
-                                        />
-                                    );
-                                }
+                    {SETTING_SECTIONS.map((section) => {
+                        const shown = Object.entries(section.fields).filter(
+                            ([key]) => key in data.settings,
+                        );
 
-                                return (
-                                    <Input
-                                        key={key}
-                                        label={key}
-                                        type={typeof value === 'number' ? 'number' : 'text'}
-                                        value={String(value ?? '')}
-                                        onChange={(e) =>
-                                            setSetting(
-                                                key,
-                                                typeof value === 'number'
-                                                    ? Number(e.target.value)
-                                                    : e.target.value,
-                                            )
-                                        }
-                                        error={settingErrors[`settings.${key}`]}
-                                        disabled={!can.update}
-                                    />
-                                );
-                            })}
-                        </CardContent>
-                    </Card>
+                        if (shown.length === 0) return null;
+
+                        return (
+                            <Card key={section.title}>
+                                <CardHeader>
+                                    <CardTitle>{section.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid gap-x-4 gap-y-5 md:grid-cols-2">
+                                    {shown.map(([key, field]) => renderField(key, field))}
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
 
                     <Card>
                         <CardHeader>
@@ -216,7 +358,6 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                                 bujur untuk kembali ke seluruh Indonesia.
                             </p>
                             <SearchSelect
-                                key={citySelectKey}
                                 id="map-city"
                                 label="Wilayah default"
                                 value={map.cityCode}
@@ -230,21 +371,21 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                             />
                             <div className="grid gap-4 md:grid-cols-3">
                                 <Input
-                                    label="Lintang (latitude)"
+                                    label="Lintang"
                                     inputMode="decimal"
                                     value={map.lat}
                                     onChange={(e) =>
-                                        setMapPoint({ lat: e.target.value, lng: map.lng })
+                                        updateMap({ lat: e.target.value, cityCode: '' })
                                     }
                                     error={settingErrors['settings.map_lat']}
                                     disabled={!can.update}
                                 />
                                 <Input
-                                    label="Bujur (longitude)"
+                                    label="Bujur"
                                     inputMode="decimal"
                                     value={map.lng}
                                     onChange={(e) =>
-                                        setMapPoint({ lat: map.lat, lng: e.target.value })
+                                        updateMap({ lng: e.target.value, cityCode: '' })
                                     }
                                     error={settingErrors['settings.map_lng']}
                                     disabled={!can.update}
@@ -309,7 +450,7 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                                 }
                             />
                             {settingErrors['settings.whatsapp_enabled'] && (
-                                <p className="text-sm text-red-700 dark:text-red-400">
+                                <p className="text-sm text-destructive-text">
                                     {settingErrors['settings.whatsapp_enabled']}
                                 </p>
                             )}
@@ -337,31 +478,23 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                                     ))}
                                 </div>
                                 {eventsError && (
-                                    <p className="text-sm text-red-700 dark:text-red-400">
-                                        {eventsError}
-                                    </p>
+                                    <p className="text-sm text-destructive-text">{eventsError}</p>
                                 )}
                             </fieldset>
 
                             <div className="grid gap-4 md:grid-cols-3">
-                                <Input
+                                <TimeInput
                                     label="Jam tenang mulai"
-                                    type="time"
                                     value={String(data.settings.whatsapp_quiet_start ?? '')}
-                                    onChange={(e) =>
-                                        setSetting('whatsapp_quiet_start', e.target.value)
-                                    }
+                                    onChange={(time) => setSetting('whatsapp_quiet_start', time)}
                                     hint="Tagihan terbit dan pengingat ditunda sampai jam tenang selesai, menurut zona waktu perusahaan."
                                     error={settingErrors['settings.whatsapp_quiet_start']}
                                     disabled={!can.update}
                                 />
-                                <Input
+                                <TimeInput
                                     label="Jam tenang selesai"
-                                    type="time"
                                     value={String(data.settings.whatsapp_quiet_end ?? '')}
-                                    onChange={(e) =>
-                                        setSetting('whatsapp_quiet_end', e.target.value)
-                                    }
+                                    onChange={(time) => setSetting('whatsapp_quiet_end', time)}
                                     error={settingErrors['settings.whatsapp_quiet_end']}
                                     disabled={!can.update}
                                 />
@@ -382,9 +515,9 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                             </div>
 
                             <section aria-labelledby="whatsapp-usage" className="space-y-3">
-                                <h4 id="whatsapp-usage" className="text-sm font-medium">
+                                <h3 id="whatsapp-usage" className="text-sm font-medium">
                                     Pemakaian bulan ini
-                                </h4>
+                                </h3>
                                 <dl className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
                                     {usageLabels.map(([key, label]) => (
                                         <div key={key}>
@@ -402,7 +535,7 @@ export default function Settings({ settings, defaults, whatsapp, cities, can }: 
                     {can.update && (
                         <div className="flex justify-end">
                             <Button type="submit" loading={processing}>
-                                Save Settings
+                                Simpan
                             </Button>
                         </div>
                     )}

@@ -10,6 +10,7 @@ use App\Http\Resources\UserResource;
 use App\Support\FieldCheckIn;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Arr;
 use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Services\TicketService;
@@ -56,7 +57,8 @@ class TicketResource extends JsonResource
             'attachments' => MediaResource::collection($this->getMedia('attachments')),
             // Show page only: naming the source loads the subscription's package and tier.
             'deadline_source' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => TicketService::deadlineSource($this->resource)),
-            'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?string => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : FieldCheckIn::summary($record)),
+            // Show page only: the page words the check-in itself, and the technician's own coordinates stay out of it.
+            'check_in' => $this->when($request->routeIs('admin.tickets.show'), fn (): ?array => ($record = FieldCheckIn::recordFor($this->resource, 'ticket')) === null ? null : Arr::only($record, ['status', 'distance_m', 'accuracy_m', 'reason'])),
             // Show page only: lists and exports skip the per-row policy checks.
             'can' => $this->when($request->routeIs('admin.tickets.show'), fn (): array => [
                 'start' => (bool) $request->user()?->can('start', $this->resource),

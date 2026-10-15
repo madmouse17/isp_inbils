@@ -19,10 +19,10 @@ export default function Create() {
     };
 
     return (
-        <AdminLayout title="Tambah Tingkat SLA">
+        <AdminLayout title="Buat Tingkat SLA">
             <div className="space-y-6">
                 <PageHeader
-                    title="Tambah Tingkat SLA"
+                    title="Buat Tingkat SLA"
                     subtitle="Target layanan per paket. Hasil diukur otomatis dari tiket."
                     actions={
                         <Button
@@ -78,7 +78,7 @@ export default function Create() {
                                 />
                             </div>
                             <p className="text-sm text-muted-foreground md:col-span-2">
-                                Tiket berprioritas urgent memakai setengah dari kedua target
+                                Tiket berprioritas mendesak memakai setengah dari kedua target
                                 (dibulatkan ke atas). Jam dihitung kalender, bukan jam kerja.
                             </p>
                         </CardContent>

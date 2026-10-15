@@ -57,7 +57,10 @@ class MatchesParentAttribute implements DataAwareRule, ValidationRule
         }
 
         if ((string) $row->{$this->parentColumn} !== (string) $expectedParent) {
-            $fail("The selected :attribute does not belong to the selected {$this->parentAttribute}.");
+            $parentKey = "validation.attributes.{$this->parentAttribute}";
+            $parent = trans()->has($parentKey) ? trans($parentKey) : $this->parentAttribute;
+
+            $fail(":attribute yang dipilih tidak sesuai dengan {$parent} yang dipilih.");
         }
     }
 

@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { router } from '@inertiajs/react';
-import { CheckCircle2, AlertTriangle, Send, Play, XCircle } from 'lucide-react';
 import { PageHeader } from '@/Components/composite';
-import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { DataTable } from '@/Components/composite/DataTable';
 import { LoadingState, ResourceEmpty } from '@/Components/composite/ResourceState';
-import { Badge, Button, Card, CardContent } from '@/Components/ui';
+import { Badge, Card, CardContent } from '@/Components/ui';
 import { Pagination } from '@/Components/ui/Pagination';
 import { Tab, TabList, Tabs } from '@/Components/ui/Tabs';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -26,18 +25,9 @@ import {
 import { FilterBar } from './components/FilterBar';
 import { MobileMyWorkCard } from './components/MobileMyWorkCard';
 import { ResolveDialog } from './components/ResolveDialog';
-import { SummaryCards } from './components/SummaryCards';
-import {
-    formatAge,
-    formatDate,
-    getDomainLabel,
-    getDomainVariant,
-    getItemNextStatus,
-    getPriorityLabel,
-    getPriorityVariant,
-    getStatusLabel,
-    getStatusVariant,
-} from './components/utils';
+import { SummaryChips, type SummaryChip } from './components/SummaryChips';
+import { useMyWorkColumns } from './components/useMyWorkColumns';
+import { MY_WORK_STATUS_FILTER } from './components/utils';
 
 interface MyWorkIndexProps extends Record<string, unknown> {
     items: {
@@ -156,195 +146,57 @@ export default function MyWorkIndex({
             }
         });
 
-    const handleStatusCardClick = (statusValue: string) => {
-        setMany({
-            status: statusValue,
-            page: 1,
-        });
-    };
+    const columns = useMyWorkColumns({
+        onConfirm: handleOpenConfirm,
+        onResolve: handleOpenResolve,
+    });
 
-    const columns: DataTableColumn<MyWorkItem>[] = [
+    const counts = {
+        assigned: summary.assigned,
+        in_progress: summary.in_progress,
+        resolved: summary.waiting_action,
+    };
+    const status = String(params.status ?? '');
+    const chips: SummaryChip[] = [
         {
-            key: 'code',
-            header: 'Kode & Domain',
-            sortable: true,
-            sortKey: 'code',
-            cell: (row) => (
-                <div className="space-y-1">
-                    {row.actions.view && row.detail_url ? (
-                        <a
-                            href={row.detail_url}
-                            className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
-                        >
-                            {row.code}
-                        </a>
-                    ) : (
-                        <span className="font-semibold text-foreground">{row.code}</span>
-                    )}
-                    <div>
-                        <Badge
-                            variant={getDomainVariant(row.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getDomainLabel(row.domain)}
-                        </Badge>
-                    </div>
-                </div>
-            ),
+            key: 'all',
+            label: 'Semua tugas',
+            count: summary.total,
+            active: status === '',
+            onSelect: () => setMany({ status: '', page: 1 }),
         },
-        {
-            key: 'title',
-            header: 'Judul & Pelanggan',
-            sortable: true,
-            sortKey: 'title',
-            cell: (row) => (
-                <div className="space-y-1 max-w-xs">
-                    <span className="line-clamp-2 text-sm font-medium text-foreground">
-                        {row.title}
-                    </span>
-                    <div className="text-xs text-muted-foreground">
-                        Pelanggan:{' '}
-                        <span className="font-medium text-foreground">
-                            {row.customer?.name ?? '-'}
-                        </span>
-                    </div>
-                    {row.sla_breached && (
-                        <div className="flex items-center gap-1 text-xs font-semibold text-destructive-text">
-                            <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                            <span>SLA Terlampaui</span>
-                        </div>
-                    )}
-                </div>
-            ),
-        },
-        {
-            key: 'priority',
-            header: 'Prioritas & Umur',
-            sortable: true,
-            sortKey: 'priority',
-            cell: (row) => (
-                <div className="space-y-1">
-                    <Badge
-                        variant={getPriorityVariant(row.priority)}
-                        className="text-xs font-semibold"
-                    >
-                        {getPriorityLabel(row.priority)}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">{formatAge(row.age_seconds)}</p>
-                </div>
-            ),
-        },
-        {
-            key: 'status',
-            header: 'Status & Alur',
-            sortable: true,
-            sortKey: 'status',
-            cell: (row) => (
-                <div className="space-y-1">
-                    <Badge variant={getStatusVariant(row.status)}>
-                        {getStatusLabel(row.status)}
-                    </Badge>
-                    <p className="text-xs text-muted-foreground">{getItemNextStatus(row)}</p>
-                </div>
-            ),
-        },
-        {
-            key: 'due_at',
-            header: 'Batas / Jadwal',
-            cell: (row) => (
-                <div className="space-y-0.5 text-xs">
-                    {row.domain === 'ticket' ? (
-                        <>
-                            <span className="text-muted-foreground">SLA: </span>
-                            <span className="font-medium text-foreground">
-                                {formatDate(row.due_at ?? row.summary?.sla_deadline)}
-                            </span>
-                        </>
-                    ) : (
-                        <>
-                            <span className="text-muted-foreground">Jadwal: </span>
-                            <span className="font-medium text-foreground">
-                                {formatDate(row.scheduled_date ?? row.summary?.scheduled_date)}
-                            </span>
-                        </>
-                    )}
-                </div>
-            ),
-        },
-        {
-            key: 'actions',
-            header: 'Tindakan Operasional',
-            className: 'text-right',
-            cell: (row) => (
-                <div className="flex flex-wrap items-center justify-end gap-1.5 [&>button]:min-h-11">
-                    {row.actions.view && row.detail_url && (
-                        <a
-                            href={row.detail_url}
-                            className="mr-1 inline-flex items-center text-xs font-medium text-primary hover:underline"
-                        >
-                            Detail
-                        </a>
-                    )}
-                    {row.actions.start && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenConfirm(row, 'start')}
-                        >
-                            <Play className="mr-1 h-3.5 w-3.5" />
-                            Mulai
-                        </Button>
-                    )}
-                    {row.actions.resolve && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenResolve(row)}
-                        >
-                            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                            Selesaikan
-                        </Button>
-                    )}
-                    {row.actions.submit && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenConfirm(row, 'submit')}
-                        >
-                            <Send className="mr-1 h-3.5 w-3.5" />
-                            Ajukan Review
-                        </Button>
-                    )}
-                    {row.actions.close && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleOpenConfirm(row, 'close')}
-                        >
-                            <XCircle className="mr-1 h-3.5 w-3.5" />
-                            Tutup
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
+        ...MY_WORK_STATUS_FILTER.map(({ value, label }) => ({
+            key: value,
+            label,
+            count: counts[value],
+            active: status === value,
+            onSelect: () => setMany({ status: value, page: 1 }),
+        })),
     ];
 
     const hasItems = items.data && items.data.length > 0;
+    const hasFilters = Boolean(
+        params.search || params.domain || params.status || params.priority || params.date_from,
+    );
+    const resetFilters = () =>
+        setMany({
+            search: '',
+            domain: '',
+            status: '',
+            priority: '',
+            date_from: '',
+            date_to: '',
+            page: 1,
+        });
 
     return (
         <AdminLayout title="Pekerjaan Saya">
             <div className="space-y-6">
                 <PageHeader
                     title="Pekerjaan Saya"
-                    subtitle="Pusat pelaksanaan dan tindak lanjut tugas tiket & SPK yang dialokasikan kepada Anda"
+                    subtitle="Tiket dan SPK yang ditugaskan kepada Anda, dari belum dimulai sampai selesai."
                 />
 
-                {/* Optional Job-based Tabs if user also can dispatch */}
                 {canDispatch && (
                     <Tabs
                         value="my_work"
@@ -356,7 +208,7 @@ export default function MyWorkIndex({
                     >
                         <TabList
                             className="border-b border-border"
-                            aria-label="Navigasi Operasional"
+                            aria-label="Antrean operasional"
                         >
                             <Tab value="my_work" className="gap-2">
                                 <span>Pekerjaan Saya</span>
@@ -378,15 +230,9 @@ export default function MyWorkIndex({
                     </Tabs>
                 )}
 
-                {/* Summary Cards */}
-                <SummaryCards
-                    summary={summary}
-                    activeStatus={String(params.status ?? '')}
-                    onSelectStatus={handleStatusCardClick}
-                />
+                <SummaryChips label="Ringkasan pekerjaan saya" chips={chips} />
 
-                {/* Main Content Area: Filter and Table */}
-                <Card className="border-border bg-card shadow-xs">
+                <Card>
                     <CardContent className="space-y-4 pt-6">
                         <FilterBar
                             params={params}
@@ -397,7 +243,6 @@ export default function MyWorkIndex({
                             disabled={visiting}
                         />
 
-                        {/* Desktop Table View */}
                         <div className="hidden md:block">
                             <DataTable
                                 columns={columns}
@@ -409,19 +254,21 @@ export default function MyWorkIndex({
                                 onPageChange={setPage}
                                 onPerPageChange={(perPage) => set('per_page', perPage)}
                                 loading={processing}
-                                emptyTitle="Tidak ada tugas aktif"
-                                emptyDescription="Anda tidak memiliki tiket atau SPK aktif yang sedang ditugaskan kepada Anda saat ini."
+                                hasFilters={hasFilters}
+                                onResetFilters={resetFilters}
+                                itemLabel="tugas"
+                                emptyTitle="Belum ada tugas untuk Anda"
+                                emptyDescription="Tiket atau SPK yang ditugaskan kepada Anda akan muncul di sini."
                             />
                         </div>
 
-                        {/* Mobile Stacked Cards View */}
                         <div className="space-y-4 md:hidden">
                             {processing && !hasItems && <LoadingState variant="rows" rows={4} />}
 
                             {!processing && !hasItems && (
                                 <ResourceEmpty
-                                    title="Tidak ada tugas aktif"
-                                    description="Anda tidak memiliki tiket atau SPK aktif yang sedang ditugaskan kepada Anda saat ini."
+                                    title="Belum ada tugas untuk Anda"
+                                    description="Tiket atau SPK yang ditugaskan kepada Anda akan muncul di sini."
                                     className="my-4"
                                 />
                             )}
@@ -450,7 +297,6 @@ export default function MyWorkIndex({
                     </CardContent>
                 </Card>
 
-                {/* Operational Action Modals */}
                 <ResolveDialog
                     open={resolveOpen}
                     onOpenChange={setResolveOpen}

@@ -14,6 +14,6 @@ class OdnPonPortController extends Controller
     {
         $ports = OdnService::createPonPorts($asset, (int) $request->validated('count'));
 
-        return back()->with('success', "{$ports->count()} PON port(s) created on {$asset->code}.");
+        return back()->with('success', "{$ports->count()} port PON dibuat di {$asset->code}.");
     }
 }

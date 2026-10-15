@@ -25,17 +25,17 @@ export default function Edit({ evaluation }: EditProps) {
         comment: ev.comment ?? '',
     });
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
         put(route('admin.evaluations.update', ev.id));
     };
 
     return (
-        <AdminLayout title="Edit Evaluation">
+        <AdminLayout title="Ubah Evaluasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit Evaluation"
-                    subtitle="Update evaluation details."
+                    title="Ubah Evaluasi"
+                    subtitle={`Perbarui hasil penilaian ${ev.employee?.name ?? 'karyawan'}.`}
                     actions={
                         <Button
                             asChild
@@ -43,9 +43,7 @@ export default function Edit({ evaluation }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.evaluations.show', evaluation.data.id)}>
-                                Back
-                            </Link>
+                            <Link href={route('admin.evaluations.show', ev.id)}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -53,38 +51,41 @@ export default function Edit({ evaluation }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Hasil penilaian</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <p className="text-sm text-surface-500 md:col-span-2">
-                                Employee: {ev.employee?.name ?? '-'}
+                            <p className="text-sm text-muted-foreground md:col-span-2">
+                                Karyawan:{' '}
+                                <span className="font-medium text-foreground">
+                                    {ev.employee?.name ?? '-'}
+                                </span>
                             </p>
                             <Input
-                                label="Score (1.0-5.0)"
+                                label="Nilai (1,0 sampai 5,0)"
                                 type="number"
                                 step="0.1"
                                 min="1"
                                 max="5"
                                 value={data.score}
-                                onChange={(e) => setData('score', e.target.value)}
+                                onChange={(event) => setData('score', event.target.value)}
                                 error={errors.score}
                                 required
                             />
                             <Input
-                                label="Customer Rating (optional)"
+                                label="Penilaian pelanggan (opsional)"
                                 type="number"
                                 step="0.1"
                                 min="1"
                                 max="5"
                                 value={data.customer_rating}
-                                onChange={(e) => setData('customer_rating', e.target.value)}
+                                onChange={(event) => setData('customer_rating', event.target.value)}
                                 error={errors.customer_rating}
                             />
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Comment"
+                                    label="Komentar"
                                     value={data.comment}
-                                    onChange={(e) => setData('comment', e.target.value)}
+                                    onChange={(event) => setData('comment', event.target.value)}
                                     error={errors.comment}
                                     rows={3}
                                 />
@@ -97,10 +98,10 @@ export default function Edit({ evaluation }: EditProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.evaluations.show', ev.id))}
                         >
-                            Cancel
+                            Batal
                         </Button>
-                        <Button type="submit" loading={processing}>
-                            Save
+                        <Button type="submit" variant="primary" loading={processing}>
+                            Simpan
                         </Button>
                     </div>
                 </form>

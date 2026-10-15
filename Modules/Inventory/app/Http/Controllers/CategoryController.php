@@ -39,6 +39,8 @@ class CategoryController extends Controller
         return Inertia::render('Admin/Inventory/Categories/Index', [
             'categories' => CategoryResource::collection($categories),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
+            // Every category, for the parent picker: the page holds only one page of the table.
+            'categoryOptions' => Category::query()->orderBy('code')->get(['id', 'code', 'name']),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('inventory.create') ?? false,
@@ -52,7 +54,7 @@ class CategoryController extends Controller
         Gate::authorize('store', Category::class);
         Category::create($request->validated());
 
-        return back()->with('success', 'Category created.');
+        return back()->with('success', 'Kategori berhasil dibuat.');
     }
 
     public function update(UpdateCategoryRequest $request, Category $category): RedirectResponse
@@ -71,7 +73,7 @@ class CategoryController extends Controller
             }
         });
 
-        return back()->with('success', 'Category updated.');
+        return back()->with('success', 'Kategori berhasil diubah.');
     }
 
     public function destroy(Category $category): RedirectResponse
@@ -79,12 +81,12 @@ class CategoryController extends Controller
         Gate::authorize('delete', $category);
 
         if ($category->children()->exists() || $category->products()->exists()) {
-            return back()->withErrors(['category' => 'Cannot delete category with children or products.']);
+            return back()->withErrors(['category' => 'Kategori tidak dapat dihapus karena masih memiliki sub-kategori atau barang.']);
         }
 
         $category->delete();
 
-        return back()->with('success', 'Category deleted.');
+        return back()->with('success', 'Kategori berhasil dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -98,10 +100,10 @@ class CategoryController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
-            'unit' => 'Unit',
-            'children_count' => 'Children',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'unit' => 'Satuan',
+            'children_count' => 'Sub-kategori',
         ];
 
         $map = static fn (Category $c): array => [
@@ -112,7 +114,7 @@ class CategoryController extends Controller
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Categories', $columns, $map, "categories-export-{$stamp}.pdf");
+            return $export->streamPdf('Kategori', $columns, $map, "categories-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "categories-export-{$stamp}.csv");

@@ -26,9 +26,9 @@ class TicketAssignedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject('Ticket assigned: '.$this->ticketCode)
-            ->line('You have been assigned ticket '.$this->ticketCode.'.')
-            ->line('Ticket ID: '.$this->ticketId);
+            ->subject('Tiket ditugaskan: '.$this->ticketCode)
+            ->line('Tiket '.$this->ticketCode.' ditugaskan kepada Anda.')
+            ->line('ID tiket: '.$this->ticketId);
     }
 
     /** @return array<string, mixed> */

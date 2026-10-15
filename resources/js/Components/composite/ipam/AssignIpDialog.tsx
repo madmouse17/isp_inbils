@@ -1,6 +1,15 @@
 import type { FormEvent } from 'react';
+import { useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Alert, AlertDescription, Button, Input, Modal, NativeSelect } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    Button,
+    Input,
+    Modal,
+    SearchSelect,
+    type SearchSelectOption,
+} from '@/Components/ui';
 import { formatCount } from '@/lib/ipam';
 import type { StaticPool } from '@/types/ipam-odn';
 
@@ -18,6 +27,18 @@ export function AssignIpDialog({ onClose, subscription, pools }: AssignIpDialogP
         address: '',
     });
     const pool = pools.find((item) => String(item.id) === data.ip_prefix_id);
+    const poolOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            pools.map((item) => ({
+                value: String(item.id),
+                label: item.cidr,
+                description:
+                    item.free === null
+                        ? 'IPv6, ketik alamatnya'
+                        : `${formatCount(item.free)} alamat kosong`,
+            })),
+        [pools],
+    );
     // The service refuses a terminated subscription under `subscription`, which is not a field of this form.
     const subscriptionError = (errors as Record<string, string | undefined>).subscription;
 
@@ -30,55 +51,46 @@ export function AssignIpDialog({ onClose, subscription, pools }: AssignIpDialogP
     };
 
     return (
-        <Modal open onClose={onClose} title={`Assign a static IP to ${subscription.code}`}>
+        <Modal open onClose={onClose} title={`Berikan IP statis ke ${subscription.code}`}>
             <form onSubmit={submit} className="space-y-4">
                 {subscriptionError && (
                     <Alert variant="danger">
-                        <AlertDescription className="text-red-700 dark:text-red-400">
-                            {subscriptionError}
-                        </AlertDescription>
+                        <AlertDescription>{subscriptionError}</AlertDescription>
                     </Alert>
                 )}
-                <NativeSelect
+                <SearchSelect
                     id="assign-ip-pool"
                     label="Pool"
                     value={data.ip_prefix_id}
-                    onChange={(event) => setData('ip_prefix_id', event.target.value)}
+                    onChange={(value) => setData('ip_prefix_id', value)}
+                    options={poolOptions}
+                    placeholder="Pilih pool..."
+                    emptyText="Tidak ada pool yang cocok."
                     error={errors.ip_prefix_id}
-                    options={[
-                        { value: '', label: 'Select a pool…' },
-                        ...pools.map((item) => ({
-                            value: String(item.id),
-                            label:
-                                item.free === null
-                                    ? `${item.cidr} (IPv6, type the address)`
-                                    : `${item.cidr} (${formatCount(item.free)} free)`,
-                        })),
-                    ]}
                     required
                 />
                 <Input
                     id="assign-ip-address"
-                    label="Address"
+                    label="Alamat"
                     value={data.address}
                     onChange={(event) => setData('address', event.target.value)}
                     error={errors.address}
                     hint={
                         pool?.family === 6
-                            ? 'IPv6 addresses are typed by hand.'
-                            : 'Leave empty to take the lowest free address in the pool.'
+                            ? 'Alamat IPv6 diketik manual.'
+                            : 'Kosongkan untuk mengambil alamat kosong terendah di pool.'
                     }
-                    placeholder={pool?.family === 6 ? '2001:db8::1' : 'Lowest free address'}
+                    placeholder={pool?.family === 6 ? '2001:db8::1' : 'Alamat kosong terendah'}
                     autoComplete="off"
                     spellCheck={false}
                     required={pool?.family === 6}
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        Assign address
+                        Berikan alamat
                     </Button>
                 </div>
             </form>

@@ -9,7 +9,7 @@ export function FormulaVersionLabel({ version }: FormulaVersionLabelProps) {
 
     return (
         <p className="text-xs text-muted-foreground">
-            Formula version <span className="font-medium text-foreground">{version}</span>
+            Versi rumus <span className="font-medium text-foreground">{version}</span>
         </p>
     );
 }

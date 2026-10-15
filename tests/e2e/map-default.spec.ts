@@ -3,7 +3,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { inertiaProps, loginAs, selectSearchOption } from './support/demo';
 
-const SAVED = 'Company settings updated.';
+const SAVED = 'Pengaturan perusahaan diperbarui.';
 
 type MapSettings = {
     map_city_code?: string | null;
@@ -23,7 +23,7 @@ async function centerOf(map: Locator): Promise<[number, number]> {
 }
 
 async function save(page: Page) {
-    await page.getByRole('button', { name: 'Save Settings' }).click();
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page.getByText(SAVED)).toBeVisible();
 }
 
@@ -48,9 +48,9 @@ test('@map-default a company default region moves every map, and a saved point s
     const cities = (props.cities ?? []) as City[];
     const previousCity = cities.find((city) => city.code === previous.map_city_code);
 
-    const settingsPreview = page.getByLabel('Latitude and longitude map picker');
-    const latitude = page.getByLabel('Lintang (latitude)');
-    const longitude = page.getByLabel('Bujur (longitude)');
+    const settingsPreview = page.getByLabel('Peta untuk memilih lintang dan bujur');
+    const latitude = page.getByLabel('Lintang', { exact: true });
+    const longitude = page.getByLabel('Bujur', { exact: true });
     const zoom = page.getByLabel('Zoom', { exact: true });
     // By role: the clear button of a chosen field is also labelled "Hapus pilihan: Wilayah default".
     const city = page.getByRole('combobox', { name: 'Wilayah default' });
@@ -59,7 +59,7 @@ test('@map-default a company default region moves every map, and a saved point s
         await page.goto('/admin/company/settings');
         await expect(page.getByRole('heading', { name: 'Peta', exact: true })).toBeVisible();
         // The map keys have their own card; the generic list does not repeat them.
-        await expect(page.getByLabel('map_lat')).toHaveCount(0);
+        await expect(latitude).toHaveCount(1);
 
         await test.step('picking a region fills the point and zoom and the preview follows', async () => {
             await selectSearchOption(page, 'Wilayah default', 'KOTA SURAKARTA');
@@ -83,7 +83,7 @@ test('@map-default a company default region moves every map, and a saved point s
 
         await test.step('an out-of-range point is refused with the field error', async () => {
             await latitude.fill('40');
-            await page.getByRole('button', { name: 'Save Settings' }).click();
+            await page.getByRole('button', { name: 'Simpan', exact: true }).click();
             await expect(page.getByText('Lintang harus di antara -11 dan 6.')).toBeVisible();
             await expect(page.getByText(SAVED)).toHaveCount(0);
         });
@@ -99,7 +99,7 @@ test('@map-default a company default region moves every map, and a saved point s
             await expect(zoom).toHaveValue('12');
 
             await page.goto('/admin/customers/create');
-            await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+            await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
             const picker = page.getByLabel('Peta untuk memilih koordinat alamat').first();
             await expect(picker).toBeVisible();
             await expectCenterNear(picker, savedLat, savedLng);

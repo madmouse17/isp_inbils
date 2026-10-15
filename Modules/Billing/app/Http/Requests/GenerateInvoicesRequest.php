@@ -18,4 +18,21 @@ class GenerateInvoicesRequest extends FormRequest
             'period' => ['required', 'date_format:Y-m'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'period' => 'periode',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'period.required' => 'Periode wajib dipilih.',
+            'period.date_format' => 'Format :attribute harus tahun-bulan (YYYY-MM).',
+        ];
+    }
 }

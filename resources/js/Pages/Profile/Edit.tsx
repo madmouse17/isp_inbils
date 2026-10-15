@@ -52,7 +52,7 @@ export default function Edit({
     if (appOnly) {
         return (
             <GuestLayout>
-                <Head title="Profile" />
+                <Head title="Profil" />
                 <main className="space-y-6">
                     <Link
                         href={route('app-only')}
@@ -60,10 +60,7 @@ export default function Edit({
                     >
                         Kembali ke halaman aplikasi
                     </Link>
-                    <PageHeader
-                        title="Profile"
-                        subtitle="Manage account information and security."
-                    />
+                    <PageHeader title="Profil" subtitle="Kelola data akun dan keamanan." />
                     {sections}
                 </main>
             </GuestLayout>
@@ -71,9 +68,9 @@ export default function Edit({
     }
 
     return (
-        <AdminLayout title="Profile">
+        <AdminLayout title="Profil">
             <div className="space-y-6">
-                <PageHeader title="Profile" subtitle="Manage account information and security." />
+                <PageHeader title="Profil" subtitle="Kelola data akun dan keamanan." />
                 {sections}
             </div>
         </AdminLayout>

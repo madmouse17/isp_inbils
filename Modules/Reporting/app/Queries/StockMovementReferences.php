@@ -44,7 +44,7 @@ final class StockMovementReferences
                 ),
                 $requestItemType => self::target(
                     $requestItems->get($movement->reference_id)?->inventoryRequest,
-                    'Request',
+                    'Permintaan',
                     'admin.inventory.requests.show',
                     $actor,
                 ),

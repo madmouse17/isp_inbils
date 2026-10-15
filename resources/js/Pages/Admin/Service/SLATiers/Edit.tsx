@@ -91,7 +91,7 @@ export default function Edit({ slaTier }: EditProps) {
                                 />
                             </div>
                             <p className="text-sm text-muted-foreground md:col-span-2">
-                                Tiket berprioritas urgent memakai setengah dari kedua target
+                                Tiket berprioritas mendesak memakai setengah dari kedua target
                                 (dibulatkan ke atas). Jam dihitung kalender, bukan jam kerja.
                                 Perubahan target hanya berlaku untuk tiket baru.
                             </p>

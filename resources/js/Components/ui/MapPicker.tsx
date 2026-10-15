@@ -189,7 +189,7 @@ export function MapPicker({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant={searchMode === 'address' ? 'secondary' : 'ghost'}
+                                    variant={searchMode === 'address' ? 'outline' : 'ghost'}
                                     aria-pressed={searchMode === 'address'}
                                     onClick={() => setSearchMode('address')}
                                 >
@@ -198,7 +198,7 @@ export function MapPicker({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    variant={searchMode === 'coordinates' ? 'secondary' : 'ghost'}
+                                    variant={searchMode === 'coordinates' ? 'outline' : 'ghost'}
                                     aria-pressed={searchMode === 'coordinates'}
                                     onClick={() => {
                                         setSearchMode('coordinates');

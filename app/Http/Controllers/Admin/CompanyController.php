@@ -8,7 +8,6 @@ use App\Http\Requests\Admin\UpdateCompanySettingsRequest;
 use App\Http\Resources\CompanyResource;
 use App\Services\Core\CompanyLogoService;
 use App\Services\Core\CompanyService;
-use App\Services\Core\SettingService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Services\WhatsApp\WhatsAppSettings;
 use Illuminate\Http\RedirectResponse;
@@ -47,7 +46,7 @@ class CompanyController extends Controller
             CompanyLogoService::store($company, $request->file('logo'));
         }
 
-        return back()->with('success', 'Company profile updated.');
+        return back()->with('success', 'Profil perusahaan diperbarui.');
     }
 
     public function editSettings(Request $request): Response
@@ -80,11 +79,6 @@ class CompanyController extends Controller
                     ->values()
                     ->all(),
             ],
-            'defaults' => [
-                'app_name' => SettingService::get('default_app_name'),
-                'currency' => SettingService::get('default_currency'),
-                'timezone' => SettingService::get('default_timezone'),
-            ],
             'can' => [
                 'update' => $request->user()?->can('company.manage') ?? false,
             ],
@@ -98,7 +92,7 @@ class CompanyController extends Controller
 
         CompanyService::updateSettings($request->validated('settings'));
 
-        return back()->with('success', 'Company settings updated.');
+        return back()->with('success', 'Pengaturan perusahaan diperbarui.');
     }
 
     /** Every kota/kabupaten for the default-map picker, with the point the picker jumps to. @return list<array{code: string, name: string, province_name: string, lat: float, lng: float}> */

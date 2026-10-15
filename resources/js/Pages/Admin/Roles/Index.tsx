@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -31,53 +31,63 @@ interface RolesProps {
     can: { create: boolean; export: boolean };
 }
 
-const protectedRoles = new Set(['admin', 'manager', 'staff', 'technician', 'customer']);
+/** The seeded roles (`RolePolicy`): they cannot be deleted. */
+const PROTECTED_ROLES: Record<string, true> = {
+    admin: true,
+    manager: true,
+    staff: true,
+    technician: true,
+    customer: true,
+};
 
 export default function Index({ roles, filters, can }: RolesProps) {
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.roles.index'),
         filters,
         only: ['roles', 'filters', 'can'],
     });
 
+    const hasFilters = Boolean(params.search);
+
     const columns: DataTableColumn<RoleRow>[] = useMemo(
         () => [
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
                 cell: (role) => (
                     <div className="flex items-center gap-2">
                         <span className="font-medium">{role.name}</span>
-                        {protectedRoles.has(role.name) ? (
-                            <Badge variant="warning">Protected</Badge>
+                        {Object.hasOwn(PROTECTED_ROLES, role.name) ? (
+                            <Badge variant="neutral">Bawaan</Badge>
                         ) : null}
                     </div>
                 ),
             },
             {
                 key: 'permissions',
-                header: 'Permissions',
-                cell: (role) => <Badge variant="info">{role.permissions.length}</Badge>,
+                header: 'Hak akses',
+                cell: (role) => role.permissions.length,
             },
             {
                 key: 'users_count',
-                header: 'Users',
-                cell: (role) => <Badge variant="secondary">{role.users_count ?? 0}</Badge>,
+                header: 'Pengguna',
+                cell: (role) => role.users_count ?? 0,
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (role) => (
                     <DataTableActions
                         editHref={route('admin.roles.edit', role.id)}
                         deleteHref={
-                            protectedRoles.has(role.name)
+                            Object.hasOwn(PROTECTED_ROLES, role.name)
                                 ? undefined
                                 : route('admin.roles.destroy', role.id)
                         }
-                        deleteMessage={`Delete ${role.name}?`}
+                        deleteMessage={`Hapus peran ${role.name}?`}
+                        deleteDescription={`Peran "${role.name}" akan dihapus dan dicabut dari semua penggunanya.`}
                     />
                 ),
             },
@@ -85,12 +95,18 @@ export default function Index({ roles, filters, can }: RolesProps) {
         [],
     );
 
+    const createButton = can.create ? (
+        <Button asChild variant="primary">
+            <Link href={route('admin.roles.create')}>Buat Peran</Link>
+        </Button>
+    ) : undefined;
+
     return (
         <AdminLayout title="Peran">
             <div className="space-y-6">
                 <PageHeader
                     title="Peran"
-                    subtitle="Manage RBAC roles and permission sets."
+                    subtitle="Kumpulan hak akses yang diberikan ke pengguna lewat peran."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -101,27 +117,21 @@ export default function Index({ roles, filters, can }: RolesProps) {
                                     canExport={can.export}
                                 />
                             ) : null}
-                            {can.create ? (
-                                <Button
-                                    type="button"
-                                    variant="primary"
-                                    onClick={() => router.get(route('admin.roles.create'))}
-                                >
-                                    Create Role
-                                </Button>
-                            ) : null}
+                            {createButton}
                         </div>
                     }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Input
-                            label="Search"
-                            value={params.search ?? ''}
-                            onChange={(event) => set('search', event.target.value)}
-                            placeholder="Role name"
-                        />
+                        <div className="max-w-md">
+                            <Input
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Nama peran"
+                            />
+                        </div>
                         <DataTable
                             columns={columns}
                             pagination={toPagination(roles)}
@@ -130,8 +140,12 @@ export default function Index({ roles, filters, can }: RolesProps) {
                             onSort={onSort}
                             onPageChange={(page) => set('page', page)}
                             onPerPageChange={(perPage) => set('per_page', perPage)}
-                            emptyTitle="No roles"
-                            emptyDescription="No roles match the current search."
+                            emptyTitle="Belum ada peran"
+                            emptyDescription="Peran mengelompokkan hak akses supaya bisa diberikan sekaligus ke pengguna. Buat peran pertama untuk memulai."
+                            emptyAction={createButton}
+                            hasFilters={hasFilters}
+                            onResetFilters={() => setMany({ search: '' })}
+                            itemLabel="peran"
                             loading={processing}
                         />
                     </CardContent>

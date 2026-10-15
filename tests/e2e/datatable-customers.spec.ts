@@ -16,11 +16,10 @@ test('@kanban-t_41ed9a9c customers index renders DataTable with rows, sort, filt
         timeout: 30_000,
     });
 
-    await page.getByLabel('Search').fill('Fiber');
-    await page.getByRole('button', { name: 'Filter' }).click();
+    await page.getByLabel('Cari', { exact: true }).fill('Fiber');
     await expect(page).toHaveURL(/search=Fiber/);
 
-    await page.getByRole('button', { name: 'Name' }).click();
+    await page.getByRole('columnheader', { name: 'Nama' }).getByRole('button').click();
     await expect(page).toHaveURL(/sort=name/);
     await expect(
         page.locator('tbody tr').filter({ hasText: datatableCustomerNames[0] }).first(),

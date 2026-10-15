@@ -60,7 +60,7 @@ class TwoFactorService
      */
     public function beginEnrollment(User $user): array
     {
-        abort_if($user->hasTwoFactorEnabled(), 422, 'Two-factor authentication is already enabled.');
+        abort_if($user->hasTwoFactorEnabled(), 422, 'Autentikasi dua langkah sudah aktif.');
 
         $secret = $this->google2fa->generateSecretKey();
 
@@ -141,7 +141,7 @@ class TwoFactorService
      */
     public function regenerateRecoveryCodes(User $user, ?Session $session = null): array
     {
-        abort_unless($user->hasTwoFactorEnabled(), 422, 'Two-factor authentication is not enabled.');
+        abort_unless($user->hasTwoFactorEnabled(), 422, 'Autentikasi dua langkah belum aktif.');
 
         $codes = $this->withLockedUser($user, function (User $locked): array {
             $codes = $this->generateRecoveryCodes();

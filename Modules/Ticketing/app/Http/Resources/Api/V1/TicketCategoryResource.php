@@ -15,6 +15,8 @@ class TicketCategoryResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            /** A short tip the ISP wrote for this category ("Saran untuk pelanggan"), at most 500 characters; null when it wrote none. */
+            'customer_hint' => $this->customer_hint,
         ];
     }
 }

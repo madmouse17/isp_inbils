@@ -4,8 +4,6 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\LocationResource;
-use App\Models\Core\Location;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -22,7 +20,6 @@ use Modules\Inventory\Http\Requests\StockAdjustRequest;
 use Modules\Inventory\Http\Requests\StockIssueRequest;
 use Modules\Inventory\Http\Requests\StockReceiveRequest;
 use Modules\Inventory\Http\Requests\StockTransferRequest;
-use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Http\Resources\StockAdjustmentRequestResource;
 use Modules\Inventory\Http\Resources\StockMovementResource;
 use Modules\Inventory\Http\Resources\StockResource;
@@ -31,6 +28,7 @@ use Modules\Inventory\Models\Stock;
 use Modules\Inventory\Models\StockAdjustmentRequest;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Inventory\Services\StockService;
+use Modules\Inventory\Support\InventoryOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class StockController extends Controller
@@ -40,6 +38,17 @@ class StockController extends Controller
     private const STOCK_SORTABLE = ['quantity', 'reserved_quantity', 'created_at'];
 
     private const MOVEMENT_SORTABLE = ['movement_type', 'quantity', 'created_at'];
+
+    /** What `movement_type` reads as in an export; the page takes its labels from `STOCK_MOVEMENT_TYPE` in `lib/statuses/inventory.ts`. */
+    private const MOVEMENT_TYPE_LABELS = [
+        'receive' => 'Masuk',
+        'issue' => 'Keluar',
+        'transfer' => 'Transfer',
+        'adjustment' => 'Penyesuaian',
+        'reserve' => 'Dicadangkan',
+        'release' => 'Cadangan dilepas',
+        'return' => 'Pengembalian',
+    ];
 
     public function index(Request $request): InertiaResponse
     {
@@ -51,8 +60,10 @@ class StockController extends Controller
 
         return Inertia::render('Admin/Inventory/Stocks/Index', [
             'stocks' => StockResource::collection($stocks),
-            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'productOptions' => InventoryOptions::products($request, Product::query()->where('is_active', true)),
+            'locationOptions' => InventoryOptions::locations($request),
+            'selectedProduct' => InventoryOptions::selectedProduct($request->input('product_id')),
+            'selectedLocation' => InventoryOptions::selectedLocation($request->input('location_id')),
             'filters' => $request->only(['location_id', 'product_id', 'low_stock', 'search', 'sort_by', 'sort_dir', 'sort', 'direction', 'per_page']),
             'adjustmentRequests' => StockAdjustmentRequestResource::collection($this->pendingAdjustmentRequests($request)),
             'can' => [
@@ -75,11 +86,11 @@ class StockController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'product' => 'Product',
-            'location' => 'Location',
-            'quantity' => 'Quantity',
-            'reserved_quantity' => 'Reserved',
-            'available' => 'Available',
+            'product' => 'Barang',
+            'location' => 'Lokasi',
+            'quantity' => 'Jumlah',
+            'reserved_quantity' => 'Dicadangkan',
+            'available' => 'Tersedia',
         ];
 
         $map = static fn (Stock $stock): array => [
@@ -91,7 +102,7 @@ class StockController extends Controller
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Stocks', $columns, $map, "stocks-export-{$stamp}.pdf");
+            return $export->streamPdf('Stok', $columns, $map, "stocks-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "stocks-export-{$stamp}.csv");
@@ -107,8 +118,10 @@ class StockController extends Controller
 
         return Inertia::render('Admin/Inventory/Movements/Index', [
             'movements' => StockMovementResource::collection($movements),
-            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'productOptions' => InventoryOptions::products($request, Product::query()->where('is_active', true)),
+            'locationOptions' => InventoryOptions::locations($request),
+            'selectedProduct' => InventoryOptions::selectedProduct($request->input('product_id')),
+            'selectedLocation' => InventoryOptions::selectedLocation($request->input('location_id')),
             'filters' => $request->only(['product_id', 'movement_type', 'location_id', 'search', 'sort_by', 'sort_dir', 'sort', 'direction', 'per_page']),
             'can' => ['export' => $request->user()?->can('inventory.export') ?? false],
         ]);
@@ -125,18 +138,18 @@ class StockController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'movement_type' => 'Type',
-            'product' => 'Product',
-            'from_location' => 'From',
-            'to_location' => 'To',
-            'quantity' => 'Quantity',
-            'balance_after' => 'Balance',
-            'note' => 'Note',
-            'created_at' => 'Date',
+            'movement_type' => 'Jenis',
+            'product' => 'Barang',
+            'from_location' => 'Dari',
+            'to_location' => 'Ke',
+            'quantity' => 'Jumlah',
+            'balance_after' => 'Saldo',
+            'note' => 'Catatan',
+            'created_at' => 'Tanggal',
         ];
 
         $map = static fn (StockMovement $movement): array => [
-            'movement_type' => $movement->movement_type,
+            'movement_type' => self::MOVEMENT_TYPE_LABELS[$movement->movement_type] ?? $movement->movement_type,
             'product' => $movement->product?->name ?? '-',
             'from_location' => $movement->fromLocation?->name ?? '-',
             'to_location' => $movement->toLocation?->name ?? '-',
@@ -147,7 +160,7 @@ class StockController extends Controller
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Stock Movements', $columns, $map, "stock-movements-export-{$stamp}.pdf");
+            return $export->streamPdf('Mutasi Stok', $columns, $map, "stock-movements-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "stock-movements-export-{$stamp}.csv");
@@ -165,7 +178,7 @@ class StockController extends Controller
             $request->filled('reference_id') ? $request->integer('reference_id') : null,
         );
 
-        return back()->with('success', 'Stock received.');
+        return back()->with('success', 'Barang berhasil diterima.');
     }
 
     public function issue(StockIssueRequest $request): RedirectResponse
@@ -180,7 +193,7 @@ class StockController extends Controller
             $request->filled('reference_id') ? $request->integer('reference_id') : null,
         );
 
-        return back()->with('success', 'Stock issued.');
+        return back()->with('success', 'Barang berhasil dikeluarkan.');
     }
 
     public function transfer(StockTransferRequest $request): RedirectResponse
@@ -194,7 +207,7 @@ class StockController extends Controller
             $request->input('note'),
         );
 
-        return back()->with('success', 'Stock transferred.');
+        return back()->with('success', 'Stok berhasil ditransfer.');
     }
 
     public function adjust(StockAdjustRequest $request): RedirectResponse
@@ -207,7 +220,7 @@ class StockController extends Controller
             $request->input('note'),
         );
 
-        return back()->with('success', 'Stock adjustment requested; awaiting approval.');
+        return back()->with('success', 'Permintaan penyesuaian stok diajukan dan menunggu persetujuan.');
     }
 
     /** Admin-only break-glass: applies at once, audited with a break_glass marker. */
@@ -222,21 +235,21 @@ class StockController extends Controller
             ['break_glass' => true],
         );
 
-        return back()->with('success', 'Stock adjusted (break-glass).');
+        return back()->with('success', 'Stok berhasil disesuaikan (akses darurat).');
     }
 
     public function approveAdjustment(ApproveStockAdjustmentRequest $request, StockAdjustmentRequest $adjustment): RedirectResponse
     {
         StockService::approveAdjustment($adjustment);
 
-        return back()->with('success', 'Stock adjustment approved.');
+        return back()->with('success', 'Penyesuaian stok disetujui.');
     }
 
     public function rejectAdjustment(RejectStockAdjustmentRequest $request, StockAdjustmentRequest $adjustment): RedirectResponse
     {
         StockService::rejectAdjustment($adjustment, $request->string('rejection_reason')->toString());
 
-        return back()->with('success', 'Stock adjustment rejected.');
+        return back()->with('success', 'Penyesuaian stok ditolak.');
     }
 
     public function find(Request $request): InertiaResponse
@@ -247,6 +260,8 @@ class StockController extends Controller
         if ($request->filled('search')) {
             $search = $request->input('search');
             $products = Product::query()
+                // The Item Finder is for consumables (docs/business/inventory.md); assets are traced one by one.
+                ->where('type', 'consumable')
                 ->where(fn ($q) => $q->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"))
                 ->with(['stocks.location'])
                 ->get();

@@ -1,11 +1,21 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
-import { Badge, Button, Card, CardContent, Input, Modal, Switch, Textarea } from '@/Components/ui';
+import {
+    Badge,
+    Button,
+    EmptyCell,
+    Input,
+    Modal,
+    PhoneInput,
+    Switch,
+    Textarea,
+} from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 
@@ -48,7 +58,10 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
 
     const {
         params,
+        search,
+        setSearch,
         set,
+        setMany,
         sortBy,
         sortDir,
         onSort,
@@ -100,69 +113,73 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
     const columns: DataTableColumn<ContactRow>[] = [
         {
             key: 'name',
-            header: 'Name',
+            header: 'Nama',
             sortable: true,
             sortKey: 'name',
             cell: (row) => <span className="font-medium text-foreground">{row.name}</span>,
         },
         {
             key: 'position',
-            header: 'Position',
+            header: 'Jabatan',
             sortable: true,
             sortKey: 'role',
-            cell: (row) => row.position ?? '-',
+            cell: (row) => row.position || <EmptyCell />,
         },
         {
             key: 'phone',
-            header: 'Phone',
+            header: 'Telepon',
             sortable: true,
             sortKey: 'phone',
-            cell: (row) => row.phone ?? '-',
+            cell: (row) =>
+                row.phone ? <span className="whitespace-nowrap">{row.phone}</span> : <EmptyCell />,
         },
         {
             key: 'email',
             header: 'Email',
             sortable: true,
             sortKey: 'email',
-            cell: (row) => row.email ?? '-',
+            cell: (row) => row.email || <EmptyCell />,
         },
         {
             key: 'is_primary',
-            header: 'Primary',
-            cell: (row) => (
-                <Badge variant={row.is_primary ? 'brand' : 'neutral'}>
-                    {row.is_primary ? 'Primary' : 'Secondary'}
-                </Badge>
-            ),
+            header: 'Utama',
+            cell: (row) => (row.is_primary ? <Badge variant="brand">Utama</Badge> : <EmptyCell />),
         },
         {
             key: 'notes',
-            header: 'Notes',
-            cell: (row) => (
-                <span className="line-clamp-2 text-sm text-muted-foreground">
-                    {row.notes ?? '-'}
-                </span>
-            ),
+            header: 'Catatan',
+            cell: (row) =>
+                row.notes ? (
+                    <span className="line-clamp-2 text-sm text-muted-foreground">{row.notes}</span>
+                ) : (
+                    <EmptyCell />
+                ),
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: 'Aksi',
             cell: (row) => (
                 <DataTableActions
                     onEdit={() => openEdit(row)}
                     deleteHref={route('admin.customers.contacts.destroy', [customer.id, row.id])}
-                    deleteMessage={`Delete ${row.name}?`}
-                    deleteDescription={`This will permanently remove the contact "${row.name}" from this customer.`}
+                    deleteMessage={`Hapus ${row.name}?`}
+                    deleteDescription={`Kontak "${row.name}" akan dihapus permanen dari pelanggan ini.`}
                 />
             ),
         },
     ];
 
+    const addButton = (
+        <Button type="button" variant="primary" size="sm" onClick={openCreate}>
+            Tambah kontak
+        </Button>
+    );
+
     return (
-        <AdminLayout title="Customer Contacts">
+        <AdminLayout title="Kontak Pelanggan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Customer Contacts"
+                    title="Kontak"
                     subtitle={`${customer.code} - ${customer.name}`}
                     actions={
                         <div className="flex flex-wrap gap-2">
@@ -176,70 +193,73 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                                     canExport={can.export}
                                 />
                             ) : null}
-                            <Button type="button" variant="primary" onClick={openCreate}>
-                                Add Contact
+                            <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                leftIcon={<ArrowLeft className="size-4" />}
+                            >
+                                <Link href={route('admin.customers.show', customer.id)}>
+                                    Kembali
+                                </Link>
                             </Button>
+                            {addButton}
                         </div>
                     }
                 />
 
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                            <div className="space-y-1 min-w-48 flex-1">
-                                <label
-                                    className="text-xs font-medium text-muted-foreground"
-                                    htmlFor="contacts-search"
-                                >
-                                    Search
-                                </label>
-                                <Input
-                                    id="contacts-search"
-                                    value={params.search ?? ''}
-                                    onChange={(event) => set('search', event.target.value)}
-                                    placeholder="Name, position, phone, email…"
-                                />
-                            </div>
-                        </div>
-
-                        <DataTable
-                            columns={columns}
-                            pagination={toPagination(contacts)}
-                            sortBy={sortBy}
-                            sortDir={sortDir}
-                            onSort={onSort}
-                            onPageChange={(page) => set('page', page)}
-                            emptyTitle="No contacts"
-                            emptyDescription="No contacts match the current filters."
-                            loading={tableProcessing}
+                <div className="space-y-4">
+                    <div className="max-w-sm">
+                        <Input
+                            id="contacts-search"
+                            label="Cari"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Nama, jabatan, telepon, atau email"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+
+                    <DataTable
+                        columns={columns}
+                        pagination={toPagination(contacts)}
+                        sortBy={sortBy}
+                        sortDir={sortDir}
+                        onSort={onSort}
+                        onPageChange={(page) => set('page', page)}
+                        loading={tableProcessing}
+                        itemLabel="kontak"
+                        hasFilters={Boolean(params.search)}
+                        onResetFilters={() => setMany({ search: '' })}
+                        emptyTitle="Belum ada kontak"
+                        emptyDescription="Catat narahubung pelanggan ini, termasuk satu kontak utama."
+                        emptyAction={addButton}
+                    />
+                </div>
 
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editingId ? 'Edit Contact' : 'Add Contact'}
+                    title={editingId ? 'Ubah Kontak' : 'Tambah Kontak'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(event) => setData('name', event.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <Input
-                                label="Position"
+                                label="Jabatan"
                                 value={data.position}
                                 onChange={(event) => setData('position', event.target.value)}
                                 error={errors.position}
                             />
-                            <Input
-                                label="Phone"
+                            <PhoneInput
+                                label="Telepon"
                                 value={data.phone}
-                                onChange={(event) => setData('phone', event.target.value)}
+                                onChange={(value) => setData('phone', value)}
                                 error={errors.phone}
                             />
                             <Input
@@ -250,14 +270,14 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                             />
                         </div>
                         <Textarea
-                            label="Notes"
+                            label="Catatan"
                             value={data.notes}
                             onChange={(event) => setData('notes', event.target.value)}
                             error={errors.notes}
                             rows={3}
                         />
                         <Switch
-                            label="Primary contact"
+                            label="Kontak utama"
                             checked={data.is_primary}
                             onCheckedChange={(checked) => setData('is_primary', checked)}
                         />
@@ -267,10 +287,10 @@ export default function Index({ customer, contacts, filters, can }: IndexProps) 
                                 variant="secondary"
                                 onClick={() => setModalOpen(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editingId ? 'Save' : 'Add'}
+                                {editingId ? 'Simpan' : 'Tambah'}
                             </Button>
                         </div>
                     </form>

@@ -200,7 +200,7 @@ class ReportTechnicianScopeTest extends TestCase
         $this->assertSame(1, $spk->inertiaProps('tie_out.rows'));
         $this->assertSame(1, $tickets->inertiaProps('tie_out.rows'));
         $this->assertSame(2, $spk->inertiaProps('tie_out.figure'), 'the workload is SPK and tickets together');
-        $this->assertSame(['label' => 'tickets', 'rows' => 1], $spk->inertiaProps('tie_out.companion'));
+        $this->assertSame(['label' => 'tiket', 'rows' => 1], $spk->inertiaProps('tie_out.companion'));
         $this->assertTrue($spk->inertiaProps('tie_out.matches'));
         $this->assertTrue($tickets->inertiaProps('tie_out.matches'));
     }
@@ -213,15 +213,15 @@ class ReportTechnicianScopeTest extends TestCase
         $screen = $this->get(route('admin.reports.technician', $query))->assertOk();
         $figures = $this->csvFigures($this->get(route('admin.reports.technician.export', $query)));
 
-        $this->assertEquals(2, (float) $figures['SPK Completed']);
-        $this->assertEquals(2, (float) $figures['Tickets Resolved']);
-        $this->assertEquals(2, (float) $figures['Active Workload']);
-        $this->assertEquals(3.0, (float) $figures['Avg Evaluation Score']);     // scores 4 and 2 in January; the 1 of February is out
-        $this->assertEquals(2, (float) $figures['SPK by Type / installation']);
-        $this->assertEquals(2, (float) $figures['Tickets by Category / Support']);
+        $this->assertEquals(2, (float) $figures['SPK selesai']);
+        $this->assertEquals(2, (float) $figures['Tiket diselesaikan']);
+        $this->assertEquals(2, (float) $figures['Beban kerja aktif']);
+        $this->assertEquals(3.0, (float) $figures['Rata-rata skor evaluasi']);     // scores 4 and 2 in January; the 1 of February is out
+        $this->assertEquals(2, (float) $figures['SPK per jenis / installation']);
+        $this->assertEquals(2, (float) $figures['Tiket per kategori / Support']);
 
-        $this->assertEquals($screen->inertiaProps('data.avg_score'), (float) $figures['Avg Evaluation Score']);
-        $this->assertEquals($screen->inertiaProps('data.sla_compliance_pct'), (float) $figures['SLA Compliance']);
+        $this->assertEquals($screen->inertiaProps('data.avg_score'), (float) $figures['Rata-rata skor evaluasi']);
+        $this->assertEquals($screen->inertiaProps('data.sla_compliance_pct'), (float) $figures['Kepatuhan SLA']);
     }
 
     // ---------------------------------------------------------------------------------------------

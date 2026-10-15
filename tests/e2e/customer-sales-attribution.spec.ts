@@ -40,7 +40,7 @@ const dropdownOf = (field: Locator) => field.locator('..');
 const optionIn = (field: Locator, name: string) =>
     field.page().getByRole('option', { name: new RegExp(name) });
 const correctionReason = (page: Page) => page.getByLabel('Alasan koreksi');
-const saveButton = (page: Page) => page.getByRole('button', { name: 'Save Customer' });
+const saveButton = (page: Page) => page.getByRole('button', { name: 'Simpan pelanggan' });
 const customersIndexUrl = /\/admin\/customers\/?$/;
 
 async function customerIdFor(page: Page, name: string): Promise<number> {
@@ -63,7 +63,7 @@ async function currentAcquirer(page: Page, id: number): Promise<string | null> {
 async function openEdit(page: Page, id: number) {
     await page.goto(`/admin/customers/${id}/edit`);
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Edit Customer' }),
+        page.getByRole('main').getByRole('heading', { name: 'Ubah Pelanggan' }),
     ).toBeVisible();
 }
 
@@ -92,7 +92,9 @@ async function expectShowAcquirer(page: Page, id: number, name: string, expected
     await page.goto(`/admin/customers/${id}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name })).toBeVisible();
-    const row = main.getByText(/^Acquired by:?\s*$/).locator('..');
+    const row = main
+        .getByText('Diperoleh oleh', { exact: true })
+        .locator('xpath=following-sibling::dd[1]');
     await expect(row).toBeVisible();
     if (expected === null) {
         await expect(row).toContainText('Belum ditentukan');
@@ -312,8 +314,8 @@ test.describe('@customer-sales-attribution', () => {
         const rows = page.locator('tbody tr');
         const rowOf = (name: string) => rows.filter({ hasText: name });
         const acquiredBy = (url: URL) => url.searchParams.get('acquired_by');
-        // The Index filter is a native select with its own label; the Edit field is the SearchSelect.
-        const filter = page.getByRole('combobox', { name: 'Acquired by', exact: true });
+        // The Index filter is a SearchSelect like the Edit field: it applies as soon as an option is chosen.
+        const filter = page.getByRole('combobox', { name: 'Diperoleh oleh', exact: true });
 
         await expect(main.getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
         await expect(rows).toHaveCount(3);
@@ -322,41 +324,40 @@ test.describe('@customer-sales-attribution', () => {
         await expect(rowOf(filterNone)).toContainText('Belum ditentukan');
 
         // Column header exists and is not sortable (Name, by contrast, is).
-        const header = main.getByRole('columnheader', { name: 'Acquired by' });
+        const header = main.getByRole('columnheader', { name: 'Diperoleh oleh' });
         await expect(header).toBeVisible();
         await expect(header.getByRole('button')).toHaveCount(0);
         await expect(
-            main.getByRole('columnheader', { name: 'Name' }).getByRole('button'),
+            main.getByRole('columnheader', { name: 'Nama' }).getByRole('button'),
         ).toBeVisible();
 
         await expect(filter).toBeVisible();
-        await expect(filter.getByRole('option', { name: 'All acquirers' })).toHaveCount(1);
-        await expect(filter.getByRole('option', { name: 'Unassigned' })).toHaveCount(1);
+        await filter.click();
+        await expect(page.getByRole('option', { name: 'Belum ditentukan' })).toHaveCount(1);
+        await page.keyboard.press('Escape');
 
-        await filter.selectOption({ label: manager });
-        await page.getByRole('button', { name: 'Filter' }).click();
+        await chooseAcquirer(page, manager);
         await expect.poll(() => acquiredBy(new URL(page.url()))).toBe(String(managerId));
         await expect(rows).toHaveCount(1);
         await expect(rowOf(filterManager)).toBeVisible();
 
         await page.reload();
-        await expect(filter).toHaveValue(String(managerId));
+        await expect(filter).toHaveValue(new RegExp(manager));
         await expect(rows).toHaveCount(1);
 
-        await filter.selectOption({ label: staff });
-        await page.getByRole('button', { name: 'Filter' }).click();
+        await chooseAcquirer(page, staff);
         await expect.poll(() => acquiredBy(new URL(page.url()))).toBe(String(staffId));
         await expect(rows).toHaveCount(1);
         await expect(rowOf(filterStaff)).toBeVisible();
 
-        await filter.selectOption({ label: 'Unassigned' });
-        await page.getByRole('button', { name: 'Filter' }).click();
+        await chooseAcquirer(page, 'Belum ditentukan');
         await expect.poll(() => acquiredBy(new URL(page.url()))).toBe('unassigned');
         await expect(rows).toHaveCount(1);
         await expect(rowOf(filterNone)).toContainText('Belum ditentukan');
 
-        await filter.selectOption({ label: 'All acquirers' });
-        await page.getByRole('button', { name: 'Filter' }).click();
+        await dropdownOf(filter)
+            .getByRole('button', { name: /^Hapus pilihan/ })
+            .click();
         await expect.poll(() => acquiredBy(new URL(page.url()))).toBeNull();
         await expect(rows).toHaveCount(3);
     });
@@ -379,7 +380,7 @@ test.describe('@customer-sales-attribution', () => {
                 await expectInsideViewport(editField, width);
                 await expectNoHorizontalOverflow(page, `Edit overflow at ${mode}`);
                 expect(
-                    await tabsTo(page, page.getByLabel('Name'), editField),
+                    await tabsTo(page, page.getByLabel('Nama'), editField),
                     `Tab reaches Acquired by on Edit at ${mode}`,
                 ).toBe(true);
                 await expectVisibleFocusIndicator(editField);
@@ -398,13 +399,37 @@ test.describe('@customer-sales-attribution', () => {
                     page.getByRole('main').getByRole('heading', { name: 'Pelanggan' }),
                 ).toBeVisible();
                 await setTheme(page, width, dark);
-                const filter = page.getByRole('combobox', { name: 'Acquired by', exact: true });
+                await expectNoHorizontalOverflow(page, `Index overflow at ${mode}`);
+                if (width < 768) {
+                    // Below md the list is a stack of cards and the filters live in a bottom sheet.
+                    for (const name of [filterManager, filterStaff, filterNone]) {
+                        await expect(
+                            page.getByRole('main').getByRole('link', { name }),
+                        ).toBeVisible();
+                    }
+                    await page.getByRole('button', { name: 'Filter', exact: true }).click();
+                    const sheet = page.getByRole('dialog', { name: 'Filter pelanggan' });
+                    const sheetFilter = sheet.getByRole('combobox', {
+                        name: 'Diperoleh oleh',
+                        exact: true,
+                    });
+                    await expect(sheetFilter).toBeVisible();
+                    await expectInsideViewport(sheetFilter, width);
+                    expect(
+                        await tabsTo(page, sheet.getByLabel('Tipe'), sheetFilter),
+                        `Tab reaches Acquired by filter in the sheet at ${mode}`,
+                    ).toBe(true);
+                    await expectVisibleFocusIndicator(sheetFilter);
+                    await page.keyboard.press('Escape');
+                    await expect(sheet).toBeHidden();
+                    continue;
+                }
+                const filter = page.getByRole('combobox', { name: 'Diperoleh oleh', exact: true });
                 await expect(filter).toBeVisible();
                 await expectInsideViewport(filter, width);
                 await expect(page.locator('tbody tr')).toHaveCount(3);
-                await expectNoHorizontalOverflow(page, `Index overflow at ${mode}`);
                 expect(
-                    await tabsTo(page, page.getByLabel('Search', { exact: true }), filter),
+                    await tabsTo(page, page.getByLabel('Cari', { exact: true }), filter),
                     `Tab reaches Acquired by filter on Index at ${mode}`,
                 ).toBe(true);
                 await expectVisibleFocusIndicator(filter);

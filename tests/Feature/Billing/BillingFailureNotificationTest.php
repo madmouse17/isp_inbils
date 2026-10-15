@@ -70,4 +70,15 @@ class BillingFailureNotificationTest extends TestCase
             return $n->command === 'billing:check-overdue';
         });
     }
+
+    public function test_the_mail_is_indonesian_and_carries_the_command(): void
+    {
+        $mail = (new BillingScheduleFailedNotification('billing:generate', 7, 'job-1'))->toMail(new User());
+
+        $this->assertSame('Jadwal penagihan gagal: billing:generate', $mail->subject);
+        $this->assertContains('Perintah: billing:generate', $mail->introLines);
+        $this->assertContains('ID perusahaan: 7', $mail->introLines);
+        $this->assertContains('ID job/permintaan: job-1', $mail->introLines);
+        $this->assertContains('Periksa log aplikasi untuk detailnya. Stack trace tidak disertakan.', $mail->introLines);
+    }
 }

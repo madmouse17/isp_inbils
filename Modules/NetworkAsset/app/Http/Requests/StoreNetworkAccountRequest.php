@@ -34,8 +34,18 @@ class StoreNetworkAccountRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'username.regex' => 'Use 3 to 40 lower-case letters, digits, dots, dashes or underscores.',
-            'password.regex' => 'The secret cannot contain spaces.',
+            'username.regex' => 'Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.',
+            'password.regex' => 'Kata sandi tidak boleh berisi spasi.',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'service_type' => 'jenis layanan',
+            'username' => 'nama pengguna',
+            'password' => 'kata sandi',
         ];
     }
 
@@ -47,13 +57,13 @@ class StoreNetworkAccountRequest extends FormRequest
             $subscription = $this->route('subscription');
 
             if (Realm::forCompany((int) CompanyService::currentId()) === null) {
-                $validator->errors()->add('realm', 'The company code cannot be used as a RADIUS realm: use 1 to 24 letters, digits or dashes.');
+                $validator->errors()->add('realm', 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS: gunakan 1 sampai 24 huruf, angka, atau tanda hubung.');
             } elseif (NetworkAccount::query()->where('subscription_id', $subscription->id)->exists()) {
-                $validator->errors()->add('subscription', 'This subscription already has a network account.');
+                $validator->errors()->add('subscription', 'Langganan ini sudah punya akun jaringan.');
             } elseif ($subscription->status === 'terminated') {
-                $validator->errors()->add('subscription', 'A terminated subscription cannot have a network account.');
+                $validator->errors()->add('subscription', 'Langganan yang sudah berhenti tidak dapat punya akun jaringan.');
             } elseif (blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name'))) {
-                $validator->errors()->add('subscription', 'The speed profile of this package has no RADIUS profile name.');
+                $validator->errors()->add('subscription', 'Profil kecepatan paket ini belum punya nama profil RADIUS.');
             }
         }];
     }
@@ -62,7 +72,7 @@ class StoreNetworkAccountRequest extends FormRequest
     private function usernameIsFree(string $attribute, mixed $value, \Closure $fail): void
     {
         if (NetworkAccountService::usernameTaken(NetworkAccountService::fullUsername((string) $value, (int) CompanyService::currentId()))) {
-            $fail('This username is not available.');
+            $fail('Nama pengguna ini tidak tersedia.');
         }
     }
 }

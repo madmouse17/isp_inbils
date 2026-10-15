@@ -32,4 +32,18 @@ class StoreServicePackageRequest extends FormRequest
             'is_active' => ['boolean'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'bandwidth_profile_id' => 'profil bandwidth',
+            'speed_profile_id' => 'profil kecepatan',
+            'sla_tier_id' => 'tingkat SLA',
+            'service_package_category_id' => 'kategori',
+            'price_mrc' => 'harga bulanan',
+            'price_otc' => 'harga pemasangan',
+            'contract_min_months' => 'masa kontrak minimum',
+        ];
+    }
 }

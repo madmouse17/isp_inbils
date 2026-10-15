@@ -8,8 +8,6 @@ export { MapPicker } from './MapPicker';
 export type { GeocodeResult, MapPickerProps } from './MapPicker';
 export { Textarea } from './Textarea';
 export type { TextareaProps } from './Textarea';
-export { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from './Select';
-export type { SelectProps } from './Select';
 export { NativeSelect } from '../composite/NativeSelect';
 export type { NativeSelectProps } from '../composite/NativeSelect';
 export { Checkbox } from './Checkbox';

@@ -20,6 +20,11 @@ class UpdateSubscriptionRequest extends FormRequest
         /** @var ServiceSubscription|null $subscription */
         $subscription = $this->route('subscription');
 
+        if ($subscription instanceof ServiceSubscription
+            && (int) $subscription->company_id !== (int) CompanyService::currentId()) {
+            abort(404);
+        }
+
         if ($subscription && $subscription->exists) {
             $locked = $subscription->workOrders()
                 ->whereNotIn('status', ['draft', 'generated', 'rejected', 'cancelled'])
@@ -37,10 +42,15 @@ class UpdateSubscriptionRequest extends FormRequest
     public function rules(): array
     {
         $companyId = CompanyService::currentId();
+        $subscription = $this->route('subscription');
+        $customerId = $subscription instanceof ServiceSubscription ? $subscription->customer_id : null;
 
         return [
             'service_package_id' => ['nullable', Rule::exists('service_packages', 'id')->where('company_id', $companyId)],
-            'installation_address_id' => ['nullable', Rule::exists('customer_addresses', 'id')->where('company_id', $companyId)],
+            'installation_address_id' => ['sometimes', 'required', 'integer', Rule::exists('customer_addresses', 'id')->where(fn ($query) => $query
+                ->where('company_id', $companyId)
+                ->where('customer_id', $customerId)
+                ->whereNull('deleted_at'))],
             'billing_day' => ['nullable', 'integer', 'between:1,28'],
             'serving_pop_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'mrc_amount' => ['nullable', 'numeric', 'min:0'],
@@ -49,6 +59,14 @@ class UpdateSubscriptionRequest extends FormRequest
             'expiration_date' => ['nullable', 'date'],
             'next_invoice_date' => ['nullable', 'date'],
             'notes' => ['nullable', 'string'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'installation_address_id.exists' => 'Pilih salah satu alamat milik pelanggan ini.',
         ];
     }
 }

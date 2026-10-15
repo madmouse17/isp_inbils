@@ -105,15 +105,15 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function business(): array
     {
-        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every matching record is used.';
+        $periodRule = 'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua data yang cocok dipakai.';
 
         return [
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'mrr',
                 label: 'MRR',
-                definition: 'Monthly recurring revenue: the monthly charge of every subscription that is active now.',
-                formula: 'SUM(service_subscriptions.mrc_amount) for subscriptions with status = active.',
+                definition: 'Pendapatan berulang bulanan: tagihan bulanan dari semua langganan yang aktif saat ini.',
+                formula: 'SUM(service_subscriptions.mrc_amount) untuk langganan dengan status = active.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.mrc_amount', 'service_subscriptions.status'],
@@ -122,9 +122,9 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'active_subscriptions',
-                label: 'Active Subscriptions',
-                definition: 'Number of subscriptions that are active now.',
-                formula: 'COUNT of service_subscriptions with status = active.',
+                label: 'Langganan aktif',
+                definition: 'Jumlah langganan yang aktif saat ini.',
+                formula: 'COUNT service_subscriptions dengan status = active.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
@@ -133,9 +133,9 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'suspended_subscriptions',
-                label: 'Suspended Subscriptions',
-                definition: 'Number of subscriptions that are suspended now.',
-                formula: 'COUNT of service_subscriptions with status = suspended.',
+                label: 'Langganan ditangguhkan',
+                definition: 'Jumlah langganan yang sedang ditangguhkan.',
+                formula: 'COUNT service_subscriptions dengan status = suspended.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
@@ -144,97 +144,97 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'terminated_subscriptions',
-                label: 'Terminated Subscriptions',
-                definition: 'Number of subscriptions that have been terminated, all time.',
-                formula: 'COUNT of service_subscriptions with status = terminated.',
+                label: 'Langganan berhenti',
+                definition: 'Jumlah langganan yang telah berhenti, sepanjang waktu.',
+                formula: 'COUNT service_subscriptions dengan status = terminated.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['service_subscriptions.status'],
                 statuses: ['terminated'],
-                caveats: ['All-time total; use Churn for terminations inside the selected period.'],
+                caveats: ['Total sepanjang waktu; pakai Churn untuk langganan yang berhenti dalam periode terpilih.'],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'new_subscriptions',
-                label: 'New Subscriptions',
-                definition: 'Subscriptions created during the selected period.',
-                formula: 'COUNT of service_subscriptions with created_at between From 00:00:00 and To 23:59:59.',
+                label: 'Langganan baru',
+                definition: 'Langganan yang dibuat dalam periode terpilih.',
+                formula: 'COUNT service_subscriptions dengan created_at antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['service_subscriptions.created_at'],
                 dateColumn: 'service_subscriptions.created_at',
                 caveats: [
-                    'Returns 0 when neither From nor To is set.',
-                    'Counts subscriptions of every status, including ones that are no longer active.',
+                    'Bernilai 0 bila Dari dan Sampai sama-sama kosong.',
+                    'Menghitung langganan dengan status apa pun, termasuk yang sudah tidak aktif.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'churn',
                 label: 'Churn',
-                definition: 'Subscriptions terminated during the selected period. A count, not a rate.',
-                formula: 'COUNT of service_subscriptions with status = terminated and terminated_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                definition: 'Langganan yang berhenti dalam periode terpilih. Berupa jumlah, bukan persentase.',
+                formula: 'COUNT service_subscriptions dengan status = terminated dan terminated_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['service_subscriptions.status', 'service_subscriptions.terminated_at'],
                 dateColumn: 'service_subscriptions.terminated_at',
                 statuses: ['terminated'],
                 caveats: [
-                    'A count of terminations, not a percentage: version v1 has no churn-rate denominator.',
-                    'Returns 0 when neither From nor To is set.',
+                    'Jumlah langganan yang berhenti, bukan persentase: versi v1 tidak memiliki pembagi untuk tingkat churn.',
+                    'Bernilai 0 bila Dari dan Sampai sama-sama kosong.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'revenue_paid',
-                label: 'Revenue (Paid)',
-                definition: 'Paid amount of fully paid invoices issued during the selected period.',
-                formula: 'SUM(invoices.paid_amount) for invoices with status = paid and issue_date '
-                    .'between From and To (To inclusive).',
+                label: 'Pendapatan terbayar',
+                definition: 'Jumlah terbayar dari tagihan lunas yang terbit dalam periode terpilih.',
+                formula: 'SUM(invoices.paid_amount) untuk tagihan dengan status = paid dan issue_date '
+                    .'antara Dari dan Sampai (Sampai termasuk).',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Period,
                 sources: ['invoices.paid_amount', 'invoices.status', 'invoices.issue_date'],
                 dateColumn: 'invoices.issue_date',
                 statuses: ['paid'],
                 caveats: [
-                    'Dated by invoice issue date, not by payment date.',
-                    'Partially paid invoices are excluded: the invoice itself must have status paid.',
+                    'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+                    'Tagihan yang dibayar sebagian tidak termasuk: tagihan itu sendiri harus berstatus paid.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'recurring_revenue',
-                label: 'Recurring Revenue',
-                definition: 'Part of Revenue (Paid) that comes from recurring invoices.',
-                formula: 'SUM(invoices.paid_amount) for the Revenue (Paid) invoices with type = recurring.',
+                label: 'Pendapatan berulang',
+                definition: 'Bagian dari Pendapatan terbayar yang berasal dari tagihan berulang.',
+                formula: 'SUM(invoices.paid_amount) untuk tagihan Pendapatan terbayar dengan type = recurring.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Period,
                 sources: ['invoices.paid_amount', 'invoices.status', 'invoices.issue_date', 'invoices.type'],
                 dateColumn: 'invoices.issue_date',
                 statuses: ['paid'],
-                caveats: ['Dated by invoice issue date, not by payment date.', $periodRule],
+                caveats: ['Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'one_time_revenue',
-                label: 'One-Time Revenue',
-                definition: 'Part of Revenue (Paid) that comes from one-time invoices.',
-                formula: 'SUM(invoices.paid_amount) for the Revenue (Paid) invoices with type = one_time.',
+                label: 'Pendapatan sekali bayar',
+                definition: 'Bagian dari Pendapatan terbayar yang berasal dari tagihan sekali bayar.',
+                formula: 'SUM(invoices.paid_amount) untuk tagihan Pendapatan terbayar dengan type = one_time.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Period,
                 sources: ['invoices.paid_amount', 'invoices.status', 'invoices.issue_date', 'invoices.type'],
                 dateColumn: 'invoices.issue_date',
                 statuses: ['paid'],
-                caveats: ['Dated by invoice issue date, not by payment date.', $periodRule],
+                caveats: ['Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'outstanding',
-                label: 'Outstanding',
-                definition: 'Amount still owed on invoices that were sent and are not fully paid.',
-                formula: 'SUM(invoices.total - invoices.paid_amount) for invoices with status sent, partial or overdue.',
+                label: 'Piutang',
+                definition: 'Jumlah yang masih terutang pada tagihan yang sudah dikirim dan belum lunas.',
+                formula: 'SUM(invoices.total - invoices.paid_amount) untuk tagihan dengan status sent, partial, atau overdue.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['invoices.total', 'invoices.paid_amount', 'invoices.status'],
@@ -243,9 +243,9 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'asset_distribution',
-                label: 'Asset Distribution',
-                definition: 'Number of network assets in each status.',
-                formula: 'COUNT of network_assets grouped by status.',
+                label: 'Sebaran aset',
+                definition: 'Jumlah aset jaringan pada setiap status.',
+                formula: 'COUNT network_assets dikelompokkan menurut status.',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['network_assets.status'],
@@ -253,25 +253,25 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'sla_compliance_pct',
-                label: 'SLA Compliance',
-                definition: 'Share of resolved tickets that were resolved on or before their SLA deadline, all time.',
-                formula: 'ROUND(100 * COUNT(tickets with resolved_at <= sla_deadline) / COUNT(tickets with resolved_at), 1); '
-                    .'0 when no ticket is resolved.',
+                label: 'Kepatuhan SLA',
+                definition: 'Persentase tiket selesai yang diselesaikan paling lambat pada batas SLA-nya, sepanjang waktu.',
+                formula: 'ROUND(100 * COUNT(tiket dengan resolved_at <= sla_deadline) / COUNT(tiket dengan resolved_at), 1); '
+                    .'0 bila tidak ada tiket yang selesai.',
                 unit: MetricUnit::Percent,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['tickets.resolved_at', 'tickets.sla_deadline'],
                 caveats: [
-                    'All-time figure: ignores From and To, unlike the SLA Compliance report (sla_rate).',
-                    'Tickets without an SLA deadline stay in the denominator but are never compliant.',
+                    'Angka sepanjang waktu: mengabaikan Dari dan Sampai, berbeda dengan laporan Kepatuhan SLA (sla_rate).',
+                    'Tiket tanpa batas SLA tetap masuk penyebut tetapi tidak pernah dianggap sesuai SLA.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Business,
                 key: 'installation_count',
-                label: 'Installations Completed',
-                definition: 'Installation work orders completed during the selected period.',
-                formula: 'COUNT of work_orders with type = installation and status = completed and completed_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                label: 'Pemasangan selesai',
+                definition: 'SPK pemasangan yang selesai dalam periode terpilih.',
+                formula: 'COUNT work_orders dengan type = installation dan status = completed dan completed_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['work_orders.type', 'work_orders.status', 'work_orders.completed_at'],
@@ -279,7 +279,7 @@ final class MetricRegistry
                 statuses: ['completed'],
                 caveats: [
                     $periodRule,
-                    'Counts work orders, unlike Asset Utilization installation_count, which counts asset installation records.',
+                    'Menghitung SPK, berbeda dengan installation_count di Pemanfaatan Aset yang menghitung catatan pemasangan aset.',
                 ],
             ),
         ];
@@ -288,20 +288,20 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function sales(): array
     {
-        $scope = 'Company, per acquirer';
-        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every matching record is used.';
-        $attribution = 'Follows the current acquirer of each customer: correcting an acquirer moves that customer\'s whole history '
-            .'to the new acquirer, so figures of past periods change. Customers without an acquirer, or whose acquirer is not a '
-            .'user of the company, are reported as Unassigned.';
+        $scope = 'Perusahaan, per petugas penjualan';
+        $periodRule = 'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua data yang cocok dipakai.';
+        $attribution = 'Mengikuti petugas penjualan pelanggan saat ini: mengoreksi petugas memindahkan seluruh riwayat pelanggan itu '
+            .'ke petugas yang baru, sehingga angka periode lampau ikut berubah. Pelanggan tanpa petugas penjualan, atau yang petugasnya bukan '
+            .'pengguna perusahaan, dilaporkan sebagai Tanpa petugas.';
 
         return [
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'customers_acquired',
-                label: 'Customers Acquired',
-                definition: 'Customers credited to the acquirer that were created during the selected period.',
-                formula: 'COUNT of customers with acquired_by_user_id = the acquirer, deleted_at empty and created_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                label: 'Pelanggan baru',
+                definition: 'Pelanggan atas nama petugas penjualan yang dibuat dalam periode terpilih.',
+                formula: 'COUNT customers dengan acquired_by_user_id = petugas penjualan, deleted_at kosong, dan created_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['customers.acquired_by_user_id', 'customers.created_at', 'customers.deleted_at'],
@@ -309,19 +309,19 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Dated by the customer creation date, not by the day an acquirer was assigned: imported or back-filled '
-                        .'customers count on the day they were created.',
-                    'Soft-deleted customers are not counted.',
+                    'Dihitung menurut tanggal pelanggan dibuat, bukan hari petugas ditetapkan: pelanggan hasil impor atau '
+                        .'pengisian ulang dihitung pada hari mereka dibuat.',
+                    'Pelanggan yang sudah dihapus tidak dihitung.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'subscriptions_activated',
-                label: 'Subscriptions Activated',
-                definition: 'Subscriptions of the acquirer customers that were activated during the selected period.',
-                formula: 'COUNT of service_subscriptions of the customers credited to the acquirer with activation_date '
-                    .'between From and To (To inclusive).',
+                label: 'Langganan diaktifkan',
+                definition: 'Langganan milik pelanggan petugas penjualan yang diaktifkan dalam periode terpilih.',
+                formula: 'COUNT service_subscriptions milik pelanggan atas nama petugas penjualan dengan activation_date '
+                    .'antara Dari dan Sampai (Sampai termasuk).',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -333,20 +333,20 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Counts subscriptions of every status that have an activation date: suspended and terminated ones still count.',
-                    'Subscriptions without an activation date (pending) are never counted.',
-                    'Subscriptions of soft-deleted customers still count; soft-deleted subscriptions never do.',
+                    'Menghitung langganan berstatus apa pun yang memiliki tanggal aktivasi: yang ditangguhkan dan berhenti tetap dihitung.',
+                    'Langganan tanpa tanggal aktivasi (pending) tidak pernah dihitung.',
+                    'Langganan milik pelanggan yang sudah dihapus tetap dihitung; langganan yang sudah dihapus tidak pernah dihitung.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'active_mrr',
-                label: 'Active MRR',
-                definition: 'Monthly recurring revenue of the acquirer customers: the monthly charge of every subscription '
-                    .'that is active now.',
-                formula: 'SUM(service_subscriptions.mrc_amount) for subscriptions of the customers credited to the acquirer '
-                    .'with status = active.',
+                label: 'MRR aktif',
+                definition: 'Pendapatan berulang bulanan pelanggan petugas penjualan: tagihan bulanan dari semua langganan '
+                    .'yang aktif saat ini.',
+                formula: 'SUM(service_subscriptions.mrc_amount) untuk langganan milik pelanggan atas nama petugas penjualan '
+                    .'dengan status = active.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
@@ -358,17 +358,17 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Subscriptions of soft-deleted customers still count; soft-deleted subscriptions never do.',
+                    'Langganan milik pelanggan yang sudah dihapus tetap dihitung; langganan yang sudah dihapus tidak pernah dihitung.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'invoiced',
-                label: 'Invoiced',
-                definition: 'Amount invoiced to the acquirer customers during the selected period, draft and cancelled '
-                    .'invoices excluded.',
-                formula: 'SUM(invoices.total) for invoices of the customers credited to the acquirer with status sent, '
-                    .'partial, paid or overdue and issue_date between From and To (To inclusive).',
+                label: 'Ditagihkan',
+                definition: 'Jumlah yang ditagihkan kepada pelanggan petugas penjualan dalam periode terpilih, tagihan draf '
+                    .'dan dibatalkan tidak termasuk.',
+                formula: 'SUM(invoices.total) untuk tagihan milik pelanggan atas nama petugas penjualan dengan status sent, '
+                    .'partial, paid, atau overdue dan issue_date antara Dari dan Sampai (Sampai termasuk).',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -383,19 +383,19 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Dated by invoice issue date, not by payment date.',
-                    'Draft, cancelled and soft-deleted invoices are never counted; invoices of soft-deleted customers still are.',
+                    'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+                    'Tagihan draf, dibatalkan, dan yang sudah dihapus tidak pernah dihitung; tagihan milik pelanggan yang sudah dihapus tetap dihitung.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'collected',
-                label: 'Collected',
-                definition: 'Cash received from the acquirer customers during the selected period: every payment that was '
-                    .'not reversed.',
-                formula: 'SUM(payments.amount) for payments with cancelled_at empty and paid_at between From 00:00:00 and '
-                    .'To 23:59:59, on invoices of the customers credited to the acquirer.',
+                label: 'Terkumpul',
+                definition: 'Uang yang diterima dari pelanggan petugas penjualan dalam periode terpilih: semua pembayaran yang '
+                    .'tidak dibatalkan.',
+                formula: 'SUM(payments.amount) untuk pembayaran dengan cancelled_at kosong dan paid_at antara Dari 00:00:00 dan '
+                    .'Sampai 23:59:59, pada tagihan milik pelanggan atas nama petugas penjualan.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -410,21 +410,21 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Dated by payment date, not by invoice issue date: a payment can settle an invoice issued before the range.',
-                    'Reversed payments never count, whatever date they were reversed.',
-                    'Payments of soft-deleted invoices never count; payments of invoices of soft-deleted customers still do.',
-                    'Does not match Business Metrics Revenue (Paid), which sums paid_amount of fully paid invoices by issue date '
-                        .'and ignores partial payments.',
+                    'Dihitung menurut tanggal pembayaran, bukan tanggal terbit tagihan: satu pembayaran bisa melunasi tagihan yang terbit sebelum rentang.',
+                    'Pembayaran yang dibatalkan tidak pernah dihitung, kapan pun pembatalannya.',
+                    'Pembayaran pada tagihan yang sudah dihapus tidak pernah dihitung; pembayaran pada tagihan milik pelanggan yang sudah dihapus tetap dihitung.',
+                    'Tidak sama dengan Pendapatan terbayar di Metrik Bisnis, yang menjumlahkan paid_amount tagihan lunas menurut tanggal terbit '
+                        .'dan mengabaikan pembayaran sebagian.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'outstanding',
-                label: 'Outstanding',
-                definition: 'Amount the acquirer customers still owe on invoices that were sent and are not fully paid.',
-                formula: 'SUM(invoices.total - invoices.paid_amount) for invoices of the customers credited to the acquirer '
-                    .'with status sent, partial or overdue.',
+                label: 'Piutang',
+                definition: 'Jumlah yang masih terutang oleh pelanggan petugas penjualan pada tagihan yang sudah dikirim dan belum lunas.',
+                formula: 'SUM(invoices.total - invoices.paid_amount) untuk tagihan milik pelanggan atas nama petugas penjualan '
+                    .'dengan status sent, partial, atau overdue.',
                 unit: MetricUnit::Currency,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
@@ -438,16 +438,16 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Draft, cancelled and soft-deleted invoices are never outstanding; invoices of soft-deleted customers still are.',
-                    'Summed over every acquirer and Unassigned it equals Business Metrics Outstanding.',
+                    'Tagihan draf, dibatalkan, dan yang sudah dihapus tidak pernah menjadi piutang; tagihan milik pelanggan yang sudah dihapus tetap dihitung.',
+                    'Bila dijumlahkan untuk semua petugas penjualan dan Tanpa petugas, hasilnya sama dengan Piutang di Metrik Bisnis.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sales,
                 key: 'collection_rate',
-                label: 'Collection Rate',
-                definition: 'Collected as a percentage of Invoiced in the selected period.',
-                formula: 'ROUND(100 * Collected / Invoiced, 2); empty when Invoiced is 0.',
+                label: 'Tingkat penagihan',
+                definition: 'Terkumpul sebagai persentase dari Ditagihkan pada periode terpilih.',
+                formula: 'ROUND(100 * Terkumpul / Ditagihkan, 2); kosong bila Ditagihkan bernilai 0.',
                 unit: MetricUnit::Percent,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -463,9 +463,9 @@ final class MetricRegistry
                 scope: $scope,
                 caveats: [
                     $attribution,
-                    'Collected is dated by payment date and Invoiced by issue date, so they cover different invoices and the '
-                        .'rate can exceed 100 percent.',
-                    'Empty when Invoiced is 0, even if payments arrived in the period.',
+                    'Terkumpul dihitung menurut tanggal pembayaran dan Ditagihkan menurut tanggal terbit, sehingga keduanya mencakup tagihan '
+                        .'yang berbeda dan persentasenya bisa melebihi 100 persen.',
+                    'Kosong bila Ditagihkan bernilai 0, walaupun ada pembayaran masuk pada periode itu.',
                     $periodRule,
                 ],
             ),
@@ -475,16 +475,16 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function sla(): array
     {
-        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise all resolved tickets are used.';
+        $periodRule = 'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua tiket selesai dipakai.';
 
         return [
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'total_resolved',
-                label: 'Total Resolved',
-                definition: 'Resolved tickets in the selected period and category.',
-                formula: 'COUNT of tickets with resolved_at set, resolved_at between From 00:00:00 and To 23:59:59, '
-                    .'and category_id = the chosen category when one is chosen.',
+                label: 'Tiket selesai',
+                definition: 'Tiket yang selesai pada periode dan kategori terpilih.',
+                formula: 'COUNT tiket dengan resolved_at terisi, resolved_at antara Dari 00:00:00 dan Sampai 23:59:59, '
+                    .'dan category_id = kategori yang dipilih bila ada.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.category_id'],
@@ -494,148 +494,148 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'sla_compliant',
-                label: 'SLA Compliant',
-                definition: 'Resolved tickets that met their SLA deadline.',
-                formula: 'COUNT of the Total Resolved tickets with resolved_at <= sla_deadline.',
+                label: 'Sesuai SLA',
+                definition: 'Tiket selesai yang memenuhi batas SLA-nya.',
+                formula: 'COUNT tiket dari Tiket selesai dengan resolved_at <= sla_deadline.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.sla_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
-                caveats: ['Tickets without an SLA deadline are never compliant.', $periodRule],
+                caveats: ['Tiket tanpa batas SLA tidak pernah dianggap sesuai SLA.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'sla_rate',
-                label: 'SLA Rate',
-                definition: 'Percentage of resolved tickets that met their SLA deadline.',
-                formula: 'ROUND(100 * SLA Compliant / Total Resolved, 1); 0 when Total Resolved is 0.',
+                label: 'Tingkat kepatuhan SLA',
+                definition: 'Persentase tiket selesai yang memenuhi batas SLA-nya.',
+                formula: 'ROUND(100 * Sesuai SLA / Tiket selesai, 1); 0 bila Tiket selesai bernilai 0.',
                 unit: MetricUnit::Percent,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.sla_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without an SLA deadline stay in the denominator but are never compliant.',
-                    'Follows the selected period; Business Metrics SLA Compliance is all-time and can differ.',
+                    'Tiket tanpa batas SLA tetap masuk penyebut tetapi tidak pernah dianggap sesuai SLA.',
+                    'Mengikuti periode terpilih; Kepatuhan SLA di Metrik Bisnis berlaku sepanjang waktu dan bisa berbeda.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'breach_count',
-                label: 'Breaches',
-                definition: 'Resolved tickets that missed their SLA deadline.',
-                formula: 'COUNT of the Total Resolved tickets with resolved_at > sla_deadline.',
+                label: 'Pelanggaran SLA',
+                definition: 'Tiket selesai yang melewati batas SLA-nya.',
+                formula: 'COUNT tiket dari Tiket selesai dengan resolved_at > sla_deadline.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.sla_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without an SLA deadline are neither compliant nor breached, '
-                        .'so SLA Compliant plus Breaches can be lower than Total Resolved.',
+                    'Tiket tanpa batas SLA tidak dihitung sesuai maupun melanggar, '
+                        .'sehingga Sesuai SLA ditambah Pelanggaran SLA bisa lebih kecil dari Tiket selesai.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'response_on_time',
-                label: 'Response On Time',
-                definition: 'Resolved tickets whose first response came within their response target.',
-                formula: 'COUNT of the Total Resolved tickets with first_response_at <= response_deadline.',
+                label: 'Respons tepat waktu',
+                definition: 'Tiket selesai yang respons pertamanya masuk dalam target respons.',
+                formula: 'COUNT tiket dari Tiket selesai dengan first_response_at <= response_deadline.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.first_response_at', 'tickets.response_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without a response target are never counted here; see No Response Target.',
-                    'A resolved ticket with a target but no recorded first response is neither on time nor late.',
+                    'Tiket tanpa target respons tidak pernah dihitung di sini; lihat Tanpa target respons.',
+                    'Tiket selesai yang punya target tetapi belum mencatat respons pertama tidak dihitung tepat waktu maupun terlambat.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'response_breached',
-                label: 'Response Breaches',
-                definition: 'Resolved tickets whose first response came after their response target.',
-                formula: 'COUNT of the Total Resolved tickets with first_response_at > response_deadline.',
+                label: 'Respons terlambat',
+                definition: 'Tiket selesai yang respons pertamanya melewati target respons.',
+                formula: 'COUNT tiket dari Tiket selesai dengan first_response_at > response_deadline.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.first_response_at', 'tickets.response_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without a response target are never counted here; see No Response Target.',
-                    'A resolved ticket with a target but no recorded first response is neither on time nor late.',
+                    'Tiket tanpa target respons tidak pernah dihitung di sini; lihat Tanpa target respons.',
+                    'Tiket selesai yang punya target tetapi belum mencatat respons pertama tidak dihitung tepat waktu maupun terlambat.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'response_without_target',
-                label: 'No Response Target',
-                definition: 'Resolved tickets created without a response target.',
-                formula: 'COUNT of the Total Resolved tickets with response_deadline empty.',
+                label: 'Tanpa target respons',
+                definition: 'Tiket selesai yang dibuat tanpa target respons.',
+                formula: 'COUNT tiket dari Tiket selesai dengan response_deadline kosong.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.response_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Every ticket created before response targets existed has none, so it stays out of Response On Time, '
-                        .'Response Breaches and Response Rate.',
+                    'Setiap tiket yang dibuat sebelum target respons ada tidak memilikinya, sehingga tidak masuk Respons tepat waktu, '
+                        .'Respons terlambat, dan Tingkat respons.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'response_rate',
-                label: 'Response Rate',
-                definition: 'Percentage of judged resolved tickets whose first response came within their response target.',
-                formula: 'ROUND(100 * Response On Time / (Response On Time + Response Breaches), 1); empty when both are 0.',
+                label: 'Tingkat respons',
+                definition: 'Persentase tiket selesai yang dinilai dan respons pertamanya masuk dalam target respons.',
+                formula: 'ROUND(100 * Respons tepat waktu / (Respons tepat waktu + Respons terlambat), 1); kosong bila keduanya 0.',
                 unit: MetricUnit::Percent,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.first_response_at', 'tickets.response_deadline', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without a response target or without a recorded first response are not judged and stay out of '
-                        .'the denominator, unlike SLA Rate.',
-                    'Empty when no resolved ticket has been judged.',
+                    'Tiket tanpa target respons atau tanpa respons pertama yang tercatat tidak dinilai dan tidak masuk '
+                        .'penyebut, berbeda dengan Tingkat kepatuhan SLA.',
+                    'Kosong bila belum ada tiket selesai yang dinilai.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'avg_resolution_minutes',
-                label: 'Avg Resolution',
-                definition: 'Average minutes from ticket creation to resolution.',
-                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at))) over the Total Resolved tickets.',
+                label: 'Rata-rata waktu penyelesaian',
+                definition: 'Rata-rata menit dari tiket dibuat sampai selesai.',
+                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at))) pada tiket dari Tiket selesai.',
                 unit: MetricUnit::Minutes,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.created_at', 'tickets.resolved_at', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
-                caveats: ['Empty when there are no matching tickets.', $periodRule],
+                caveats: ['Kosong bila tidak ada tiket yang cocok.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'avg_frt_minutes',
-                label: 'Avg First Response',
-                definition: 'Average minutes from ticket creation to the first response.',
-                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) over the Total Resolved '
-                    .'tickets that have first_response_at.',
+                label: 'Rata-rata respons pertama',
+                definition: 'Rata-rata menit dari tiket dibuat sampai respons pertama.',
+                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) pada tiket dari Tiket selesai '
+                    .'yang memiliki first_response_at.',
                 unit: MetricUnit::Minutes,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.created_at', 'tickets.first_response_at', 'tickets.category_id'],
                 dateColumn: 'tickets.resolved_at',
                 caveats: [
-                    'Tickets without a first response are skipped.',
-                    'Empty when no matching ticket has a first response.',
+                    'Tiket tanpa respons pertama dilewati.',
+                    'Kosong bila tidak ada tiket yang cocok yang memiliki respons pertama.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Sla,
                 key: 'by_category',
-                label: 'Resolved by Category',
-                definition: 'Resolved tickets and SLA compliance for each ticket category.',
-                formula: 'Per ticket_categories.name: COUNT of tickets with resolved_at set, COUNT of those with '
-                    .'resolved_at <= sla_deadline, and rate = ROUND(100 * compliant / total, 1).',
+                label: 'Tiket selesai per kategori',
+                definition: 'Tiket selesai dan kepatuhan SLA untuk setiap kategori tiket.',
+                formula: 'Per ticket_categories.name: COUNT tiket dengan resolved_at terisi, COUNT yang memiliki '
+                    .'resolved_at <= sla_deadline, dan rate = ROUND(100 * compliant / total, 1).',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
@@ -645,9 +645,9 @@ final class MetricRegistry
                     'ticket_categories.name',
                 ],
                 caveats: [
-                    'Ignores both the From/To filter and the category filter, so it can disagree with the figures '
-                        .'above it for the same period.',
-                    'Categories that share a name are merged into one row.',
+                    'Mengabaikan filter Dari/Sampai dan filter kategori, sehingga bisa berbeda dengan angka di atasnya '
+                        .'untuk periode yang sama.',
+                    'Kategori dengan nama yang sama digabung menjadi satu baris.',
                 ],
             ),
         ];
@@ -660,9 +660,9 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Asset,
                 key: 'status_distribution',
-                label: 'Status Distribution',
-                definition: 'Number of network assets in each status.',
-                formula: 'COUNT of network_assets grouped by status, limited by the Asset Type and location filters.',
+                label: 'Sebaran status',
+                definition: 'Jumlah aset jaringan pada setiap status.',
+                formula: 'COUNT network_assets dikelompokkan menurut status, dibatasi filter Jenis aset dan lokasi.',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
@@ -674,58 +674,58 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Asset,
                 key: 'by_location',
-                label: 'Assets by Location',
-                definition: 'Number of network assets at each location.',
-                formula: 'COUNT of network_assets that have a location, grouped by locations.name.',
+                label: 'Aset per lokasi',
+                definition: 'Jumlah aset jaringan di setiap lokasi.',
+                formula: 'COUNT network_assets yang memiliki lokasi, dikelompokkan menurut locations.name.',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['network_assets.location_id', 'locations.name'],
                 caveats: [
-                    'Ignores the Asset Type and location filters.',
-                    'Locations that share a name are merged into one row.',
+                    'Mengabaikan filter Jenis aset dan lokasi.',
+                    'Lokasi dengan nama yang sama digabung menjadi satu baris.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Asset,
                 key: 'installation_count',
-                label: 'Installations',
-                definition: 'Asset installations recorded during the selected period.',
-                formula: 'COUNT of network_asset_installations with installed_at between From 00:00:00 and To 23:59:59.',
+                label: 'Pemasangan aset',
+                definition: 'Pemasangan aset yang tercatat dalam periode terpilih.',
+                formula: 'COUNT network_asset_installations dengan installed_at antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['network_asset_installations.installed_at'],
                 dateColumn: 'network_asset_installations.installed_at',
                 caveats: [
-                    'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every installation is counted.',
-                    'Ignores the Asset Type and location filters.',
-                    'Counts asset installation records, unlike Business Metrics installation_count, which counts '
-                        .'completed work orders.',
+                    'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua pemasangan dihitung.',
+                    'Mengabaikan filter Jenis aset dan lokasi.',
+                    'Menghitung catatan pemasangan aset, berbeda dengan installation_count di Metrik Bisnis yang menghitung '
+                        .'SPK pemasangan selesai.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Asset,
                 key: 'customer_linked_count',
-                label: 'Customer-Linked',
-                definition: 'Number of network assets assigned to a customer.',
-                formula: 'COUNT of network_assets where customer_id is not null.',
+                label: 'Terhubung ke pelanggan',
+                definition: 'Jumlah aset jaringan yang ditetapkan ke pelanggan.',
+                formula: 'COUNT network_assets dengan customer_id tidak null.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['network_assets.customer_id'],
-                caveats: ['Ignores all filters.'],
+                caveats: ['Mengabaikan semua filter.'],
             ),
             new MetricDefinition(
                 report: ReportType::Asset,
                 key: 'retired_count',
-                label: 'Retired',
-                definition: 'Number of network assets that are retired now.',
-                formula: 'COUNT of network_assets with status = retired.',
+                label: 'Dipensiunkan',
+                definition: 'Jumlah aset jaringan yang dipensiunkan saat ini.',
+                formula: 'COUNT network_assets dengan status = retired.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: ['network_assets.status'],
                 statuses: ['retired'],
                 caveats: [
-                    'A running total, not the assets retired during the selected period.',
-                    'Ignores all filters.',
+                    'Total berjalan, bukan aset yang dipensiunkan dalam periode terpilih.',
+                    'Mengabaikan semua filter.',
                 ],
             ),
         ];
@@ -734,17 +734,17 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function technician(): array
     {
-        $scope = 'Company, selected technician';
-        $periodRule = 'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise all matching records are used.';
+        $scope = 'Perusahaan, teknisi terpilih';
+        $periodRule = 'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua data yang cocok dipakai.';
 
         return [
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'spk_completed',
-                label: 'SPK Completed',
-                definition: 'Work orders (SPK) the technician completed during the selected period.',
-                formula: 'COUNT of work_orders assigned to the technician with status = completed and completed_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                label: 'SPK selesai',
+                definition: 'SPK yang diselesaikan teknisi dalam periode terpilih.',
+                formula: 'COUNT work_orders yang ditugaskan ke teknisi dengan status = completed dan completed_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['work_orders.assigned_to', 'work_orders.status', 'work_orders.completed_at'],
@@ -756,10 +756,10 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'tickets_resolved',
-                label: 'Tickets Resolved',
-                definition: 'Tickets the technician resolved or closed during the selected period.',
-                formula: 'COUNT of tickets assigned to the technician with status resolved or closed and resolved_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                label: 'Tiket diselesaikan',
+                definition: 'Tiket yang diselesaikan atau ditutup teknisi dalam periode terpilih.',
+                formula: 'COUNT tickets yang ditugaskan ke teknisi dengan status resolved atau closed dan resolved_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.assigned_to', 'tickets.status', 'tickets.resolved_at'],
@@ -771,10 +771,10 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'avg_spk_minutes',
-                label: 'Avg SPK Time',
-                definition: 'Average minutes from start to completion of the completed work orders.',
-                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, started_at, completed_at))) over the SPK Completed work orders '
-                    .'that have started_at.',
+                label: 'Rata-rata waktu SPK',
+                definition: 'Rata-rata menit dari mulai sampai selesai pada SPK yang selesai.',
+                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, started_at, completed_at))) pada work_orders SPK selesai '
+                    .'yang memiliki started_at.',
                 unit: MetricUnit::Minutes,
                 dateBasis: DateBasis::Period,
                 sources: ['work_orders.started_at', 'work_orders.completed_at'],
@@ -782,33 +782,33 @@ final class MetricRegistry
                 statuses: ['completed'],
                 scope: $scope,
                 caveats: [
-                    'Work orders without started_at are skipped.',
-                    'Empty when no matching work order has started_at.',
+                    'SPK tanpa started_at dilewati.',
+                    'Kosong bila tidak ada SPK yang cocok yang memiliki started_at.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'avg_ticket_minutes',
-                label: 'Avg Ticket Time',
-                definition: 'Average minutes from creation to resolution of the resolved tickets.',
-                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at))) over the Tickets Resolved '
-                    .'that have resolved_at.',
+                label: 'Rata-rata waktu tiket',
+                definition: 'Rata-rata menit dari tiket dibuat sampai selesai pada tiket yang diselesaikan.',
+                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, resolved_at))) pada Tiket diselesaikan '
+                    .'yang memiliki resolved_at.',
                 unit: MetricUnit::Minutes,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.created_at', 'tickets.resolved_at'],
                 dateColumn: 'tickets.resolved_at',
                 statuses: ['resolved', 'closed'],
                 scope: $scope,
-                caveats: ['Empty when there are no matching tickets.', $periodRule],
+                caveats: ['Kosong bila tidak ada tiket yang cocok.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'sla_compliance_pct',
-                label: 'SLA Compliance',
-                definition: 'Share of the technician resolved tickets that met their SLA deadline.',
-                formula: 'ROUND(100 * COUNT(Tickets Resolved with resolved_at <= sla_deadline) / COUNT(Tickets Resolved), 1); '
-                    .'0 when there are none.',
+                label: 'Kepatuhan SLA',
+                definition: 'Persentase tiket yang diselesaikan teknisi dan memenuhi batas SLA-nya.',
+                formula: 'ROUND(100 * COUNT(Tiket diselesaikan dengan resolved_at <= sla_deadline) / COUNT(Tiket diselesaikan), 1); '
+                    .'0 bila tidak ada.',
                 unit: MetricUnit::Percent,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.resolved_at', 'tickets.sla_deadline', 'tickets.status'],
@@ -816,19 +816,19 @@ final class MetricRegistry
                 statuses: ['resolved', 'closed'],
                 scope: $scope,
                 caveats: [
-                    'Counts tickets with status resolved or closed; the SLA Compliance report counts every ticket '
-                        .'with resolved_at, so the two can differ.',
-                    'Tickets without an SLA deadline stay in the denominator but are never compliant.',
+                    'Menghitung tiket berstatus resolved atau closed; laporan Kepatuhan SLA menghitung setiap tiket '
+                        .'dengan resolved_at, sehingga keduanya bisa berbeda.',
+                    'Tiket tanpa batas SLA tetap masuk penyebut tetapi tidak pernah dianggap sesuai SLA.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'avg_frt_minutes',
-                label: 'Avg First Response',
-                definition: 'Average minutes from ticket creation to the first response.',
-                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) over the Tickets Resolved '
-                    .'that have first_response_at.',
+                label: 'Rata-rata respons pertama',
+                definition: 'Rata-rata menit dari tiket dibuat sampai respons pertama.',
+                formula: 'ROUND(AVG(TIMESTAMPDIFF(MINUTE, created_at, first_response_at))) pada Tiket diselesaikan '
+                    .'yang memiliki first_response_at.',
                 unit: MetricUnit::Minutes,
                 dateBasis: DateBasis::Period,
                 sources: ['tickets.created_at', 'tickets.first_response_at'],
@@ -836,18 +836,18 @@ final class MetricRegistry
                 statuses: ['resolved', 'closed'],
                 scope: $scope,
                 caveats: [
-                    'Tickets without a first response are skipped.',
-                    'Empty when no matching ticket has a first response.',
+                    'Tiket tanpa respons pertama dilewati.',
+                    'Kosong bila tidak ada tiket yang cocok yang memiliki respons pertama.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'avg_score',
-                label: 'Avg Evaluation Score',
-                definition: 'Average evaluation score the technician received during the selected period.',
-                formula: 'ROUND(AVG(employee_evaluations.score), 1) for evaluations of the technician with evaluated_at '
-                    .'between From 00:00:00 and To 23:59:59.',
+                label: 'Rata-rata skor evaluasi',
+                definition: 'Rata-rata skor evaluasi yang diterima teknisi dalam periode terpilih.',
+                formula: 'ROUND(AVG(employee_evaluations.score), 1) untuk evaluasi teknisi dengan evaluated_at '
+                    .'antara Dari 00:00:00 dan Sampai 23:59:59.',
                 unit: MetricUnit::Rating,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -857,15 +857,15 @@ final class MetricRegistry
                 ],
                 dateColumn: 'employee_evaluations.evaluated_at',
                 scope: $scope,
-                caveats: ['Empty when there are no evaluations in the selected period.', $periodRule],
+                caveats: ['Kosong bila tidak ada evaluasi pada periode terpilih.', $periodRule],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'avg_customer_rating',
-                label: 'Avg Customer Rating',
-                definition: 'Average customer rating in the technician evaluations of the selected period.',
-                formula: 'ROUND(AVG(employee_evaluations.customer_rating), 1) over the evaluations of the technician '
-                    .'where customer_rating is set.',
+                label: 'Rata-rata rating pelanggan',
+                definition: 'Rata-rata rating pelanggan pada evaluasi teknisi di periode terpilih.',
+                formula: 'ROUND(AVG(employee_evaluations.customer_rating), 1) pada evaluasi teknisi '
+                    .'yang customer_rating-nya terisi.',
                 unit: MetricUnit::Rating,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -876,18 +876,18 @@ final class MetricRegistry
                 dateColumn: 'employee_evaluations.evaluated_at',
                 scope: $scope,
                 caveats: [
-                    'Evaluations without a customer rating are skipped.',
-                    'Empty when no evaluation in the selected period has a customer rating.',
+                    'Evaluasi tanpa rating pelanggan dilewati.',
+                    'Kosong bila tidak ada evaluasi pada periode terpilih yang memiliki rating pelanggan.',
                     $periodRule,
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'active_workload',
-                label: 'Active Workload',
-                definition: 'Open work the technician is carrying right now.',
-                formula: 'COUNT of work_orders assigned to the technician with status assigned or in_progress, plus '
-                    .'COUNT of tickets assigned to the technician with status open, assigned or on_progress.',
+                label: 'Beban kerja aktif',
+                definition: 'Pekerjaan terbuka yang sedang ditangani teknisi saat ini.',
+                formula: 'COUNT work_orders yang ditugaskan ke teknisi dengan status assigned atau in_progress, ditambah '
+                    .'COUNT tickets yang ditugaskan ke teknisi dengan status open, assigned, atau on_progress.',
                 unit: MetricUnit::Count,
                 dateBasis: DateBasis::Snapshot,
                 sources: [
@@ -902,10 +902,10 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'spk_by_type',
-                label: 'SPK by Type',
-                definition: 'Work orders completed during the selected period, grouped by type.',
-                formula: 'COUNT of work_orders assigned to the technician with status = completed and completed_at in '
-                    .'the range, grouped by work_orders.type.',
+                label: 'SPK per jenis',
+                definition: 'SPK yang selesai dalam periode terpilih, dikelompokkan menurut jenis.',
+                formula: 'COUNT work_orders yang ditugaskan ke teknisi dengan status = completed dan completed_at dalam '
+                    .'rentang, dikelompokkan menurut work_orders.type.',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Period,
                 sources: ['work_orders.assigned_to', 'work_orders.status', 'work_orders.type', 'work_orders.completed_at'],
@@ -917,10 +917,10 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::Technician,
                 key: 'tickets_by_category',
-                label: 'Tickets by Category',
-                definition: 'Tickets resolved or closed during the selected period, grouped by category.',
-                formula: 'COUNT of tickets assigned to the technician with status resolved or closed and resolved_at in '
-                    .'the range, grouped by ticket_categories.name.',
+                label: 'Tiket per kategori',
+                definition: 'Tiket yang diselesaikan atau ditutup dalam periode terpilih, dikelompokkan menurut kategori.',
+                formula: 'COUNT tickets yang ditugaskan ke teknisi dengan status resolved atau closed dan resolved_at dalam '
+                    .'rentang, dikelompokkan menurut ticket_categories.name.',
                 unit: MetricUnit::Breakdown,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -933,7 +933,7 @@ final class MetricRegistry
                 dateColumn: 'tickets.resolved_at',
                 statuses: ['resolved', 'closed'],
                 scope: $scope,
-                caveats: ['Categories that share a name are merged into one row.', $periodRule],
+                caveats: ['Kategori dengan nama yang sama digabung menjadi satu baris.', $periodRule],
             ),
         ];
     }
@@ -941,16 +941,16 @@ final class MetricRegistry
     /** @return list<MetricDefinition> */
     private static function stockCard(): array
     {
-        $scope = 'Company, selected product';
+        $scope = 'Perusahaan, barang terpilih';
 
         return [
             new MetricDefinition(
                 report: ReportType::StockCard,
                 key: 'movements',
-                label: 'Stock Movements',
-                definition: 'Ledger of the recorded stock movements of the selected product.',
-                formula: 'Rows of stock_movements for the product, optionally limited to a location (as source or '
-                    .'destination) and to created_at between From 00:00:00 and To 23:59:59; sorted and paged by the server.',
+                label: 'Pergerakan stok',
+                definition: 'Buku besar pergerakan stok yang tercatat untuk barang terpilih.',
+                formula: 'Baris stock_movements untuk barang tersebut, dapat dibatasi pada satu lokasi (sebagai asal atau '
+                    .'tujuan) dan pada created_at antara Dari 00:00:00 dan Sampai 23:59:59; diurutkan dan dipaginasi oleh server.',
                 unit: MetricUnit::Records,
                 dateBasis: DateBasis::Period,
                 sources: [
@@ -962,16 +962,16 @@ final class MetricRegistry
                 dateColumn: 'stock_movements.created_at',
                 scope: $scope,
                 caveats: [
-                    'Lists recorded movements only: there is no opening balance or reconciliation row.',
-                    'The range applies when From, To or both are set (From alone: that day on; To alone: up to that day); otherwise every movement is listed.',
+                    'Hanya menampilkan pergerakan yang tercatat: tidak ada saldo awal atau baris rekonsiliasi.',
+                    'Rentang berlaku bila Dari, Sampai, atau keduanya diisi (hanya Dari: sejak hari itu; hanya Sampai: sampai hari itu); bila kosong, semua pergerakan ditampilkan.',
                 ],
             ),
             new MetricDefinition(
                 report: ReportType::StockCard,
                 key: 'quantity',
-                label: 'Qty',
-                definition: 'Signed quantity of one movement exactly as Inventory recorded it.',
-                formula: 'stock_movements.quantity, shown as stored.',
+                label: 'Jumlah',
+                definition: 'Jumlah bertanda dari satu pergerakan, persis seperti yang dicatat Inventaris.',
+                formula: 'stock_movements.quantity, ditampilkan apa adanya.',
                 unit: MetricUnit::Quantity,
                 dateBasis: DateBasis::Period,
                 sources: ['stock_movements.quantity'],
@@ -981,18 +981,18 @@ final class MetricRegistry
             new MetricDefinition(
                 report: ReportType::StockCard,
                 key: 'balance_after',
-                label: 'Balance',
-                definition: 'Quantity on hand of the stock row the movement touched (product at a location) right after '
-                    .'the movement.',
-                formula: 'stock_movements.balance_after, shown as stored; the report does not recompute it.',
+                label: 'Saldo',
+                definition: 'Jumlah stok pada baris stok yang disentuh pergerakan (barang pada satu lokasi) tepat setelah '
+                    .'pergerakan itu.',
+                formula: 'stock_movements.balance_after, ditampilkan apa adanya; laporan tidak menghitung ulang.',
                 unit: MetricUnit::Quantity,
                 dateBasis: DateBasis::Period,
                 sources: ['stock_movements.balance_after'],
                 dateColumn: 'stock_movements.created_at',
                 scope: $scope,
                 caveats: [
-                    'Stored when Inventory recorded the movement and never recalculated by this report.',
-                    'A balance per stock row, not a running total across locations or across the filtered rows.',
+                    'Disimpan saat Inventaris mencatat pergerakan dan tidak pernah dihitung ulang oleh laporan ini.',
+                    'Saldo per baris stok, bukan total berjalan lintas lokasi atau lintas baris yang disaring.',
                 ],
             ),
         ];

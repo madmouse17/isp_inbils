@@ -17,7 +17,7 @@ async function openEdit(page: Parameters<typeof inertiaProps>[0]) {
     const id = await linkedCustomerId(page);
     await page.goto(`/admin/customers/${id}/edit`);
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Edit Customer' }),
+        page.getByRole('main').getByRole('heading', { name: 'Ubah Pelanggan' }),
     ).toBeVisible();
     return id;
 }
@@ -26,13 +26,13 @@ test('@customer-edit tabs are accessible, forms never nest, scalar save is isola
     page,
 }) => {
     const id = await openEdit(page);
-    const tabs = page.getByRole('tablist', { name: 'Customer sections' });
+    const tabs = page.getByRole('tablist', { name: 'Bagian pelanggan' });
     await expect(tabs.getByRole('tab')).toHaveCount(3);
     await expect(page.locator('form form')).toHaveCount(0);
     await expect(page.locator('form')).toHaveCount(1);
 
-    const customerTab = tabs.getByRole('tab', { name: 'Customer Data' });
-    const addressesTab = tabs.getByRole('tab', { name: /Addresses/ });
+    const customerTab = tabs.getByRole('tab', { name: 'Data pelanggan' });
+    const addressesTab = tabs.getByRole('tab', { name: /Alamat/ });
     await customerTab.focus();
     await page.keyboard.press('ArrowRight');
     await expect(addressesTab).toBeFocused();
@@ -41,31 +41,31 @@ test('@customer-edit tabs are accessible, forms never nest, scalar save is isola
     await expect(customerTab).toBeFocused();
 
     const name = unique('Edited Customer');
-    await page.getByLabel('Name').fill(name);
+    await page.getByLabel('Nama').fill(name);
     await page.getByLabel('Email').fill('not-an-email');
-    await page.getByRole('button', { name: 'Save Customer' }).click();
-    await expect(page.getByLabel('Name')).toHaveValue(name);
+    await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
+    await expect(page.getByLabel('Nama')).toHaveValue(name);
     await expect(page.getByText(/alamat email yang valid/i)).toBeVisible();
 
     await page.getByLabel('Email').fill(`${unique('customer').toLowerCase()}@example.test`);
-    const save = page.getByRole('button', { name: 'Save Customer' });
+    const save = page.getByRole('button', { name: 'Simpan pelanggan' });
     await save.dblclick();
     await expect(page).toHaveURL(/\/admin\/customers\/?$/);
     await page.goto(`/admin/customers/${id}/edit`);
-    await expect(page.getByLabel('Name')).toHaveValue(name);
-    await expect(page.getByRole('tab', { name: /Addresses/ })).toContainText('(1)');
+    await expect(page.getByLabel('Nama')).toHaveValue(name);
+    await expect(page.getByRole('tab', { name: /Alamat/ })).toContainText('(1)');
 
     const discarded = unique('Discarded Draft');
-    await page.getByLabel('Name').fill(discarded);
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await page.getByLabel('Nama').fill(discarded);
+    await page.getByRole('button', { name: 'Batal' }).click();
     await expect(page).toHaveURL(new RegExp(`/admin/customers/${id}$`));
     await page.goto(`/admin/customers/${id}/edit`);
-    await expect(page.getByLabel('Name')).toHaveValue(name);
+    await expect(page.getByLabel('Nama')).toHaveValue(name);
 
     // Restore the shared E2E fixture name so subsequent specs in this worker
     // (which look the customer up by `E2E Linked Customer`) still resolve it.
-    await page.getByLabel('Name').fill(e2eCustomerName);
-    await page.getByRole('button', { name: 'Save Customer' }).click();
+    await page.getByLabel('Nama').fill(e2eCustomerName);
+    await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
     await expect(page).toHaveURL(/\/admin\/customers\/?$/);
 });
 
@@ -75,16 +75,13 @@ test('@customer-edit address and contact CRUD preserve invariant A and support m
 }) => {
     const id = await openEdit(page);
 
-    await page.getByRole('tab', { name: /Addresses/ }).click();
+    await page.getByRole('tab', { name: /Alamat/ }).click();
     await expect(page.locator('form form')).toHaveCount(0);
     const addressLabel = unique('QA Address');
     await page.getByLabel('Label').fill(addressLabel);
-    // Chromium computes the textarea's accessible name as "Address *": the
-    // required marker is a distinct text node (aria-hidden does not exclude
-    // the label element's own subtree from accName), so exact 'Address'
-    // matches 0 elements. 'Address *' exact resolves exclusively to the
-    // textarea (the map mode-toggle "Address" is a button, not a label).
-    await page.getByLabel('Address *', { exact: true }).fill('QA disposable address');
+    // The textarea's accessible name is "Alamat *": the required marker is a distinct text node,
+    // so exact 'Alamat' matches 0 elements, and 'Alamat *' exact resolves only to the textarea.
+    await page.getByLabel('Alamat *', { exact: true }).fill('QA disposable address');
 
     await page.getByRole('button', { name: 'Lintang / Bujur' }).click();
     // Editable coordinates: -6.210 / 106.820 (Jakarta)
@@ -130,64 +127,64 @@ test('@customer-edit address and contact CRUD preserve invariant A and support m
     // Invariant A: at most one primary + one installation point. The fixture
     // already seeds a primary address, so a second address is NOT primary by
     // default — promote it explicitly to assert the badges render.
-    await page.getByLabel('Primary address').click();
-    await page.getByLabel('Installation address').click();
+    await page.getByLabel('Alamat utama').click();
+    await page.getByLabel('Alamat pemasangan').click();
 
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Tambah', exact: true }).click();
     await expect(page.getByText(addressLabel)).toBeVisible();
-    await expect(page.getByText(addressLabel).locator('..')).toContainText('(primary)');
-    await expect(page.getByText(addressLabel).locator('..')).toContainText('(installation)');
+    await expect(page.getByText(addressLabel).locator('..')).toContainText('(utama)');
+    await expect(page.getByText(addressLabel).locator('..')).toContainText('(pemasangan)');
 
     const addressRow = page.locator('div.rounded-lg.border.p-3').filter({ hasText: addressLabel });
-    await addressRow.getByRole('button', { name: 'Edit' }).click();
+    await addressRow.getByRole('button', { name: 'Ubah' }).click();
     const updatedAddress = `${addressLabel} Updated`;
     await page.getByLabel('Label').fill(updatedAddress);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page.getByText(updatedAddress)).toBeVisible();
     await page
         .locator('div.rounded-lg.border.p-3')
         .filter({ hasText: updatedAddress })
-        .getByRole('button', { name: 'Delete' })
+        .getByRole('button', { name: 'Hapus' })
         .click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Hapus' }).click();
     await expect(page.getByText(updatedAddress)).toHaveCount(0);
 
-    await page.getByRole('tab', { name: /Contacts/ }).click();
+    await page.getByRole('tab', { name: /Kontak/ }).click();
     const contactName = unique('QA Contact');
-    await page.getByLabel('Name').fill(contactName);
-    await page.getByLabel('Position').fill('QA Lead');
-    await page.getByLabel('Phone').fill('081234567890');
-    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByLabel('Nama').fill(contactName);
+    await page.getByLabel('Jabatan').fill('QA Lead');
+    await page.getByLabel('Telepon').fill('081234567890');
+    await page.getByRole('button', { name: 'Tambah', exact: true }).click();
     await expect(page.getByText(contactName)).toBeVisible();
-    await expect(page.getByText(contactName).locator('..')).toContainText('(primary)');
+    await expect(page.getByText(contactName).locator('..')).toContainText('(utama)');
 
     const contactRow = page.locator('div.rounded-lg.border.p-3').filter({ hasText: contactName });
-    await contactRow.getByRole('button', { name: 'Edit' }).click();
+    await contactRow.getByRole('button', { name: 'Ubah' }).click();
     const updatedContact = `${contactName} Updated`;
-    await page.getByLabel('Name').fill(updatedContact);
-    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByLabel('Nama').fill(updatedContact);
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page.getByText(updatedContact)).toBeVisible();
     await page
         .locator('div.rounded-lg.border.p-3')
         .filter({ hasText: updatedContact })
-        .getByRole('button', { name: 'Delete' })
+        .getByRole('button', { name: 'Hapus' })
         .click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+    await page.getByRole('alertdialog').getByRole('button', { name: 'Hapus' }).click();
     await expect(page.getByText(updatedContact)).toHaveCount(0);
 
     await page.goto(`/admin/customers/${id}/edit`);
-    await expect(page.getByRole('tab', { name: /Addresses \(1\)/ })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Contacts \(0\)/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Alamat \(1\)/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Kontak \(0\)/ })).toBeVisible();
 });
 
 test('@customer-edit responsive dark mode smoke keeps tabs and focus usable', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ colorScheme: 'dark' });
     await openEdit(page);
-    const tabs = page.getByRole('tablist', { name: 'Customer sections' });
+    const tabs = page.getByRole('tablist', { name: 'Bagian pelanggan' });
     await expect(tabs).toBeVisible();
-    await tabs.getByRole('tab', { name: 'Customer Data' }).focus();
+    await tabs.getByRole('tab', { name: 'Data pelanggan' }).focus();
     await page.keyboard.press('End');
-    await expect(tabs.getByRole('tab', { name: /Contacts/ })).toBeFocused();
+    await expect(tabs.getByRole('tab', { name: /Kontak/ })).toBeFocused();
     await expect(page.getByRole('tabpanel')).toBeVisible();
 });

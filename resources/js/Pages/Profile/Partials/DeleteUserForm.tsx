@@ -1,5 +1,4 @@
-import InputError from '@/Components/InputError';
-import { Button } from '@/Components/ui/Button';
+import { Button, buttonVariants } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
 import {
     AlertDialog,
@@ -56,62 +55,54 @@ export default function DeleteUserForm({ className = '' }: { className?: string 
     return (
         <section className={`space-y-6 ${className}`}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    Delete Account
-                </h2>
+                <h2 className="text-lg font-medium text-foreground">Hapus akun</h2>
 
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Once your account is deleted, all of its resources and data will be permanently
-                    deleted. Before deleting your account, please download any data or information
-                    that you wish to retain.
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Akun yang dihapus tidak bisa dipulihkan sendiri. Simpan dulu data yang masih
+                    Anda perlukan.
                 </p>
             </header>
 
             <Button type="button" variant="danger" onClick={confirmUserDeletion}>
-                Delete Account
+                Hapus akun
             </Button>
 
             <AlertDialog open={confirmingUserDeletion} onOpenChange={setConfirmingUserDeletion}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>
-                            Are you sure you want to delete your account?
-                        </AlertDialogTitle>
+                        <AlertDialogTitle>Hapus akun Anda?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Once your account is deleted, all of its resources and data will be
-                            permanently deleted. Please enter your password to confirm you would
-                            like to permanently delete your account.
+                            Akun dan akses Anda dihapus. Masukkan kata sandi untuk memastikan Anda
+                            memang ingin menghapusnya.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <form onSubmit={deleteUser} className="space-y-4">
-                        <div>
-                            <Input
-                                id="password"
-                                type="password"
-                                name="password"
-                                ref={passwordInput}
-                                value={data.password}
-                                onChange={(e) => setData('password', e.target.value)}
-                                className="mt-1 block w-full"
-                                autoFocus
-                                placeholder="Password"
-                            />
-                            <InputError message={errors.password} className="mt-2" />
-                        </div>
+                        <Input
+                            id="delete_password"
+                            label="Kata sandi"
+                            type="password"
+                            name="password"
+                            ref={passwordInput}
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            autoComplete="current-password"
+                            autoFocus
+                            error={errors.password}
+                        />
                         <AlertDialogFooter>
                             <AlertDialogCancel
                                 type="button"
                                 onClick={closeModal}
                                 disabled={processing}
                             >
-                                Cancel
+                                Batal
                             </AlertDialogCancel>
                             <AlertDialogAction
                                 type="submit"
                                 disabled={processing}
-                                className="bg-red-600 text-white shadow-xs hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90"
+                                className={buttonVariants({ variant: 'destructive' })}
                             >
-                                {processing ? 'Deleting…' : 'Delete Account'}
+                                {processing ? 'Menghapus…' : 'Hapus akun'}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </form>

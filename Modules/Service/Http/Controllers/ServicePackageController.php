@@ -62,7 +62,7 @@ class ServicePackageController extends Controller
         Gate::authorize('store', ServicePackage::class);
         ServicePackage::query()->create($request->validated());
 
-        return redirect()->route('admin.service-packages.index')->with('success', 'Service package created.');
+        return redirect()->route('admin.service-packages.index')->with('success', 'Paket layanan dibuat.');
     }
 
     public function show(ServicePackage $servicePackage): InertiaResponse
@@ -89,7 +89,7 @@ class ServicePackageController extends Controller
         Gate::authorize('update', $servicePackage);
         $servicePackage->update($request->validated());
 
-        return redirect()->route('admin.service-packages.index')->with('success', 'Service package updated.');
+        return redirect()->route('admin.service-packages.index')->with('success', 'Paket layanan diperbarui.');
     }
 
     public function destroy(ServicePackage $servicePackage): RedirectResponse
@@ -97,12 +97,12 @@ class ServicePackageController extends Controller
         Gate::authorize('delete', $servicePackage);
 
         if ($this->hasActiveSubscriptions($servicePackage)) {
-            return back()->withErrors(['service_package' => 'Service package has active subscriptions.']);
+            return back()->withErrors(['service_package' => 'Paket masih dipakai langganan menunggu atau aktif. Nonaktifkan saja.']);
         }
 
         $servicePackage->delete();
 
-        return back()->with('success', 'Service package deleted.');
+        return back()->with('success', 'Paket layanan dihapus.');
     }
 
     public function deactivate(ServicePackage $pkg): RedirectResponse
@@ -110,7 +110,7 @@ class ServicePackageController extends Controller
         Gate::authorize('update', $pkg);
         $pkg->update(['is_active' => false]);
 
-        return back()->with('success', 'Service package deactivated.');
+        return back()->with('success', 'Paket layanan dinonaktifkan.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -123,14 +123,14 @@ class ServicePackageController extends Controller
             ->fromRequest($request);
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
+            'code' => 'Kode',
+            'name' => 'Nama',
             'bandwidth_profile' => 'Bandwidth',
-            'speed_profile' => 'Speed',
+            'speed_profile' => 'Kecepatan',
             'sla_tier' => 'SLA',
             'category' => 'Kategori',
-            'price_mrc' => 'MRC',
-            'price_otc' => 'OTC',
+            'price_mrc' => 'Biaya bulanan',
+            'price_otc' => 'Biaya pemasangan',
             'is_active' => 'Status',
         ];
 
@@ -143,13 +143,13 @@ class ServicePackageController extends Controller
             'category' => $package->category?->name ?? '-',
             'price_mrc' => $package->price_mrc,
             'price_otc' => $package->price_otc,
-            'is_active' => $package->is_active ? 'Active' : 'Inactive',
+            'is_active' => $package->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'service-packages-export-'.now()->format('Ymd-His');
 
         if (strtolower((string) $request->input('format', 'csv')) === 'pdf') {
-            return $export->streamPdf('Service Packages', $columns, $map, $filename.'.pdf');
+            return $export->streamPdf('Paket Layanan', $columns, $map, $filename.'.pdf');
         }
 
         return $export->streamCsv($columns, $map, $filename.'.csv');

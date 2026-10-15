@@ -10,14 +10,14 @@ final class SodConflicts
 {
     /** @var array<string, array{control: list<string>, execution: list<string>}> */
     public const SETS = [
-        'inventory request control vs warehouse execution' => [
+        'persetujuan permintaan barang vs pelaksanaan gudang' => [
             'control' => ['inventory.request.approve', 'inventory.request.reject'],
             'execution' => [
                 'inventory.request.prepare', 'inventory.request.issue',
                 'inventory.stock.receive', 'inventory.stock.issue', 'inventory.stock.transfer',
             ],
         ],
-        'stock adjustment approval vs operation' => [
+        'persetujuan penyesuaian stok vs operasi stok' => [
             'control' => ['inventory.stock.adjust.approve'],
             'execution' => [
                 'inventory.stock.adjust.request',
@@ -42,12 +42,12 @@ final class SodConflicts
             $execution = array_values(array_intersect($set['execution'], $permissions));
 
             if ($control !== [] && $execution !== []) {
-                $violations[] = sprintf('Separation of duties (%s): %s cannot be combined with %s.', $label, implode(', ', $control), implode(', ', $execution));
+                $violations[] = sprintf('Pemisahan tugas (%s): %s tidak boleh digabung dengan %s.', $label, implode(', ', $control), implode(', ', $execution));
             }
         }
 
         foreach (array_intersect(self::ADMIN_ONLY, $permissions) as $permission) {
-            $violations[] = "Only an administrator may grant the break-glass permission {$permission}.";
+            $violations[] = "Hanya administrator yang boleh memberikan hak akses darurat {$permission}.";
         }
 
         return $violations;

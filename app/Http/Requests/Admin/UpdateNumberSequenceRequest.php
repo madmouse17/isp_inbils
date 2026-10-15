@@ -36,8 +36,8 @@ class UpdateNumberSequenceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'prefix.required' => 'Prefix wajib diisi.',
-            'prefix.regex' => 'Prefix hanya boleh berisi huruf, angka, - dan _ (maksimal 20 karakter).',
+            'prefix.required' => 'Awalan wajib diisi.',
+            'prefix.regex' => 'Awalan hanya boleh berisi huruf, angka, - dan _ (maksimal 20 karakter).',
             'template.required' => 'Format wajib diisi.',
             'template.max' => 'Format maksimal 100 karakter.',
             'next_number.required' => 'Nomor berikutnya wajib diisi.',

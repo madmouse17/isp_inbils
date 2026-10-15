@@ -23,11 +23,11 @@ class ApprovalInboxController extends Controller
     public function index(Request $request): Response
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         $user = $request->user();
         $eligible = ApprovalInboxQuery::isEligible($user);
-        abort_unless($eligible, 403, 'No approval permission for any domain.');
+        abort_unless($eligible, 403, 'Anda tidak memiliki izin persetujuan untuk domain apa pun.');
 
         $query = ApprovalInboxQuery::filtered($request);
         $items = $query->paginate(ApprovalInboxQuery::perPage($request))

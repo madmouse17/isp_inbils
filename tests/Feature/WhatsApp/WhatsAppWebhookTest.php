@@ -417,6 +417,8 @@ class WhatsAppWebhookTest extends TestCase
 
     public function test_a_repeated_stop_keeps_the_first_opt_out_and_audits_once(): void
     {
+        // Consent must predate the STOP; with the real clock this test broke once the calendar passed 2026-10-14.
+        $this->travelTo('2026-10-14 03:00:00');
         $customer = $this->consentedCustomer($this->company, '0812-3456-7890');
 
         $this->travelTo('2026-10-14 04:00:00');
@@ -454,6 +456,7 @@ class WhatsAppWebhookTest extends TestCase
 
     public function test_a_redelivered_stop_does_not_undo_consent_that_staff_recorded_afterwards(): void
     {
+        $this->travelTo('2026-10-14 03:00:00');
         $customer = $this->consentedCustomer($this->company, '0812-3456-7890');
         $stop = $this->textWebhook('6281234567890', 'STOP', 'wamid.STOP1', $this->unix('2026-10-14 04:00:00'));
 

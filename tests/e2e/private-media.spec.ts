@@ -22,6 +22,7 @@ import {
     e2eCustomerName,
     inertiaProps,
     loginAs,
+    selectSearchOption,
     unique,
 } from './support/demo';
 
@@ -68,7 +69,7 @@ test.describe('@private-media ticket attachment', () => {
         await expectPreview(page, ownMediaUrl);
 
         // Open in a new tab: same route, rendered inline, never cached by shared caches.
-        const open = page.getByRole('link', { name: `Open ${attachmentName} in a new tab` });
+        const open = page.getByRole('link', { name: `Buka ${attachmentName} di tab baru` });
         await expect(open).toHaveAttribute('href', ownMediaUrl);
         await expect(open).toHaveAttribute('target', '_blank');
         const opened = await page.request.get(ownMediaUrl);
@@ -81,7 +82,7 @@ test.describe('@private-media ticket attachment', () => {
         // Download: the file comes back byte for byte under its own name.
         const [download] = await Promise.all([
             page.waitForEvent('download'),
-            page.getByRole('link', { name: `Download ${attachmentName}` }).click(),
+            page.getByRole('link', { name: `Unduh ${attachmentName}` }).click(),
         ]);
         expect(download.suggestedFilename()).toBe(fileName);
         expect(await readFile(await download.path())).toEqual(PNG_1X1);
@@ -100,7 +101,7 @@ test.describe('@private-media ticket attachment', () => {
                 );
                 await expectPreview(page, ownMediaUrl);
                 await expect(
-                    page.getByRole('link', { name: `Download ${attachmentName}` }),
+                    page.getByRole('link', { name: `Unduh ${attachmentName}` }),
                 ).toBeVisible();
                 expect(
                     await page.evaluate(
@@ -138,11 +139,11 @@ test.describe('@private-media ticket attachment', () => {
 
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${ownTicketId}`);
-        await expect(page.getByRole('link', { name: `Download ${pdfName}` })).toHaveAttribute(
+        await expect(page.getByRole('link', { name: `Unduh ${pdfName}` })).toHaveAttribute(
             'href',
             pdfUrl,
         );
-        await expect(page.getByRole('link', { name: `Open ${pdfName} in a new tab` })).toHaveCount(
+        await expect(page.getByRole('link', { name: `Buka ${pdfName} di tab baru` })).toHaveCount(
             0,
         );
 
@@ -179,20 +180,13 @@ test.describe('@private-media ticket attachment', () => {
 async function createTicket(page: Page, title: string, customerName: string) {
     await settleAppChunks(page);
     await page.goto('/admin/tickets/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create Ticket' }),
-    ).toBeVisible();
-    await page.getByLabel('Title').fill(title);
-    await page.getByLabel('Source').selectOption('customer');
-    const category = page.getByLabel('Category');
-    await expect(category.locator('option', { hasText: 'Device Issue' })).toHaveCount(1);
-    await expect(
-        page.getByLabel('Customer').locator('option', { hasText: customerName }),
-    ).toHaveCount(1);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Buat Tiket' })).toBeVisible();
+    await page.getByLabel('Judul').fill(title);
+    await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await category.selectOption({ label: 'Device Issue' });
-    await page.getByLabel('Customer').selectOption({ label: customerName });
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Pelanggan', customerName);
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/tickets/);
 
     const props = await inertiaProps(page, `/admin/tickets?search=${encodeURIComponent(title)}`);
@@ -210,8 +204,10 @@ async function uploadAttachment(page: Page, ticketId: string, title: string, fil
     await page.goto(`/admin/tickets/${ticketId}`);
     await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
     await page.locator('input[type="file"]').setInputFiles(file);
-    await page.getByRole('button', { name: 'Upload', exact: true }).click();
-    await expect(page.getByText('Attachment uploaded.').first()).toBeVisible({ timeout: 15_000 });
+    await page.getByRole('button', { name: 'Unggah', exact: true }).click();
+    await expect(page.getByText('Lampiran berhasil diunggah.').first()).toBeVisible({
+        timeout: 15_000,
+    });
 
     const props = await inertiaProps(page, `/admin/tickets/${ticketId}`);
     const attachment = props.props?.ticket?.data?.attachments?.find(

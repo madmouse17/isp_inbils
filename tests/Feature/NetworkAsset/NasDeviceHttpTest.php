@@ -15,6 +15,7 @@ use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Spatie\Activitylog\Models\Activity;
 use Tests\TestCase;
+use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\BuildsNetworkFixtures;
 use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
@@ -23,6 +24,7 @@ use Tests\Traits\InteractsWithRadius;
 
 class NasDeviceHttpTest extends TestCase
 {
+    use AsksInertiaForProps;
     use BuildsNetworkFixtures;
     use BuildsSubscriptionBilling;
     use CreatesCompanyUser;
@@ -128,18 +130,35 @@ class NasDeviceHttpTest extends TestCase
     {
         $pop = Location::factory()->create(['company_id' => $this->company->id, 'name' => 'POP Dago']);
         $free = $this->routerAsset(attributes: ['location_id' => $pop->id]);
-        $registered = $this->nasDevice()->networkAsset;
+        $this->nasDevice();
         $this->routerAsset(attributes: ['management_ip' => null]);
         $this->routerAsset(attributes: ['asset_type' => 'switch']);
         $this->routerAsset(Company::factory()->create(['is_active' => true]));
 
-        $response = $this->get(route('admin.nas-devices.create'));
-
-        $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->has('routerAssets', 1)
-            ->where('routerAssets.0', ['id' => $free->id, 'code' => $free->code, 'name' => $free->name, 'management_ip' => $free->management_ip, 'location_name' => 'POP Dago'])
+        $this->get(route('admin.nas-devices.create'))->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->missing('routerAssetOptions')
+            ->where('hasRouterAssets', true)
             ->where('realm', $this->realm));
-        $this->assertNotContains($registered->id, collect($response->inertiaProps()['routerAssets'])->pluck('id')->all());
+
+        // The options come on a search only; the asset's management IP is the description the form copies into the NAS address.
+        $this->get(route('admin.nas-devices.create', ['routerAsset_search' => '192.0.2']), $this->partialReload('Admin/NasDevices/Create', 'routerAssetOptions'))
+            ->assertOk()
+            ->assertJsonCount(1, 'props.routerAssetOptions')
+            ->assertJsonPath('props.routerAssetOptions.0', [
+                'value' => $free->id,
+                'label' => "{$free->code} - {$free->name} - POP Dago",
+                'description' => $free->management_ip,
+            ]);
+        $this->get(route('admin.nas-devices.create', ['routerAsset_search' => 'x']), $this->partialReload('Admin/NasDevices/Create', 'routerAssetOptions'))
+            ->assertJsonPath('props.routerAssetOptions', []);
+    }
+
+    public function test_create_says_when_no_router_asset_is_left_to_register(): void
+    {
+        $this->nasDevice();
+        $this->routerAsset(attributes: ['management_ip' => null]);
+
+        $this->get(route('admin.nas-devices.create'))->assertInertia(fn (Assert $page) => $page->where('hasRouterAssets', false));
     }
 
     public function test_create_has_no_realm_while_the_company_code_cannot_be_one(): void
@@ -266,7 +285,7 @@ class NasDeviceHttpTest extends TestCase
         $response = $this->postJson(route('admin.nas-devices.store'), $this->payload($this->routerAsset(), ['nasname' => $foreignNas->nasname]));
 
         $response->assertJsonValidationErrors('nasname');
-        $this->assertSame('This address is not available.', $response->json('errors.nasname.0'));
+        $this->assertSame('Alamat ini tidak tersedia.', $response->json('errors.nasname.0'));
     }
 
     public function test_show_has_the_contract_props_and_the_sessions_open_on_the_router(): void

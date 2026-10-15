@@ -1,192 +1,286 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTableActions, PageHeader } from '@/Components/composite';
 import {
-    Badge,
+    DataTable,
+    DataTableActions,
+    PageHeader,
+    type DataTableColumn,
+} from '@/Components/composite';
+import { ExportMenu } from '@/Components/ui/ExportMenu';
+import {
     Button,
     Card,
     CardContent,
+    DatePicker,
+    EnumBadge,
     Input,
-    Switch,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
     Modal,
+    Switch,
+    Textarea,
 } from '@/Components/ui';
+import { useServerTable } from '@/hooks/useServerTable';
+import { toPagination } from '@/lib/pagination';
+import { ACTIVE_STATE } from '@/lib/statuses';
+import type { Paginated } from '@/types';
 
 interface VehRow {
     id: number;
     plate_number: string;
-    type?: string | null;
-    brand?: string | null;
-    model?: string | null;
+    type: string | null;
+    brand: string | null;
+    model: string | null;
+    purchase_date: string | null;
     is_active: boolean;
+    notes: string | null;
 }
 
 interface IndexProps extends Record<string, unknown> {
-    vehicles: { data: VehRow[]; current_page: number; last_page: number };
+    vehicles: Paginated<VehRow>;
+    filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
+    can: { create: boolean; export: boolean };
 }
 
-export default function Index({ vehicles }: IndexProps) {
+interface VehicleForm {
+    plate_number: string;
+    type: string;
+    brand: string;
+    model: string;
+    purchase_date: string;
+    is_active: boolean;
+    notes: string;
+}
+
+const emptyForm: VehicleForm = {
+    plate_number: '',
+    type: '',
+    brand: '',
+    model: '',
+    purchase_date: '',
+    is_active: true,
+    notes: '',
+};
+
+export default function Index({ vehicles, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
-    const { data, setData, post, put, processing, errors, reset } = useForm({
-        plate_number: '',
-        type: '',
-        brand: '',
-        model: '',
-        purchase_date: '',
-        is_active: true,
-        notes: '',
+    const { data, setData, post, put, processing, errors, reset, clearErrors } =
+        useForm<VehicleForm>(emptyForm);
+
+    const {
+        params,
+        set,
+        setMany,
+        sortBy,
+        sortDir,
+        onSort,
+        processing: tableProcessing,
+    } = useServerTable({
+        url: route('admin.vehicles.index'),
+        filters,
+        only: ['vehicles', 'filters', 'can'],
     });
 
     const openCreate = () => {
         reset();
+        clearErrors();
         setEditId(null);
         setModalOpen(true);
     };
-    const openEdit = (v: VehRow) => {
-        setData('plate_number', v.plate_number);
-        setData('type', v.type ?? '');
-        setData('brand', v.brand ?? '');
-        setData('model', v.model ?? '');
-        setData('is_active', v.is_active);
-        setEditId(v.id);
-        setModalOpen(true);
-    };
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
+
+    const openEdit = useCallback(
+        (vehicle: VehRow) => {
+            clearErrors();
+            setData({
+                plate_number: vehicle.plate_number,
+                type: vehicle.type ?? '',
+                brand: vehicle.brand ?? '',
+                model: vehicle.model ?? '',
+                purchase_date: vehicle.purchase_date ?? '',
+                is_active: vehicle.is_active,
+                notes: vehicle.notes ?? '',
+            });
+            setEditId(vehicle.id);
+            setModalOpen(true);
+        },
+        [clearErrors, setData],
+    );
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        const onSuccess = () => setModalOpen(false);
+
         if (editId) {
-            put(route('admin.vehicles.update', editId), { onSuccess: () => setModalOpen(false) });
+            put(route('admin.vehicles.update', editId), { onSuccess });
         } else {
-            post(route('admin.vehicles.store'), { onSuccess: () => setModalOpen(false) });
+            post(route('admin.vehicles.store'), { onSuccess });
         }
     };
+
+    const hasFilters = Boolean(params.search);
+
+    const columns: DataTableColumn<VehRow>[] = useMemo(() => {
+        const base: DataTableColumn<VehRow>[] = [
+            {
+                key: 'plate_number',
+                header: 'Nomor polisi',
+                sortable: true,
+                sortKey: 'plate_number',
+                cell: (vehicle) => (
+                    <span className="font-mono text-sm">{vehicle.plate_number}</span>
+                ),
+            },
+            { key: 'type', header: 'Jenis', sortable: true, sortKey: 'type' },
+            { key: 'brand', header: 'Merek', sortable: true, sortKey: 'brand' },
+            { key: 'model', header: 'Model', sortable: true, sortKey: 'model' },
+            {
+                key: 'is_active',
+                header: 'Status',
+                cell: (vehicle) => <EnumBadge map={ACTIVE_STATE} value={vehicle.is_active} />,
+            },
+        ];
+
+        if (!can.create) return base;
+
+        return [
+            ...base,
+            {
+                key: 'actions',
+                header: 'Aksi',
+                cell: (vehicle) => (
+                    <DataTableActions
+                        onEdit={() => openEdit(vehicle)}
+                        deleteHref={route('admin.vehicles.destroy', vehicle.id)}
+                        deleteMessage={`Hapus ${vehicle.plate_number}?`}
+                        deleteDescription={`Kendaraan "${vehicle.plate_number}" akan dihapus dari daftar.`}
+                    />
+                ),
+            },
+        ];
+    }, [can.create, openEdit]);
 
     return (
         <AdminLayout title="Kendaraan">
             <div className="space-y-6">
                 <PageHeader
                     title="Kendaraan"
-                    subtitle="Technician transport."
+                    subtitle="Kendaraan operasional yang dipakai teknisi dan karyawan."
                     actions={
-                        <Button type="button" variant="primary" onClick={openCreate}>
-                            Add Vehicle
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            {can.export ? (
+                                <ExportMenu
+                                    exportUrl={route('admin.vehicles.export')}
+                                    params={params}
+                                    formats={['csv', 'pdf']}
+                                    canExport={can.export}
+                                />
+                            ) : null}
+                            {can.create ? (
+                                <Button type="button" variant="primary" onClick={openCreate}>
+                                    Buat Kendaraan
+                                </Button>
+                            ) : null}
+                        </div>
                     }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Table>
-                            <THead>
-                                <TR>
-                                    <TH>Plate</TH>
-                                    <TH>Type</TH>
-                                    <TH>Brand</TH>
-                                    <TH>Model</TH>
-                                    <TH>Status</TH>
-                                    <TH>Actions</TH>
-                                </TR>
-                            </THead>
-                            <TBody>
-                                {vehicles.data.length === 0 ? (
-                                    <TR>
-                                        <TD
-                                            colSpan={6}
-                                            className="py-10 text-center text-muted-foreground"
-                                        >
-                                            No data found.
-                                        </TD>
-                                    </TR>
-                                ) : (
-                                    vehicles.data.map((v) => (
-                                        <TR key={v.id}>
-                                            <TD className="font-mono">{v.plate_number}</TD>
-                                            <TD>{v.type ?? '-'}</TD>
-                                            <TD>{v.brand ?? '-'}</TD>
-                                            <TD>{v.model ?? '-'}</TD>
-                                            <TD>
-                                                <Badge variant={v.is_active ? 'success' : 'danger'}>
-                                                    {v.is_active ? 'Active' : 'Inactive'}
-                                                </Badge>
-                                            </TD>
-                                            <TD>
-                                                <DataTableActions
-                                                    onEdit={() => openEdit(v)}
-                                                    deleteHref={route(
-                                                        'admin.vehicles.destroy',
-                                                        v.id,
-                                                    )}
-                                                    deleteMessage={`Delete ${v.plate_number}?`}
-                                                    deleteDescription={`This will permanently remove the vehicle "${v.plate_number}".`}
-                                                />
-                                            </TD>
-                                        </TR>
-                                    ))
-                                )}
-                            </TBody>
-                        </Table>
+                        <div className="max-w-md">
+                            <Input
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Nomor polisi, jenis, merek, atau model"
+                            />
+                        </div>
+                        <DataTable
+                            columns={columns}
+                            pagination={toPagination(vehicles)}
+                            sortBy={sortBy}
+                            sortDir={sortDir}
+                            onSort={onSort}
+                            onPageChange={(page) => set('page', page)}
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="Belum ada kendaraan"
+                            emptyDescription="Kendaraan yang sudah dicatat bisa dipasangkan ke karyawan. Buat kendaraan pertama untuk memulai."
+                            emptyAction={
+                                can.create ? (
+                                    <Button type="button" variant="primary" onClick={openCreate}>
+                                        Buat Kendaraan
+                                    </Button>
+                                ) : undefined
+                            }
+                            hasFilters={hasFilters}
+                            onResetFilters={() => setMany({ search: '' })}
+                            itemLabel="kendaraan"
+                            loading={tableProcessing}
+                        />
                     </CardContent>
                 </Card>
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Vehicle' : 'Add Vehicle'}
+                    title={editId ? 'Ubah Kendaraan' : 'Buat Kendaraan'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Plate Number"
+                                label="Nomor polisi"
                                 value={data.plate_number}
-                                onChange={(e) => setData('plate_number', e.target.value)}
+                                onChange={(event) => setData('plate_number', event.target.value)}
                                 error={errors.plate_number}
                                 required
                             />
                             <Input
-                                label="Type"
+                                label="Jenis"
                                 value={data.type}
-                                onChange={(e) => setData('type', e.target.value)}
-                                placeholder="motorcycle, car, truck"
+                                onChange={(event) => setData('type', event.target.value)}
+                                error={errors.type}
+                                placeholder="Motor, mobil, atau pikap"
                             />
                             <Input
-                                label="Brand"
+                                label="Merek"
                                 value={data.brand}
-                                onChange={(e) => setData('brand', e.target.value)}
+                                onChange={(event) => setData('brand', event.target.value)}
+                                error={errors.brand}
                             />
                             <Input
                                 label="Model"
                                 value={data.model}
-                                onChange={(e) => setData('model', e.target.value)}
+                                onChange={(event) => setData('model', event.target.value)}
+                                error={errors.model}
                             />
-                            <Input
-                                label="Purchase Date"
-                                type="date"
+                            <DatePicker
+                                label="Tanggal pembelian"
                                 value={data.purchase_date}
-                                onChange={(e) => setData('purchase_date', e.target.value)}
+                                onChange={(value) => setData('purchase_date', value)}
+                                error={errors.purchase_date}
                             />
                             <div className="flex items-end">
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
-                                    onCheckedChange={(c) => setData('is_active', c)}
+                                    onCheckedChange={(checked) => setData('is_active', checked)}
                                 />
                             </div>
                         </div>
+                        <Textarea
+                            label="Catatan"
+                            value={data.notes}
+                            onChange={(event) => setData('notes', event.target.value)}
+                            error={errors.notes}
+                        />
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
                                 variant="secondary"
                                 onClick={() => setModalOpen(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editId ? 'Simpan' : 'Buat'}
                             </Button>
                         </div>
                     </form>

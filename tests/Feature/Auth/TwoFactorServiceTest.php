@@ -199,7 +199,7 @@ class TwoFactorServiceTest extends TestCase
         $user = User::factory()->create();
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('not enabled');
+        $this->expectExceptionMessage('belum aktif');
 
         $this->service->regenerateRecoveryCodes($user);
     }

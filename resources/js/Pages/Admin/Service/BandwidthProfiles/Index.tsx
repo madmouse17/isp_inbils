@@ -1,6 +1,5 @@
 import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -39,17 +38,18 @@ type Props = {
 };
 
 export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
-        url: route('admin.bandwidth-profiles.index'),
-        filters,
-        only: ['bandwidthProfiles', 'filters', 'can'],
-    });
+    const { params, search, setSearch, setMany, set, sortBy, sortDir, onSort, processing } =
+        useServerTable({
+            url: route('admin.bandwidth-profiles.index'),
+            filters,
+            only: ['bandwidthProfiles', 'filters', 'can'],
+        });
 
     const columns: DataTableColumn<Row>[] = useMemo(
         () => [
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
                 cell: (row) => (
@@ -63,36 +63,39 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
             },
             {
                 key: 'download_mbps',
-                header: 'Download (Mbps)',
+                header: 'Unduh (Mbps)',
                 sortable: true,
                 sortKey: 'download_mbps',
+                headerClassName: 'text-right',
                 className: 'text-right tabular-nums',
                 cell: (row) => String(row.download_mbps ?? '-'),
             },
             {
                 key: 'upload_mbps',
-                header: 'Upload (Mbps)',
+                header: 'Unggah (Mbps)',
                 sortable: true,
                 sortKey: 'upload_mbps',
+                headerClassName: 'text-right',
                 className: 'text-right tabular-nums',
                 cell: (row) => String(row.upload_mbps ?? '-'),
             },
             {
                 key: 'created_at',
-                header: 'Created',
+                header: 'Dibuat',
                 sortable: true,
                 sortKey: 'created_at',
+                className: 'whitespace-nowrap',
                 cell: (row) => formatDate(row.created_at),
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => (
                     <DataTableActions
                         editHref={route('admin.bandwidth-profiles.edit', row.id)}
                         deleteHref={route('admin.bandwidth-profiles.destroy', row.id)}
-                        deleteMessage={`Delete ${row.name}?`}
-                        deleteDescription={`This will permanently remove the bandwidth profile "${row.name}".`}
+                        deleteMessage={`Hapus ${row.name}?`}
+                        deleteDescription={`Profil bandwidth "${row.name}" akan dihapus permanen.`}
                     />
                 ),
             },
@@ -100,48 +103,41 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
         [],
     );
 
+    const createButton = can.create ? (
+        <Button asChild variant="primary" size="sm">
+            <Link href={route('admin.bandwidth-profiles.create')}>Buat Profil Bandwidth</Link>
+        </Button>
+    ) : undefined;
+
     return (
         <AdminLayout title="Profil Bandwidth">
             <div className="space-y-4">
                 <PageHeader
                     title="Profil Bandwidth"
-                    description="QoS / bandwidth templates for packages."
+                    subtitle="Kecepatan unduh dan unggah serta rasio kontensi yang dipakai paket layanan."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
                                 <ExportMenu
                                     exportUrl={route('admin.bandwidth-profiles.export')}
                                     params={params}
+                                    formats={['csv', 'pdf']}
                                     canExport={can.export}
                                 />
                             ) : null}
-                            {can.create ? (
-                                <Button asChild variant="primary" size="sm">
-                                    <Link href={route('admin.bandwidth-profiles.create')}>
-                                        <Plus className="size-4" />
-                                        New profile
-                                    </Link>
-                                </Button>
-                            ) : null}
+                            {createButton}
                         </div>
                     }
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="bw-search"
-                        >
-                            Search
-                        </label>
-                        <Input
-                            id="bw-search"
-                            value={params.search ?? ''}
-                            onChange={(e) => set('search', e.target.value)}
-                            placeholder="Name or code…"
-                        />
-                    </div>
+                <div className="max-w-sm">
+                    <Input
+                        id="bw-search"
+                        label="Cari"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Nama atau tipe"
+                    />
                 </div>
 
                 <DataTable
@@ -152,9 +148,13 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                     onSort={onSort}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(perPage) => set('per_page', perPage)}
-                    emptyTitle="No bandwidth profiles"
-                    emptyDescription="No bandwidth profiles match the current filters."
                     loading={processing}
+                    itemLabel="profil bandwidth"
+                    hasFilters={Boolean(params.search)}
+                    onResetFilters={() => setMany({ search: '' })}
+                    emptyTitle="Belum ada profil bandwidth"
+                    emptyDescription="Profil bandwidth menentukan kecepatan dan rasio kontensi sebuah paket layanan."
+                    emptyAction={createButton}
                 />
             </div>
         </AdminLayout>

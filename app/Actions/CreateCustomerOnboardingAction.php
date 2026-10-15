@@ -50,8 +50,8 @@ class CreateCustomerOnboardingAction
             $workOrder = WorkOrder::query()->create([
                 'code' => NumberSequenceService::generate('spk', CompanyService::currentId()),
                 'type' => 'installation',
-                'title' => 'Installation '.$subscription->code.' - '.$customer->name,
-                'description' => 'Automatic installation SPK from customer onboarding.',
+                'title' => 'Pemasangan '.$subscription->code.' - '.$customer->name,
+                'description' => 'SPK pemasangan otomatis dari penambahan pelanggan baru.',
                 'status' => 'generated',
                 'customer_id' => $customer->id,
                 'subscription_id' => $subscription->id,

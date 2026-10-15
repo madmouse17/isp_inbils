@@ -3,9 +3,20 @@ import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { UtilisationBar } from '@/Components/composite/UtilisationBar';
-import { Badge, Input, NativeSelect, Tab, TabList, TabPanel, Tabs } from '@/Components/ui';
+import {
+    EmptyCell,
+    EnumBadge,
+    Input,
+    SearchSelect,
+    Tab,
+    TabList,
+    TabPanel,
+    Tabs,
+    type SearchSelectOption,
+} from '@/Components/ui';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination } from '@/lib/pagination';
+import { ODN_PORT_STATE, SUBSCRIPTION_STATUS } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 import type { OdpRow, PonPortSummary, PopOption, UnmappedSubscription } from '@/types/ipam-odn';
 
@@ -41,6 +52,21 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
     const filter = (key: 'search' | 'pop_id' | 'min_percent', value: string) =>
         setMany({ [key]: value, odps_page: null, ports_page: null, unmapped_page: null });
 
+    const resetFilters = () =>
+        setMany({
+            search: '',
+            pop_id: '',
+            min_percent: '',
+            odps_page: null,
+            ports_page: null,
+            unmapped_page: null,
+        });
+
+    const popOptions = useMemo<SearchSelectOption[]>(
+        () => pops.map((pop) => ({ value: String(pop.id), label: `${pop.code} - ${pop.name}` })),
+        [pops],
+    );
+
     const odpColumns: DataTableColumn<OdpRow>[] = useMemo(
         () => [
             {
@@ -55,57 +81,57 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                     </Link>
                 ),
             },
-            { key: 'name', header: 'Name', cell: (row) => row.name },
+            { key: 'name', header: 'Nama', cell: (row) => row.name },
             {
                 key: 'location',
-                header: 'Location',
+                header: 'Lokasi',
                 cell: (row) =>
                     row.location_path ? (
                         <span className="block max-w-64 truncate" title={row.location_path}>
                             {row.location_path}
                         </span>
                     ) : (
-                        '-'
+                        <EmptyCell />
                     ),
             },
             {
                 key: 'capacity',
-                header: 'Capacity',
+                header: 'Kapasitas',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) =>
                     row.capacity === 0 ? (
-                        <Badge variant="secondary">No splitter</Badge>
+                        <EnumBadge map={ODN_PORT_STATE} value="no_splitter" />
                     ) : (
                         row.capacity
                     ),
             },
             {
                 key: 'used',
-                header: 'Used',
+                header: 'Terpakai',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) => row.used,
             },
             {
                 key: 'free',
-                header: 'Free',
+                header: 'Kosong',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) => (
                     <span className="inline-flex items-center gap-2">
                         {row.free}
                         {row.capacity > 0 && row.free === 0 && (
-                            <Badge variant="outline">Full</Badge>
+                            <EnumBadge map={ODN_PORT_STATE} value="full" />
                         )}
                     </span>
                 ),
             },
             {
                 key: 'percent',
-                header: 'Utilisation',
+                header: 'Pemakaian',
                 cell: (row) => (
-                    <UtilisationBar percent={row.percent} label={`${row.code} ports in use`} />
+                    <UtilisationBar percent={row.percent} label={`${row.code} port terpakai`} />
                 ),
             },
         ],
@@ -128,12 +154,12 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
             },
             {
                 key: 'port',
-                header: 'PON port',
+                header: 'Port PON',
                 cell: (row) => `PON ${row.number}${row.label ? ` · ${row.label}` : ''}`,
             },
             {
                 key: 'subscribers',
-                header: 'Subscribers',
+                header: 'Pelanggan',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) => row.subscribers,
@@ -146,7 +172,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
         () => [
             {
                 key: 'code',
-                header: 'Subscription',
+                header: 'Langganan',
                 cell: (row) => (
                     <Link
                         href={route('admin.subscriptions.show', row.subscription_id)}
@@ -156,12 +182,20 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                     </Link>
                 ),
             },
-            { key: 'customer', header: 'Customer', cell: (row) => row.customer_name ?? '-' },
-            { key: 'pop', header: 'Serving POP', cell: (row) => row.serving_pop_code ?? '-' },
+            {
+                key: 'customer',
+                header: 'Pelanggan',
+                cell: (row) => row.customer_name ?? <EmptyCell />,
+            },
+            {
+                key: 'pop',
+                header: 'POP layanan',
+                cell: (row) => row.serving_pop_code ?? <EmptyCell />,
+            },
             {
                 key: 'status',
                 header: 'Status',
-                cell: (row) => <Badge variant="success">{row.status}</Badge>,
+                cell: (row) => <EnumBadge map={SUBSCRIPTION_STATUS} value={row.status} />,
             },
         ],
         [],
@@ -172,33 +206,29 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
             <div className="space-y-6">
                 <PageHeader
                     title="ODN"
-                    description="How full each ODP is, who sits behind each PON port, and which active subscriptions have no recorded drop port."
+                    description="Seberapa penuh tiap ODP, siapa di belakang tiap port PON, dan langganan aktif yang belum punya port drop tercatat."
                 />
 
                 <div className="grid items-end gap-3 rounded-lg border bg-card p-3 sm:grid-cols-3">
                     <Input
                         id="filter-search"
-                        label="Search"
+                        label="Cari"
                         value={params.search ?? ''}
                         onChange={(event) => filter('search', event.target.value)}
-                        placeholder="Code, name or customer"
+                        placeholder="Kode, nama, atau pelanggan"
                     />
-                    <NativeSelect
+                    <SearchSelect
                         id="filter-pop"
                         label="POP"
                         value={params.pop_id ?? ''}
-                        onChange={(event) => filter('pop_id', event.target.value)}
-                        options={[
-                            { value: '', label: 'All POPs' },
-                            ...pops.map((pop) => ({
-                                value: String(pop.id),
-                                label: `${pop.code} - ${pop.name}`,
-                            })),
-                        ]}
+                        onChange={(value) => filter('pop_id', value)}
+                        options={popOptions}
+                        placeholder="Semua POP"
+                        emptyText="Tidak ada POP yang cocok."
                     />
                     <Input
                         id="filter-min-percent"
-                        label="ODP minimum used (%)"
+                        label="ODP minimal terpakai (%)"
                         type="number"
                         min={0}
                         max={100}
@@ -208,10 +238,12 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                 </div>
 
                 <Tabs value={tab} onValueChange={(value) => setTab(value as OdnTab)}>
-                    <TabList aria-label="ODN views" className="overflow-x-auto">
-                        <Tab value="odps">ODPs ({odps.meta.total})</Tab>
-                        <Tab value="pon">PON ports ({ponPorts.meta.total})</Tab>
-                        <Tab value="unmapped">Unmapped subscriptions ({unmapped.meta.total})</Tab>
+                    <TabList aria-label="Tampilan ODN" className="overflow-x-auto">
+                        <Tab value="odps">ODP ({odps.meta.total})</Tab>
+                        <Tab value="pon">Port PON ({ponPorts.meta.total})</Tab>
+                        <Tab value="unmapped">
+                            Langganan tanpa port drop ({unmapped.meta.total})
+                        </Tab>
                     </TabList>
 
                     <TabPanel value="odps">
@@ -221,12 +253,11 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             pagination={toPagination(odps)}
                             onPageChange={(page) => set('odps_page', page)}
                             loading={processing}
-                            emptyTitle={filtered ? 'No ODP matches the filters' : 'No ODPs yet'}
-                            emptyDescription={
-                                filtered
-                                    ? 'Clear a filter to see the rest.'
-                                    : 'ODPs are network assets of type ODP. Register one, then add a splitter to give it ports.'
-                            }
+                            emptyTitle="Belum ada ODP"
+                            emptyDescription="ODP adalah aset jaringan bertipe ODP. Daftarkan satu, lalu tambahkan splitter agar punya port."
+                            hasFilters={filtered}
+                            onResetFilters={resetFilters}
+                            itemLabel="ODP"
                         />
                     </TabPanel>
                     <TabPanel value="pon">
@@ -236,14 +267,11 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             pagination={toPagination(ponPorts)}
                             onPageChange={(page) => set('ports_page', page)}
                             loading={processing}
-                            emptyTitle={
-                                filtered ? 'No PON port matches the filters' : 'No PON ports yet'
-                            }
-                            emptyDescription={
-                                filtered
-                                    ? 'Clear a filter to see the rest.'
-                                    : 'Open an OLT in the ODN register and add its PON ports.'
-                            }
+                            emptyTitle="Belum ada port PON"
+                            emptyDescription="Buka OLT di register ODN dan tambahkan port PON-nya."
+                            hasFilters={filtered}
+                            onResetFilters={resetFilters}
+                            itemLabel="port PON"
                         />
                     </TabPanel>
                     <TabPanel value="unmapped">
@@ -253,16 +281,11 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                             pagination={toPagination(unmapped)}
                             onPageChange={(page) => set('unmapped_page', page)}
                             loading={processing}
-                            emptyTitle={
-                                filtered
-                                    ? 'No subscription matches the filters'
-                                    : 'Every active subscription has a drop port'
-                            }
-                            emptyDescription={
-                                filtered
-                                    ? 'Clear a filter to see the rest.'
-                                    : 'Subscriptions without a recorded port appear here so you can backfill them.'
-                            }
+                            emptyTitle="Semua langganan aktif punya port drop"
+                            emptyDescription="Langganan tanpa port drop tercatat muncul di sini agar bisa diisi."
+                            hasFilters={filtered}
+                            onResetFilters={resetFilters}
+                            itemLabel="langganan"
                         />
                     </TabPanel>
                 </Tabs>

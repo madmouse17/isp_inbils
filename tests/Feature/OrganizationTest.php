@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Core\Company;
+use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
 use App\Models\User;
 use App\Services\Core\CompanyService;
@@ -186,6 +187,72 @@ class OrganizationTest extends TestCase
 
         $response->assertRedirect();
         $this->assertSoftDeleted($unit);
+    }
+
+    public function test_delete_is_refused_while_employees_belong_to_the_unit(): void
+    {
+        $unit = OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'HR', 'type' => 'unit']);
+        $employee = EmployeeProfile::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'user_id' => User::factory()->create(['company_id' => $this->admin->company_id])->id,
+            'organization_id' => $unit->id,
+        ]);
+
+        $this->actingAs($this->admin)
+            ->deleteJson(route('admin.organizations.destroy', $unit))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.organization.0', 'Unit masih punya karyawan. Pindahkan karyawannya ke unit lain dulu.');
+
+        $this->assertNotSoftDeleted($unit);
+        $this->assertSame($unit->id, $employee->fresh()->organization_id);
+    }
+
+    public function test_delete_works_once_the_employees_moved_away(): void
+    {
+        $unit = OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'HR2', 'type' => 'unit']);
+        $employee = EmployeeProfile::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'user_id' => User::factory()->create(['company_id' => $this->admin->company_id])->id,
+            'organization_id' => $unit->id,
+        ]);
+        $employee->update(['organization_id' => null]);
+
+        $this->actingAs($this->admin)->delete(route('admin.organizations.destroy', $unit))->assertRedirect();
+
+        $this->assertSoftDeleted($unit);
+    }
+
+    public function test_delete_is_refused_while_the_unit_has_children_with_an_indonesian_message(): void
+    {
+        $parent = OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'PAR', 'type' => 'branch']);
+        OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'KID', 'type' => 'area', 'parent_id' => $parent->id]);
+
+        $this->actingAs($this->admin)
+            ->deleteJson(route('admin.organizations.destroy', $parent))
+            ->assertUnprocessable()
+            ->assertJsonPath('errors.organization.0', 'Unit masih punya sub-unit. Pindahkan atau hapus sub-unitnya dulu.');
+    }
+
+    public function test_type_must_be_one_of_the_known_types(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.organizations.store'), [
+            'code' => 'ODD',
+            'name' => 'Odd',
+            'type' => 'galaxy',
+        ])->assertSessionHasErrors(['type' => 'jenis yang dipilih tidak valid.']);
+
+        $this->assertDatabaseMissing('organization_units', ['code' => 'ODD']);
+    }
+
+    public function test_code_is_unique_within_the_company(): void
+    {
+        OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id, 'code' => 'DUP', 'type' => 'branch']);
+
+        $this->actingAs($this->admin)->post(route('admin.organizations.store'), [
+            'code' => 'DUP',
+            'name' => 'Another',
+            'type' => 'branch',
+        ])->assertSessionHasErrors(['code' => 'kode sudah digunakan.']);
     }
 
     public function test_company_scope_isolation(): void

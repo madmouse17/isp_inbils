@@ -1,22 +1,30 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from '@inertiajs/react';
 import { Plus, Package, Clock, AlertCircle, RefreshCw, Truck, ShieldAlert } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { Button } from '@/Components/ui/Button';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
 import { Badge } from '@/Components/ui/Badge';
-import { NativeSelect } from '@/Components/ui';
+import { DateRangePicker, NativeSelect } from '@/Components/ui';
 import { Card, CardContent } from '@/Components/ui/Card';
 import { Tabs, TabList, Tab, TabPanel } from '@/Components/ui/Tabs';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
 import { usePermission } from '@/hooks/usePermission';
-import { formatDate, formatDateTime } from '@/lib/format';
-import type { PaginationMeta } from '@/types';
+import { formatDate, formatDateTime, formatNumber } from '@/lib/format';
+import {
+    INVENTORY_REQUEST_SOURCE,
+    INVENTORY_REQUEST_STATUS,
+    MATERIAL_RETURN_STATUS,
+    labelOf,
+    optionsOf,
+} from '@/lib/statuses';
+import type { Company, PaginationMeta } from '@/types';
 import type { InventoryRequestRow, MaterialReturnCaseRow } from '@/types/inventory';
-import { returnStatusLabelMap, returnStatusVariantMap } from './constants';
 
 interface PaginatedData<T> {
     data: T[];
@@ -68,16 +76,24 @@ interface ReturnsApiResponse {
     };
 }
 
-const statusVariantMap: Record<string, 'neutral' | 'info' | 'warning' | 'success' | 'danger'> = {
-    draft: 'neutral',
-    submitted: 'warning',
-    approved_reserved: 'info',
-    preparing: 'info',
-    ready_for_pickup: 'info',
-    issued: 'success',
-    rejected: 'danger',
-    cancelled: 'neutral',
-};
+const REQUEST_STATUS_OPTIONS = [
+    { value: '', label: 'Semua status' },
+    ...optionsOf(INVENTORY_REQUEST_STATUS),
+];
+
+const RETURN_STATUS_OPTIONS = [
+    { value: '', label: 'Semua status' },
+    ...optionsOf(MATERIAL_RETURN_STATUS),
+];
+
+/** The first item of a request as one line: "Kabel Dropcore (120 m)". */
+function firstItemLine(item: NonNullable<InventoryRequestRow['items']>[number]): string {
+    const quantity = [formatNumber(item.quantity_requested), item.product?.unit]
+        .filter(Boolean)
+        .join(' ');
+
+    return `${item.product?.name ?? 'Barang'} (${quantity})`;
+}
 
 export default function InventoryRequestsIndex({
     requests,
@@ -86,6 +102,7 @@ export default function InventoryRequestsIndex({
     can: capabilities = {},
 }: Props) {
     const { can } = usePermission();
+    const company = useCompany();
     const canViewAll = capabilities.viewAll ?? can('inventory.request.view.all');
     const canWarehouse =
         capabilities.approve ||
@@ -142,6 +159,12 @@ export default function InventoryRequestsIndex({
         });
     };
 
+    const hasRequestFilters = Boolean(
+        params.search || params.status || params.needed_from || params.needed_to,
+    );
+    const resetRequestFilters = () =>
+        setMany({ search: '', status: '', needed_from: null, needed_to: null });
+
     // Return cases state for the return queue tab
     const [returnsList, setReturnsList] = useState<MaterialReturnCaseRow[]>([]);
     const [returnsMeta, setReturnsMeta] = useState<PaginationMeta>();
@@ -191,7 +214,7 @@ export default function InventoryRequestsIndex({
                         };
                         throw new Error(
                             errData.message ||
-                                `Gagal memuat antrean retur material (${res.status}).`,
+                                `Gagal memuat antrean pengembalian material (${res.status}).`,
                         );
                     }
                     return res.json() as Promise<ReturnsApiResponse>;
@@ -205,7 +228,7 @@ export default function InventoryRequestsIndex({
                     const msg =
                         err instanceof Error
                             ? err.message
-                            : 'Terjadi kesalahan saat memuat antrean retur material.';
+                            : 'Terjadi kesalahan saat memuat antrean pengembalian material.';
                     setReturnsError(msg);
                 })
                 .finally(() => {
@@ -240,7 +263,7 @@ export default function InventoryRequestsIndex({
             case 'preparing':
                 return 'Tandai Siap Diambil';
             case 'ready_for_pickup':
-                return 'Serah Terima (Handover)';
+                return 'Serah Terima Barang';
             case 'issued':
                 return 'Selesai (Deklarasi Pemakaian / Pengembalian)';
             case 'rejected':
@@ -288,12 +311,7 @@ export default function InventoryRequestsIndex({
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => (
-                    <StatusBadge
-                        status={row.status_label || row.status}
-                        variant={statusVariantMap[row.status] || 'neutral'}
-                    />
-                ),
+                cell: (row) => <EnumBadge map={INVENTORY_REQUEST_STATUS} value={row.status} />,
             },
             {
                 key: 'requester',
@@ -314,23 +332,18 @@ export default function InventoryRequestsIndex({
             {
                 key: 'warehouse_location',
                 header: 'Lokasi Gudang',
-                cell: (row) => row.warehouse_location?.name ?? 'Gudang Utama',
+                cell: (row) => row.warehouse_location?.name ?? <EmptyCell />,
             },
             {
                 key: 'items_summary',
                 header: 'Barang & Jumlah',
                 cell: (row) => {
                     const reqItems = row.items || [];
-                    if (reqItems.length === 0)
-                        return <span className="text-muted-foreground">-</span>;
-                    const first = reqItems[0];
+                    if (reqItems.length === 0) return <EmptyCell />;
                     const remaining = reqItems.length - 1;
                     return (
                         <div className="text-sm">
-                            <span className="font-medium">
-                                {first.product?.name ?? 'Item'} ({first.quantity_requested}{' '}
-                                {first.product?.unit ?? 'unit'})
-                            </span>
+                            <span className="font-medium">{firstItemLine(reqItems[0])}</span>
                             {remaining > 0 && (
                                 <span className="ml-1 text-xs text-muted-foreground">
                                     +{remaining} barang lain
@@ -342,19 +355,19 @@ export default function InventoryRequestsIndex({
             },
             {
                 key: 'needed_at',
-                header: 'Tgl Dibutuhkan',
+                header: 'Tanggal Dibutuhkan',
                 sortable: true,
                 sortKey: 'needed_at',
-                cell: (row) => (row.needed_at ? formatDate(row.needed_at) : '-'),
+                cell: (row) => (row.needed_at ? formatDate(row.needed_at, company) : <EmptyCell />),
             },
             {
                 key: 'source',
-                header: 'Ref SPK / Tiket',
+                header: 'Rujukan',
                 cell: (row) => {
-                    if (!row.source_type || !row.source_id) return '-';
+                    if (!row.source_type || !row.source_id) return <EmptyCell />;
                     return (
                         <span className="rounded bg-muted/60 px-2 py-0.5 font-mono text-xs text-foreground">
-                            {row.source_type === 'work_order' ? 'SPK' : 'TIKET'} #{row.source_id}
+                            {labelOf(INVENTORY_REQUEST_SOURCE, row.source_type)} #{row.source_id}
                         </span>
                     );
                 },
@@ -378,7 +391,7 @@ export default function InventoryRequestsIndex({
                 ),
             },
         ],
-        [],
+        [company],
     );
 
     const handleTabChange = (newTab: string) => {
@@ -390,13 +403,13 @@ export default function InventoryRequestsIndex({
             <div className="space-y-6">
                 <PageHeader
                     title="Permintaan Barang"
-                    description="Kelola pengajuan kebutuhan material teknisi, reservasi stok gudang, penyerahan barang, dan pelaporan sisa/pengembalian fisik."
+                    description="Ajukan kebutuhan barang teknisi, pantau reservasi stok dan penyerahan dari gudang, lalu laporkan sisa barang yang dikembalikan."
                     actions={
                         (capabilities.create ?? can('inventory.request.create')) ? (
                             <Button asChild className="gap-2">
                                 <Link href={route('admin.inventory.requests.create')}>
                                     <Plus className="h-4 w-4" />
-                                    Buat Permintaan Baru
+                                    Buat Permintaan Barang
                                 </Link>
                             </Button>
                         ) : undefined
@@ -445,7 +458,7 @@ export default function InventoryRequestsIndex({
                         {canViewReturns && (
                             <Tab value="returns" className="gap-2">
                                 <RefreshCw className="h-4 w-4" />
-                                <span>Antrean Pengembalian (Custody Return)</span>
+                                <span>Antrean Pengembalian</span>
                                 {(() => {
                                     let count = 0;
                                     if (canReceiveReturn || canResolveReturn) {
@@ -476,43 +489,40 @@ export default function InventoryRequestsIndex({
 
                     {/* Filter Bar for Requests */}
                     {params.tab !== 'returns' && (
-                        <div className="mb-4 flex flex-col items-center gap-3 sm:flex-row">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
                             <div className="w-full sm:w-72">
                                 <Input
-                                    aria-label="Cari permintaan"
-                                    placeholder="Cari kode permintaan, pemohon, atau alasan..."
+                                    id="request-search"
+                                    label="Cari permintaan"
+                                    placeholder="Kode permintaan, pemohon, atau alasan"
                                     value={params.search ?? ''}
                                     onChange={(e) => set('search', e.target.value)}
-                                    className="h-9"
                                 />
                             </div>
-                            <div className="w-full sm:w-56">
-                                <NativeSelect
-                                    aria-label="Status permintaan"
-                                    value={params.status ?? ''}
-                                    onChange={(e) => set('status', e.target.value)}
-                                    className="h-9 text-sm"
-                                >
-                                    <option value="">Semua Status</option>
-                                    <option value="draft">Draf</option>
-                                    <option value="submitted">Menunggu Persetujuan</option>
-                                    <option value="approved_reserved">
-                                        Disetujui / Direservasi
-                                    </option>
-                                    <option value="preparing">Sedang Disiapkan</option>
-                                    <option value="ready_for_pickup">Siap Diambil</option>
-                                    <option value="issued">Selesai Diserahkan (Issued)</option>
-                                    <option value="rejected">Ditolak</option>
-                                    <option value="cancelled">Dibatalkan</option>
-                                </NativeSelect>
+                            <NativeSelect
+                                id="request-status"
+                                label="Status permintaan"
+                                value={params.status ?? ''}
+                                onChange={(e) => set('status', e.target.value)}
+                                options={REQUEST_STATUS_OPTIONS}
+                                wrapperClassName="sm:w-56"
+                            />
+                            <div className="w-full sm:w-80">
+                                <DateRangePicker
+                                    id="request-needed"
+                                    label="Tanggal Dibutuhkan"
+                                    value={{
+                                        from: params.needed_from || null,
+                                        to: params.needed_to || null,
+                                    }}
+                                    onChange={(range) =>
+                                        setMany({ needed_from: range.from, needed_to: range.to })
+                                    }
+                                />
                             </div>
-                            {(params.search || params.status) && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setMany({ search: '', status: '' })}
-                                >
-                                    Reset Filter
+                            {hasRequestFilters && (
+                                <Button variant="ghost" size="sm" onClick={resetRequestFilters}>
+                                    Reset filter
                                 </Button>
                             )}
                         </div>
@@ -530,6 +540,9 @@ export default function InventoryRequestsIndex({
                             onPerPageChange={(n) => set('per_page', n)}
                             getNextActionText={getNextActionText}
                             loading={processing}
+                            hasFilters={hasRequestFilters}
+                            onResetFilters={resetRequestFilters}
+                            company={company}
                         />
                     </TabPanel>
 
@@ -545,6 +558,9 @@ export default function InventoryRequestsIndex({
                                 onPerPageChange={(n) => set('per_page', n)}
                                 getNextActionText={getNextActionText}
                                 loading={processing}
+                                hasFilters={hasRequestFilters}
+                                onResetFilters={resetRequestFilters}
+                                company={company}
                             />
                         </TabPanel>
                     )}
@@ -561,6 +577,9 @@ export default function InventoryRequestsIndex({
                                 onPerPageChange={(n) => set('per_page', n)}
                                 getNextActionText={getNextActionText}
                                 loading={processing}
+                                hasFilters={hasRequestFilters}
+                                onResetFilters={resetRequestFilters}
+                                company={company}
                             />
                         </TabPanel>
                     )}
@@ -572,16 +591,20 @@ export default function InventoryRequestsIndex({
                                 <div className="rounded-lg border border-border bg-card p-4 text-sm text-foreground">
                                     <div className="mb-1 flex items-center gap-2 font-medium text-brand-600 dark:text-brand-400">
                                         <AlertCircle className="h-4 w-4" />
-                                        <span>Prinsip Keamanan Stok Material Return</span>
+                                        <span>Prinsip keamanan stok pengembalian material</span>
                                     </div>
                                     <p className="text-xs leading-relaxed text-muted-foreground">
                                         Deklarasi oleh teknisi{' '}
                                         <strong>tidak mengubah stok gudang</strong>. Stok hanya
-                                        diperbarui secara atomik ketika petugas gudang memverifikasi
-                                        fisik barang dan menyetujui penerimaan pada status{' '}
-                                        <em>awaiting_receipt</em>. Kasus diskrepansi (
-                                        <em>exception_open</em>) memerlukan resolusi atasan/resolver
-                                        resmi sebelum status diselesaikan.
+                                        diperbarui ketika petugas gudang memeriksa fisik barang dan
+                                        menyetujui penerimaan pada status{' '}
+                                        <em>
+                                            {labelOf(MATERIAL_RETURN_STATUS, 'awaiting_receipt')}
+                                        </em>
+                                        . Kasus berstatus{' '}
+                                        <em>{labelOf(MATERIAL_RETURN_STATUS, 'exception_open')}</em>{' '}
+                                        memerlukan penyelesaian oleh atasan atau penyelesai yang
+                                        berwenang sebelum ditutup.
                                     </p>
                                 </div>
 
@@ -630,7 +653,7 @@ export default function InventoryRequestsIndex({
                                                 className="gap-1.5 text-xs"
                                             >
                                                 <ShieldAlert className="h-3.5 w-3.5" />
-                                                Antrean Diskrepansi (Exception)
+                                                Antrean Selisih
                                             </Button>
                                         )}
 
@@ -695,25 +718,17 @@ export default function InventoryRequestsIndex({
                                         onChange={(event) =>
                                             setReturnsQueueFilter(event.target.value)
                                         }
-                                        className="w-full sm:w-64"
-                                    >
-                                        <option value="">Semua Status</option>
-                                        {Object.entries(returnStatusLabelMap).map(
-                                            ([value, label]) => (
-                                                <option key={value} value={value}>
-                                                    {label}
-                                                </option>
-                                            ),
-                                        )}
-                                    </NativeSelect>
+                                        options={RETURN_STATUS_OPTIONS}
+                                        wrapperClassName="sm:w-64"
+                                    />
 
                                     <div className="flex items-center gap-2">
                                         <Input
                                             aria-label="Cari pengembalian"
-                                            placeholder="Cari SPK / teknisi..."
+                                            placeholder="Cari SPK atau teknisi"
                                             value={returnsSearch}
                                             onChange={(e) => setReturn('search', e.target.value)}
-                                            className="h-8 w-full text-xs sm:w-56"
+                                            className="w-full text-xs sm:w-56"
                                         />
                                         <Button
                                             variant="outline"
@@ -722,8 +737,8 @@ export default function InventoryRequestsIndex({
                                                 fetchReturnsData(returnsQueueFilter, returnsSearch)
                                             }
                                             disabled={returnsLoading}
-                                            className="h-8 px-2.5"
-                                            aria-label="Segarkan antrean retur"
+                                            className="px-2.5"
+                                            aria-label="Muat ulang antrean pengembalian"
                                         >
                                             <RefreshCw
                                                 className={`h-3.5 w-3.5 ${returnsLoading ? 'animate-spin' : ''}`}
@@ -732,34 +747,14 @@ export default function InventoryRequestsIndex({
                                     </div>
                                 </div>
 
-                                {/* Accessible Error Alert State */}
-                                {returnsError && (
-                                    <div
-                                        role="alert"
-                                        aria-live="assertive"
-                                        className="flex flex-col gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive-text sm:flex-row sm:items-center sm:justify-between"
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <AlertCircle className="h-5 w-5 shrink-0" />
-                                            <span>{returnsError}</span>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() =>
-                                                fetchReturnsData(returnsQueueFilter, returnsSearch)
-                                            }
-                                            className="self-end border-destructive/30 text-xs text-destructive-text hover:bg-destructive/20 sm:self-auto"
-                                        >
-                                            Coba Lagi
-                                        </Button>
-                                    </div>
-                                )}
-
                                 <DataTable<MaterialReturnCaseRow>
                                     data={returnsList}
                                     meta={returnsMeta}
                                     loading={returnsLoading}
+                                    error={returnsError ?? false}
+                                    onRetry={() =>
+                                        fetchReturnsData(returnsQueueFilter, returnsSearch)
+                                    }
                                     sortBy={params.return_sort}
                                     sortDir={params.return_direction === 'asc' ? 'asc' : 'desc'}
                                     onSort={(sort, direction) =>
@@ -772,7 +767,18 @@ export default function InventoryRequestsIndex({
                                     }
                                     onPageChange={(page) => setReturn('page', page)}
                                     onPerPageChange={(perPage) => setReturn('per_page', perPage)}
-                                    emptyTitle="Tidak ada berkas pengembalian material pada kriteria antrean ini."
+                                    itemLabel="berkas pengembalian"
+                                    hasFilters={Boolean(returnsQueueFilter || returnsSearch)}
+                                    onResetFilters={() =>
+                                        setMany({
+                                            page: params.page ?? 1,
+                                            return_status: 'all',
+                                            return_search: '',
+                                            return_page: 1,
+                                        })
+                                    }
+                                    emptyTitle="Belum ada berkas pengembalian material"
+                                    emptyDescription="Berkas dibuat otomatis saat barang diserahkan ke teknisi, lalu muncul di antrean ini."
                                     columns={[
                                         {
                                             key: 'id',
@@ -788,18 +794,12 @@ export default function InventoryRequestsIndex({
                                                         <div className="flex flex-wrap items-center justify-between gap-2">
                                                             <span className="font-semibold text-primary">
                                                                 {c.inventory_request?.code ||
-                                                                    `Return #${c.id}`}
+                                                                    `Pengembalian #${c.id}`}
                                                             </span>
-                                                            <Badge
-                                                                variant={
-                                                                    returnStatusVariantMap[
-                                                                        c.status
-                                                                    ] || 'neutral'
-                                                                }
-                                                            >
-                                                                {returnStatusLabelMap[c.status] ||
-                                                                    c.status}
-                                                            </Badge>
+                                                            <EnumBadge
+                                                                map={MATERIAL_RETURN_STATUS}
+                                                                value={c.status}
+                                                            />
                                                         </div>
 
                                                         {/* Capability hints from server */}
@@ -810,7 +810,7 @@ export default function InventoryRequestsIndex({
                                                                         variant="warning"
                                                                         className="text-xs"
                                                                     >
-                                                                        Eligible Resolve
+                                                                        Anda dapat menyelesaikan
                                                                     </Badge>
                                                                 )}
                                                                 {c.can.receive && (
@@ -818,7 +818,7 @@ export default function InventoryRequestsIndex({
                                                                         variant="info"
                                                                         className="text-xs"
                                                                     >
-                                                                        Eligible Receive
+                                                                        Anda dapat menerima
                                                                     </Badge>
                                                                 )}
                                                                 {c.can.declare && (
@@ -826,7 +826,7 @@ export default function InventoryRequestsIndex({
                                                                         variant="neutral"
                                                                         className="text-xs"
                                                                     >
-                                                                        Eligible Declare
+                                                                        Anda dapat mendeklarasikan
                                                                     </Badge>
                                                                 )}
                                                             </div>
@@ -843,7 +843,7 @@ export default function InventoryRequestsIndex({
                                                                 Gudang Tujuan:{' '}
                                                                 <span className="font-medium text-foreground">
                                                                     {c.warehouse_location?.name ??
-                                                                        'Gudang'}
+                                                                        '-'}
                                                                 </span>
                                                             </div>
                                                             {c.work_order && (
@@ -856,11 +856,12 @@ export default function InventoryRequestsIndex({
                                                                 </div>
                                                             )}
                                                             <div>
-                                                                Tgl Deklarasi:{' '}
+                                                                Tanggal Deklarasi:{' '}
                                                                 <span className="text-foreground">
                                                                     {c.declared_at
                                                                         ? formatDateTime(
                                                                               c.declared_at,
+                                                                              company,
                                                                           )
                                                                         : '-'}
                                                                 </span>
@@ -876,7 +877,9 @@ export default function InventoryRequestsIndex({
                                                         )}
                                                         {c.resolution_note && (
                                                             <div className="text-success-800 dark:text-success-200 rounded bg-success/10 p-2 text-xs">
-                                                                <strong>Catatan Resolusi:</strong>{' '}
+                                                                <strong>
+                                                                    Catatan Penyelesaian:
+                                                                </strong>{' '}
                                                                 {c.resolution_note}
                                                             </div>
                                                         )}
@@ -898,13 +901,13 @@ export default function InventoryRequestsIndex({
                                                                             </span>
                                                                             <span className="shrink-0 font-medium">
                                                                                 Baik:{' '}
-                                                                                {
-                                                                                    l.declared_good_return_qty
-                                                                                }{' '}
-                                                                                | Sisa/Beda:{' '}
-                                                                                {
-                                                                                    l.declared_discrepancy_qty
-                                                                                }
+                                                                                {formatNumber(
+                                                                                    l.declared_good_return_qty,
+                                                                                )}{' '}
+                                                                                | Selisih:{' '}
+                                                                                {formatNumber(
+                                                                                    l.declared_discrepancy_qty,
+                                                                                )}
                                                                             </span>
                                                                         </li>
                                                                     ))}
@@ -928,11 +931,11 @@ export default function InventoryRequestsIndex({
                                                                         {c.can?.resolve ||
                                                                         c.status ===
                                                                             'exception_open'
-                                                                            ? 'Buka & Selesaikan Diskrepansi'
+                                                                            ? 'Buka & Selesaikan Selisih'
                                                                             : c.can?.receive ||
                                                                                 c.status ===
                                                                                     'awaiting_receipt'
-                                                                              ? 'Buka Permintaan & Terima Fisik'
+                                                                              ? 'Buka Permintaan & Terima Barang'
                                                                               : c.can?.declare ||
                                                                                   c.status ===
                                                                                       'awaiting_declaration'
@@ -947,7 +950,7 @@ export default function InventoryRequestsIndex({
                                                                     className="w-full"
                                                                     disabled
                                                                 >
-                                                                    Hanya Akses via Request
+                                                                    Tidak terkait permintaan barang
                                                                 </Button>
                                                             )}
                                                         </div>
@@ -976,6 +979,9 @@ interface RequestsTableViewProps {
     onPerPageChange: (perPage: number) => void;
     getNextActionText: (row: InventoryRequestRow) => string;
     loading: boolean;
+    hasFilters: boolean;
+    onResetFilters: () => void;
+    company: Company | null;
 }
 
 function RequestsTableView({
@@ -988,6 +994,9 @@ function RequestsTableView({
     onPerPageChange,
     getNextActionText,
     loading,
+    hasFilters,
+    onResetFilters,
+    company,
 }: RequestsTableViewProps) {
     const data = requests?.data ?? [];
 
@@ -1005,8 +1014,11 @@ function RequestsTableView({
                     onPageChange={onPageChange}
                     onPerPageChange={onPerPageChange}
                     loading={loading}
-                    emptyTitle="Tidak ada data permintaan barang"
-                    emptyDescription="Belum ada permohonan inventaris pada tab atau kriteria filter ini."
+                    itemLabel="permintaan"
+                    hasFilters={hasFilters}
+                    onResetFilters={onResetFilters}
+                    emptyTitle="Belum ada permintaan barang"
+                    emptyDescription="Permintaan muncul di sini setelah dibuat, sesuai tab dan filter yang dipilih."
                 />
             </div>
 
@@ -1021,7 +1033,11 @@ function RequestsTableView({
                     onPageChange={onPageChange}
                     onPerPageChange={onPerPageChange}
                     loading={loading}
-                    emptyTitle="Tidak ada data permintaan barang pada tab ini."
+                    itemLabel="permintaan"
+                    hasFilters={hasFilters}
+                    onResetFilters={onResetFilters}
+                    emptyTitle="Belum ada permintaan barang"
+                    emptyDescription="Permintaan muncul di sini setelah dibuat, sesuai tab dan filter yang dipilih."
                     columns={[
                         {
                             key: 'code',
@@ -1029,7 +1045,7 @@ function RequestsTableView({
                             sortable: true,
                             className: 'whitespace-normal',
                             cell: (row) => (
-                                <Card key={row.id} className="border border-border shadow-xs">
+                                <Card key={row.id} className="border border-border">
                                     <CardContent className="space-y-3 p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div>
@@ -1046,9 +1062,9 @@ function RequestsTableView({
                                                     Pemohon: {row.requester?.name ?? '-'}
                                                 </p>
                                             </div>
-                                            <StatusBadge
-                                                status={row.status_label || row.status}
-                                                variant={statusVariantMap[row.status] || 'neutral'}
+                                            <EnumBadge
+                                                map={INVENTORY_REQUEST_STATUS}
+                                                value={row.status}
                                             />
                                         </div>
 
@@ -1056,24 +1072,25 @@ function RequestsTableView({
                                             <div>
                                                 Lokasi:{' '}
                                                 <span className="font-medium text-foreground">
-                                                    {row.warehouse_location?.name ?? 'Gudang Utama'}
+                                                    {row.warehouse_location?.name ?? '-'}
                                                 </span>
                                             </div>
                                             <div>
                                                 Dibutuhkan:{' '}
                                                 <span className="font-medium text-foreground">
                                                     {row.needed_at
-                                                        ? formatDate(row.needed_at)
+                                                        ? formatDate(row.needed_at, company)
                                                         : '-'}
                                                 </span>
                                             </div>
                                             {row.source_type && row.source_id && (
                                                 <div>
-                                                    Referensi:{' '}
+                                                    Rujukan:{' '}
                                                     <span className="font-mono text-foreground">
-                                                        {row.source_type === 'work_order'
-                                                            ? 'SPK'
-                                                            : 'TIKET'}{' '}
+                                                        {labelOf(
+                                                            INVENTORY_REQUEST_SOURCE,
+                                                            row.source_type,
+                                                        )}{' '}
                                                         #{row.source_id}
                                                     </span>
                                                 </div>
@@ -1086,9 +1103,7 @@ function RequestsTableView({
                                                     Barang:
                                                 </span>
                                                 <div className="font-medium text-foreground">
-                                                    {row.items[0].product?.name ?? 'Item'} (
-                                                    {row.items[0].quantity_requested}{' '}
-                                                    {row.items[0].product?.unit ?? 'unit'})
+                                                    {firstItemLine(row.items[0])}
                                                     {row.items.length > 1 && (
                                                         <span className="ml-1 font-normal text-muted-foreground">
                                                             +{row.items.length - 1} barang lainnya

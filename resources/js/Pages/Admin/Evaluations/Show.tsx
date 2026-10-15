@@ -1,8 +1,20 @@
+import type { ReactNode } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    EmptyCell,
+    EnumBadge,
+} from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDateTime, formatNumber } from '@/lib/format';
+import { EVALUATION_REFERENCE_TYPE, labelOf } from '@/lib/statuses';
 
 interface EvalData {
     id: number;
@@ -20,17 +32,31 @@ interface EvalData {
 
 interface ShowProps extends Record<string, unknown> {
     evaluation: { data: EvalData };
+    /** Code and title of the ticket or SPK evaluated; null when that record is gone. */
+    referenceOption: { code: string; title: string } | null;
 }
 
-export default function Show({ evaluation }: ShowProps) {
+function Detail({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <div>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-medium text-foreground">{children}</dd>
+        </div>
+    );
+}
+
+export default function Show({ evaluation, referenceOption }: ShowProps) {
     const ev = evaluation.data;
+    const company = useCompany();
+    const referenceCode = referenceOption?.code ?? `#${ev.reference_id}`;
+    const referenceLabel = `${labelOf(EVALUATION_REFERENCE_TYPE, ev.reference_type)} ${referenceCode}`;
 
     return (
-        <AdminLayout title="Evaluation Detail">
+        <AdminLayout title="Detail Evaluasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Evaluation"
-                    subtitle={`${ev.reference_type}:${ev.reference_id} · ${ev.evaluated_at}`}
+                    title={`Evaluasi ${ev.employee?.name ?? ''}`.trim()}
+                    subtitle={`${referenceLabel}, ${formatDateTime(ev.evaluated_at, company)}`}
                     actions={
                         <>
                             <Button
@@ -39,14 +65,14 @@ export default function Show({ evaluation }: ShowProps) {
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.evaluations.index')}>Back</Link>
+                                <Link href={route('admin.evaluations.index')}>Kembali</Link>
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
                                 onClick={() => router.get(route('admin.evaluations.edit', ev.id))}
                             >
-                                Edit
+                                Ubah
                             </Button>
                         </>
                     }
@@ -54,70 +80,63 @@ export default function Show({ evaluation }: ShowProps) {
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Hasil penilaian</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Employee:{' '}
-                                </span>
-                                {ev.employee?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Evaluator:{' '}
-                                </span>
-                                {ev.evaluator?.name ?? '-'}
-                            </p>
-                            <p className="text-lg font-bold">
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Score:{' '}
-                                </span>
-                                {ev.score}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Customer Rating:{' '}
-                                </span>
-                                {ev.customer_rating ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    FRT (min):{' '}
-                                </span>
-                                {ev.first_response_minutes ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Resolution (min):{' '}
-                                </span>
-                                {ev.resolution_minutes ?? '-'}
-                            </p>
-                            {ev.comment && (
-                                <p className="md:col-span-2">
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Comment:{' '}
-                                    </span>
-                                    {ev.comment}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid gap-x-6 gap-y-4 text-sm md:grid-cols-2">
+                                <Detail label="Karyawan">
+                                    {ev.employee?.name ?? <EmptyCell />}
+                                </Detail>
+                                <Detail label="Penilai">
+                                    {ev.evaluator?.name ?? <EmptyCell />}
+                                </Detail>
+                                <Detail label="Nilai">{ev.score}</Detail>
+                                <Detail label="Penilaian pelanggan">
+                                    {ev.customer_rating ?? <EmptyCell />}
+                                </Detail>
+                                <Detail label="Respons pertama">
+                                    {ev.first_response_minutes == null ? (
+                                        <EmptyCell />
+                                    ) : (
+                                        `${formatNumber(ev.first_response_minutes)} menit`
+                                    )}
+                                </Detail>
+                                <Detail label="Penyelesaian">
+                                    {ev.resolution_minutes == null ? (
+                                        <EmptyCell />
+                                    ) : (
+                                        `${formatNumber(ev.resolution_minutes)} menit`
+                                    )}
+                                </Detail>
+                                <div className="md:col-span-2">
+                                    <dt className="text-muted-foreground">Komentar</dt>
+                                    <dd className="font-medium whitespace-pre-wrap text-foreground">
+                                        {ev.comment || <EmptyCell />}
+                                    </dd>
+                                </div>
+                            </dl>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Reference</CardTitle>
+                            <CardTitle>Referensi</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Reference: </span>
-                                <Badge variant="neutral">
-                                    {ev.reference_type}:{ev.reference_id}
-                                </Badge>
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Evaluated At: </span>
-                                {ev.evaluated_at}
-                            </p>
+                        <CardContent>
+                            <dl className="space-y-4 text-sm">
+                                <Detail label="Jenis">
+                                    <EnumBadge
+                                        map={EVALUATION_REFERENCE_TYPE}
+                                        value={ev.reference_type}
+                                    />
+                                </Detail>
+                                <Detail label="Kode">{referenceCode}</Detail>
+                                <Detail label="Judul">
+                                    {referenceOption?.title ?? <EmptyCell />}
+                                </Detail>
+                                <Detail label="Tanggal evaluasi">
+                                    {formatDateTime(ev.evaluated_at, company)}
+                                </Detail>
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>

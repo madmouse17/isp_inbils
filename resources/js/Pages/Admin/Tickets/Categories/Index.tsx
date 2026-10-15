@@ -4,10 +4,10 @@ import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import {
-    Badge,
     Button,
     Card,
     CardContent,
+    EnumBadge,
     Input,
     Modal,
     Switch,
@@ -18,6 +18,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { ACTIVE_STATE } from '@/lib/statuses';
 
 interface CategoryRow {
     id: number;
@@ -110,13 +111,10 @@ export default function TicketCategoriesIndex({ categories, can }: Props) {
                                                 {category.default_sla_hours}
                                             </TD>
                                             <TD>
-                                                <Badge
-                                                    variant={
-                                                        category.is_active ? 'success' : 'outline'
-                                                    }
-                                                >
-                                                    {category.is_active ? 'Aktif' : 'Nonaktif'}
-                                                </Badge>
+                                                <EnumBadge
+                                                    map={ACTIVE_STATE}
+                                                    value={category.is_active}
+                                                />
                                             </TD>
                                             {can.manage && (
                                                 <TD>

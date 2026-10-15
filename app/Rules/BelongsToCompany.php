@@ -29,7 +29,7 @@ class BelongsToCompany implements ValidationRule
 
         $companyId = CompanyService::currentId();
         if ($companyId === null) {
-            $fail('Company context is required.');
+            $fail('Konteks perusahaan diperlukan.');
 
             return;
         }
@@ -42,7 +42,7 @@ class BelongsToCompany implements ValidationRule
             ->exists();
 
         if (! $exists) {
-            $fail('The selected :attribute is invalid for this company.');
+            $fail(':attribute yang dipilih tidak valid untuk perusahaan ini.');
         }
     }
 

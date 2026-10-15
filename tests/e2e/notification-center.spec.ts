@@ -211,7 +211,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         await expect(bell).toBeVisible();
 
         // Hold the real mutation so fast local responses cannot conceal premature navigation.
-        const details = article(page, owned[0]).getByRole('button', { name: 'View details' });
+        const details = article(page, owned[0]).getByRole('button', { name: 'Lihat detail' });
         await tabTo(page, details);
         const readUrl = new URL(`/admin/notifications/${rows[0].id}/read`, page.url()).href;
         const detailUrl = new URL(`/admin/tickets/${owned[0].id}`, page.url()).href;
@@ -273,7 +273,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         await page.goto('/admin/notifications');
         const opened = await notificationById(page, rows[0].id);
         expect(opened.read_at).not.toBeNull();
-        await expect(article(page, owned[0]).getByText('Unread', { exact: true })).toHaveCount(0);
+        await expect(article(page, owned[0]).getByText(/^Belum dibaca/)).toHaveCount(0);
         await expect(
             page.getByRole('button', {
                 name: `Notifikasi, ${before.unreadCount - 1} belum dibaca`,
@@ -282,17 +282,17 @@ test('@notification-center owned assignments persist reads and reassignment noti
         ).toBeVisible();
 
         await article(page, owned[1])
-            .getByRole('button', { name: 'Mark read', exact: true })
+            .getByRole('button', { name: 'Tandai dibaca', exact: true })
             .click();
         await expect(
-            article(page, owned[1]).getByRole('button', { name: 'Mark read', exact: true }),
+            article(page, owned[1]).getByRole('button', { name: 'Tandai dibaca', exact: true }),
         ).toHaveCount(0);
         const marked = await notificationById(page, rows[1].id);
         expect(marked.read_at).not.toBeNull();
         await page.reload();
         expect((await notificationById(page, rows[0].id)).read_at).toBe(opened.read_at);
         expect((await notificationById(page, rows[1].id)).read_at).toBe(marked.read_at);
-        await article(page, owned[0]).getByRole('button', { name: 'View details' }).click();
+        await article(page, owned[0]).getByRole('button', { name: 'Lihat detail' }).click();
         await expect(page).toHaveURL(new RegExp(`/admin/tickets/${owned[0].id}$`));
         await page.goto('/admin/notifications');
         expect((await notificationById(page, rows[0].id)).read_at).toBe(opened.read_at);
@@ -326,11 +326,9 @@ test('@notification-center owned assignments persist reads and reassignment noti
             await expect(
                 page.getByRole('button', { name: 'Notifikasi, 1 belum dibaca', exact: true }),
             ).toBeVisible();
+            await expect(page.getByRole('article').getByText(/^Belum dibaca/)).toHaveCount(0);
             await expect(
-                page.getByRole('article').getByText('Unread', { exact: true }),
-            ).toHaveCount(0);
-            await expect(
-                page.getByRole('button', { name: 'Mark all as read', exact: true }),
+                page.getByRole('button', { name: 'Tandai semua dibaca', exact: true }),
             ).toBeEnabled();
         } finally {
             await page.unroute(inboxUrl, projectReadPage);
@@ -364,14 +362,17 @@ test('@notification-center owned assignments persist reads and reassignment noti
                 await page.reload();
                 await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark)/);
                 await expect(
-                    page.getByRole('main').getByRole('heading', { name: 'Notifications' }),
+                    page.getByRole('main').getByRole('heading', { name: 'Notifikasi' }),
                 ).toBeVisible();
                 expect(
                     await page.evaluate(
                         () => document.documentElement.scrollWidth <= window.innerWidth,
                     ),
                 ).toBe(true);
-                const markAll = page.getByRole('button', { name: 'Mark all as read', exact: true });
+                const markAll = page.getByRole('button', {
+                    name: 'Tandai semua dibaca',
+                    exact: true,
+                });
                 await expect(markAll).toBeEnabled();
                 await tabTo(page, markAll);
                 await testInfo.attach(`notifications-${width}-${dark ? 'dark' : 'light'}`, {
@@ -382,7 +383,7 @@ test('@notification-center owned assignments persist reads and reassignment noti
         }
         await page.keyboard.press('Enter');
         await expect(
-            page.getByRole('button', { name: 'Mark all as read', exact: true }),
+            page.getByRole('button', { name: 'Tandai semua dibaca', exact: true }),
         ).toBeDisabled();
         await page.reload();
         expect((await inbox(page)).unreadCount).toBe(0);

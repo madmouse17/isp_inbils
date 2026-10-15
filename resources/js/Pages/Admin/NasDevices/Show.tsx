@@ -11,6 +11,7 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    EmptyCell,
 } from '@/Components/ui';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { ConfirmRequestDialog } from '@/Components/composite/ConfirmRequestDialog';
@@ -47,7 +48,7 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
         () => [
             {
                 key: 'username',
-                header: 'Username',
+                header: 'Nama pengguna',
                 cell: (row) =>
                     row.subscription ? (
                         <Link
@@ -65,12 +66,17 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
             },
             {
                 key: 'framed_ip',
-                header: 'Address',
-                cell: (row) => <span className="font-mono text-sm">{row.framed_ip ?? '-'}</span>,
+                header: 'Alamat',
+                cell: (row) =>
+                    row.framed_ip ? (
+                        <span className="font-mono text-sm">{row.framed_ip}</span>
+                    ) : (
+                        <EmptyCell />
+                    ),
             },
             {
                 key: 'started_at',
-                header: 'Started',
+                header: 'Mulai',
                 cell: (row) => formatDateTime(row.started_at),
             },
         ],
@@ -78,10 +84,10 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
     );
 
     return (
-        <AdminLayout title={`NAS router ${assetCode}`}>
+        <AdminLayout title={`Router NAS ${assetCode}`}>
             <div className="space-y-6">
                 <PageHeader
-                    title={`NAS router ${assetCode}`}
+                    title={`Router NAS ${assetCode}`}
                     subtitle={`${asset?.name ?? 'Router'} - ${nasDevice.nasname}`}
                     actions={
                         <>
@@ -91,23 +97,24 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.nas-devices.index')}>Back</Link>
+                                <Link href={route('admin.nas-devices.index')}>Kembali</Link>
                             </Button>
                             {can.update ? (
                                 <Button asChild variant="outline" size="sm">
                                     <Link href={route('admin.nas-devices.edit', nasDevice.id)}>
-                                        Edit
+                                        Ubah
                                     </Link>
                                 </Button>
                             ) : null}
                             {can.update ? (
                                 <Button
                                     type="button"
-                                    variant="danger"
+                                    variant="outline"
                                     size="sm"
+                                    className="text-destructive-text"
                                     onClick={() => setRemoving(true)}
                                 >
-                                    Remove router
+                                    Hapus router
                                 </Button>
                             ) : null}
                         </>
@@ -117,16 +124,16 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                 {!radiusEnabled ? (
                     <Alert variant="warning">
                         <AlertDescription>
-                            RADIUS is switched off for this installation. Nothing is written to
-                            FreeRADIUS and no session is listed.
+                            RADIUS dimatikan untuk instalasi ini. Tidak ada yang ditulis ke
+                            FreeRADIUS dan tidak ada sesi yang ditampilkan.
                         </AlertDescription>
                     </Alert>
                 ) : null}
 
                 <Alert variant="info">
                     <AlertDescription>
-                        Restart FreeRADIUS after adding this NAS or changing its secret. FreeRADIUS
-                        reads its clients only at start (a reload signal is not enough).
+                        Mulai ulang FreeRADIUS setelah menambah NAS ini atau mengganti secret-nya.
+                        FreeRADIUS hanya membaca kliennya saat mulai (sinyal reload tidak cukup).
                     </AlertDescription>
                 </Alert>
 
@@ -137,18 +144,18 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
-                                <Detail label="RADIUS client">
+                                <Detail label="Klien RADIUS">
                                     <NasStatusBadge nas={nasDevice} />
                                 </Detail>
-                                <Detail label="Last written">
+                                <Detail label="Terakhir ditulis">
                                     {nasDevice.radius_synced_at
                                         ? formatDateTime(nasDevice.radius_synced_at)
-                                        : 'Never'}
+                                        : 'Belum pernah'}
                                 </Detail>
-                                <Detail label="NAS address">
+                                <Detail label="Alamat NAS">
                                     <span className="font-mono">{nasDevice.nasname}</span>
                                 </Detail>
-                                <Detail label="CoA target">
+                                <Detail label="Target CoA">
                                     <span className="font-mono">
                                         {`${asset?.management_ip ?? '-'}:${nasDevice.coa_port}`}
                                     </span>
@@ -156,16 +163,14 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                                 <Detail label="Realm">
                                     <span className="font-mono">{nasDevice.shortname}</span>
                                 </Detail>
-                                <Detail label="RADIUS secret">
-                                    {nasDevice.has_radius_secret ? 'Stored' : 'Not set'}
+                                <Detail label="Secret RADIUS">
+                                    {nasDevice.has_radius_secret ? 'Tersimpan' : 'Belum diisi'}
                                 </Detail>
                             </dl>
                             {nasDevice.last_error ? (
                                 <Alert variant="danger">
-                                    <AlertTitle className="text-red-700 dark:text-red-400">
-                                        Last error
-                                    </AlertTitle>
-                                    <AlertDescription className="wrap-break-word text-red-700 dark:text-red-400">
+                                    <AlertTitle>Kesalahan terakhir</AlertTitle>
+                                    <AlertDescription className="wrap-break-word">
                                         {nasDevice.last_error}
                                     </AlertDescription>
                                 </Alert>
@@ -175,34 +180,33 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Isolir page</CardTitle>
+                            <CardTitle>Halaman isolir</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3">
                             <p className="text-sm text-muted-foreground">
-                                Subscribers in the isolir group should be redirected to this address
-                                by the router.
+                                Router harus mengarahkan pelanggan di grup isolir ke alamat ini.
                             </p>
                             <code className="block rounded-md bg-muted p-2.5 font-mono text-xs break-all text-foreground select-all">
                                 {isolirUrl}
                             </code>
-                            <CopyButton value={isolirUrl} label="Copy URL" />
+                            <CopyButton value={isolirUrl} label="Salin URL" />
                         </CardContent>
                     </Card>
                 </div>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Open sessions</CardTitle>
+                        <CardTitle>Sesi terbuka</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <DataTable
                             columns={columns}
                             data={sessions}
-                            emptyTitle="No open sessions"
+                            emptyTitle="Tidak ada sesi terbuka"
                             emptyDescription={
                                 radiusEnabled
-                                    ? 'No subscriber is connected through this router right now.'
-                                    : 'Switch RADIUS on to see the sessions open on this router.'
+                                    ? 'Tidak ada pelanggan yang tersambung lewat router ini saat ini.'
+                                    : 'Nyalakan RADIUS untuk melihat sesi yang terbuka di router ini.'
                             }
                         />
                     </CardContent>
@@ -211,10 +215,10 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                 {removing ? (
                     <ConfirmRequestDialog
                         request={{
-                            title: 'Remove this NAS router?',
+                            title: 'Hapus router NAS ini?',
                             description:
-                                'The client row is removed from FreeRADIUS. The router ends open sessions on its own.',
-                            confirmLabel: 'Remove',
+                                'Baris klien dihapus dari FreeRADIUS. Router mengakhiri sesi yang terbuka dengan sendirinya.',
+                            confirmLabel: 'Hapus',
                             href: route('admin.nas-devices.destroy', nasDevice.id),
                         }}
                         onClose={() => setRemoving(false)}

@@ -852,7 +852,7 @@ class LocationContractTest extends TestCase
         $parent->delete();
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Parent location not found or invalid.');
+        $this->expectExceptionMessage('Induk lokasi tidak ditemukan atau tidak valid.');
 
         try {
             LocationService::update($child, [
@@ -1167,5 +1167,75 @@ class LocationContractTest extends TestCase
                 ->where('filters.direction', null)
                 ->where('filters.per_page', null)
             );
+    }
+
+    public function test_the_table_rows_carry_no_children_so_the_page_reads_them_from_the_tree(): void
+    {
+        // The Tabel view of the page used `row.children.length` on these rows and crashed for anyone who may delete.
+        $region = $this->location(['code' => 'REG-1', 'type' => 'region']);
+        $area = $this->location(['code' => 'AREA-1', 'type' => 'area', 'parent_id' => $region->id, 'path' => 'REG-1 > AREA-1']);
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.locations.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('locations.data', 2)
+                ->missing('locations.data.0.children')
+                ->missing('locations.data.1.children')
+                ->where('locations.data.1.parent_id', $region->id)
+                ->where('tree.data.0.id', $region->id)
+                ->where('tree.data.0.children.0.id', $area->id)
+                ->where('tree.data.0.children.0.children', [])
+            );
+    }
+
+    public function test_store_answers_in_indonesian(): void
+    {
+        $this->actingAs($this->admin);
+        $region = $this->location(['code' => 'REG-1', 'type' => 'region']);
+
+        $this->postJson(route('admin.locations.store'), ['code' => 'REG-2', 'name' => 'Wilayah', 'type' => 'region', 'parent_id' => $region->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id' => 'Lokasi Wilayah tidak boleh punya induk.']);
+        $this->postJson(route('admin.locations.store'), ['code' => 'AREA-2', 'name' => 'Area', 'type' => 'area'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['parent_id' => 'Induk lokasi wajib diisi untuk lokasi selain Wilayah.']);
+        $this->postJson(route('admin.locations.store'), ['code' => 'REG-3', 'name' => 'Wilayah', 'type' => 'region', 'lat' => '-6.2'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['lat' => 'Lintang dan bujur harus diisi bersamaan.']);
+        $this->postJson(route('admin.locations.store'), ['code' => 'A > B', 'name' => 'Wilayah', 'type' => 'region'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['code' => 'Kode tidak boleh memuat tanda ">".']);
+        $this->postJson(route('admin.locations.store'), ['type' => 'region'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['code' => 'kode wajib diisi.', 'name' => 'nama wajib diisi.']);
+
+        $this->post(route('admin.locations.store'), ['code' => 'REG-4', 'name' => 'Wilayah', 'type' => 'region'])
+            ->assertSessionHas('success', 'Lokasi dibuat.');
+    }
+
+    public function test_service_refusals_are_indonesian(): void
+    {
+        $this->actingAs($this->admin);
+        $region = $this->location(['code' => 'REG-1', 'type' => 'region']);
+        $area = $this->location(['code' => 'AREA-1', 'type' => 'area', 'parent_id' => $region->id, 'path' => 'REG-1 > AREA-1']);
+        $pop = $this->location(['code' => 'POP-1', 'type' => 'pop', 'parent_id' => $area->id, 'path' => 'REG-1 > AREA-1 > POP-1']);
+
+        $this->deleteJson(route('admin.locations.destroy', $region))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['location' => 'Lokasi masih punya lokasi turunan.']);
+        $this->postJson(route('admin.locations.move', $pop), ['new_parent_id' => $region->id])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['new_parent_id' => 'Lokasi POP harus punya induk Area.']);
+        $this->postJson(route('admin.locations.move', $pop), [])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['new_parent_id' => 'induk baru wajib diisi.']);
+        $this->putJson(route('admin.locations.update', $area), ['code' => 'AREA-1', 'name' => 'Area', 'type' => 'rack'])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['type' => 'Lokasi POP tidak dapat punya induk Rak.']);
+
+        $this->delete(route('admin.locations.destroy', $pop))->assertSessionHas('success', 'Lokasi dihapus.');
+        $this->post(route('admin.locations.move', $area), ['new_parent_id' => $region->id])->assertSessionHas('success', 'Lokasi dipindahkan.');
+        $this->put(route('admin.locations.update', $area), ['code' => 'AREA-1', 'name' => 'Area baru', 'type' => 'area'])->assertSessionHas('success', 'Lokasi diperbarui.');
     }
 }

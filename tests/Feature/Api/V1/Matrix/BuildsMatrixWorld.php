@@ -276,7 +276,7 @@ trait BuildsMatrixWorld
     protected function realIds(string $name): array
     {
         return match ($name) {
-            'customer.subscriptions.show' => [$this->ids['subscription']],
+            'customer.subscriptions.show', 'customer.subscriptions.connection' => [$this->ids['subscription']],
             'customer.invoices.show', 'customer.invoices.pay' => [$this->ids['invoice']],
             'customer.tickets.show', 'customer.tickets.comments.store', 'customer.tickets.attachments.store' => [$this->ids['customer_ticket']],
             'customer.tickets.attachments.destroy' => [$this->ids['customer_ticket'], $this->ids['customer_attachment']],

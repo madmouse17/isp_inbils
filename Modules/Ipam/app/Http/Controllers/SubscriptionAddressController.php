@@ -17,6 +17,6 @@ class SubscriptionAddressController extends Controller
 
         $row = IpAssignmentService::assignToSubscription($subscription, $pool, $request->validated('address') ?: null);
 
-        return back()->with('success', "Address {$row->address} assigned to {$subscription->code}.");
+        return back()->with('success', "Alamat {$row->address} diberikan ke {$subscription->code}.");
     }
 }

@@ -8,7 +8,7 @@ import {
     type ConfirmRequest,
 } from '@/Components/composite/ConfirmRequestDialog';
 import { VlanDialog } from '@/Components/composite/ipam/VlanDialog';
-import { Button } from '@/Components/ui';
+import { Button, EmptyCell } from '@/Components/ui';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination } from '@/lib/pagination';
 import type { Paginated } from '@/types';
@@ -30,19 +30,19 @@ export default function Index({ vlans, locations, can }: IndexProps) {
         const base: DataTableColumn<VlanRow>[] = [
             {
                 key: 'vid',
-                header: 'VLAN ID',
+                header: 'ID VLAN',
                 className: 'font-mono tabular-nums',
                 cell: (row) => row.vid,
             },
-            { key: 'name', header: 'Name', cell: (row) => row.name },
+            { key: 'name', header: 'Nama', cell: (row) => row.name },
             {
                 key: 'location',
                 header: 'POP',
-                cell: (row) => row.location?.code ?? 'Company-wide',
+                cell: (row) => row.location?.code ?? 'Seluruh perusahaan',
             },
             {
                 key: 'prefixes',
-                header: 'Prefixes',
+                header: 'Prefiks',
                 className: 'tabular-nums',
                 cell: (row) =>
                     row.prefixes_count > 0 ? (
@@ -56,7 +56,11 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                         0
                     ),
             },
-            { key: 'description', header: 'Description', cell: (row) => row.description ?? '-' },
+            {
+                key: 'description',
+                header: 'Keterangan',
+                cell: (row) => row.description ?? <EmptyCell />,
+            },
         ];
 
         if (!can.manage) return base;
@@ -65,33 +69,34 @@ export default function Index({ vlans, locations, can }: IndexProps) {
             ...base,
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => (
                     <div className="flex flex-wrap gap-1">
                         <Button
                             type="button"
                             size="sm"
-                            variant="outline"
-                            aria-label={`Edit VLAN ${row.vid}`}
+                            variant="ghost"
+                            aria-label={`Ubah VLAN ${row.vid}`}
                             onClick={() => setDialog(row)}
                         >
-                            Edit
+                            Ubah
                         </Button>
                         <Button
                             type="button"
                             size="sm"
-                            variant="danger"
-                            aria-label={`Delete VLAN ${row.vid}`}
+                            variant="ghost"
+                            className="text-destructive-text"
+                            aria-label={`Hapus VLAN ${row.vid}`}
                             onClick={() =>
                                 setConfirm({
-                                    title: `Delete VLAN ${row.vid}?`,
-                                    description: `${row.name} leaves the register. It can only be deleted while no prefix uses it.`,
-                                    confirmLabel: 'Delete VLAN',
+                                    title: `Hapus VLAN ${row.vid}?`,
+                                    description: `${row.name} keluar dari register. VLAN hanya bisa dihapus selama tidak ada prefiks yang memakainya.`,
+                                    confirmLabel: 'Hapus VLAN',
                                     href: route('admin.ipam.vlans.destroy', row.id),
                                 })
                             }
                         >
-                            Delete
+                            Hapus
                         </Button>
                     </div>
                 ),
@@ -102,20 +107,20 @@ export default function Index({ vlans, locations, can }: IndexProps) {
     const newVlan = can.manage ? (
         <Button type="button" variant="primary" onClick={() => setDialog('new')}>
             <Plus className="size-4" aria-hidden="true" />
-            New VLAN
+            Buat VLAN
         </Button>
     ) : undefined;
 
     return (
-        <AdminLayout title="VLANs">
+        <AdminLayout title="VLAN">
             <div className="space-y-6">
                 <PageHeader
-                    title="VLANs"
-                    description="The VLAN IDs your network uses, company-wide or per POP."
+                    title="VLAN"
+                    description="ID VLAN yang dipakai jaringan, untuk seluruh perusahaan atau per POP."
                     actions={
                         <>
                             <Button asChild variant="outline">
-                                <Link href={route('admin.ipam.prefixes.index')}>IP Addresses</Link>
+                                <Link href={route('admin.ipam.prefixes.index')}>Alamat IP</Link>
                             </Button>
                             {newVlan}
                         </>
@@ -128,8 +133,8 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                     pagination={toPagination(vlans)}
                     onPageChange={(page) => set('page', page)}
                     loading={processing}
-                    emptyTitle="No VLANs yet"
-                    emptyDescription="Register the VLAN IDs you use so prefixes can be tied to them."
+                    emptyTitle="Belum ada VLAN"
+                    emptyDescription="Daftarkan ID VLAN yang dipakai agar prefiks bisa dikaitkan dengannya."
                     emptyAction={newVlan}
                 />
 

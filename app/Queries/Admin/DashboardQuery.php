@@ -43,7 +43,7 @@ final class DashboardQuery
     public static function sections(Request $request): array
     {
         $user = $request->user();
-        abort_unless($user instanceof User && CompanyService::idFor($user) !== null, 403, 'Company context is required.');
+        abort_unless($user instanceof User && CompanyService::idFor($user) !== null, 403, 'Konteks perusahaan diperlukan.');
 
         $inventory = self::inventoryBadges($user);
 
@@ -233,7 +233,7 @@ final class DashboardQuery
             ? '0.00'
             : Money::round(Money::sub((clone $overdue)->sum('total'), $overdue->sum('paid_amount')));
 
-        return self::section('overdue_invoices', 'finance', 'Invoice jatuh tempo', $count, route('admin.invoices.index', ['status' => 'overdue']), 'danger', [
+        return self::section('overdue_invoices', 'finance', 'Tagihan jatuh tempo', $count, route('admin.invoices.index', ['status' => 'overdue']), 'danger', [
             'outstanding' => $outstanding,
         ]);
     }

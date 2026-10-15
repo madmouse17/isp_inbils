@@ -4,22 +4,42 @@ import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
+    DataTableActions,
+    PageHeader,
+    RemoteSearchSelect,
+    SequenceCodeField,
     type CodeSequence,
     type DataTableColumn,
-    PageHeader,
-    SequenceCodeField,
+    type RemoteOption,
 } from '@/Components/composite';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
+import { EMPLOYEE_STATUS, optionsOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
-import { Badge, Button, Card, CardContent, Input, NativeSelect, Modal } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    DatePicker,
+    EnumBadge,
+    Input,
+    Modal,
+    NativeSelect,
+    SearchSelect,
+    Textarea,
+} from '@/Components/ui';
 
 interface EmpRow {
     id: number;
+    user_id: number;
+    organization_id: number | null;
+    vehicle_id: number | null;
     employee_number: string;
     status: string;
     phone?: string | null;
+    hire_date?: string | null;
+    notes?: string | null;
     user?: { name: string; email: string } | null;
     organization?: { name: string } | null;
     vehicle?: { plate_number: string } | null;
@@ -27,22 +47,24 @@ interface EmpRow {
 
 interface OrgRow {
     id: number;
+    code: string;
     name: string;
+    path?: string | null;
 }
+
 interface VehRow {
     id: number;
     plate_number: string;
-}
-interface UserRow {
-    id: number;
-    name: string;
+    type?: string | null;
+    brand?: string | null;
+    model?: string | null;
 }
 
 interface IndexProps extends Record<string, unknown> {
     employees: Paginated<EmpRow>;
     organizations: { data: OrgRow[] };
     vehicles: { data: VehRow[] };
-    users: { data: UserRow[] };
+    userOptions?: RemoteOption[];
     filters: {
         search?: string;
         organization_id?: string;
@@ -55,20 +77,43 @@ interface IndexProps extends Record<string, unknown> {
     codeSequence: CodeSequence;
 }
 
+interface EmployeeForm {
+    user_id: string;
+    organization_id: string;
+    vehicle_id: string;
+    employee_number: string;
+    phone: string;
+    hire_date: string;
+    status: string;
+    notes: string;
+}
+
+const emptyForm: EmployeeForm = {
+    user_id: '',
+    organization_id: '',
+    vehicle_id: '',
+    employee_number: '',
+    phone: '',
+    hire_date: '',
+    status: 'active',
+    notes: '',
+};
+
 export default function Index({
     employees,
     organizations,
     vehicles,
-    users,
+    userOptions,
     filters,
     can,
     codeSequence,
 }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editing, setEditing] = useState<EmpRow | null>(null);
     const {
         params,
         set,
+        setMany,
         sortBy,
         sortDir,
         onSort,
@@ -76,64 +121,107 @@ export default function Index({
     } = useServerTable({
         url: route('admin.employees.index'),
         filters,
-        only: ['employees', 'organizations', 'vehicles', 'users', 'filters', 'can', 'codeSequence'],
+        only: ['employees', 'organizations', 'vehicles', 'filters', 'can', 'codeSequence'],
     });
-    const { data, setData, post, put, transform, processing, errors, reset } = useForm({
-        user_id: '',
-        organization_id: '',
-        vehicle_id: '',
-        employee_number: '',
-        phone: '',
-        hire_date: '',
-        status: 'active',
-        notes: '',
-    });
+    const { data, setData, post, put, transform, processing, errors, reset, clearErrors } =
+        useForm<EmployeeForm>(emptyForm);
+
+    const organizationOptions = useMemo(
+        () =>
+            organizations.data.map((organization) => ({
+                value: String(organization.id),
+                label: `${organization.code} - ${organization.name}`,
+                description: organization.path ?? undefined,
+            })),
+        [organizations.data],
+    );
+    const vehicleOptions = useMemo(
+        () =>
+            vehicles.data.map((vehicle) => ({
+                value: String(vehicle.id),
+                label: vehicle.plate_number,
+                description:
+                    [vehicle.type, vehicle.brand, vehicle.model].filter(Boolean).join(' ') ||
+                    undefined,
+            })),
+        [vehicles.data],
+    );
 
     const openCreate = () => {
         reset();
-        setEditId(null);
+        clearErrors();
+        setEditing(null);
         setModalOpen(true);
     };
     const openEdit = useCallback(
         (employee: EmpRow) => {
-            reset();
-            setData('employee_number', employee.employee_number);
-            setEditId(employee.id);
+            clearErrors();
+            setData({
+                user_id: String(employee.user_id),
+                organization_id: employee.organization_id ? String(employee.organization_id) : '',
+                vehicle_id: employee.vehicle_id ? String(employee.vehicle_id) : '',
+                employee_number: employee.employee_number,
+                phone: employee.phone ?? '',
+                hire_date: employee.hire_date ?? '',
+                status: employee.status,
+                notes: employee.notes ?? '',
+            });
+            setEditing(employee);
             setModalOpen(true);
         },
-        [reset, setData],
+        [clearErrors, setData],
     );
     const submit = (e: FormEvent) => {
         e.preventDefault();
-        // A locked number is generated on create and never changes on update, so it is not sent.
-        if (!codeSequence.manual) transform(({ employee_number: _number, ...values }) => values);
-        if (editId) {
-            put(route('admin.employees.update', editId), { onSuccess: () => setModalOpen(false) });
+        transform(({ user_id, employee_number, ...values }) => ({
+            ...values,
+            // The user is picked once, on create. A locked number is generated on create and never
+            // changes on update, so it is not sent either.
+            ...(editing ? {} : { user_id }),
+            ...(codeSequence.manual ? { employee_number } : {}),
+        }));
+        const onSuccess = () => setModalOpen(false);
+
+        if (editing) {
+            put(route('admin.employees.update', editing.id), { onSuccess });
         } else {
-            post(route('admin.employees.store'), { onSuccess: () => setModalOpen(false) });
+            post(route('admin.employees.store'), { onSuccess });
         }
     };
+
+    const hasFilters = Boolean(params.search || params.organization_id || params.status);
 
     const columns: DataTableColumn<EmpRow>[] = useMemo(
         () => [
             {
                 key: 'employee_number',
-                header: 'Emp No',
+                header: 'Nomor karyawan',
                 sortable: true,
                 sortKey: 'employee_number',
                 cell: (employee) => (
                     <span className="font-mono text-sm">{employee.employee_number}</span>
                 ),
             },
-            { key: 'name', header: 'Name', cell: (employee) => employee.user?.name ?? '-' },
+            {
+                key: 'name',
+                header: 'Nama',
+                cell: (employee) => (
+                    <div>
+                        <p className="font-medium text-foreground">{employee.user?.name ?? '-'}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {employee.user?.email ?? '-'}
+                        </p>
+                    </div>
+                ),
+            },
             {
                 key: 'organization',
-                header: 'Organization',
+                header: 'Organisasi',
                 cell: (employee) => employee.organization?.name ?? '-',
             },
             {
                 key: 'vehicle',
-                header: 'Vehicle',
+                header: 'Kendaraan',
                 cell: (employee) => employee.vehicle?.plate_number ?? '-',
             },
             {
@@ -141,26 +229,13 @@ export default function Index({
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (employee) => (
-                    <Badge variant={employee.status === 'active' ? 'success' : 'danger'}>
-                        {employee.status}
-                    </Badge>
-                ),
+                cell: (employee) => <EnumBadge map={EMPLOYEE_STATUS} value={employee.status} />,
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (employee) =>
-                    can.create ? (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => openEdit(employee)}
-                        >
-                            Edit
-                        </Button>
-                    ) : null,
+                    can.create ? <DataTableActions onEdit={() => openEdit(employee)} /> : null,
             },
         ],
         [can.create, openEdit],
@@ -171,7 +246,7 @@ export default function Index({
             <div className="space-y-6">
                 <PageHeader
                     title="Karyawan"
-                    subtitle="Manage employee profiles linked to users."
+                    subtitle="Profil karyawan beserta pengguna, organisasi, dan kendaraannya."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
@@ -184,7 +259,7 @@ export default function Index({
                             ) : null}
                             {can.create ? (
                                 <Button type="button" variant="primary" onClick={openCreate}>
-                                    Add Employee
+                                    Buat Karyawan
                                 </Button>
                             ) : null}
                         </div>
@@ -194,32 +269,26 @@ export default function Index({
                     <CardContent className="space-y-4 pt-6">
                         <div className="grid gap-3 md:grid-cols-3">
                             <Input
-                                label="Search"
+                                label="Cari"
                                 value={params.search ?? ''}
                                 onChange={(event) => set('search', event.target.value)}
-                                placeholder="Employee number, name, email, phone"
+                                placeholder="Nomor, nama, email, atau telepon"
                             />
-                            <NativeSelect
-                                label="Organization"
+                            <SearchSelect
+                                label="Organisasi"
                                 value={params.organization_id ?? ''}
-                                onChange={(event) => set('organization_id', event.target.value)}
-                            >
-                                <option value="">All organizations</option>
-                                {organizations.data.map((organization) => (
-                                    <option key={organization.id} value={organization.id}>
-                                        {organization.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                                onChange={(value) => set('organization_id', value)}
+                                options={organizationOptions}
+                                placeholder="Semua organisasi"
+                                emptyText="Organisasi tidak ditemukan."
+                            />
                             <NativeSelect
                                 label="Status"
                                 value={params.status ?? ''}
                                 onChange={(event) => set('status', event.target.value)}
                                 options={[
-                                    { value: '', label: 'All statuses' },
-                                    { value: 'active', label: 'Active' },
-                                    { value: 'inactive', label: 'Inactive' },
-                                    { value: 'terminated', label: 'Terminated' },
+                                    { value: '', label: 'Semua status' },
+                                    ...optionsOf(EMPLOYEE_STATUS),
                                 ]}
                             />
                         </div>
@@ -231,8 +300,20 @@ export default function Index({
                             onSort={onSort}
                             onPageChange={(page) => set('page', page)}
                             onPerPageChange={(perPage) => set('per_page', perPage)}
-                            emptyTitle="No employees"
-                            emptyDescription="No employees match the current filters."
+                            emptyTitle="Belum ada karyawan"
+                            emptyDescription="Profil karyawan menghubungkan pengguna dengan organisasi dan kendaraan. Buat profil pertama untuk memulai."
+                            emptyAction={
+                                can.create ? (
+                                    <Button type="button" variant="primary" onClick={openCreate}>
+                                        Buat Karyawan
+                                    </Button>
+                                ) : undefined
+                            }
+                            hasFilters={hasFilters}
+                            onResetFilters={() =>
+                                setMany({ search: '', organization_id: '', status: '' })
+                            }
+                            itemLabel="karyawan"
                             loading={tableProcessing}
                         />
                     </CardContent>
@@ -240,82 +321,99 @@ export default function Index({
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Employee' : 'Add Employee'}
+                    title={editing ? 'Ubah Karyawan' : 'Buat Karyawan'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
-                            {!editId && (
-                                <NativeSelect
-                                    label="User"
+                            {editing ? (
+                                <Input
+                                    label="Pengguna"
+                                    value={
+                                        editing.user
+                                            ? `${editing.user.name} (${editing.user.email})`
+                                            : ''
+                                    }
+                                    readOnly
+                                    aria-readonly="true"
+                                    hint="Pengguna tidak bisa diganti."
+                                    className="bg-muted/50 text-muted-foreground"
+                                />
+                            ) : (
+                                <RemoteSearchSelect
+                                    field="user"
+                                    label="Pengguna"
+                                    options={userOptions}
                                     value={data.user_id}
-                                    onChange={(e) => setData('user_id', e.target.value)}
+                                    onChange={(value) => setData('user_id', value)}
+                                    placeholder="Cari nama atau email"
+                                    emptyText="Tidak ada pengguna aktif yang cocok dan belum punya profil."
+                                    hint="Hanya pengguna aktif yang belum punya profil karyawan."
                                     error={errors.user_id}
                                     required
-                                >
-                                    <option value="">Select...</option>
-                                    {users.data.map((u) => (
-                                        <option key={u.id} value={u.id}>
-                                            {u.name}
-                                        </option>
-                                    ))}
-                                </NativeSelect>
+                                />
                             )}
                             <SequenceCodeField
-                                label="Employee Number"
+                                label="Nomor karyawan"
                                 value={data.employee_number}
                                 onChange={(next) => setData('employee_number', next)}
                                 error={errors.employee_number}
                                 sequence={codeSequence}
-                                mode={editId ? 'edit' : 'create'}
+                                mode={editing ? 'edit' : 'create'}
                             />
-                            <NativeSelect
-                                label="Organization"
+                            <SearchSelect
+                                label="Organisasi"
                                 value={data.organization_id}
-                                onChange={(e) => setData('organization_id', e.target.value)}
+                                onChange={(value) => setData('organization_id', value)}
+                                options={organizationOptions}
+                                placeholder="Cari organisasi"
+                                emptyText="Organisasi tidak ditemukan."
                                 error={errors.organization_id}
-                            >
-                                <option value="">None</option>
-                                {organizations.data.map((o) => (
-                                    <option key={o.id} value={o.id}>
-                                        {o.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Vehicle"
+                            />
+                            <SearchSelect
+                                label="Kendaraan"
                                 value={data.vehicle_id}
-                                onChange={(e) => setData('vehicle_id', e.target.value)}
+                                onChange={(value) => setData('vehicle_id', value)}
+                                options={vehicleOptions}
+                                placeholder="Cari nomor polisi"
+                                emptyText="Kendaraan tidak ditemukan."
                                 error={errors.vehicle_id}
-                            >
-                                <option value="">None</option>
-                                {vehicles.data.map((v) => (
-                                    <option key={v.id} value={v.id}>
-                                        {v.plate_number}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <Input
-                                label="Phone"
+                                label="Telepon"
                                 value={data.phone}
                                 onChange={(e) => setData('phone', e.target.value)}
+                                error={errors.phone}
                             />
-                            <Input
-                                label="Hire Date"
-                                type="date"
+                            <DatePicker
+                                label="Tanggal masuk"
                                 value={data.hire_date}
-                                onChange={(e) => setData('hire_date', e.target.value)}
+                                onChange={(value) => setData('hire_date', value)}
+                                error={errors.hire_date}
+                            />
+                            <NativeSelect
+                                label="Status"
+                                value={data.status}
+                                onChange={(e) => setData('status', e.target.value)}
+                                options={optionsOf(EMPLOYEE_STATUS)}
+                                error={errors.status}
                             />
                         </div>
+                        <Textarea
+                            label="Catatan"
+                            value={data.notes}
+                            onChange={(e) => setData('notes', e.target.value)}
+                            error={errors.notes}
+                        />
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
                                 variant="secondary"
                                 onClick={() => setModalOpen(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editing ? 'Simpan' : 'Buat'}
                             </Button>
                         </div>
                     </form>

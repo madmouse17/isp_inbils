@@ -140,8 +140,8 @@ class InventoryRequestService
                 $sourceType = $data['source_type'] ?? null;
                 $sourceId = $data['source_id'] ?? null;
                 $reason = $sourceType && $sourceId
-                    ? "Permintaan material untuk {$sourceType} #{$sourceId}"
-                    : 'Permintaan material inventory';
+                    ? 'Permintaan material untuk '.($sourceType === 'ticket' ? 'tiket' : 'SPK')." #{$sourceId}"
+                    : 'Permintaan material inventaris';
             }
 
             $request = InventoryRequest::create([
@@ -164,7 +164,7 @@ class InventoryRequestService
                     ->lockForUpdate()
                     ->findOrFail($itemData['product_id']);
 
-                abort_if($product->type === 'asset', 422, 'Produk tipe asset serial belum didukung pada permintaan barang massal.');
+                abort_if($product->type === 'asset', 422, 'Barang bertipe aset berserial belum didukung pada permintaan barang massal.');
 
                 $itemSourceLocationId = $itemData['source_location_id'] ?? $request->warehouse_location_id;
 
@@ -207,7 +207,7 @@ class InventoryRequestService
                 ->lockForUpdate()
                 ->findOrFail($request->id);
 
-            abort_unless($req->status === 'draft', 422, 'Hanya permintaan berstatus draft yang dapat diajukan.');
+            abort_unless($req->status === 'draft', 422, 'Hanya permintaan berstatus draf yang dapat diajukan.');
             abort_unless((int) $req->requested_by === (int) $actor->id, 403, 'Anda bukan pembuat permintaan barang ini.');
 
             $itemsCount = $req->items()->count();
@@ -247,7 +247,7 @@ class InventoryRequestService
                 ->lockForUpdate()
                 ->findOrFail($request->id);
 
-            abort_unless($req->status === 'submitted', 422, 'Permintaan barang bukan berstatus submitted.');
+            abort_unless($req->status === 'submitted', 422, 'Permintaan barang bukan berstatus menunggu persetujuan.');
             abort_if((int) $req->requested_by === (int) $approver->id, 403, 'Maker-checker: pemohon tidak boleh menyetujui permintaan sendiri.');
 
             $warehouseLocationId = $data['warehouse_location_id'] ?? $req->warehouse_location_id;
@@ -418,9 +418,9 @@ class InventoryRequestService
                 ->lockForUpdate()
                 ->findOrFail($request->id);
 
-            abort_unless($req->status === 'ready_for_pickup', 422, 'Hanya permintaan berstatus siap diambil (ready for pickup) yang dapat diserahterimakan.');
-            abort_if((int) $req->requested_by === (int) $issuer->id, 403, 'Maker-checker: pemohon tidak boleh melakukan serah terima (issue) barang kepada dirinya sendiri.');
-            abort_if((int) $req->approved_by === (int) $issuer->id, 403, 'Maker-checker: penyetujui tidak boleh melakukan serah terima (issue) barang.');
+            abort_unless($req->status === 'ready_for_pickup', 422, 'Hanya permintaan berstatus siap diambil yang dapat diserahterimakan.');
+            abort_if((int) $req->requested_by === (int) $issuer->id, 403, 'Maker-checker: pemohon tidak boleh melakukan serah terima barang kepada dirinya sendiri.');
+            abort_if((int) $req->approved_by === (int) $issuer->id, 403, 'Maker-checker: penyetujui tidak boleh melakukan serah terima barang.');
 
             /** @var Collection<int, InventoryRequestItem> $items */
             $items = $req->items()->lockForUpdate()->get();
@@ -488,7 +488,7 @@ class InventoryRequestService
                 ->lockForUpdate()
                 ->findOrFail($request->id);
 
-            abort_unless($req->status === 'submitted', 422, 'Hanya permintaan berstatus submitted yang dapat ditolak.');
+            abort_unless($req->status === 'submitted', 422, 'Hanya permintaan berstatus menunggu persetujuan yang dapat ditolak.');
             abort_if((int) $req->requested_by === (int) $rejecter->id, 403, 'Maker-checker: pemohon tidak boleh menolak permintaan sendiri.');
 
             $req->update([

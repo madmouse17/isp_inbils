@@ -1,7 +1,16 @@
 import type { FormEvent } from 'react';
+import { useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Button, Input, Modal, NativeSelect } from '@/Components/ui';
-import { usageHints, usageOptions } from '@/lib/ipam';
+import {
+    Button,
+    Input,
+    Modal,
+    NativeSelect,
+    SearchSelect,
+    type SearchSelectOption,
+} from '@/Components/ui';
+import { usageHints } from '@/lib/ipam';
+import { IP_PREFIX_USAGE, optionsOf } from '@/lib/statuses';
 import type { IpUsage, PopOption, PrefixRow, VlanOption } from '@/types/ipam-odn';
 
 interface PrefixDialogProps {
@@ -11,6 +20,8 @@ interface PrefixDialogProps {
     locations: PopOption[];
     vlans: VlanOption[];
 }
+
+const usageOptions = [{ value: '', label: 'Pilih peruntukan...' }, ...optionsOf(IP_PREFIX_USAGE)];
 
 /** Mount it only while open: each opening then starts from the prefix (or an empty form) with no stale errors. */
 export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialogProps) {
@@ -22,6 +33,21 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
         description: prefix?.description ?? '',
     });
     const { data, setData, errors, processing } = form;
+
+    const popOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            locations.map((pop) => ({ value: String(pop.id), label: `${pop.code} - ${pop.name}` })),
+        [locations],
+    );
+    const vlanOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            vlans.map((vlan) => ({
+                value: String(vlan.id),
+                label: `VLAN ${vlan.vid} - ${vlan.name}`,
+                description: vlan.location_code ?? 'Seluruh perusahaan',
+            })),
+        [vlans],
+    );
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
@@ -35,7 +61,7 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
     };
 
     return (
-        <Modal open onClose={onClose} title={prefix ? `Edit ${prefix.cidr}` : 'New prefix'}>
+        <Modal open onClose={onClose} title={prefix ? `Ubah ${prefix.cidr}` : 'Buat Prefiks'}>
             <form onSubmit={submit} className="space-y-4">
                 <Input
                     id="prefix-cidr"
@@ -43,10 +69,10 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                     value={data.cidr}
                     onChange={(event) => setData('cidr', event.target.value)}
                     error={errors.cidr}
-                    placeholder="10.20.0.0/22 or 2001:db8::/48"
+                    placeholder="10.20.0.0/22 atau 2001:db8::/48"
                     hint={
                         prefix
-                            ? 'A prefix keeps its CIDR. Register a new one to change it.'
+                            ? 'Prefiks tetap memakai CIDR-nya. Daftarkan yang baru untuk mengubahnya.'
                             : undefined
                     }
                     disabled={prefix !== undefined}
@@ -56,45 +82,37 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                 />
                 <NativeSelect
                     id="prefix-usage"
-                    label="Usage"
+                    label="Peruntukan"
                     value={data.usage}
                     onChange={(event) => setData('usage', event.target.value as IpUsage | '')}
                     error={errors.usage}
                     hint={data.usage ? usageHints[data.usage] : undefined}
-                    options={[{ value: '', label: 'Select usage…' }, ...usageOptions]}
+                    options={usageOptions}
                     required
                 />
-                <NativeSelect
+                <SearchSelect
                     id="prefix-pop"
                     label="POP"
                     value={data.location_id}
-                    onChange={(event) => setData('location_id', event.target.value)}
+                    onChange={(value) => setData('location_id', value)}
+                    options={popOptions}
+                    placeholder="Tidak terkait POP"
+                    emptyText="Tidak ada POP yang cocok."
                     error={errors.location_id}
-                    options={[
-                        { value: '', label: 'Not tied to a POP' },
-                        ...locations.map((pop) => ({
-                            value: String(pop.id),
-                            label: `${pop.code} - ${pop.name}`,
-                        })),
-                    ]}
                 />
-                <NativeSelect
+                <SearchSelect
                     id="prefix-vlan"
                     label="VLAN"
                     value={data.vlan_id}
-                    onChange={(event) => setData('vlan_id', event.target.value)}
+                    onChange={(value) => setData('vlan_id', value)}
+                    options={vlanOptions}
+                    placeholder="Tanpa VLAN"
+                    emptyText="Tidak ada VLAN yang cocok."
                     error={errors.vlan_id}
-                    options={[
-                        { value: '', label: 'No VLAN' },
-                        ...vlans.map((vlan) => ({
-                            value: String(vlan.id),
-                            label: `VLAN ${vlan.vid} · ${vlan.name} (${vlan.location_code ?? 'company-wide'})`,
-                        })),
-                    ]}
                 />
                 <Input
                     id="prefix-description"
-                    label="Description"
+                    label="Keterangan"
                     value={data.description}
                     onChange={(event) => setData('description', event.target.value)}
                     error={errors.description}
@@ -102,10 +120,10 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        {prefix ? 'Save' : 'Register prefix'}
+                        {prefix ? 'Simpan' : 'Daftarkan prefiks'}
                     </Button>
                 </div>
             </form>

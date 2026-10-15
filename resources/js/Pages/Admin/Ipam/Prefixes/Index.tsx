@@ -5,9 +5,18 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { PrefixDialog } from '@/Components/composite/ipam/PrefixDialog';
 import { PrefixUtilisation } from '@/Components/composite/ipam/PrefixUtilisation';
-import { Badge, Button, Input, NativeSelect } from '@/Components/ui';
+import {
+    Button,
+    EmptyCell,
+    EnumBadge,
+    Input,
+    NativeSelect,
+    SearchSelect,
+    type SearchSelectOption,
+} from '@/Components/ui';
 import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatCount, usageLabels, usageOptions, usageVariants } from '@/lib/ipam';
+import { formatCount } from '@/lib/ipam';
+import { IP_PREFIX_USAGE, IP_VERSION, optionsOf } from '@/lib/statuses';
 import type { PopOption, PrefixRow, VlanOption } from '@/types/ipam-odn';
 
 interface IndexProps extends Record<string, unknown> {
@@ -24,9 +33,12 @@ interface IndexProps extends Record<string, unknown> {
     can: { manage: boolean };
 }
 
+const familyOptions = [{ value: '', label: 'IPv4 dan IPv6' }, ...optionsOf(IP_VERSION)];
+const usageOptions = [{ value: '', label: 'Semua peruntukan' }, ...optionsOf(IP_PREFIX_USAGE)];
+
 export default function Index({ prefixes, filters, locations, vlans, can }: IndexProps) {
     const [creating, setCreating] = useState(false);
-    const { params, set, processing } = useTableQuery(
+    const { params, set, setMany, processing } = useTableQuery(
         {
             search: filters.search,
             family: filters.family,
@@ -38,15 +50,30 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
     );
     const filtered = Object.values(params).some((value) => value !== '');
 
+    const popOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            locations.map((pop) => ({ value: String(pop.id), label: `${pop.code} - ${pop.name}` })),
+        [locations],
+    );
+    const vlanOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            vlans.map((vlan) => ({
+                value: String(vlan.id),
+                label: `VLAN ${vlan.vid} - ${vlan.name}`,
+                description: vlan.location_code ?? 'Seluruh perusahaan',
+            })),
+        [vlans],
+    );
+
     const columns: DataTableColumn<PrefixRow>[] = useMemo(
         () => [
             {
                 key: 'cidr',
-                header: 'Prefix',
+                header: 'Prefiks',
                 cell: (row) => (
                     <div style={{ paddingInlineStart: `${row.depth * 1.25}rem` }}>
                         {row.depth > 0 && (
-                            <span className="sr-only">Nested {row.depth} deep: </span>
+                            <span className="sr-only">Bersarang {row.depth} tingkat: </span>
                         )}
                         <Link
                             href={route('admin.ipam.prefixes.show', row.id)}
@@ -62,53 +89,57 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
             },
             {
                 key: 'usage',
-                header: 'Usage',
+                header: 'Peruntukan',
                 cell: (row) => (
-                    <Badge variant={usageVariants[row.usage]} className="whitespace-nowrap">
-                        {usageLabels[row.usage]}
-                    </Badge>
+                    <EnumBadge
+                        map={IP_PREFIX_USAGE}
+                        value={row.usage}
+                        className="whitespace-nowrap"
+                    />
                 ),
             },
             {
                 key: 'location',
                 header: 'POP',
                 className: 'whitespace-nowrap',
-                cell: (row) => row.location?.code ?? '-',
+                cell: (row) => row.location?.code ?? <EmptyCell />,
             },
             {
                 key: 'vlan',
                 header: 'VLAN',
                 className: 'whitespace-nowrap',
-                cell: (row) => (row.vlan ? `${row.vlan.vid} · ${row.vlan.name}` : '-'),
+                cell: (row) => (row.vlan ? `${row.vlan.vid} - ${row.vlan.name}` : <EmptyCell />),
             },
             {
                 key: 'size',
-                header: 'Size',
+                header: 'Ukuran',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) => formatCount(row.size),
             },
             {
                 key: 'used',
-                header: 'Used',
+                header: 'Terpakai',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) =>
                     // Containers are measured by their child prefixes and dynamic pools by size only.
-                    row.usage === 'customer_static' || row.usage === 'infrastructure'
-                        ? formatCount(row.assigned + row.reserved)
-                        : '-',
+                    row.usage === 'customer_static' || row.usage === 'infrastructure' ? (
+                        formatCount(row.assigned + row.reserved)
+                    ) : (
+                        <EmptyCell />
+                    ),
             },
             {
                 key: 'free',
-                header: 'Free',
+                header: 'Kosong',
                 className: 'text-right tabular-nums',
                 headerClassName: 'text-right',
                 cell: (row) => formatCount(row.free),
             },
             {
                 key: 'percent',
-                header: 'Utilisation',
+                header: 'Pemakaian',
                 cell: (row) => <PrefixUtilisation prefix={row} />,
             },
         ],
@@ -118,7 +149,7 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
     const newPrefix = can.manage ? (
         <Button type="button" variant="primary" onClick={() => setCreating(true)}>
             <Plus className="size-4" aria-hidden="true" />
-            New prefix
+            Buat Prefiks
         </Button>
     ) : undefined;
 
@@ -127,11 +158,11 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
             <div className="space-y-6">
                 <PageHeader
                     title="Alamat IP"
-                    description="Prefixes registered for this company and how full each one is."
+                    description="Prefiks yang terdaftar di perusahaan ini dan seberapa penuh tiap blok."
                     actions={
                         <>
                             <Button asChild variant="outline">
-                                <Link href={route('admin.ipam.vlans.index')}>VLANs</Link>
+                                <Link href={route('admin.ipam.vlans.index')}>VLAN</Link>
                             </Button>
                             {newPrefix}
                         </>
@@ -142,55 +173,43 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                     <div className="col-span-2 lg:col-span-1">
                         <Input
                             id="filter-search"
-                            label="Search"
+                            label="Cari"
                             value={params.search ?? ''}
                             onChange={(event) => set('search', event.target.value)}
-                            placeholder="Prefix or description"
+                            placeholder="Prefiks atau keterangan"
                         />
                     </div>
                     <NativeSelect
                         id="filter-family"
-                        label="IP version"
+                        label="Versi IP"
                         value={params.family ?? ''}
                         onChange={(event) => set('family', event.target.value)}
-                        options={[
-                            { value: '', label: 'IPv4 and IPv6' },
-                            { value: '4', label: 'IPv4' },
-                            { value: '6', label: 'IPv6' },
-                        ]}
+                        options={familyOptions}
                     />
                     <NativeSelect
                         id="filter-usage"
-                        label="Usage"
+                        label="Peruntukan"
                         value={params.usage ?? ''}
                         onChange={(event) => set('usage', event.target.value)}
-                        options={[{ value: '', label: 'All usages' }, ...usageOptions]}
+                        options={usageOptions}
                     />
-                    <NativeSelect
+                    <SearchSelect
                         id="filter-pop"
                         label="POP"
                         value={params.location_id ?? ''}
-                        onChange={(event) => set('location_id', event.target.value)}
-                        options={[
-                            { value: '', label: 'All POPs' },
-                            ...locations.map((pop) => ({
-                                value: String(pop.id),
-                                label: `${pop.code} - ${pop.name}`,
-                            })),
-                        ]}
+                        onChange={(value) => set('location_id', value)}
+                        options={popOptions}
+                        placeholder="Semua POP"
+                        emptyText="Tidak ada POP yang cocok."
                     />
-                    <NativeSelect
+                    <SearchSelect
                         id="filter-vlan"
                         label="VLAN"
                         value={params.vlan_id ?? ''}
-                        onChange={(event) => set('vlan_id', event.target.value)}
-                        options={[
-                            { value: '', label: 'All VLANs' },
-                            ...vlans.map((vlan) => ({
-                                value: String(vlan.id),
-                                label: `VLAN ${vlan.vid} · ${vlan.name}`,
-                            })),
-                        ]}
+                        onChange={(value) => set('vlan_id', value)}
+                        options={vlanOptions}
+                        placeholder="Semua VLAN"
+                        emptyText="Tidak ada VLAN yang cocok."
                     />
                 </div>
 
@@ -198,13 +217,20 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                     columns={columns}
                     data={prefixes}
                     loading={processing}
-                    emptyTitle={filtered ? 'No prefix matches the filters' : 'No prefixes yet'}
-                    emptyDescription={
-                        filtered
-                            ? 'Clear a filter to see the rest of the address space.'
-                            : 'Register your first prefix to start tracking how full each block is.'
+                    emptyTitle="Belum ada prefiks"
+                    emptyDescription="Daftarkan prefiks pertama untuk mulai melacak seberapa penuh tiap blok."
+                    emptyAction={newPrefix}
+                    hasFilters={filtered}
+                    onResetFilters={() =>
+                        setMany({
+                            search: '',
+                            family: '',
+                            usage: '',
+                            location_id: '',
+                            vlan_id: '',
+                        })
                     }
-                    emptyAction={filtered ? undefined : newPrefix}
+                    itemLabel="prefiks"
                 />
 
                 {creating && (

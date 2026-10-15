@@ -1,8 +1,19 @@
-﻿import { Link, router } from '@inertiajs/react';
+import type { ReactNode } from 'react';
+import { Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    EmptyCell,
+    EnumBadge,
+} from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { formatMoney } from '@/lib/format';
+import { ACTIVE_STATE } from '@/lib/statuses';
 
 interface PkgData {
     id: number;
@@ -23,15 +34,24 @@ interface ShowProps extends Record<string, unknown> {
     servicePackage: { data: PkgData };
 }
 
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words">{children}</dd>
+        </>
+    );
+}
+
 export default function Show({ servicePackage }: ShowProps) {
     const p = servicePackage.data;
 
     return (
-        <AdminLayout title={p.name}>
+        <AdminLayout title={`Paket Layanan ${p.code}`}>
             <div className="space-y-6">
                 <PageHeader
                     title={p.name}
-                    subtitle={p.code}
+                    subtitle={`Kode ${p.code}`}
                     actions={
                         <>
                             <Button
@@ -40,16 +60,10 @@ export default function Show({ servicePackage }: ShowProps) {
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.service-packages.index')}>Back</Link>
+                                <Link href={route('admin.service-packages.index')}>Kembali</Link>
                             </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() =>
-                                    router.get(route('admin.service-packages.edit', p.id))
-                                }
-                            >
-                                Edit
+                            <Button asChild variant="primary" size="sm">
+                                <Link href={route('admin.service-packages.edit', p.id)}>Ubah</Link>
                             </Button>
                         </>
                     }
@@ -58,56 +72,51 @@ export default function Show({ servicePackage }: ShowProps) {
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Package Details</CardTitle>
+                            <CardTitle>Rincian paket</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                            <p>
-                                <span className="text-muted-foreground">Kategori: </span>
-                                {p.category?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Bandwidth: </span>
-                                {p.bandwidth_profile?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Speed: </span>
-                                {p.speed_profile?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">SLA: </span>
-                                {p.sla_tier?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Contract Min: </span>
-                                {p.contract_min_months ? `${p.contract_min_months} months` : '-'}
-                            </p>
-                            {p.description && (
-                                <p className="md:col-span-2">
-                                    <span className="text-muted-foreground">Description: </span>
-                                    {p.description}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Kategori">
+                                    {p.category?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Profil bandwidth">
+                                    {p.bandwidth_profile?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Profil kecepatan">
+                                    {p.speed_profile?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Tingkat SLA">
+                                    {p.sla_tier?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Masa kontrak minimum">
+                                    {p.contract_min_months ? (
+                                        `${p.contract_min_months} bulan`
+                                    ) : (
+                                        <EmptyCell />
+                                    )}
+                                </DetailRow>
+                                {p.description ? (
+                                    <DetailRow label="Deskripsi">{p.description}</DetailRow>
+                                ) : null}
+                            </dl>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Pricing</CardTitle>
+                            <CardTitle>Harga dan status</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">MRC: </span>
-                                {p.price_mrc}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">OTC: </span>
-                                {p.price_otc}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Status: </span>
-                                <Badge variant={p.is_active ? 'success' : 'danger'}>
-                                    {p.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                            </p>
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] items-center gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Harga bulanan">
+                                    {formatMoney(p.price_mrc)}
+                                </DetailRow>
+                                <DetailRow label="Harga pemasangan">
+                                    {formatMoney(p.price_otc)}
+                                </DetailRow>
+                                <DetailRow label="Status">
+                                    <EnumBadge map={ACTIVE_STATE} value={p.is_active} />
+                                </DetailRow>
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>

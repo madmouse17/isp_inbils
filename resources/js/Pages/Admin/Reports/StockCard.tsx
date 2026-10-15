@@ -7,7 +7,9 @@ import {
     FormulaVersionLabel,
     MetricDefinitionNote,
     PageHeader,
+    RemoteSearchSelect,
     type DataTableColumn,
+    type RemoteOption,
 } from '@/Components/composite';
 import {
     Button,
@@ -16,11 +18,14 @@ import {
     CardHeader,
     CardTitle,
     DateRangePicker,
-    Input,
+    EnumBadge,
     type DateRange,
 } from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
+import { formatDateTime } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
 import type { ReportMeta } from '@/types';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
@@ -47,12 +52,27 @@ interface Props extends Record<string, unknown> {
         sort_dir?: 'asc' | 'desc';
         per_page?: number;
     };
+    productOptions?: RemoteOption[];
+    selectedProduct?: RemoteOption | null;
+    locationOptions?: RemoteOption[];
+    selectedLocation?: RemoteOption | null;
     meta: ReportMeta;
     can: { export: boolean };
     links?: { stocks: string | null; movements: string | null } | null;
 }
 
-export default function StockCard({ movements, filters, meta, can, links }: Props) {
+export default function StockCard({
+    movements,
+    filters,
+    productOptions,
+    selectedProduct,
+    locationOptions,
+    selectedLocation,
+    meta,
+    can,
+    links,
+}: Props) {
+    const company = useCompany();
     const pagination = movements ? toPagination(movements) : null;
     const table = useServerTable({
         url: route('admin.reports.stock-card'),
@@ -65,9 +85,10 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
             direction: filters.sort_dir,
             per_page: pagination?.per_page ?? filters.per_page ?? 10,
         },
-        only: ['movements', 'filters'],
+        only: ['movements', 'filters', 'selectedProduct', 'selectedLocation'],
     });
     const [productId, setProductId] = useState(filters.product_id ?? '');
+    const [locationId, setLocationId] = useState(filters.location_id ?? '');
     const [range, setRange] = useState<DateRange>({
         from: filters.date_from || null,
         to: filters.date_to || null,
@@ -77,6 +98,7 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
         e.preventDefault();
         table.visit({
             product_id: productId,
+            location_id: locationId,
             date_from: range.from ?? '',
             date_to: range.to ?? '',
             page: 1,
@@ -84,15 +106,19 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
     };
 
     const columns: DataTableColumn<Movement>[] = [
-        { key: 'movement_type', header: 'Type' },
-        { key: 'quantity', header: 'Qty', sortable: true },
-        { key: 'balance_after', header: 'Balance', sortable: true },
-        { key: 'from_location', header: 'From', cell: (row) => row.from_location ?? '-' },
-        { key: 'to_location', header: 'To', cell: (row) => row.to_location ?? '-' },
-        { key: 'note', header: 'Note', cell: (row) => row.note ?? '-' },
+        {
+            key: 'movement_type',
+            header: 'Jenis',
+            cell: (row) => <EnumBadge map={STOCK_MOVEMENT_TYPE} value={row.movement_type} />,
+        },
+        { key: 'quantity', header: 'Jumlah', sortable: true },
+        { key: 'balance_after', header: 'Saldo', sortable: true },
+        { key: 'from_location', header: 'Dari', cell: (row) => row.from_location ?? '-' },
+        { key: 'to_location', header: 'Ke', cell: (row) => row.to_location ?? '-' },
+        { key: 'note', header: 'Catatan', cell: (row) => row.note ?? '-' },
         {
             key: 'reference',
-            header: 'Reference',
+            header: 'Referensi',
             cell: (row) =>
                 row.reference?.url ? (
                     <Link
@@ -105,26 +131,32 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
                     (row.reference?.label ?? '-')
                 ),
         },
-        { key: 'created_at', header: 'Date', sortable: true, className: 'text-sm' },
+        {
+            key: 'created_at',
+            header: 'Tanggal',
+            sortable: true,
+            className: 'text-sm',
+            cell: (row) => formatDateTime(row.created_at, company),
+        },
     ];
 
     return (
-        <AdminLayout title="Stock Card">
+        <AdminLayout title="Kartu Stok">
             <div className="space-y-6">
                 <PageHeader
-                    title="Stock Card"
-                    subtitle="Movement history per product/location."
+                    title="Kartu Stok"
+                    subtitle="Riwayat pergerakan stok satu barang, boleh dibatasi per lokasi dan periode."
                     actions={
                         <>
                             <FormulaVersionLabel version={meta.formula_version} />
                             {links?.stocks && (
                                 <Button asChild variant="outline" size="sm">
-                                    <Link href={links.stocks}>Stock levels</Link>
+                                    <Link href={links.stocks}>Lihat stok</Link>
                                 </Button>
                             )}
                             {links?.movements && (
                                 <Button asChild variant="outline" size="sm">
-                                    <Link href={links.movements}>All movements</Link>
+                                    <Link href={links.movements}>Semua pergerakan</Link>
                                 </Button>
                             )}
                             <ReportExportMenu
@@ -145,13 +177,29 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Product ID"
-                                type="number"
-                                value={productId}
-                                onChange={(e) => setProductId(e.target.value)}
-                                required
-                            />
+                            <div className="w-full sm:w-72">
+                                <RemoteSearchSelect
+                                    field="product"
+                                    label="Barang"
+                                    placeholder="Cari nama atau SKU..."
+                                    options={productOptions}
+                                    selected={selectedProduct}
+                                    value={productId}
+                                    onChange={setProductId}
+                                    required
+                                />
+                            </div>
+                            <div className="w-full sm:w-64">
+                                <RemoteSearchSelect
+                                    field="location"
+                                    label="Lokasi"
+                                    placeholder="Semua lokasi"
+                                    options={locationOptions}
+                                    selected={selectedLocation}
+                                    value={locationId}
+                                    onChange={setLocationId}
+                                />
+                            </div>
                             <div className="w-full sm:w-96">
                                 <DateRangePicker
                                     id="stock-card-range"
@@ -161,11 +209,16 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
                                 />
                             </div>
                             <div className="self-end">
-                                <Button type="submit" disabled={table.visiting}>
-                                    Run
+                                <Button type="submit" disabled={table.visiting || productId === ''}>
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
+                        {!filters.product_id && (
+                            <p className="text-sm text-muted-foreground">
+                                Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok.
+                            </p>
+                        )}
                         {filters.product_id && movements && pagination && (
                             <DataTable
                                 columns={columns}
@@ -178,20 +231,20 @@ export default function StockCard({ movements, filters, meta, can, links }: Prop
                                 onPageChange={(page) => table.setPage(page)}
                                 onPerPageChange={(perPage) => table.setPerPage(perPage)}
                                 loading={table.processing}
-                                emptyTitle="No stock movements"
-                                emptyDescription="No movements match this product and date range. Adjust the filters and run the report again."
+                                emptyTitle="Tidak ada pergerakan stok"
+                                emptyDescription="Tidak ada pergerakan untuk barang dan rentang tanggal ini. Ubah filter lalu tampilkan lagi."
                             />
                         )}
                         {!movements && table.processing && (
                             <p role="status" aria-live="polite">
-                                Loading stock movements…
+                                Memuat pergerakan stok...
                             </p>
                         )}
                     </CardContent>
                 </Card>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Definitions</CardTitle>
+                        <CardTitle>Definisi</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {(['movements', 'quantity', 'balance_after'] as const).map((key) => (

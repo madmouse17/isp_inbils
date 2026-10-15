@@ -1,8 +1,8 @@
-import InputError from '@/Components/InputError';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
+import { Alert, AlertDescription } from '@/Components/ui/Alert';
 import { Button } from '@/Components/ui/Button';
-import { Head, useForm } from '@inertiajs/react';
+import { Input } from '@/Components/ui/Input';
+import GuestLayout from '@/Layouts/GuestLayout';
+import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 
 export default function ForgotPassword({ status }: { status?: string }) {
@@ -18,38 +18,48 @@ export default function ForgotPassword({ status }: { status?: string }) {
 
     return (
         <GuestLayout>
-            <Head title="Forgot Password" />
+            <Head title="Lupa kata sandi" />
 
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Forgot your password? No problem. Just let us know your email address and we will
-                email you a password reset link that will allow you to choose a new one.
-            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                Lupa kata sandi
+            </h1>
+
+            <p className="mt-2 mb-4 text-sm text-muted-foreground">
+                Masukkan email akun Anda. Kami kirim tautan untuk membuat kata sandi baru.
+            </p>
 
             {status && (
-                <div className="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
-                    {status}
-                </div>
+                <Alert variant="success" className="mb-4">
+                    <AlertDescription>{status}</AlertDescription>
+                </Alert>
             )}
 
-            <form onSubmit={submit}>
-                <TextInput
+            <form onSubmit={submit} className="space-y-4">
+                <Input
                     id="email"
+                    label="Email"
                     type="email"
                     name="email"
                     value={data.email}
-                    className="mt-1 block w-full"
-                    isFocused={true}
+                    autoComplete="username"
+                    autoFocus
+                    error={errors.email}
                     onChange={(e) => setData('email', e.target.value)}
                 />
 
-                <InputError message={errors.email} className="mt-2" />
-
-                <div className="mt-4 flex items-center justify-end">
-                    <Button type="submit" className="ms-4" loading={processing}>
-                        Email Password Reset Link
-                    </Button>
-                </div>
+                <Button type="submit" className="w-full" loading={processing}>
+                    Kirim tautan
+                </Button>
             </form>
+
+            <div className="mt-4 text-sm">
+                <Link
+                    href={route('login')}
+                    className="inline-flex min-h-11 items-center rounded-md text-muted-foreground underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
+                >
+                    Kembali ke halaman masuk
+                </Link>
+            </div>
         </GuestLayout>
     );
 }

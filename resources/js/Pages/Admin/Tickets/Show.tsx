@@ -13,15 +13,20 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    EnumBadge,
     FileUpload,
-    Input,
     Modal,
     NativeSelect,
     Progress,
+    SearchSelect,
     Textarea,
     useToast,
 } from '@/Components/ui';
-import { MediaPreview, PageHeader, StatusBadge } from '@/Components/composite';
+import { MediaPreview, PageHeader } from '@/Components/composite';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDateTime } from '@/lib/format';
+import { PRIORITY, TICKET_SOURCE, TICKET_STATUS } from '@/lib/statuses';
+import { checkInText, type CheckInRecord } from './components/checkIn';
 
 type DeadlineSource = { type: 'tier' | 'category'; name: string };
 
@@ -45,7 +50,7 @@ interface TData {
     resolved_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
-    check_in?: string | null;
+    check_in?: CheckInRecord | null;
     category?: { name: string; code: string } | null;
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
@@ -71,29 +76,46 @@ interface TData {
 
 interface ShowProps extends Record<string, unknown> {
     ticket: { data: TData };
+    /** Who the ticket can go to; empty unless the actor may assign or reassign. */
+    handlers: { id: number; name: string; email: string }[];
 }
 
-const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'closed'
-        ? 'muted'
-        : s === 'resolved'
-          ? 'success'
-          : s === 'on_progress'
-            ? 'info'
-            : s === 'assigned'
-              ? 'warning'
-              : 'danger';
+type ActionModal = 'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment';
 
-export default function Show({ ticket }: ShowProps) {
+const ACTION_TITLE: Record<ActionModal, string> = {
+    assign: 'Tugaskan tiket',
+    resolve: 'Selesaikan tiket',
+    close: 'Tutup tiket',
+    spawnSpk: 'Buat SPK dari tiket',
+    comment: 'Tambah komentar',
+};
+
+const ACTION_CONFIRM: Record<ActionModal, string> = {
+    assign: 'Tugaskan',
+    resolve: 'Selesaikan',
+    close: 'Tutup tiket',
+    spawnSpk: 'Buat SPK',
+    comment: 'Kirim komentar',
+};
+
+function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-medium text-foreground">{children}</dd>
+        </div>
+    );
+}
+
+export default function Show({ ticket, handlers }: ShowProps) {
     const t = ticket.data;
+    const company = useCompany();
     const sourceLabel =
         t.deadline_source.type === 'tier'
             ? `Target ${t.deadline_source.name}`
             : `Target kategori ${t.deadline_source.name}`;
     const { toast } = useToast();
-    const [actionModal, setActionModal] = useState<
-        'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment' | null
-    >(null);
+    const [actionModal, setActionModal] = useState<ActionModal | null>(null);
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadPercentage, setUploadPercentage] = useState(0);
@@ -107,7 +129,7 @@ export default function Show({ ticket }: ShowProps) {
     const doAction = (e: FormEvent) => {
         e.preventDefault();
         if (!actionModal) return;
-        const routeMap: Record<string, string> = {
+        const routeMap: Record<ActionModal, string> = {
             assign: 'admin.tickets.assign',
             resolve: 'admin.tickets.resolve',
             close: 'admin.tickets.close',
@@ -144,7 +166,7 @@ export default function Show({ ticket }: ShowProps) {
             {
                 onError: (startErrors) =>
                     toast({
-                        title: 'Failed to start ticket.',
+                        title: 'Tiket gagal dimulai.',
                         description: Object.values(startErrors)[0],
                         variant: 'danger',
                     }),
@@ -172,12 +194,12 @@ export default function Show({ ticket }: ShowProps) {
             onProgress: (event) => setUploadPercentage(event?.percentage ?? 0),
             onSuccess: () => {
                 setAttachmentFile(null);
-                toast({ title: 'Attachment uploaded.', variant: 'success' });
+                toast({ title: 'Lampiran berhasil diunggah.', variant: 'success' });
             },
             onError: () =>
                 toast({
-                    title: 'Failed to upload attachment.',
-                    description: 'Check allowed file type and max 10 MB size.',
+                    title: 'Lampiran gagal diunggah.',
+                    description: 'Periksa jenis berkas yang diizinkan dan ukuran maksimal 10 MB.',
                     variant: 'danger',
                 }),
             onFinish: () => setUploading(false),
@@ -189,7 +211,7 @@ export default function Show({ ticket }: ShowProps) {
             <div className="space-y-6">
                 <PageHeader
                     title={t.title}
-                    subtitle="Record details and related activity."
+                    subtitle={t.code}
                     actions={
                         <Button
                             asChild
@@ -197,7 +219,7 @@ export default function Show({ ticket }: ShowProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.tickets.index')}>Back</Link>
+                            <Link href={route('admin.tickets.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -205,148 +227,118 @@ export default function Show({ ticket }: ShowProps) {
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Rincian</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Category: </span>
-                                {t.category?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Source: </span>
-                                {t.source}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Customer: </span>
-                                {t.customer?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Subscription: </span>
-                                {t.subscription?.code ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Asset: </span>
-                                {t.network_asset?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Location: </span>
-                                {t.location?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Handler: </span>
-                                {t.assignee?.name ?? '-'}
-                            </p>
-                            {t.description && (
-                                <p>
-                                    <span className="text-muted-foreground">Description: </span>
-                                    {t.description}
-                                </p>
-                            )}
-                            {t.resolution_note && (
-                                <p>
-                                    <span className="text-muted-foreground">Resolution: </span>
-                                    {t.resolution_note}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid gap-x-6 gap-y-4 text-sm md:grid-cols-2">
+                                <Detail label="Kategori">{t.category?.name ?? '-'}</Detail>
+                                <Detail label="Sumber">
+                                    <EnumBadge map={TICKET_SOURCE} value={t.source} />
+                                </Detail>
+                                <Detail label="Pelanggan">{t.customer?.name ?? '-'}</Detail>
+                                <Detail label="Langganan">{t.subscription?.code ?? '-'}</Detail>
+                                <Detail label="Aset jaringan">
+                                    {t.network_asset?.name ?? '-'}
+                                </Detail>
+                                <Detail label="Lokasi">{t.location?.name ?? '-'}</Detail>
+                                <Detail label="Petugas">{t.assignee?.name ?? '-'}</Detail>
+                                {t.description && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Deskripsi">{t.description}</Detail>
+                                    </div>
+                                )}
+                                {t.resolution_note && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Catatan penyelesaian">
+                                            {t.resolution_note}
+                                        </Detail>
+                                    </div>
+                                )}
+                            </dl>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Status</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Code: </span>
-                                {t.code}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Status: </span>
-                                <StatusBadge variant={statusVariant(t.status)}>
-                                    {t.status}
-                                </StatusBadge>
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Priority: </span>
-                                <Badge
-                                    variant={
-                                        t.priority === 'urgent'
-                                            ? 'danger'
-                                            : t.priority === 'high'
-                                              ? 'brand'
-                                              : 'neutral'
-                                    }
-                                >
-                                    {t.priority}
-                                </Badge>
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Target respons: </span>
-                                {t.response_deadline ?? 'Tanpa target respons'}
-                                {t.response_deadline && (
-                                    <span className="text-muted-foreground"> ({sourceLabel})</span>
-                                )}
-                                {t.is_response_breached && (
-                                    <Badge variant="danger" className="ml-2">
-                                        Respons terlambat
-                                    </Badge>
-                                )}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Respons pertama: </span>
-                                {t.first_response_at ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Target penyelesaian: </span>
-                                {t.sla_deadline ?? '-'}
-                                {t.sla_deadline && (
-                                    <span className="text-muted-foreground"> ({sourceLabel})</span>
-                                )}
-                                {t.is_sla_breached && (
-                                    <Badge variant="danger" className="ml-2">
-                                        Penyelesaian terlambat
-                                    </Badge>
-                                )}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Check-in: </span>
-                                {t.check_in ?? 'no location'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Resolved: </span>
-                                {t.resolved_at ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Closed: </span>
-                                {t.closed_at ?? '-'}
-                            </p>
+                        <CardContent>
+                            <dl className="space-y-3 text-sm">
+                                <Detail label="Kode">{t.code}</Detail>
+                                <Detail label="Status">
+                                    <EnumBadge map={TICKET_STATUS} value={t.status} />
+                                </Detail>
+                                <Detail label="Prioritas">
+                                    <EnumBadge map={PRIORITY} value={t.priority} />
+                                </Detail>
+                                <Detail label="Target respons">
+                                    {t.response_deadline
+                                        ? formatDateTime(t.response_deadline, company)
+                                        : 'Tanpa target respons'}
+                                    {t.response_deadline && (
+                                        <span className="font-normal text-muted-foreground">
+                                            {' '}
+                                            ({sourceLabel})
+                                        </span>
+                                    )}
+                                    {t.is_response_breached && (
+                                        <Badge variant="destructive" className="ml-2">
+                                            Respons terlambat
+                                        </Badge>
+                                    )}
+                                </Detail>
+                                <Detail label="Respons pertama">
+                                    {formatDateTime(t.first_response_at, company)}
+                                </Detail>
+                                <Detail label="Target penyelesaian">
+                                    {formatDateTime(t.sla_deadline, company)}
+                                    {t.sla_deadline && (
+                                        <span className="font-normal text-muted-foreground">
+                                            {' '}
+                                            ({sourceLabel})
+                                        </span>
+                                    )}
+                                    {t.is_sla_breached && (
+                                        <Badge variant="destructive" className="ml-2">
+                                            Penyelesaian terlambat
+                                        </Badge>
+                                    )}
+                                </Detail>
+                                <Detail label="Check-in">{checkInText(t.check_in)}</Detail>
+                                <Detail label="Diselesaikan">
+                                    {formatDateTime(t.resolved_at, company)}
+                                </Detail>
+                                <Detail label="Ditutup">
+                                    {formatDateTime(t.closed_at, company)}
+                                </Detail>
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Actions</CardTitle>
+                        <CardTitle>Tindakan</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
                             {t.status === 'open' && (
                                 <Button type="button" onClick={() => setActionModal('assign')}>
-                                    Assign
+                                    Tugaskan
                                 </Button>
                             )}
                             {t.can?.start && (
                                 <Button type="button" onClick={startTicket}>
-                                    Start
+                                    Mulai
                                 </Button>
                             )}
                             {(t.status === 'on_progress' || t.status === 'assigned') && (
                                 <Button type="button" onClick={() => setActionModal('resolve')}>
-                                    Resolve
+                                    Selesaikan
                                 </Button>
                             )}
                             {t.can?.close && (
                                 <Button type="button" onClick={() => setActionModal('close')}>
-                                    Close
+                                    Tutup
                                 </Button>
                             )}
                             {(t.status === 'on_progress' || t.status === 'assigned') &&
@@ -356,7 +348,7 @@ export default function Show({ ticket }: ShowProps) {
                                         variant="outline"
                                         onClick={() => setActionModal('spawnSpk')}
                                     >
-                                        Spawn SPK
+                                        Buat SPK
                                     </Button>
                                 )}
                             <Button
@@ -364,7 +356,7 @@ export default function Show({ ticket }: ShowProps) {
                                 variant="secondary"
                                 onClick={() => setActionModal('comment')}
                             >
-                                Add Comment
+                                Tambah komentar
                             </Button>
                         </div>
                     </CardContent>
@@ -372,22 +364,27 @@ export default function Show({ ticket }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Comments</CardTitle>
+                        <CardTitle>Komentar</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {(t.comments ?? []).length === 0 && (
-                            <p className="text-sm text-muted-foreground">No comments.</p>
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada komentar. Pakai tombol Tambah komentar untuk mencatat
+                                penanganan.
+                            </p>
                         )}
                         {(t.comments ?? []).map((c) => (
                             <div key={c.id} className="rounded-lg border border-border p-3">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-medium">
-                                        {c.author?.name ?? 'Unknown'}
+                                        {c.author?.name ?? 'Tidak dikenal'}
                                     </p>
                                     {c.is_internal && <Badge variant="brand">Internal</Badge>}
                                 </div>
                                 <p className="mt-1 text-sm text-muted-foreground">{c.body}</p>
-                                <p className="mt-1 text-xs text-muted-foreground">{c.created_at}</p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    {formatDateTime(c.created_at, company)}
+                                </p>
                             </div>
                         ))}
                     </CardContent>
@@ -395,7 +392,7 @@ export default function Show({ ticket }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Attachments</CardTitle>
+                        <CardTitle>Lampiran</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <form
@@ -403,7 +400,7 @@ export default function Show({ ticket }: ShowProps) {
                             className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start"
                         >
                             <FileUpload
-                                label="Attachment"
+                                label="Lampiran"
                                 value={attachmentFile}
                                 onChange={setAttachmentFile}
                                 acceptedFileTypes={[
@@ -422,7 +419,7 @@ export default function Show({ ticket }: ShowProps) {
                                     disabled={!attachmentFile || uploading}
                                     loading={uploading}
                                 >
-                                    Upload
+                                    Unggah
                                 </Button>
                             </div>
                             {uploading && (
@@ -439,7 +436,9 @@ export default function Show({ ticket }: ShowProps) {
                                     <p className="text-sm font-medium">
                                         {a.original_name ?? a.file_path}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">{a.created_at}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatDateTime(a.created_at, company)}
+                                    </p>
                                     <MediaPreview media={a} />
                                 </div>
                             ))}
@@ -450,18 +449,12 @@ export default function Show({ ticket }: ShowProps) {
                 <Modal
                     open={actionModal !== null}
                     onClose={closeModal}
-                    title={
-                        actionModal
-                            ? actionModal
-                                  .replace(/([A-Z])/g, ' $1')
-                                  .replace(/^./, (str) => str.toUpperCase())
-                            : ''
-                    }
+                    title={actionModal ? ACTION_TITLE[actionModal] : ''}
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         {staleError && (
                             <Alert variant="destructive">
-                                <AlertTitle>Ticket changed</AlertTitle>
+                                <AlertTitle>Tiket sudah berubah</AlertTitle>
                                 <AlertDescription className="space-y-2">
                                     <p>{staleError}</p>
                                     <Button
@@ -470,23 +463,30 @@ export default function Show({ ticket }: ShowProps) {
                                         variant="outline"
                                         onClick={reloadTicket}
                                     >
-                                        Reload ticket
+                                        Muat ulang tiket
                                     </Button>
                                 </AlertDescription>
                             </Alert>
                         )}
                         {actionModal === 'assign' && (
-                            <Input
-                                label="Handler ID"
+                            <SearchSelect
+                                label="Petugas"
                                 value={data.handler_id}
-                                onChange={(e) => setData('handler_id', e.target.value)}
+                                onChange={(value) => setData('handler_id', value)}
+                                options={handlers.map((handler) => ({
+                                    value: String(handler.id),
+                                    label: handler.name,
+                                    description: handler.email,
+                                }))}
+                                placeholder="Cari petugas"
+                                emptyText="Tidak ada petugas yang cocok."
                                 error={errors.handler_id}
                                 required
                             />
                         )}
                         {actionModal === 'resolve' && (
                             <Textarea
-                                label="Resolution Note"
+                                label="Catatan penyelesaian"
                                 value={data.resolution_note}
                                 onChange={(e) => setData('resolution_note', e.target.value)}
                                 error={errors.resolution_note}
@@ -497,7 +497,7 @@ export default function Show({ ticket }: ShowProps) {
                         {actionModal === 'comment' && (
                             <>
                                 <Textarea
-                                    label="Comment"
+                                    label="Komentar"
                                     value={data.body}
                                     onChange={(e) => setData('body', e.target.value)}
                                     error={errors.body}
@@ -505,23 +505,24 @@ export default function Show({ ticket }: ShowProps) {
                                     rows={3}
                                 />
                                 <NativeSelect
-                                    label="Visibility"
+                                    label="Terlihat oleh"
                                     value={data.is_internal ? 'internal' : 'public'}
                                     onChange={(e) =>
                                         setData('is_internal', e.target.value === 'internal')
                                     }
-                                >
-                                    <option value="public">Public</option>
-                                    <option value="internal">Internal</option>
-                                </NativeSelect>
+                                    options={[
+                                        { value: 'public', label: 'Semua, termasuk pelanggan' },
+                                        { value: 'internal', label: 'Internal saja' },
+                                    ]}
+                                />
                             </>
                         )}
                         <div className="flex justify-end gap-2">
                             <Button type="button" variant="secondary" onClick={closeModal}>
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" loading={processing}>
-                                Confirm
+                                {actionModal ? ACTION_CONFIRM[actionModal] : 'Simpan'}
                             </Button>
                         </div>
                     </form>

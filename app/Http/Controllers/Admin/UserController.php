@@ -73,7 +73,7 @@ class UserController extends Controller
         app(CompanyMembershipService::class)->grant($user, CompanyService::current() ?? abort(403), true);
         $user->syncRoles($roles);
 
-        return redirect()->route('admin.users.index')->with('success', 'User created.');
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna dibuat.');
     }
 
     public function show(Request $request, User $user): InertiaResponse
@@ -121,7 +121,7 @@ class UserController extends Controller
         $user->update($data);
         $user->syncRoles($roles);
 
-        return redirect()->route('admin.users.index')->with('success', 'User updated.');
+        return redirect()->route('admin.users.index')->with('success', 'Pengguna diperbarui.');
     }
 
     public function destroy(User $user): RedirectResponse
@@ -133,7 +133,7 @@ class UserController extends Controller
 
         $user->delete();
 
-        return back()->with('success', 'User deleted.');
+        return back()->with('success', 'Pengguna dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -147,9 +147,9 @@ class UserController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
+            'name' => 'Nama',
             'email' => 'Email',
-            'roles' => 'Roles',
+            'roles' => 'Peran',
             'is_active' => 'Status',
         ];
 
@@ -157,11 +157,11 @@ class UserController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'roles' => $user->roles->pluck('name')->implode(', '),
-            'is_active' => $user->is_active ? 'Active' : 'Inactive',
+            'is_active' => $user->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         return $format === 'pdf'
-            ? $export->streamPdf('Users', $columns, $map, "users-export-{$stamp}.pdf")
+            ? $export->streamPdf('Pengguna', $columns, $map, "users-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "users-export-{$stamp}.csv");
     }
 

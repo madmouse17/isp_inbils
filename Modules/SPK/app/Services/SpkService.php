@@ -53,7 +53,7 @@ class SpkService
         return DB::transaction(function () use ($wo) {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
-            abort_if($wo->status !== 'draft', 422, 'SPK must be draft to generate.');
+            abort_if($wo->status !== 'draft', 422, 'SPK harus berstatus draf untuk diterbitkan.');
 
             $wo->update([
                 'status' => 'generated',
@@ -73,17 +73,17 @@ class SpkService
                 $expectedAssignedTo === self::MISSING_EXPECTED_ASSIGNED_TO
                 || $expectedUpdatedAt === self::MISSING_EXPECTED_UPDATED_AT,
                 422,
-                'Expected assignment state is required.'
+                'Status penugasan semula wajib dikirim.'
             );
             abort_unless(
                 $expectedAssignedTo === null || is_int($expectedAssignedTo),
                 422,
-                'Expected assignee must be an integer or null.'
+                'Penanggung jawab semula harus berupa angka atau kosong.'
             );
             self::assertCanonicalExpectedUpdatedAt($expectedUpdatedAt);
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
-            abort_if(! in_array($wo->status, ['generated', 'draft', 'rejected', 'assigned']), 422, 'SPK must be generated, draft, rejected, or assigned to assign.');
+            abort_if(! in_array($wo->status, ['generated', 'draft', 'rejected', 'assigned']), 422, 'SPK harus berstatus draf, menunggu penugasan, ditolak, atau ditugaskan untuk bisa ditugaskan.');
 
             $ability = $wo->assigned_to === null ? 'spk.assign' : 'spk.reassign';
             self::assertAssignmentActor($assignedBy, $wo->company_id, $ability);
@@ -95,13 +95,13 @@ class SpkService
             }
 
             if (! $assignmentMatches) {
-                abort(409, 'Work order assignment conflict: item has been assigned by another user.');
+                abort(409, 'Konflik penugasan: SPK ini sudah ditugaskan oleh pengguna lain.');
             }
 
             $canonicalUpdatedAt = $wo->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z');
             if ($expectedUpdatedAt === null || $canonicalUpdatedAt !== $expectedUpdatedAt) {
                 throw new ConflictHttpException(
-                    'Work order assignment conflict: item has been assigned by another user.',
+                    'Konflik penugasan: SPK ini sudah ditugaskan oleh pengguna lain.',
                     null,
                     409
                 );
@@ -109,7 +109,7 @@ class SpkService
 
             $companySettings = data_get($wo->company, 'settings', []);
             if (($companySettings['forbid_self_assignment'] ?? false) && (int) $assignedBy === (int) $technicianId) {
-                abort(422, 'Self-assignment is forbidden by company policy.');
+                abort(422, 'Kebijakan perusahaan melarang menugaskan diri sendiri.');
             }
 
             $technician = User::query()
@@ -178,8 +178,8 @@ class SpkService
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
             self::assertAssignedTechnician($wo, 'spk.start');
-            self::throwStatusConflictIfChanged($wo, $expectedStatus, 'assigned', 'SPK start conflict: item state changed by another user.');
-            abort_if($wo->status !== 'assigned', 422, 'SPK must be assigned to start.');
+            self::throwStatusConflictIfChanged($wo, $expectedStatus, 'assigned', 'Konflik: status SPK sudah diubah oleh pengguna lain.');
+            abort_if($wo->status !== 'assigned', 422, 'SPK harus berstatus ditugaskan untuk bisa dimulai.');
             $wo->update(['status' => 'in_progress', 'started_at' => now()]);
 
             AuditService::log('work_order', 'started', ['code' => $wo->code], $wo);
@@ -295,7 +295,7 @@ class SpkService
             Gate::forUser($actor)->authorize('submit', $wo);
             $item = $wo->items()->find($itemId);
             abort_unless($item instanceof WorkOrderItem, 404);
-            abort_if($item->network_asset_id !== null, 422, 'A serialized asset line is managed by the office.');
+            abort_if($item->network_asset_id !== null, 422, 'Baris aset berserial dikelola oleh kantor.');
 
             if ((float) $item->quantity_reserved > 0 || filled($item->note)) {
                 $previous = $item->quantity_used;
@@ -320,7 +320,7 @@ class SpkService
         self::assertAssignedTechnician($wo, 'spk.submit');
 
         if ($wo->getMedia('evidence')->count() === 0) {
-            abort(422, 'Evidence required before submission.');
+            abort(422, 'Bukti pekerjaan wajib diunggah sebelum SPK diajukan.');
         }
 
         // Check if there are associated inventory requests. If any, all must have completed declaration.
@@ -330,9 +330,9 @@ class SpkService
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
             self::assertAssignedTechnician($wo, 'spk.submit');
-            self::throwStatusConflictIfChanged($wo, $expectedStatus, 'in_progress', 'SPK submit conflict: item state changed by another user.');
-            abort_if($wo->status !== 'in_progress', 422, 'SPK must be in progress to submit.');
-            abort_if($wo->getMedia('evidence')->count() === 0, 422, 'Evidence required before submission.');
+            self::throwStatusConflictIfChanged($wo, $expectedStatus, 'in_progress', 'Konflik: status SPK sudah diubah oleh pengguna lain.');
+            abort_if($wo->status !== 'in_progress', 422, 'SPK harus berstatus dikerjakan untuk bisa diajukan.');
+            abort_if($wo->getMedia('evidence')->count() === 0, 422, 'Bukti pekerjaan wajib diunggah sebelum SPK diajukan.');
             $wo->update(['status' => 'waiting_review']);
 
             AuditService::log('work_order', 'submitted_for_review', ['code' => $wo->code], $wo);
@@ -344,16 +344,16 @@ class SpkService
     public static function approve(WorkOrder $wo): WorkOrder
     {
         self::assertCapability('spk.approve');
-        abort_if($wo->status !== 'waiting_review', 422, 'SPK must be waiting review to approve.');
+        abort_if($wo->status !== 'waiting_review', 422, 'SPK harus berstatus menunggu review untuk bisa disetujui.');
         self::assertMaterialReturnReconciledOrResolved($wo);
 
         return DB::transaction(function () use ($wo) {
             $wo = self::lockedWorkOrder($wo->id);
-            abort_if($wo->status !== 'waiting_review', 422, 'SPK must be waiting review to approve.');
+            abort_if($wo->status !== 'waiting_review', 422, 'SPK harus berstatus menunggu review untuk bisa disetujui.');
             self::assertCompany($wo);
             self::assertCapability('spk.approve');
-            abort_if(Auth::id() === $wo->created_by, 422, 'Creator cannot approve own SPK.');
-            abort_if(Auth::id() === $wo->assigned_to, 422, 'Assigned technician cannot approve own SPK.');
+            abort_if(Auth::id() === $wo->created_by, 422, 'Pembuat SPK tidak boleh menyetujui SPK sendiri.');
+            abort_if(Auth::id() === $wo->assigned_to, 422, 'Teknisi yang ditugaskan tidak boleh menyetujui SPK sendiri.');
             self::assertMaterialReturnReconciledOrResolved($wo);
             $wo->update([
                 'status' => 'completed',
@@ -373,15 +373,15 @@ class SpkService
     public static function reject(WorkOrder $wo, string $reason): WorkOrder
     {
         self::assertCapability('spk.reject');
-        abort_if($wo->status !== 'waiting_review', 422, 'SPK must be waiting review to reject.');
+        abort_if($wo->status !== 'waiting_review', 422, 'SPK harus berstatus menunggu review untuk bisa ditolak.');
 
         return DB::transaction(function () use ($wo, $reason) {
             $wo = self::lockedWorkOrder($wo->id);
-            abort_if($wo->status !== 'waiting_review', 422, 'SPK must be waiting review to reject.');
+            abort_if($wo->status !== 'waiting_review', 422, 'SPK harus berstatus menunggu review untuk bisa ditolak.');
             self::assertCompany($wo);
             self::assertCapability('spk.reject');
-            abort_if(Auth::id() === $wo->created_by, 422, 'Creator cannot reject own SPK.');
-            abort_if(Auth::id() === $wo->assigned_to, 422, 'Assigned technician cannot reject own SPK.');
+            abort_if(Auth::id() === $wo->created_by, 422, 'Pembuat SPK tidak boleh menolak SPK sendiri.');
+            abort_if(Auth::id() === $wo->assigned_to, 422, 'Teknisi yang ditugaskan tidak boleh menolak SPK sendiri.');
             CompleteSpkAction::releaseReservedStock($wo);
 
             $wo->update([
@@ -402,13 +402,13 @@ class SpkService
     public static function cancel(WorkOrder $wo, string $reason): WorkOrder
     {
         self::assertCapability('spk.cancel');
-        abort_if(in_array($wo->status, ['completed', 'cancelled']), 422, 'SPK already completed or cancelled.');
+        abort_if(in_array($wo->status, ['completed', 'cancelled']), 422, 'SPK sudah selesai atau dibatalkan.');
 
         return DB::transaction(function () use ($wo, $reason) {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
             self::assertCapability('spk.cancel');
-            abort_if(in_array($wo->status, ['completed', 'cancelled']), 422, 'SPK already completed or cancelled.');
+            abort_if(in_array($wo->status, ['completed', 'cancelled']), 422, 'SPK sudah selesai atau dibatalkan.');
             CompleteSpkAction::releaseReservedStock($wo);
 
             $wo->update(['status' => 'cancelled']);
@@ -432,7 +432,7 @@ class SpkService
 
         $assetId = $data['network_asset_id'] ?? null;
         if (! $assetId) {
-            abort_if($product->type === 'asset', 422, 'Serialized asset item requires a selected network asset.');
+            abort_if($product->type === 'asset', 422, 'Item aset berserial wajib memilih aset jaringan.');
 
             return;
         }
@@ -442,12 +442,12 @@ class SpkService
             ->lockForUpdate()
             ->findOrFail($assetId);
 
-        abort_unless((int) $asset->product_id === (int) $product->id, 422, 'Selected network asset must match the SPK item product.');
-        abort_unless($asset->status === 'available', 422, 'Selected network asset must be available.');
-        abort_unless($product->type === 'asset', 422, 'Selected product must be a serialized asset.');
+        abort_unless((int) $asset->product_id === (int) $product->id, 422, 'Aset jaringan yang dipilih harus sesuai dengan barang pada item SPK.');
+        abort_unless($asset->status === 'available', 422, 'Aset jaringan yang dipilih harus berstatus tersedia.');
+        abort_unless($product->type === 'asset', 422, 'Barang yang dipilih harus berupa aset berserial.');
 
         if ($wo->subscription_id && $asset->subscription_id !== null) {
-            abort_unless((int) $asset->subscription_id === (int) $wo->subscription_id, 422, 'Selected network asset must belong to the SPK subscription.');
+            abort_unless((int) $asset->subscription_id === (int) $wo->subscription_id, 422, 'Aset jaringan yang dipilih harus milik langganan pada SPK ini.');
         }
 
         abort_if(
@@ -458,14 +458,14 @@ class SpkService
                 ->lockForUpdate()
                 ->exists(),
             422,
-            'Selected network asset already has an active installation.'
+            'Aset jaringan yang dipilih sedang terpasang.'
         );
     }
 
     private static function companyId(): int
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         return $companyId;
     }
@@ -502,7 +502,7 @@ class SpkService
         abort_if(
             $pendingDeclarationCount > 0,
             422,
-            'Seluruh sisa material dari Inventory Request harus dideklarasikan terlebih dahulu sebelum submit SPK.'
+            'Seluruh sisa material dari permintaan barang harus dideklarasikan terlebih dahulu sebelum SPK diajukan.'
         );
     }
 
@@ -528,7 +528,7 @@ class SpkService
         abort_if(
             $unreconciledCount > 0,
             422,
-            'SPK tidak dapat disetujui (fail-closed) sampai seluruh retur material berstatus reconciled atau resolved.'
+            'SPK belum bisa disetujui sampai seluruh retur material berstatus direkonsiliasi atau diselesaikan.'
         );
     }
 
@@ -544,7 +544,7 @@ class SpkService
             && ($parsed = \DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:s.v\\Z', $expectedUpdatedAt)) !== false
             && $parsed->format('Y-m-d\\TH:i:s.v\\Z') === $expectedUpdatedAt,
             422,
-            'Expected updated timestamp must use canonical UTC format.'
+            'Waktu pembaruan semula harus berformat UTC baku.'
         );
     }
 

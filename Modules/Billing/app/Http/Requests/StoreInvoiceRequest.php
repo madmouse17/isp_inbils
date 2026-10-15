@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Http\Requests;
 
+use App\Rules\MatchesParentAttribute;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,10 +21,41 @@ class StoreInvoiceRequest extends FormRequest
 
         return [
             'customer_id' => ['required', Rule::exists('customers', 'id')->where('company_id', $companyId)],
-            'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
-            'issue_date' => ['nullable', 'date'],
-            'due_date' => ['nullable', 'date'],
+            // bail: the pair rule reads the row without the company boundary, so it never runs for an id the company does not own.
+            'subscription_id' => [
+                'bail',
+                'nullable',
+                'integer',
+                Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)->withoutTrashed(),
+                new MatchesParentAttribute('service_subscriptions', 'customer_id', 'customer_id'),
+            ],
+            'issue_date' => ['nullable', 'date_format:Y-m-d'],
+            'due_date' => ['nullable', 'date_format:Y-m-d'],
             'notes' => ['nullable', 'string'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'customer_id' => 'pelanggan',
+            'subscription_id' => 'langganan',
+            'issue_date' => 'tanggal terbit',
+            'due_date' => 'jatuh tempo',
+            'notes' => 'catatan',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'customer_id.required' => 'Pelanggan wajib dipilih.',
+            'customer_id.exists' => 'Pelanggan yang dipilih tidak ditemukan.',
+            'subscription_id.exists' => 'Langganan yang dipilih tidak ditemukan.',
+            'issue_date.date_format' => 'Format :attribute harus tahun-bulan-tanggal (YYYY-MM-DD).',
+            'due_date.date_format' => 'Format :attribute harus tahun-bulan-tanggal (YYYY-MM-DD).',
         ];
     }
 }

@@ -3,13 +3,15 @@ import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle2, Clock, XCircle, type LucideIcon } from 'lucide-react';
 import { Button } from '@/Components/ui';
 import GuestLayout from '@/Layouts/GuestLayout';
-import { formatDateTime, formatMoney } from '@/lib/format';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDateTime, formatRupiah } from '@/lib/format';
 import type { PaymentAttemptStatus, PortalPaymentAttempt } from '@/types/portal';
 
 interface ReturnProps extends Record<string, unknown> {
     attempt: PortalPaymentAttempt | null;
 }
 
+// The icon colours are the --status-* tokens (a dark value each); the icon is decoration, so 3:1 is enough.
 const outcomes: Record<
     PaymentAttemptStatus,
     { title: string; body: string; Icon: LucideIcon; tone: string }
@@ -18,13 +20,13 @@ const outcomes: Record<
         title: 'Pembayaran diterima',
         body: 'Terima kasih. Pembayaran Anda sudah tercatat pada tagihan.',
         Icon: CheckCircle2,
-        tone: 'text-emerald-700 dark:text-emerald-400',
+        tone: 'text-(--status-success)',
     },
     pending: {
         title: 'Menunggu konfirmasi',
         body: 'Pembayaran belum dikonfirmasi. Biasanya selesai dalam beberapa menit; transfer bank bisa lebih lama. Periksa lagi sebentar lagi.',
         Icon: Clock,
-        tone: 'text-amber-700 dark:text-amber-400',
+        tone: 'text-(--status-warning)',
     },
     failed: {
         title: 'Pembayaran gagal atau dibatalkan',
@@ -40,13 +42,14 @@ const outcomes: Record<
     },
     exception: {
         title: 'Pembayaran sedang diperiksa',
-        body: 'Petugas kami sedang memeriksa pembayaran ini. Anda tidak perlu membayar ulang. Hubungi kami jika ada pertanyaan.',
+        body: 'Pembayaran ini sedang diperiksa petugas. Anda tidak perlu membayar ulang. Hubungi penyedia layanan Anda jika ada pertanyaan.',
         Icon: AlertTriangle,
-        tone: 'text-amber-700 dark:text-amber-400',
+        tone: 'text-(--status-warning)',
     },
 };
 
 export default function Return({ attempt }: ReturnProps) {
+    const company = useCompany();
     const [checking, setChecking] = useState(false);
     const outcome = attempt === null ? null : outcomes[attempt.status];
 
@@ -91,13 +94,13 @@ export default function Return({ attempt }: ReturnProps) {
                             <dd className="text-right font-medium">{attempt.invoice.number}</dd>
                             <dt className="text-muted-foreground">Jumlah</dt>
                             <dd className="text-right tabular-nums">
-                                {formatMoney(attempt.amount)}
+                                {formatRupiah(attempt.amount, company)}
                             </dd>
                             {attempt.settled_at && (
                                 <>
                                     <dt className="text-muted-foreground">Diterima</dt>
                                     <dd className="text-right">
-                                        {formatDateTime(attempt.settled_at)}
+                                        {formatDateTime(attempt.settled_at, company)}
                                     </dd>
                                 </>
                             )}

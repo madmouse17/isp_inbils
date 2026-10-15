@@ -55,7 +55,7 @@ class SLATierController extends Controller
         Gate::authorize('store', SLATier::class);
         SLATier::query()->create($request->validated());
 
-        return redirect()->route('admin.sla-tiers.index')->with('success', 'SLA tier created.');
+        return redirect()->route('admin.sla-tiers.index')->with('success', 'Tingkat SLA dibuat.');
     }
 
     public function edit(SLATier $slaTier): InertiaResponse
@@ -70,7 +70,7 @@ class SLATierController extends Controller
         Gate::authorize('update', $slaTier);
         $slaTier->update($request->validated());
 
-        return redirect()->route('admin.sla-tiers.index')->with('success', 'SLA tier updated.');
+        return redirect()->route('admin.sla-tiers.index')->with('success', 'Tingkat SLA diperbarui.');
     }
 
     public function destroy(SLATier $slaTier): RedirectResponse
@@ -78,7 +78,7 @@ class SLATierController extends Controller
         Gate::authorize('delete', $slaTier);
         $slaTier->delete();
 
-        return back()->with('success', 'SLA tier deleted.');
+        return back()->with('success', 'Tingkat SLA dihapus.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -91,9 +91,9 @@ class SLATierController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
-            'response_time_hours' => 'Response Time',
-            'resolution_time_hours' => 'Resolution Time',
+            'name' => 'Nama',
+            'response_time_hours' => 'Target respons (jam)',
+            'resolution_time_hours' => 'Target penyelesaian (jam)',
             'is_active' => 'Status',
         ];
 
@@ -101,13 +101,13 @@ class SLATierController extends Controller
             'name' => $tier->name,
             'response_time_hours' => $tier->response_time_hours,
             'resolution_time_hours' => $tier->resolution_time_hours,
-            'is_active' => $tier->is_active ? 'Active' : 'Inactive',
+            'is_active' => $tier->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'sla-tiers-export-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('SLA Tiers', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Tingkat SLA', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

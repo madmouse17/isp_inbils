@@ -1,57 +1,64 @@
 import type { FormEvent } from 'react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTableActions, PageHeader } from '@/Components/composite';
-import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import {
+    DataTable,
+    DataTableActions,
+    PageHeader,
+    type DataTableColumn,
+} from '@/Components/composite';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
-import { Badge } from '@/Components/ui/Badge';
-import { Button } from '@/Components/ui/Button';
-import { Card, CardContent } from '@/Components/ui/Card';
-import { Input } from '@/Components/ui/Input';
-import { Modal } from '@/Components/ui/Modal';
-
-import { Switch } from '@/Components/ui/Switch';
+import { Button, Card, CardContent, EnumBadge, Input, Modal, Switch } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
+import { ACTIVE_STATE } from '@/lib/statuses';
+import type { Paginated } from '@/types';
 
 interface DtRow {
     id: number;
     name: string;
     code: string;
-    applies_to?: string | null;
+    applies_to: string | null;
     is_required: boolean;
-    expiry_days?: number | null;
+    expiry_days: number | null;
     is_active: boolean;
 }
 
 interface IndexProps extends Record<string, unknown> {
-    documentTypes: {
-        data: DtRow[];
-        current_page: number;
-        last_page: number;
-        per_page?: number;
-        total?: number;
-    };
+    documentTypes: Paginated<DtRow>;
     filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
     can: { export: boolean };
 }
 
+interface DocumentTypeForm {
+    name: string;
+    code: string;
+    applies_to: string;
+    is_required: boolean;
+    expiry_days: string;
+    is_active: boolean;
+}
+
+const emptyForm: DocumentTypeForm = {
+    name: '',
+    code: '',
+    applies_to: '',
+    is_required: false,
+    expiry_days: '',
+    is_active: true,
+};
+
 export default function Index({ documentTypes, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
-    const { data, setData, post, put, processing, errors, reset } = useForm({
-        name: '',
-        code: '',
-        applies_to: '',
-        is_required: false,
-        expiry_days: '',
-        is_active: true,
-    });
+    const { data, setData, post, put, transform, processing, errors, reset, clearErrors } =
+        useForm<DocumentTypeForm>(emptyForm);
 
     const {
         params,
         set,
+        setMany,
         sortBy,
         sortDir,
         onSort,
@@ -62,99 +69,106 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
         only: ['documentTypes', 'filters', 'can'],
     });
 
+    const openCreate = () => {
+        reset();
+        clearErrors();
+        setEditId(null);
+        setModalOpen(true);
+    };
+
+    const openEdit = useCallback(
+        (type: DtRow) => {
+            clearErrors();
+            setData({
+                name: type.name,
+                code: type.code,
+                applies_to: type.applies_to ?? '',
+                is_required: type.is_required,
+                expiry_days: type.expiry_days ? String(type.expiry_days) : '',
+                is_active: type.is_active,
+            });
+            setEditId(type.id);
+            setModalOpen(true);
+        },
+        [clearErrors, setData],
+    );
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        // The code is fixed once the type exists: the server ignores it on update, so it is not sent.
+        transform(({ code, ...values }) => (editId ? values : { code, ...values }));
+        const onSuccess = () => setModalOpen(false);
+
+        if (editId) {
+            put(route('admin.documents.update', editId), { onSuccess });
+        } else {
+            post(route('admin.documents.store'), { onSuccess });
+        }
+    };
+
+    const hasFilters = Boolean(params.search);
+
     const columns: DataTableColumn<DtRow>[] = useMemo(
         () => [
-            { key: 'name', header: 'Name', sortable: true, sortKey: 'name', cell: (d) => d.name },
+            { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
             {
                 key: 'code',
-                header: 'Code',
+                header: 'Kode',
                 sortable: true,
                 sortKey: 'code',
-                cell: (d) => <span className="font-mono text-sm">{d.code}</span>,
+                cell: (type) => <span className="font-mono text-sm">{type.code}</span>,
             },
             {
                 key: 'applies_to',
-                header: 'Applies To',
+                header: 'Berlaku untuk',
                 sortable: true,
                 sortKey: 'applies_to',
-                cell: (d) => d.applies_to ?? '-',
             },
-            {
-                key: 'is_required',
-                header: 'Required',
-                cell: (d) => (d.is_required ? <Badge variant="brand">Yes</Badge> : '-'),
-            },
+            { key: 'is_required', header: 'Wajib' },
             {
                 key: 'expiry_days',
-                header: 'Expiry',
-                cell: (d) => (d.expiry_days ? `${d.expiry_days} days` : '-'),
+                header: 'Masa berlaku',
+                cell: (type) => (type.expiry_days ? `${type.expiry_days} hari` : '-'),
             },
             {
                 key: 'is_active',
                 header: 'Status',
-                cell: (d) => (
-                    <Badge variant={d.is_active ? 'success' : 'danger'}>
-                        {d.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                ),
+                cell: (type) => <EnumBadge map={ACTIVE_STATE} value={type.is_active} />,
             },
             {
                 key: 'actions',
-                header: 'Actions',
-                cell: (d) => (
+                header: 'Aksi',
+                cell: (type) => (
                     <DataTableActions
-                        onEdit={() => openEdit(d)}
-                        deleteHref={route('admin.documents.destroy', d.id)}
-                        deleteMessage={`Delete ${d.name}?`}
-                        deleteDescription={`This will permanently remove the document type "${d.name}".`}
+                        onEdit={() => openEdit(type)}
+                        deleteHref={route('admin.documents.destroy', type.id)}
+                        deleteMessage={`Hapus ${type.name}?`}
+                        deleteDescription={`Jenis dokumen "${type.name}" akan dihapus dari daftar.`}
                     />
                 ),
             },
         ],
-        [],
+        [openEdit],
     );
-
-    const openCreate = () => {
-        reset();
-        setEditId(null);
-        setModalOpen(true);
-    };
-    const openEdit = (d: DtRow) => {
-        setData('name', d.name);
-        setData('code', d.code);
-        setData('applies_to', d.applies_to ?? '');
-        setData('is_required', d.is_required);
-        setData('expiry_days', d.expiry_days ? String(d.expiry_days) : '');
-        setData('is_active', d.is_active);
-        setEditId(d.id);
-        setModalOpen(true);
-    };
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        if (editId) {
-            put(route('admin.documents.update', editId), { onSuccess: () => setModalOpen(false) });
-        } else {
-            post(route('admin.documents.store'), { onSuccess: () => setModalOpen(false) });
-        }
-    };
 
     return (
         <AdminLayout title="Dokumen">
             <div className="space-y-6">
                 <PageHeader
                     title="Dokumen"
-                    subtitle="Business document categories. Files stored via Spatie MediaLibrary."
+                    subtitle="Jenis dokumen beserta status wajib dan masa berlakunya."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
                                 <ExportMenu
                                     exportUrl={route('admin.documents.export')}
                                     params={params}
+                                    formats={['csv', 'pdf']}
                                     canExport={can.export}
                                 />
                             ) : null}
                             <Button type="button" variant="primary" onClick={openCreate}>
-                                Add Type
+                                Buat Jenis Dokumen
                             </Button>
                         </div>
                     }
@@ -162,21 +176,13 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                            <div className="space-y-1 min-w-48 flex-1">
-                                <label
-                                    className="text-xs font-medium text-muted-foreground"
-                                    htmlFor="doc-search"
-                                >
-                                    Search
-                                </label>
-                                <Input
-                                    id="doc-search"
-                                    value={params.search ?? ''}
-                                    onChange={(e) => set('search', e.target.value)}
-                                    placeholder="Name or code…"
-                                />
-                            </div>
+                        <div className="max-w-md">
+                            <Input
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Nama, kode, atau berlaku untuk"
+                            />
                         </div>
 
                         <DataTable
@@ -186,8 +192,17 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                             sortDir={sortDir}
                             onSort={onSort}
                             onPageChange={(page) => set('page', page)}
-                            emptyTitle="No document types"
-                            emptyDescription="No document types match the current filters."
+                            onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="Belum ada jenis dokumen"
+                            emptyDescription="Jenis dokumen menentukan berkas apa yang wajib dan berapa lama berlaku. Buat jenis pertama untuk memulai."
+                            emptyAction={
+                                <Button type="button" variant="primary" onClick={openCreate}>
+                                    Buat Jenis Dokumen
+                                </Button>
+                            }
+                            hasFilters={hasFilters}
+                            onResetFilters={() => setMany({ search: '' })}
+                            itemLabel="jenis dokumen"
                             loading={tableProcessing}
                         />
                     </CardContent>
@@ -196,47 +211,62 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Type' : 'Add Type'}
+                    title={editId ? 'Ubah Jenis Dokumen' : 'Buat Jenis Dokumen'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
-                                onChange={(e) => setData('name', e.target.value)}
+                                onChange={(event) => setData('name', event.target.value)}
                                 error={errors.name}
                                 required
                             />
+                            {editId ? (
+                                <Input
+                                    label="Kode"
+                                    value={data.code}
+                                    readOnly
+                                    aria-readonly="true"
+                                    hint="Kode tidak bisa diubah setelah jenis dokumen dibuat."
+                                    className="bg-muted/50 text-muted-foreground"
+                                />
+                            ) : (
+                                <Input
+                                    label="Kode"
+                                    value={data.code}
+                                    onChange={(event) => setData('code', event.target.value)}
+                                    error={errors.code}
+                                    hint="Unik di perusahaan ini dan tidak bisa diubah nanti."
+                                    required
+                                />
+                            )}
                             <Input
-                                label="Code"
-                                value={data.code}
-                                onChange={(e) => setData('code', e.target.value)}
-                                error={errors.code}
-                                required
-                            />
-                            <Input
-                                label="Applies To"
+                                label="Berlaku untuk"
                                 value={data.applies_to}
-                                onChange={(e) => setData('applies_to', e.target.value)}
-                                placeholder="Customer, Employee, Vehicle..."
+                                onChange={(event) => setData('applies_to', event.target.value)}
+                                error={errors.applies_to}
+                                placeholder="Mis. pelanggan"
                             />
                             <Input
-                                label="Expiry (days)"
+                                label="Masa berlaku (hari)"
                                 type="number"
+                                min={1}
                                 value={data.expiry_days}
-                                onChange={(e) => setData('expiry_days', e.target.value)}
+                                onChange={(event) => setData('expiry_days', event.target.value)}
+                                error={errors.expiry_days}
                             />
                         </div>
                         <div className="flex gap-6">
                             <Switch
-                                label="Required"
+                                label="Wajib"
                                 checked={data.is_required}
-                                onCheckedChange={(c) => setData('is_required', c)}
+                                onCheckedChange={(checked) => setData('is_required', checked)}
                             />
                             <Switch
-                                label="Active"
+                                label="Aktif"
                                 checked={data.is_active}
-                                onCheckedChange={(c) => setData('is_active', c)}
+                                onCheckedChange={(checked) => setData('is_active', checked)}
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -245,10 +275,10 @@ export default function Index({ documentTypes, filters, can }: IndexProps) {
                                 variant="secondary"
                                 onClick={() => setModalOpen(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editId ? 'Simpan' : 'Buat'}
                             </Button>
                         </div>
                     </form>

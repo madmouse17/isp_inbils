@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { AlertTriangle, User } from 'lucide-react';
-import { NativeSelect } from '@/Components/composite/NativeSelect';
-import { Alert, AlertDescription, AlertTitle, Badge, Button } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    Button,
+    EnumBadge,
+    SearchSelect,
+} from '@/Components/ui';
 import {
     Dialog,
     DialogContent,
@@ -11,18 +17,12 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { labelOf, PRIORITY, WORK_ITEM_DOMAIN } from '@/lib/statuses';
 import type { DispatchItem, QueueUserOption } from '@/types';
-import {
-    formatAge,
-    formatDate,
-    getDomainLabel,
-    getDomainVariant,
-    getItemImpact,
-    getItemWhyNeedAction,
-    getNextStatusInfo,
-    getPriorityLabel,
-    getPriorityVariant,
-} from './utils';
+import { formatAge } from '../../MyWork/components/utils';
+import { getItemImpact, getItemWhyNeedAction, getNextStatusInfo } from './utils';
 
 interface AssignDialogProps {
     open: boolean;
@@ -96,9 +96,10 @@ function AssignDialogInner({
     onSuccess,
     onReloadQueue,
 }: AssignDialogInnerProps) {
+    const company = useCompany();
     const isTicket = item.domain === 'ticket';
     const candidateList = isTicket ? handlers : technicians;
-    const roleLabel = isTicket ? 'Petugas Tiket (Handler)' : 'Teknisi Lapangan';
+    const roleLabel = isTicket ? 'Petugas tiket' : 'Teknisi lapangan';
 
     const [selectedAssigneeId, setSelectedAssigneeId] = useState<string>(
         item.assigned_to ? String(item.assigned_to) : '',
@@ -122,7 +123,7 @@ function AssignDialogInner({
 
         const assigneeIdNum = Number(selectedAssigneeId);
         if (!assigneeIdNum || assigneeIdNum <= 0) {
-            setAssigneeError(`Silakan pilih ${roleLabel} penerima penugasan.`);
+            setAssigneeError(`Pilih ${roleLabel.toLowerCase()} penerima penugasan.`);
             return;
         }
 
@@ -201,19 +202,13 @@ function AssignDialogInner({
             <form onSubmit={handleSubmit}>
                 <DialogHeader>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                            variant={getDomainVariant(item.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getDomainLabel(item.domain)}
-                        </Badge>
+                        <EnumBadge map={WORK_ITEM_DOMAIN} value={item.domain} />
                         <DialogTitle className="text-lg font-bold wrap-break-word">
-                            Tugaskan {getDomainLabel(item.domain)} {item.code}
+                            Tugaskan {labelOf(WORK_ITEM_DOMAIN, item.domain)} {item.code}
                         </DialogTitle>
                     </div>
                     <DialogDescription className="text-xs text-muted-foreground">
-                        Alokasikan tanggung jawab eksekusi operasional kepada petugas atau teknisi
-                        yang sesuai.
+                        Pilih petugas atau teknisi yang akan mengerjakan.
                     </DialogDescription>
                 </DialogHeader>
 
@@ -229,7 +224,7 @@ function AssignDialogInner({
                     <div className="space-y-2 rounded-lg border border-border bg-muted/40 p-3.5">
                         <div>
                             <span className="text-sm font-semibold text-muted-foreground">
-                                Judul / Permintaan:
+                                Judul:
                             </span>
                             <p className="font-medium text-foreground">{item.title}</p>
                         </div>
@@ -243,28 +238,27 @@ function AssignDialogInner({
                             </div>
                             <div>
                                 <span className="text-muted-foreground">Prioritas: </span>
-                                <Badge
-                                    variant={getPriorityVariant(item.priority)}
-                                    className="ml-1 text-xs font-semibold"
-                                >
-                                    {getPriorityLabel(item.priority)}
-                                </Badge>
+                                <EnumBadge map={PRIORITY} value={item.priority} className="ml-1" />
                             </div>
                             <div>
-                                <span className="text-muted-foreground">Umur Antrean: </span>
+                                <span className="text-muted-foreground">Umur antrean: </span>
                                 <span className="font-medium text-foreground">
                                     {formatAge(item.age_seconds)}
                                 </span>
                             </div>
                             <div>
                                 <span className="text-muted-foreground">
-                                    {isTicket ? 'Batas SLA: ' : 'Jadwal Kerja: '}
+                                    {isTicket ? 'Batas SLA: ' : 'Jadwal kerja: '}
                                 </span>
                                 <span className="font-medium text-foreground">
                                     {isTicket
-                                        ? formatDate(item.due_at ?? item.summary?.sla_deadline)
+                                        ? formatDateTime(
+                                              item.due_at ?? item.summary?.sla_deadline,
+                                              company,
+                                          )
                                         : formatDate(
                                               item.scheduled_date ?? item.summary?.scheduled_date,
+                                              company,
                                           )}
                                 </span>
                             </div>
@@ -272,8 +266,8 @@ function AssignDialogInner({
 
                         {item.sla_breached && (
                             <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive-text">
-                                <AlertTriangle className="h-4 w-4 shrink-0" />
-                                <span>Peringatan: SLA telah terlampaui!</span>
+                                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                                <span>SLA sudah terlampaui.</span>
                             </div>
                         )}
                     </div>
@@ -281,7 +275,7 @@ function AssignDialogInner({
                     {/* Operational Summary & Impact */}
                     <div className="space-y-1 text-xs">
                         <p className="text-muted-foreground">
-                            <span className="font-semibold text-foreground">Alasan Tindakan: </span>
+                            <span className="font-semibold text-foreground">Alasan: </span>
                             {getItemWhyNeedAction(item)}
                         </p>
                         <p className="text-muted-foreground">
@@ -289,36 +283,36 @@ function AssignDialogInner({
                             {getItemImpact(item)}
                         </p>
                         <p className="text-muted-foreground">
-                            <span className="font-semibold text-foreground">Alur Berikutnya: </span>
+                            <span className="font-semibold text-foreground">Berikutnya: </span>
                             {getNextStatusInfo(item)}
                         </p>
                     </div>
 
                     {/* Assignee Selection Field */}
                     <div className="space-y-1.5 pt-1">
-                        <NativeSelect
+                        <SearchSelect
                             id="assignee-select"
-                            label={`Pilih ${roleLabel}`}
+                            label={`Pilih ${roleLabel.toLowerCase()}`}
                             required
                             value={selectedAssigneeId}
-                            onChange={(e) => {
-                                setSelectedAssigneeId(e.target.value);
+                            onChange={(value) => {
+                                setSelectedAssigneeId(value);
                                 setAssigneeError(null);
                             }}
                             error={assigneeError ?? undefined}
-                            options={[
-                                { value: '', label: `-- Pilih ${roleLabel} --` },
-                                ...candidateList.map((c) => ({
-                                    value: String(c.id),
-                                    label: `${c.name} (${c.email})`,
-                                })),
-                            ]}
+                            options={candidateList.map((c) => ({
+                                value: String(c.id),
+                                label: c.name,
+                                description: c.email,
+                            }))}
+                            placeholder={`Cari ${roleLabel.toLowerCase()}`}
+                            emptyText="Tidak ada yang cocok."
                             disabled={submitting || isConflict || isReloading}
                         />
                         {candidateList.length === 0 && (
-                            <p className="text-xs text-amber-600 dark:text-amber-400">
-                                Tidak ada {roleLabel.toLowerCase()} aktif yang memiliki izin
-                                penanganan domain ini.
+                            <p className="text-xs text-amber-700 dark:text-amber-400">
+                                Tidak ada {roleLabel.toLowerCase()} aktif yang punya izin menangani
+                                jenis ini.
                             </p>
                         )}
                     </div>
@@ -331,9 +325,9 @@ function AssignDialogInner({
                             role="alert"
                             aria-live="assertive"
                         >
-                            <AlertTriangle className="h-4 w-4" />
+                            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                             <AlertTitle>
-                                {isConflict ? 'Konflik Konkurensi' : 'Terjadi Kesalahan'}
+                                {isConflict ? 'Data berubah' : 'Terjadi kesalahan'}
                             </AlertTitle>
                             <AlertDescription>{serverError}</AlertDescription>
                         </Alert>
@@ -380,7 +374,7 @@ function AssignDialogInner({
                             disabled={isReloading || submitting || !onReloadQueue}
                             className="min-h-11"
                         >
-                            {isReloading ? 'Memuat Ulang...' : 'Muat Ulang Antrean'}
+                            {isReloading ? 'Memuat ulang...' : 'Muat ulang antrean'}
                         </Button>
                     ) : (
                         <Button
@@ -395,8 +389,8 @@ function AssignDialogInner({
                             }
                             className="min-h-11"
                         >
-                            <User className="mr-1.5 h-4 w-4" />
-                            Simpan Penugasan
+                            <User className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                            Simpan penugasan
                         </Button>
                     )}
                 </DialogFooter>

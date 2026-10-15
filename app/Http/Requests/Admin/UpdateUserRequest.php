@@ -33,7 +33,7 @@ class UpdateUserRequest extends FormRequest
         $validator->after(function ($validator) {
             $roles = (array) $this->input('roles', []);
             if (in_array('admin', $roles, true) && ! $this->user()?->hasRole('admin')) {
-                $validator->errors()->add('roles', 'Only an administrator can assign the admin role.');
+                $validator->errors()->add('roles', 'Hanya administrator yang boleh memberi peran admin.');
             }
         });
     }

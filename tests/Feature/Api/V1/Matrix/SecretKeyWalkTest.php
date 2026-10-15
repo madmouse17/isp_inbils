@@ -48,7 +48,7 @@ class SecretKeyWalkTest extends TestCase
             $walked++;
         }
 
-        $this->assertSame(20, $walked, 'a GET route was added or removed');
+        $this->assertSame(21, $walked, 'a GET route was added or removed');
     }
 
     public function test_the_payment_call_and_the_ticket_a_customer_reads_leak_nothing_either(): void

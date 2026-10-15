@@ -20,4 +20,21 @@ class CreateFromSpkRequest extends FormRequest
             'work_order_id' => ['required', Rule::exists('work_orders', 'id')->where('company_id', CompanyService::currentId())],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'work_order_id' => 'SPK',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'work_order_id.required' => 'SPK wajib dipilih.',
+            'work_order_id.exists' => 'SPK yang dipilih tidak ditemukan.',
+        ];
+    }
 }

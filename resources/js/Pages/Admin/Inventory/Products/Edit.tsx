@@ -1,4 +1,4 @@
-﻿import type { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -10,7 +10,7 @@ import {
     CardHeader,
     CardTitle,
     Input,
-    NativeSelect,
+    SearchSelect,
     Switch,
     Textarea,
 } from '@/Components/ui';
@@ -25,8 +25,8 @@ interface EditProps extends Record<string, unknown> {
 export default function Edit({ product, categories, codeSequence }: EditProps) {
     const p = product.data;
     const { data, setData, processing, errors } = useForm({
-        sku: p.sku ?? '',
-        name: p.name ?? '',
+        sku: p.sku,
+        name: p.name,
         category_id: String(p.category_id ?? ''),
         description: p.description ?? '',
         sell_price: p.sell_price ?? '',
@@ -36,6 +36,11 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
         is_active: p.is_active,
     });
 
+    const categoryChoices = categories.data.map((c) => ({
+        value: String(c.id),
+        label: `${c.code} - ${c.name}`,
+        description: c.unit ? `Satuan: ${c.unit.name} (${c.unit.symbol})` : undefined,
+    }));
     const selectedCategory = categories.data.find(
         (category) => String(category.id) === String(data.category_id),
     );
@@ -43,7 +48,7 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
         ? `${selectedCategory.unit.name} (${selectedCategory.unit.symbol})`
         : p.unit
           ? `${p.unit.name} (${p.unit.symbol})`
-          : 'Select category first';
+          : 'Pilih kategori dulu';
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -53,11 +58,11 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
     };
 
     return (
-        <AdminLayout title={`Edit ${p.name}`}>
+        <AdminLayout title="Ubah Barang">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit Product"
-                    subtitle="Update product master data."
+                    title="Ubah Barang"
+                    subtitle="Perbarui data induk barang."
                     actions={
                         <Button
                             asChild
@@ -65,7 +70,7 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.products.show', product.data.id)}>Back</Link>
+                            <Link href={route('admin.products.show', p.id)}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -73,84 +78,89 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Edit Product</CardTitle>
+                            <CardTitle>Data Barang</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <SequenceCodeField
                                 label="SKU"
-                                value={data.sku ?? ''}
+                                value={data.sku}
                                 onChange={(next) => setData('sku', next)}
                                 error={errors.sku}
                                 sequence={codeSequence}
                                 mode="edit"
                             />
                             <Input
-                                label="Name"
-                                value={data.name ?? ''}
+                                label="Nama"
+                                value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <NativeSelect
-                                label="Category"
-                                value={data.category_id ?? ''}
-                                onChange={(e) => setData('category_id', e.target.value)}
+                            <SearchSelect
+                                id="product-category"
+                                label="Kategori"
+                                placeholder="Cari kategori"
+                                emptyText="Tidak ada kategori yang cocok."
+                                options={categoryChoices}
+                                selected={
+                                    p.category
+                                        ? {
+                                              value: String(p.category.id),
+                                              label: `${p.category.code} - ${p.category.name}`,
+                                          }
+                                        : null
+                                }
+                                value={data.category_id}
+                                onChange={(value) => setData('category_id', value)}
                                 error={errors.category_id}
                                 required
-                            >
-                                <option value="">Select category</option>
-                                {categories.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <Input
-                                label="Unit"
+                                label="Satuan"
                                 value={unitLabel}
                                 readOnly
                                 disabled
-                                hint="Unit follows selected category."
+                                hint="Satuan mengikuti kategori yang dipilih."
                             />
                             <Input
-                                label="Sell Price"
+                                label="Harga Jual"
                                 type="number"
                                 step="0.01"
-                                value={data.sell_price ?? ''}
+                                value={data.sell_price}
                                 onChange={(e) => setData('sell_price', e.target.value)}
                                 error={errors.sell_price}
                             />
                             <Input
-                                label="Cost Price"
+                                label="Harga Pokok"
                                 type="number"
                                 step="0.01"
-                                value={data.cost_price ?? ''}
+                                value={data.cost_price}
                                 onChange={(e) => setData('cost_price', e.target.value)}
                                 error={errors.cost_price}
                             />
                             <Input
-                                label="Min Stock"
+                                label="Stok Minimum"
                                 type="number"
                                 step="0.01"
-                                value={data.min_stock ?? ''}
+                                value={data.min_stock}
                                 onChange={(e) => setData('min_stock', e.target.value)}
                                 error={errors.min_stock}
                             />
                             <div className="flex items-center gap-6">
                                 <Switch
-                                    label="Track Stock"
-                                    checked={Boolean(data.track_stock)}
+                                    label="Lacak stok"
+                                    checked={data.track_stock}
                                     onCheckedChange={(checked) => setData('track_stock', checked)}
                                 />
                                 <Switch
-                                    label="Active"
-                                    checked={Boolean(data.is_active)}
+                                    label="Aktif"
+                                    checked={data.is_active}
                                     onCheckedChange={(checked) => setData('is_active', checked)}
                                 />
                             </div>
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Description"
+                                    label="Deskripsi"
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     error={errors.description}
@@ -165,10 +175,10 @@ export default function Edit({ product, categories, codeSequence }: EditProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.products.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" loading={processing}>
-                            Save
+                            Simpan
                         </Button>
                     </div>
                 </form>

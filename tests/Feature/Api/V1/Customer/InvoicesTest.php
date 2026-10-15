@@ -4,6 +4,8 @@ namespace Tests\Feature\Api\V1\Customer;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,6 +15,7 @@ use Modules\Billing\Database\Factories\InvoiceFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
+use Modules\Service\Database\Factories\ServicePackageFactory;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
@@ -144,12 +147,33 @@ class InvoicesTest extends TestCase
         $item = $this->list()->assertOk()->json('data.0');
 
         $this->assertEqualsCanonicalizing(
-            ['id', 'number', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
+            ['id', 'number', 'subscription_id', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
             array_keys($item),
         );
+        $this->assertNull($item['subscription_id']);
         $this->assertSame($invoice->id, $item['id']);
         $this->assertSame('154600.00', $item['total']);
         $this->assertSame('100000.00', $item['sisa']);
+    }
+
+    public function test_an_invoice_of_one_subscription_names_it_in_the_list_and_the_detail_and_otherwise_null(): void
+    {
+        $companyId = $this->customer->company_id;
+        $subscription = ServiceSubscription::factory()->create([
+            'company_id' => $companyId,
+            'customer_id' => $this->customer->id,
+            'service_package_id' => ServicePackageFactory::new()->create(['company_id' => $companyId])->id,
+            'installation_address_id' => CustomerAddress::factory()->create(['company_id' => $companyId, 'customer_id' => $this->customer->id])->id,
+            'status' => 'active',
+        ]);
+        $recurring = $this->invoiceOf($this->customer, ['number' => 'INV-SUB', 'subscription_id' => $subscription->id]);
+        $oneTime = $this->invoiceOf($this->customer, ['number' => 'INV-ONE-OFF']);
+
+        $byNumber = collect($this->list()->assertOk()->json('data'))->pluck('subscription_id', 'number')->sortKeys()->all();
+
+        $this->assertSame(['INV-ONE-OFF' => null, 'INV-SUB' => $subscription->id], $byNumber);
+        $this->api('GET', "customer/invoices/{$recurring->id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', $subscription->id);
+        $this->api('GET', "customer/invoices/{$oneTime->id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', null);
     }
 
     public function test_unpaid_is_the_open_invoices_with_the_earliest_due_date_first(): void

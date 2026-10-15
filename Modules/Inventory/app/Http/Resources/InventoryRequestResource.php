@@ -17,8 +17,7 @@ class InventoryRequestResource extends JsonResource
             'code' => $this->code,
             'company_id' => $this->company_id,
             'status' => $this->status,
-            'status_label' => $this->statusLabel(),
-            'needed_at' => $this->needed_at?->toISOString(),
+            'needed_at' => $this->needed_at?->toDateString(),
             'reason' => $this->reason,
             'approval_note' => $this->approval_note,
             'rejection_reason' => $this->rejection_reason,
@@ -101,20 +100,5 @@ class InventoryRequestResource extends JsonResource
                 'issue' => $user ? $user->can('issue', $this->resource) : false,
             ],
         ];
-    }
-
-    private function statusLabel(): string
-    {
-        return match ($this->status) {
-            'draft' => 'Draf',
-            'submitted' => 'Menunggu Persetujuan',
-            'approved_reserved' => 'Disetujui (Stok Direservasi)',
-            'preparing' => 'Sedang Disiapkan Gudang',
-            'ready_for_pickup' => 'Siap Diambil (Ready for Pickup)',
-            'issued' => 'Selesai Diserahkan (Issued)',
-            'rejected' => 'Ditolak',
-            'cancelled' => 'Dibatalkan',
-            default => ucfirst(str_replace('_', ' ', (string) $this->status)),
-        };
     }
 }

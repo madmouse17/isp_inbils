@@ -67,7 +67,7 @@ class RoleController extends Controller
         ]);
         $role->syncPermissions($permissions);
 
-        return redirect()->route('admin.roles.index')->with('success', 'Role created.');
+        return redirect()->route('admin.roles.index')->with('success', 'Peran dibuat.');
     }
 
     public function edit(Role $role): InertiaResponse
@@ -88,7 +88,7 @@ class RoleController extends Controller
         $role->update(['name' => $data['name']]);
         $role->syncPermissions($data['permissions'] ?? []);
 
-        return redirect()->route('admin.roles.index')->with('success', 'Role updated.');
+        return redirect()->route('admin.roles.index')->with('success', 'Peran diperbarui.');
     }
 
     public function destroy(Role $role): RedirectResponse
@@ -97,7 +97,7 @@ class RoleController extends Controller
 
         $role->delete();
 
-        return back()->with('success', 'Role deleted.');
+        return back()->with('success', 'Peran dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -111,9 +111,9 @@ class RoleController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
-            'permissions_count' => 'Permissions',
-            'users_count' => 'Users',
+            'name' => 'Nama',
+            'permissions_count' => 'Hak akses',
+            'users_count' => 'Pengguna',
             'guard_name' => 'Guard',
         ];
 
@@ -125,7 +125,7 @@ class RoleController extends Controller
         ];
 
         return $format === 'pdf'
-            ? $export->streamPdf('Roles', $columns, $map, "roles-export-{$stamp}.pdf")
+            ? $export->streamPdf('Peran', $columns, $map, "roles-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "roles-export-{$stamp}.csv");
     }
 

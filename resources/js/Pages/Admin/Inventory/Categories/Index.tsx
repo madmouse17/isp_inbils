@@ -11,11 +11,13 @@ import {
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { useServerTable } from '@/hooks/useServerTable';
 import { type PaginationLike, toPagination } from '@/lib/pagination';
+import { ACTIVE_STATE } from '@/lib/statuses';
 import {
-    Badge,
     Button,
     Card,
     CardContent,
+    EmptyCell,
+    EnumBadge,
     Input,
     Modal,
     SearchSelect,
@@ -24,14 +26,22 @@ import {
 } from '@/Components/ui';
 import type { Category, Unit } from '@/types/inventory';
 
+/** A category as the parent picker needs it: every category, not only the page of the table. */
+interface CategoryOption {
+    id: number;
+    code: string;
+    name: string;
+}
+
 interface IndexProps extends Record<string, unknown> {
     categories: PaginationLike<Category>;
     units: { data: Unit[] };
+    categoryOptions: CategoryOption[];
     filters: { search?: string; sort?: string; direction?: string; per_page?: string | number };
     can: { create: boolean; export: boolean };
 }
 
-export default function Index({ categories, units, filters, can }: IndexProps) {
+export default function Index({ categories, units, categoryOptions, filters, can }: IndexProps) {
     const [search, setSearch] = useState(filters.search ?? '');
     const table = useServerTable({
         url: route('admin.categories.index'),
@@ -49,14 +59,26 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
         is_active: true,
     });
 
-    const unitOptions = units.data.map((unit) => ({
+    const unitChoices = units.data.map((unit) => ({
         value: String(unit.id),
         label: `${unit.name} (${unit.symbol})`,
     }));
+    // A category cannot be its own parent, so the one being edited is not offered.
+    const parentChoices = categoryOptions
+        .filter((category) => !editing || String(category.id) !== String(editing.id))
+        .map((category) => ({
+            value: String(category.id),
+            label: `${category.code} - ${category.name}`,
+        }));
 
     const submitFilter = (e: FormEvent) => {
         e.preventDefault();
         table.visit({ search });
+    };
+
+    const resetFilters = () => {
+        setSearch('');
+        table.visit({ search: '' });
     };
 
     const openCreate = () => {
@@ -68,12 +90,12 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
     const openEdit = (c: Category) => {
         setEditing(c);
         setData({
-            name: c.name ?? '',
-            code: c.code ?? '',
+            name: c.name,
+            code: c.code,
             parent_id: c.parent_id ? String(c.parent_id) : '',
             unit_id: c.unit_id ? String(c.unit_id) : '',
             description: c.description ?? '',
-            is_active: Boolean(c.is_active),
+            is_active: c.is_active,
         });
         setModalOpen(true);
     };
@@ -100,51 +122,53 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
     const columns: DataTableColumn<Category>[] = [
         {
             key: 'code',
-            header: 'Code',
+            header: 'Kode',
             sortable: true,
             sortKey: 'code',
             cell: (c) => <span className="font-mono text-sm">{c.code}</span>,
         },
-        { key: 'name', header: 'Name', sortable: true, sortKey: 'name' },
+        { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
         {
             key: 'unit',
-            header: 'Unit',
-            cell: (c) => (c.unit ? `${c.unit.name} (${c.unit.symbol})` : '-'),
+            header: 'Satuan',
+            cell: (c) => (c.unit ? `${c.unit.name} (${c.unit.symbol})` : <EmptyCell />),
         },
         {
             key: 'children_count',
-            header: 'Children',
-            cell: (c) => Number(c.children_count ?? 0) || 0,
+            header: 'Sub-kategori',
+            cell: (c) => Number(c.children_count ?? 0),
         },
         {
             key: 'is_active',
             header: 'Status',
-            cell: (c) => (
-                <Badge variant={c.is_active ? 'success' : 'danger'}>
-                    {c.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
+            cell: (c) => <EnumBadge map={ACTIVE_STATE} value={c.is_active} />,
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: 'Aksi',
             cell: (c) => (
                 <DataTableActions
                     onEdit={() => openEdit(c)}
                     deleteHref={route('admin.categories.destroy', c.id)}
-                    deleteMessage={`Delete ${c.name}?`}
-                    deleteDescription={`This will permanently remove the category "${c.name}".`}
+                    deleteMessage={`Hapus ${c.name}?`}
+                    deleteDescription={`Kategori "${c.name}" akan dihapus dari daftar. Kategori yang masih punya sub-kategori atau barang tidak bisa dihapus.`}
                 />
             ),
         },
     ];
+
+    const createButton = can.create ? (
+        <Button type="button" variant="primary" onClick={openCreate}>
+            Buat Kategori
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="Kategori">
             <div className="space-y-6">
                 <PageHeader
                     title="Kategori"
-                    subtitle="Manage product categories and default unit."
+                    subtitle="Kelompokkan barang dan tentukan satuan bawaannya."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
@@ -153,28 +177,22 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
                                 formats={['csv', 'pdf']}
                                 canExport={can.export}
                             />
-                            {can.create && (
-                                <Button type="button" variant="primary" onClick={openCreate}>
-                                    Create
-                                </Button>
-                            )}
+                            {createButton}
                         </div>
                     }
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submitFilter} className="flex flex-wrap gap-2">
+                        <form onSubmit={submitFilter} className="flex flex-wrap items-end gap-2">
                             <Input
-                                label="Search"
+                                label="Cari kategori"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Name or code"
+                                placeholder="Nama atau kode"
                             />
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
+                            <Button type="submit" variant="secondary">
+                                Filter
+                            </Button>
                         </form>
                         <DataTable
                             columns={columns}
@@ -185,6 +203,11 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
                             onPageChange={table.setPage}
                             onPerPageChange={table.setPerPage}
                             loading={table.processing}
+                            itemLabel="kategori"
+                            emptyDescription="Buat kategori lebih dulu, lalu pilih kategori itu saat membuat barang."
+                            emptyAction={createButton}
+                            hasFilters={Boolean(filters.search)}
+                            onResetFilters={resetFilters}
                         />
                     </CardContent>
                 </Card>
@@ -193,49 +216,51 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
             <Modal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
-                title={editing ? 'Edit Category' : 'Create Category'}
+                title={editing ? 'Ubah Kategori' : 'Buat Kategori'}
             >
                 <form onSubmit={submitForm} className="space-y-4">
                     <Input
-                        label="Name"
+                        label="Nama"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
                         error={errors.name}
                         required
                     />
                     <Input
-                        label="Code"
+                        label="Kode"
                         value={data.code}
                         onChange={(e) => setData('code', e.target.value)}
                         error={errors.code}
                         required
                     />
                     <SearchSelect
-                        label="Unit"
+                        label="Satuan"
                         value={data.unit_id}
                         onChange={(value) => setData('unit_id', value)}
-                        options={unitOptions}
-                        placeholder="Search unit"
-                        emptyText="No units found."
+                        options={unitChoices}
+                        placeholder="Cari satuan"
+                        emptyText="Tidak ada satuan yang cocok."
                         error={errors.unit_id}
                         required
                     />
-                    <Input
-                        label="Parent ID"
+                    <SearchSelect
+                        label="Induk"
                         value={data.parent_id}
-                        onChange={(e) => setData('parent_id', e.target.value)}
+                        onChange={(value) => setData('parent_id', value)}
+                        options={parentChoices}
+                        placeholder="Tanpa induk (kategori utama)"
+                        emptyText="Tidak ada kategori yang cocok."
                         error={errors.parent_id}
-                        placeholder="Leave empty for root"
                     />
                     <Textarea
-                        label="Description"
+                        label="Deskripsi"
                         value={data.description}
                         onChange={(e) => setData('description', e.target.value)}
                         error={errors.description}
                         rows={2}
                     />
                     <Switch
-                        label="Active"
+                        label="Aktif"
                         checked={data.is_active}
                         onCheckedChange={(checked) => setData('is_active', checked)}
                     />
@@ -245,10 +270,10 @@ export default function Index({ categories, units, filters, can }: IndexProps) {
                             variant="secondary"
                             onClick={() => setModalOpen(false)}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            {editing ? 'Save' : 'Create'}
+                            {editing ? 'Simpan' : 'Buat'}
                         </Button>
                     </div>
                 </form>

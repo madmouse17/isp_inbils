@@ -8,7 +8,7 @@ interface PrefixUtilisationProps {
 /** A container is measured by the share given to child prefixes, an address pool by the addresses in use. */
 export function PrefixUtilisation({ prefix }: PrefixUtilisationProps) {
     const measure =
-        prefix.usage === 'container' ? 'allocated to child prefixes' : 'addresses in use';
+        prefix.usage === 'container' ? 'dialokasikan ke prefiks di dalamnya' : 'alamat terpakai';
 
     return <UtilisationBar percent={prefix.percent} label={`${prefix.cidr} ${measure}`} />;
 }

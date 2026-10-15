@@ -5,6 +5,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { LoadingState, PageHeader } from '@/Components/composite';
 import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { formatNumber } from '@/lib/format';
 
 interface StockResult {
     location_name: string;
@@ -44,20 +45,20 @@ export default function Find({ results, search }: FindProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Cari Barang"
-                    subtitle="Search consumable items by name or SKU."
+                    subtitle="Cari barang habis pakai berdasarkan nama atau SKU, lalu lihat jumlahnya di setiap lokasi."
                 />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex gap-2">
                             <Input
-                                label="Search"
+                                label="Nama atau SKU"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Name or SKU"
+                                placeholder="Contoh: kabel"
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
-                                    Search
+                                    Cari
                                 </Button>
                             </div>
                         </form>
@@ -71,13 +72,13 @@ export default function Find({ results, search }: FindProps) {
                             <Table>
                                 <THead>
                                     <TR>
-                                        <TH>Product</TH>
+                                        <TH>Barang</TH>
                                         <TH>SKU</TH>
-                                        <TH>Location</TH>
-                                        <TH>Path</TH>
-                                        <TH>Available</TH>
-                                        <TH>Total</TH>
-                                        <TH>Reserved</TH>
+                                        <TH>Lokasi</TH>
+                                        <TH>Jalur</TH>
+                                        <TH>Tersedia</TH>
+                                        <TH>Jumlah</TH>
+                                        <TH>Dicadangkan</TH>
                                     </TR>
                                 </THead>
                                 <TBody>
@@ -87,7 +88,9 @@ export default function Find({ results, search }: FindProps) {
                                                 colSpan={7}
                                                 className="py-10 text-center text-muted-foreground"
                                             >
-                                                No data found.
+                                                {search
+                                                    ? `Tidak ada barang habis pakai yang cocok dengan "${search}". Coba potongan nama atau SKU yang lain.`
+                                                    : 'Ketik nama atau SKU di kolom atas, lalu klik Cari.'}
                                             </TD>
                                         </TR>
                                     ) : (
@@ -103,7 +106,7 @@ export default function Find({ results, search }: FindProps) {
                                                               colSpan={5}
                                                               className="text-muted-foreground"
                                                           >
-                                                              No stock records.
+                                                              Belum ada stok di lokasi mana pun.
                                                           </TD>
                                                       </TR>,
                                                   ]
@@ -117,11 +120,15 @@ export default function Find({ results, search }: FindProps) {
                                                           <TD className="text-sm text-muted-foreground">
                                                               {s.location_path}
                                                           </TD>
-                                                          <TD className="font-medium">
-                                                              {s.available}
+                                                          <TD className="font-medium tabular-nums">
+                                                              {formatNumber(s.available)}
                                                           </TD>
-                                                          <TD>{s.quantity}</TD>
-                                                          <TD>{s.reserved}</TD>
+                                                          <TD className="tabular-nums">
+                                                              {formatNumber(s.quantity)}
+                                                          </TD>
+                                                          <TD className="tabular-nums">
+                                                              {formatNumber(s.reserved)}
+                                                          </TD>
                                                       </TR>
                                                   )),
                                         )

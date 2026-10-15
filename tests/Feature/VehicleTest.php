@@ -8,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Database\Seeders\SystemSettingSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class VehicleTest extends TestCase
@@ -63,5 +64,53 @@ class VehicleTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->get(route('admin.vehicles.index'));
         $response->assertOk();
+    }
+
+    public function test_index_gives_the_purchase_date_as_a_plain_date_so_the_edit_form_can_preload_it(): void
+    {
+        Vehicle::factory()->create([
+            'company_id' => $this->admin->company_id,
+            'purchase_date' => '2025-11-30',
+        ]);
+
+        $this->actingAs($this->admin)->get(route('admin.vehicles.index'))
+            ->assertInertia(fn (Assert $page) => $page->where('vehicles.data.0.purchase_date', '2025-11-30'));
+    }
+
+    public function test_index_is_paginated_so_the_page_can_show_its_controls(): void
+    {
+        Vehicle::factory()->count(12)->create(['company_id' => $this->admin->company_id]);
+
+        $this->actingAs($this->admin)->get(route('admin.vehicles.index'))
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('vehicles.data', 10)
+                ->where('vehicles.meta.total', 12)
+                ->where('vehicles.meta.last_page', 2));
+
+        $this->actingAs($this->admin)->get(route('admin.vehicles.index', ['page' => 2]))
+            ->assertInertia(fn (Assert $page) => $page->has('vehicles.data', 2));
+    }
+
+    public function test_update_saves_the_purchase_date_the_form_preloaded(): void
+    {
+        $vehicle = Vehicle::factory()->create(['company_id' => $this->admin->company_id, 'plate_number' => 'B 1 AA']);
+
+        $this->actingAs($this->admin)->put(route('admin.vehicles.update', $vehicle), [
+            'plate_number' => 'B 1 AA',
+            'purchase_date' => '2025-11-30',
+            'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('2025-11-30', $vehicle->fresh()->purchase_date->toDateString());
+    }
+
+    public function test_purchase_date_must_be_a_plain_date(): void
+    {
+        $this->actingAs($this->admin)->post(route('admin.vehicles.store'), [
+            'plate_number' => 'B 9 ZZ',
+            'purchase_date' => '30/11/2025',
+        ])->assertSessionHasErrors(['purchase_date' => 'tanggal pembelian harus sesuai format Y-m-d.']);
+
+        $this->assertDatabaseMissing('vehicles', ['plate_number' => 'B 9 ZZ']);
     }
 }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './support/fixtures';
-import { selectFirstSearchOption } from './support/demo';
+import { selectFirstSearchOption, selectSearchOption } from './support/demo';
 
 const seederSource = readFileSync('database/seeders/DemoUserSeeder.php', 'utf8');
 const demoPassword = seederSource.match(/(?:public|private) const PASSWORD = '([^']+)';/)?.[1];
@@ -28,19 +28,19 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await loginAsAdmin(page);
     await page.goto('/admin/customers/create');
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create Customer' }),
+        page.getByRole('main').getByRole('heading', { name: 'Buat Pelanggan' }),
     ).toBeVisible();
 
-    await page.getByLabel('Name').fill(customerName);
+    await page.getByLabel('Nama').fill(customerName);
     await page.getByLabel('Email').fill(customerEmail);
-    await page.getByLabel('Phone').fill('0800000000');
+    await page.getByLabel('Telepon').fill('0800000000');
 
     // The create form requires a complete address (backend validates label,
     // street, region cascade, and coordinates). Fill the default address on
     // the Addresses tab, then submit from the customer tab.
-    await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+    await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
     await page.getByLabel('Label').fill(addressLabel);
-    await page.getByLabel('Address *', { exact: true }).fill('17 E2E Fiber Street');
+    await page.getByLabel('Alamat *', { exact: true }).fill('17 E2E Fiber Street');
     await page.getByLabel('Provinsi *', { exact: true }).click();
     await page
         .getByRole('option', { name: /jakarta/i })
@@ -67,26 +67,19 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
     // The create form also requires a primary contact.
-    await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
-    await page.getByLabel('Name').fill(`${customerName} Contact`);
-    await page.getByLabel('Phone').fill('081200000000');
+    await page.getByRole('tab', { name: /Kontak \(\d+\)/ }).click();
+    await page.getByLabel('Nama').fill(`${customerName} Contact`);
+    await page.getByLabel('Telepon').fill('081200000000');
     await page.getByLabel('Email').fill(`contact.${suffix}@example.test`);
 
     // Subscription & SPK section: package + serving POP are required; the E2E
     // seeder provisions "Home 10Mbps" and "Default POP".
-    await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-    await selectFirstSearchOption(page, 'Service Package');
-    const popSelect = page.getByLabel('Serving POP / Location');
-    const popValue = await popSelect
-        .locator('option')
-        .filter({ hasText: 'Default POP' })
-        .first()
-        .getAttribute('value');
-    expect(popValue).toBeTruthy();
-    await popSelect.selectOption(popValue!);
+    await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
+    await selectFirstSearchOption(page, 'Paket layanan');
+    await selectSearchOption(page, 'POP pelayan', /Default POP/);
 
-    await page.getByRole('tab', { name: 'Customer Data' }).click();
-    await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
+    await page.getByRole('tab', { name: 'Data pelanggan' }).click();
+    await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
     await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
     await expect(page.getByRole('main').getByRole('heading', { name: customerName })).toBeVisible();
@@ -99,49 +92,30 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     if (!customerId) throw new Error('Could not resolve created customer id');
 
     // Onboarding leaves only a pending subscription, so the derived status is Prospective.
-    await expect(page.getByRole('main').getByText('Prospective')).toBeVisible();
+    await expect(page.getByRole('main').getByText('Prospek')).toBeVisible();
     const customerSearch = encodeURIComponent(customerName);
     await page.goto(`/admin/customers?search=${customerSearch}&status=active`);
     await expect(page.getByRole('main').getByText(customerName)).toHaveCount(0);
     await page.goto(`/admin/customers?search=${customerSearch}&status=prospective`);
-    await expect(page.getByRole('row').filter({ hasText: customerName })).toContainText(
-        'Prospective',
-    );
+    await expect(page.getByRole('row').filter({ hasText: customerName })).toContainText('Prospek');
     await page.goto(`/admin/customers/${customerId}`);
 
-    await expect(page.getByRole('tab', { name: /Addresses \(\d+\)/ })).toBeVisible();
-    await expect(page.getByRole('tab', { name: /Subscriptions \(\d+\)/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Alamat \(\d+\)/ })).toBeVisible();
+    await expect(page.getByRole('tab', { name: /Langganan \(\d+\)/ })).toBeVisible();
 
     await page.goto(`/admin/customers/${customerId}/subscriptions`);
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Subscriptions' }),
-    ).toBeVisible();
-    await page.getByRole('button', { name: 'Create Subscription' }).click();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Langganan' })).toBeVisible();
+    await page.getByRole('button', { name: 'Buat Langganan' }).click();
 
-    const subscriptionDialog = page.getByRole('dialog', { name: 'Create Subscription' });
-    const packageName = await selectFirstSearchOption(page, 'Service Package');
+    const subscriptionDialog = page.getByRole('dialog', { name: 'Buat Langganan' });
+    const packageName = await selectFirstSearchOption(page, 'Paket layanan');
 
     expect(packageName).toBeTruthy();
-    const addressSelect = subscriptionDialog.getByLabel('Installation Address');
-    const addressOption = addressSelect.locator('option').filter({ hasText: addressLabel });
-    const addressValue = await addressOption.getAttribute('value');
-
-    expect(addressValue).toBeTruthy();
-    // The dialog lists the customer's addresses; the newly created customer
-    // has exactly one address (the create form's default), so fall back to the
-    // first real option when the label doesn't match (label text rendering
-    // varies by region).
-    if (addressValue) {
-        await addressSelect.selectOption(addressValue);
-    } else {
-        for (let i = 1; i < (await addressSelect.locator('option').count()); i += 1) {
-            await addressSelect.selectOption({ index: i });
-        }
-    }
-    await subscriptionDialog.getByLabel('Billing Day (1-28)').fill(billingDay);
-    await subscriptionDialog.getByLabel('MRC Amount').fill(mrcAmount);
-    await subscriptionDialog.getByLabel('Contract Months').fill('12');
-    await subscriptionDialog.getByRole('button', { name: 'Create', exact: true }).click();
+    await selectSearchOption(page, 'Alamat pemasangan', new RegExp(addressLabel));
+    await subscriptionDialog.getByLabel('Tanggal tagihan (1-28)').fill(billingDay);
+    await subscriptionDialog.getByLabel('Biaya bulanan').fill(mrcAmount);
+    await subscriptionDialog.getByLabel('Masa kontrak (bulan)').fill('12');
+    await subscriptionDialog.getByRole('button', { name: 'Buat', exact: true }).click();
 
     // storeForCustomer() redirects back to the per-customer subscriptions index.
     // Onboarding already created one pending subscription with the same
@@ -150,13 +124,15 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     // to the package MRC, i.e. the seeded package — this created row is set to
     // mrcAmount explicitly).
     await expect(page).toHaveURL(new RegExp(`/admin/customers/${customerId}/subscriptions$`));
+    // The created row's MRC reads "Rp 175.000", not a larger amount that merely starts with it (cells join without a gap).
+    const mrcText = /Rp\s*175\.000(?!\.\d)/;
     const subscriptionRow = page
         .getByRole('row')
         .filter({ hasText: packageName! })
-        .filter({ hasText: `${mrcAmount}.00` });
+        .filter({ hasText: mrcText });
     await expect(subscriptionRow).toBeVisible();
-    await expect(subscriptionRow).toContainText('pending');
-    await expect(subscriptionRow).toContainText(`${mrcAmount}.00`);
+    await expect(subscriptionRow).toContainText('Menunggu');
+    await expect(subscriptionRow).toContainText(mrcText);
     await expect(subscriptionRow).toContainText(billingDay);
 });
 

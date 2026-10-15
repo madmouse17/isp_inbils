@@ -10,6 +10,16 @@
             "auth": false
         },
         {
+            "slug": "forgot-password",
+            "url": "/forgot-password",
+            "auth": false,
+            "actions": [
+                {
+                    "waitFor": "role=button[name=\"Kirim tautan\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "dashboard",
             "url": "/admin/dashboard"
         },
@@ -28,6 +38,18 @@
         {
             "slug": "dispatch",
             "url": "/admin/dispatch"
+        },
+        {
+            "slug": "dispatch-assign",
+            "url": "/admin/dispatch",
+            "actions": [
+                {
+                    "click": "main table tbody tr button >> nth=0"
+                },
+                {
+                    "waitFor": "text=Simpan penugasan >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "approvals",
@@ -51,6 +73,21 @@
             ]
         },
         {
+            "slug": "spk-add-item",
+            "url": "/admin/spk",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "click": "role=button[name=\"Tambah item\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Jumlah dicadangkan >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "tickets-index",
             "url": "/admin/tickets"
         },
@@ -68,8 +105,29 @@
             ]
         },
         {
+            "slug": "ticket-categories-edit",
+            "url": "/admin/ticket-categories",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Ubah kategori Device Issue\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Hanya berlaku untuk tiket baru. >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "evaluations",
             "url": "/admin/evaluations"
+        },
+        {
+            "slug": "evaluations-create",
+            "url": "/admin/evaluations/create",
+            "actions": [
+                {
+                    "waitFor": "text=Data evaluasi >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "customers-index",
@@ -89,8 +147,53 @@
             ]
         },
         {
+            "slug": "customers-edit",
+            "url": "/admin/customers?search=E2E-LINKED-CUST",
+            "actions": [
+                {
+                    "click": "main table tbody tr a:has-text(\"Ubah\") >> nth=0"
+                },
+                {
+                    "waitFor": "role=tab[name=\"Data pelanggan\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "subscriptions-show",
+            "url": "/admin/network-assets?search=E2E-LINKED-ASSET",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "click": "main a:has-text(\"E2E-LINKED-SUB\") >> nth=0"
+                },
+                {
+                    "waitFor": "text=Rincian langganan >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "service-packages",
             "url": "/admin/service-packages"
+        },
+        {
+            "slug": "service-packages-create",
+            "url": "/admin/service-packages/create",
+            "actions": [
+                {
+                    "waitFor": "text=Data paket >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "package-categories",
+            "url": "/admin/service-package-categories",
+            "actions": [
+                {
+                    "waitFor": "main table >> text=Korporat >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "bandwidth-profiles",
@@ -109,24 +212,105 @@
             "url": "/admin/locations"
         },
         {
+            "slug": "locations-table",
+            "url": "/admin/locations",
+            "actions": [
+                {
+                    "click": "role=tab[name=\"Tabel\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Koordinat >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "network-assets",
             "url": "/admin/network-assets"
+        },
+        {
+            "slug": "network-assets-show",
+            "url": "/admin/network-assets",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Siklus hidup >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "nas-devices",
             "url": "/admin/nas-devices"
         },
         {
+            "slug": "nas-devices-show",
+            "url": "/admin/nas-devices",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Halaman isolir >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "ipam-prefixes",
             "url": "/admin/ipam/prefixes"
+        },
+        {
+            "slug": "ipam-prefix-show",
+            "url": "/admin/ipam/prefixes",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Dapat dipakai >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "ipam-vlans",
+            "url": "/admin/ipam/vlans",
+            "actions": [
+                {
+                    "waitFor": "text=E2E-VLAN >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "odn",
             "url": "/admin/odn"
         },
         {
+            "slug": "odn-asset",
+            "url": "/admin/odn",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Splitter 1:8 >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "inventory-requests",
             "url": "/admin/inventory/requests"
+        },
+        {
+            "slug": "inventory-requests-show",
+            "url": "/admin/inventory/requests?status=draft",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Alur & Jejak Status Permintaan >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "inventory-requests-create",
@@ -137,13 +321,28 @@
             "url": "/admin/inventory/requests?tab=returns",
             "actions": [
                 {
-                    "waitFor": "text=Antrean Penerimaan Gudang"
+                    "waitFor": "text=Antrean Penerimaan Gudang >> visible=true >> nth=0"
                 }
             ]
         },
         {
             "slug": "products",
             "url": "/admin/products"
+        },
+        {
+            "slug": "products-show",
+            "url": "/admin/products?search=DTC-P01",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Mutasi Terbaru >> visible=true >> nth=0"
+                },
+                {
+                    "click": "text=Mutasi Terbaru >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "categories",
@@ -158,8 +357,29 @@
             "url": "/admin/stocks"
         },
         {
+            "slug": "stocks-receive",
+            "url": "/admin/stocks",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Terima Barang\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Terima Barang\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "inventory-find",
             "url": "/admin/inventory/find"
+        },
+        {
+            "slug": "inventory-find-result",
+            "url": "/admin/inventory/find?search=DTC-P01",
+            "actions": [
+                {
+                    "waitFor": "text=DTC Product 01 >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "stock-movements",
@@ -174,11 +394,38 @@
             "url": "/admin/invoices/create"
         },
         {
+            "slug": "invoices-payment",
+            "url": "/admin/invoices?status=sent",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "click": "role=button[name=\"Catat pembayaran\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Sisa tagihan: >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "invoices-show",
             "url": "/admin/invoices",
             "actions": [
                 {
                     "click": "main table tbody tr a >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "invoices-generate",
+            "url": "/admin/invoices",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Buat tagihan bulanan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Lihat pratinjau >> visible=true >> nth=0"
                 }
             ]
         },
@@ -189,6 +436,33 @@
         {
             "slug": "reports",
             "url": "/admin/reports"
+        },
+        {
+            "slug": "reports-business",
+            "url": "/admin/reports/business",
+            "actions": [
+                {
+                    "waitFor": "text=Tagihan menurut status >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "reports-asset",
+            "url": "/admin/reports/asset",
+            "actions": [
+                {
+                    "waitFor": "text=Aset jaringan menurut status >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "reports-dictionary",
+            "url": "/admin/reports/dictionary",
+            "actions": [
+                {
+                    "waitFor": "text=Angka dibatasi pada perusahaan Anda >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "reports-technician",
@@ -215,12 +489,33 @@
             "url": "/admin/company/settings"
         },
         {
+            "slug": "company-settings-whatsapp",
+            "url": "/admin/company/settings",
+            "actions": [
+                {
+                    "click": "text=Pemakaian bulan ini >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "organizations",
             "url": "/admin/organizations"
         },
         {
             "slug": "employees",
             "url": "/admin/employees"
+        },
+        {
+            "slug": "employees-create",
+            "url": "/admin/employees",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Buat Karyawan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Buat Karyawan\"] >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "vehicles",
@@ -231,8 +526,41 @@
             "url": "/admin/users"
         },
         {
+            "slug": "users-create",
+            "url": "/admin/users/create",
+            "actions": [
+                {
+                    "waitFor": "text=Data akun >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "users-show",
+            "url": "/admin/users",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "waitFor": "text=Data pengguna >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "roles",
             "url": "/admin/roles"
+        },
+        {
+            "slug": "roles-edit",
+            "url": "/admin/roles",
+            "actions": [
+                {
+                    "click": "main table tbody tr a >> nth=0"
+                },
+                {
+                    "waitFor": "text=Cari hak akses >> visible=true >> nth=0"
+                }
+            ]
         },
         {
             "slug": "permissions",
@@ -245,6 +573,18 @@
         {
             "slug": "number-sequences",
             "url": "/admin/number-sequences"
+        },
+        {
+            "slug": "number-sequences-edit",
+            "url": "/admin/number-sequences",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Ubah penomoran Pelanggan\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "text=Pratinjau kode berikutnya >> visible=true >> nth=0"
+                }
+            ]
         }
     ]
 }

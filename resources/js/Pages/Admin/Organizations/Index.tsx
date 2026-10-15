@@ -1,24 +1,29 @@
 import type { FormEvent } from 'react';
 import { useCallback, useMemo, useState } from 'react';
-import { useForm } from '@inertiajs/react';
+import { useForm, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import {
+    Alert,
+    AlertDescription,
     Badge,
     Button,
     Card,
     CardContent,
+    EnumBadge,
     Input,
     Modal,
+    NativeSelect,
     SearchSelect,
     Switch,
-    NativeSelect,
 } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
+import { ACTIVE_STATE, ORGANIZATION_TYPE, labelOf, optionsOf } from '@/lib/statuses';
+import type { PageProps } from '@/types';
 
 interface OrgRow {
     id: number;
@@ -47,33 +52,16 @@ interface IndexProps extends Record<string, unknown> {
     can: { export: boolean };
 }
 
-type OrgType = 'company' | 'branch' | 'area' | 'unit' | 'team';
-
 interface OrganizationForm {
     code: string;
     name: string;
-    type: OrgType;
+    type: string;
     parent_id: string;
     address: string;
     phone: string;
     email: string;
     is_active: boolean;
 }
-
-interface ParentOption {
-    id: number;
-    value: string;
-    label: string;
-    description: string;
-}
-
-const orgTypeOptions = [
-    { value: 'company', label: 'Company' },
-    { value: 'branch', label: 'Branch' },
-    { value: 'area', label: 'Area' },
-    { value: 'unit', label: 'Unit' },
-    { value: 'team', label: 'Team' },
-];
 
 const emptyForm: OrganizationForm = {
     code: '',
@@ -89,13 +77,16 @@ const emptyForm: OrganizationForm = {
 export default function Index({ organizations, parentOptions, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
-    const [parentSearch, setParentSearch] = useState('');
-    const { data, setData, post, put, processing, errors, reset } =
+    const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<OrganizationForm>(emptyForm);
+    // A refused delete comes back as a validation error on the page, not on this form.
+    const deleteError = (usePage<PageProps>().props.errors as Record<string, string | undefined>)
+        .organization;
 
     const {
         params,
         set,
+        setMany,
         sortBy,
         sortDir,
         onSort,
@@ -112,81 +103,71 @@ export default function Index({ organizations, parentOptions, filters, can }: In
     );
     const parentSelectOptions = useMemo(
         () =>
-            parentOptions.data.map((organization) => ({
-                id: organization.id,
-                value: String(organization.id),
-                label: `${organization.code} - ${organization.name}`,
-                description: organization.path ?? organization.type,
-            })),
-        [parentOptions.data],
+            parentOptions.data
+                .filter((organization) => organization.id !== editId)
+                .map((organization) => ({
+                    value: String(organization.id),
+                    label: `${organization.code} - ${organization.name}`,
+                    description: organization.path ?? labelOf(ORGANIZATION_TYPE, organization.type),
+                })),
+        [parentOptions.data, editId],
     );
-    const availableParentOptions = parentSelectOptions.filter((option) => option.id !== editId);
 
     const openCreate = () => {
         reset();
-        setParentSearch('');
+        clearErrors();
         setEditId(null);
         setModalOpen(true);
     };
 
     const openEdit = useCallback(
         (o: OrgRow) => {
-            setData('code', o.code);
-            setData('name', o.name);
-            setData('type', o.type as OrgType);
-            setData('parent_id', o.parent_id ? String(o.parent_id) : '');
-            setData('address', o.address ?? '');
-            setData('phone', o.phone ?? '');
-            setData('email', o.email ?? '');
-            setData('is_active', o.is_active);
-            setParentSearch(
-                parentSelectOptions.find((option) => option.id === o.parent_id)?.value ?? '',
-            );
+            clearErrors();
+            setData({
+                code: o.code,
+                name: o.name,
+                type: o.type,
+                parent_id: o.parent_id ? String(o.parent_id) : '',
+                address: o.address ?? '',
+                phone: o.phone ?? '',
+                email: o.email ?? '',
+                is_active: o.is_active,
+            });
             setEditId(o.id);
             setModalOpen(true);
         },
-        [parentSelectOptions, setData],
+        [clearErrors, setData],
     );
+
+    const close = () => {
+        reset();
+        setModalOpen(false);
+    };
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
         if (editId) {
-            put(route('admin.organizations.update', editId), {
-                onSuccess: () => {
-                    reset();
-                    setParentSearch('');
-                    setModalOpen(false);
-                },
-            });
+            put(route('admin.organizations.update', editId), { onSuccess: close });
             return;
         }
 
-        post(route('admin.organizations.store'), {
-            onSuccess: () => {
-                reset();
-                setParentSearch('');
-                setModalOpen(false);
-            },
-        });
+        post(route('admin.organizations.store'), { onSuccess: close });
     };
 
-    const updateParent = (value: string) => {
-        setParentSearch(value);
-        setData('parent_id', value);
-    };
+    const hasFilters = Boolean(params.search);
 
     const columns: DataTableColumn<OrgRow>[] = useMemo(
         () => [
             {
                 key: 'code',
-                header: 'Code',
+                header: 'Kode',
                 sortable: true,
                 sortKey: 'code',
                 cell: (o) => <span className="font-mono text-sm">{o.code}</span>,
             },
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
                 cell: (o) => (
@@ -194,51 +175,43 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                         <p className="font-medium text-foreground">{o.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
                             {o.parent_id
-                                ? `Parent: ${rowMap.get(o.parent_id)?.name ?? '-'}`
-                                : 'Root unit'}
+                                ? `Induk: ${rowMap.get(o.parent_id)?.name ?? '-'}`
+                                : 'Unit utama'}
                         </p>
                     </div>
                 ),
             },
             {
                 key: 'type',
-                header: 'Type',
+                header: 'Jenis',
                 sortable: true,
                 sortKey: 'type',
-                cell: (o) => <Badge variant="neutral">{o.type}</Badge>,
+                cell: (o) => <EnumBadge map={ORGANIZATION_TYPE} value={o.type} />,
             },
             {
                 key: 'path',
-                header: 'Path',
+                header: 'Jalur',
                 cell: (o) => <span className="text-sm text-muted-foreground">{o.path ?? '-'}</span>,
             },
             {
                 key: 'children_count',
-                header: 'Children',
-                cell: (o) => (
-                    <Badge variant="neutral">
-                        {o.children_count ?? 0}{' '}
-                        {(o.children_count ?? 0) === 1 ? 'child' : 'children'}
-                    </Badge>
-                ),
+                header: 'Sub-unit',
+                cell: (o) => <Badge variant="neutral">{o.children_count ?? 0} sub-unit</Badge>,
             },
             {
                 key: 'is_active',
                 header: 'Status',
-                cell: (o) => (
-                    <Badge variant={o.is_active ? 'success' : 'danger'}>
-                        {o.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                ),
+                cell: (o) => <EnumBadge map={ACTIVE_STATE} value={o.is_active} />,
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (o) => (
                     <DataTableActions
                         onEdit={() => openEdit(o)}
                         deleteHref={route('admin.organizations.destroy', o.id)}
-                        deleteMessage={`Delete ${o.name}?`}
+                        deleteMessage={`Hapus ${o.name}?`}
+                        deleteDescription={`Unit "${o.name}" akan dihapus. Unit yang masih punya sub-unit atau karyawan tidak bisa dihapus.`}
                     />
                 ),
             },
@@ -251,40 +224,39 @@ export default function Index({ organizations, parentOptions, filters, can }: In
             <div className="space-y-6">
                 <PageHeader
                     title="Organisasi"
-                    subtitle="Branch, area, unit, team hierarchy."
+                    subtitle="Susunan cabang, area, unit, dan tim perusahaan."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
                                 <ExportMenu
                                     exportUrl={route('admin.organizations.export')}
                                     params={params}
+                                    formats={['csv', 'pdf']}
                                     canExport={can.export}
                                 />
                             ) : null}
                             <Button type="button" variant="primary" onClick={openCreate}>
-                                Add Unit
+                                Buat Unit
                             </Button>
                         </div>
                     }
                 />
 
+                {deleteError ? (
+                    <Alert variant="danger">
+                        <AlertDescription>{deleteError}</AlertDescription>
+                    </Alert>
+                ) : null}
+
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                            <div className="space-y-1 min-w-48 flex-1">
-                                <label
-                                    className="text-xs font-medium text-muted-foreground"
-                                    htmlFor="org-search"
-                                >
-                                    Search
-                                </label>
-                                <Input
-                                    id="org-search"
-                                    value={params.search ?? ''}
-                                    onChange={(event) => set('search', event.target.value)}
-                                    placeholder="Code, name, path…"
-                                />
-                            </div>
+                        <div className="max-w-md">
+                            <Input
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Kode, nama, atau jalur"
+                            />
                         </div>
 
                         <DataTable
@@ -295,8 +267,16 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                             onSort={onSort}
                             onPageChange={(page) => set('page', page)}
                             onPerPageChange={(perPage) => set('per_page', perPage)}
-                            emptyTitle="No organization units"
-                            emptyDescription="No organization units match the current filters."
+                            emptyTitle="Belum ada unit organisasi"
+                            emptyDescription="Unit organisasi mengelompokkan karyawan. Buat unit pertama untuk memulai."
+                            emptyAction={
+                                <Button type="button" variant="primary" onClick={openCreate}>
+                                    Buat Unit
+                                </Button>
+                            }
+                            hasFilters={hasFilters}
+                            onResetFilters={() => setMany({ search: '' })}
+                            itemLabel="unit organisasi"
                             loading={tableProcessing}
                         />
                     </CardContent>
@@ -305,99 +285,83 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Unit' : 'Add Unit'}
+                    title={editId ? 'Ubah Unit' : 'Buat Unit'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Code"
+                                label="Kode"
                                 value={data.code}
                                 onChange={(event) => setData('code', event.target.value)}
                                 error={errors.code}
                                 required
                             />
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(event) => setData('name', event.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <NativeSelect
-                                label="Type"
+                                label="Jenis"
                                 value={data.type}
-                                onChange={(event) => setData('type', event.target.value as OrgType)}
-                                options={orgTypeOptions}
+                                onChange={(event) => setData('type', event.target.value)}
+                                options={optionsOf(ORGANIZATION_TYPE)}
                                 error={errors.type}
                                 required
                             />
-                            <ParentSearchInput
-                                value={parentSearch}
-                                options={availableParentOptions}
+                            <SearchSelect
+                                label="Induk"
+                                value={data.parent_id}
+                                onChange={(value) => setData('parent_id', value)}
+                                options={parentSelectOptions}
+                                placeholder={
+                                    parentSelectOptions.length
+                                        ? 'Cari unit induk'
+                                        : 'Belum ada unit lain'
+                                }
+                                emptyText="Unit tidak ditemukan."
+                                hint="Kosongkan untuk unit utama."
                                 error={errors.parent_id}
-                                onChange={updateParent}
+                                disabled={parentSelectOptions.length === 0}
                             />
                             <Input
-                                label="Phone"
+                                label="Telepon"
                                 value={data.phone}
                                 onChange={(event) => setData('phone', event.target.value)}
+                                error={errors.phone}
                             />
                             <Input
                                 label="Email"
+                                type="email"
                                 value={data.email}
                                 onChange={(event) => setData('email', event.target.value)}
+                                error={errors.email}
                             />
                         </div>
                         <Input
-                            label="Address"
+                            label="Alamat"
                             value={data.address}
                             onChange={(event) => setData('address', event.target.value)}
+                            error={errors.address}
                         />
                         <Switch
-                            label="Active"
+                            label="Aktif"
                             checked={data.is_active}
                             onCheckedChange={(checked) => setData('is_active', checked)}
                         />
                         <div className="flex justify-end gap-2">
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() => setModalOpen(false)}
-                            >
-                                Cancel
+                            <Button type="button" variant="secondary" onClick={close}>
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editId ? 'Simpan' : 'Buat'}
                             </Button>
                         </div>
                     </form>
                 </Modal>
             </div>
         </AdminLayout>
-    );
-}
-
-function ParentSearchInput({
-    value,
-    options,
-    error,
-    onChange,
-}: {
-    value: string;
-    options: ParentOption[];
-    error?: string;
-    onChange: (value: string) => void;
-}) {
-    return (
-        <SearchSelect
-            label="Parent"
-            value={value}
-            onChange={onChange}
-            options={options}
-            placeholder={options.length ? 'Search parent unit' : 'No parent units yet'}
-            hint="Clear field for root unit."
-            error={error}
-            disabled={options.length === 0}
-        />
     );
 }

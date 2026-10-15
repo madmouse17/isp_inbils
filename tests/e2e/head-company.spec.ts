@@ -14,13 +14,13 @@ const head = 'Inbils Demo Company';
 const subsidiary = 'E2E Subsidiary Company';
 const switcherName = /^Ganti perusahaan, saat ini:/;
 
-// MRR, Revenue (Paid), Outstanding, Active Subscriptions, Suspended Subscriptions.
+// MRR, Pendapatan terbayar, Piutang, Langganan aktif, Langganan ditangguhkan.
 const addableMetrics = [
     'MRR',
-    'Revenue (Paid)',
-    'Outstanding',
-    'Active Subscriptions',
-    'Suspended Subscriptions',
+    'Pendapatan terbayar',
+    'Piutang',
+    'Langganan aktif',
+    'Langganan ditangguhkan',
 ] as const;
 
 type Membership = { id: number; name: string; is_current: boolean; is_default: boolean };
@@ -119,7 +119,7 @@ const digits = (text: string) => Number(text.replace(/\D/g, ''));
 
 /** The five addable figures of a table row, in `addableMetrics` order (the SLA percentage is pooled, not added). */
 async function figures(row: Locator) {
-    // Cells: company, MRR, Revenue (Paid), Outstanding, Active, Suspended, SLA Compliance.
+    // Cells: perusahaan, MRR, Pendapatan terbayar, Piutang, Langganan aktif, Langganan ditangguhkan, Kepatuhan SLA.
     const cells = await row.getByRole('cell').allInnerTexts();
 
     return cells.slice(1, 6).map(digits);
@@ -132,7 +132,7 @@ async function expectTotalIsTheSum(page: Page) {
     const subsidiaryFigures = await figures(
         page.getByRole('row', { name: /^E2E Subsidiary Company/ }),
     );
-    const totalFigures = await figures(page.getByRole('row', { name: /^Consolidated total/ }));
+    const totalFigures = await figures(page.getByRole('row', { name: /^Total konsolidasi/ }));
 
     expect(totalFigures).toEqual(headFigures.map((value, i) => value + subsidiaryFigures[i]));
 
@@ -183,14 +183,14 @@ async function exportedFigures(page: Page, query: string) {
 
     expect(text.charCodeAt(0)).toBe(0xfeff);
     expect(lines[0]).toEqual([
-        'Company',
-        'Metric',
-        'Breakdown',
-        'Value',
-        'Unit',
-        'Scope',
-        'Filters',
-        'Version',
+        'Perusahaan',
+        'Metrik',
+        'Rincian',
+        'Nilai',
+        'Satuan',
+        'Cakupan',
+        'Filter',
+        'Versi',
     ]);
 
     return (company: string) =>
@@ -237,7 +237,9 @@ test.describe('@smoke @head-company head company', () => {
             const other = await sharedProps(page);
             expect(other.canSwitch, role).toBe(false);
             expect(other.companies, role).toEqual([]);
-            await expect(page.getByRole('button', { name: /Ganti perusahaan/ }), role).toHaveCount(0);
+            await expect(page.getByRole('button', { name: /Ganti perusahaan/ }), role).toHaveCount(
+                0,
+            );
             await logout(page);
         }
     });
@@ -270,7 +272,7 @@ test.describe('@smoke @head-company head company', () => {
 
         await page.goto('/admin/reports');
         const main = page.getByRole('main');
-        await main.getByRole('link', { name: 'Open Consolidated Metrics', exact: true }).click();
+        await main.getByRole('link', { name: 'Metrik Konsolidasi', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/consolidated$/);
         await expect(
             main.getByRole('heading', { name: 'Metrik Konsolidasi', level: 1 }),
@@ -280,20 +282,20 @@ test.describe('@smoke @head-company head company', () => {
         ).toHaveAttribute('aria-current', 'page');
         await expect(
             main.getByText(
-                `Consolidated business metrics of ${head} and 1 subsidiary. Amounts in IDR.`,
+                `Metrik bisnis gabungan ${head} dan 1 anak perusahaan. Nilai dalam IDR.`,
             ),
         ).toBeVisible();
 
         const headRow = page.getByRole('row', { name: /^Inbils Demo Company/ });
-        await expect(headRow.getByText('Head', { exact: true })).toBeVisible();
+        await expect(headRow.getByText('Induk', { exact: true })).toBeVisible();
         await expect(page.getByRole('row', { name: /^E2E Subsidiary Company/ })).toHaveCount(1);
-        await expect(page.getByRole('row', { name: /^Consolidated total/ })).toHaveCount(1);
+        await expect(page.getByRole('row', { name: /^Total konsolidasi/ })).toHaveCount(1);
 
         const open = await expectTotalIsTheSum(page);
         // MRR 75000 (one active subscription) and outstanding 250000 (one sent invoice), seeded for this spec.
         expect(open.subsidiaryFigures).toEqual([75_000, 0, 250_000, 1, 0]);
         await expect(page.getByRole('row', { name: /^E2E Subsidiary Company/ })).toContainText(
-            '0 of 0 on time',
+            '0 dari 0 tepat waktu',
         );
 
         // The date filter reaches every company and the total still adds up.
@@ -303,12 +305,12 @@ test.describe('@smoke @head-company head company', () => {
             '2026-01-01',
             '2026-01-31',
         );
-        await page.getByRole('button', { name: 'Run' }).click();
+        await page.getByRole('button', { name: 'Tampilkan' }).click();
         await expect(page).toHaveURL(/date_from=2026-01-01&date_to=2026-01-31/);
         const periodFormat = await companyDateFormat(page);
         await expect(
             main.getByText(
-                `Period: ${formatIsoAs('2026-01-01', periodFormat)} to ${formatIsoAs('2026-01-31', periodFormat)}, both days included.`,
+                `Periode: ${formatIsoAs('2026-01-01', periodFormat)} sampai ${formatIsoAs('2026-01-31', periodFormat)}, kedua hari dihitung.`,
             ),
         ).toBeVisible();
         const filtered = await expectTotalIsTheSum(page);
@@ -322,12 +324,12 @@ test.describe('@smoke @head-company head company', () => {
         const exported = await exportedFigures(page, '&date_from=2026-01-01&date_to=2026-01-31');
         expect(exported(head)).toEqual(filtered.headFigures);
         expect(exported(subsidiary)).toEqual(filtered.subsidiaryFigures);
-        expect(exported('Consolidated')).toEqual(filtered.totalFigures);
+        expect(exported('Total konsolidasi')).toEqual(filtered.totalFigures);
 
         // The registry definition of each figure is on the page.
         await expect(
             main.getByText(
-                'Monthly recurring revenue: the monthly charge of every subscription that is active now.',
+                'Pendapatan berulang bulanan: tagihan bulanan dari semua langganan yang aktif saat ini.',
             ),
         ).toBeVisible();
     });
@@ -366,7 +368,7 @@ test.describe('@smoke @head-company head company', () => {
         }
         await page.goto('/admin/reports');
         await expect(
-            page.getByRole('main').getByRole('link', { name: /^Open Consolidated/ }),
+            page.getByRole('main').getByRole('link', { name: /^Metrik Konsolidasi/ }),
         ).toHaveCount(0);
         await logout(page);
 
@@ -407,7 +409,7 @@ test.describe('@smoke @head-company head company', () => {
                 if (width < 1200) {
                     await expect(page.getByRole('table')).toBeHidden();
                     await expect(
-                        page.getByRole('listitem').filter({ hasText: 'Consolidated total' }),
+                        page.getByRole('listitem').filter({ hasText: 'Total konsolidasi' }),
                     ).toBeVisible();
                     await expect(
                         page.getByRole('listitem').filter({ hasText: 'E2E Subsidiary Company' }),

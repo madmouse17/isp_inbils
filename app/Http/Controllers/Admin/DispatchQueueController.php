@@ -12,6 +12,7 @@ use App\Services\Core\CompanyService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,7 +27,7 @@ class DispatchQueueController extends Controller
     public function index(DateRangeIndexRequest $request): Response|RedirectResponse
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         $user = $request->user();
 
@@ -34,7 +35,7 @@ class DispatchQueueController extends Controller
             if (MyWorkQuery::isEligible($user)) {
                 return redirect()->route('admin.my-work.index');
             }
-            abort(403, 'No dispatch permission for any domain.');
+            abort(403, 'Anda tidak memiliki izin penugasan untuk domain apa pun.');
         }
 
         $activeTab = $request->input('tab', 'dispatch');
@@ -85,17 +86,19 @@ class DispatchQueueController extends Controller
     public function assign(Request $request): RedirectResponse
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         $user = $request->user();
-        abort_unless(DispatchQueueQuery::isEligible($user), 403, 'No dispatch permission for any domain.');
+        abort_unless(DispatchQueueQuery::isEligible($user), 403, 'Anda tidak memiliki izin penugasan untuk domain apa pun.');
+
+        $assignee = ['nullable', 'integer', Rule::exists('users', 'id')->where('company_id', $companyId)];
 
         $request->validate([
             'domain' => ['required', 'string', 'in:ticket,spk'],
             'id' => ['required', 'integer'],
-            'assignee_id' => ['nullable', 'integer'],
-            'handler_id' => ['nullable', 'integer'],
-            'technician_id' => ['nullable', 'integer'],
+            'assignee_id' => $assignee,
+            'handler_id' => $assignee,
+            'technician_id' => $assignee,
             'expected_assigned_to' => ['present', 'nullable', 'integer'],
             'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],
         ]);
@@ -103,7 +106,10 @@ class DispatchQueueController extends Controller
         $domain = $request->input('domain');
         $id = (int) $request->input('id');
         $assigneeId = (int) ($request->input('assignee_id') ?? $request->input('handler_id') ?? $request->input('technician_id'));
-        abort_if($assigneeId <= 0, 422, 'Assignee is required.');
+
+        if ($assigneeId <= 0) {
+            throw ValidationException::withMessages(['assignee_id' => 'Penanggung jawab wajib dipilih.']);
+        }
 
         $expectedAssignedTo = $request->has('expected_assigned_to') && $request->input('expected_assigned_to') !== null
             ? (int) $request->input('expected_assigned_to')
@@ -140,6 +146,6 @@ class DispatchQueueController extends Controller
             return back()->with('success', "SPK {$wo->code} berhasil ditugaskan.");
         }
 
-        abort(422, 'Invalid domain.');
+        abort(422, 'Domain tidak valid.');
     }
 }

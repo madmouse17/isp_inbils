@@ -23,6 +23,6 @@ class UserTwoFactorResetController extends Controller
 
         $twoFactor->adminReset($request->user(), $user);
 
-        return back()->with('success', 'Two-factor authentication reset. '.$user->name.' can log in with the password alone and set it up again.');
+        return back()->with('success', 'Autentikasi dua langkah direset. '.$user->name.' bisa masuk hanya dengan kata sandi, lalu mengaturnya lagi.');
     }
 }

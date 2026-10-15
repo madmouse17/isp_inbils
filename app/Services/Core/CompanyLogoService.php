@@ -32,7 +32,7 @@ class CompanyLogoService
         $image = imagecreatefromstring($logo->getContent());
 
         if ($image === false) {
-            throw ValidationException::withMessages(['logo' => 'Logo file could not be processed.']);
+            throw ValidationException::withMessages(['logo' => 'Berkas logo tidak dapat dibaca.']);
         }
 
         $width = imagesx($image);
@@ -54,7 +54,7 @@ class CompanyLogoService
         imagedestroy($resized);
 
         if ($contents === false || $contents === '') {
-            throw ValidationException::withMessages(['logo' => 'Logo file could not be converted.']);
+            throw ValidationException::withMessages(['logo' => 'Berkas logo tidak dapat dikonversi.']);
         }
 
         return $contents;

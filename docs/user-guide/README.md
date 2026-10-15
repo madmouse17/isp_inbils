@@ -23,7 +23,10 @@ docs/user-guide/
 ## 1. Screenshot web
 
 Layar yang diambil didaftar di `scripts/docs-screenshots.json` (`slug`, `url`, `auth: false` untuk layar tamu,
-`actions` opsional: `click`, `fill`, `waitFor`). Viewport 1280×800, tema terang, login sebagai admin demo.
+`actions` opsional: `click` dan `waitFor` dengan selektor Playwright, `fill` dengan selektor dan nilai). Viewport
+1280×800, tema terang, login sebagai admin demo. Datanya dari `tests/e2e/setup.php`: `migrate:fresh --seed` (peran,
+izin, pengaturan sistem), `DemoUserSeeder`, lalu `E2eFixtureSeeder`; seeder `database/seeders/Demo/*` tidak ikut,
+jadi layar yang butuh data harus memakai baris dari seeder itu.
 
 ```bash
 npm run build
@@ -31,7 +34,11 @@ npm run docs:screenshots   # reset data demo inbils_test, lalu mengambil docs/us
 ```
 
 Skrip memakai server kanonik port 8010 dan mutex yang sama dengan `npm run test:e2e`; jangan jalankan bersamaan.
-Layar baru: tambah satu entri ke JSON.
+Layar yang gagal tampil didaftar di akhir dan layar lain tetap diambil.
+Layar baru: tambah satu entri ke JSON. Selektor `click` dan `waitFor` harus cocok dengan satu elemen saja (Playwright
+menolak lebih dari satu), jadi tambahkan `>> visible=true >> nth=0` bila teksnya muncul di beberapa tempat. Area `main`
+menggulir sendiri, sehingga `fullPage` tidak membuat gambar lebih tinggi dari 800 piksel. Untuk memperlihatkan kartu di
+bawah layar pertama, tambahkan `click` pada judul kartu itu (judul tidak melakukan apa pun, halaman hanya menggulir).
 
 ## 2. Screenshot aplikasi
 

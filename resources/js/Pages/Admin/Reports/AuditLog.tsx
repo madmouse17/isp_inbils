@@ -16,7 +16,14 @@ import {
     User as UserIcon,
 } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTable, type DataTableColumn, PageHeader } from '@/Components/composite';
+import {
+    DataTable,
+    type DataTableColumn,
+    NativeSelect,
+    PageHeader,
+    type RemoteOption,
+    RemoteSearchSelect,
+} from '@/Components/composite';
 import {
     Alert,
     AlertDescription,
@@ -30,15 +37,12 @@ import {
     CardTitle,
     DateRangePicker,
     EmptyState,
+    EnumBadge,
     ExportMenu,
     Input,
     Modal,
     Pagination,
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    SearchSelect,
     Table,
     TBody,
     TD,
@@ -48,6 +52,7 @@ import {
 } from '@/Components/ui';
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
+import { AUDIT_EVENT, AUDIT_MODULE, labelOf } from '@/lib/statuses';
 import { useServerTable } from '@/hooks/useServerTable';
 import type { PageProps } from '@/types';
 
@@ -107,26 +112,15 @@ export interface PaginatedData<T> {
 export interface AuditLogProps {
     data?: AuditLogRow[] | PaginatedData<AuditLogRow>;
     filters: AuditLogFilters;
+    userOptions?: RemoteOption[];
+    selectedUser?: RemoteOption | null;
     can?: {
         export?: boolean;
         view_properties?: boolean;
     };
 }
 
-const COMMON_MODULES = [
-    'customer',
-    'billing',
-    'inventory',
-    'spk',
-    'ticket',
-    'user',
-    'auth',
-    'location',
-    'network_asset',
-    'organization',
-    'approval',
-    'setting',
-];
+const PER_PAGE_OPTIONS = ['10', '15', '25', '50', '100'].map((value) => ({ value, label: value }));
 
 function formatSubjectShort(type?: string | null, id?: number | string | null): string {
     if (!type && id == null) return '-';
@@ -134,50 +128,19 @@ function formatSubjectShort(type?: string | null, id?: number | string | null): 
     return id != null ? `${cleanType} #${id}` : cleanType;
 }
 
-function getEventBadgeVariant(
-    event?: string | null,
-): 'success' | 'info' | 'danger' | 'warning' | 'secondary' {
-    if (!event) return 'secondary';
-    const lower = event.toLowerCase();
-    if (
-        lower === 'created' ||
-        lower.includes('create') ||
-        lower.includes('store') ||
-        lower.includes('generate')
-    ) {
-        return 'success';
-    }
-    if (lower === 'updated' || lower.includes('update') || lower.includes('edit')) {
-        return 'info';
-    }
-    if (lower === 'deleted' || lower.includes('delete') || lower.includes('destroy')) {
-        return 'danger';
-    }
-    if (lower === 'restored' || lower.includes('restore') || lower.includes('reverse')) {
-        return 'warning';
-    }
-    return 'secondary';
-}
-
-function formatEventLabel(event?: string | null): string {
-    if (!event) return 'Aktivitas';
-    const lower = event.toLowerCase();
-    if (lower === 'created') return 'Dibuat';
-    if (lower === 'updated') return 'Diperbarui';
-    if (lower === 'deleted') return 'Dihapus';
-    if (lower === 'restored') return 'Dipulihkan';
-    return event;
-}
-
 function isPlainObject(val: unknown): val is Record<string, unknown> {
     return val !== null && typeof val === 'object' && !Array.isArray(val);
 }
 
-export default function AuditLog({ data, filters, can }: AuditLogProps) {
+function ModuleBadge({ value }: { value: string | null | undefined }) {
+    if (!value) return <Badge variant="outline">Umum</Badge>;
+
+    return <EnumBadge map={AUDIT_MODULE} value={value} />;
+}
+
+export default function AuditLog({ data, filters, userOptions, selectedUser, can }: AuditLogProps) {
     const { auth } = usePage<PageProps>().props;
     const searchInputId = useId();
-    const moduleSelectId = useId();
-    const userIdInputId = useId();
     const dateRangeId = useId();
 
     const userPermissions = auth.user?.permissions ?? [];
@@ -206,7 +169,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
             page: filters.page ? Number(filters.page) : 1,
             per_page: filters.per_page ? Number(filters.per_page) : 15,
         },
-        only: ['data', 'filters'],
+        only: ['data', 'filters', 'selectedUser'],
     });
 
     // Local form state for manual submission
@@ -242,10 +205,16 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
         return rawRows.filter((row) => row.company_id != null);
     }, [rawRows]);
 
-    // Dynamic modules list combining predefined list and modules from data
-    const availableModules = useMemo(() => {
-        const fromData = safeRows.map((r) => r.log_name).filter(Boolean);
-        return Array.from(new Set([...COMMON_MODULES, ...fromData])).sort();
+    // Known modules first, then any log_name seen on the page that the map does not list.
+    const moduleOptions = useMemo(() => {
+        const known = Object.keys(AUDIT_MODULE);
+        const seen = safeRows
+            .map((r) => r.log_name)
+            .filter((name) => name && !known.includes(name));
+        return [...known, ...Array.from(new Set(seen)).sort()].map((value) => ({
+            value,
+            label: labelOf(AUDIT_MODULE, value),
+        }));
     }, [safeRows]);
 
     const meta: PaginationMeta | null = useMemo(() => {
@@ -355,7 +324,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
         setCurrentPage(1);
         setMany({
             user_id: localUserId || '',
-            log_name: localLogName === '__all__' ? '' : localLogName,
+            log_name: localLogName,
             date_from: localDateFrom || '',
             date_to: localDateTo || '',
             search: localSearch || '',
@@ -476,22 +445,14 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 header: 'Modul',
                 sortable: true,
                 sortKey: 'log_name',
-                cell: (row) => (
-                    <Badge variant="outline" className="font-mono text-xs">
-                        {row.log_name || 'umum'}
-                    </Badge>
-                ),
+                cell: (row) => <ModuleBadge value={row.log_name} />,
             },
             {
                 key: 'event',
                 header: 'Aksi',
                 sortable: true,
                 sortKey: 'event',
-                cell: (row) => (
-                    <Badge variant={getEventBadgeVariant(row.event)}>
-                        {formatEventLabel(row.event)}
-                    </Badge>
-                ),
+                cell: (row) => <EnumBadge map={AUDIT_EVENT} value={row.event} />,
             },
             {
                 key: 'description',
@@ -526,7 +487,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             </div>
                         ) : row.causer_id ? (
                             <span className="font-mono text-muted-foreground">
-                                User #{row.causer_id}
+                                Pengguna #{row.causer_id}
                             </span>
                         ) : (
                             <span className="text-muted-foreground italic">Sistem</span>
@@ -571,7 +532,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             {hasProps ? (
                                 <span
                                     className="h-1.5 w-1.5 rounded-full bg-primary"
-                                    title="Terdapat perubahan properti"
+                                    title="Ada perubahan properti"
                                 />
                             ) : null}
                         </Button>
@@ -603,11 +564,11 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
     }, [isModelDiff, selectedProps]);
 
     return (
-        <AdminLayout title="Audit Log">
+        <AdminLayout title="Log audit">
             <div className="space-y-6">
                 <PageHeader
-                    title="Audit Log"
-                    subtitle="Rekam jejak aktivitas audit sistem per pengguna, modul, dan rentang waktu."
+                    title="Log audit"
+                    subtitle="Rekam jejak aktivitas pengguna dan sistem, bisa disaring per pengguna, modul, dan periode."
                     actions={
                         <div className="flex flex-wrap items-center gap-2">
                             <Button
@@ -623,7 +584,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     className={cn('h-3.5 w-3.5', processing && 'animate-spin')}
                                     aria-hidden="true"
                                 />
-                                <span>Muat Ulang</span>
+                                <span>Muat ulang</span>
                             </Button>
 
                             {canExport ? (
@@ -641,7 +602,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     }}
                                     formats={['csv', 'pdf']}
                                     canExport={canExport}
-                                    label="Ekspor Log"
+                                    label="Ekspor log"
                                     className="gap-1.5"
                                 />
                             ) : null}
@@ -651,24 +612,18 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
 
                 {/* Truncated data notice */}
                 {isTruncated && (
-                    <Alert variant="warning" className="border-amber-500/30 bg-amber-500/10">
-                        <AlertTriangle
-                            className="h-4 w-4 text-amber-600 dark:text-amber-400"
-                            aria-hidden="true"
-                        />
-                        <AlertTitle className="text-amber-800 dark:text-amber-300">
-                            Batas Hasil Tercapai (500 Baris)
-                        </AlertTitle>
-                        <AlertDescription className="text-amber-700 dark:text-amber-400">
+                    <Alert variant="warning">
+                        <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+                        <AlertTitle>Batas 500 baris tercapai</AlertTitle>
+                        <AlertDescription>
                             Menampilkan 500 log aktivitas terbaru sesuai batas kueri server. Gunakan
-                            filter rentang tanggal, modul, atau pengguna untuk mempersempit hasil
-                            pencarian.
+                            filter periode, modul, atau pengguna untuk mempersempit hasil.
                         </AlertDescription>
                     </Alert>
                 )}
 
                 {/* Filter and Search Card */}
-                <Card className="border border-border shadow-xs">
+                <Card className="border border-border">
                     <CardHeader className="pt-5 pb-3">
                         <div className="flex items-center justify-between">
                             <CardTitle className="flex items-center gap-2 text-base font-semibold">
@@ -676,7 +631,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     className="h-4 w-4 text-muted-foreground"
                                     aria-hidden="true"
                                 />
-                                <span>Filter & Pencarian Log</span>
+                                <span>Filter log</span>
                             </CardTitle>
                             {processing && (
                                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -686,20 +641,20 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             )}
                         </div>
                         <CardDescription className="text-xs">
-                            Saring aktivitas audit berdasarkan kata kunci, modul, ID pengguna, atau
-                            rentang tanggal kejadian.
+                            Saring aktivitas berdasarkan kata kunci, modul, pengguna, atau periode
+                            kejadian.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <form onSubmit={handleFilterSubmit} className="space-y-3">
-                            {/* Row 1: Search, Module, User ID */}
+                            {/* Row 1: Search, Module, User */}
                             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                                 <div className="space-y-1 lg:col-span-2">
                                     <label
                                         htmlFor={searchInputId}
                                         className="text-xs font-medium text-muted-foreground"
                                     >
-                                        Pencarian Teks
+                                        Pencarian teks
                                     </label>
                                     <div className="relative">
                                         <Search
@@ -711,55 +666,29 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                             type="text"
                                             value={localSearch}
                                             onChange={(e) => setLocalSearch(e.target.value)}
-                                            placeholder="Cari deskripsi, modul, event, pelaku..."
+                                            placeholder="Cari deskripsi, modul, aksi, pelaku..."
                                             className="pl-9"
                                         />
                                     </div>
                                 </div>
 
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor={moduleSelectId}
-                                        className="text-xs font-medium text-muted-foreground"
-                                    >
-                                        Modul
-                                    </label>
-                                    <Select
-                                        value={localLogName || '__all__'}
-                                        onValueChange={(val) =>
-                                            setLocalLogName(val === '__all__' ? '' : val)
-                                        }
-                                    >
-                                        <SelectTrigger id={moduleSelectId}>
-                                            <SelectValue placeholder="Semua Modul" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="__all__">Semua Modul</SelectItem>
-                                            {availableModules.map((m) => (
-                                                <SelectItem key={m} value={m}>
-                                                    {m.toUpperCase()}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
+                                <SearchSelect
+                                    label="Modul"
+                                    placeholder="Semua modul"
+                                    options={moduleOptions}
+                                    value={localLogName}
+                                    onChange={setLocalLogName}
+                                />
 
-                                <div className="space-y-1">
-                                    <label
-                                        htmlFor={userIdInputId}
-                                        className="text-xs font-medium text-muted-foreground"
-                                    >
-                                        ID Pengguna (Causer)
-                                    </label>
-                                    <Input
-                                        id={userIdInputId}
-                                        type="number"
-                                        value={localUserId}
-                                        onChange={(e) => setLocalUserId(e.target.value)}
-                                        placeholder="Misal: 1, 2, ..."
-                                        min={1}
-                                    />
-                                </div>
+                                <RemoteSearchSelect
+                                    field="user"
+                                    label="Pengguna"
+                                    placeholder="Cari nama atau email..."
+                                    options={userOptions}
+                                    selected={selectedUser}
+                                    value={localUserId}
+                                    onChange={setLocalUserId}
+                                />
                             </div>
 
                             {/* Row 2: Date range */}
@@ -786,7 +715,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     <span className="font-semibold text-foreground">
                                         {totalCount}
                                     </span>{' '}
-                                    rekaman dimuat
+                                    log
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <Button
@@ -797,7 +726,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         className="gap-1 text-xs"
                                     >
                                         <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                                        <span>Atur Ulang</span>
+                                        <span>Reset filter</span>
                                     </Button>
                                     <Button
                                         type="submit"
@@ -807,7 +736,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         className="gap-1 text-xs"
                                     >
                                         <Filter className="h-3.5 w-3.5" aria-hidden="true" />
-                                        <span>Terapkan Filter</span>
+                                        <span>Terapkan filter</span>
                                     </Button>
                                 </div>
                             </div>
@@ -816,7 +745,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                 </Card>
 
                 {/* Table & Cards Container */}
-                <Card className="border border-border shadow-xs">
+                <Card className="border border-border">
                     <CardContent className="space-y-4 p-4 sm:p-6">
                         {/* Desktop Table */}
                         <div className="hidden md:block">
@@ -827,8 +756,8 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 sortDir={sortDir}
                                 onSort={handleSort}
                                 loading={processing}
-                                emptyTitle="Tidak Ada Log Aktivitas"
-                                emptyDescription="Tidak ada riwayat aktivitas yang sesuai dengan kriteria filter saat ini."
+                                emptyTitle="Tidak ada log aktivitas"
+                                emptyDescription="Tidak ada aktivitas yang cocok dengan filter ini."
                                 emptyAction={
                                     <Button
                                         type="button"
@@ -837,7 +766,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         onClick={handleResetFilters}
                                         className="mt-2"
                                     >
-                                        Atur Ulang Filter
+                                        Reset filter
                                     </Button>
                                 }
                             />
@@ -848,8 +777,8 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             {paginatedRows.length === 0 ? (
                                 <EmptyState
                                     icon={<FileText className="h-8 w-8" />}
-                                    title="Tidak Ada Log Aktivitas"
-                                    description="Tidak ada riwayat aktivitas yang sesuai dengan kriteria filter saat ini."
+                                    title="Tidak ada log aktivitas"
+                                    description="Tidak ada aktivitas yang cocok dengan filter ini."
                                     action={
                                         <Button
                                             type="button"
@@ -857,31 +786,22 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                             size="sm"
                                             onClick={handleResetFilters}
                                         >
-                                            Atur Ulang Filter
+                                            Reset filter
                                         </Button>
                                     }
                                 />
                             ) : (
                                 paginatedRows.map((row) => (
-                                    <Card
-                                        key={row.id}
-                                        className="border border-border bg-card p-4 shadow-xs"
-                                    >
+                                    <Card key={row.id} className="border border-border bg-card p-4">
                                         <div className="space-y-3">
                                             {/* Header */}
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="flex flex-wrap items-center gap-1.5">
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="font-mono text-xs"
-                                                    >
-                                                        {row.log_name || 'umum'}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant={getEventBadgeVariant(row.event)}
-                                                    >
-                                                        {formatEventLabel(row.event)}
-                                                    </Badge>
+                                                    <ModuleBadge value={row.log_name} />
+                                                    <EnumBadge
+                                                        map={AUDIT_EVENT}
+                                                        value={row.event}
+                                                    />
                                                 </div>
                                                 <span className="text-xs whitespace-nowrap text-muted-foreground">
                                                     {formatDateTime(row.created_at)}
@@ -900,7 +820,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                     <span className="font-medium text-foreground">
                                                         {row.causer?.name ??
                                                             (row.causer_id
-                                                                ? `User #${row.causer_id}`
+                                                                ? `Pengguna #${row.causer_id}`
                                                                 : 'Sistem')}
                                                     </span>
                                                 </div>
@@ -924,7 +844,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                                 onClick={() => setSelectedRow(row)}
                                             >
                                                 <Eye className="h-3.5 w-3.5" aria-hidden="true" />
-                                                <span>Lihat Detail Properti</span>
+                                                <span>Lihat detail properti</span>
                                             </Button>
                                         </div>
                                     </Card>
@@ -937,8 +857,9 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             <div className="flex flex-col items-center justify-between gap-3 border-t border-border pt-4 sm:flex-row">
                                 <div className="text-xs text-muted-foreground">
                                     Menampilkan{' '}
-                                    <span className="font-medium text-foreground">{fromIndex}</span>{' '}
-                                    - <span className="font-medium text-foreground">{toIndex}</span>{' '}
+                                    <span className="font-medium text-foreground">
+                                        {fromIndex}-{toIndex}
+                                    </span>{' '}
                                     dari{' '}
                                     <span className="font-medium text-foreground">
                                         {totalCount}
@@ -949,26 +870,17 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-xs text-muted-foreground">
-                                            Per hal:
+                                            Baris per halaman
                                         </span>
-                                        <Select
+                                        <NativeSelect
+                                            aria-label="Baris per halaman"
+                                            options={PER_PAGE_OPTIONS}
                                             value={String(perPage)}
-                                            onValueChange={(val) => {
-                                                const next = Number(val);
-                                                handlePerPageChange(next);
-                                            }}
-                                        >
-                                            <SelectTrigger className="h-8 w-16 text-xs">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="10">10</SelectItem>
-                                                <SelectItem value="15">15</SelectItem>
-                                                <SelectItem value="25">25</SelectItem>
-                                                <SelectItem value="50">50</SelectItem>
-                                                <SelectItem value="100">100</SelectItem>
-                                            </SelectContent>
-                                        </Select>
+                                            onChange={(e) =>
+                                                handlePerPageChange(Number(e.target.value))
+                                            }
+                                            wrapperClassName="w-24"
+                                        />
                                     </div>
 
                                     <Pagination
@@ -987,7 +899,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
             <Modal
                 open={selectedRow !== null}
                 onClose={() => setSelectedRow(null)}
-                title={selectedRow ? `Detail Log Aktivitas #${selectedRow.id}` : 'Detail Log'}
+                title={selectedRow ? `Detail log aktivitas #${selectedRow.id}` : 'Detail log'}
                 size="xl"
             >
                 {selectedRow && (
@@ -995,12 +907,12 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                         {/* Section 1: Overview Details */}
                         <div className="rounded-lg border border-border bg-muted/30 p-4">
                             <h4 className="mb-3 text-sm font-semibold text-muted-foreground">
-                                Informasi Ringkasan
+                                Ringkasan
                             </h4>
                             <div className="grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                                 <div>
                                     <span className="block text-muted-foreground">
-                                        Waktu Kejadian:
+                                        Waktu kejadian:
                                     </span>
                                     <span className="font-medium text-foreground">
                                         {formatDateTime(selectedRow.created_at)}
@@ -1011,26 +923,20 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                 </div>
                                 <div>
                                     <span className="block text-muted-foreground">
-                                        Modul & Aksi:
+                                        Modul dan aksi:
                                     </span>
                                     <div className="mt-0.5 flex items-center gap-1.5">
-                                        <Badge variant="outline" className="font-mono text-xs">
-                                            {selectedRow.log_name}
-                                        </Badge>
-                                        <Badge variant={getEventBadgeVariant(selectedRow.event)}>
-                                            {formatEventLabel(selectedRow.event)}
-                                        </Badge>
+                                        <ModuleBadge value={selectedRow.log_name} />
+                                        <EnumBadge map={AUDIT_EVENT} value={selectedRow.event} />
                                     </div>
                                 </div>
                                 <div>
-                                    <span className="block text-muted-foreground">
-                                        Pelaku (Causer):
-                                    </span>
+                                    <span className="block text-muted-foreground">Pelaku:</span>
                                     <span className="font-medium text-foreground">
                                         {selectedRow.causer?.name ??
                                             (selectedRow.causer_id
-                                                ? `User #${selectedRow.causer_id}`
-                                                : 'Sistem / Otomatis')}
+                                                ? `Pengguna #${selectedRow.causer_id}`
+                                                : 'Sistem')}
                                     </span>
                                     {selectedRow.causer?.email && (
                                         <span className="block text-xs text-muted-foreground">
@@ -1039,22 +945,18 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     )}
                                 </div>
                                 <div>
-                                    <span className="block text-muted-foreground">
-                                        Objek / Subjek:
-                                    </span>
+                                    <span className="block text-muted-foreground">Subjek:</span>
                                     <span className="font-mono font-medium text-foreground">
                                         {selectedRow.subject_type ?? '-'}
                                     </span>
                                     {selectedRow.subject_id != null && (
                                         <span className="block text-xs text-muted-foreground">
-                                            ID: #{selectedRow.subject_id}
+                                            ID #{selectedRow.subject_id}
                                         </span>
                                     )}
                                 </div>
                                 <div className="sm:col-span-2">
-                                    <span className="block text-muted-foreground">
-                                        Deskripsi Aktivitas:
-                                    </span>
+                                    <span className="block text-muted-foreground">Deskripsi:</span>
                                     <span className="mt-0.5 block font-medium text-foreground">
                                         {selectedRow.description}
                                     </span>
@@ -1066,7 +968,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <h4 className="text-sm font-semibold text-muted-foreground">
-                                    Properti & Perubahan Nilai
+                                    Properti dan perubahan nilai
                                 </h4>
                                 {hasSelectedProps && canViewAudit && (
                                     <Button
@@ -1078,8 +980,8 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     >
                                         {copiedJson ? (
                                             <>
-                                                <Check className="h-3 w-3 text-emerald-500" />
-                                                <span>Tersalin!</span>
+                                                <Check className="h-3 w-3 text-primary" />
+                                                <span>Tersalin</span>
                                             </>
                                         ) : (
                                             <>
@@ -1094,16 +996,15 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                             {!canViewAudit ? (
                                 <Alert variant="warning">
                                     <ShieldAlert className="h-4 w-4" aria-hidden="true" />
-                                    <AlertTitle>Akses Properti Dibatasi</AlertTitle>
+                                    <AlertTitle>Akses properti dibatasi</AlertTitle>
                                     <AlertDescription>
-                                        Anda tidak memiliki izin (`report.audit.view`) untuk melihat
-                                        rincian properti dan data sensitif pada log audit ini.
+                                        Anda tidak punya izin untuk melihat rincian properti dan
+                                        data sensitif pada log ini.
                                     </AlertDescription>
                                 </Alert>
                             ) : !hasSelectedProps ? (
                                 <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-                                    Tidak ada data perubahan properti tambahan yang dicatat untuk
-                                    aktivitas ini.
+                                    Tidak ada perubahan properti yang dicatat untuk aktivitas ini.
                                 </div>
                             ) : isModelDiff && isPlainObject(selectedProps) ? (
                                 <div className="space-y-3">
@@ -1111,13 +1012,9 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                         <Table>
                                             <THead>
                                                 <TR className="bg-muted/50 text-xs">
-                                                    <TH className="w-1/3">Kolom / Field</TH>
-                                                    <TH className="w-1/3">
-                                                        Nilai Lama (Sebelumnya)
-                                                    </TH>
-                                                    <TH className="w-1/3">
-                                                        Nilai Baru (Sesudahnya)
-                                                    </TH>
+                                                    <TH className="w-1/3">Kolom</TH>
+                                                    <TH className="w-1/3">Nilai lama</TH>
+                                                    <TH className="w-1/3">Nilai baru</TH>
                                                 </TR>
                                             </THead>
                                             <TBody>
@@ -1158,7 +1055,7 @@ export default function AuditLog({ data, filters, can }: AuditLogProps) {
                                     {/* Raw JSON Accordion / View */}
                                     <details className="rounded-md border border-border bg-muted/20 p-2 text-xs">
                                         <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
-                                            Lihat JSON Lengkap
+                                            Lihat JSON lengkap
                                         </summary>
                                         <pre className="mt-2 max-h-48 overflow-auto rounded bg-muted/60 p-3 font-mono text-xs text-foreground">
                                             {JSON.stringify(selectedProps, null, 2)}

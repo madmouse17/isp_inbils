@@ -25,16 +25,16 @@ async function companyToday(page: Page, shiftDays = 0): Promise<string> {
 async function openAuditLog(page: Page) {
     await loginAs(page, 'admin');
     await page.goto(AUDIT_LOG);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Audit Log' })).toBeVisible();
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Log audit' })).toBeVisible();
     return page.getByLabel('Periode', { exact: true });
 }
 
-test.describe('@smoke date range picker (Audit Log)', () => {
+test.describe('@smoke date range picker (Log audit)', () => {
     test('a typed range in the company format reaches the URL as ISO', async ({ page }) => {
         const field = await openAuditLog(page);
 
         await typeDateRange(page, field, '2026-09-01', '2026-09-10');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
 
         await expect.poll(() => query(page, 'date_from')).toBe('2026-09-01');
         expect(query(page, 'date_to')).toBe('2026-09-10');
@@ -48,12 +48,12 @@ test.describe('@smoke date range picker (Audit Log)', () => {
         const field = await openAuditLog(page);
 
         await typeDateRange(page, field, '2026-09-05', null);
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect.poll(() => query(page, 'date_from')).toBe('2026-09-05');
         expect(query(page, 'date_to')).toBeNull();
 
         await typeDateRange(page, field, null, '2026-09-20');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect.poll(() => query(page, 'date_to')).toBe('2026-09-20');
         expect(query(page, 'date_from')).toBeNull();
     });
@@ -72,7 +72,7 @@ test.describe('@smoke date range picker (Audit Log)', () => {
         await calendar.locator(`[data-day="${month}-12"] button`).first().click();
         await expect(calendar).toBeHidden();
 
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect.poll(() => query(page, 'date_from')).toMatch(/^\d{4}-\d{2}-05$/);
         expect(query(page, 'date_to')).toMatch(/^\d{4}-\d{2}-12$/);
         const format = await companyDateFormat(page);
@@ -89,7 +89,7 @@ test.describe('@smoke date range picker (Audit Log)', () => {
             .getByRole('dialog', { name: 'Pilih rentang tanggal' })
             .getByRole('button', { name: '7 hari terakhir', exact: true })
             .click();
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
 
         await expect.poll(() => query(page, 'date_to')).toBe(await companyToday(page));
         expect(query(page, 'date_from')).toBe(await companyToday(page, -6));
@@ -104,8 +104,8 @@ test.describe('@smoke date range picker (Audit Log)', () => {
         await expect(
             page.getByRole('alert').filter({ hasText: 'Format tanggal tidak valid.' }),
         ).toBeVisible();
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
-        await expect(page.getByRole('button', { name: 'Terapkan Filter' })).toBeEnabled();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
+        await expect(page.getByRole('button', { name: 'Terapkan filter' })).toBeEnabled();
         expect(query(page, 'date_from')).toBeNull();
 
         await typeDateRange(page, field, '2026-09-10', '2026-09-01');
@@ -114,7 +114,7 @@ test.describe('@smoke date range picker (Audit Log)', () => {
                 .getByRole('alert')
                 .filter({ hasText: 'Tanggal akhir tidak boleh sebelum tanggal mulai.' }),
         ).toBeVisible();
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         expect(query(page, 'date_from')).toBeNull();
         expect(query(page, 'date_to')).toBeNull();
     });

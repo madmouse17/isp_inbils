@@ -34,8 +34,18 @@ class UpdateNasDeviceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'nasname.unique' => 'This address is not available.',
-            'radius_secret.regex' => 'Use printable characters without spaces.',
+            'nasname.unique' => 'Alamat ini tidak tersedia.',
+            'radius_secret.regex' => 'Gunakan karakter yang dapat dicetak, tanpa spasi.',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'nasname' => 'alamat NAS',
+            'coa_port' => 'port CoA',
+            'radius_secret' => 'secret RADIUS',
         ];
     }
 
@@ -44,7 +54,7 @@ class UpdateNasDeviceRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             if (Realm::forCompany((int) CompanyService::currentId()) === null) {
-                $validator->errors()->add('realm', 'The company code cannot be used as a RADIUS realm: use 1 to 24 letters, digits or dashes.');
+                $validator->errors()->add('realm', 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS: gunakan 1 sampai 24 huruf, angka, atau tanda hubung.');
             }
         }];
     }

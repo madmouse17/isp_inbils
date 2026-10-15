@@ -66,13 +66,13 @@ class ProductController extends Controller
             Product::create($data);
         });
 
-        return redirect()->route('admin.products.index')->with('success', 'Product created.');
+        return redirect()->route('admin.products.index')->with('success', 'Barang berhasil dibuat.');
     }
 
     public function show(Product $product): InertiaResponse
     {
         Gate::authorize('view', $product);
-        $product->load(['category', 'unit', 'stocks.location', 'movements' => fn ($q) => $q->latest()->limit(20)]);
+        $product->load(['category', 'unit', 'stocks.location', 'movements' => fn ($q) => $q->latest('id')->limit(20)]);
 
         return Inertia::render('Admin/Inventory/Products/Show', [
             'product' => new ProductResource($product),
@@ -96,7 +96,7 @@ class ProductController extends Controller
         Gate::authorize('update', $product);
         $product->update($request->validated());
 
-        return redirect()->route('admin.products.index')->with('success', 'Product updated.');
+        return redirect()->route('admin.products.index')->with('success', 'Barang berhasil diubah.');
     }
 
     public function destroy(Product $product): RedirectResponse
@@ -104,12 +104,12 @@ class ProductController extends Controller
         Gate::authorize('delete', $product);
 
         if ($product->stocks()->where('quantity', '>', 0)->exists()) {
-            return back()->withErrors(['product' => 'Cannot delete product with stock.']);
+            return back()->withErrors(['product' => 'Barang tidak dapat dihapus karena masih memiliki stok.']);
         }
 
         $product->delete();
 
-        return back()->with('success', 'Product deleted.');
+        return back()->with('success', 'Barang berhasil dihapus.');
     }
 
     /** @return array{manual: bool, preview: string} */
@@ -132,13 +132,13 @@ class ProductController extends Controller
 
         $columns = [
             'sku' => 'SKU',
-            'name' => 'Name',
-            'category' => 'Category',
-            'unit' => 'Unit',
-            'sell_price' => 'SellPrice',
-            'cost_price' => 'CostPrice',
-            'min_stock' => 'MinStock',
-            'is_active' => 'IsActive',
+            'name' => 'Nama',
+            'category' => 'Kategori',
+            'unit' => 'Satuan',
+            'sell_price' => 'Harga Jual',
+            'cost_price' => 'Harga Pokok',
+            'min_stock' => 'Stok Minimum',
+            'is_active' => 'Aktif',
         ];
 
         $map = static fn (Product $p): array => [
@@ -149,11 +149,11 @@ class ProductController extends Controller
             'sell_price' => $p->sell_price ?? '',
             'cost_price' => $p->cost_price ?? '',
             'min_stock' => $p->min_stock,
-            'is_active' => $p->is_active ? 'Yes' : 'No',
+            'is_active' => $p->is_active ? 'Ya' : 'Tidak',
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Products', $columns, $map, "products-export-{$stamp}.pdf");
+            return $export->streamPdf('Barang', $columns, $map, "products-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "products-export-{$stamp}.csv");

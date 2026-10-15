@@ -11,11 +11,20 @@ import {
 import { PrefixDialog } from '@/Components/composite/ipam/PrefixDialog';
 import { PrefixUtilisation } from '@/Components/composite/ipam/PrefixUtilisation';
 import { ReserveAddressDialog } from '@/Components/composite/ipam/ReserveAddressDialog';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    EmptyCell,
+    EnumBadge,
+} from '@/Components/ui';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDateTime } from '@/lib/format';
-import { formatCount, usageLabels, usageVariants } from '@/lib/ipam';
+import { formatCount } from '@/lib/ipam';
 import { toPagination } from '@/lib/pagination';
+import { IP_ADDRESS_STATUS, IP_PREFIX_USAGE, labelOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 import type {
     IpAddressRow,
@@ -50,11 +59,11 @@ export default function Show({
 
     const details: { label: string; value: ReactNode }[] = [
         {
-            label: 'Usage',
-            value: <Badge variant={usageVariants[prefix.usage]}>{usageLabels[prefix.usage]}</Badge>,
+            label: 'Peruntukan',
+            value: <EnumBadge map={IP_PREFIX_USAGE} value={prefix.usage} />,
         },
         {
-            label: 'Inside',
+            label: 'Di dalam',
             value: prefix.parent ? (
                 <Link
                     href={route('admin.ipam.prefixes.show', prefix.parent.id)}
@@ -63,18 +72,27 @@ export default function Show({
                     {prefix.parent.cidr}
                 </Link>
             ) : (
-                'Top level'
+                'Tingkat atas'
             ),
         },
-        { label: 'POP', value: prefix.location?.code ?? '-' },
-        { label: 'VLAN', value: prefix.vlan ? `${prefix.vlan.vid} · ${prefix.vlan.name}` : '-' },
-        { label: 'Size', value: formatCount(prefix.size) },
+        { label: 'POP', value: prefix.location?.code ?? <EmptyCell /> },
+        {
+            label: 'VLAN',
+            value: prefix.vlan ? `${prefix.vlan.vid} - ${prefix.vlan.name}` : <EmptyCell />,
+        },
+        { label: 'Ukuran', value: formatCount(prefix.size) },
         ...(holdsAddresses
             ? [
-                  { label: 'Usable', value: formatCount(prefix.usable) },
-                  { label: 'Assigned', value: formatCount(prefix.assigned) },
-                  { label: 'Reserved', value: formatCount(prefix.reserved) },
-                  { label: 'Free', value: formatCount(prefix.free) },
+                  { label: 'Dapat dipakai', value: formatCount(prefix.usable) },
+                  {
+                      label: labelOf(IP_ADDRESS_STATUS, 'assigned'),
+                      value: formatCount(prefix.assigned),
+                  },
+                  {
+                      label: labelOf(IP_ADDRESS_STATUS, 'reserved'),
+                      value: formatCount(prefix.reserved),
+                  },
+                  { label: 'Kosong', value: formatCount(prefix.free) },
               ]
             : []),
     ];
@@ -83,7 +101,7 @@ export default function Show({
         () => [
             {
                 key: 'cidr',
-                header: 'Prefix',
+                header: 'Prefiks',
                 cell: (row) => (
                     <Link
                         href={route('admin.ipam.prefixes.show', row.id)}
@@ -95,21 +113,19 @@ export default function Show({
             },
             {
                 key: 'usage',
-                header: 'Usage',
-                cell: (row) => (
-                    <Badge variant={usageVariants[row.usage]}>{usageLabels[row.usage]}</Badge>
-                ),
+                header: 'Peruntukan',
+                cell: (row) => <EnumBadge map={IP_PREFIX_USAGE} value={row.usage} />,
             },
-            { key: 'location', header: 'POP', cell: (row) => row.location?.code ?? '-' },
+            { key: 'location', header: 'POP', cell: (row) => row.location?.code ?? <EmptyCell /> },
             {
                 key: 'size',
-                header: 'Size',
+                header: 'Ukuran',
                 className: 'tabular-nums',
                 cell: (row) => formatCount(row.size),
             },
             {
                 key: 'percent',
-                header: 'Utilisation',
+                header: 'Pemakaian',
                 cell: (row) => <PrefixUtilisation prefix={row} />,
             },
         ],
@@ -120,21 +136,17 @@ export default function Show({
         const columns: DataTableColumn<IpAddressRow>[] = [
             {
                 key: 'address',
-                header: 'Address',
+                header: 'Alamat',
                 cell: (row) => <span className="font-mono">{row.address}</span>,
             },
             {
                 key: 'status',
                 header: 'Status',
-                cell: (row) => (
-                    <Badge variant={row.status === 'assigned' ? 'info' : 'secondary'}>
-                        {row.status === 'assigned' ? 'Assigned' : 'Reserved'}
-                    </Badge>
-                ),
+                cell: (row) => <EnumBadge map={IP_ADDRESS_STATUS} value={row.status} />,
             },
             {
                 key: 'holder',
-                header: 'Held by',
+                header: 'Dipakai oleh',
                 cell: (row) =>
                     row.holder ? (
                         <Link
@@ -144,13 +156,13 @@ export default function Show({
                             {row.holder.label}
                         </Link>
                     ) : (
-                        '-'
+                        <EmptyCell />
                     ),
             },
-            { key: 'note', header: 'Note', cell: (row) => row.note ?? '-' },
+            { key: 'note', header: 'Catatan', cell: (row) => row.note ?? <EmptyCell /> },
             {
                 key: 'assigned_at',
-                header: 'Added',
+                header: 'Ditambahkan',
                 cell: (row) => formatDateTime(row.assigned_at),
             },
         ];
@@ -161,14 +173,14 @@ export default function Show({
             ...columns,
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => {
                     // An asset keeps its address on its own page; the register refuses to release it.
                     if (row.holder?.type === 'asset') {
                         return (
                             <Button asChild size="sm" variant="outline">
                                 <Link href={route('admin.network-assets.edit', row.holder.id)}>
-                                    Edit asset
+                                    Ubah aset
                                 </Link>
                             </Button>
                         );
@@ -181,19 +193,19 @@ export default function Show({
                             type="button"
                             size="sm"
                             variant="outline"
-                            aria-label={`Release ${row.address}`}
+                            aria-label={`Lepas ${row.address}`}
                             onClick={() =>
                                 setConfirm({
-                                    title: `Release ${row.address}?`,
+                                    title: `Lepas ${row.address}?`,
                                     description: row.holder
-                                        ? `${row.holder.label} loses this static address and it returns to the pool.`
-                                        : 'The reservation is removed and the address can be handed out again.',
-                                    confirmLabel: 'Release address',
+                                        ? `${row.holder.label} kehilangan alamat statis ini dan alamat kembali ke pool.`
+                                        : 'Pencadangan dihapus dan alamat dapat dibagikan lagi.',
+                                    confirmLabel: 'Lepas alamat',
                                     href: route('admin.ipam.addresses.destroy', row.id),
                                 })
                             }
                         >
-                            Release
+                            Lepas
                         </Button>
                     );
                 },
@@ -204,7 +216,7 @@ export default function Show({
     const reserve = can.manage ? (
         <Button type="button" variant="primary" onClick={() => setReserving(true)}>
             <Plus className="size-4" aria-hidden="true" />
-            Reserve address
+            Cadangkan alamat
         </Button>
     ) : undefined;
 
@@ -213,7 +225,7 @@ export default function Show({
             <div className="space-y-6">
                 <PageHeader
                     title={prefix.cidr}
-                    description={prefix.description ?? usageLabels[prefix.usage]}
+                    description={prefix.description ?? labelOf(IP_PREFIX_USAGE, prefix.usage)}
                     actions={
                         <>
                             <Button
@@ -222,26 +234,27 @@ export default function Show({
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.ipam.prefixes.index')}>Back</Link>
+                                <Link href={route('admin.ipam.prefixes.index')}>Kembali</Link>
                             </Button>
                             {can.manage && (
                                 <>
                                     <Button
                                         type="button"
-                                        variant="secondary"
+                                        variant="outline"
                                         onClick={() => setEditing(true)}
                                     >
-                                        Edit
+                                        Ubah
                                     </Button>
                                     <Button
                                         type="button"
-                                        variant="danger"
+                                        variant="outline"
+                                        className="text-destructive-text"
                                         onClick={() =>
                                             setConfirm({
-                                                title: `Delete ${prefix.cidr}?`,
+                                                title: `Hapus ${prefix.cidr}?`,
                                                 description:
-                                                    'The prefix leaves the register. It can only be deleted while it holds no child prefixes and no addresses.',
-                                                confirmLabel: 'Delete prefix',
+                                                    'Prefiks keluar dari register. Prefiks hanya bisa dihapus selama tidak memuat prefiks lain dan alamat.',
+                                                confirmLabel: 'Hapus prefiks',
                                                 href: route(
                                                     'admin.ipam.prefixes.destroy',
                                                     prefix.id,
@@ -249,7 +262,7 @@ export default function Show({
                                             })
                                         }
                                     >
-                                        Delete
+                                        Hapus
                                     </Button>
                                 </>
                             )}
@@ -260,7 +273,7 @@ export default function Show({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Details</CardTitle>
+                        <CardTitle>Detail</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
@@ -275,12 +288,12 @@ export default function Show({
                             <PrefixUtilisation prefix={prefix} />
                             <p className="text-muted-foreground">
                                 {prefix.usage === 'container'
-                                    ? 'Share of this block given to the prefixes inside it.'
+                                    ? 'Bagian blok ini yang diberikan ke prefiks di dalamnya.'
                                     : prefix.usage === 'customer_dynamic'
-                                      ? 'A router hands out these addresses, so only the size is tracked.'
+                                      ? 'Router membagikan alamat ini, jadi hanya ukurannya yang dicatat.'
                                       : prefix.family === 6
-                                        ? 'IPv6 addresses are typed by hand, so free space is not counted.'
-                                        : 'Assigned and reserved addresses out of the usable ones.'}
+                                        ? 'Alamat IPv6 diketik manual, jadi ruang kosong tidak dihitung.'
+                                        : 'Alamat yang dipakai dan dicadangkan dari yang dapat dipakai.'}
                             </p>
                         </div>
                     </CardContent>
@@ -289,14 +302,14 @@ export default function Show({
                 {(childPrefixes.length > 0 || prefix.usage === 'container') && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Prefixes inside</CardTitle>
+                            <CardTitle>Prefiks di dalam</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <DataTable
                                 columns={childColumns}
                                 data={childPrefixes}
-                                emptyTitle="No prefixes inside this block"
-                                emptyDescription="Prefixes you register within this range appear here."
+                                emptyTitle="Tidak ada prefiks di dalam blok ini"
+                                emptyDescription="Prefiks yang Anda daftarkan di rentang ini muncul di sini."
                             />
                         </CardContent>
                     </Card>
@@ -304,7 +317,7 @@ export default function Show({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Addresses</CardTitle>
+                        <CardTitle>Alamat</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <DataTable
@@ -313,8 +326,8 @@ export default function Show({
                             pagination={toPagination(addresses)}
                             onPageChange={(page) => set('page', page)}
                             loading={processing}
-                            emptyTitle="No addresses in this block"
-                            emptyDescription="Assign one from a subscription page, or reserve one for a gateway or loopback."
+                            emptyTitle="Belum ada alamat di blok ini"
+                            emptyDescription="Berikan dari halaman langganan, atau cadangkan untuk gateway atau loopback."
                             emptyAction={reserve}
                         />
                     </CardContent>

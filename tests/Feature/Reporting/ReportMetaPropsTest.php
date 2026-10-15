@@ -110,7 +110,8 @@ class ReportMetaPropsTest extends TestCase
         }
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Reports/Technician')
-            ->has('technicians.data', 0)
+            ->missing('technicians')
+            ->where('selectedTechnician', null)
             ->where('filters', []));
     }
 

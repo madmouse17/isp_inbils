@@ -8,27 +8,18 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
-    Input,
-    NativeSelect,
+    DatePicker,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-
-interface CustRow {
-    id: number;
-    name: string;
-}
-interface SubRow {
-    id: number;
-    code: string;
-}
+import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
+import type { RemoteOption } from '@/Components/composite';
 
 interface CreateProps extends Record<string, unknown> {
-    customers: { data: CustRow[] };
-    subscriptions: { data: SubRow[] };
+    customerOptions?: RemoteOption[];
+    subscriptionOptions?: RemoteOption[];
 }
 
-export default function Create({ customers, subscriptions }: CreateProps) {
+export default function Create({ customerOptions, subscriptionOptions }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         customer_id: '',
         subscription_id: '',
@@ -37,17 +28,32 @@ export default function Create({ customers, subscriptions }: CreateProps) {
         notes: '',
     });
 
+    const pickCustomer = (value: string) => {
+        setData((previous) => ({ ...previous, customer_id: value, subscription_id: '' }));
+        // The server offers only this customer's subscriptions from now on.
+        router.get(
+            route('admin.invoices.create'),
+            { customer_id: value },
+            {
+                only: ['subscriptionOptions'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         post(route('admin.invoices.store'));
     };
 
     return (
-        <AdminLayout title="Create Invoice">
+        <AdminLayout title="Buat tagihan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Invoice"
-                    subtitle="Fill required fields, then save."
+                    title="Buat tagihan"
+                    subtitle="Pilih pelanggan, atur tanggal, lalu simpan sebagai draf. Item ditambahkan di halaman tagihan."
                     actions={
                         <Button
                             asChild
@@ -55,60 +61,56 @@ export default function Create({ customers, subscriptions }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.invoices.index')}>Back</Link>
+                            <Link href={route('admin.invoices.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data tagihan</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <NativeSelect
-                                label="Customer"
+                            <RemoteSearchSelect
+                                id="customer_id"
+                                field="customer"
+                                label="Pelanggan"
+                                placeholder="Cari nama atau kode pelanggan"
+                                options={customerOptions}
                                 value={data.customer_id}
-                                onChange={(e) => setData('customer_id', e.target.value)}
+                                onChange={pickCustomer}
                                 error={errors.customer_id}
                                 required
-                            >
-                                <option value="">Select...</option>
-                                {customers.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Subscription (optional)"
+                            />
+                            <RemoteSearchSelect
+                                id="subscription_id"
+                                field="subscription"
+                                label="Langganan (opsional)"
+                                placeholder="Cari kode langganan"
+                                options={subscriptionOptions}
                                 value={data.subscription_id}
-                                onChange={(e) => setData('subscription_id', e.target.value)}
+                                onChange={(value) => setData('subscription_id', value)}
                                 error={errors.subscription_id}
-                            >
-                                <option value="">None</option>
-                                {subscriptions.data.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.code}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <Input
-                                label="Issue Date"
-                                type="date"
+                            />
+                            <DatePicker
+                                id="issue_date"
+                                label="Tanggal terbit"
+                                hint="Kosongkan untuk memakai hari ini."
                                 value={data.issue_date}
-                                onChange={(e) => setData('issue_date', e.target.value)}
+                                onChange={(value) => setData('issue_date', value)}
                                 error={errors.issue_date}
                             />
-                            <Input
-                                label="Due Date"
-                                type="date"
+                            <DatePicker
+                                id="due_date"
+                                label="Jatuh tempo"
+                                hint="Kosongkan untuk memakai 14 hari setelah tanggal terbit."
                                 value={data.due_date}
-                                onChange={(e) => setData('due_date', e.target.value)}
+                                onChange={(value) => setData('due_date', value)}
                                 error={errors.due_date}
                             />
                             <Textarea
                                 className="md:col-span-2"
-                                label="Notes"
+                                label="Catatan"
                                 value={data.notes}
                                 onChange={(e) => setData('notes', e.target.value)}
                                 error={errors.notes}
@@ -122,10 +124,10 @@ export default function Create({ customers, subscriptions }: CreateProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.invoices.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

@@ -134,7 +134,7 @@ class IpAssetWriteThroughTest extends TestCase
 
         $response = $this->createAsset(['ip_address' => '10.80.4.1'])->assertStatus(422)->assertJsonValidationErrors('ip_address');
 
-        $this->assertStringContainsString('reserved (gateway)', $response->json('errors.ip_address.0'));
+        $this->assertStringContainsString('sudah dicadangkan (gateway)', $response->json('errors.ip_address.0'));
         $this->assertDatabaseCount('network_assets', 0);
     }
 

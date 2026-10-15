@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, PermissionGroupSelector, type PermissionOption } from '@/Components/composite';
@@ -19,11 +19,11 @@ export default function Create({ permissions }: CreateProps) {
     };
 
     return (
-        <AdminLayout title="Create Role">
+        <AdminLayout title="Buat Peran">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Role"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Peran"
+                    subtitle="Beri nama peran, lalu pilih hak akses yang dimilikinya."
                     actions={
                         <Button
                             asChild
@@ -31,7 +31,7 @@ export default function Create({ permissions }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.roles.index')}>Back</Link>
+                            <Link href={route('admin.roles.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -39,12 +39,12 @@ export default function Create({ permissions }: CreateProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Create Role</CardTitle>
+                            <CardTitle>Data peran</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="max-w-xl">
                                 <Input
-                                    label="Name"
+                                    label="Nama"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={errors.name}
@@ -60,15 +60,11 @@ export default function Create({ permissions }: CreateProps) {
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.roles.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.roles.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Buat
                         </Button>
                     </div>
                 </form>

@@ -30,7 +30,7 @@ final readonly class MetricDefinition
         public array $sources,
         public ?string $dateColumn = null,
         public array $statuses = [],
-        public string $scope = 'Company',
+        public string $scope = 'Perusahaan',
         public array $caveats = [],
         public string $version = self::INITIAL_VERSION,
     ) {

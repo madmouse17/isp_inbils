@@ -10,12 +10,12 @@ export interface MediaFile {
 }
 
 /**
- * Thumbnail and Open for images (the media route renders only raster images in place), Download for
+ * Thumbnail and Buka for images (the media route renders only raster images in place), Unduh for
  * every file: anything else, PDF included, is served as a download.
  */
 export function MediaPreview({ media }: { media: MediaFile }) {
     const [broken, setBroken] = useState(false);
-    const name = media.original_name ?? 'file';
+    const name = media.original_name ?? 'berkas';
     const isImage = media.mime_type?.startsWith('image/') ?? false;
 
     return (
@@ -36,17 +36,17 @@ export function MediaPreview({ media }: { media: MediaFile }) {
                             href={media.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            aria-label={`Open ${name} in a new tab`}
+                            aria-label={`Buka ${name} di tab baru`}
                         >
                             <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                            Open
+                            Buka
                         </a>
                     </Button>
                 )}
                 <Button asChild size="sm" variant="outline">
-                    <a href={media.url} download aria-label={`Download ${name}`}>
+                    <a href={media.url} download aria-label={`Unduh ${name}`}>
                         <Download className="h-4 w-4" aria-hidden="true" />
-                        Download
+                        Unduh
                     </a>
                 </Button>
             </div>

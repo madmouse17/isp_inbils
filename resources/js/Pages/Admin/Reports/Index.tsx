@@ -1,6 +1,6 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
-import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/Components/ui';
+import { EmptyState } from '@/Components/ui';
 import { Link, usePage } from '@inertiajs/react';
 import type { PageProps, ReportHubCard } from '@/types';
 
@@ -16,9 +16,9 @@ function withConsolidatedCard(reports: ReportHubCard[]): ReportHubCard[] {
         ...reports.slice(0, afterBusiness),
         {
             key: 'consolidated',
-            title: 'Consolidated Metrics',
+            title: 'Metrik Konsolidasi',
             description:
-                'Business metrics of this company and its subsidiaries, per company and in total',
+                'Metrik bisnis perusahaan ini dan anak perusahaannya, per perusahaan dan total.',
             href: route('admin.reports.consolidated'),
         },
         ...reports.slice(afterBusiness),
@@ -34,31 +34,29 @@ export default function Index({ reports }: Props) {
             <div className="space-y-6">
                 <PageHeader
                     title="Laporan"
-                    subtitle="Real-time read-only reports from workflow history."
+                    subtitle="Laporan baca-saja yang dihitung langsung dari riwayat kerja."
                 />
                 {cards.length === 0 ? (
                     <EmptyState
-                        title="No reports available"
-                        description="Your role has no report access yet. Ask an administrator to grant one."
+                        title="Belum ada laporan yang bisa dibuka"
+                        description="Peran Anda belum punya akses laporan. Minta administrator memberi akses."
                     />
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <ul className="divide-y divide-border rounded-lg border border-border">
                         {cards.map((report) => (
-                            <Card key={report.key}>
-                                <CardContent>
-                                    <CardHeader>
-                                        <CardTitle>{report.title}</CardTitle>
-                                    </CardHeader>
-                                    <p className="text-sm text-surface-500 dark:text-surface-400">
-                                        {report.description}
-                                    </p>
-                                    <Button asChild variant="outline" className="mt-4">
-                                        <Link href={report.href}>Open {report.title}</Link>
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                            <li key={report.key} className="px-4 py-3">
+                                <Link
+                                    href={report.href}
+                                    className="rounded-sm font-medium text-foreground underline-offset-2 hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+                                >
+                                    {report.title}
+                                </Link>
+                                <p className="mt-0.5 text-sm text-muted-foreground">
+                                    {report.description}
+                                </p>
+                            </li>
                         ))}
-                    </div>
+                    </ul>
                 )}
             </div>
         </AdminLayout>

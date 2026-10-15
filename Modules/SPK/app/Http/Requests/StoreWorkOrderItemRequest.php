@@ -62,7 +62,7 @@ class StoreWorkOrderItemRequest extends FormRequest
                     ->where('company_id', $companyId)
                     ->find($networkAssetId);
                 if ($asset && (int) $asset->company_id !== (int) $companyId) {
-                    $validator->errors()->add('network_asset_id', 'Selected network asset is invalid for this company.');
+                    $validator->errors()->add('network_asset_id', 'Aset jaringan yang dipilih tidak valid untuk perusahaan ini.');
                 }
 
                 if ($subscriptionId) {
@@ -70,7 +70,7 @@ class StoreWorkOrderItemRequest extends FormRequest
                         ->where('company_id', $companyId)
                         ->find($subscriptionId);
                     if ($subscription && (int) $subscription->company_id !== (int) $companyId) {
-                        $validator->errors()->add('network_asset_id', 'Selected network asset is invalid for this company.');
+                        $validator->errors()->add('network_asset_id', 'Aset jaringan yang dipilih tidak valid untuk perusahaan ini.');
                     }
                 }
 
@@ -81,7 +81,7 @@ class StoreWorkOrderItemRequest extends FormRequest
                     ->exists();
 
                 if ($activeInstallation) {
-                    $validator->errors()->add('network_asset_id', 'Selected network asset already has an active installation.');
+                    $validator->errors()->add('network_asset_id', 'Aset jaringan yang dipilih sedang terpasang.');
                 }
             },
         ];

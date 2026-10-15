@@ -29,7 +29,7 @@ class InventoryRequestSubmittedNotification extends Notification implements Shou
     {
         return (new MailMessage())
             ->subject('Permintaan Barang Baru: '.$this->requestCode)
-            ->line('Ada permintaan barang baru yang memerlukan review dan approval gudang.')
+            ->line('Ada permintaan barang baru yang perlu ditinjau dan disetujui gudang.')
             ->line('Kode Permintaan: '.$this->requestCode)
             ->action('Lihat Permintaan', url('/admin/inventory/requests/'.$this->requestId));
     }

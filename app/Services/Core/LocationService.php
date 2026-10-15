@@ -21,6 +21,19 @@ class LocationService
         'site' => 'rack',
     ];
 
+    /**
+     * The type words messages use, the same as `LOCATION_TYPE` in `resources/js/lib/statuses/location.ts`.
+     *
+     * @var array<string, string>
+     */
+    private const TYPE_LABELS = [
+        'region' => 'Wilayah',
+        'area' => 'Area',
+        'pop' => 'POP',
+        'rack' => 'Rak',
+        'site' => 'Site',
+    ];
+
     public static function create(array $data): Location
     {
         $companyId = CompanyService::currentId();
@@ -36,13 +49,13 @@ class LocationService
 
             if ($effectiveType === 'region') {
                 if (! blank($requestedParentId)) {
-                    throw ValidationException::withMessages(['parent_id' => 'Region location cannot have a parent.']);
+                    throw ValidationException::withMessages(['parent_id' => 'Lokasi Wilayah tidak boleh punya induk.']);
                 }
 
                 $data['parent_id'] = null;
             } else {
                 if (blank($requestedParentId)) {
-                    throw ValidationException::withMessages(['parent_id' => 'Parent location is required for non-region location.']);
+                    throw ValidationException::withMessages(['parent_id' => 'Induk lokasi wajib diisi untuk lokasi selain Wilayah.']);
                 }
 
                 $data['parent_id'] = self::assertParentValidAndWithinCompany(
@@ -85,7 +98,7 @@ class LocationService
 
             if ($effectiveType === 'region') {
                 if (! blank($requestedParentId)) {
-                    throw ValidationException::withMessages(['parent_id' => 'Region location cannot have a parent.']);
+                    throw ValidationException::withMessages(['parent_id' => 'Lokasi Wilayah tidak boleh punya induk.']);
                 }
 
                 $data['parent_id'] = null;
@@ -93,14 +106,14 @@ class LocationService
                 $newParentId = blank($requestedParentId) ? $location->parent_id : $requestedParentId;
 
                 if (blank($newParentId)) {
-                    throw ValidationException::withMessages(['parent_id' => 'Parent location is required for non-region location.']);
+                    throw ValidationException::withMessages(['parent_id' => 'Induk lokasi wajib diisi untuk lokasi selain Wilayah.']);
                 }
 
                 $newParentId = (int) $newParentId;
                 self::assertParentValidAndWithinCompany($newParentId, $companyId, $effectiveType);
 
                 if (self::hasCycle($location, $newParentId)) {
-                    throw ValidationException::withMessages(['parent_id' => 'Location cannot be moved below itself.']);
+                    throw ValidationException::withMessages(['parent_id' => 'Lokasi tidak dapat dipindahkan ke bawah dirinya sendiri.']);
                 }
 
                 $data['parent_id'] = $newParentId;
@@ -133,13 +146,13 @@ class LocationService
             self::assertCompany($location, $companyId);
 
             if ($location->type === 'region') {
-                throw ValidationException::withMessages(['new_parent_id' => 'Region location cannot have a parent.']);
+                throw ValidationException::withMessages(['new_parent_id' => 'Lokasi Wilayah tidak boleh punya induk.']);
             }
 
             self::assertParentValidAndWithinCompany($newParentId, $companyId, $location->type, 'new_parent_id');
 
             if (self::hasCycle($location, $newParentId)) {
-                throw ValidationException::withMessages(['new_parent_id' => 'Location cannot be moved below itself.']);
+                throw ValidationException::withMessages(['new_parent_id' => 'Lokasi tidak dapat dipindahkan ke bawah dirinya sendiri.']);
             }
 
             return self::update($location, ['parent_id' => $newParentId]);
@@ -160,11 +173,11 @@ class LocationService
             self::assertCompany($location, $companyId);
 
             if ($location->children()->exists()) {
-                throw ValidationException::withMessages(['location' => 'Location still has children.']);
+                throw ValidationException::withMessages(['location' => 'Lokasi masih punya lokasi turunan.']);
             }
 
             if (self::hasActiveReference('network_assets', $location->id) || self::hasActiveReference('stocks', $location->id)) {
-                throw ValidationException::withMessages(['location' => 'Location still has active references.']);
+                throw ValidationException::withMessages(['location' => 'Lokasi masih dipakai oleh aset atau stok yang aktif.']);
             }
 
             return (bool) $location->delete();
@@ -239,7 +252,7 @@ class LocationService
         abort_unless(
             $companyId !== null && (int) $companyId === (int) $expectedCompanyId,
             404,
-            'Location not found.'
+            'Lokasi tidak ditemukan.'
         );
     }
 
@@ -256,15 +269,15 @@ class LocationService
             ->lockForUpdate()
             ->first();
 
-        abort_unless($parent instanceof Location, 404, 'Parent location not found or invalid.');
+        abort_unless($parent instanceof Location, 404, 'Induk lokasi tidak ditemukan atau tidak valid.');
 
         $requiredParentType = self::REQUIRED_PARENT_TYPES[$childType] ?? null;
         if ($requiredParentType !== null && $parent->type !== $requiredParentType) {
             throw ValidationException::withMessages([
                 $attribute => sprintf(
-                    'A %s location must have a %s parent.',
-                    $childType,
-                    $requiredParentType
+                    'Lokasi %s harus punya induk %s.',
+                    self::TYPE_LABELS[$childType] ?? $childType,
+                    self::TYPE_LABELS[$requiredParentType] ?? $requiredParentType
                 ),
             ]);
         }
@@ -275,7 +288,7 @@ class LocationService
     private static function assertValidType(string $type): void
     {
         if ($type !== 'region' && ! array_key_exists($type, self::REQUIRED_PARENT_TYPES)) {
-            throw ValidationException::withMessages(['type' => 'Location type is invalid.']);
+            throw ValidationException::withMessages(['type' => 'Tipe lokasi tidak valid.']);
         }
     }
 
@@ -294,9 +307,9 @@ class LocationService
             if ($requiredParentType === null || $requiredParentType !== $newParentType) {
                 throw ValidationException::withMessages([
                     'type' => sprintf(
-                        'A %s location cannot have a %s parent.',
-                        $child->type,
-                        $newParentType
+                        'Lokasi %s tidak dapat punya induk %s.',
+                        self::TYPE_LABELS[$child->type] ?? $child->type,
+                        self::TYPE_LABELS[$newParentType] ?? $newParentType
                     ),
                 ]);
             }

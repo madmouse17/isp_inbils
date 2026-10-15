@@ -25,12 +25,13 @@ test('AssignDialog keeps validation separate from conflict and reload fail-close
 });
 
 test('My Work controls remain server-authoritative per action capability', async () => {
-    const [index, mobile] = await Promise.all([
-        readFile(new URL('../../MyWork/Index.tsx', import.meta.url), 'utf8'),
+    const [columns, mobile] = await Promise.all([
+        readFile(new URL('../../MyWork/components/useMyWorkColumns.tsx', import.meta.url), 'utf8'),
         readFile(new URL('../../MyWork/components/MobileMyWorkCard.tsx', import.meta.url), 'utf8'),
     ]);
 
-    for (const source of [index, mobile]) {
+    // The table of My Work and the Dispatch tab of the same name share the columns.
+    for (const source of [columns, mobile]) {
         assert.match(source, /actions\.start/);
         assert.match(source, /actions\.resolve/);
         assert.match(source, /actions\.submit/);

@@ -52,7 +52,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('store', BandwidthProfile::class);
         BandwidthProfile::query()->create($request->validated());
 
-        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Bandwidth profile created.');
+        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Profil bandwidth dibuat.');
     }
 
     public function edit(BandwidthProfile $bandwidthProfile): InertiaResponse
@@ -67,7 +67,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('update', $bandwidthProfile);
         $bandwidthProfile->update($request->validated());
 
-        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Bandwidth profile updated.');
+        return redirect()->route('admin.bandwidth-profiles.index')->with('success', 'Profil bandwidth diperbarui.');
     }
 
     public function destroy(BandwidthProfile $bandwidthProfile): RedirectResponse
@@ -75,7 +75,7 @@ class BandwidthProfileController extends Controller
         Gate::authorize('delete', $bandwidthProfile);
         $bandwidthProfile->delete();
 
-        return back()->with('success', 'Bandwidth profile deleted.');
+        return back()->with('success', 'Profil bandwidth dihapus.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -88,11 +88,11 @@ class BandwidthProfileController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
-            'download_mbps' => 'Download',
-            'upload_mbps' => 'Upload',
-            'type' => 'Type',
-            'contention_ratio' => 'Contention',
+            'name' => 'Nama',
+            'download_mbps' => 'Unduh (Mbps)',
+            'upload_mbps' => 'Unggah (Mbps)',
+            'type' => 'Tipe',
+            'contention_ratio' => 'Rasio berbagi',
             'is_active' => 'Status',
         ];
 
@@ -100,15 +100,15 @@ class BandwidthProfileController extends Controller
             'name' => $profile->name,
             'download_mbps' => $profile->download_mbps,
             'upload_mbps' => $profile->upload_mbps,
-            'type' => $profile->type,
+            'type' => $profile->type === 'dedicated' ? 'Dedikasi' : 'Berbagi',
             'contention_ratio' => $profile->contention_ratio,
-            'is_active' => $profile->is_active ? 'Active' : 'Inactive',
+            'is_active' => $profile->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'bandwidth-profiles-export-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Bandwidth Profiles', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Profil Bandwidth', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

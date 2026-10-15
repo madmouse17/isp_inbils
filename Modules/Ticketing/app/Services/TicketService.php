@@ -39,7 +39,7 @@ class TicketService
     {
         return DB::transaction(function () use ($data, $createdBy) {
             $companyId = CompanyService::currentId();
-            abort_if($companyId === null, 403, 'Company context is required.');
+            abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
             $category = TicketCategory::withoutCompany()->where('company_id', $companyId)->lockForUpdate()->findOrFail($data['category_id'] ?? null);
             self::assertCreateReferences($data, $companyId, $category);
@@ -127,17 +127,17 @@ class TicketService
                 $expectedAssignedTo === self::MISSING_EXPECTED_ASSIGNED_TO
                 || $expectedUpdatedAt === self::MISSING_EXPECTED_UPDATED_AT,
                 422,
-                'Expected assignment state is required.'
+                'Status penugasan semula wajib dikirim.'
             );
             abort_unless(
                 $expectedAssignedTo === null || is_int($expectedAssignedTo),
                 422,
-                'Expected assignee must be an integer or null.'
+                'Penanggung jawab semula harus berupa angka atau kosong.'
             );
             self::assertCanonicalExpectedUpdatedAt($expectedUpdatedAt);
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
-            abort_if(! in_array($ticket->status, ['open', 'assigned']), 422, 'Ticket must be open or assigned to assign.');
+            abort_if(! in_array($ticket->status, ['open', 'assigned']), 422, 'Tiket harus berstatus terbuka atau ditugaskan untuk bisa ditugaskan.');
 
             $ability = $ticket->assigned_to === null ? 'ticket.assign' : 'ticket.reassign';
             self::assertAssignmentActor($assignedBy, $ticket->company_id, $ability);
@@ -149,13 +149,13 @@ class TicketService
             }
 
             if (! $assignmentMatches) {
-                abort(409, 'Ticket assignment conflict: item has been assigned by another user.');
+                abort(409, 'Konflik penugasan: tiket ini sudah ditugaskan oleh pengguna lain.');
             }
 
             $canonicalUpdatedAt = $ticket->updated_at?->utc()->format('Y-m-d\\TH:i:s.v\\Z');
             if ($expectedUpdatedAt === null || $canonicalUpdatedAt !== $expectedUpdatedAt) {
                 throw new ConflictHttpException(
-                    'Ticket assignment conflict: item has been assigned by another user.',
+                    'Konflik penugasan: tiket ini sudah ditugaskan oleh pengguna lain.',
                     null,
                     409
                 );
@@ -163,7 +163,7 @@ class TicketService
 
             $companySettings = data_get($ticket->company, 'settings', []);
             if (($companySettings['forbid_self_assignment'] ?? false) && (int) $assignedBy === (int) $handlerId) {
-                abort(422, 'Self-assignment is forbidden by company policy.');
+                abort(422, 'Kebijakan perusahaan melarang menugaskan diri sendiri.');
             }
 
             $handler = User::query()
@@ -205,8 +205,8 @@ class TicketService
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertAssignedActor($ticket, 'ticket.start');
-            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'assigned', 'Ticket start conflict: item state changed by another user.');
-            abort_if($ticket->status !== 'assigned', 422, 'Ticket must be assigned to start.');
+            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'assigned', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
+            abort_if($ticket->status !== 'assigned', 422, 'Tiket harus berstatus ditugaskan untuk bisa dimulai.');
             $ticket->update([
                 'status' => 'on_progress',
                 'first_response_at' => $ticket->first_response_at ?? now(),
@@ -321,8 +321,8 @@ class TicketService
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertAssignedActor($ticket, 'ticket.resolve');
-            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'on_progress', 'Ticket resolve conflict: item state changed by another user.');
-            abort_if($ticket->status !== 'on_progress', 422, 'Ticket must be on progress to resolve.');
+            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'on_progress', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
+            abort_if($ticket->status !== 'on_progress', 422, 'Tiket harus berstatus dikerjakan untuk bisa diselesaikan.');
             $ticket->update([
                 'status' => 'resolved',
                 'resolved_at' => now(),
@@ -341,14 +341,14 @@ class TicketService
     {
         $expectedStatus = $ticket->status;
         self::assertCloser($ticket);
-        abort_if($ticket->status !== 'resolved', 422, 'Ticket must be resolved to close.');
+        abort_if($ticket->status !== 'resolved', 422, 'Tiket harus berstatus diselesaikan untuk bisa ditutup.');
 
         return DB::transaction(function () use ($ticket, $expectedStatus) {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertCloser($ticket);
-            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'resolved', 'Ticket close conflict: item state changed by another user.');
-            abort_if($ticket->status !== 'resolved', 422, 'Ticket must be resolved to close.');
+            self::throwStatusConflictIfChanged($ticket, $expectedStatus, 'resolved', 'Konflik: status tiket sudah diubah oleh pengguna lain.');
+            abort_if($ticket->status !== 'resolved', 422, 'Tiket harus berstatus diselesaikan untuk bisa ditutup.');
             $ticket->update(['status' => 'closed', 'closed_at' => now()]);
 
             AuditService::log('ticket', 'closed', ['code' => $ticket->code], $ticket);
@@ -360,19 +360,19 @@ class TicketService
     public static function spawnSpk(Ticket $ticket): WorkOrder
     {
         self::assertCapability('ticket.spawn_spk');
-        abort_if((bool) $ticket->spawned_spk_id, 422, 'SPK already spawned for this ticket.');
-        abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Ticket must be on progress or assigned to spawn SPK.');
+        abort_if((bool) $ticket->spawned_spk_id, 422, 'SPK sudah dibuat dari tiket ini.');
+        abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Tiket harus berstatus dikerjakan atau ditugaskan untuk bisa dibuatkan SPK.');
 
         return DB::transaction(function () use ($ticket) {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
             self::assertCapability('ticket.spawn_spk');
-            abort_if((bool) $ticket->spawned_spk_id, 422, 'SPK already spawned for this ticket.');
-            abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Ticket must be on progress or assigned to spawn SPK.');
+            abort_if((bool) $ticket->spawned_spk_id, 422, 'SPK sudah dibuat dari tiket ini.');
+            abort_if(! in_array($ticket->status, ['on_progress', 'assigned']), 422, 'Tiket harus berstatus dikerjakan atau ditugaskan untuk bisa dibuatkan SPK.');
             $wo = WorkOrder::create([
                 'code' => NumberSequenceService::generate('spk', $ticket->company_id),
                 'type' => 'maintenance',
-                'title' => 'SPK from Ticket '.$ticket->code,
+                'title' => 'SPK dari tiket '.$ticket->code,
                 'description' => $ticket->description,
                 'status' => 'generated',
                 'customer_id' => $ticket->customer_id,
@@ -400,15 +400,15 @@ class TicketService
         abort_unless($category->company_id === $companyId, 404);
 
         if ($subscription !== null && $customerId !== null) {
-            abort_unless((int) $subscription->customer_id === (int) $customerId, 422, 'Subscription does not belong to customer.');
+            abort_unless((int) $subscription->customer_id === (int) $customerId, 422, 'Langganan bukan milik pelanggan yang dipilih.');
         }
 
         if ($asset !== null && $customerId !== null && $asset->customer_id !== null) {
-            abort_unless((int) $asset->customer_id === (int) $customerId, 422, 'Network asset does not belong to customer.');
+            abort_unless((int) $asset->customer_id === (int) $customerId, 422, 'Aset jaringan bukan milik pelanggan yang dipilih.');
         }
 
         if ($asset !== null && $subscription !== null && $asset->subscription_id !== null) {
-            abort_unless((int) $asset->subscription_id === (int) $subscription->id, 422, 'Network asset does not belong to subscription.');
+            abort_unless((int) $asset->subscription_id === (int) $subscription->id, 422, 'Aset jaringan bukan milik langganan yang dipilih.');
         }
     }
 
@@ -494,7 +494,7 @@ class TicketService
             && ($parsed = \DateTimeImmutable::createFromFormat('!Y-m-d\\TH:i:s.v\\Z', $expectedUpdatedAt)) !== false
             && $parsed->format('Y-m-d\\TH:i:s.v\\Z') === $expectedUpdatedAt,
             422,
-            'Expected updated timestamp must use canonical UTC format.'
+            'Waktu pembaruan semula harus berformat UTC baku.'
         );
     }
 
@@ -544,6 +544,6 @@ class TicketService
             403
         );
         // Maker/checker: the handler who resolved the ticket cannot also close it.
-        abort_if((int) $ticket->assigned_to === (int) $actor->id, 422, 'Cannot close a ticket you resolved.');
+        abort_if((int) $ticket->assigned_to === (int) $actor->id, 422, 'Tiket yang Anda selesaikan tidak bisa Anda tutup sendiri.');
     }
 }

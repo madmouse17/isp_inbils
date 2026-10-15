@@ -309,7 +309,7 @@ class ApprovalInboxTest extends TestCase
 
         $approveResponse->assertRedirect(route('admin.approvals.index'))
             ->assertSessionHasErrors([
-                'error' => 'SPK must be waiting review to approve.',
+                'error' => 'SPK harus berstatus menunggu review untuk bisa disetujui.',
             ]);
 
         // When Inertia client follows redirect, Inertia page receives errors.error prop
@@ -335,7 +335,7 @@ class ApprovalInboxTest extends TestCase
 
         $rejectResponse->assertRedirect(route('admin.approvals.index'))
             ->assertSessionHasErrors([
-                'error' => 'SPK must be waiting review to reject.',
+                'error' => 'SPK harus berstatus menunggu review untuk bisa ditolak.',
             ]);
 
         // When Inertia client follows redirect, Inertia page receives errors.error prop

@@ -2,10 +2,13 @@ import { router } from '@inertiajs/react';
 import { BellRing } from 'lucide-react';
 import { LoadingState, PageHeader } from '@/Components/composite';
 import { EmptyState } from '@/Components/ui/EmptyState';
-import { Badge, Button, Card, CardContent } from '@/Components/ui';
+import { Button, Card, CardContent } from '@/Components/ui';
 import { Pagination } from '@/Components/ui/Pagination';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useCompany } from '@/hooks/useCompany';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { formatDateTime } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
 
 interface NotificationItem {
@@ -22,22 +25,16 @@ interface NotificationIndexProps extends Record<string, unknown> {
     notifications: Paginated<NotificationItem> & { unreadCount: number };
 }
 
-function formatDate(value: string | null) {
-    if (!value) return '';
-    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-        new Date(value),
-    );
-}
-
 export default function NotificationIndex({ notifications }: NotificationIndexProps) {
+    const company = useCompany();
     const { pending, callbacks } = useVisitPending();
 
     return (
-        <AdminLayout title="Notifications">
+        <AdminLayout title="Notifikasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Notifications"
-                    subtitle="Your latest account and operational notifications"
+                    title="Notifikasi"
+                    subtitle="Pemberitahuan akun dan operasional terbaru untuk Anda."
                     actions={
                         <Button
                             type="button"
@@ -49,7 +46,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                             }
                             disabled={notifications.unreadCount === 0}
                         >
-                            Mark all as read
+                            Tandai semua dibaca
                         </Button>
                     }
                 />
@@ -61,28 +58,38 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                         ) : notifications.data.length === 0 ? (
                             <EmptyState
                                 icon={<BellRing className="h-10 w-10" />}
-                                title="No notifications"
-                                description="You are all caught up."
+                                title="Belum ada notifikasi"
+                                description="Pemberitahuan baru untuk akun Anda muncul di sini."
                             />
                         ) : (
                             <div className="divide-y divide-border">
                                 {notifications.data.map((notification) => (
                                     <article
                                         key={notification.id}
-                                        className={`flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6 ${notification.read_at ? '' : 'bg-muted/30'}`}
+                                        className={cn(
+                                            'flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6',
+                                            !notification.read_at && 'bg-muted/30',
+                                        )}
                                     >
                                         <div className="space-y-1 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h2 className="font-semibold text-foreground">
-                                                    {notification.title}
-                                                </h2>
-                                                {!notification.read_at && <Badge>Unread</Badge>}
-                                            </div>
+                                            <h2
+                                                className={cn(
+                                                    'text-foreground',
+                                                    notification.read_at
+                                                        ? 'font-normal'
+                                                        : 'font-semibold',
+                                                )}
+                                            >
+                                                {!notification.read_at && (
+                                                    <span className="sr-only">Belum dibaca: </span>
+                                                )}
+                                                {notification.title}
+                                            </h2>
                                             <p className="text-sm text-muted-foreground">
                                                 {notification.message}
                                             </p>
                                             <p className="text-xs text-muted-foreground">
-                                                {formatDate(notification.created_at)}
+                                                {formatDateTime(notification.created_at, company)}
                                             </p>
                                         </div>
                                         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -110,7 +117,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                                                         }
                                                     }}
                                                 >
-                                                    View details
+                                                    Lihat detail
                                                 </Button>
                                             )}
                                             {!notification.read_at && (
@@ -128,7 +135,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                                                         )
                                                     }
                                                 >
-                                                    Mark read
+                                                    Tandai dibaca
                                                 </Button>
                                             )}
                                         </div>

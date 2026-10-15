@@ -3,6 +3,7 @@
 namespace App\Http\Resources\Api\V1;
 
 use App\Http\Middleware\EnsureCustomerAccess;
+use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\ApiTokenService;
@@ -31,6 +32,8 @@ class MeResource extends JsonResource
     {
         $user = $this->resource;
         $companyId = CompanyService::idFor($user);
+        /** @var Company|null $company */
+        $company = $user->company;
 
         $customer = $this->app === ApiTokenService::CUSTOMER ? EnsureCustomerAccess::customerFor($user) : null;
         $profile = $this->app === ApiTokenService::TECHNICIAN && $companyId !== null
@@ -43,10 +46,41 @@ class MeResource extends JsonResource
             'email' => $user->email,
             'app' => $this->app,
             'two_factor_enabled' => $user->hasTwoFactorEnabled(),
+            // The ISP behind the login, as the apps brand themselves with it after sign-in. Every field is null until the ISP fills it in.
             'company' => [
                 'id' => $user->company_id,
                 /** @var string|null */
-                'name' => $user->company?->getAttribute('name'),
+                'name' => $company?->getAttribute('name'),
+                /**
+                 * Absolute URL of the company logo. Public: fetch it without the bearer token. An SVG logo is served as SVG.
+                 *
+                 * @var string|null
+                 */
+                'logo_url' => $company?->getFirstMedia('logo')?->getFullUrl(),
+                /**
+                 * `#RRGGBB` the ISP picked on the company page; the app theme is seeded from it.
+                 *
+                 * @var string|null
+                 */
+                'brand_color' => $company?->getAttribute('brand_color'),
+                /** @var string|null */
+                'phone' => $company?->getAttribute('phone'),
+                /**
+                 * Digits and `( ) + -` only, as the ISP typed it.
+                 *
+                 * @var string|null
+                 */
+                'whatsapp' => $company?->getAttribute('whatsapp'),
+                /** @var string|null */
+                'email' => $company?->getAttribute('email'),
+                /** @var string|null */
+                'website' => $company?->getAttribute('website'),
+                /**
+                 * Free text such as `Senin–Sabtu 08.00–20.00`.
+                 *
+                 * @var string|null
+                 */
+                'support_hours' => $company?->getAttribute('support_hours'),
             ],
             'customer' => $customer === null ? null : ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => $profile === null ? null : ['name' => $user->name, 'phone' => $profile->phone],

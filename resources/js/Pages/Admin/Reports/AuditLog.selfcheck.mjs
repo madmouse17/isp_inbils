@@ -35,12 +35,30 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
     assert.match(source, /direction/);
     assert.match(source, /per_page/);
 
+    // 4b. Pickers: module = SearchSelect, user = RemoteSearchSelect (no typed id), per page = NativeSelect, no Radix Select
+    assert.match(source, /<SearchSelect/);
+    assert.match(source, /<RemoteSearchSelect\s+field="user"/);
+    assert.match(source, /userOptions/);
+    assert.match(source, /selectedUser/);
+    assert.match(source, /<NativeSelect/);
+    assert.doesNotMatch(source, /SelectTrigger/);
+    assert.doesNotMatch(source, /type="number"/);
+    assert.doesNotMatch(source, /__all__/);
+
+    // 4c. Event and module badges come from the shared status maps
+    assert.match(source, /<EnumBadge map=\{AUDIT_EVENT\}/);
+    assert.match(source, /<EnumBadge map=\{AUDIT_MODULE\}/);
+    assert.doesNotMatch(source, /getEventBadgeVariant|formatEventLabel/);
+
+    // 4d. No raw palette classes, no shadow-xs
+    assert.doesNotMatch(source, /amber-|emerald-|shadow-xs/);
+
     // 5. States: Loading / Empty / Error / Stale / Truncated
     assert.match(source, /isTruncated/);
     assert.match(source, /500/);
     assert.match(source, /<DateRangePicker/);
     assert.doesNotMatch(source, /type="date"/);
-    assert.match(source, /Tidak Ada Log Aktivitas/);
+    assert.match(source, /Tidak ada log aktivitas/);
     assert.match(source, /Memperbarui data/);
 
     // 6. Permission gating for sensitive properties & export
@@ -48,23 +66,36 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
     assert.match(source, /canExport/);
     assert.match(source, /canViewAudit/);
     assert.match(source, /ExportMenu/);
+    assert.match(source, /Ekspor log/);
 
     // 7. Responsive mobile cards
     assert.match(source, /hidden md:block/);
     assert.match(source, /md:hidden/);
 
-    // 8. Bahasa Indonesia language
-    assert.match(source, /Rekam jejak aktivitas audit sistem/);
-    assert.match(source, /Terapkan Filter/);
-    assert.match(source, /Atur Ulang/);
-    assert.match(source, /Muat Ulang/);
-    assert.match(source, /Detail Log/);
+    // 8. Bahasa Indonesia, sentence case
+    assert.match(source, /title="Log audit"/);
+    assert.match(source, /Rekam jejak aktivitas pengguna dan sistem/);
+    assert.match(source, /Pencarian teks/);
+    assert.match(source, /Terapkan filter/);
+    assert.match(source, /Reset filter/);
+    assert.match(source, /Muat ulang/);
+    assert.match(source, /Detail log aktivitas #/);
     assert.match(source, /Pelaku/);
     assert.match(source, /Subjek/);
+    assert.match(source, /Pengguna #/);
+    assert.match(source, /Modul dan aksi/);
+    assert.doesNotMatch(source, /Audit Log|Terapkan Filter|Atur Ulang|Muat Ulang|Ekspor Log/);
+    assert.doesNotMatch(source, /User #|\(Causer\)|Kolom \/ Field/);
 
     // 9. Contract alignment: Pelaku and Subjek are NOT sortable (server-authoritative, no invalid 422 keys)
-    assert.doesNotMatch(source, /key:\s*['"]causer['"],\s*header:\s*['"]Pelaku['"],\s*sortable:\s*true/);
-    assert.doesNotMatch(source, /key:\s*['"]subject['"],\s*header:\s*['"]Subjek['"],\s*sortable:\s*true/);
+    assert.doesNotMatch(
+        source,
+        /key:\s*['"]causer['"],\s*header:\s*['"]Pelaku['"],\s*sortable:\s*true/,
+    );
+    assert.doesNotMatch(
+        source,
+        /key:\s*['"]subject['"],\s*header:\s*['"]Subjek['"],\s*sortable:\s*true/,
+    );
     assert.doesNotMatch(source, /sortKey:\s*['"]causer['"]/);
     assert.doesNotMatch(source, /sortKey:\s*['"]subject['"]/);
     assert.match(source, /ALLOWED_SORT_FIELDS/);

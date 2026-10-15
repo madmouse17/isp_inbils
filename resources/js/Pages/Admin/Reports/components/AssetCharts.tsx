@@ -1,5 +1,6 @@
 import { BarChartLazy, DonutChartLazy } from '@/Components/ui/ChartLazy';
-import { codeLabel, countRows, topRows } from './chartData';
+import { NETWORK_ASSET_STATUS } from '@/lib/statuses';
+import { countRows, statusSlices, topRows } from './chartData';
 import { ReportChartCard } from './ReportChartCard';
 
 interface AssetChartsProps {
@@ -15,7 +16,7 @@ export function AssetCharts({ statusDistribution, byLocation }: AssetChartsProps
                 description="Posisi saat ini menurut jenis aset yang dipilih; periode tidak berlaku."
             >
                 <DonutChartLazy
-                    data={topRows(countRows(statusDistribution, codeLabel), 10)}
+                    data={statusSlices(statusDistribution, NETWORK_ASSET_STATUS)}
                     ariaLabel="Diagram donat jumlah aset jaringan menurut status"
                 />
             </ReportChartCard>

@@ -30,11 +30,43 @@ class StoreNetworkAssetRequest extends FormRequest
             'ownership' => ['nullable', 'string', 'in:owned,leased,customer_provided'],
             'vendor' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],
-            'purchase_date' => ['nullable', 'date'],
+            'purchase_date' => ['nullable', 'date_format:Y-m-d'],
             'purchase_price' => ['nullable', 'numeric', 'min:0'],
-            'warranty_expiry' => ['nullable', 'date'],
+            'warranty_expiry' => ['nullable', 'date_format:Y-m-d'],
             'notes' => ['nullable', 'string'],
             'status' => ['nullable', 'string', 'in:available,installed,maintenance,damaged,retired'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'purchase_date.date_format' => 'Tanggal pembelian tidak valid.',
+            'warranty_expiry.date_format' => 'Tanggal garansi berakhir tidak valid.',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'name' => 'nama',
+            'product_id' => 'produk',
+            'asset_type' => 'tipe aset',
+            'serial_number' => 'nomor seri',
+            'mac_address' => 'alamat MAC',
+            'ip_address' => 'alamat IP',
+            'management_ip' => 'IP manajemen',
+            'location_id' => 'lokasi',
+            'ownership' => 'kepemilikan',
+            'vendor' => 'vendor',
+            'model' => 'model',
+            'purchase_date' => 'tanggal pembelian',
+            'purchase_price' => 'harga beli',
+            'warranty_expiry' => 'tanggal garansi berakhir',
+            'notes' => 'catatan',
+            'status' => 'status',
         ];
     }
 }

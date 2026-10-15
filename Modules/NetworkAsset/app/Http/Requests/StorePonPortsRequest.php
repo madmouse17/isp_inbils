@@ -19,4 +19,12 @@ class StorePonPortsRequest extends FormRequest
             'count' => ['required', 'integer', 'between:1,64'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'count' => 'jumlah port',
+        ];
+    }
 }

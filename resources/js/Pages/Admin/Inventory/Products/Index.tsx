@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
     DataTable,
@@ -9,9 +9,21 @@ import {
     type DataTableColumn,
 } from '@/Components/composite';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
+import { formatMoney } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
-import { Badge, Button, Card, CardContent, Input, NativeSelect } from '@/Components/ui';
+import { ACTIVE_STATE, optionsOf } from '@/lib/statuses';
+import {
+    Button,
+    Card,
+    CardContent,
+    EmptyCell,
+    EnumBadge,
+    Input,
+    NativeSelect,
+    SearchSelect,
+} from '@/Components/ui';
 import type { Category, Product } from '@/types/inventory';
 
 interface IndexProps extends Record<string, unknown> {
@@ -28,7 +40,10 @@ interface IndexProps extends Record<string, unknown> {
     can: { create: boolean; export: boolean };
 }
 
+const ACTIVE_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(ACTIVE_STATE)];
+
 export default function Index({ products, categories, filters, can }: IndexProps) {
+    const company = useCompany();
     const pagination = toPagination(products);
     const table = useServerTable({
         url: route('admin.products.index'),
@@ -39,9 +54,21 @@ export default function Index({ products, categories, filters, can }: IndexProps
     const [categoryId, setCategoryId] = useState(filters.category_id ?? '');
     const [isActive, setIsActive] = useState(filters.is_active ?? '');
 
+    const categoryChoices = categories.data.map((c) => ({
+        value: String(c.id),
+        label: `${c.code} - ${c.name}`,
+    }));
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         table.visit({ search, category_id: categoryId, is_active: isActive });
+    };
+
+    const resetFilters = () => {
+        setSearch('');
+        setCategoryId('');
+        setIsActive('');
+        table.visit({ search: '', category_id: '', is_active: '' });
     };
 
     const columns: DataTableColumn<Product>[] = [
@@ -51,44 +78,68 @@ export default function Index({ products, categories, filters, can }: IndexProps
             sortable: true,
             cell: (p) => <span className="font-mono text-sm">{p.sku}</span>,
         },
-        { key: 'name', header: 'Name', sortable: true },
-        { key: 'category', header: 'Category', cell: (p) => p.category?.name ?? '-' },
+        {
+            key: 'name',
+            header: 'Nama',
+            sortable: true,
+            cell: (p) => (
+                <Link
+                    href={route('admin.products.show', p.id)}
+                    className="font-medium text-primary hover:underline"
+                >
+                    {p.name}
+                </Link>
+            ),
+        },
+        { key: 'category', header: 'Kategori', cell: (p) => p.category?.name ?? <EmptyCell /> },
         {
             key: 'unit',
-            header: 'Unit',
-            cell: (p) => (p.unit ? `${p.unit.name} (${p.unit.symbol})` : '-'),
+            header: 'Satuan',
+            cell: (p) => (p.unit ? `${p.unit.name} (${p.unit.symbol})` : <EmptyCell />),
         },
-        { key: 'sell_price', header: 'Sell Price', cell: (p) => p.sell_price ?? '-' },
+        {
+            key: 'sell_price',
+            header: 'Harga Jual',
+            className: 'text-right tabular-nums',
+            cell: (p) =>
+                p.sell_price === null || p.sell_price === undefined ? (
+                    <EmptyCell />
+                ) : (
+                    formatMoney(p.sell_price, company)
+                ),
+        },
         {
             key: 'is_active',
             header: 'Status',
-            cell: (p) => (
-                <Badge variant={p.is_active ? 'success' : 'danger'}>
-                    {p.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
+            cell: (p) => <EnumBadge map={ACTIVE_STATE} value={p.is_active} />,
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: 'Aksi',
             cell: (p) => (
                 <DataTableActions
                     showHref={route('admin.products.show', p.id)}
                     editHref={route('admin.products.edit', p.id)}
                     deleteHref={route('admin.products.destroy', p.id)}
-                    deleteMessage={`Delete ${p.name}?`}
-                    deleteDescription={`This will permanently remove the product "${p.name}".`}
+                    deleteMessage={`Hapus ${p.name}?`}
+                    deleteDescription={`Barang "${p.name}" akan dihapus dari daftar. Barang yang masih punya stok tidak bisa dihapus.`}
                 />
             ),
         },
     ];
+
+    const createButton = can.create ? (
+        <Button asChild variant="primary">
+            <Link href={route('admin.products.create')}>Buat Barang</Link>
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="Barang">
             <div className="space-y-6">
                 <PageHeader
                     title="Barang"
-                    subtitle="Manage product master data."
+                    subtitle="Data induk barang: SKU, kategori, satuan, dan harga jual."
                     actions={
                         <>
                             <ExportMenu
@@ -97,54 +148,40 @@ export default function Index({ products, categories, filters, can }: IndexProps
                                 canExport={can.export}
                                 formats={['csv', 'pdf']}
                             />
-                            {can.create && (
-                                <Button
-                                    type="button"
-                                    variant="primary"
-                                    onClick={() => router.get(route('admin.products.create'))}
-                                >
-                                    Create Product
-                                </Button>
-                            )}
+                            {createButton}
                         </>
                     }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
+                        <form onSubmit={submit} className="flex flex-wrap items-end gap-2">
                             <Input
-                                label="Search"
+                                label="Cari barang"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="SKU or name"
+                                placeholder="SKU atau nama"
                             />
+                            <div className="w-full sm:w-64">
+                                <SearchSelect
+                                    id="product-category"
+                                    label="Kategori"
+                                    placeholder="Semua kategori"
+                                    options={categoryChoices}
+                                    value={categoryId}
+                                    onChange={setCategoryId}
+                                />
+                            </div>
                             <NativeSelect
-                                label="Category"
-                                value={categoryId}
-                                onChange={(e) => setCategoryId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {categories.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Active"
+                                label="Status"
                                 value={isActive}
                                 onChange={(e) => setIsActive(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="true">Active</option>
-                                <option value="false">Inactive</option>
-                            </NativeSelect>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary">
-                                    Filter
-                                </Button>
-                            </div>
+                                options={ACTIVE_OPTIONS}
+                                wrapperClassName="sm:w-44"
+                            />
+                            <Button type="submit" variant="secondary">
+                                Filter
+                            </Button>
                         </form>
                         <DataTable
                             columns={columns}
@@ -156,6 +193,13 @@ export default function Index({ products, categories, filters, can }: IndexProps
                             onSort={table.onSort}
                             onPageChange={table.setPage}
                             onPerPageChange={table.setPerPage}
+                            itemLabel="barang"
+                            emptyDescription="Barang yang dibuat muncul di sini, lengkap dengan kategori dan satuannya."
+                            emptyAction={createButton}
+                            hasFilters={Boolean(
+                                filters.search || filters.category_id || filters.is_active,
+                            )}
+                            onResetFilters={resetFilters}
                         />
                     </CardContent>
                 </Card>

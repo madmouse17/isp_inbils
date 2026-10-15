@@ -15,7 +15,7 @@ class VehicleResource extends JsonResource
             'type' => $this->type,
             'brand' => $this->brand,
             'model' => $this->model,
-            'purchase_date' => $this->purchase_date,
+            'purchase_date' => $this->purchase_date?->toDateString(),
             'is_active' => $this->is_active,
             'notes' => $this->notes,
         ];

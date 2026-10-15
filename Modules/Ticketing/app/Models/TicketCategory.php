@@ -20,6 +20,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property int $default_sla_hours
  * @property int $default_response_hours
  * @property string $default_priority
+ * @property ?string $customer_hint a short tip the customer app shows before it offers to open a ticket
  * @property bool $is_active
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
@@ -34,7 +35,7 @@ class TicketCategory extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'company_id', 'name', 'code', 'default_sla_hours', 'default_response_hours', 'default_priority', 'is_active',
+        'company_id', 'name', 'code', 'default_sla_hours', 'default_response_hours', 'default_priority', 'customer_hint', 'is_active',
     ];
 
     protected $casts = [

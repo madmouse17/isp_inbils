@@ -24,4 +24,15 @@ class StoreVlanRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'vid' => 'ID VLAN',
+            'name' => 'nama',
+            'location_id' => 'POP',
+            'description' => 'keterangan',
+        ];
+    }
 }

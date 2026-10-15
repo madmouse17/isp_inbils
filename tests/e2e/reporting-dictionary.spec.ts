@@ -8,42 +8,42 @@ import { loginAs, logout } from './support/demo';
 const dictionaryReports = [
     {
         key: 'business',
-        title: 'Business Metrics',
+        title: 'Metrik Bisnis',
         permission: 'report.business.view',
         version: 'business.v1',
         metrics: 13,
     },
     {
         key: 'sales',
-        title: 'Sales KPI',
+        title: 'KPI Penjualan',
         permission: 'report.sales.view',
         version: 'sales.v1',
         metrics: 7,
     },
     {
         key: 'sla',
-        title: 'SLA Compliance',
+        title: 'Kepatuhan SLA',
         permission: 'report.sla.view',
         version: 'sla.v1',
         metrics: 11,
     },
     {
         key: 'asset',
-        title: 'Asset Utilization',
+        title: 'Pemanfaatan Aset',
         permission: 'report.asset.view',
         version: 'asset.v1',
         metrics: 5,
     },
     {
         key: 'technician',
-        title: 'Technician Performance',
+        title: 'Kinerja Teknisi',
         permission: 'report.technician',
         version: 'technician.v1',
         metrics: 11,
     },
     {
         key: 'stock_card',
-        title: 'Stock Card',
+        title: 'Kartu Stok',
         permission: 'report.stock_card.view',
         version: 'stock_card.v1',
         metrics: 3,
@@ -52,22 +52,22 @@ const dictionaryReports = [
 
 const businessCards = [
     'MRR',
-    'Revenue (Paid)',
-    'Outstanding',
-    'Active Subscriptions',
-    'Suspended Subscriptions',
-    'SLA Compliance',
+    'Pendapatan terbayar',
+    'Piutang',
+    'Langganan aktif',
+    'Langganan ditangguhkan',
+    'Kepatuhan SLA',
 ] as const;
 
 // Returned by BusinessMetricsQuery but never rendered as a card (owner decision: keep 6 cards).
 const hiddenBusinessMetrics = [
     'Churn',
-    'New Subscriptions',
-    'Recurring Revenue',
-    'One-Time Revenue',
-    'Terminated Subscriptions',
-    'Installations Completed',
-    'Asset Distribution',
+    'Langganan baru',
+    'Pendapatan berulang',
+    'Pendapatan sekali bayar',
+    'Langganan berhenti',
+    'Pemasangan selesai',
+    'Sebaran aset',
 ] as const;
 
 // Seeded capability matrix (RolePermissionSeeder): effective report access is unchanged
@@ -75,40 +75,34 @@ const hiddenBusinessMetrics = [
 const hubRoles = {
     admin: {
         shown: [
-            'Open Business Metrics',
-            'Open Sales KPI',
-            'Open Technician Performance',
-            'Open Asset Utilization',
-            'Open SLA Compliance',
-            'Open Stock Card',
-            'Open Audit Log',
-            'Open Data Dictionary',
+            'Metrik Bisnis',
+            'KPI Penjualan',
+            'Kinerja Teknisi',
+            'Pemanfaatan Aset',
+            'Kepatuhan SLA',
+            'Kartu Stok',
+            'Log Audit',
+            'Kamus Data',
             // Demo company is a Head with an active subsidiary in the E2E fixture.
-            'Open Consolidated Metrics',
+            'Metrik Konsolidasi',
         ],
         hidden: [],
     },
     manager: {
         shown: [
-            'Open Business Metrics',
-            'Open Sales KPI',
-            'Open Technician Performance',
-            'Open Asset Utilization',
-            'Open SLA Compliance',
-            'Open Stock Card',
-            'Open Data Dictionary',
+            'Metrik Bisnis',
+            'KPI Penjualan',
+            'Kinerja Teknisi',
+            'Pemanfaatan Aset',
+            'Kepatuhan SLA',
+            'Kartu Stok',
+            'Kamus Data',
         ],
-        hidden: ['Open Audit Log'],
+        hidden: ['Log Audit'],
     },
     staff: {
-        shown: [
-            'Open Business Metrics',
-            'Open Asset Utilization',
-            'Open SLA Compliance',
-            'Open Stock Card',
-            'Open Data Dictionary',
-        ],
-        hidden: ['Open Sales KPI', 'Open Technician Performance', 'Open Audit Log'],
+        shown: ['Metrik Bisnis', 'Pemanfaatan Aset', 'Kepatuhan SLA', 'Kartu Stok', 'Kamus Data'],
+        hidden: ['KPI Penjualan', 'Kinerja Teknisi', 'Log Audit'],
     },
 } as const;
 
@@ -178,7 +172,7 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
             for (const name of hubRoles[role].hidden) {
                 await expect(main.getByRole('link', { name, exact: true })).toHaveCount(0);
             }
-            await expect(main.getByRole('link', { name: /^Open / })).toHaveCount(
+            await expect(main.getByRole('list').getByRole('link')).toHaveCount(
                 hubRoles[role].shown.length,
             );
 
@@ -192,14 +186,12 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         await loginAs(page, 'admin');
         await page.goto('/admin/reports');
         const main = page.getByRole('main');
-        await main.getByRole('link', { name: 'Open Data Dictionary', exact: true }).click();
+        await main.getByRole('link', { name: 'Kamus Data', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/dictionary$/);
-        await expect(
-            main.getByRole('heading', { name: 'Data Dictionary', level: 1 }),
-        ).toBeVisible();
-        await expect(page.getByRole('button', { name: /export/i })).toHaveCount(0);
+        await expect(main.getByRole('heading', { name: 'Kamus Data', level: 1 })).toBeVisible();
+        await expect(page.getByRole('button', { name: /ekspor/i })).toHaveCount(0);
 
-        const toc = main.getByRole('navigation', { name: 'Reports in this dictionary' });
+        const toc = main.getByRole('navigation', { name: 'Laporan dalam kamus ini' });
         for (const report of dictionaryReports) {
             await expect(
                 toc.getByRole('link', { name: `${report.title} (${report.metrics})`, exact: true }),
@@ -209,8 +201,8 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
             await expect(
                 section.getByRole('heading', { name: report.title, level: 2, exact: true }),
             ).toBeVisible();
-            await expect(section).toContainText(`Formula version ${report.version}`);
-            await expect(section).toContainText(`Requires ${report.permission}`);
+            await expect(section).toContainText(`Versi rumus ${report.version}`);
+            await expect(section).toContainText(`Memerlukan ${report.permission}`);
             await expect(section.getByRole('article')).toHaveCount(report.metrics);
             // Each entry shows its own version next to its key (all v1).
             await expect(section.getByText(/· v1$/)).toHaveCount(report.metrics);
@@ -219,48 +211,50 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         // A definition is complete: meaning, formula, unit, date basis, sources, scope, caveats.
         const revenue = page
             .locator('#dictionary-business')
-            .getByRole('article', { name: 'Revenue (Paid)' });
+            .getByRole('article', { name: 'Pendapatan terbayar' });
         await expect(revenue).toHaveCount(1);
         await expect(revenue).toContainText(
-            'Paid amount of fully paid invoices issued during the selected period.',
+            'Jumlah terbayar dari tagihan lunas yang terbit dalam periode terpilih.',
         );
         for (const label of [
-            'Formula',
-            'Unit',
-            'Date basis',
-            'Sources',
-            'Scope',
-            'Known caveats',
+            'Rumus',
+            'Satuan',
+            'Dasar tanggal',
+            'Sumber data',
+            'Cakupan',
+            'Catatan penting',
         ]) {
             await expect(revenue.getByText(label, { exact: true })).toBeVisible();
         }
         await expect(revenue.locator('code', { hasText: 'invoices.issue_date' })).toBeVisible();
-        await expect(revenue).toContainText('Dated by invoice issue date, not by payment date.');
         await expect(revenue).toContainText(
-            'Period. Counts records whose invoices.issue_date falls inside the From/To range.',
+            'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+        );
+        await expect(revenue).toContainText(
+            'Per periode. Menghitung data yang invoices.issue_date jatuh di dalam rentang Dari/Sampai.',
         );
 
         // Sales KPI entries carry their own caveats (copied from MetricRegistry::sales()).
         const collected = page
             .locator('#dictionary-sales')
-            .getByRole('article', { name: 'Collected' });
+            .getByRole('article', { name: 'Terkumpul' });
         await expect(collected).toHaveCount(1);
         await expect(collected).toContainText(
-            'Reversed payments never count, whatever date they were reversed.',
+            'Pembayaran yang dibatalkan tidak pernah dihitung, kapan pun pembatalannya.',
         );
         await expect(collected).toContainText(
-            'Dated by payment date, not by invoice issue date: a payment can settle an invoice issued before the range.',
+            'Dihitung menurut tanggal pembayaran, bukan tanggal terbit tagihan: satu pembayaran bisa melunasi tagihan yang terbit sebelum rentang.',
         );
 
         // The table of contents is real navigation: it moves to the report section.
-        const slaLink = toc.getByRole('link', { name: 'SLA Compliance (11)', exact: true });
+        const slaLink = toc.getByRole('link', { name: 'Kepatuhan SLA (11)', exact: true });
         await slaLink.focus();
         await page.keyboard.press('Enter');
         await expect(page).toHaveURL(/\/admin\/reports\/dictionary#dictionary-sla$/);
         await expect(
             page
                 .locator('#dictionary-sla')
-                .getByRole('heading', { name: 'SLA Compliance', level: 2 }),
+                .getByRole('heading', { name: 'Kepatuhan SLA', level: 2 }),
         ).toBeInViewport();
     });
 
@@ -270,10 +264,8 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         await loginAs(page, 'admin');
         await page.goto('/admin/reports/business');
         const main = page.getByRole('main');
-        await expect(
-            main.getByRole('heading', { name: 'Business Metrics', level: 1 }),
-        ).toBeVisible();
-        await expect(main.getByText('Formula version business.v1')).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Metrik Bisnis', level: 1 })).toBeVisible();
+        await expect(main.getByText('Versi rumus business.v1')).toBeVisible();
 
         for (const title of businessCards) {
             await expect(
@@ -288,16 +280,18 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
 
         await expect(
             main.getByText(
-                'Monthly recurring revenue: the monthly charge of every subscription that is active now.',
+                'Pendapatan berulang bulanan: tagihan bulanan dari semua langganan yang aktif saat ini.',
             ),
         ).toBeVisible();
-        await expect(main.getByText('Snapshot · v1', { exact: true })).toHaveCount(5);
-        await expect(main.getByText('Period · v1', { exact: true })).toHaveCount(1);
+        await expect(main.getByText('Posisi saat ini · v1', { exact: true })).toHaveCount(5);
+        await expect(main.getByText('Per periode · v1', { exact: true })).toHaveCount(1);
 
         // Formula, sources and caveats are one keyboard action away on every card.
-        const summaries = main.getByText('Formula and sources', { exact: true });
+        const summaries = main.getByText('Rumus dan sumber data', { exact: true });
         await expect(summaries).toHaveCount(businessCards.length);
-        const caveat = main.getByText('Dated by invoice issue date, not by payment date.');
+        const caveat = main.getByText(
+            'Dihitung menurut tanggal terbit tagihan, bukan tanggal pembayaran.',
+        );
         await expect(caveat).toBeHidden();
         await expectVisibleFocusRing(summaries.nth(1));
         await page.keyboard.press('Enter');
@@ -305,7 +299,7 @@ test.describe('@smoke @reporting-v2 data dictionary and formula definitions', ()
         await expect(main.locator('code', { hasText: 'invoices.issue_date' })).toBeVisible();
         await expect(
             main.getByText(
-                'Partially paid invoices are excluded: the invoice itself must have status paid.',
+                'Tagihan yang dibayar sebagian tidak termasuk: tagihan itu sendiri harus berstatus paid.',
             ),
         ).toBeVisible();
         await page.keyboard.press('Enter');

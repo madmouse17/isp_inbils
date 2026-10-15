@@ -136,7 +136,7 @@ class StockCardReportRouteTest extends TestCase
         $this->movement($foreignProduct, 45, now(), $foreignLocation);
 
         $this->get(route('admin.reports.stock-card', ['product_id' => $foreignProduct->id]))
-            ->assertNotFound();
+            ->assertSessionHasErrors('product_id');
     }
 
     public function test_stock_card_location_filter_never_reaches_a_foreign_company_row(): void
@@ -161,12 +161,9 @@ class StockCardReportRouteTest extends TestCase
         $this->assertDatabaseHas('stock_movements', ['note' => 'Foreign ledger row', 'product_id' => $product->id, 'to_location_id' => $foreignLocation->id]);
         $filters = ['product_id' => $product->id, 'location_id' => $foreignLocation->id];
 
-        $this->get(route('admin.reports.stock-card', $filters))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('movements.meta.total', 0)->has('movements.data', 0));
-
-        $csv = $this->get(route('admin.reports.stock-card.export', $filters))->assertOk()->streamedContent();
-        $this->assertStringNotContainsString('Foreign ledger row', $csv);
+        // The foreign location is a validation error on the screen and on the file: no ledger is read at all.
+        $this->get(route('admin.reports.stock-card', $filters))->assertSessionHasErrors('location_id');
+        $this->get(route('admin.reports.stock-card.export', $filters))->assertSessionHasErrors('location_id');
     }
 
     private function productForCompany(int $companyId): Product

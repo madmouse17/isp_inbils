@@ -24,7 +24,7 @@ final class IpamLock
         try {
             return Cache::lock("ipam:{$scope}:{$companyId}", 10)->block(5, fn () => DB::transaction($callback, 3));
         } catch (LockTimeoutException) {
-            abort(409, 'Another change to the address plan is in progress. Try again.');
+            abort(409, 'Ada perubahan lain pada rencana alamat yang sedang berjalan. Coba lagi.');
         }
     }
 }

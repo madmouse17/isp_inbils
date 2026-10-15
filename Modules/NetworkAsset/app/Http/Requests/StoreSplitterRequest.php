@@ -23,4 +23,14 @@ class StoreSplitterRequest extends FormRequest
             'label' => ['nullable', 'string', 'max:100'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'outputs' => 'rasio',
+            'input_port_id' => 'port masukan',
+            'label' => 'label',
+        ];
+    }
 }

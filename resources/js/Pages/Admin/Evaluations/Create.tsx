@@ -12,18 +12,17 @@ import {
     NativeSelect,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-
-interface EmpRow {
-    id: number;
-    name: string;
-}
+import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
+import type { RemoteOption } from '@/Components/composite';
+import { EVALUATION_REFERENCE_TYPE, optionsOf } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    employees: { data: EmpRow[] };
+    employeeOptions?: RemoteOption[];
+    ticketOptions?: RemoteOption[];
+    workOrderOptions?: RemoteOption[];
 }
 
-export default function Create({ employees }: CreateProps) {
+export default function Create({ employeeOptions, ticketOptions, workOrderOptions }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         employee_id: '',
         reference_type: 'Ticket',
@@ -32,18 +31,23 @@ export default function Create({ employees }: CreateProps) {
         customer_rating: '',
         comment: '',
     });
+    const isTicket = data.reference_type === 'Ticket';
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
         post(route('admin.evaluations.store'));
     };
 
+    const pickReferenceType = (value: string) => {
+        setData((current) => ({ ...current, reference_type: value, reference_id: '' }));
+    };
+
     return (
-        <AdminLayout title="Create Evaluation">
+        <AdminLayout title="Buat Evaluasi">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Evaluation"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Evaluasi"
+                    subtitle="Nilai pekerjaan karyawan berdasarkan SPK atau tiket yang mereka kerjakan."
                     actions={
                         <Button
                             asChild
@@ -51,7 +55,7 @@ export default function Create({ employees }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.evaluations.index')}>Back</Link>
+                            <Link href={route('admin.evaluations.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -59,67 +63,73 @@ export default function Create({ employees }: CreateProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data evaluasi</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
-                            <NativeSelect
-                                label="Employee"
+                            <RemoteSearchSelect
+                                field="employee"
+                                label="Karyawan"
+                                options={employeeOptions}
                                 value={data.employee_id}
-                                onChange={(e) => setData('employee_id', e.target.value)}
+                                onChange={(value) => setData('employee_id', value)}
+                                placeholder="Cari nama atau Email karyawan"
+                                emptyText="Tidak ada karyawan yang cocok."
                                 error={errors.employee_id}
                                 required
-                            >
-                                <option value="">Select...</option>
-                                {employees.data.map((e) => (
-                                    <option key={e.id} value={e.id}>
-                                        {e.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <NativeSelect
-                                label="Reference Type"
+                                label="Jenis referensi"
                                 value={data.reference_type}
-                                onChange={(e) => setData('reference_type', e.target.value)}
+                                onChange={(event) => pickReferenceType(event.target.value)}
+                                options={optionsOf(EVALUATION_REFERENCE_TYPE)}
                                 error={errors.reference_type}
                                 required
-                            >
-                                <option value="Ticket">Ticket</option>
-                                <option value="WorkOrder">SPK (WorkOrder)</option>
-                            </NativeSelect>
-                            <Input
-                                label="Reference ID"
-                                type="number"
+                            />
+                            <RemoteSearchSelect
+                                field={isTicket ? 'ticket' : 'workOrder'}
+                                label={isTicket ? 'Tiket' : 'SPK'}
+                                options={isTicket ? ticketOptions : workOrderOptions}
                                 value={data.reference_id}
-                                onChange={(e) => setData('reference_id', e.target.value)}
+                                onChange={(value) => setData('reference_id', value)}
+                                placeholder={
+                                    isTicket
+                                        ? 'Cari kode atau judul tiket'
+                                        : 'Cari kode atau judul SPK'
+                                }
+                                emptyText={
+                                    isTicket
+                                        ? 'Tidak ada tiket yang cocok.'
+                                        : 'Tidak ada SPK yang cocok.'
+                                }
                                 error={errors.reference_id}
                                 required
                             />
                             <Input
-                                label="Score (1.0-5.0)"
+                                label="Nilai (1,0 sampai 5,0)"
                                 type="number"
                                 step="0.1"
                                 min="1"
                                 max="5"
                                 value={data.score}
-                                onChange={(e) => setData('score', e.target.value)}
+                                onChange={(event) => setData('score', event.target.value)}
                                 error={errors.score}
                                 required
                             />
                             <Input
-                                label="Customer Rating (optional)"
+                                label="Penilaian pelanggan (opsional)"
                                 type="number"
                                 step="0.1"
                                 min="1"
                                 max="5"
                                 value={data.customer_rating}
-                                onChange={(e) => setData('customer_rating', e.target.value)}
+                                onChange={(event) => setData('customer_rating', event.target.value)}
                                 error={errors.customer_rating}
                             />
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Comment"
+                                    label="Komentar"
                                     value={data.comment}
-                                    onChange={(e) => setData('comment', e.target.value)}
+                                    onChange={(event) => setData('comment', event.target.value)}
                                     error={errors.comment}
                                     rows={3}
                                 />
@@ -132,10 +142,10 @@ export default function Create({ employees }: CreateProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.evaluations.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

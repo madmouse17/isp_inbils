@@ -10,49 +10,30 @@ import {
     CardTitle,
     Input,
     NativeSelect,
+    SearchSelect,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-
-interface CatRow {
-    id: number;
-    name: string;
-}
-interface CustRow {
-    id: number;
-    name: string;
-}
-interface SubRow {
-    id: number;
-    code: string;
-}
-interface AssetRow {
-    id: number;
-    code: string;
-    name: string;
-}
-interface LocRow {
-    id: number;
-    name: string;
-    code: string;
-}
+import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
+import type { RemoteOption } from '@/Components/composite';
+import { optionsOf, PRIORITY, TICKET_SOURCE } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    categories: { data: CatRow[] };
-    customers: { data: CustRow[] };
-    subscriptions: { data: SubRow[] };
-    assets: { data: AssetRow[] };
-    locations: { data: LocRow[] };
+    categories: { data: { id: number; name: string }[] };
+    locations: { data: { id: number; name: string; code: string }[] };
     canChooseLocation: boolean;
+    /** Sent only after a search: `customer_search`, `subscription_search` and `networkAsset_search` ask for them. */
+    customerOptions?: RemoteOption[];
+    subscriptionOptions?: RemoteOption[];
+    networkAssetOptions?: RemoteOption[];
 }
 
 export default function Create({
     categories,
-    customers,
-    subscriptions,
-    assets,
     locations,
     canChooseLocation,
+    customerOptions,
+    subscriptionOptions,
+    networkAssetOptions,
 }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         title: '',
@@ -66,17 +47,40 @@ export default function Create({
         location_id: '',
     });
 
+    // The server offers only the subscriptions and assets of what is picked, so a mismatch is never offered.
+    const narrowOptions = (customerId: string, subscriptionId: string, only: string[]) =>
+        router.get(
+            route('admin.tickets.create'),
+            { customer_id: customerId, subscription_id: subscriptionId },
+            { only, preserveState: true, preserveScroll: true, replace: true },
+        );
+
+    const pickCustomer = (value: string) => {
+        setData((previous) => ({
+            ...previous,
+            customer_id: value,
+            subscription_id: '',
+            network_asset_id: '',
+        }));
+        narrowOptions(value, '', ['subscriptionOptions', 'networkAssetOptions']);
+    };
+
+    const pickSubscription = (value: string) => {
+        setData((previous) => ({ ...previous, subscription_id: value, network_asset_id: '' }));
+        narrowOptions(data.customer_id, value, ['networkAssetOptions']);
+    };
+
     const submit = (e: FormEvent) => {
         e.preventDefault();
         post(route('admin.tickets.store'));
     };
 
     return (
-        <AdminLayout title="Create Ticket">
+        <AdminLayout title="Buat Tiket">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Ticket"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Tiket"
+                    subtitle="Catat keluhan atau gangguan, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -84,116 +88,93 @@ export default function Create({
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.tickets.index')}>Back</Link>
+                            <Link href={route('admin.tickets.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data tiket</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Title"
+                                label="Judul"
                                 value={data.title}
                                 onChange={(e) => setData('title', e.target.value)}
                                 error={errors.title}
                                 required
                             />
                             <NativeSelect
-                                label="Source"
+                                label="Sumber"
                                 value={data.source}
                                 onChange={(e) => setData('source', e.target.value)}
+                                options={optionsOf(TICKET_SOURCE)}
                                 error={errors.source}
                                 required
-                            >
-                                <option value="customer">Customer</option>
-                                <option value="noc">NOC</option>
-                                <option value="internal">Internal</option>
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Category"
+                            />
+                            <SearchSelect
+                                label="Kategori"
                                 value={data.category_id}
-                                onChange={(e) => setData('category_id', e.target.value)}
+                                onChange={(value) => setData('category_id', value)}
+                                options={categories.data.map((c) => ({
+                                    value: String(c.id),
+                                    label: c.name,
+                                }))}
+                                placeholder="Cari kategori"
                                 error={errors.category_id}
                                 required
-                            >
-                                <option value="">Select...</option>
-                                {categories.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <NativeSelect
-                                label="Priority"
+                                label="Prioritas"
                                 value={data.priority}
                                 onChange={(e) => setData('priority', e.target.value)}
+                                options={optionsOf(PRIORITY)}
                                 error={errors.priority}
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Customer"
+                            />
+                            <RemoteSearchSelect
+                                field="customer"
+                                label="Pelanggan"
+                                options={customerOptions}
                                 value={data.customer_id}
-                                onChange={(e) => setData('customer_id', e.target.value)}
+                                onChange={pickCustomer}
+                                placeholder="Cari nama atau kode pelanggan"
                                 error={errors.customer_id}
-                            >
-                                <option value="">Select...</option>
-                                {customers.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Subscription"
+                            />
+                            <RemoteSearchSelect
+                                field="subscription"
+                                label="Langganan"
+                                options={subscriptionOptions}
                                 value={data.subscription_id}
-                                onChange={(e) => setData('subscription_id', e.target.value)}
+                                onChange={pickSubscription}
+                                placeholder="Cari kode langganan"
                                 error={errors.subscription_id}
-                            >
-                                <option value="">None</option>
-                                {subscriptions.data.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.code}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Network Asset"
+                            />
+                            <RemoteSearchSelect
+                                field="networkAsset"
+                                label="Aset jaringan"
+                                options={networkAssetOptions}
                                 value={data.network_asset_id}
-                                onChange={(e) => setData('network_asset_id', e.target.value)}
+                                onChange={(value) => setData('network_asset_id', value)}
+                                placeholder="Cari kode atau nama aset"
                                 error={errors.network_asset_id}
-                            >
-                                <option value="">None</option>
-                                {assets.data.map((a) => (
-                                    <option key={a.id} value={a.id}>
-                                        {a.code} - {a.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             {canChooseLocation && (
-                                <NativeSelect
-                                    label="Location"
+                                <SearchSelect
+                                    label="Lokasi"
                                     value={data.location_id}
-                                    onChange={(e) => setData('location_id', e.target.value)}
+                                    onChange={(value) => setData('location_id', value)}
+                                    options={locations.data.map((l) => ({
+                                        value: String(l.id),
+                                        label: `${l.code} - ${l.name}`,
+                                    }))}
+                                    placeholder="Cari kode atau nama lokasi"
                                     error={errors.location_id}
-                                >
-                                    <option value="">None</option>
-                                    {locations.data.map((l) => (
-                                        <option key={l.id} value={l.id}>
-                                            {l.code} - {l.name}
-                                        </option>
-                                    ))}
-                                </NativeSelect>
+                                />
                             )}
                             <Textarea
                                 className="md:col-span-2"
-                                label="Description"
+                                label="Deskripsi"
                                 value={data.description}
                                 onChange={(e) => setData('description', e.target.value)}
                                 error={errors.description}
@@ -207,10 +188,10 @@ export default function Create({
                             variant="outline"
                             onClick={() => router.get(route('admin.tickets.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

@@ -40,21 +40,21 @@ async function createDisposableUser(page: import('@playwright/test').Page) {
     const name = `QA Delete ${Date.now()}`;
     await page.goto('/admin/users/create');
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create User', level: 1 }),
+        page.getByRole('main').getByRole('heading', { name: 'Buat Pengguna', level: 1 }),
     ).toBeVisible({
         timeout: 15_000,
     });
-    await page.getByLabel('Name', { exact: false }).fill(name);
-    await page.getByLabel('Email', { exact: false }).fill(`qa-delete-${Date.now()}@example.test`);
-    await page.getByLabel('Password', { exact: false }).first().fill('Password123!');
-    await page.getByRole('button', { name: /save|create/i }).click();
+    await page.getByLabel('Nama').fill(name);
+    await page.getByLabel('Email').fill(`qa-delete-${Date.now()}@example.test`);
+    await page.getByLabel('Kata sandi').fill('Password123!');
+    await page.getByRole('button', { name: 'Buat', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible();
     return name;
 }
 
 async function findRow(page: import('@playwright/test').Page, name: string) {
-    const searchInput = page.getByLabel('Search');
+    const searchInput = page.getByLabel('Cari', { exact: true });
     await searchInput.fill(name);
     await expect(page).toHaveURL(
         new RegExp(`search=${encodeURIComponent(name).replace(/\+/g, '%20')}`),
@@ -180,7 +180,7 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
         if (name) {
             await page.unroute(DELETE_URL_PATTERN);
             await page.goto('/admin/users');
-            const searchInput = page.getByLabel('Search');
+            const searchInput = page.getByLabel('Cari', { exact: true });
             await searchInput.fill(name);
             const residualRow = page.getByRole('row').filter({ hasText: name }).first();
             if (await residualRow.isVisible({ timeout: 5_000 }).catch(() => false)) {

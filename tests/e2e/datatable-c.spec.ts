@@ -1,6 +1,6 @@
 import type { Locator, Page, TestInfo } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { loginAs } from './support/demo';
+import { loginAs, selectSearchOption } from './support/demo';
 
 type TableCase = {
     name: string;
@@ -117,9 +117,9 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
         await expectQuery(page, c.search.key ?? 'search', c.search.value);
     }
     const filterLabels: Record<string, string[]> = {
-        Products: ['Category', 'Active'],
-        Stocks: ['Location', 'Product'],
-        'Stock Movements': ['Type'],
+        Products: ['Kategori', 'Status'],
+        Stocks: ['Lokasi', 'Barang'],
+        'Stock Movements': ['Jenis'],
         'Inventory Requests': ['Status permintaan'],
         Returns: ['Status pengembalian'],
     };
@@ -137,7 +137,10 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expect(page.locator('tbody:visible tr')).toHaveCount(10);
     const preserved = new URL(page.url()).searchParams;
     preserved.delete(c.pageParam ?? 'page');
-    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman berikutnya', exact: true }));
+    await keyboardFocus(
+        page,
+        page.getByRole('button', { name: 'Halaman berikutnya', exact: true }),
+    );
     await page.keyboard.press('Enter');
     await expectQuery(page, c.pageParam ?? 'page', '2');
     await expectQuerySnapshot(page, preserved);
@@ -148,7 +151,10 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expectQuery(page, c.pageParam ?? 'page', '2');
     await expect(page.locator('tbody:visible tr').first()).toContainText(c.first);
     await exportParity(page, c);
-    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }));
+    await keyboardFocus(
+        page,
+        page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }),
+    );
     await page.keyboard.press('Enter');
     await expectQuery(page, c.pageParam ?? 'page', '1');
     await expect(page.locator('tbody:visible tr').first()).toContainText(c.last);
@@ -236,7 +242,7 @@ const cases: TableCase[] = [
         name: 'Products',
         path: '/admin/products',
         heading: 'Barang',
-        search: { label: 'Search', value: 'DTC-P' },
+        search: { label: 'Cari barang', value: 'DTC-P' },
         submit: 'Filter',
         sortHeader: 'SKU',
         sortKey: 'sku',
@@ -246,17 +252,21 @@ const cases: TableCase[] = [
         last: 'DTC-P11',
         exportPath: '/admin/products/export',
         setup: async (page) => {
-            await selectFilter(page, 'Category', 'DTC Category 01', 'category_id', 'Filter');
-            await selectFilter(page, 'Active', 'Active', 'is_active', 'Filter');
+            await selectSearchOption(page, 'Kategori', 'DTC Category 01');
+            await page.getByRole('button', { name: 'Filter', exact: true }).click();
+            await expect
+                .poll(() => new URL(page.url()).searchParams.get('category_id'))
+                .toMatch(/^\d+$/);
+            await selectFilter(page, 'Status', 'Aktif', 'is_active', 'Filter');
         },
     },
     {
         name: 'Categories',
         path: '/admin/categories',
         heading: 'Kategori',
-        search: { label: 'Search', value: 'DTC Category' },
+        search: { label: 'Cari kategori', value: 'DTC Category' },
         submit: 'Filter',
-        sortHeader: 'Code',
+        sortHeader: 'Kode',
         sortKey: 'code',
         sortParam: 'sort',
         directionParam: 'direction',
@@ -269,7 +279,7 @@ const cases: TableCase[] = [
         name: 'Units',
         path: '/admin/units?search=DTC%20Unit',
         heading: 'Satuan',
-        sortHeader: 'Name',
+        sortHeader: 'Nama',
         sortKey: 'name',
         sortParam: 'sort',
         directionParam: 'direction',
@@ -281,8 +291,8 @@ const cases: TableCase[] = [
         name: 'Stocks',
         path: '/admin/stocks?low_stock=1',
         heading: 'Stok',
-        search: { label: 'Search', value: 'DTC Product' },
-        sortHeader: 'Quantity',
+        search: { label: 'Cari stok', value: 'DTC Product' },
+        sortHeader: 'Jumlah',
         sortKey: 'quantity',
         sortParam: 'sort_by',
         directionParam: 'sort_dir',
@@ -290,44 +300,30 @@ const cases: TableCase[] = [
         last: 'DTC Product 11',
         exportPath: '/admin/stocks/export',
         setup: async (page) => {
-            const location = page.getByLabel('Location', { exact: true });
-            const value = await location
-                .locator('option')
-                .filter({ hasText: 'DTC Warehouse' })
-                .getAttribute('value');
-            expect(value).toBeTruthy();
-            await location.selectOption(value!);
-            await expectQuery(page, 'location_id', value!);
-            const product = page.getByLabel('Product', { exact: true });
-            const productId = await product
-                .locator('option')
-                .filter({ hasText: 'DTC-P01' })
-                .getAttribute('value');
-            expect(productId).toBeTruthy();
-            await product.selectOption(productId!);
-            await expectQuery(page, 'product_id', productId!);
+            const param = (key: string) => new URL(page.url()).searchParams.get(key) ?? '';
+            await selectSearchOption(page, 'Lokasi', 'DTC Warehouse');
+            await expect.poll(() => param('location_id')).toMatch(/^\d+$/);
+            await selectSearchOption(page, 'Barang', 'DTC-P01');
+            await expect.poll(() => param('product_id')).toMatch(/^\d+$/);
             await expect(page.locator('tbody tr')).toHaveCount(1);
             await expect(page.locator('tbody tr').first()).toContainText('DTC Product 01');
-            await product.selectOption('');
-            await expect
-                .poll(() => new URL(page.url()).searchParams.get('product_id') ?? '')
-                .toBe('');
+            await page.getByRole('button', { name: 'Hapus pilihan: Barang', exact: true }).click();
+            await expect.poll(() => param('product_id')).toBe('');
         },
     },
     {
         name: 'Stock Movements',
         path: '/admin/stock-movements',
         heading: 'Mutasi Stok',
-        search: { label: 'Search', value: 'DTC Movement' },
-        submit: 'Filter',
-        sortHeader: 'Qty',
+        search: { label: 'Cari mutasi', value: 'DTC Movement' },
+        sortHeader: 'Jumlah',
         sortKey: 'quantity',
         sortParam: 'sort_by',
         directionParam: 'sort_dir',
         first: 'DTC Movement 01',
         last: 'DTC Movement 11',
         exportPath: '/admin/stock-movements/export',
-        setup: async (page) => selectFilter(page, 'Type', 'receive', 'movement_type', 'Filter'),
+        setup: async (page) => selectFilter(page, 'Jenis', 'Masuk', 'movement_type'),
     },
     {
         name: 'Inventory Requests',

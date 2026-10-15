@@ -62,17 +62,37 @@ export function unique(prefix: string) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export async function expectDetail(page: Page, label: string, value: string) {
-    await expect(
-        page
-            .locator('p')
-            .filter({ hasText: `${label}:` })
-            .first(),
-    ).toContainText(value);
+/** SPK status codes as the badge reads them (lib/statuses/workOrder.ts). */
+const spkStatusLabels: Record<string, string> = {
+    draft: 'Draf',
+    generated: 'Menunggu penugasan',
+    assigned: 'Ditugaskan',
+    in_progress: 'Dikerjakan',
+    waiting_review: 'Menunggu review',
+    completed: 'Selesai',
+    rejected: 'Ditolak',
+    cancelled: 'Dibatalkan',
+};
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * The value shown next to `label` on a detail page: the `<dd>` of the `<dt>` named `label` (SPK,
+ * Tiket), or the `<p>` that starts "Label:" (Tagihan). A status reads as its badge label.
+ */
+export async function expectDetail(page: Page, label: string, value: string | RegExp) {
+    const name = escapeRegExp(label);
+    const term = page.locator('dt').filter({ hasText: new RegExp(`^\\s*${name}\\s*$`) });
+    const definition = term.locator('xpath=following-sibling::dd[1]');
+    const paragraph = page.locator('p').filter({ hasText: new RegExp(`^\\s*${name}:`) });
+
+    await expect(definition.or(paragraph).first()).toContainText(value);
 }
 
+/** `status` is the stored code; the SPK page shows its code and the status badge. */
 export async function expectSpkState(page: Page, status: string) {
-    await expect(page.getByText(new RegExp(`SPK-\\d{4}-\\d{5} · ${status}`))).toBeVisible();
+    await expect(page.getByText(/^SPK-\d{4}-\d{5}$/).first()).toBeVisible();
+    await expectDetail(page, 'Status', spkStatusLabels[status] ?? status);
 }
 
 const e2eUsers: DemoUser[] = [
@@ -161,32 +181,6 @@ export const PNG_1X1 = Buffer.from(
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64',
 );
-
-export async function createCustomer(page: Page, name: string) {
-    await page.goto('/admin/customers/create');
-    const codeField = page.getByLabel(/^code/i);
-    // A locked (auto-generated) code field is read-only; the server assigns the code.
-    if ((await codeField.count()) && (await codeField.isEditable())) {
-        await codeField.fill(`CUS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
-    }
-    await page.getByLabel(/name/i).fill(name);
-    const email = `${unique(name)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '.')}@example.test`;
-    const emailField = page.getByLabel(/email/i);
-    if (await emailField.count()) {
-        await emailField.fill(email);
-    }
-    const phoneField = page.getByLabel(/phone/i);
-    if (await phoneField.count()) {
-        await phoneField.fill(`0800${String(Date.now()).slice(-8)}`);
-    }
-    await page.getByRole('button', { name: /save|create|simpan/i }).click();
-    await expect(page).toHaveURL(/\/admin\/customers\/?$/);
-    await expect(page.getByRole('main').getByRole('heading', { name: 'Pelanggan' })).toBeVisible();
-
-    return name;
-}
 
 export async function selectOptionByText(select: Locator, text: string) {
     await select.selectOption({ label: text });

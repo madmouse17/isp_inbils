@@ -3,11 +3,9 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Core\Customer;
-use App\Models\Core\CustomerAddress;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
-use Modules\Service\Models\ServicePackage;
 
 class StoreSubscriptionRequest extends FormRequest
 {
@@ -24,7 +22,10 @@ class StoreSubscriptionRequest extends FormRequest
         return [
             'customer_id' => ['required', Rule::exists('customers', 'id')->where('company_id', $companyId)],
             'service_package_id' => ['required', Rule::exists('service_packages', 'id')->where('company_id', $companyId)],
-            'installation_address_id' => ['required', Rule::exists('customer_addresses', 'id')->where('company_id', $companyId)],
+            'installation_address_id' => ['required', 'integer', Rule::exists('customer_addresses', 'id')->where(fn ($query) => $query
+                ->where('company_id', $companyId)
+                ->where('customer_id', $this->input('customer_id'))
+                ->whereNull('deleted_at'))],
             'billing_day' => ['required', 'integer', 'between:1,28'],
             'mrc_amount' => ['nullable', 'numeric', 'min:0'],
             'otc_installation_fee' => ['nullable', 'numeric', 'min:0'],
@@ -45,22 +46,11 @@ class StoreSubscriptionRequest extends FormRequest
         }
     }
 
-    public function after(): array
+    /** @return array<string, string> */
+    public function messages(): array
     {
-        $companyId = CompanyService::currentId();
-
         return [
-            function ($validator) use ($companyId) {
-                $pkg = ServicePackage::find($this->input('service_package_id'));
-                if ($pkg && (int) $pkg->company_id !== (int) $companyId) {
-                    $validator->errors()->add('service_package_id', 'Invalid package for this company.');
-                }
-
-                $addr = CustomerAddress::find($this->input('installation_address_id'));
-                if ($addr && (int) $addr->customer_id !== (int) $this->input('customer_id')) {
-                    $validator->errors()->add('installation_address_id', 'Address does not belong to customer.');
-                }
-            },
+            'installation_address_id.exists' => 'Pilih salah satu alamat milik pelanggan ini.',
         ];
     }
 }

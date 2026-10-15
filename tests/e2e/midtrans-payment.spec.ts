@@ -21,8 +21,9 @@ import {
     inertiaProps,
     loginAs,
     logout,
-    selectOptionByText,
+    selectSearchOption,
 } from './support/demo';
+import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { apiLogin } from './support/api';
 
 const MOCK_PORT = 18911;
@@ -108,9 +109,12 @@ async function startMockMidtrans(): Promise<MockMidtrans> {
         const chunks: Buffer[] = [];
         req.on('data', (chunk: Buffer) => chunks.push(chunk));
         req.on('end', () => {
-            const isApiCall = url.pathname.startsWith('/snap/v1/') || url.pathname.startsWith('/v2/');
+            const isApiCall =
+                url.pathname.startsWith('/snap/v1/') || url.pathname.startsWith('/v2/');
             if (isApiCall && req.headers.authorization !== BASIC_AUTH) {
-                json(res, 401, { error_messages: ['Access denied due to unauthorized transaction'] });
+                json(res, 401, {
+                    error_messages: ['Access denied due to unauthorized transaction'],
+                });
 
                 return;
             }
@@ -184,11 +188,16 @@ function orderIdFrom(url: string): string {
 async function issueInvoice(page: Page): Promise<InvoiceRow> {
     await loginAs(page, 'admin');
     await page.goto('/admin/invoices/create');
-    await selectOptionByText(page.getByLabel('Customer'), e2eCustomerName);
-    await page.getByLabel('Issue Date').fill(isoDay(0));
-    await page.getByLabel('Due Date').fill(isoDay(14));
-    await page.getByLabel('Notes').fill('Midtrans mocked payment');
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
+    const format = await companyDateFormat(page);
+    const issue = page.getByLabel('Tanggal terbit', { exact: true });
+    await issue.fill(formatIsoAs(isoDay(0), format));
+    await issue.press('Tab');
+    const due = page.getByLabel('Jatuh tempo', { exact: true });
+    await due.fill(formatIsoAs(isoDay(14), format));
+    await due.press('Tab');
+    await page.getByLabel('Catatan').fill('Midtrans mocked payment');
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/invoices$/);
 
     const { props } = await inertiaProps(page, '/admin/invoices?per_page=50&status=draft');
@@ -204,17 +213,19 @@ async function issueInvoice(page: Page): Promise<InvoiceRow> {
     if (!invoice) throw new Error('The invoice just created was not among the drafts.');
 
     await page.goto(`/admin/invoices/${invoice.id}`);
-    await page.getByRole('button', { name: 'Add Item' }).click();
-    const itemDialog = page.getByRole('dialog', { name: 'Add Item' });
-    await itemDialog.getByLabel('Description').fill('Internet 20 Mbps');
-    await itemDialog.getByLabel('Quantity').fill('1');
-    await itemDialog.getByLabel('Unit Price').fill('100000');
-    await itemDialog.getByLabel('Discount').fill('0');
-    await itemDialog.getByLabel('Tax Rate (%)').fill('0');
-    await itemDialog.getByRole('button', { name: 'Add' }).click();
-    await expect(page.getByRole('row').filter({ hasText: 'Internet 20 Mbps' })).toContainText('100000.00');
-    await page.getByRole('button', { name: 'Send' }).click();
-    await expectDetail(page, 'Status', 'sent');
+    await page.getByRole('button', { name: 'Tambah item' }).click();
+    const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
+    await itemDialog.getByLabel('Deskripsi').fill('Internet 20 Mbps');
+    await itemDialog.getByLabel('Kuantitas').fill('1');
+    await itemDialog.getByLabel('Harga satuan').fill('100000');
+    await itemDialog.getByLabel('Diskon').fill('0');
+    await itemDialog.getByLabel('Pajak (%)').fill('0');
+    await itemDialog.getByRole('button', { name: 'Simpan', exact: true }).click();
+    await expect(page.getByRole('row').filter({ hasText: 'Internet 20 Mbps' })).toContainText(
+        /Rp\s*100\.000/,
+    );
+    await page.getByRole('button', { name: 'Kirim tagihan' }).click();
+    await expectDetail(page, 'Status', 'Belum dibayar');
 
     return invoice;
 }
@@ -246,27 +257,37 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         const listed = ((await list.json()) as { data: { id: number; number: string }[] }).data;
         expect(listed.map((row) => row.number)).toContain(invoice.number);
         const shown = await api.get(`customer/invoices/${invoice.id}`);
-        expect(((await shown.json()) as { data: { payment: { can_pay: boolean } } }).data.payment.can_pay).toBe(true);
+        expect(
+            ((await shown.json()) as { data: { payment: { can_pay: boolean } } }).data.payment
+                .can_pay,
+        ).toBe(true);
 
         // Paying twice (a double tap) creates one payment page and returns the same address.
         const first = await api.post(`customer/invoices/${invoice.id}/pay`);
         expect(first.status()).toBe(200);
-        const hostedUrl = ((await first.json()) as { data: { redirect_url: string } }).data.redirect_url;
+        const hostedUrl = ((await first.json()) as { data: { redirect_url: string } }).data
+            .redirect_url;
         const second = await api.post(`customer/invoices/${invoice.id}/pay`);
         expect(second.status()).toBe(200);
-        expect(((await second.json()) as { data: { redirect_url: string } }).data.redirect_url).toBe(hostedUrl);
+        expect(
+            ((await second.json()) as { data: { redirect_url: string } }).data.redirect_url,
+        ).toBe(hostedUrl);
         const orderId = orderIdFrom(hostedUrl);
         expect(mock.snapRequests).toBe(1);
         expect(mock.orders.get(orderId)?.grossAmount).toBe(100000);
 
         await page.goto(hostedUrl);
-        await expect(page.getByRole('heading', { name: 'Mock Midtrans hosted payment page' })).toBeVisible();
+        await expect(
+            page.getByRole('heading', { name: 'Mock Midtrans hosted payment page' }),
+        ).toBeVisible();
 
         // The return page is the only customer web page left; it needs the customer web session.
         await loginAs(page, 'customer');
 
         // Before the money arrives the return page tells the truth, whatever the address claims.
-        await page.goto(`/portal/payments/return?order_id=${orderId}&transaction_status=settlement&status_code=200`);
+        await page.goto(
+            `/portal/payments/return?order_id=${orderId}&transaction_status=settlement&status_code=200`,
+        );
         await expect(page.getByRole('heading', { name: 'Menunggu konfirmasi' })).toBeVisible();
         await expect(page.getByRole('button', { name: 'Periksa status' })).toBeVisible();
 
@@ -281,7 +302,9 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
 
         // The real notification books the payment; replays change nothing.
         for (let delivery = 0; delivery < 3; delivery += 1) {
-            const delivered = await page.request.post('/webhooks/midtrans', { data: mock.notification(orderId) });
+            const delivered = await page.request.post('/webhooks/midtrans', {
+                data: mock.notification(orderId),
+            });
             expect(delivered.status()).toBe(200);
         }
 
@@ -290,7 +313,9 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
 
         // The app sees the invoice paid and no longer payable.
         const paid = await api.get(`customer/invoices/${invoice.id}`);
-        const paidBody = ((await paid.json()) as { data: { status: string; payment: { can_pay: boolean } } }).data;
+        const paidBody = (
+            (await paid.json()) as { data: { status: string; payment: { can_pay: boolean } } }
+        ).data;
         expect(paidBody.status).toBe('paid');
         expect(paidBody.payment.can_pay).toBe(false);
         expect((await api.post(`customer/invoices/${invoice.id}/pay`)).status()).toBe(422);
@@ -305,8 +330,13 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
             await page.goto(path);
             await expect(page.getByRole('main')).toBeVisible();
             await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark).*$/);
-            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-            expect(overflow, `${path} overflows horizontally at 320px (dark=${dark})`).toBeLessThanOrEqual(0);
+            const overflow = await page.evaluate(
+                () => document.documentElement.scrollWidth - window.innerWidth,
+            );
+            expect(
+                overflow,
+                `${path} overflows horizontally at 320px (dark=${dark})`,
+            ).toBeLessThanOrEqual(0);
         }
         await page.evaluate(() => localStorage.setItem('darkMode', 'false'));
         await page.setViewportSize({ width: 1280, height: 720 });
@@ -315,16 +345,19 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         await logout(page);
         await loginAs(page, 'admin');
         await page.goto(`/admin/invoices/${invoice.id}`);
-        await expectDetail(page, 'Status', 'paid');
+        await expectDetail(page, 'Status', 'Lunas');
         await expect(page.getByRole('row').filter({ hasText: 'midtrans' })).toHaveCount(1);
-        await expect(page.getByRole('heading', { name: 'Online payments' })).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Pembayaran online' })).toBeVisible();
         const attemptRow = page.getByRole('row').filter({ hasText: `e2e-trx-${orderId}` });
         await expect(attemptRow).toHaveCount(1);
-        await expect(attemptRow).toContainText('paid');
+        await expect(attemptRow).toContainText('Lunas');
         await expect(attemptRow).toContainText('bank_transfer');
     });
 
-    test('money that does not match the attempt is quarantined and shown to staff', async ({ page, request }) => {
+    test('money that does not match the attempt is quarantined and shown to staff', async ({
+        page,
+        request,
+    }) => {
         const invoice = await issueInvoice(page);
         await logout(page);
 
@@ -332,27 +365,34 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         const api = await apiLogin(request, 'customer');
         const started = await api.post(`customer/invoices/${invoice.id}/pay`);
         expect(started.status()).toBe(200);
-        const hostedUrl = ((await started.json()) as { data: { redirect_url: string } }).data.redirect_url;
+        const hostedUrl = ((await started.json()) as { data: { redirect_url: string } }).data
+            .redirect_url;
         const orderId = orderIdFrom(hostedUrl);
 
         mock.settle(orderId, 1000);
-        const delivered = await page.request.post('/webhooks/midtrans', { data: mock.notification(orderId) });
+        const delivered = await page.request.post('/webhooks/midtrans', {
+            data: mock.notification(orderId),
+        });
         expect(delivered.status()).toBe(200);
 
         // The customer is told it is being checked, never shown the internal reason.
         await loginAs(page, 'customer');
         await page.goto(`/portal/payments/return?order_id=${orderId}`);
-        await expect(page.getByRole('heading', { name: 'Pembayaran sedang diperiksa' })).toBeVisible();
+        await expect(
+            page.getByRole('heading', { name: 'Pembayaran sedang diperiksa' }),
+        ).toBeVisible();
         await expect(page.getByText('gross_amount')).toHaveCount(0);
 
         // Staff see the exception with its reason; no payment was booked and the invoice is still open.
         await logout(page);
         await loginAs(page, 'admin');
         await page.goto(`/admin/invoices/${invoice.id}`);
-        await expectDetail(page, 'Status', 'sent');
+        await expectDetail(page, 'Status', 'Belum dibayar');
         const attemptRow = page.getByRole('row').filter({ hasText: `e2e-trx-${orderId}` });
-        await expect(attemptRow).toContainText('exception');
+        await expect(attemptRow).toContainText('Perlu dicek');
         await expect(attemptRow).toContainText('gross_amount');
-        await expect(page.getByRole('row').filter({ hasText: 'midtrans' }).filter({ hasText: 'Active' })).toHaveCount(0);
+        await expect(
+            page.getByRole('row').filter({ hasText: 'midtrans' }).filter({ hasText: 'Aktif' }),
+        ).toHaveCount(0);
     });
 });

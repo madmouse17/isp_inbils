@@ -22,7 +22,7 @@ class StockService
 {
     public static function receive(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for receive.');
+        abort_if($quantity <= 0, 422, 'Jumlah penerimaan harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
@@ -64,7 +64,7 @@ class StockService
 
     public static function issue(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for issue.');
+        abort_if($quantity <= 0, 422, 'Jumlah pengeluaran harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
@@ -112,8 +112,8 @@ class StockService
 
     public static function transfer(int $productId, int $fromLocationId, int $toLocationId, float $quantity, ?string $note = null): array
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for transfer.');
-        abort_if($fromLocationId === $toLocationId, 422, 'From and to locations must differ.');
+        abort_if($quantity <= 0, 422, 'Jumlah transfer harus lebih dari 0.');
+        abort_if($fromLocationId === $toLocationId, 422, 'Lokasi asal dan tujuan harus berbeda.');
         self::assertProductLocation($productId, $fromLocationId);
         self::assertProductLocation($productId, $toLocationId);
 
@@ -182,8 +182,8 @@ class StockService
      */
     public static function adjust(int $productId, int $locationId, float $newQuantity, string $note, array $evidence = []): StockMovement
     {
-        abort_if(empty($note), 422, 'Note is required for adjustment.');
-        abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
+        abort_if(empty($note), 422, 'Catatan wajib diisi untuk penyesuaian stok.');
+        abort_if($newQuantity < 0, 422, 'Jumlah tidak boleh negatif.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $newQuantity, $note, $evidence) {
@@ -227,12 +227,12 @@ class StockService
 
     public static function requestAdjustment(int $productId, int $locationId, float $newQuantity, string $reason, ?int $requesterId = null): StockAdjustmentRequest
     {
-        abort_if(empty($reason), 422, 'Reason is required for adjustment request.');
-        abort_if($newQuantity < 0, 422, 'Quantity cannot be negative.');
+        abort_if(empty($reason), 422, 'Alasan wajib diisi untuk permintaan penyesuaian stok.');
+        abort_if($newQuantity < 0, 422, 'Jumlah tidak boleh negatif.');
         self::assertProductLocation($productId, $locationId);
 
         $requesterId = $requesterId ?? Auth::id();
-        abort_if($requesterId === null, 401, 'Unauthenticated.');
+        abort_if($requesterId === null, 401, 'Anda belum masuk.');
 
         $companyId = self::companyId();
         // Read-only snapshot: a request must not create or lock stock rows; approval re-reads under lock.
@@ -271,7 +271,7 @@ class StockService
     public static function approveAdjustment(StockAdjustmentRequest $adjustmentRequest, ?int $approverId = null): StockMovement
     {
         $approverId = $approverId ?? Auth::id();
-        abort_if($approverId === null, 401, 'Unauthenticated.');
+        abort_if($approverId === null, 401, 'Anda belum masuk.');
 
         return DB::transaction(function () use ($adjustmentRequest, $approverId) {
             $pending = self::lockedPendingAdjustment($adjustmentRequest, (int) $approverId, 'approve');
@@ -301,8 +301,8 @@ class StockService
     public static function rejectAdjustment(StockAdjustmentRequest $adjustmentRequest, string $rejectionReason, ?int $rejecterId = null): StockAdjustmentRequest
     {
         $rejecterId = $rejecterId ?? Auth::id();
-        abort_if($rejecterId === null, 401, 'Unauthenticated.');
-        abort_if(empty($rejectionReason), 422, 'Rejection reason is required.');
+        abort_if($rejecterId === null, 401, 'Anda belum masuk.');
+        abort_if(empty($rejectionReason), 422, 'Alasan penolakan wajib diisi.');
 
         return DB::transaction(function () use ($adjustmentRequest, $rejectionReason, $rejecterId) {
             $pending = self::lockedPendingAdjustment($adjustmentRequest, (int) $rejecterId, 'reject');
@@ -332,15 +332,15 @@ class StockService
     {
         $locked = StockAdjustmentRequest::query()->whereKey($adjustmentRequest->getKey())->lockForUpdate()->firstOrFail();
 
-        abort_if($locked->status !== 'pending', 422, 'Adjustment request is not pending.');
-        abort_if((int) $locked->requested_by === $actorId, 422, "Maker-checker: requester cannot {$verb} own stock adjustment request.");
+        abort_if($locked->status !== 'pending', 422, 'Permintaan penyesuaian stok tidak berstatus menunggu.');
+        abort_if((int) $locked->requested_by === $actorId, 422, 'Maker-checker: pemohon tidak boleh '.($verb === 'approve' ? 'menyetujui' : 'menolak').' permintaan penyesuaian stoknya sendiri.');
 
         return $locked;
     }
 
     public static function reserve(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for reserve.');
+        abort_if($quantity <= 0, 422, 'Jumlah reservasi harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
@@ -379,7 +379,7 @@ class StockService
 
     public static function release(int $productId, int $locationId, float $quantity, ?string $refType = null, ?int $refId = null): StockMovement
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for release.');
+        abort_if($quantity <= 0, 422, 'Jumlah pelepasan reservasi harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $refType, $refId) {
@@ -416,7 +416,7 @@ class StockService
 
     public static function returnStock(int $productId, int $locationId, float $quantity, ?string $note = null, ?string $refType = null, ?int $refId = null): StockMovement
     {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for return.');
+        abort_if($quantity <= 0, 422, 'Jumlah pengembalian harus lebih dari 0.');
         self::assertProductLocation($productId, $locationId);
 
         return DB::transaction(function () use ($productId, $locationId, $quantity, $note, $refType, $refId) {
@@ -458,9 +458,9 @@ class StockService
         ?string $refType = null,
         ?int $refId = null
     ): StockMovement {
-        abort_if($quantity <= 0, 422, 'Quantity must be positive for stock movement.');
-        abort_if($fromLocationId === null && $toLocationId === null, 422, 'At least one location must be provided.');
-        abort_if($fromLocationId !== null && $fromLocationId === $toLocationId, 422, 'From and to locations must differ.');
+        abort_if($quantity <= 0, 422, 'Jumlah mutasi stok harus lebih dari 0.');
+        abort_if($fromLocationId === null && $toLocationId === null, 422, 'Isi setidaknya satu lokasi.');
+        abort_if($fromLocationId !== null && $fromLocationId === $toLocationId, 422, 'Lokasi asal dan tujuan harus berbeda.');
 
         $signedQuantity = ($fromLocationId !== null && $toLocationId === null) ? -$quantity : $quantity;
 
@@ -599,13 +599,13 @@ class StockService
     {
         $existingQty = abs((float) $movement->quantity);
         if (abs($existingQty - $quantity) > 0.0001) {
-            abort(409, "Idempotency conflict: Stock movement already exists with quantity {$existingQty}, but replay requested quantity {$quantity}.");
+            abort(409, "Konflik idempotensi: mutasi stok sudah ada dengan jumlah {$existingQty}, tetapi permintaan ulang meminta jumlah {$quantity}.");
         }
 
         $existingNote = $movement->note !== null ? trim($movement->note) : '';
         $incomingNote = $note !== null ? trim($note) : '';
         if ($existingNote !== $incomingNote) {
-            abort(409, 'Idempotency conflict: Stock movement already exists with different note.');
+            abort(409, 'Konflik idempotensi: mutasi stok sudah ada dengan catatan yang berbeda.');
         }
     }
 
@@ -634,17 +634,17 @@ class StockService
             return;
         }
 
-        abort_if($refType === null || $refId === null, 422, 'Stock reference type and id are required together.');
+        abort_if($refType === null || $refId === null, 422, 'Jenis dan ID referensi stok harus diisi bersamaan.');
 
         $typeMap = self::referenceTypes();
-        abort_unless(isset($typeMap[$refType]), 422, 'Stock reference type is not allowed.');
+        abort_unless(isset($typeMap[$refType]), 422, 'Jenis referensi stok tidak diizinkan.');
 
         /** @var mixed $modelClass */
         $modelClass = $typeMap[$refType];
         abort_unless(
             (bool) $modelClass::withoutCompany()->whereKey($refId)->where('company_id', self::companyId())->lockForUpdate()->first(),
             422,
-            'Stock reference is invalid for this company.'
+            'Referensi stok tidak valid untuk perusahaan ini.'
         );
     }
 
@@ -677,7 +677,7 @@ class StockService
     {
         $companyId = self::companyId();
 
-        abort_unless((bool) Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid product for this company.');
-        abort_unless((bool) Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Invalid location for this company.');
+        abort_unless((bool) Product::withoutCompany()->whereKey($productId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Barang tidak valid untuk perusahaan ini.');
+        abort_unless((bool) Location::withoutCompany()->whereKey($locationId)->where('company_id', $companyId)->lockForUpdate()->first(), 422, 'Lokasi tidak valid untuk perusahaan ini.');
     }
 }

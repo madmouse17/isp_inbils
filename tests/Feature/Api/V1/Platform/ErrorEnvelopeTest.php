@@ -102,7 +102,7 @@ class ErrorEnvelopeTest extends TestCase
         $response = $this->getJson('/api/v1/_probe/stock');
 
         $this->assertEnvelope($response, 422, 'unprocessable');
-        $response->assertJsonPath('message', 'Insufficient stock. Requested: 5, Available: 2.');
+        $response->assertJsonPath('message', 'Stok tidak mencukupi. Diminta: 5, Tersedia: 2.');
     }
 
     public function test_a_domain_exception_carries_its_own_code_and_headers(): void

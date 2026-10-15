@@ -45,7 +45,8 @@ export interface BarChartProps extends ChartBaseProps {
 }
 
 export interface DonutChartProps {
-    data: Array<{ name: string; value: number }>;
+    /** `color` is a CSS colour (`toneColor('success')`) for a slice that means a state; absent, the slice takes the next `--chart-N`. */
+    data: Array<{ name: string; value: number; color?: string }>;
     height?: number;
     ariaLabel: string;
 }
@@ -104,7 +105,11 @@ function ChartEmpty({ height }: { height: number }) {
     );
 }
 
-function ChartLegend({ items }: { items: Array<{ name: string; value?: string }> }) {
+function ChartLegend({
+    items,
+}: {
+    items: Array<{ name: string; value?: string; color?: string }>;
+}) {
     return (
         <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs">
             {items.map((item, index) => (
@@ -112,7 +117,7 @@ function ChartLegend({ items }: { items: Array<{ name: string; value?: string }>
                     <span
                         aria-hidden="true"
                         className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                        style={{ backgroundColor: seriesColor(index) }}
+                        style={{ backgroundColor: item.color ?? seriesColor(index) }}
                     />
                     <span className="text-foreground">{item.name}</span>
                     {item.value ? (
@@ -300,7 +305,7 @@ export function DonutChart({ data, height = DEFAULT_HEIGHT, ariaLabel }: DonutCh
         .map((slice, index) => ({
             name: slice.name,
             value: toNumber(slice.value),
-            fill: seriesColor(index),
+            fill: slice.color ?? seriesColor(index),
         }))
         .filter((slice) => slice.value > 0);
 
@@ -330,6 +335,7 @@ export function DonutChart({ data, height = DEFAULT_HEIGHT, ariaLabel }: DonutCh
             <ChartLegend
                 items={data.map((slice) => ({
                     name: slice.name,
+                    color: slice.color,
                     value: `${format.full(toNumber(slice.value))} (${Math.round((toNumber(slice.value) / total) * 100)}%)`,
                 }))}
             />

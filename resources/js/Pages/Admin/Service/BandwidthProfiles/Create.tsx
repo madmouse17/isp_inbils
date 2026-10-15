@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -13,6 +13,7 @@ import {
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { BANDWIDTH_TYPE, optionsOf } from '@/lib/statuses';
 
 export default function Create() {
     const { data, setData, post, processing, errors } = useForm({
@@ -30,11 +31,11 @@ export default function Create() {
     };
 
     return (
-        <AdminLayout title="Create Bandwidth Profile">
+        <AdminLayout title="Buat Profil Bandwidth">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Bandwidth Profile"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Profil Bandwidth"
+                    subtitle="Isi data profil, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -42,33 +43,32 @@ export default function Create() {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.bandwidth-profiles.index')}>Back</Link>
+                            <Link href={route('admin.bandwidth-profiles.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data profil</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <NativeSelect
-                                label="Type"
+                                label="Tipe"
                                 value={data.type}
                                 onChange={(e) => setData('type', e.target.value)}
-                            >
-                                <option value="shared">Shared</option>
-                                <option value="dedicated">Dedicated</option>
-                            </NativeSelect>
+                                error={errors.type}
+                                options={optionsOf(BANDWIDTH_TYPE)}
+                            />
                             <Input
-                                label="Download (Mbps)"
+                                label="Unduh (Mbps)"
                                 type="number"
                                 value={data.download_mbps}
                                 onChange={(e) => setData('download_mbps', e.target.value)}
@@ -76,7 +76,7 @@ export default function Create() {
                                 required
                             />
                             <Input
-                                label="Upload (Mbps)"
+                                label="Unggah (Mbps)"
                                 type="number"
                                 value={data.upload_mbps}
                                 onChange={(e) => setData('upload_mbps', e.target.value)}
@@ -84,16 +84,22 @@ export default function Create() {
                                 required
                             />
                             <Input
-                                label="Contention Ratio"
+                                label="Rasio kontensi"
                                 type="number"
                                 value={data.contention_ratio}
                                 onChange={(e) => setData('contention_ratio', e.target.value)}
                                 error={errors.contention_ratio}
-                                required
+                                hint={
+                                    data.type === 'shared'
+                                        ? undefined
+                                        : 'Tidak dipakai untuk profil dedikasi.'
+                                }
+                                disabled={data.type !== 'shared'}
+                                required={data.type === 'shared'}
                             />
                             <div className="flex items-end">
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
@@ -101,15 +107,11 @@ export default function Create() {
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.bandwidth-profiles.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.bandwidth-profiles.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

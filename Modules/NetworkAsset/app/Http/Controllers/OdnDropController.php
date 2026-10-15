@@ -15,7 +15,7 @@ class OdnDropController extends Controller
     {
         OdnService::assignDrop($port, (int) $request->validated('subscription_id'));
 
-        return back()->with('success', 'Drop recorded.');
+        return back()->with('success', 'Port drop dicatat.');
     }
 
     public function destroy(OdnPort $port): RedirectResponse
@@ -24,6 +24,6 @@ class OdnDropController extends Controller
 
         OdnService::releaseDrop($port);
 
-        return back()->with('success', 'Drop released.');
+        return back()->with('success', 'Port drop dilepas.');
     }
 }

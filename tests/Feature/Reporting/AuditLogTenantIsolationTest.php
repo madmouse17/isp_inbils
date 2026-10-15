@@ -176,7 +176,7 @@ class AuditLogTenantIsolationTest extends TestCase
         AuditLogQuery::query(companyId: $this->companyB->id);
     }
 
-    public function test_foreign_user_filter_stays_empty_in_page_and_paginated_query(): void
+    public function test_foreign_user_filter_is_refused_on_the_page_and_stays_empty_in_the_query(): void
     {
         $this->actingAs($this->adminB);
         CompanyService::useCompanyForTests((int) $this->companyB->id);
@@ -187,11 +187,7 @@ class AuditLogTenantIsolationTest extends TestCase
         AuditService::log('security', 'company_actor_event');
 
         $this->get(route('admin.reports.audit-log', ['user_id' => $this->adminB->id]))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->where('filters.user_id', (string) $this->adminB->id)
-                ->has('data.data', 0)
-            );
+            ->assertSessionHasErrors(['user_id' => 'Pengguna tidak ditemukan.']);
 
         $this->assertSame(0, AuditLogQuery::paginate(userId: (int) $this->adminB->id)->total());
     }
@@ -218,16 +214,20 @@ class AuditLogTenantIsolationTest extends TestCase
         $this->assertStringContainsString('alpha_only_event', $export([]));
         $this->assertStringNotContainsString('beta_only_event', $export([]));
 
-        // The other company's actor by id, and the other company's actor and event in the free-text search.
+        // The other company's actor and event in the free-text search.
         foreach ([
-            ['user_id' => $this->adminB->id],
-            ['user_id' => $this->adminB->id, 'log_name' => 'billing'],
             ['search' => 'Admin Beta'],
             ['search' => 'admin.beta@example.test'],
             ['search' => 'beta_only_event'],
         ] as $filters) {
             $this->assertSame([], $descriptions($filters), json_encode($filters));
             $this->assertStringNotContainsString('beta_only_event', $export($filters), json_encode($filters));
+        }
+
+        // The other company's actor by id is refused before any row is read.
+        foreach ([['user_id' => $this->adminB->id], ['user_id' => $this->adminB->id, 'log_name' => 'billing']] as $filters) {
+            $this->get(route('admin.reports.audit-log', $filters))->assertSessionHasErrors('user_id');
+            $this->get(route('admin.reports.audit-log.export', $filters))->assertSessionHasErrors('user_id');
         }
     }
 
@@ -658,6 +658,17 @@ class AuditLogTenantIsolationTest extends TestCase
             'name' => 'Agent Hunter Special',
             'email' => 'hunter.special@companyb.test',
         ]);
+
+        // Production grants every user the membership of the home company; the causer search reads it, as the picker does.
+        foreach ([[$this->companyA, $targetCauserA], [$this->companyA, $otherUserA], [$this->companyB, $targetCauserB]] as [$company, $member]) {
+            DB::table('company_user')->insert([
+                'company_id' => $company->id,
+                'user_id' => $member->id,
+                'is_default' => true,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Create 12 activities caused by $targetCauserA
         $this->actingAs($targetCauserA);

@@ -12,7 +12,7 @@
 import type { Page } from '@playwright/test';
 
 import { expect, test } from './support/fixtures';
-import { e2eCustomerName, inertiaProps, loginAs, unique } from './support/demo';
+import { e2eCustomerName, inertiaProps, loginAs, selectSearchOption, unique } from './support/demo';
 
 const runId = unique('SLA');
 const HOUR_MS = 3_600_000;
@@ -44,23 +44,16 @@ async function settleAppChunks(page: Page) {
 async function createTicketViaUi(page: Page, title: string, subscriptionCode?: string) {
     await settleAppChunks(page);
     await page.goto('/admin/tickets/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create Ticket' }),
-    ).toBeVisible();
-    await page.getByLabel('Title').fill(title);
-    await page.getByLabel('Source').selectOption('customer');
-    const category = page.getByLabel('Category');
-    await expect(category.locator('option', { hasText: 'Device Issue' })).toHaveCount(1);
-    await expect(
-        page.getByLabel('Customer').locator('option', { hasText: e2eCustomerName }),
-    ).toHaveCount(1);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Buat Tiket' })).toBeVisible();
+    await page.getByLabel('Judul').fill(title);
+    await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await category.selectOption({ label: 'Device Issue' });
-    await page.getByLabel('Customer').selectOption({ label: e2eCustomerName });
+    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
     if (subscriptionCode) {
-        await page.getByLabel('Subscription').selectOption({ label: subscriptionCode });
+        await selectSearchOption(page, 'Langganan', subscriptionCode);
     }
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/tickets/);
 
     const props = await inertiaProps(page, `/admin/tickets?search=${encodeURIComponent(title)}`);
@@ -107,7 +100,7 @@ test.describe('@sla-targets', () => {
         await page.goto('/admin/sla-tiers/create');
 
         const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Tambah Tingkat SLA' })).toBeVisible();
+        await expect(main.getByRole('heading', { name: 'Buat Tingkat SLA' })).toBeVisible();
         await expect(
             main.getByText('Target layanan per paket. Hasil diukur otomatis dari tiket.'),
         ).toBeVisible();
@@ -154,8 +147,8 @@ test.describe('@sla-targets', () => {
         await page.goto(`/admin/tickets/${id}`);
         const main = page.getByRole('main');
         await expect(main.getByRole('heading', { name: title })).toBeVisible();
-        await expect(main.getByText('Target respons:')).toBeVisible();
-        await expect(main.getByText('Target penyelesaian:')).toBeVisible();
+        await expect(main.locator('dt', { hasText: /^Target respons$/ })).toBeVisible();
+        await expect(main.locator('dt', { hasText: /^Target penyelesaian$/ })).toBeVisible();
         await expect(
             main.getByText(`(Target ${ticket.deadline_source.name})`).first(),
         ).toBeVisible();

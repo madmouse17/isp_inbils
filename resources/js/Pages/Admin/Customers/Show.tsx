@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -10,22 +12,29 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    EmptyCell,
+    EnumBadge,
 } from '@/Components/ui';
 import {
     CustomerAcquirerValue,
     CustomerRelatedTables,
     DataTable,
     PageHeader,
-    StatusBadge,
     type CustomerHistory,
     type CustomerHistoryAccess,
     type DataTableColumn,
 } from '@/Components/composite';
-import type { BadgeVariant } from '@/Components/ui/Badge';
-import { CustomerStatusBadge } from '@/lib/customerStatus';
 import { formatDate, formatDateTime } from '@/lib/format';
+import {
+    ACTIVE_STATE,
+    CUSTOMER_STATUS,
+    CUSTOMER_TYPE,
+    WHATSAPP_SKIP_REASON,
+    WHATSAPP_STATUS,
+    labelOf,
+} from '@/lib/statuses';
 import type { Customer } from '@/types/models';
-import type { CustomerWhatsApp, WhatsAppMessageRow, WhatsAppStatus } from '@/types/whatsapp';
+import type { CustomerWhatsApp, WhatsAppMessageRow } from '@/types/whatsapp';
 
 interface ShowProps extends Record<string, unknown> {
     customer: { data: Customer & { whatsapp: CustomerWhatsApp } };
@@ -49,27 +58,9 @@ const eventLabels: Record<string, string> = {
 };
 
 const subjectLabels: Record<string, string> = {
-    invoice: 'Invoice',
+    invoice: 'Tagihan',
     ticket: 'Tiket',
     work_order: 'SPK',
-};
-
-const skipReasonLabels: Record<string, string> = {
-    disabled: 'WhatsApp perusahaan nonaktif',
-    event_disabled: 'Jenis pesan dinonaktifkan',
-    no_consent: 'Pelanggan belum setuju',
-    opted_out: 'Pelanggan berhenti (STOP)',
-    invalid_phone: 'Nomor tidak valid',
-    budget_exceeded: 'Batas pesan bulanan tercapai',
-};
-
-const statusBadges: Record<WhatsAppStatus, { tone: BadgeVariant; label: string }> = {
-    queued: { tone: 'neutral', label: 'Antrean' },
-    sent: { tone: 'info', label: 'Terkirim' },
-    delivered: { tone: 'success', label: 'Diterima' },
-    read: { tone: 'success', label: 'Dibaca' },
-    failed: { tone: 'danger', label: 'Gagal' },
-    skipped: { tone: 'warning', label: 'Dilewati' },
 };
 
 const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
@@ -91,20 +82,18 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
     {
         key: 'status',
         header: 'Status',
-        cell: (row) => (
-            <Badge variant={statusBadges[row.status].tone}>{statusBadges[row.status].label}</Badge>
-        ),
+        cell: (row) => <EnumBadge map={WHATSAPP_STATUS} value={row.status} />,
     },
     {
         key: 'reason',
         header: 'Keterangan',
         cell: (row) =>
             row.skip_reason ? (
-                (skipReasonLabels[row.skip_reason] ?? row.skip_reason)
+                labelOf(WHATSAPP_SKIP_REASON, row.skip_reason)
             ) : row.error_code ? (
                 <span className="font-mono">Kode galat {row.error_code}</span>
             ) : (
-                '-'
+                <EmptyCell />
             ),
     },
     {
@@ -114,13 +103,13 @@ const messageColumns: DataTableColumn<WhatsAppMessageRow>[] = [
             row.recipient_last4 ? (
                 <span className="font-mono">••••{row.recipient_last4}</span>
             ) : (
-                '-'
+                <EmptyCell />
             ),
     },
     {
         key: 'created_at',
         header: 'Waktu',
-        cell: (row) => formatDateTime(row.created_at),
+        cell: (row) => <span className="whitespace-nowrap">{formatDateTime(row.created_at)}</span>,
     },
 ];
 
@@ -136,6 +125,15 @@ function ConsentBadge({ whatsapp }: { whatsapp: CustomerWhatsApp }) {
     return <Badge variant="neutral">Belum setuju</Badge>;
 }
 
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words">{children}</dd>
+        </>
+    );
+}
+
 export default function Show({
     customer,
     history,
@@ -144,13 +142,25 @@ export default function Show({
     can,
 }: ShowProps) {
     const c = customer.data;
+    const [sendingLink, setSendingLink] = useState(false);
+
+    const resendAccessLink = () =>
+        router.post(
+            route('admin.customers.access-link', c.id),
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setSendingLink(true),
+                onFinish: () => setSendingLink(false),
+            },
+        );
 
     return (
-        <AdminLayout title={c.name ?? ''}>
+        <AdminLayout title={`Pelanggan ${c.code ?? ''}`}>
             <div className="space-y-6">
                 <PageHeader
                     title={c.name ?? ''}
-                    subtitle={`${c.code ?? ''} - ${c.type ?? ''}`}
+                    subtitle={`${c.code ?? ''} - ${labelOf(CUSTOMER_TYPE, c.type)}`}
                     actions={
                         <>
                             <Button
@@ -159,29 +169,21 @@ export default function Show({
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.customers.index')}>Back</Link>
+                                <Link href={route('admin.customers.index')}>Kembali</Link>
                             </Button>
                             {can.update ? (
                                 <Button
                                     type="button"
                                     variant="outline"
-                                    onClick={() =>
-                                        router.post(
-                                            route('admin.customers.access-link', c.id),
-                                            {},
-                                            { preserveScroll: true },
-                                        )
-                                    }
+                                    size="sm"
+                                    loading={sendingLink}
+                                    onClick={resendAccessLink}
                                 >
                                     Kirim ulang link akses
                                 </Button>
                             ) : null}
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.get(route('admin.customers.edit', c.id))}
-                            >
-                                Edit
+                            <Button asChild variant="primary" size="sm">
+                                <Link href={route('admin.customers.edit', c.id)}>Ubah</Link>
                             </Button>
                         </>
                     }
@@ -190,60 +192,41 @@ export default function Show({
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data pelanggan</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Email: </span>
-                                {c.email ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Phone: </span>
-                                {c.phone ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Tax ID: </span>
-                                {c.tax_id ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Contact Person: </span>
-                                {c.contact_person ?? '-'}
-                            </p>
-                            {can.viewAcquirer ? (
-                                <div>
-                                    <span className="text-muted-foreground">Acquired by: </span>
-                                    <CustomerAcquirerValue acquirer={c.acquirer} />
-                                </div>
-                            ) : null}
-                            {c.notes && (
-                                <p>
-                                    <span className="text-muted-foreground">Notes: </span>
-                                    {c.notes}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Email">{c.email || <EmptyCell />}</DetailRow>
+                                <DetailRow label="Telepon">{c.phone || <EmptyCell />}</DetailRow>
+                                <DetailRow label="NPWP">{c.tax_id || <EmptyCell />}</DetailRow>
+                                <DetailRow label="Narahubung">
+                                    {c.contact_person || <EmptyCell />}
+                                </DetailRow>
+                                {can.viewAcquirer ? (
+                                    <DetailRow label="Diperoleh oleh">
+                                        <CustomerAcquirerValue acquirer={c.acquirer} />
+                                    </DetailRow>
+                                ) : null}
+                                {c.notes ? <DetailRow label="Catatan">{c.notes}</DetailRow> : null}
+                            </dl>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Status</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Type: </span>
-                                <Badge variant={c.type === 'Company' ? 'brand' : 'neutral'}>
-                                    {c.type}
-                                </Badge>
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Status: </span>
-                                <CustomerStatusBadge status={c.customer_status} />
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Account: </span>
-                                <StatusBadge variant={c.is_active ? 'success' : 'danger'}>
-                                    {c.is_active ? 'Active' : 'Inactive'}
-                                </StatusBadge>
-                            </p>
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] items-center gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Tipe">
+                                    <EnumBadge map={CUSTOMER_TYPE} value={c.type} />
+                                </DetailRow>
+                                <DetailRow label="Status">
+                                    <EnumBadge map={CUSTOMER_STATUS} value={c.customer_status} />
+                                </DetailRow>
+                                <DetailRow label="Akun">
+                                    <EnumBadge map={ACTIVE_STATE} value={Boolean(c.is_active)} />
+                                </DetailRow>
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>

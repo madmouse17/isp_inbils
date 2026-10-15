@@ -10,12 +10,14 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertTitle,
-    Badge,
     Button,
+    buttonVariants,
+    EnumBadge,
     Input,
 } from '@/Components/ui';
 import { useForm } from '@inertiajs/react';
-import { Copy, Download, ShieldAlert, ShieldCheck, ShieldOff } from 'lucide-react';
+import { TWO_FACTOR_STATE } from '@/lib/statuses';
+import { Copy, Download } from 'lucide-react';
 import type { FormEventHandler } from 'react';
 import { useState } from 'react';
 
@@ -39,7 +41,7 @@ function downloadCodes(codes: string[]) {
     const url = URL.createObjectURL(new Blob([`${codes.join('\n')}\n`], { type: 'text/plain' }));
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'inbils-recovery-codes.txt';
+    link.download = 'kode-pemulihan-inbils.txt';
     link.click();
     URL.revokeObjectURL(url);
 }
@@ -117,41 +119,27 @@ export default function TwoFactorAuthenticationForm({
         <section className={`space-y-6 ${className}`}>
             <header className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                    <h2 className="text-lg font-medium text-foreground">
-                        Two-Factor Authentication
-                    </h2>
+                    <h2 className="text-lg font-medium text-foreground">Autentikasi dua langkah</h2>
 
                     <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                        Ask for a code from an authenticator app after your password, so a stolen
-                        password is not enough to log in.
+                        Setelah kata sandi, Anda memasukkan kode dari aplikasi autentikator. Kata
+                        sandi yang bocor saja tidak cukup untuk masuk ke akun Anda.
                     </p>
                 </div>
 
-                {twoFactor.enabled ? (
-                    <Badge variant="success">
-                        <ShieldCheck className="size-3.5" aria-hidden="true" />
-                        On
-                    </Badge>
-                ) : twoFactor.pending ? (
-                    <Badge variant="warning">
-                        <ShieldAlert className="size-3.5" aria-hidden="true" />
-                        Setup not finished
-                    </Badge>
-                ) : (
-                    <Badge variant="secondary">
-                        <ShieldOff className="size-3.5" aria-hidden="true" />
-                        Off
-                    </Badge>
-                )}
+                <EnumBadge
+                    map={TWO_FACTOR_STATE}
+                    value={twoFactor.enabled ? 'enabled' : twoFactor.pending ? 'pending' : 'off'}
+                />
             </header>
 
             {!twoFactor.enabled && !twoFactor.pending ? (
                 <div className="space-y-3">
                     <Button type="button" onClick={startSetup} loading={enable.processing}>
-                        Enable two-factor authentication
+                        Aktifkan autentikasi dua langkah
                     </Button>
                     <p className="text-sm text-muted-foreground">
-                        You may be asked to confirm your password first.
+                        Anda mungkin diminta memasukkan kata sandi dulu.
                     </p>
                 </div>
             ) : null}
@@ -159,15 +147,15 @@ export default function TwoFactorAuthenticationForm({
             {twoFactor.pending && !showSetup ? (
                 <div className="space-y-4">
                     <Alert variant="warning">
-                        <AlertTitle>Setup not finished</AlertTitle>
+                        <AlertTitle>Pengaturan belum selesai</AlertTitle>
                         <AlertDescription>
-                            The QR code is shown only once, so this setup cannot be resumed. Start
-                            again to get a new one.
+                            Kode QR hanya tampil sekali, jadi pengaturan ini tidak bisa dilanjutkan.
+                            Mulai lagi untuk mendapat kode QR baru.
                         </AlertDescription>
                     </Alert>
                     <div className="flex flex-wrap gap-3">
                         <Button type="button" onClick={startSetup} loading={enable.processing}>
-                            Start again
+                            Mulai lagi
                         </Button>
                         <Button
                             type="button"
@@ -175,7 +163,7 @@ export default function TwoFactorAuthenticationForm({
                             onClick={turnOff}
                             loading={disable.processing}
                         >
-                            Cancel setup
+                            Batalkan pengaturan
                         </Button>
                     </div>
                 </div>
@@ -185,26 +173,26 @@ export default function TwoFactorAuthenticationForm({
                 <div className="grid gap-6 md:grid-cols-[auto_1fr]">
                     <img
                         src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(setup.qr_svg)}`}
-                        alt="QR code for the setup key below"
+                        alt="Kode QR untuk kunci pengaturan di bawah"
                         className="size-48 rounded-lg border border-border bg-white"
                     />
 
                     <div className="space-y-5">
                         <ol className="space-y-2 list-decimal pl-5 text-sm text-foreground">
-                            <li>Scan the QR code with an authenticator app on your phone.</li>
+                            <li>Pindai kode QR dengan aplikasi autentikator di ponsel Anda.</li>
                             <li>
-                                Cannot scan? Enter this setup key in the app instead:
+                                Tidak bisa memindai? Masukkan kunci pengaturan ini di aplikasi:
                                 <code className="mt-1 block rounded-md bg-muted px-2 py-1 font-mono text-sm break-all select-all">
                                     {setup.setup_key.match(/.{1,4}/g)?.join(' ')}
                                 </code>
                             </li>
-                            <li>Type the 6-digit code the app shows to finish.</li>
+                            <li>Ketik kode 6 digit yang tampil di aplikasi untuk menyelesaikan.</li>
                         </ol>
 
                         <form onSubmit={confirmSetup} className="space-y-4 max-w-xs">
                             <Input
                                 id="two_factor_confirm_code"
-                                label="Authentication code"
+                                label="Kode autentikasi"
                                 name="code"
                                 inputMode="numeric"
                                 autoComplete="one-time-code"
@@ -215,7 +203,7 @@ export default function TwoFactorAuthenticationForm({
                             />
                             <div className="flex flex-wrap gap-3">
                                 <Button type="submit" loading={confirm.processing}>
-                                    Confirm and turn on
+                                    Konfirmasi dan aktifkan
                                 </Button>
                                 <Button
                                     type="button"
@@ -223,7 +211,7 @@ export default function TwoFactorAuthenticationForm({
                                     onClick={turnOff}
                                     loading={disable.processing}
                                 >
-                                    Cancel setup
+                                    Batalkan pengaturan
                                 </Button>
                             </div>
                         </form>
@@ -235,16 +223,16 @@ export default function TwoFactorAuthenticationForm({
                 <div className="space-y-4 rounded-lg border border-border bg-muted/40 p-4">
                     <div>
                         <h3 className="text-base font-medium text-foreground">
-                            Your recovery codes
+                            Kode pemulihan Anda
                         </h3>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            Save them somewhere safe, such as a password manager. Each code works
-                            once, and they are not shown again.
+                            Simpan di tempat aman, misalnya pengelola kata sandi. Setiap kode hanya
+                            berlaku sekali dan tidak ditampilkan lagi.
                         </p>
                     </div>
 
                     <ul
-                        aria-label="Recovery codes"
+                        aria-label="Kode pemulihan"
                         className="grid gap-2 font-mono text-sm text-foreground sm:grid-cols-2"
                     >
                         {recoveryCodes.map((code) => (
@@ -266,7 +254,7 @@ export default function TwoFactorAuthenticationForm({
                                 leftIcon={<Copy className="size-4" aria-hidden="true" />}
                                 onClick={() => void copyCodes(recoveryCodes)}
                             >
-                                Copy
+                                Salin
                             </Button>
                         ) : null}
                         <Button
@@ -276,7 +264,7 @@ export default function TwoFactorAuthenticationForm({
                             leftIcon={<Download className="size-4" aria-hidden="true" />}
                             onClick={() => downloadCodes(recoveryCodes)}
                         >
-                            Download as text
+                            Unduh sebagai teks
                         </Button>
                         <Button
                             type="button"
@@ -286,10 +274,10 @@ export default function TwoFactorAuthenticationForm({
                                 setCopied(false);
                             }}
                         >
-                            I have saved these codes
+                            Saya sudah menyimpan kode ini
                         </Button>
                         <p role="status" className="text-sm text-muted-foreground">
-                            {copied ? 'Copied to the clipboard.' : ''}
+                            {copied ? 'Disalin ke papan klip.' : ''}
                         </p>
                     </div>
                 </div>
@@ -298,10 +286,8 @@ export default function TwoFactorAuthenticationForm({
             {twoFactor.enabled ? (
                 <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
-                        {twoFactor.recovery_codes_remaining === 1
-                            ? '1 recovery code left.'
-                            : `${twoFactor.recovery_codes_remaining} recovery codes left.`}{' '}
-                        Generating new codes makes the old ones stop working.
+                        Sisa kode pemulihan: {twoFactor.recovery_codes_remaining}. Kode baru membuat
+                        kode lama tidak berlaku lagi.
                     </p>
                     <div className="flex flex-wrap gap-3">
                         <Button
@@ -315,18 +301,18 @@ export default function TwoFactorAuthenticationForm({
                             }
                             loading={regenerate.processing}
                         >
-                            Generate new recovery codes
+                            Buat kode pemulihan baru
                         </Button>
                         <Button
                             type="button"
                             variant="danger"
                             onClick={() => setConfirmingDisable(true)}
                         >
-                            Turn off two-factor authentication
+                            Nonaktifkan autentikasi dua langkah
                         </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        These actions may ask you to confirm your password first.
+                        Tindakan ini mungkin meminta kata sandi Anda dulu.
                     </p>
                 </div>
             ) : null}
@@ -334,26 +320,26 @@ export default function TwoFactorAuthenticationForm({
             <AlertDialog open={confirmingDisable} onOpenChange={setConfirmingDisable}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Turn off two-factor authentication?</AlertDialogTitle>
+                        <AlertDialogTitle>Nonaktifkan autentikasi dua langkah?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Your account will be protected by your password alone, and your recovery
-                            codes will stop working.
+                            Akun Anda hanya dilindungi kata sandi, dan kode pemulihan tidak berlaku
+                            lagi.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel type="button" disabled={disable.processing}>
-                            Keep it on
+                            Tetap aktif
                         </AlertDialogCancel>
                         <AlertDialogAction
                             type="button"
                             disabled={disable.processing}
-                            className="bg-red-600 text-white shadow-xs hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90"
+                            className={buttonVariants({ variant: 'destructive' })}
                             onClick={(e) => {
                                 e.preventDefault();
                                 turnOff();
                             }}
                         >
-                            {disable.processing ? 'Turning off…' : 'Turn off'}
+                            {disable.processing ? 'Menonaktifkan…' : 'Nonaktifkan'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

@@ -1,100 +1,23 @@
+import { labelOf, WORK_ITEM_STATUS } from '@/lib/statuses';
 import type { MyWorkItem } from '@/types';
 
-export function getDomainLabel(domain: string): string {
-    switch (domain) {
-        case 'ticket':
-            return 'Tiket';
-        case 'spk':
-            return 'SPK';
-        default:
-            return domain.toUpperCase();
-    }
-}
+/**
+ * The status filter of the work assigned to me, in the server's own groups (`in_progress` covers a ticket
+ * on progress too, `resolved` is what waits for me to act), so the filter and the summary chips say the same.
+ */
+export const MY_WORK_STATUS_FILTER = [
+    { value: 'assigned', label: 'Belum dimulai' },
+    { value: 'in_progress', label: 'Sedang dikerjakan' },
+    { value: 'resolved', label: 'Menunggu tindakan' },
+] as const;
 
-export function getDomainVariant(
-    domain: string,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    switch (domain) {
-        case 'ticket':
-            return 'secondary';
-        case 'spk':
-            return 'outline';
-        default:
-            return 'outline';
-    }
-}
-
-export function getPriorityLabel(priority: string): string {
-    switch (priority?.toLowerCase()) {
-        case 'critical':
-            return 'Kritis';
-        case 'high':
-            return 'Tinggi';
-        case 'medium':
-            return 'Sedang';
-        case 'low':
-            return 'Rendah';
-        default:
-            return priority ? priority.charAt(0).toUpperCase() + priority.slice(1) : '-';
-    }
-}
-
-export function getPriorityVariant(
-    priority: string,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    switch (priority?.toLowerCase()) {
-        case 'critical':
-        case 'high':
-            return 'destructive';
-        case 'medium':
-            return 'default';
-        case 'low':
-            return 'secondary';
-        default:
-            return 'outline';
-    }
-}
-
-export function getStatusLabel(status: string): string {
-    switch (status?.toLowerCase()) {
-        case 'assigned':
-            return 'Ditugaskan (Siap Mulai)';
-        case 'on_progress':
-        case 'in_progress':
-            return 'Sedang Dikerjakan';
-        case 'resolved':
-            return 'Selesai Ditangani';
-        case 'closed':
-            return 'Ditutup';
-        default:
-            return status ? status.replace(/_/g, ' ') : '-';
-    }
-}
-
-export function getStatusVariant(
-    status: string,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    switch (status?.toLowerCase()) {
-        case 'assigned':
-            return 'secondary';
-        case 'on_progress':
-        case 'in_progress':
-            return 'default';
-        case 'resolved':
-            return 'secondary';
-        case 'closed':
-            return 'outline';
-        default:
-            return 'outline';
-    }
-}
-
+/** How long ago, in the largest whole unit. Shared by Dispatch, My Work and Approvals. */
 export function formatAge(seconds: number | null | undefined): string {
     if (seconds == null || seconds < 0) return '-';
     if (seconds < 60) return '< 1 menit lalu';
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `${minutes} menit lalu`;
-    const hours = Math.floor(seconds / 3600);
+    const hours = Math.floor(minutes / 60);
     if (hours < 24) return `${hours} jam lalu`;
     const days = Math.floor(hours / 24);
     if (days < 30) return `${days} hari lalu`;
@@ -102,46 +25,34 @@ export function formatAge(seconds: number | null | undefined): string {
     return `${months} bulan lalu`;
 }
 
-export function formatDate(dateString: string | null | undefined): string {
-    if (!dateString) return '-';
-    try {
-        const d = new Date(dateString);
-        if (Number.isNaN(d.getTime())) return dateString;
-        return d.toLocaleDateString('id-ID', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-        });
-    } catch {
-        return dateString;
-    }
-}
-
 export function getItemWhyNeedAction(item: MyWorkItem): string {
     switch (item.status) {
         case 'assigned':
-            return 'Tugas telah dialokasikan kepada Anda. Tekan Mulai Kerja untuk mengonfirmasi pelaksanaan.';
+            return 'Tugas ini sudah dialokasikan kepada Anda. Tekan Mulai untuk mengonfirmasi pelaksanaan.';
         case 'on_progress':
-            return 'Tiket sedang Anda tangani. Masukkan catatan resolusi dan selesaikan tiket setelah investigasi tuntas.';
+            return 'Tiket sedang Anda tangani. Tulis catatan penyelesaian, lalu selesaikan tiket setelah masalahnya tuntas.';
         case 'in_progress':
-            return 'SPK sedang dalam pengerjaan lapangan Anda. Tuntaskan material dan submit untuk peninjauan (review).';
+            return 'SPK sedang Anda kerjakan di lapangan. Lengkapi material dan bukti, lalu ajukan untuk review.';
         case 'resolved':
-            return 'Penanganan tiket telah selesai. Konfirmasikan penutupan tiket (close) jika tidak ada kendala lanjutan.';
+            return 'Penanganan tiket sudah selesai. Tutup tiket jika tidak ada kendala lanjutan.';
         default:
-            return 'Item ini membutuhkan tindakan operasional sesuai dengan status alur kerja saat ini.';
+            return 'Item ini membutuhkan tindakan sesuai status alur kerjanya.';
     }
 }
 
+/** The status the item moves to next, as the badge would say it. */
 export function getItemNextStatus(item: MyWorkItem): string {
+    const next = (status: string) => `Berikutnya: ${labelOf(WORK_ITEM_STATUS, status)}`;
+
     switch (item.status) {
         case 'assigned':
-            return "Status berikutnya: 'on_progress' (Tiket) / 'in_progress' (SPK)";
+            return next('in_progress');
         case 'on_progress':
-            return "Status berikutnya: 'resolved' (Tiket selesai ditangani)";
+            return next('resolved');
         case 'in_progress':
-            return "Status berikutnya: 'waiting_review' (Menunggu approval supervisor/reviewer)";
+            return next('waiting_review');
         case 'resolved':
-            return "Status berikutnya: 'closed' (Tiket ditutup permanen)";
+            return next('closed');
         default:
             return '-';
     }
@@ -149,13 +60,13 @@ export function getItemNextStatus(item: MyWorkItem): string {
 
 export function getItemImpact(item: MyWorkItem): string {
     if (item.sla_breached) {
-        return 'SLA Terlampaui! Segera selesaikan dan berikan catatan penanganan.';
+        return 'SLA terlampaui. Segera selesaikan dan tulis catatan penanganan.';
     }
-    if (item.priority?.toLowerCase() === 'critical') {
-        return 'Prioritas Kritis: Berdampak langsung pada kelangsungan layanan pelanggan.';
+    if (item.priority === 'urgent') {
+        return 'Prioritas mendesak: berdampak langsung pada layanan pelanggan.';
     }
-    if (item.priority?.toLowerCase() === 'high') {
-        return 'Prioritas Tinggi: Memerlukan penanganan segera untuk mencegah keterlambatan SLA.';
+    if (item.priority === 'high') {
+        return 'Prioritas tinggi: perlu ditangani segera agar SLA tidak terlampaui.';
     }
-    return 'Penanganan standar operasional sesuai target waktu layanan.';
+    return 'Penanganan standar sesuai target waktu layanan.';
 }

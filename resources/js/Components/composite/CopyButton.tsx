@@ -10,8 +10,8 @@ interface CopyButtonProps extends Omit<ButtonProps, 'onClick' | 'children'> {
 /** Copies `value` to the clipboard and confirms it for two seconds. The value is never logged. */
 export function CopyButton({
     value,
-    label = 'Copy',
-    copiedLabel = 'Copied',
+    label = 'Salin',
+    copiedLabel = 'Tersalin',
     variant = 'outline',
     size = 'sm',
     ...buttonProps
@@ -44,13 +44,13 @@ export function CopyButton({
                 onClick={() => void copy()}
                 {...buttonProps}
             >
-                {status === 'copied' ? copiedLabel : status === 'failed' ? 'Copy failed' : label}
+                {status === 'copied' ? copiedLabel : status === 'failed' ? 'Gagal menyalin' : label}
             </Button>
             <span role="status" className="sr-only">
                 {status === 'copied'
                     ? copiedLabel
                     : status === 'failed'
-                      ? 'Copy failed. Select the text and copy it by hand.'
+                      ? 'Gagal menyalin, salin manual.'
                       : ''}
             </span>
         </>

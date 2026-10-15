@@ -145,6 +145,16 @@ class RadiusDirectory
         });
     }
 
+    /** When the newest finished session of this user ended (radacct's own datetime text); null while none has ended. */
+    public function lastSeen(string $username): ?string
+    {
+        return $this->run(function (Connection $db) use ($username): ?string {
+            $stoppedAt = $db->table('radacct')->where('username', $username)->max('acctstoptime');
+
+            return $stoppedAt === null ? null : (string) $stoppedAt;
+        });
+    }
+
     /** @return list<array<string, mixed>> */
     private function sessions(Builder $query, int $limit, bool $withUsername): array
     {

@@ -4,17 +4,20 @@ namespace Tests\Feature\Odn;
 
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
 use Tests\TestCase;
+use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\BuildsIpamOdnFixtures;
 use Tests\Traits\BuildsOdnTopology;
 
 class OdnOccupancyTest extends TestCase
 {
+    use AsksInertiaForProps;
     use BuildsIpamOdnFixtures;
     use BuildsOdnTopology;
     use RefreshDatabase;
@@ -43,6 +46,18 @@ class OdnOccupancyTest extends TestCase
         }
 
         return $subscriptions;
+    }
+
+    /** @return list<array{value: int, label: string, description: string|null}> the free upstream ports a search for $term finds */
+    private function inputPortOptions(string $term): array
+    {
+        return (OdnOccupancyQuery::inputPortOptions(Request::create('/', 'GET', ['inputPort_search' => $term])))();
+    }
+
+    /** @return list<array{value: int, label: string, description: string|null}> the free ODP ports under the POP a search for $term finds */
+    private function dropPortOptions(?int $popId, string $term = 'ODP'): array
+    {
+        return (OdnOccupancyQuery::dropPortOptions(Request::create('/', 'GET', ['dropPort_search' => $term]), $popId))();
     }
 
     /** @return array<string, mixed> the ODP row of the occupancy list */
@@ -105,9 +120,9 @@ class OdnOccupancyTest extends TestCase
                 ->where('splitters.0.input.port_id', $pon[0]->id)
                 ->where('splitters.0.input.label', 'OLT-A1 · PON 1')
                 ->where('splitters.0.ports.2.feeds_splitter_id', null));
-        $freeLabels = array_column(OdnOccupancyQuery::inputOptions(), 'label');
-        $this->assertNotContains('ODC-A1 · 1:4 · out 1', $freeLabels, 'an output that feeds a splitter is not offered again');
-        $this->assertContains('ODC-A1 · 1:4 · out 2', $freeLabels);
+        $freeLabels = array_column($this->inputPortOptions('A1'), 'label');
+        $this->assertNotContains('ODC-A1 · 1:4 · keluaran 1', $freeLabels, 'an output that feeds a splitter is not offered again');
+        $this->assertContains('ODC-A1 · 1:4 · keluaran 2', $freeLabels);
     }
 
     public function test_pon_subscriber_counts_sum_through_two_splitter_levels(): void
@@ -181,20 +196,30 @@ class OdnOccupancyTest extends TestCase
         $this->assertSame([$subscription->id], array_column(OdnOccupancyQuery::unmapped([])->items(), 'subscription_id'));
     }
 
-    public function test_free_port_options_list_only_free_ports_of_odps_under_the_pop(): void
+    public function test_drop_port_options_list_only_free_ports_of_odps_under_the_pop(): void
     {
         [, $outputs] = $this->splitter($this->net['odp'], 4);
         $this->dropAll($outputs, 1);
         $this->splitter($this->net['odp'], 2, $outputs[1]);
         $this->splitter($this->net['odc'], 4);
 
-        $options = OdnOccupancyQuery::freePortOptions($this->net['pop']->id);
+        $options = $this->dropPortOptions($this->net['pop']->id);
 
         $this->assertSame(['ODP-A11 · 1:4 · port 3', 'ODP-A11 · 1:4 · port 4', 'ODP-A11 · 1:2 · port 1', 'ODP-A11 · 1:2 · port 2'], array_column($options, 'label'));
-        $this->assertSame([4, 4, 4, 4], array_column($options, 'free_count'));
-        $this->assertSame('POP-A > RACK-A1 > SITE-A11', $options[0]['location_path']);
-        $this->assertSame('ODP-A11', $options[0]['odp_code']);
-        $this->assertSame(['port_id', 'label', 'odp_code', 'location_path', 'free_count'], array_keys($options[0]));
+        $this->assertSame(['POP-A > RACK-A1 > SITE-A11'], array_values(array_unique(array_column($options, 'description'))));
+        $this->assertSame(['value', 'label', 'description'], array_keys($options[0]));
+    }
+
+    public function test_drop_port_options_narrow_to_what_was_typed(): void
+    {
+        [, $outputs] = $this->splitter($this->net['odp'], 4, null, 'Tray 9');
+        $second = $this->odpAt($this->company, $this->makeLocation($this->company, 'SITE-A12', 'site', $this->net['rack']), 'ODP-A12');
+        $this->splitter($second, 2);
+
+        $this->assertCount(6, $this->dropPortOptions($this->net['pop']->id, 'ODP'));
+        $this->assertSame(['ODP-A12 · 1:2 · port 1', 'ODP-A12 · 1:2 · port 2'], array_column($this->dropPortOptions($this->net['pop']->id, 'A12'), 'label'));
+        $this->assertSame(array_column($outputs, 'id'), array_column($this->dropPortOptions($this->net['pop']->id, 'Tray 9'), 'value'), 'the label of the splitter is searched too');
+        $this->assertSame([], $this->dropPortOptions($this->net['pop']->id, 'A'), 'one character is not a search');
     }
 
     public function test_a_full_odp_and_an_odp_under_another_pop_are_not_offered(): void
@@ -206,17 +231,19 @@ class OdnOccupancyTest extends TestCase
         $atPop = $this->makeAsset($this->company, 'odp', $this->net['pop'], ['code' => 'ODP-AT-POP']);
         $this->splitter($atPop, 4);
 
-        $this->assertSame([], OdnOccupancyQuery::freePortOptions($this->net['pop']->id), 'full ODPs, other POPs and an ODP at the POP itself are left out');
-        $this->assertCount(4, OdnOccupancyQuery::freePortOptions($other['pop']->id));
+        $this->assertSame([], $this->dropPortOptions($this->net['pop']->id), 'full ODPs, other POPs and an ODP at the POP itself are left out');
+        $this->assertCount(4, $this->dropPortOptions($other['pop']->id));
     }
 
-    public function test_free_port_options_for_a_missing_pop_are_empty(): void
+    public function test_drop_port_options_for_a_missing_pop_are_empty(): void
     {
         $this->splitter($this->net['odp'], 4);
+        $foreign = $this->topology($this->otherCompany(), 'X');
 
-        $this->assertSame([], OdnOccupancyQuery::freePortOptions(null));
-        $this->assertSame([], OdnOccupancyQuery::freePortOptions(0));
-        $this->assertSame([], OdnOccupancyQuery::freePortOptions(987654));
+        $this->assertSame([], $this->dropPortOptions(null));
+        $this->assertSame([], $this->dropPortOptions(0));
+        $this->assertSame([], $this->dropPortOptions(987654));
+        $this->assertSame([], $this->dropPortOptions($foreign['pop']->id), 'a POP of another company is no POP here');
     }
 
     public function test_the_occupancy_never_includes_another_companys_ports(): void
@@ -229,7 +256,7 @@ class OdnOccupancyTest extends TestCase
 
         $this->assertSame([$this->net['odp']->id], array_column(OdnOccupancyQuery::odps([])->items(), 'asset_id'));
         $this->assertSame([], OdnOccupancyQuery::ponPorts([])->items());
-        $this->assertCount(4, OdnOccupancyQuery::freePortOptions($this->net['pop']->id));
+        $this->assertCount(4, $this->dropPortOptions($this->net['pop']->id));
     }
 
     public function test_the_index_page_carries_the_three_tabs_filters_and_pops(): void
@@ -311,7 +338,7 @@ class OdnOccupancyTest extends TestCase
                 ->where('ponPorts.1.splitter_id', null)
                 ->where('ponPorts.1.subscribers', 0)
                 ->where('splitters', [])
-                ->where('inputOptions', [])
+                ->missing('inputPortOptions')
                 ->where('can.manage', true)
                 ->where('can.assign', true));
     }
@@ -360,15 +387,31 @@ class OdnOccupancyTest extends TestCase
         $this->splitter($this->net['odc'], 2, $pon[0]);
         $this->splitter($this->net['odp'], 2);
 
-        $labels = array_column(OdnOccupancyQuery::inputOptions(), 'label');
+        $labels = array_column($this->inputPortOptions('A1'), 'label');
 
-        $this->assertSame(['OLT-A1 · PON 2', 'ODC-A1 · 1:2 · out 1', 'ODC-A1 · 1:2 · out 2', 'ODP-A11 · 1:2 · out 1', 'ODP-A11 · 1:2 · out 2'], $labels);
+        $this->assertSame(['OLT-A1 · PON 2', 'ODC-A1 · 1:2 · keluaran 1', 'ODC-A1 · 1:2 · keluaran 2', 'ODP-A11 · 1:2 · keluaran 1', 'ODP-A11 · 1:2 · keluaran 2'], $labels);
     }
 
     public function test_a_splitter_label_replaces_the_ratio_in_port_labels(): void
     {
         $this->splitter($this->net['odc'], 2, null, 'Tray 7');
 
-        $this->assertSame(['ODC-A1 · Tray 7 · out 1', 'ODC-A1 · Tray 7 · out 2'], array_column(OdnOccupancyQuery::inputOptions(), 'label'));
+        $this->assertSame(['ODC-A1 · Tray 7 · keluaran 1', 'ODC-A1 · Tray 7 · keluaran 2'], array_column($this->inputPortOptions('ODC'), 'label'));
+    }
+
+    public function test_input_options_come_on_a_search_only_and_never_hold_another_companys_ports(): void
+    {
+        $this->splitter($this->net['odc'], 2);
+        $other = $this->otherCompany();
+        $foreign = $this->topology($other, 'X');
+        $this->inCompany($other, fn () => $this->splitter($foreign['odc'], 4));
+
+        $this->assertSame([], $this->inputPortOptions('A'), 'one character is not a search');
+        $this->assertSame([], $this->inputPortOptions('nothing-like-this'));
+        $this->assertSame(['ODC-A1 · 1:2 · keluaran 1', 'ODC-A1 · 1:2 · keluaran 2'], array_column($this->inputPortOptions('ODC'), 'label'), 'the ODC of the other company is not found');
+        $this->get(route('admin.odn.assets.show', $this->net['odc']))->assertInertia(fn (Assert $page) => $page->missing('inputPortOptions'));
+        $this->get(route('admin.odn.assets.show', [$this->net['odc'], 'inputPort_search' => 'ODC']), $this->partialReload('Admin/Odn/Asset', 'inputPortOptions'))
+            ->assertOk()
+            ->assertJsonCount(2, 'props.inputPortOptions');
     }
 }

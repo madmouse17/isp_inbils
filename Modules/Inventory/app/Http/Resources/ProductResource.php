@@ -26,6 +26,7 @@ class ProductResource extends JsonResource
             'category' => new CategoryResource($this->whenLoaded('category')),
             'unit' => new UnitResource($this->whenLoaded('unit')),
             'stocks' => StockResource::collection($this->whenLoaded('stocks')),
+            'movements' => StockMovementResource::collection($this->whenLoaded('movements')),
         ];
     }
 }

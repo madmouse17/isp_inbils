@@ -12,7 +12,7 @@ import { SplitterCard } from '@/Components/composite/odn/SplitterCard';
 import { SplitterDialog } from '@/Components/composite/odn/SplitterDialog';
 import { Button, Card, CardContent, CardHeader, CardTitle, EmptyState } from '@/Components/ui';
 import { usePermission } from '@/hooks/usePermission';
-import type { InputOption, OdnAsset, PonPort, Splitter } from '@/types/ipam-odn';
+import type { OdnAsset, PonPort, PortOption, Splitter } from '@/types/ipam-odn';
 
 interface AssetProps extends Record<string, unknown> {
     asset: OdnAsset;
@@ -20,12 +20,13 @@ interface AssetProps extends Record<string, unknown> {
     ponPorts: PonPort[];
     /** Splitters of an ODC or ODP; empty for an OLT. */
     splitters: Splitter[];
-    inputOptions: InputOption[];
+    /** Free upstream ports that match the typed text; the server sends it only on a search, and only for an ODC or ODP. */
+    inputPortOptions?: PortOption[];
     can: { manage: boolean; assign: boolean };
 }
 
-export default function Asset({ asset, ponPorts, splitters, inputOptions, can }: AssetProps) {
-    const { can: allowed } = usePermission();
+export default function Asset({ asset, ponPorts, splitters, inputPortOptions, can }: AssetProps) {
+    const allowed = usePermission();
     const [adding, setAdding] = useState(false);
     const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
     const isOlt = asset.asset_type === 'olt';
@@ -35,18 +36,18 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
         const base: DataTableColumn<PonPort>[] = [
             {
                 key: 'number',
-                header: 'PON port',
+                header: 'Port PON',
                 cell: (row) => `PON ${row.number}${row.label ? ` · ${row.label}` : ''}`,
             },
             {
                 key: 'splitter',
                 header: 'Splitter',
                 cell: (row) =>
-                    row.splitter_id === null ? 'Not connected' : `Splitter #${row.splitter_id}`,
+                    row.splitter_id === null ? 'Belum terhubung' : `Splitter #${row.splitter_id}`,
             },
             {
                 key: 'subscribers',
-                header: 'Subscribers',
+                header: 'Pelanggan',
                 className: 'tabular-nums',
                 cell: (row) => row.subscribers,
             },
@@ -58,32 +59,33 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
             ...base,
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) =>
                     // A connected port cannot be deleted: disconnect its splitter first.
                     row.splitter_id === null ? (
                         <Button
                             type="button"
                             size="sm"
-                            variant="danger"
-                            aria-label={`Delete PON ${row.number}`}
+                            variant="ghost"
+                            className="text-destructive-text"
+                            aria-label={`Hapus PON ${row.number}`}
                             onClick={() =>
                                 setConfirm({
-                                    title: `Delete PON ${row.number}?`,
-                                    description: `The port leaves ${asset.code}. Later ports keep their numbers.`,
-                                    confirmLabel: 'Delete port',
+                                    title: `Hapus PON ${row.number}?`,
+                                    description: `Port keluar dari ${asset.code}. Port berikutnya tetap memakai nomornya.`,
+                                    confirmLabel: 'Hapus port',
                                     href: route('admin.odn.ports.destroy', row.id),
                                 })
                             }
                         >
-                            Delete
+                            Hapus
                         </Button>
                     ) : null,
             },
         ];
     }, [can.manage, asset.code]);
 
-    const addLabel = isOlt ? 'Add PON ports' : 'Add splitter';
+    const addLabel = isOlt ? 'Tambah port PON' : 'Tambah splitter';
     const add = can.manage ? (
         <Button type="button" variant="primary" onClick={() => setAdding(true)}>
             <Plus className="size-4" aria-hidden="true" />
@@ -110,7 +112,7 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
                             {allowed('network_asset.view') && (
                                 <Button asChild variant="outline" size="sm">
                                     <Link href={route('admin.network-assets.show', asset.id)}>
-                                        Asset record
+                                        Data aset
                                     </Link>
                                 </Button>
                             )}
@@ -122,14 +124,14 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
                 {isOlt ? (
                     <Card>
                         <CardHeader>
-                            <CardTitle>PON ports</CardTitle>
+                            <CardTitle>Port PON</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <DataTable
                                 columns={ponColumns}
                                 data={ponPorts}
-                                emptyTitle="No PON ports yet"
-                                emptyDescription="Add the ports of this OLT, then connect splitters to them."
+                                emptyTitle="Belum ada port PON"
+                                emptyDescription="Tambahkan port OLT ini, lalu hubungkan splitter ke port tersebut."
                                 emptyAction={add}
                             />
                         </CardContent>
@@ -138,8 +140,8 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
                     <Card>
                         <CardContent>
                             <EmptyState
-                                title={`No splitter in this ${kind}`}
-                                description="A splitter gives it the output ports customers connect to."
+                                title={`Belum ada splitter di ${kind} ini`}
+                                description="Splitter memberi port keluaran yang dihubungkan ke pelanggan."
                                 action={add}
                             />
                         </CardContent>
@@ -149,7 +151,7 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
                         <SplitterCard
                             key={splitter.id}
                             splitter={splitter}
-                            inputOptions={inputOptions}
+                            inputPortOptions={inputPortOptions}
                             can={can}
                         />
                     ))
@@ -162,7 +164,7 @@ export default function Asset({ asset, ponPorts, splitters, inputOptions, can }:
                         <SplitterDialog
                             onClose={() => setAdding(false)}
                             host={asset}
-                            inputOptions={inputOptions}
+                            inputPortOptions={inputPortOptions}
                         />
                     ))}
                 {confirm && (

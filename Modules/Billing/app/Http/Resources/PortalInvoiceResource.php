@@ -10,7 +10,8 @@ use Modules\Billing\Models\Payment;
 
 /**
  * What a customer may see of their own invoice. Deliberately not InvoiceResource: no internal notes,
- * actors, work order or subscription links, cancel reasons, payment references or gateway data.
+ * actors, work order link, cancel reasons, payment references or gateway data. `subscription_id` is there so the
+ * app can show each subscription its own bill; it is null for an invoice that belongs to no single subscription.
  *
  * @mixin Invoice
  */
@@ -22,6 +23,8 @@ class PortalInvoiceResource extends JsonResource
         return [
             'id' => $this->id,
             'number' => $this->number,
+            /** The subscription this invoice bills; null when it belongs to no single subscription. */
+            'subscription_id' => $this->subscription_id,
             'issue_date' => $this->issue_date->toDateString(),
             'due_date' => $this->due_date->toDateString(),
             'status' => $this->status,

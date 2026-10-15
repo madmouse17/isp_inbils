@@ -18,11 +18,13 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
 use Spatie\Permission\Models\Permission;
 use Tests\TestCase;
+use Tests\Traits\AsksInertiaForProps;
 use Tests\Traits\CreatesCompanyUser;
 use Tests\Traits\WithoutAppOnlyRedirect;
 
 class TicketCustomerScopeTest extends TestCase
 {
+    use AsksInertiaForProps;
     use CreatesCompanyUser;
     use RefreshDatabase;
     use WithoutAppOnlyRedirect;
@@ -200,12 +202,15 @@ class TicketCustomerScopeTest extends TestCase
 
     public function test_create_form_lists_only_own_customer_data(): void
     {
+        $own = $this->customerA->customer;
+        // Another customer of the same company whose name also matches the search: only the own one may be offered.
+        Customer::factory()->create(['company_id' => $own->company_id, 'name' => $own->name.' Lain']);
+
         $this->actingAs($this->customerA)
-            ->get(route('admin.tickets.create'))
+            ->get(route('admin.tickets.create', ['customer_search' => $own->name]), $this->partialReload('Admin/Tickets/Create', 'customerOptions'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->has('customers.data', 1)
-                ->where('customers.data.0.id', $this->customerA->customer->id));
+            ->assertJsonCount(1, 'props.customerOptions')
+            ->assertJsonPath('props.customerOptions.0.value', $own->id);
     }
 
     public function test_customer_create_form_offers_no_locations(): void

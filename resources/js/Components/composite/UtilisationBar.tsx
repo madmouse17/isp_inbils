@@ -20,9 +20,9 @@ function tone(percent: number): string {
 export function UtilisationBar({ percent, label, className }: UtilisationBarProps) {
     if (percent === null) {
         return (
-            <span className="text-muted-foreground" title={`${label}: not measured`}>
+            <span className="text-muted-foreground" title={`${label}: tidak diukur`}>
                 <span aria-hidden="true">-</span>
-                <span className="sr-only">{label}: not measured</span>
+                <span className="sr-only">{label}: tidak diukur</span>
             </span>
         );
     }

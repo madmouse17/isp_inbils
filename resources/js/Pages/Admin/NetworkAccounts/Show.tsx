@@ -15,26 +15,30 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
     AlertTitle,
-    Badge,
     Button,
     Card,
     CardContent,
     CardHeader,
     CardTitle,
+    EmptyCell,
+    EnumBadge,
     Input,
     NativeSelect,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 import { CopyButton } from '@/Components/composite/CopyButton';
-import {
-    DesiredStateBadge,
-    desiredStateExplanation,
-    OnlineBadge,
-    serviceTypeLabel,
-    SyncStatusBadge,
-} from '@/Components/composite/NetworkAccessBadges';
-import type { BadgeVariant } from '@/Components/ui/Badge';
+import { desiredStateExplanation } from '@/Components/composite/NetworkAccessBadges';
 import { formatDateTime } from '@/lib/format';
+import {
+    NETWORK_DESIRED_STATE,
+    NETWORK_ISOLATED_BECAUSE,
+    NETWORK_ONLINE_STATE,
+    NETWORK_SERVICE_TYPE,
+    NETWORK_SYNC_STATUS,
+    SUBSCRIPTION_STATUS,
+    labelOf,
+    optionsOf,
+} from '@/lib/statuses';
 import type {
     NetworkAccount,
     NetworkAccountSubscription,
@@ -58,17 +62,7 @@ interface ShowProps extends Record<string, unknown> {
     errors?: Record<string, string | undefined>;
 }
 
-const subscriptionStatusTones: Record<string, BadgeVariant> = {
-    pending: 'warning',
-    active: 'success',
-    suspended: 'warning',
-    terminated: 'danger',
-};
-
-const serviceTypeOptions = (Object.keys(serviceTypeLabel) as NetworkServiceType[]).map((value) => ({
-    value,
-    label: serviceTypeLabel[value],
-}));
+const serviceTypeOptions = optionsOf(NETWORK_SERVICE_TYPE);
 
 /** Reads the one-time secret out of the flash data of a visit; the shape is fixed by NetworkAccountController. */
 function secretFrom(flash: Record<string, unknown>): string | null {
@@ -122,7 +116,7 @@ function UsernameField({
     return (
         <div className="space-y-1.5">
             <label htmlFor="account-username" className="text-sm leading-none font-medium">
-                Username
+                Nama pengguna
                 <span aria-hidden="true" className="text-destructive-text">
                     {' '}
                     *
@@ -141,12 +135,12 @@ function UsernameField({
                 <span className="font-mono text-sm break-all text-muted-foreground">@{realm}</span>
             </div>
             {error ? (
-                <p id="account-username-error" className="text-sm text-red-700 dark:text-red-400">
+                <p id="account-username-error" className="text-sm text-destructive-text">
                     {error}
                 </p>
             ) : (
                 <p id="account-username-hint" className="text-sm text-muted-foreground">
-                    3 to 40 lower case letters, digits, dots, dashes or underscores.
+                    3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.
                 </p>
             )}
         </div>
@@ -172,14 +166,14 @@ function CreateAccountCard({
         return (
             <Card>
                 <CardHeader>
-                    <CardTitle>Create network account</CardTitle>
+                    <CardTitle>Buat akun jaringan</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <Alert variant="warning">
                         <AlertDescription>
-                            The company code cannot be used as a RADIUS realm (lower case letters,
-                            digits and hyphens, up to 24 characters). Change the company code before
-                            creating network accounts.
+                            Kode perusahaan tidak dapat dipakai sebagai realm RADIUS (huruf kecil,
+                            angka, dan tanda hubung, maksimal 24 karakter). Ubah kode perusahaan
+                            sebelum membuat akun jaringan.
                         </AlertDescription>
                     </Alert>
                 </CardContent>
@@ -202,12 +196,12 @@ function CreateAccountCard({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Create network account</CardTitle>
+                <CardTitle>Buat akun jaringan</CardTitle>
             </CardHeader>
             <CardContent>
                 <form onSubmit={submit} className="space-y-4">
                     <NativeSelect
-                        label="Service type"
+                        label="Jenis layanan"
                         value={data.service_type}
                         onChange={(event) =>
                             setData('service_type', event.target.value as NetworkServiceType)
@@ -223,12 +217,12 @@ function CreateAccountCard({
                         onChange={(value) => setData('username', value)}
                     />
                     <Input
-                        label="Secret"
+                        label="Kata sandi"
                         type="password"
                         autoComplete="new-password"
                         value={data.password}
                         onChange={(event) => setData('password', event.target.value)}
-                        hint="6 to 64 characters without spaces. Leave blank to generate one."
+                        hint="6 sampai 64 karakter tanpa spasi. Kosongkan untuk dibuatkan otomatis."
                         error={errors.password}
                     />
                     <Button
@@ -237,7 +231,7 @@ function CreateAccountCard({
                         loading={processing}
                         disabled={processing}
                     >
-                        Create network account
+                        Buat akun jaringan
                     </Button>
                 </form>
             </CardContent>
@@ -272,20 +266,20 @@ function EditAccountCard({
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Edit network account</CardTitle>
+                <CardTitle>Ubah akun jaringan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
                 {terminated && (
                     <Alert variant="warning">
                         <AlertDescription>
-                            A terminated subscription cannot have a network account.
+                            Langganan yang sudah berhenti tidak dapat punya akun jaringan.
                         </AlertDescription>
                     </Alert>
                 )}
                 <form onSubmit={submit} className="space-y-4">
                     <fieldset disabled={terminated} className="space-y-4 min-w-0">
                         <NativeSelect
-                            label="Service type"
+                            label="Jenis layanan"
                             value={data.service_type}
                             onChange={(event) =>
                                 setData('service_type', event.target.value as NetworkServiceType)
@@ -301,12 +295,12 @@ function EditAccountCard({
                             onChange={(value) => setData('username', value)}
                         />
                         <Input
-                            label="Secret"
+                            label="Kata sandi"
                             type="password"
                             autoComplete="new-password"
                             value={data.password}
                             onChange={(event) => setData('password', event.target.value)}
-                            hint="Leave blank to keep the current secret."
+                            hint="Kosongkan untuk mempertahankan kata sandi saat ini."
                             error={errors.password}
                         />
                         <Button
@@ -315,7 +309,7 @@ function EditAccountCard({
                             loading={processing}
                             disabled={processing || terminated}
                         >
-                            Save changes
+                            Simpan perubahan
                         </Button>
                     </fieldset>
                 </form>
@@ -371,11 +365,11 @@ export default function Show({
     const speedProfile = subscription.speed_profile;
 
     return (
-        <AdminLayout title={`Network access ${subscription.code}`}>
+        <AdminLayout title={`Akses jaringan ${subscription.code}`}>
             <div className="space-y-6">
                 <PageHeader
-                    title="Network access"
-                    subtitle={`Subscription ${subscription.code}`}
+                    title="Akses jaringan"
+                    subtitle={`Langganan ${subscription.code}`}
                     actions={
                         <>
                             <Button
@@ -385,7 +379,7 @@ export default function Show({
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
                                 <Link href={route('admin.subscriptions.show', subscription.id)}>
-                                    Back
+                                    Kembali
                                 </Link>
                             </Button>
                             {account && can.manage ? (
@@ -396,7 +390,7 @@ export default function Show({
                                     loading={resyncing}
                                     onClick={resync}
                                 >
-                                    Resync
+                                    Sinkron ulang
                                 </Button>
                             ) : null}
                             {account && can.reveal ? (
@@ -406,7 +400,7 @@ export default function Show({
                                     size="sm"
                                     onClick={() => setConfirmingReveal(true)}
                                 >
-                                    Reveal secret
+                                    Tampilkan kata sandi
                                 </Button>
                             ) : null}
                         </>
@@ -416,33 +410,33 @@ export default function Show({
                 {!radiusEnabled && (
                     <Alert variant="warning">
                         <AlertDescription>
-                            RADIUS is switched off for this installation. Changes are saved but not
-                            sent to FreeRADIUS, and online status and usage are not available.
+                            RADIUS dimatikan untuk instalasi ini. Perubahan disimpan tetapi tidak
+                            dikirim ke FreeRADIUS, dan status online serta pemakaian tidak tersedia.
                         </AlertDescription>
                     </Alert>
                 )}
 
                 {secret !== null && (
                     <Alert variant="warning">
-                        <AlertTitle>Secret shown once</AlertTitle>
+                        <AlertTitle>Kata sandi hanya tampil sekali</AlertTitle>
                         <AlertDescription className="space-y-3">
                             <div className="flex flex-wrap items-center gap-2">
                                 <code className="rounded-md bg-muted px-2 py-1 font-mono text-base break-all text-foreground select-all">
                                     {secret}
                                 </code>
-                                <CopyButton value={secret} label="Copy secret" />
+                                <CopyButton value={secret} label="Salin kata sandi" />
                                 <Button
                                     type="button"
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setSecret(null)}
                                 >
-                                    Dismiss
+                                    Tutup
                                 </Button>
                             </div>
                             <p>
-                                Copy it now. It is not kept after you dismiss this message or leave
-                                the page.
+                                Salin sekarang. Kata sandi tidak disimpan setelah pesan ini ditutup
+                                atau halaman ditinggalkan.
                             </p>
                         </AlertDescription>
                     </Alert>
@@ -450,31 +444,25 @@ export default function Show({
 
                 {(errors.subscription || errors.realm) && (
                     <Alert variant="danger">
-                        <AlertDescription className="text-red-700 dark:text-red-400">
-                            {errors.subscription ?? errors.realm}
-                        </AlertDescription>
+                        <AlertDescription>{errors.subscription ?? errors.realm}</AlertDescription>
                     </Alert>
                 )}
 
                 <div className="grid gap-6 xl:grid-cols-2">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Subscription</CardTitle>
+                            <CardTitle>Langganan</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <dl className="space-y-3 text-sm">
-                                <Row label="Subscription">{subscription.code}</Row>
+                                <Row label="Langganan">{subscription.code}</Row>
                                 <Row label="Status">
-                                    <Badge
-                                        variant={
-                                            subscriptionStatusTones[subscription.status] ??
-                                            'neutral'
-                                        }
-                                    >
-                                        {subscription.status}
-                                    </Badge>
+                                    <EnumBadge
+                                        map={SUBSCRIPTION_STATUS}
+                                        value={subscription.status}
+                                    />
                                 </Row>
-                                <Row label="Customer">
+                                <Row label="Pelanggan">
                                     {subscription.customer ? (
                                         <Link
                                             href={route(
@@ -486,36 +474,37 @@ export default function Show({
                                             {subscription.customer.name}
                                         </Link>
                                     ) : (
-                                        '-'
+                                        <EmptyCell />
                                     )}
                                 </Row>
-                                <Row label="Speed profile">
+                                <Row label="Profil kecepatan">
                                     {speedProfile ? (
                                         <>
                                             {speedProfile.name}
                                             {speedProfile.radius_profile_name
-                                                ? `, RADIUS group ${speedProfile.radius_profile_name}`
+                                                ? `, grup RADIUS ${speedProfile.radius_profile_name}`
                                                 : ''}
                                         </>
                                     ) : (
-                                        '-'
+                                        <EmptyCell />
                                     )}
                                 </Row>
-                                <Row label="Serving POP">
-                                    {subscription.serving_pop?.name ?? '-'}
+                                <Row label="POP layanan">
+                                    {subscription.serving_pop?.name ?? <EmptyCell />}
                                 </Row>
-                                <Row label="Desired state">
-                                    <DesiredStateBadge state={desiredState} />
+                                <Row label="Status yang diharapkan">
+                                    <EnumBadge map={NETWORK_DESIRED_STATE} value={desiredState} />
                                     {isolatedBecause.length > 0 ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Isolated because{' '}
+                                            Diisolir karena{' '}
                                             {isolatedBecause
                                                 .map((reason) =>
-                                                    reason === 'suspended'
-                                                        ? 'Suspended'
-                                                        : 'Blocked',
+                                                    labelOf(
+                                                        NETWORK_ISOLATED_BECAUSE,
+                                                        reason,
+                                                    ).toLowerCase(),
                                                 )
-                                                .join(' and ')}
+                                                .join(' dan ')}
                                             .
                                         </p>
                                     ) : null}
@@ -527,9 +516,8 @@ export default function Show({
                             {!speedProfile?.radius_profile_name && (
                                 <Alert variant="warning" className="mt-4">
                                     <AlertDescription>
-                                        The speed profile of this package has no RADIUS profile
-                                        name. Set one on the speed profile before creating a network
-                                        account.
+                                        Profil kecepatan paket ini belum punya nama profil RADIUS.
+                                        Isi dulu di profil kecepatan sebelum membuat akun jaringan.
                                     </AlertDescription>
                                 </Alert>
                             )}
@@ -539,25 +527,31 @@ export default function Show({
                     {account && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Network account</CardTitle>
+                                <CardTitle>Akun jaringan</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <dl className="space-y-3 text-sm">
-                                    <Row label="Service type">
-                                        {serviceTypeLabel[account.service_type]}
+                                    <Row label="Jenis layanan">
+                                        <EnumBadge
+                                            map={NETWORK_SERVICE_TYPE}
+                                            value={account.service_type}
+                                        />
                                     </Row>
-                                    <Row label="Username">
+                                    <Row label="Nama pengguna">
                                         <span className="font-mono break-all">
                                             {account.username}
                                         </span>
                                     </Row>
-                                    <Row label="Sync status">
-                                        <SyncStatusBadge status={account.sync_status} />
+                                    <Row label="Status sinkronisasi">
+                                        <EnumBadge
+                                            map={NETWORK_SYNC_STATUS}
+                                            value={account.sync_status}
+                                        />
                                         {account.last_error && (
                                             <p
                                                 className={
                                                     account.sync_status === 'failed'
-                                                        ? 'mt-1 text-xs text-red-700 dark:text-red-400'
+                                                        ? 'mt-1 text-xs text-destructive-text'
                                                         : 'mt-1 text-xs text-muted-foreground'
                                                 }
                                             >
@@ -566,21 +560,24 @@ export default function Show({
                                         )}
                                         {account.disconnect_pending && (
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                A disconnect of the open session is still owed.
+                                                Pemutusan sesi yang terbuka masih tertunda.
                                             </p>
                                         )}
                                     </Row>
-                                    <Row label="RADIUS group">
+                                    <Row label="Grup RADIUS">
                                         {account.provisioned_group
-                                            ? `${account.provisioned_group} since ${formatDateTime(account.provisioned_at)}`
-                                            : 'Not in RADIUS yet'}
+                                            ? `${account.provisioned_group} sejak ${formatDateTime(account.provisioned_at)}`
+                                            : 'Belum ada di RADIUS'}
                                     </Row>
                                     <Row label="Online">
-                                        <OnlineBadge online={session !== null} />
+                                        <EnumBadge
+                                            map={NETWORK_ONLINE_STATE}
+                                            value={session !== null}
+                                        />
                                     </Row>
                                     {session && (
                                         <>
-                                            <Row label="Address">
+                                            <Row label="Alamat">
                                                 <span className="font-mono break-all">
                                                     {session.framed_ip ?? '-'}
                                                 </span>
@@ -588,17 +585,19 @@ export default function Show({
                                             <Row label="NAS">
                                                 {session.nas_label ?? session.nas_ip}
                                             </Row>
-                                            <Row label="Session start">
+                                            <Row label="Sesi mulai">
                                                 {formatDateTime(session.started_at)}
                                             </Row>
                                         </>
                                     )}
-                                    <Row label="This month">
-                                        {usage
-                                            ? `Upload ${formatBytes(usage.input_octets)}, download ${formatBytes(usage.output_octets)}`
-                                            : radiusEnabled
-                                              ? 'Usage is not available right now. RADIUS did not answer.'
-                                              : '-'}
+                                    <Row label="Bulan ini">
+                                        {usage ? (
+                                            `Unggah ${formatBytes(usage.input_octets)}, unduh ${formatBytes(usage.output_octets)}`
+                                        ) : radiusEnabled ? (
+                                            'Pemakaian belum tersedia. RADIUS tidak menjawab.'
+                                        ) : (
+                                            <EmptyCell />
+                                        )}
                                     </Row>
                                 </dl>
                             </CardContent>
@@ -625,7 +624,7 @@ export default function Show({
 
                 {!account && !can.manage && (
                     <p className="text-sm text-muted-foreground">
-                        This subscription has no network account.
+                        Langganan ini belum punya akun jaringan.
                     </p>
                 )}
             </div>
@@ -638,14 +637,14 @@ export default function Show({
             >
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Reveal secret?</AlertDialogTitle>
+                        <AlertDialogTitle>Tampilkan kata sandi?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            The secret is shown once on this page and the reveal is recorded in the
-                            audit log.
+                            Kata sandi ditampilkan sekali di halaman ini dan pengungkapannya dicatat
+                            di log audit.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={revealing}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={revealing}>Batal</AlertDialogCancel>
                         <AlertDialogAction
                             disabled={revealing}
                             onClick={(event) => {
@@ -653,7 +652,7 @@ export default function Show({
                                 reveal();
                             }}
                         >
-                            Reveal
+                            Tampilkan
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

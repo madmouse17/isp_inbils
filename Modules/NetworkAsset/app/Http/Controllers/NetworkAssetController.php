@@ -4,9 +4,9 @@ namespace Modules\NetworkAsset\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
 use App\Support\ExportQuery;
+use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
@@ -15,8 +15,8 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
-use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Product;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Http\Requests\InstallNetworkAssetRequest;
@@ -58,8 +58,6 @@ class NetworkAssetController extends Controller
 
         return Inertia::render('Admin/NetworkAssets/Index', [
             'assets' => NetworkAssetResource::collection($assets),
-            'typeOptions' => ['router', 'switch', 'olt', 'onu_ont', 'radio', 'antenna', 'fiber', 'odp', 'odc', 'rack', 'power', 'other'],
-            'statusOptions' => ['available', 'installed', 'maintenance', 'damaged', 'retired'],
             'filters' => [
                 'search' => $request->input('search'),
                 'status' => $request->input('status'),
@@ -107,12 +105,12 @@ class NetworkAssetController extends Controller
             ->fromRequest($request);
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
-            'asset_type' => 'Type',
-            'serial_number' => 'Serial',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'asset_type' => 'Tipe',
+            'serial_number' => 'Nomor seri',
             'status' => 'Status',
-            'ownership' => 'Ownership',
+            'ownership' => 'Kepemilikan',
         ];
 
         $map = static fn (NetworkAsset $asset): array => [
@@ -125,7 +123,7 @@ class NetworkAssetController extends Controller
         ];
 
         return $format === 'pdf'
-            ? $export->streamPdf('Network Assets', $columns, $map, "network-assets-export-{$stamp}.pdf")
+            ? $export->streamPdf('Aset Jaringan', $columns, $map, "network-assets-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "network-assets-export-{$stamp}.csv");
     }
 
@@ -159,13 +157,13 @@ class NetworkAssetController extends Controller
         return $query;
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('create', NetworkAsset::class);
 
         return Inertia::render('Admin/NetworkAssets/Create', [
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
+            'productOptions' => $this->productOptions($request),
+            'locationOptions' => $this->locationOptions($request),
         ]);
     }
 
@@ -181,29 +179,29 @@ class NetworkAssetController extends Controller
         // and read asset IPs from IPAM once a second consumer needs them.
         DB::transaction(fn () => IpAssignmentService::syncAssetAddresses(NetworkAsset::create($data)));
 
-        return redirect()->route('admin.network-assets.index')->with('success', 'Network asset created.');
+        return redirect()->route('admin.network-assets.index')->with('success', 'Aset jaringan dibuat.');
     }
 
-    public function show(NetworkAsset $asset): InertiaResponse
+    public function show(Request $request, NetworkAsset $asset): InertiaResponse
     {
         Gate::authorize('view', $asset);
         $asset->load(['product', 'location', 'customer', 'subscription', 'installations.location']);
 
         return Inertia::render('Admin/NetworkAssets/Show', [
             'asset' => new NetworkAssetResource($asset),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
+            'locationOptions' => $this->locationOptions($request),
         ]);
     }
 
-    public function edit(NetworkAsset $asset): InertiaResponse
+    public function edit(Request $request, NetworkAsset $asset): InertiaResponse
     {
         Gate::authorize('edit', $asset);
-        $asset->load(['location', 'customer', 'subscription']);
+        $asset->load(['product', 'location', 'customer', 'subscription']);
 
         return Inertia::render('Admin/NetworkAssets/Edit', [
             'asset' => new NetworkAssetResource($asset),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'products' => ProductResource::collection(Product::query()->where('is_active', true)->orderBy('name')->get()),
+            'productOptions' => $this->productOptions($request, $asset->product_id),
+            'locationOptions' => $this->locationOptions($request, $asset->location_id),
         ]);
     }
 
@@ -219,21 +217,21 @@ class NetworkAssetController extends Controller
             IpAssignmentService::syncAssetAddresses($asset);
         });
 
-        return redirect()->route('admin.network-assets.index')->with('success', 'Network asset updated.');
+        return redirect()->route('admin.network-assets.index')->with('success', 'Aset jaringan diperbarui.');
     }
 
     public function destroy(NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('delete', $asset);
 
-        abort_if(in_array($asset->status, ['installed', 'maintenance']), 422, 'Cannot delete installed/maintenance asset. Remove first.');
+        abort_if(in_array($asset->status, ['installed', 'maintenance']), 422, 'Aset yang terpasang atau dalam perawatan tidak dapat dihapus. Lepas dulu.');
 
         DB::transaction(function () use ($asset): void {
             IpAssignmentService::releaseForAsset($asset);
             $asset->delete();
         });
 
-        return back()->with('success', 'Network asset deleted.');
+        return back()->with('success', 'Aset jaringan dihapus.');
     }
 
     public function install(InstallNetworkAssetRequest $request, NetworkAsset $asset): RedirectResponse
@@ -250,29 +248,29 @@ class NetworkAssetController extends Controller
             $validated['spk_id'] ?? null,
         );
 
-        return back()->with('success', 'Asset installed.');
+        return back()->with('success', 'Aset dipasang.');
     }
 
     public function remove(Request $request, NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('network_asset.remove');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $request->validate(['reason' => ['required', 'string', 'max:500']], [], ['reason' => 'alasan']);
 
         NetworkAssetService::remove($asset, $request->input('reason'));
 
-        return back()->with('success', 'Asset removed.');
+        return back()->with('success', 'Aset dilepas.');
     }
 
     public function maintenance(Request $request, NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('network_asset.maintenance');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $request->validate(['reason' => ['required', 'string', 'max:500']], [], ['reason' => 'alasan']);
 
         NetworkAssetService::setMaintenance($asset, $request->input('reason'));
 
-        return back()->with('success', 'Asset set to maintenance.');
+        return back()->with('success', 'Aset masuk perawatan.');
     }
 
     public function resume(Request $request, NetworkAsset $asset): RedirectResponse
@@ -281,18 +279,18 @@ class NetworkAssetController extends Controller
 
         NetworkAssetService::resume($asset);
 
-        return back()->with('success', 'Asset resumed.');
+        return back()->with('success', 'Aset kembali terpasang.');
     }
 
     public function damage(Request $request, NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('network_asset.repair');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $request->validate(['reason' => ['required', 'string', 'max:500']], [], ['reason' => 'alasan']);
 
         NetworkAssetService::setDamaged($asset, $request->input('reason'));
 
-        return back()->with('success', 'Asset marked damaged.');
+        return back()->with('success', 'Aset ditandai rusak.');
     }
 
     public function repair(Request $request, NetworkAsset $asset): RedirectResponse
@@ -301,18 +299,18 @@ class NetworkAssetController extends Controller
 
         NetworkAssetService::repair($asset);
 
-        return back()->with('success', 'Asset repaired.');
+        return back()->with('success', 'Aset diperbaiki.');
     }
 
     public function retire(Request $request, NetworkAsset $asset): RedirectResponse
     {
         Gate::authorize('network_asset.retire');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
+        $request->validate(['reason' => ['required', 'string', 'max:500']], [], ['reason' => 'alasan']);
 
         NetworkAssetService::retire($asset, $request->input('reason'));
 
-        return back()->with('success', 'Asset retired.');
+        return back()->with('success', 'Aset dipensiunkan.');
     }
 
     public function trace(Request $request): InertiaResponse
@@ -344,5 +342,39 @@ class NetworkAssetController extends Controller
             'search' => $request->input('search', ''),
             'customer_id' => $request->input('customer_id', ''),
         ]);
+    }
+
+    /** Active products, found by SKU or name; the current one stays in the list on an edit form. */
+    private function productOptions(Request $request, ?int $selected = null): OptionalProp
+    {
+        return SearchOptions::for(
+            $request,
+            'product',
+            Product::query()->where('is_active', true)->with('category:id,name'),
+            ['name', 'sku'],
+            fn (Product $product): array => [
+                'value' => $product->id,
+                'label' => "{$product->sku} - {$product->name}",
+                'description' => $product->category?->name,
+            ],
+            $selected,
+        );
+    }
+
+    /** Active locations, found by code, name or path; the current one stays in the list on an edit form. */
+    private function locationOptions(Request $request, ?int $selected = null): OptionalProp
+    {
+        return SearchOptions::for(
+            $request,
+            'location',
+            Location::query()->where('is_active', true),
+            ['code', 'name', 'path'],
+            fn (Location $location): array => [
+                'value' => $location->id,
+                'label' => "{$location->code} - {$location->name}",
+                'description' => $location->path,
+            ],
+            $selected,
+        );
     }
 }

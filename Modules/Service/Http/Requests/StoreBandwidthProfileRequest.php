@@ -25,4 +25,15 @@ class StoreBandwidthProfileRequest extends FormRequest
             'is_active' => ['boolean'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'download_mbps' => 'unduh',
+            'upload_mbps' => 'unggah',
+            'type' => 'tipe',
+            'contention_ratio' => 'rasio kontensi',
+        ];
+    }
 }

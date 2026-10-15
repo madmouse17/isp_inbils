@@ -23,7 +23,7 @@ class UpdateVehicleRequest extends FormRequest
             'type' => ['nullable', 'string', 'max:50'],
             'brand' => ['nullable', 'string', 'max:100'],
             'model' => ['nullable', 'string', 'max:100'],
-            'purchase_date' => ['nullable', 'date'],
+            'purchase_date' => ['nullable', 'date_format:Y-m-d'],
             'is_active' => ['boolean'],
             'notes' => ['nullable', 'string'],
         ];

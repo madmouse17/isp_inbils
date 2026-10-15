@@ -697,7 +697,8 @@ class DispatchQueueTest extends TestCase
 
         foreach ([$ticket, $spk] as $item) {
             foreach (['assignee_id', 'handler_id', 'technician_id'] as $field) {
-                $this->postAssign($dispatcher, $item, [$field => $foreignTechnician->id])->assertNotFound();
+                // The request's own company-scoped `exists` rule stops it before the service looks the user up.
+                $this->postAssign($dispatcher, $item, [$field => $foreignTechnician->id])->assertSessionHasErrors($field);
             }
         }
 

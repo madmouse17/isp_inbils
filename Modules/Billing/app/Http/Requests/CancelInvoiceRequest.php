@@ -18,4 +18,21 @@ class CancelInvoiceRequest extends FormRequest
             'reason' => ['required', 'string', 'max:500'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'reason' => 'alasan',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'reason.required' => 'Alasan pembatalan wajib diisi.',
+            'reason.max' => 'Alasan maksimal :max karakter.',
+        ];
+    }
 }

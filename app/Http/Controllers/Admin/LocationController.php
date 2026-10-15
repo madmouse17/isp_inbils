@@ -67,7 +67,7 @@ class LocationController extends Controller
 
         LocationService::create($request->validated());
 
-        return back()->with('success', 'Location created.');
+        return back()->with('success', 'Lokasi dibuat.');
     }
 
     public function update(UpdateLocationRequest $request, Location $location): RedirectResponse
@@ -76,7 +76,7 @@ class LocationController extends Controller
 
         LocationService::update($location, $request->validated());
 
-        return back()->with('success', 'Location updated.');
+        return back()->with('success', 'Lokasi diperbarui.');
     }
 
     public function move(Request $request, Location $location): RedirectResponse
@@ -85,11 +85,11 @@ class LocationController extends Controller
 
         $data = $request->validate([
             'new_parent_id' => ['required', 'integer', Rule::exists('locations', 'id')->where('company_id', CompanyService::currentId())->whereNull('deleted_at')],
-        ]);
+        ], [], ['new_parent_id' => 'induk baru']);
 
         LocationService::move($location, (int) $data['new_parent_id']);
 
-        return back()->with('success', 'Location moved.');
+        return back()->with('success', 'Lokasi dipindahkan.');
     }
 
     public function destroy(Location $location): RedirectResponse
@@ -98,7 +98,7 @@ class LocationController extends Controller
 
         LocationService::delete($location);
 
-        return back()->with('success', 'Location deleted.');
+        return back()->with('success', 'Lokasi dihapus.');
     }
 
     /**

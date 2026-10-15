@@ -1,10 +1,13 @@
+import type { IP_ADDRESS_STATUS, IP_PREFIX_USAGE, IP_VERSION } from '@/lib/statuses/ipam';
+
 /** Props of the IPAM (Modules/Ipam) and ODN (Modules/NetworkAsset) pages; the controllers in those modules are the source of truth. */
 
-export type IpFamily = 4 | 6;
+/* The value sets come from the status maps (`lib/statuses/ipam.ts`), so a new value is added in one place. */
+export type IpFamily = keyof typeof IP_VERSION;
 
-export type IpUsage = 'container' | 'customer_static' | 'customer_dynamic' | 'infrastructure';
+export type IpUsage = keyof typeof IP_PREFIX_USAGE;
 
-export type IpAddressStatus = 'assigned' | 'reserved';
+export type IpAddressStatus = keyof typeof IP_ADDRESS_STATUS;
 
 /** A prefix as IpPrefixUtilisationQuery formats it. `size` and `free` are exact decimal strings (IPv6 sizes overflow a JS number). */
 export interface PrefixRow {
@@ -69,7 +72,7 @@ export interface VlanRow {
     prefixes_count: number;
 }
 
-/** What the subscription page lists under "IP address". */
+/** What the subscription page lists under "Alamat IP". */
 export interface SubscriptionIpAddress {
     id: number;
     family: IpFamily;
@@ -148,11 +151,18 @@ export interface Splitter {
     ports: SplitterPort[];
 }
 
-/** A free upstream port a splitter input can be connected to. */
-export interface InputOption {
-    port_id: number;
+/**
+ * A free port as `SearchOptions` sends it: the id, what the list shows and, under it, where the port is.
+ * `dropPortOptions` (an ODP output a customer drop can take, under the serving POP) and `inputPortOptions`
+ * (an upstream port a splitter input can connect to) both have this shape.
+ */
+export interface PortOption {
+    value: number;
     label: string;
+    description: string | null;
 }
+
+export type DropPortOption = PortOption;
 
 /** The ODP output port a subscription's drop sits on. */
 export interface DropPort {
@@ -162,13 +172,4 @@ export interface DropPort {
     odp_code: string;
     odp_name: string;
     location_path: string | null;
-}
-
-/** A free ODP output port offered at onboarding and on the subscription page. */
-export interface DropPortOption {
-    port_id: number;
-    label: string;
-    odp_code: string;
-    location_path: string;
-    free_count: number;
 }

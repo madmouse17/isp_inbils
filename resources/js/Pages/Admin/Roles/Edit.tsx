@@ -1,9 +1,9 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader, PermissionGroupSelector, type PermissionOption } from '@/Components/composite';
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input } from '@/Components/ui';
+import { Button, Card, CardContent, CardHeader, CardTitle, Input } from '@/Components/ui';
 interface RoleData {
     id: number;
     name: string;
@@ -26,11 +26,11 @@ export default function Edit({ role, permissions }: EditProps) {
     };
 
     return (
-        <AdminLayout title="Edit Role">
+        <AdminLayout title="Ubah Peran">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit Role"
-                    subtitle="Update role permissions."
+                    title="Ubah Peran"
+                    subtitle={`Peran ${role.data.name} dipegang ${role.data.users_count ?? 0} pengguna di perusahaan ini. Perubahan berlaku untuk semua pengguna peran ini, di semua perusahaan.`}
                     actions={
                         <Button
                             asChild
@@ -38,7 +38,7 @@ export default function Edit({ role, permissions }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.roles.index')}>Back</Link>
+                            <Link href={route('admin.roles.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -46,15 +46,12 @@ export default function Edit({ role, permissions }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>
-                                Edit {role.data.name}{' '}
-                                <Badge>{role.data.users_count ?? 0} users</Badge>
-                            </CardTitle>
+                            <CardTitle>Data peran</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-6">
                             <div className="max-w-xl">
                                 <Input
-                                    label="Name"
+                                    label="Nama"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={errors.name}
@@ -70,15 +67,11 @@ export default function Edit({ role, permissions }: EditProps) {
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.roles.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.roles.index')}>Batal</Link>
                         </Button>
-                        <Button type="submit" loading={processing}>
-                            Save
+                        <Button type="submit" variant="primary" loading={processing}>
+                            Simpan
                         </Button>
                     </div>
                 </form>

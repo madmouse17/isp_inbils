@@ -1,7 +1,7 @@
 import type { APIRequestContext, Locator, Page, Request, Route } from '@playwright/test';
 import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
-import { loginAs, logout } from './support/demo';
+import { loginAs, logout, selectSearchOption } from './support/demo';
 
 function staleAssignmentBody(route: Route): string {
     const request = route.request();
@@ -33,12 +33,12 @@ async function openAssignedDispatchDialog(page: Page) {
     await page.goto('/admin/dispatch?status=assigned');
     const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
     await expect(row).toBeVisible();
-    await row.getByRole('button', { name: 'Ganti Petugas' }).click();
+    await row.getByRole('button', { name: 'Ganti petugas' }).click();
 
     const dialog = page.getByRole('dialog');
-    const assigneeSelect = dialog.getByLabel('Pilih Petugas Tiket (Handler)');
+    const assigneeSelect = dialog.getByRole('combobox', { name: 'Pilih petugas tiket' });
     await expect(dialog).toBeVisible();
-    await expect(assigneeSelect).toHaveValue(/\d+/);
+    await expect(assigneeSelect).toHaveValue(/\S/);
     return dialog;
 }
 
@@ -86,7 +86,7 @@ async function exerciseReload(
     expectHttpError: (error: { url: string; method: string; status: number }) => void,
 ) {
     const dialog = page.getByRole('dialog');
-    const reload = dialog.getByRole('button', { name: 'Muat Ulang Antrean' });
+    const reload = dialog.getByRole('button', { name: 'Muat ulang antrean' });
     const reloadUrl = page.url();
 
     if (outcome === 'success') {
@@ -139,7 +139,7 @@ async function exerciseReload(
         } else {
             await reload.click();
             await seen;
-            await expect(dialog.getByRole('button', { name: 'Memuat Ulang...' })).toBeDisabled();
+            await expect(dialog.getByRole('button', { name: 'Memuat ulang...' })).toBeDisabled();
             await expect(dialog.getByRole('button', { name: 'Batal', exact: true })).toBeDisabled();
             await cancelInertiaRequests(page);
         }
@@ -187,7 +187,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
             await expect(row).toBeVisible();
 
             const assignButton = row.getByRole('button', {
-                name: /^(Tugaskan|Ganti Petugas)$/,
+                name: /^(Tugaskan|Ganti petugas)$/,
             });
             await expect(assignButton).toBeVisible();
             await assignButton.click();
@@ -196,24 +196,13 @@ test.describe('@lifecycle dispatch-my-work', () => {
             await expect(dialog).toBeVisible();
             await expect(dialog.getByText(title, { exact: true })).toBeVisible();
 
-            const assigneeSelect = dialog.getByLabel(assigneeLabel);
-            const candidateLabel = await assigneeSelect.locator('option').evaluateAll((options) => {
-                const candidate = options.find((option) =>
-                    option.textContent?.includes('Demo Technician'),
-                );
-                if (!candidate) {
-                    throw new Error(`No Demo Technician candidate found for ${assigneeLabel}`);
-                }
-                return candidate.textContent?.trim() ?? '';
-            });
-            expect(candidateLabel).not.toBe('');
-            await assigneeSelect.selectOption({ label: candidateLabel });
-            await dialog.getByRole('button', { name: 'Simpan Penugasan' }).click();
+            await selectSearchOption(page, assigneeLabel, 'Demo Technician');
+            await dialog.getByRole('button', { name: 'Simpan penugasan' }).click();
             await expect(dialog).toBeHidden();
         };
 
-        await assignFromQueue('E2E Dispatch Ticket', 'Pilih Petugas Tiket (Handler)');
-        await assignFromQueue('E2E Dispatch SPK', 'Pilih Teknisi Lapangan');
+        await assignFromQueue('E2E Dispatch Ticket', 'Pilih petugas tiket');
+        await assignFromQueue('E2E Dispatch SPK', 'Pilih teknisi lapangan');
 
         // The technician works in the app: the assigned items show up in the app's My Work API.
         await logout(page);
@@ -228,26 +217,16 @@ test.describe('@lifecycle dispatch-my-work', () => {
 
         const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
         await expect(row).toBeVisible();
-        await row.getByRole('button', { name: 'Ganti Petugas' }).click();
+        await row.getByRole('button', { name: 'Ganti petugas' }).click();
 
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible();
-        const assigneeSelect = dialog.getByLabel('Pilih Petugas Tiket (Handler)');
-        const candidateLabel = await assigneeSelect.locator('option').evaluateAll((options) => {
-            const candidate = options.find((option) =>
-                option.textContent?.includes('Demo Technician'),
-            );
-            if (!candidate) {
-                throw new Error('No Demo Technician candidate found for ticket handler');
-            }
-            return candidate.textContent?.trim() ?? '';
-        });
-        expect(candidateLabel).not.toBe('');
-        await assigneeSelect.selectOption({ label: candidateLabel });
+        const assigneeSelect = dialog.getByRole('combobox', { name: 'Pilih petugas tiket' });
+        await selectSearchOption(page, 'Pilih petugas tiket', 'Demo Technician');
 
         let interceptedCount = 0;
         const assignRoute = '**/admin/dispatch/assign';
-        const assignRouteHandler = async (route: import('@playwright/test').Route) => {
+        const assignRouteHandler = async (route: Route) => {
             const request = route.request();
             if (request.method() !== 'POST' || interceptedCount > 0) {
                 await route.continue();
@@ -281,7 +260,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         };
 
         await page.route(assignRoute, assignRouteHandler);
-        const submitButton = dialog.getByRole('button', { name: 'Simpan Penugasan' });
+        const submitButton = dialog.getByRole('button', { name: 'Simpan penugasan' });
         const selectedValue = await assigneeSelect.inputValue();
         try {
             const firstResponse = page.waitForResponse(
@@ -293,8 +272,8 @@ test.describe('@lifecycle dispatch-my-work', () => {
             await firstResponse;
             expect(interceptedCount).toBe(1);
 
-            await expect(page.getByText('Terjadi Kesalahan', { exact: true })).toBeVisible();
-            await expect(page.getByText('Konflik Konkurensi', { exact: true })).toHaveCount(0);
+            await expect(page.getByText('Terjadi kesalahan', { exact: true })).toBeVisible();
+            await expect(page.getByText('Data berubah', { exact: true })).toHaveCount(0);
             await expect(dialog).toBeVisible();
             await expect(assigneeSelect).toHaveValue(selectedValue);
             await expect(submitButton).toBeEnabled();
@@ -319,22 +298,11 @@ test.describe('@lifecycle dispatch-my-work', () => {
         const title = 'E2E Dispatch Ticket';
         const row = page.getByRole('row').filter({ hasText: title }).first();
         await expect(row).toBeVisible();
-        await row.getByRole('button', { name: 'Ganti Petugas' }).click();
+        await row.getByRole('button', { name: 'Ganti petugas' }).click();
 
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible();
-        const assigneeSelect = dialog.getByLabel('Pilih Petugas Tiket (Handler)');
-        const candidateLabel = await assigneeSelect.locator('option').evaluateAll((options) => {
-            const candidate = options.find((option) =>
-                option.textContent?.includes('Demo Technician'),
-            );
-            if (!candidate) {
-                throw new Error('No Demo Technician candidate found for ticket handler');
-            }
-            return candidate.textContent?.trim() ?? '';
-        });
-        expect(candidateLabel).not.toBe('');
-        await assigneeSelect.selectOption({ label: candidateLabel });
+        await selectSearchOption(page, 'Pilih petugas tiket', 'Demo Technician');
 
         const assignRoute = '**/admin/dispatch/assign';
         let requestCount = 0;
@@ -346,13 +314,13 @@ test.describe('@lifecycle dispatch-my-work', () => {
         const firstRequest = new Promise<void>((resolve) => {
             firstRequestSeen = resolve;
         });
-        const requestListener = (request: import('@playwright/test').Request) => {
+        const requestListener = (request: Request) => {
             if (request.method() === 'POST' && request.url().endsWith('/admin/dispatch/assign')) {
                 requestCount += 1;
                 if (requestCount === 1) firstRequestSeen();
             }
         };
-        const assignRouteHandler = async (route: import('@playwright/test').Route) => {
+        const assignRouteHandler = async (route: Route) => {
             const request = route.request();
             if (request.method() === 'POST' && requestCount === 1) {
                 await firstRequestReleased;
@@ -360,9 +328,9 @@ test.describe('@lifecycle dispatch-my-work', () => {
             await route.continue();
         };
 
-        await page.on('request', requestListener);
+        page.on('request', requestListener);
         await page.route(assignRoute, assignRouteHandler);
-        const submitButton = dialog.getByRole('button', { name: 'Simpan Penugasan' });
+        const submitButton = dialog.getByRole('button', { name: 'Simpan penugasan' });
         const assignmentResponse = page.waitForResponse(
             (response) =>
                 response.url().endsWith('/admin/dispatch/assign') &&
@@ -370,7 +338,11 @@ test.describe('@lifecycle dispatch-my-work', () => {
         );
 
         try {
-            await dialog.locator('form').evaluate((form) => {
+            await dialog.locator('form').evaluate((element) => {
+                if (!(element instanceof HTMLFormElement)) {
+                    throw new Error('Assignment form was not found');
+                }
+                const form = element;
                 const submitter = form.querySelector('button[type="submit"]');
                 if (!(submitter instanceof HTMLButtonElement)) {
                     throw new Error('Assignment submit button was not found');
@@ -405,7 +377,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         }) => {
             await loginAs(page, 'admin');
             const dialog = await openAssignedDispatchDialog(page);
-            const assigneeSelect = dialog.getByLabel('Pilih Petugas Tiket (Handler)');
+            const assigneeSelect = dialog.getByRole('combobox', { name: 'Pilih petugas tiket' });
             const originalAssignee = await assigneeSelect.inputValue();
             const assignUrl = new URL('/admin/dispatch/assign', page.url()).href;
             let assignments = 0;
@@ -420,10 +392,10 @@ test.describe('@lifecycle dispatch-my-work', () => {
 
             try {
                 await page.route(assignUrl, staleHandler);
-                await dialog.getByRole('button', { name: 'Simpan Penugasan' }).click();
-                await expect(dialog.getByText('Konflik Konkurensi', { exact: true })).toBeVisible();
+                await dialog.getByRole('button', { name: 'Simpan penugasan' }).click();
+                await expect(dialog.getByText('Data berubah', { exact: true })).toBeVisible();
                 await expect(assigneeSelect).toBeDisabled();
-                await expect(dialog.getByRole('button', { name: 'Simpan Penugasan' })).toHaveCount(
+                await expect(dialog.getByRole('button', { name: 'Simpan penugasan' })).toHaveCount(
                     0,
                 );
                 await expect(dialog.getByRole('status')).toBeFocused();
@@ -432,13 +404,11 @@ test.describe('@lifecycle dispatch-my-work', () => {
                 await exerciseReload(page, outcome, expectHttpError);
 
                 if (outcome === 'success') {
-                    await expect(
-                        dialog.getByText('Konflik Konkurensi', { exact: true }),
-                    ).toHaveCount(0);
+                    await expect(dialog.getByText('Data berubah', { exact: true })).toHaveCount(0);
                     await expect(assigneeSelect).toBeEnabled();
                     await expect(assigneeSelect).toHaveValue(originalAssignee);
                     await expect(
-                        dialog.getByRole('button', { name: 'Simpan Penugasan' }),
+                        dialog.getByRole('button', { name: 'Simpan penugasan' }),
                     ).toBeEnabled();
                     await dialog.getByRole('button', { name: 'Batal', exact: true }).click();
                     await expect(dialog).toBeHidden();
@@ -446,10 +416,10 @@ test.describe('@lifecycle dispatch-my-work', () => {
                     await expect(dialog).toBeVisible();
                     await expect(assigneeSelect).toBeDisabled();
                     await expect(
-                        dialog.getByRole('button', { name: 'Simpan Penugasan' }),
+                        dialog.getByRole('button', { name: 'Simpan penugasan' }),
                     ).toHaveCount(0);
                     await expect(
-                        dialog.getByRole('button', { name: 'Muat Ulang Antrean' }),
+                        dialog.getByRole('button', { name: 'Muat ulang antrean' }),
                     ).toBeEnabled();
                 }
                 expect(assignments).toBe(1);
@@ -463,7 +433,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/dispatch?status=assigned');
         const row = page.getByRole('row').filter({ hasText: 'E2E Dispatch Ticket' }).first();
-        const opener = row.getByRole('button', { name: 'Ganti Petugas', exact: true });
+        const opener = row.getByRole('button', { name: 'Ganti petugas', exact: true });
         const dialog = page.getByRole('dialog');
         let mutations = 0;
         const onRequest = (request: Request) => {
@@ -514,7 +484,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
                 .filter({ has: page.getByText(title, { exact: true }) })
                 .last();
             await expectMobileBounds(page, card);
-            const opener = card.getByRole('button', { name: 'Ganti Petugas', exact: true });
+            const opener = card.getByRole('button', { name: 'Ganti petugas', exact: true });
             await expectMobileBounds(page, opener);
             expect((await opener.boundingBox())!.height).toBeGreaterThanOrEqual(44);
             await opener.click();
@@ -522,7 +492,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
             const dialog = page.getByRole('dialog');
             await expectMobileBounds(page, dialog);
             const submit = dialog.getByRole('button', {
-                name: 'Simpan Penugasan',
+                name: 'Simpan penugasan',
                 exact: true,
             });
             const cancel = dialog.getByRole('button', { name: 'Batal', exact: true });

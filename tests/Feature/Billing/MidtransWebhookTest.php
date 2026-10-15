@@ -360,9 +360,9 @@ class MidtransWebhookTest extends TestCase
     public static function unpayableInvoices(): array
     {
         return [
-            'cancelled' => ['cancelled', '0', 'Invoice does not accept payments in its current status.'],
-            'draft' => ['draft', '0', 'Invoice does not accept payments in its current status.'],
-            'already paid' => ['paid', '100000', 'Invoice does not accept payments in its current status.'],
+            'cancelled' => ['cancelled', '0', 'Tagihan tidak menerima pembayaran pada statusnya saat ini.'],
+            'draft' => ['draft', '0', 'Tagihan tidak menerima pembayaran pada statusnya saat ini.'],
+            'already paid' => ['paid', '100000', 'Tagihan tidak menerima pembayaran pada statusnya saat ini.'],
         ];
     }
 
@@ -394,7 +394,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertCount(1, $this->payments());
         $quarantined = $this->freshAttempt($attempt);
         $this->assertSame('exception', $quarantined->status);
-        $this->assertSame('Payment amount exceeds remaining balance.', $quarantined->status_reason);
+        $this->assertSame('Jumlah pembayaran melebihi sisa tagihan.', $quarantined->status_reason);
         $this->assertSame('30000.00', $this->freshInvoice($attempt)->paid_amount);
     }
 
@@ -414,7 +414,7 @@ class MidtransWebhookTest extends TestCase
         $this->notify($attempt)->assertOk();
 
         $this->assertCount(1, $this->payments());
-        $this->assertSame('Payment reference already exists.', $this->freshAttempt($attempt)->status_reason);
+        $this->assertSame('Referensi pembayaran sudah ada.', $this->freshAttempt($attempt)->status_reason);
         $this->assertSame('exception', $this->freshAttempt($attempt)->status);
     }
 

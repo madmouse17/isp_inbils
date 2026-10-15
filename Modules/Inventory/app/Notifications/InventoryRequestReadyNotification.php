@@ -29,7 +29,7 @@ class InventoryRequestReadyNotification extends Notification implements ShouldQu
     {
         return (new MailMessage())
             ->subject('Permintaan Barang Siap Diambil: '.$this->requestCode)
-            ->line('Barang untuk permintaan Anda telah selesai disiapkan oleh gudang dan siap diambil (pickup).')
+            ->line('Barang untuk permintaan Anda sudah disiapkan gudang dan siap diambil.')
             ->line('Kode Permintaan: '.$this->requestCode)
             ->action('Lihat Detail', url('/admin/inventory/requests/'.$this->requestId));
     }

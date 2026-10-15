@@ -1,6 +1,6 @@
 # Web UI consistency: pickers, record selection, Bahasa Indonesia, status badges
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `ui-consistency`
 Source: owner request 2026-10-14 (grill-me): "list tanggal yang masih input manual, yang masih menulis reference id / product id manual yang tidak langsung ambil dari tabel biar valid, belum konsistensi bahasa Indonesia semua content atau tulisan di web, masih belum memakai dropdown search, ada status yang belum dipakai badge". Owner approved grilling rounds 1–2 (Q1–Q11) with every recommendation and delegated round 3 ("saya ikut saran anda, buatkan specs atau tiket"); R1–R9 are the assistant's.
 

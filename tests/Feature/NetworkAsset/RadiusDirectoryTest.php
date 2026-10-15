@@ -241,6 +241,25 @@ class RadiusDirectoryTest extends TestCase
         $this->assertSame(['input_octets' => 0, 'output_octets' => 0], $this->radius->usageSince('nobody@acme', new \DateTimeImmutable('2026-10-01')));
     }
 
+    public function test_last_seen_is_the_newest_stop_time_of_that_user_only(): void
+    {
+        $this->seedRadiusSession(['acctstarttime' => '2026-10-13 06:00:00', 'acctstoptime' => '2026-10-13 07:30:00']);
+        $this->seedRadiusSession(['acctstarttime' => '2026-10-14 06:00:00', 'acctstoptime' => '2026-10-14 06:45:10']);
+        $this->seedRadiusSession(['acctstarttime' => '2026-10-12 06:00:00', 'acctstoptime' => '2026-10-12 06:10:00']);
+        $this->seedRadiusSession(['username' => 'ani@acme', 'acctstoptime' => '2026-10-15 00:00:00']);
+        $this->seedRadiusSession(['acctstarttime' => '2026-10-14 08:00:00']);
+
+        $this->assertSame('2026-10-14 06:45:10', $this->radius->lastSeen('budi@acme'));
+    }
+
+    public function test_last_seen_is_null_while_no_session_of_the_user_has_ended(): void
+    {
+        $this->seedRadiusSession();
+
+        $this->assertNull($this->radius->lastSeen('budi@acme'));
+        $this->assertNull($this->radius->lastSeen('nobody@acme'));
+    }
+
     public function test_every_method_refuses_without_a_query_while_switched_off(): void
     {
         config(['services.radius.enabled' => false]);
@@ -257,6 +276,7 @@ class RadiusDirectoryTest extends TestCase
             fn () => $this->radius->openSessions('budi@acme'),
             fn () => $this->radius->sessionsOnNas('192.0.2.10'),
             fn () => $this->radius->usageSince('budi@acme', $from),
+            fn () => $this->radius->lastSeen('budi@acme'),
         ];
         foreach ($calls as $call) {
             $this->assertSame(RadiusException::DISABLED, $this->kind($call));

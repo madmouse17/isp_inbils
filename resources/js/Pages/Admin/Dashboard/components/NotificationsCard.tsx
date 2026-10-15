@@ -1,6 +1,8 @@
 import { Link } from '@inertiajs/react';
-import { Badge, Card } from '@/Components/ui';
+import { Card } from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
 import { formatDateTime } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import type { DashboardNotification } from '@/types/dashboard';
 
 interface NotificationsCardProps {
@@ -8,6 +10,8 @@ interface NotificationsCardProps {
 }
 
 export function NotificationsCard({ items }: NotificationsCardProps) {
+    const company = useCompany();
+
     return (
         <Card>
             {items.length === 0 ? (
@@ -16,19 +20,20 @@ export function NotificationsCard({ items }: NotificationsCardProps) {
                 <ul className="divide-y divide-border">
                     {items.map((item) => (
                         <li key={item.id} className="space-y-1 p-4">
-                            <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium text-foreground">{item.title}</p>
-                                {!item.read_at && (
-                                    <Badge variant="info" className="shrink-0 whitespace-nowrap">
-                                        Belum dibaca
-                                    </Badge>
+                            <p
+                                className={cn(
+                                    'text-sm text-foreground',
+                                    item.read_at ? 'font-normal' : 'font-semibold',
                                 )}
-                            </div>
+                            >
+                                {!item.read_at && <span className="sr-only">Belum dibaca: </span>}
+                                {item.title}
+                            </p>
                             <p className="text-sm wrap-break-word text-muted-foreground">
                                 {item.message}
                             </p>
                             <p className="text-xs text-muted-foreground">
-                                {formatDateTime(item.created_at)}
+                                {formatDateTime(item.created_at, company)}
                             </p>
                         </li>
                     ))}

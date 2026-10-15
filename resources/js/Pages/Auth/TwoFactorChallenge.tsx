@@ -33,23 +33,23 @@ export default function TwoFactorChallenge() {
 
     return (
         <GuestLayout>
-            <Head title="Two-factor authentication" />
+            <Head title="Autentikasi dua langkah" />
 
             <h1 className="text-xl font-semibold tracking-tight text-foreground">
-                Two-factor authentication
+                Autentikasi dua langkah
             </h1>
 
             <p className="mt-2 mb-4 text-sm text-muted-foreground">
                 {usingRecoveryCode
-                    ? 'Enter one of your recovery codes. Each code works only once.'
-                    : 'Enter the 6-digit code from your authenticator app.'}
+                    ? 'Masukkan salah satu kode pemulihan Anda. Setiap kode hanya berlaku sekali.'
+                    : 'Masukkan kode 6 digit dari aplikasi autentikator Anda.'}
             </p>
 
             <form onSubmit={submit} className="space-y-4">
                 <Input
                     id="code"
                     ref={codeInput}
-                    label={usingRecoveryCode ? 'Recovery code' : 'Authentication code'}
+                    label={usingRecoveryCode ? 'Kode pemulihan' : 'Kode autentikasi'}
                     name="code"
                     value={data.code}
                     inputMode={usingRecoveryCode ? 'text' : 'numeric'}
@@ -63,7 +63,7 @@ export default function TwoFactorChallenge() {
                 />
 
                 <Button type="submit" className="w-full" loading={processing}>
-                    Log in
+                    Masuk
                 </Button>
             </form>
 
@@ -71,16 +71,16 @@ export default function TwoFactorChallenge() {
                 <button
                     type="button"
                     onClick={toggleMethod}
-                    className="rounded-md font-medium text-primary underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
+                    className="inline-flex min-h-11 items-center rounded-md font-medium text-primary underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
                 >
-                    {usingRecoveryCode ? 'Use an authentication code' : 'Use a recovery code'}
+                    {usingRecoveryCode ? 'Pakai kode autentikasi' : 'Pakai kode pemulihan'}
                 </button>
 
                 <Link
                     href={route('login')}
-                    className="rounded-md text-muted-foreground underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden"
+                    className="inline-flex min-h-11 items-center rounded-md text-muted-foreground underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
                 >
-                    Back to log in
+                    Kembali ke halaman masuk
                 </Link>
             </div>
         </GuestLayout>

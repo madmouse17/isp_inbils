@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
+import { useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
-import { Button, Input, Modal, NativeSelect } from '@/Components/ui';
+import { Button, Input, Modal, SearchSelect, type SearchSelectOption } from '@/Components/ui';
 import type { PopOption, VlanRow } from '@/types/ipam-odn';
 
 interface VlanDialogProps {
@@ -20,6 +21,12 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
     });
     const { data, setData, errors, processing } = form;
 
+    const popOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            locations.map((pop) => ({ value: String(pop.id), label: `${pop.code} - ${pop.name}` })),
+        [locations],
+    );
+
     const submit = (event: FormEvent) => {
         event.preventDefault();
         const options = { preserveScroll: true, onSuccess: onClose };
@@ -32,12 +39,12 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
     };
 
     return (
-        <Modal open onClose={onClose} title={vlan ? `Edit VLAN ${vlan.vid}` : 'New VLAN'}>
+        <Modal open onClose={onClose} title={vlan ? `Ubah VLAN ${vlan.vid}` : 'Buat VLAN'}>
             <form onSubmit={submit} className="space-y-4">
                 <div className="grid gap-4 sm:grid-cols-[8rem_1fr]">
                     <Input
                         id="vlan-vid"
-                        label="VLAN ID"
+                        label="ID VLAN"
                         type="number"
                         min={1}
                         max={4094}
@@ -48,7 +55,7 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
                     />
                     <Input
                         id="vlan-name"
-                        label="Name"
+                        label="Nama"
                         value={data.name}
                         onChange={(event) => setData('name', event.target.value)}
                         error={errors.name}
@@ -56,24 +63,20 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
                         required
                     />
                 </div>
-                <NativeSelect
+                <SearchSelect
                     id="vlan-pop"
                     label="POP"
                     value={data.location_id}
-                    onChange={(event) => setData('location_id', event.target.value)}
+                    onChange={(value) => setData('location_id', value)}
+                    options={popOptions}
+                    placeholder="Seluruh perusahaan"
+                    emptyText="Tidak ada POP yang cocok."
                     error={errors.location_id}
-                    hint="The same VLAN ID can exist at several POPs, but only once per POP."
-                    options={[
-                        { value: '', label: 'Company-wide' },
-                        ...locations.map((pop) => ({
-                            value: String(pop.id),
-                            label: `${pop.code} - ${pop.name}`,
-                        })),
-                    ]}
+                    hint="ID VLAN yang sama boleh ada di beberapa POP, tetapi hanya sekali per POP."
                 />
                 <Input
                     id="vlan-description"
-                    label="Description"
+                    label="Keterangan"
                     value={data.description}
                     onChange={(event) => setData('description', event.target.value)}
                     error={errors.description}
@@ -81,10 +84,10 @@ export function VlanDialog({ onClose, vlan, locations }: VlanDialogProps) {
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        {vlan ? 'Save' : 'Register VLAN'}
+                        {vlan ? 'Simpan' : 'Daftarkan VLAN'}
                     </Button>
                 </div>
             </form>

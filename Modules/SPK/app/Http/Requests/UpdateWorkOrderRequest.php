@@ -2,9 +2,11 @@
 
 namespace Modules\SPK\Http\Requests;
 
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
@@ -22,10 +24,37 @@ class UpdateWorkOrderRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'customer_id' => ['nullable', Rule::exists('customers', 'id')->where('company_id', $companyId)],
-            'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
+            'subscription_id' => ['nullable', 'integer', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)->withoutTrashed()],
             'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
-            'scheduled_date' => ['nullable', 'date'],
+            'scheduled_date' => ['nullable', 'date_format:Y-m-d'],
+        ];
+    }
+
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                if (! $this->hasAny(['customer_id', 'subscription_id']) || $validator->errors()->hasAny(['customer_id', 'subscription_id'])) {
+                    return;
+                }
+
+                // The pair is checked as it would be stored: a side the request leaves out stays what the SPK has now.
+                $workOrder = $this->route('wo');
+                $customerId = $this->has('customer_id') ? $this->input('customer_id') : $workOrder?->customer_id;
+                $subscriptionId = $this->has('subscription_id') ? $this->input('subscription_id') : $workOrder?->subscription_id;
+
+                if (! $customerId || ! $subscriptionId) {
+                    return;
+                }
+
+                $subscription = ServiceSubscription::query()
+                    ->where('company_id', CompanyService::currentId())
+                    ->find($subscriptionId);
+                if ($subscription && (int) $subscription->customer_id !== (int) $customerId) {
+                    $validator->errors()->add('subscription_id', 'Langganan bukan milik pelanggan yang dipilih.');
+                }
+            },
         ];
     }
 }

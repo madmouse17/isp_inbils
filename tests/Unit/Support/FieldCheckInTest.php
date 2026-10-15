@@ -72,26 +72,6 @@ class FieldCheckInTest extends TestCase
         $this->assertNull(FieldCheckIn::site());
     }
 
-    /** @param  array<string, mixed>  $properties */
-    #[DataProvider('summaries')]
-    public function test_the_web_summary(array $properties, string $expected): void
-    {
-        $this->assertSame($expected, FieldCheckIn::summary($properties));
-    }
-
-    /** @return array<string, array{0: array<string, mixed>, 1: string}> */
-    public static function summaries(): array
-    {
-        return [
-            'near the site' => [['status' => 'recorded', 'lat' => -6.2, 'lng' => 106.8, 'accuracy_m' => 15.0, 'distance_m' => 120], 'Check-in 120 m from site (accuracy ±15 m)'],
-            'far from the site' => [['status' => 'recorded', 'lat' => -6.2, 'lng' => 106.8, 'accuracy_m' => null, 'distance_m' => 15400], 'Check-in 15,400 m from site'],
-            'the site has no coordinates' => [['status' => 'recorded', 'lat' => -6.2, 'lng' => 106.8, 'accuracy_m' => 8.5, 'distance_m' => null], 'Check-in recorded, no site location to compare (accuracy ±8.5 m)'],
-            'no fix' => [['status' => 'unavailable', 'reason' => 'permission_denied'], 'Check-in unavailable (permission denied)'],
-            'a row with only the reason' => [['reason' => 'no_fix'], 'Check-in unavailable (no fix)'],
-            'an empty row' => [[], 'Check-in unavailable (no reason given)'],
-        ];
-    }
-
     /** @param  array<string, mixed>  $input */
     #[DataProvider('validInputs')]
     public function test_valid_check_ins_pass_and_only_known_keys_are_kept(array $input): void

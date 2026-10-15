@@ -67,7 +67,7 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->json('data.0');
 
         $this->assertSame([
-            'id', 'code', 'status', 'package', 'mrc_amount', 'installation_address', 'activation_date',
+            'id', 'code', 'status', 'suspension_reason', 'package', 'mrc_amount', 'installation_address', 'activation_date',
             'billing_day', 'next_invoice_date', 'contract_months', 'expiration_date',
         ], array_keys($list));
         $this->assertSame(['id', 'name', 'category'], array_keys($list['package']));
@@ -80,6 +80,27 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->assertJsonPath('data.id', $subscription->id);
         $this->api('GET', 'customer/subscriptions/'.$foreign->id, token: $this->issueToken($user, 'customer'))
             ->assertNotFound();
+    }
+
+    public function test_suspension_reason_names_how_a_suspended_subscription_was_put_on_hold_and_is_null_otherwise(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $token = $this->issueToken($user, 'customer');
+        $cases = [
+            'overdue' => $this->subscriptionFor($customer, ['status' => 'suspended', 'suspension_source' => 'overdue']),
+            'manual' => $this->subscriptionFor($customer, ['status' => 'suspended', 'suspension_source' => 'manual']),
+            'legacy suspended row without a source' => $this->subscriptionFor($customer, ['status' => 'suspended', 'suspension_source' => null]),
+            'active' => $this->subscriptionFor($customer, ['status' => 'active', 'suspension_source' => null]),
+            'active with a leftover source' => $this->subscriptionFor($customer, ['status' => 'active', 'suspension_source' => 'overdue']),
+        ];
+        $expected = ['overdue' => 'overdue', 'manual' => 'manual', 'legacy suspended row without a source' => null, 'active' => null, 'active with a leftover source' => null];
+
+        $listed = collect($this->api('GET', 'customer/subscriptions?per_page=50', token: $token)->assertOk()->json('data'))->pluck('suspension_reason', 'id');
+
+        foreach ($cases as $label => $subscription) {
+            $this->assertSame($expected[$label], $listed[$subscription->id], "list: {$label}");
+            $this->api('GET', 'customer/subscriptions/'.$subscription->id, token: $token)->assertOk()->assertJsonPath('data.suspension_reason', $expected[$label]);
+        }
     }
 
     public function test_package_category_is_loaded_without_a_query_per_subscription(): void
@@ -108,7 +129,8 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->assertJsonPath('code', 'forbidden');
     }
 
-    private function subscriptionFor(Customer $customer): ServiceSubscription
+    /** @param array<string, mixed> $overrides */
+    private function subscriptionFor(Customer $customer, array $overrides = []): ServiceSubscription
     {
         $address = CustomerAddress::factory()->create([
             'company_id' => $customer->company_id,
@@ -137,6 +159,7 @@ class ProfileAndSubscriptionsTest extends TestCase
             'mrc_amount' => 250000,
             'serving_pop_id' => null,
             'notes' => 'private note',
+            ...$overrides,
         ]);
     }
 

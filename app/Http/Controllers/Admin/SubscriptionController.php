@@ -25,8 +25,6 @@ use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
-use Modules\Service\Http\Resources\ServicePackageResource;
-use Modules\Service\Models\ServicePackage;
 use Modules\Service\Services\ServicePackageOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -35,6 +33,9 @@ class SubscriptionController extends Controller
     use HasIndexQuery;
 
     private const SORTABLE = ['code', 'status', 'created_at'];
+
+    /** Export labels; the stored values stay as they are (`lib/statuses/subscription.ts` carries the same words for the pages). */
+    private const STATUS_LABELS = ['pending' => 'Menunggu', 'active' => 'Aktif', 'suspended' => 'Ditangguhkan', 'terminated' => 'Berhenti'];
 
     public function indexForCustomer(Customer $customer, Request $request): InertiaResponse
     {
@@ -46,7 +47,6 @@ class SubscriptionController extends Controller
             'subscriptions' => SubscriptionResource::collection(
                 $this->filteredQuery($customer, $request)->paginate(10)->withQueryString()
             ),
-            'packages' => ServicePackageResource::collection(ServicePackage::query()->where('is_active', true)->orderBy('name')->get()),
             'packageGroups' => ServicePackageOptions::grouped($customer->type),
             'addresses' => CustomerAddressResource::collection($customer->addresses()->latest()->get()),
             'filters' => $request->only(['search', 'service_package_id', 'status', 'sort', 'direction']),
@@ -65,7 +65,7 @@ class SubscriptionController extends Controller
         SubscriptionService::create($data);
 
         return redirect()->route('admin.customers.subscriptions.index', $customer)
-            ->with('success', 'Subscription created.');
+            ->with('success', 'Langganan dibuat.');
     }
 
     public function show(Request $request, ServiceSubscription $subscription): InertiaResponse
@@ -94,7 +94,7 @@ class SubscriptionController extends Controller
             ...($canAssignIp ? ['staticPools' => IpPrefixUtilisationQuery::staticPools($subscription->serving_pop_id)] : []),
             'dropPort' => ($user?->can('odn.view') ?? false) ? OdnService::dropPortFor($subscription) : null,
             // Free ODP ports under the serving POP; evaluated only on a partial reload that asks for it.
-            ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($subscription->serving_pop_id))] : []),
+            ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $subscription->serving_pop_id)] : []),
             'can' => ['assignIp' => $canAssignIp, 'assignDrop' => $canAssignDrop, 'block' => $user?->can('customer.subscription.block') ?? false],
         ]);
     }
@@ -123,13 +123,13 @@ class SubscriptionController extends Controller
                 if ($generatedSpk) {
                     $generatedSpk->update([
                         'subscription_id' => $subscription->id,
-                        'title' => 'Installation '.$subscription->code.' - '.($subscription->customer->name ?? ''),
+                        'title' => 'Pemasangan '.$subscription->code.' - '.($subscription->customer->name ?? ''),
                     ]);
                 }
             }
         });
 
-        return back()->with('success', 'Subscription updated.');
+        return back()->with('success', 'Langganan diperbarui.');
     }
 
     public function activate(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -139,7 +139,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::activate($subscription);
 
-        return back()->with('success', 'Subscription activated.');
+        return back()->with('success', 'Langganan diaktifkan.');
     }
 
     public function suspend(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -154,7 +154,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::suspend($subscription, $validated['reason'], $validated['source'] ?? 'manual');
 
-        return back()->with('success', 'Subscription suspended.');
+        return back()->with('success', 'Langganan ditangguhkan.');
     }
 
     public function block(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -166,7 +166,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::block($subscription, $validated['reason']);
 
-        return back()->with('success', 'Subscription blocked.');
+        return back()->with('success', 'Internet langganan diblokir.');
     }
 
     public function unblock(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -178,7 +178,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::unblock($subscription, $validated['reason'] ?? null);
 
-        return back()->with('success', 'Subscription unblocked.');
+        return back()->with('success', 'Blokir internet langganan dibuka.');
     }
 
     public function reactivate(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -188,7 +188,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::reactivate($subscription);
 
-        return back()->with('success', 'Subscription reactivated.');
+        return back()->with('success', 'Langganan diaktifkan kembali.');
     }
 
     public function terminate(Request $request, ServiceSubscription $subscription): RedirectResponse
@@ -203,7 +203,7 @@ class SubscriptionController extends Controller
 
         SubscriptionService::terminate($subscription, $request->input('reason'), $request->boolean('release_ont'));
 
-        return back()->with('success', 'Subscription terminated.');
+        return back()->with('success', 'Langganan dihentikan.');
     }
 
     public function export(Customer $customer, Request $request): HttpResponse|StreamedResponse
@@ -217,19 +217,19 @@ class SubscriptionController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'code' => 'Code',
-            'service_package' => 'Package',
+            'code' => 'Kode',
+            'service_package' => 'Paket',
             'status' => 'Status',
-            'billing_day' => 'Billing Day',
-            'mrc_amount' => 'MRC',
-            'otc_installation_fee' => 'OTC',
-            'activation_date' => 'Activated',
-            'expiration_date' => 'Expires',
+            'billing_day' => 'Tanggal tagihan',
+            'mrc_amount' => 'Biaya bulanan',
+            'otc_installation_fee' => 'Biaya pemasangan',
+            'activation_date' => 'Tanggal aktivasi',
+            'expiration_date' => 'Tanggal berakhir',
         ];
         $map = static fn (ServiceSubscription $subscription): array => [
             'code' => $subscription->code,
             'service_package' => $subscription->servicePackage->name ?? '-',
-            'status' => $subscription->status,
+            'status' => self::STATUS_LABELS[$subscription->status] ?? $subscription->status,
             'billing_day' => $subscription->billing_day,
             'mrc_amount' => $subscription->mrc_amount,
             'otc_installation_fee' => $subscription->otc_installation_fee,
@@ -240,7 +240,7 @@ class SubscriptionController extends Controller
         $filename = 'subscriptions-'.$customer->id.'-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Subscriptions', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Langganan', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

@@ -190,11 +190,11 @@ class ReportPackageCategoryFilterTest extends TestCase
     public function test_export_states_the_filter_and_which_figures_it_does_not_limit(): void
     {
         $rows = $this->csvRecords($this->actingAs($this->admin)->get(route('admin.reports.business.export', [...self::PERIOD, 'service_package_category_id' => $this->rumahan->id])));
-        $byMetric = collect($rows)->keyBy('Metric');
+        $byMetric = collect($rows)->keyBy('Metrik');
 
-        $this->assertStringContainsString('service_package_category_id='.$this->rumahan->id, $byMetric['MRR']['Filters']);
-        $this->assertStringNotContainsString('package category', $byMetric['MRR']['Scope']);
-        $this->assertStringContainsString('Package category filter not applied', $byMetric['SLA Compliance']['Scope']);
+        $this->assertStringContainsString('service_package_category_id='.$this->rumahan->id, $byMetric['MRR']['Filter']);
+        $this->assertStringNotContainsString('kategori paket', $byMetric['MRR']['Cakupan']);
+        $this->assertStringContainsString('Filter kategori paket tidak berlaku', $byMetric['Kepatuhan SLA']['Cakupan']);
     }
 
     public function test_the_category_must_belong_to_the_company(): void

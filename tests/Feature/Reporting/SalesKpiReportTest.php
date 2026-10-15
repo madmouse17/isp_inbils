@@ -316,11 +316,11 @@ class SalesKpiReportTest extends TestCase
         $this->assertStringNotContainsString('Ayu Seller', json_encode($props));
     }
 
-    public function test_acquirer_of_another_company_is_forbidden(): void
+    public function test_acquirer_of_another_company_is_a_validation_error(): void
     {
         $ids = $this->seedTwoCompanies();
 
-        $this->visit(['acquirer_id' => $ids['zed']])->assertForbidden();
+        $this->visit(['acquirer_id' => $ids['zed']])->assertSessionHasErrors(['acquirer_id' => 'Petugas penjualan tidak ditemukan.']);
     }
 
     public function test_user_that_is_neither_eligible_nor_credited_is_forbidden(): void
@@ -333,12 +333,12 @@ class SalesKpiReportTest extends TestCase
         }
     }
 
-    public function test_zero_and_unknown_acquirer_ids_are_forbidden(): void
+    public function test_zero_and_unknown_acquirer_ids_are_a_validation_error(): void
     {
         $this->acquirer('Ayu Seller');
 
         foreach ([0, 999999] as $acquirerId) {
-            $this->visit(['acquirer_id' => $acquirerId])->assertForbidden();
+            $this->visit(['acquirer_id' => $acquirerId])->assertSessionHasErrors(['acquirer_id' => 'Petugas penjualan tidak ditemukan.']);
         }
     }
 

@@ -1,4 +1,5 @@
 import { BarChartLazy, DonutChartLazy } from '@/Components/ui/ChartLazy';
+import { toneColor } from '@/lib/statuses';
 import type { SlaChartData } from '@/types';
 import { ReportChartCard } from './ReportChartCard';
 
@@ -18,8 +19,8 @@ export function SlaCharts({ charts, byCategory }: SlaChartsProps) {
             >
                 <DonutChartLazy
                     data={[
-                        { name: 'Sesuai SLA', value: compliant },
-                        { name: 'Melewati SLA', value: breached },
+                        { name: 'Sesuai SLA', value: compliant, color: toneColor('success') },
+                        { name: 'Melewati SLA', value: breached, color: toneColor('danger') },
                     ]}
                     ariaLabel="Diagram donat tiket selesai yang sesuai dan yang melewati SLA"
                 />

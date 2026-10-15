@@ -19,7 +19,7 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($data) {
             $companyId = CompanyService::currentId();
-            abort_if($companyId === null, 403, 'Company context is required.');
+            abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
             $customer = Customer::query()->forCompany($companyId)->findOrFail($data['customer_id'] ?? null);
             /** @var ServicePackage $package */
@@ -57,7 +57,7 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($subscription) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
-            abort_if($subscription->status !== 'pending', 422, 'Subscription must be pending to activate.');
+            abort_if($subscription->status !== 'pending', 422, 'Langganan harus berstatus Menunggu untuk diaktifkan.');
 
             $subscription->update([
                 'status' => 'active',
@@ -79,7 +79,7 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($subscription, $reason, $source) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
-            abort_if($subscription->status !== 'active', 422, 'Subscription must be active to suspend.');
+            abort_if($subscription->status !== 'active', 422, 'Langganan harus berstatus Aktif untuk ditangguhkan.');
 
             $subscription->forceFill([
                 'status' => 'suspended',
@@ -103,7 +103,7 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($subscription) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
-            abort_if($subscription->status !== 'suspended', 422, 'Subscription must be suspended to reactivate.');
+            abort_if($subscription->status !== 'suspended', 422, 'Langganan harus berstatus Ditangguhkan untuk diaktifkan kembali.');
 
             $subscription->forceFill([
                 'status' => 'active',
@@ -126,8 +126,8 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($subscription, $reason) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
-            abort_if($subscription->status === 'terminated', 422, 'Terminated subscription cannot be blocked.');
-            abort_if($subscription->blocked_at !== null, 422, 'Subscription is already blocked.');
+            abort_if($subscription->status === 'terminated', 422, 'Langganan yang sudah berhenti tidak bisa diblokir.');
+            abort_if($subscription->blocked_at !== null, 422, 'Internet langganan sudah diblokir.');
 
             $subscription->forceFill([
                 'blocked_at' => now(),
@@ -148,7 +148,7 @@ class SubscriptionService
     {
         return DB::transaction(function () use ($subscription, $note) {
             $subscription = ServiceSubscription::lockForUpdate()->findOrFail($subscription->id);
-            abort_if($subscription->blocked_at === null, 422, 'Subscription is not blocked.');
+            abort_if($subscription->blocked_at === null, 422, 'Internet langganan tidak sedang diblokir.');
 
             $subscription->forceFill([
                 'blocked_at' => null,
@@ -167,7 +167,7 @@ class SubscriptionService
 
     public static function terminate(ServiceSubscription $subscription, string $reason, bool $releaseOnt = false): ServiceSubscription
     {
-        abort_if($subscription->status === 'terminated', 422, 'Subscription already terminated.');
+        abort_if($subscription->status === 'terminated', 422, 'Langganan sudah berhenti.');
 
         return DB::transaction(function () use ($subscription, $reason, $releaseOnt) {
             $subscription = ServiceSubscription::with('customer')
@@ -180,15 +180,15 @@ class SubscriptionService
                     ->find($subscription->ont_asset_id);
 
                 if (! $asset) {
-                    abort(422, 'ONT asset is unavailable.');
+                    abort(422, 'Aset ONT tidak tersedia.');
                 }
 
                 if ($asset->subscription_id === null || $asset->subscription_id !== $subscription->id) {
-                    abort(422, 'ONT asset must belong to the subscription.');
+                    abort(422, 'Aset ONT harus terpasang pada langganan ini.');
                 }
 
                 if ($asset->getAttribute('company_id') !== $subscription->customer?->getAttribute('company_id')) {
-                    abort(422, 'ONT asset must belong to the subscription company.');
+                    abort(422, 'Aset ONT harus milik perusahaan langganan ini.');
                 }
 
                 NetworkAssetService::releaseOnt($asset, 'subscription terminated: '.$reason);

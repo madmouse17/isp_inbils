@@ -861,6 +861,12 @@
                                                 "number": {
                                                     "type": "string"
                                                 },
+                                                "subscription_id": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ]
+                                                },
                                                 "issue_date": {
                                                     "type": "string"
                                                 },
@@ -978,6 +984,7 @@
                                             "required": [
                                                 "id",
                                                 "number",
+                                                "subscription_id",
                                                 "issue_date",
                                                 "due_date",
                                                 "status",
@@ -2694,6 +2701,97 @@
                 }
             }
         },
+        "/customer/subscriptions/{id}/connection": {
+            "get": {
+                "operationId": "v1.customer.subscriptions.connection",
+                "description": "Read live from RADIUS. `data` is null while there is nothing true to say: RADIUS is switched off or\nunreachable, or the subscription has no PPPoE account. `online` carries `since` (when the session started),\n`offline` carries `last_seen_at` (when the last session ended, null if none has); both are ISO 8601 with an\noffset. Only the status and those two times leave the server, never an address or a session id.",
+                "summary": "Whether the PPPoE line of the subscription is up now",
+                "tags": [
+                    "SubscriptionConnection"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": [
+                                                "object",
+                                                "null"
+                                            ],
+                                            "properties": {
+                                                "status": {
+                                                    "type": "string",
+                                                    "enum": [
+                                                        "online",
+                                                        "offline"
+                                                    ]
+                                                },
+                                                "since": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last_seen_at": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "status",
+                                                "since",
+                                                "last_seen_at"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/customer/tickets": {
             "get": {
                 "operationId": "v1.customer.tickets.index",
@@ -4106,6 +4204,18 @@
                     "status": {
                         "type": "string"
                     },
+                    "suspension_reason": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Why a suspended subscription is on hold; null for any other status. `overdue` lifts by itself once the unpaid\nbills are paid, `manual` waits for the ISP. A suspension recorded before the reason existed is null too.",
+                        "enum": [
+                            "overdue",
+                            "manual",
+                            null
+                        ]
+                    },
                     "package": {
                         "type": [
                             "object",
@@ -4196,6 +4306,7 @@
                     "id",
                     "code",
                     "status",
+                    "suspension_reason",
                     "package",
                     "mrc_amount",
                     "installation_address",
@@ -4622,6 +4733,7 @@
                     },
                     "company": {
                         "type": "object",
+                        "description": "The ISP behind the login, as the apps brand themselves with it after sign-in. Every field is null until the ISP fills it in.",
                         "properties": {
                             "id": {
                                 "type": [
@@ -4634,11 +4746,64 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "logo_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Absolute URL of the company logo. Public: fetch it without the bearer token. An SVG logo is served as SVG."
+                            },
+                            "brand_color": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "`#RRGGBB` the ISP picked on the company page; the app theme is seeded from it."
+                            },
+                            "phone": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "whatsapp": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Digits and `( ) + -` only, as the ISP typed it."
+                            },
+                            "email": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "website": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "support_hours": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Free text such as `Senin\u2013Sabtu 08.00\u201320.00`."
                             }
                         },
                         "required": [
                             "id",
-                            "name"
+                            "name",
+                            "logo_url",
+                            "brand_color",
+                            "phone",
+                            "whatsapp",
+                            "email",
+                            "website",
+                            "support_hours"
                         ]
                     },
                     "customer": {
@@ -5135,6 +5300,13 @@
                     "number": {
                         "type": "string"
                     },
+                    "subscription_id": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "description": "The subscription this invoice bills; null when it belongs to no single subscription."
+                    },
                     "issue_date": {
                         "type": "string"
                     },
@@ -5230,6 +5402,7 @@
                 "required": [
                     "id",
                     "number",
+                    "subscription_id",
                     "issue_date",
                     "due_date",
                     "status",
@@ -6503,11 +6676,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "customer_hint": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "A short tip the ISP wrote for this category (\"Saran untuk pelanggan\"), at most 500 characters; null when it wrote none."
                     }
                 },
                 "required": [
                     "id",
-                    "name"
+                    "name",
+                    "customer_hint"
                 ],
                 "title": "TicketCategoryResource"
             },

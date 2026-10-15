@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AlertCircle, Check, ShieldAlert, X } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Textarea } from '@/Components/ui';
+import { Alert, AlertDescription, AlertTitle, Button, EnumBadge, Textarea } from '@/Components/ui';
 import {
     Sheet,
     SheetClose,
@@ -11,17 +11,12 @@ import {
     SheetHeader,
     SheetTitle,
 } from '@/Components/ui/sheet';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { APPROVAL_TYPE, PRIORITY, WORK_ITEM_DOMAIN, WORK_ITEM_STATUS } from '@/lib/statuses';
 import type { ApprovalInboxItem } from '@/types';
-import {
-    formatAge,
-    getDomainLabel,
-    getDomainVariant,
-    getItemCompositeId,
-    getPriorityLabel,
-    getPriorityVariant,
-    getStatusLabel,
-    getStatusVariant,
-} from './utils';
+import { formatAge } from '../../MyWork/components/utils';
+import { getItemCompositeId } from './utils';
 
 export interface RefreshQueueResult {
     success: boolean;
@@ -43,6 +38,7 @@ interface ReviewSheetInnerProps {
 }
 
 function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerProps) {
+    const company = useCompany();
     const isInventory = item.domain === 'inventory_request';
     const [isRejecting, setIsRejecting] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
@@ -115,8 +111,8 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 const msg =
                     firstError ||
                     (isInventory
-                        ? 'Gagal menyetujui permintaan barang. Status mungkin telah berubah atau terjadi konflik.'
-                        : 'Gagal menyetujui SPK. Status mungkin telah berubah atau terjadi konflik.');
+                        ? 'Gagal menyetujui permintaan barang. Status mungkin sudah berubah atau ada konflik.'
+                        : 'Gagal menyetujui SPK. Status mungkin sudah berubah atau ada konflik.');
                 setErrorMessage(msg);
                 setIsStale(true);
             },
@@ -161,8 +157,8 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 const msg =
                     firstError ||
                     (isInventory
-                        ? 'Gagal menolak permintaan barang. Status mungkin telah berubah atau terjadi konflik.'
-                        : 'Gagal menolak SPK. Status mungkin telah berubah atau terjadi konflik.');
+                        ? 'Gagal menolak permintaan barang. Status mungkin sudah berubah atau ada konflik.'
+                        : 'Gagal menolak SPK. Status mungkin sudah berubah atau ada konflik.');
                 setErrorMessage(msg);
                 setIsStale(true);
             },
@@ -175,24 +171,18 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 <div className="flex flex-wrap items-center gap-2">
                     <SheetTitle className="text-xl font-bold">
                         {isInventory
-                            ? `Tinjau Permintaan Barang ${item.code}`
+                            ? `Tinjau permintaan barang ${item.code}`
                             : `Tinjau SPK ${item.code}`}
                     </SheetTitle>
-                    <Badge variant={getDomainVariant(item.domain)}>
-                        {getDomainLabel(item.domain)}
-                    </Badge>
-                    <Badge variant={getStatusVariant(item.status)}>
-                        {getStatusLabel(item.status)}
-                    </Badge>
-                    <Badge variant={getPriorityVariant(item.priority)}>
-                        {getPriorityLabel(item.priority)}
-                    </Badge>
-                    <Badge variant="outline">{item.type}</Badge>
+                    <EnumBadge map={WORK_ITEM_DOMAIN} value={item.domain} />
+                    <EnumBadge map={WORK_ITEM_STATUS} value={item.status} />
+                    <EnumBadge map={PRIORITY} value={item.priority} />
+                    <EnumBadge map={APPROVAL_TYPE} value={item.type} />
                 </div>
                 <SheetDescription className="text-sm text-muted-foreground">
                     {isInventory
-                        ? 'Periksa rincian sebelum menyetujui atau menolak permintaan material dalam antrean.'
-                        : 'Periksa rincian sebelum menyetujui atau menolak SPK dalam antrean review.'}
+                        ? 'Periksa rincian sebelum menyetujui atau menolak permintaan barang.'
+                        : 'Periksa rincian sebelum menyetujui atau menolak SPK.'}
                 </SheetDescription>
             </SheetHeader>
 
@@ -200,10 +190,9 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                 className="space-y-5 flex-1 overflow-y-auto p-6"
                 tabIndex={0}
                 aria-label={
-                    isInventory ? 'Detail Peninjauan Permintaan Barang' : 'Detail Peninjauan SPK'
+                    isInventory ? 'Detail peninjauan permintaan barang' : 'Detail peninjauan SPK'
                 }
             >
-                {/* Live status announcements for screen readers */}
                 <div aria-live="polite" className="sr-only">
                     {submitting
                         ? 'Sedang memproses tindakan...'
@@ -212,11 +201,10 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                           : ''}
                 </div>
 
-                {/* Stale or Conflict Error Alert */}
                 {errorMessage && (
                     <Alert variant="destructive" className="space-y-2">
                         <AlertCircle className="h-5 w-5" />
-                        <AlertTitle>Gagal Memproses Tindakan</AlertTitle>
+                        <AlertTitle>Gagal memproses tindakan</AlertTitle>
                         <AlertDescription>{errorMessage}</AlertDescription>
                         {isStale && onRefreshQueue && (
                             <div className="pt-2">
@@ -230,126 +218,118 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                     loading={isReloading}
                                     disabled={isReloading || submitting}
                                 >
-                                    {isReloading ? 'Memuat Ulang...' : 'Muat Ulang Antrean'}
+                                    {isReloading ? 'Memuat ulang...' : 'Muat ulang antrean'}
                                 </Button>
                             </div>
                         )}
                     </Alert>
                 )}
 
-                {/* Maker-checker Warning */}
                 {!isActionable && (
                     <Alert variant="warning">
                         <ShieldAlert className="h-5 w-5" />
-                        <AlertTitle>Aturan Maker-Checker</AlertTitle>
+                        <AlertTitle>Perlu penyetuju lain</AlertTitle>
                         <AlertDescription>
                             {isInventory
-                                ? 'Anda tercatat sebagai pemohon permintaan barang ini. Sesuai prinsip maker-checker dan tata kelola sistem, persetujuan harus dilakukan oleh reviewer independen.'
-                                : 'Anda tercatat sebagai pembuat atau teknisi yang ditugaskan pada SPK ini. Sesuai kebijakan tata kelola sistem, persetujuan harus dilakukan oleh reviewer independen.'}
+                                ? 'Anda tercatat sebagai pemohon permintaan barang ini. Persetujuan harus dilakukan oleh peninjau lain agar pemisahan tugas terjaga.'
+                                : 'Anda tercatat sebagai pembuat atau teknisi yang ditugaskan pada SPK ini. Persetujuan harus dilakukan oleh peninjau lain agar pemisahan tugas terjaga.'}
                         </AlertDescription>
                     </Alert>
                 )}
 
-                {/* General Information Card */}
-                <div className="space-y-3 rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="space-y-3 rounded-lg border border-border bg-card p-4">
                     <h4 className="text-sm font-semibold text-muted-foreground">
-                        {isInventory ? 'Informasi Permintaan Barang' : 'Informasi SPK'}
+                        {isInventory ? 'Informasi permintaan barang' : 'Informasi SPK'}
                     </h4>
                     <div>
                         <p className="text-sm font-semibold text-foreground">{item.title}</p>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    <dl className="grid grid-cols-2 gap-3 text-xs">
                         <div>
-                            <span className="text-muted-foreground">Pemohon:</span>
-                            <p className="font-medium text-foreground">
-                                {item.requester?.name ?? `#${item.requester?.id ?? '-'}`}
-                            </p>
+                            <dt className="text-muted-foreground">Pemohon:</dt>
+                            <dd className="font-medium text-foreground">
+                                {item.requester?.name ?? '-'}
+                            </dd>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Status:</span>
-                            <p className="font-medium text-foreground">
-                                {getStatusLabel(item.status)}
-                            </p>
+                            <dt className="text-muted-foreground">Status:</dt>
+                            <dd>
+                                <EnumBadge map={WORK_ITEM_STATUS} value={item.status} />
+                            </dd>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Pengajuan:</span>
-                            <p className="font-medium text-foreground">
+                            <dt className="text-muted-foreground">Pengajuan:</dt>
+                            <dd className="font-medium text-foreground">
                                 {formatAge(item.age_seconds)}
-                            </p>
+                            </dd>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Tanggal Pengajuan:</span>
-                            <p className="font-medium text-foreground">
-                                {item.submitted_at
-                                    ? new Date(item.submitted_at).toLocaleString('id-ID')
-                                    : '-'}
-                            </p>
+                            <dt className="text-muted-foreground">Tanggal pengajuan:</dt>
+                            <dd className="font-medium text-foreground">
+                                {formatDateTime(item.submitted_at, company)}
+                            </dd>
                         </div>
                         <div className="col-span-2">
-                            <span className="text-muted-foreground">
-                                {isInventory ? 'Tanggal Dibutuhkan:' : 'Jadwal Pelaksanaan:'}
-                            </span>
-                            <p className="font-medium text-foreground">
-                                {item.scheduled_date || '-'}
-                            </p>
+                            <dt className="text-muted-foreground">
+                                {isInventory ? 'Tanggal dibutuhkan:' : 'Jadwal pelaksanaan:'}
+                            </dt>
+                            <dd className="font-medium text-foreground">
+                                {formatDate(item.scheduled_date, company)}
+                            </dd>
                         </div>
-                    </div>
+                    </dl>
                 </div>
 
-                {/* Impact & Material Summary Card */}
-                <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
+                <div className="space-y-2 rounded-lg border border-border bg-card p-4">
                     <h4 className="text-sm font-semibold text-muted-foreground">
-                        Dampak Material & Penggunaan Barang
+                        Dampak material dan penggunaan barang
                     </h4>
                     <p className="text-sm font-medium text-foreground">{item.summary.label}</p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span>
-                            Jenis Item:{' '}
+                            Jenis item:{' '}
                             <strong className="text-foreground">{item.summary.count}</strong>
                         </span>
-                        <span>&middot;</span>
                         <span>
-                            Total Kuantitas:{' '}
+                            Total kuantitas:{' '}
                             <strong className="text-foreground">{item.summary.quantity}</strong>{' '}
                             unit
                         </span>
                     </div>
-                    <p className="pt-1 text-xs text-muted-foreground italic">
+                    <p className="pt-1 text-xs text-muted-foreground">
                         {isInventory
-                            ? '* Persetujuan akan mereservasi stok material di gudang dan mengubah status menjadi Disetujui (Reservasi).'
-                            : '* Persetujuan akan memproses alokasi stok material dan memperbarui status SPK secara permanen.'}
+                            ? 'Persetujuan akan mencadangkan stok di gudang dan mengubah status menjadi Disetujui.'
+                            : 'Persetujuan akan memproses alokasi stok material dan memperbarui status SPK secara permanen.'}
                     </p>
                 </div>
 
-                {/* Optional Approval Note for Inventory Request */}
                 {isInventory && item.actions.approve && !isRejecting && (
-                    <div className="space-y-2 rounded-lg border border-border bg-card p-4 shadow-xs">
+                    <div className="space-y-2 rounded-lg border border-border bg-card p-4">
                         <label
                             htmlFor="inv-approve-note"
                             className="text-sm font-semibold text-muted-foreground"
                         >
-                            Catatan Persetujuan (Opsional)
+                            Catatan persetujuan (opsional)
                         </label>
                         <Textarea
                             id="inv-approve-note"
                             rows={2}
                             value={approveNote}
                             onChange={(e) => setApproveNote(e.target.value)}
-                            placeholder="Contoh: Disetujui sesuai kuota proyek atau stok gudang..."
+                            placeholder="Contoh: disetujui sesuai kuota proyek atau stok gudang..."
                             disabled={submitting || isStale || isReloading}
                             className="text-xs"
                         />
                     </div>
                 )}
 
-                {/* Reject Reason Form Section */}
                 {isRejecting && (
                     <div className="space-y-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
                         <div className="flex items-center justify-between">
                             <h4 className="text-sm font-semibold text-destructive-text">
                                 {isInventory
-                                    ? 'Konfirmasi Penolakan Permintaan Barang'
-                                    : 'Konfirmasi Penolakan SPK'}
+                                    ? 'Konfirmasi penolakan permintaan barang'
+                                    : 'Konfirmasi penolakan SPK'}
                             </h4>
                             <span className="text-xs text-muted-foreground">
                                 {rejectReason.length}/500 karakter
@@ -357,7 +337,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                         </div>
                         <Textarea
                             id="spk-reject-reason"
-                            label="Alasan Penolakan"
+                            label="Alasan penolakan"
                             required
                             autoFocus
                             value={rejectReason}
@@ -367,22 +347,20 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                             }}
                             placeholder={
                                 isInventory
-                                    ? 'Tuliskan alasan spesifik mengapa permintaan barang ini ditolak...'
-                                    : 'Tuliskan alasan spesifik mengapa SPK ini ditolak...'
+                                    ? 'Tulis alasan spesifik mengapa permintaan barang ini ditolak...'
+                                    : 'Tulis alasan spesifik mengapa SPK ini ditolak...'
                             }
                             error={rejectReasonError ?? undefined}
                             disabled={submitting || isStale || isReloading}
                             rows={3}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Alasan ini akan tersimpan dalam riwayat audit dan diteruskan kepada
-                            pemohon.
+                            Alasan ini tersimpan di riwayat audit dan diteruskan kepada pemohon.
                         </p>
                     </div>
                 )}
             </div>
 
-            {/* Footer Actions */}
             <SheetFooter className="border-t border-border bg-muted/20 p-4">
                 <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -424,7 +402,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                     }
                                     leftIcon={<X className="h-4 w-4" />}
                                 >
-                                    Konfirmasi Tolak
+                                    Konfirmasi tolak
                                 </Button>
                             </>
                         ) : (

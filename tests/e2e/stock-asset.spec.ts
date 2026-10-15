@@ -1,8 +1,8 @@
 import { readFileSync } from 'node:fs';
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
 import { expect, test } from './support/fixtures';
-import { loginAs } from './support/demo';
+import { loginAs, selectSearchOption } from './support/demo';
 
 test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
     // Skipped: UI refactors broke test selectors and DB setup
@@ -18,8 +18,8 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await page.getByRole('button', { name: 'Terima Barang' }).click();
 
         const dialog = page.getByRole('dialog', { name: 'Terima Barang' });
-        const productOption = await selectFirstRealOption(dialog.getByRole('combobox').nth(0));
-        const locationOption = await selectFirstRealOption(dialog.getByRole('combobox').nth(1));
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await selectSearchOption(page, 'Lokasi', 'E2E Rack 01');
         await dialog.getByLabel('Jumlah').fill('3');
         await dialog.getByLabel('Catatan').fill(note);
         await dialog.getByRole('button', { name: 'Simpan' }).click();
@@ -28,14 +28,14 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await expect(
             page.getByRole('main').getByRole('heading', { name: 'Mutasi Stok' }),
         ).toBeVisible();
-        await page.getByLabel('Type').selectOption('receive');
-        await page.getByRole('button', { name: 'Filter' }).click();
+        // The type filter applies at once: there is no Filter button.
+        await page.getByLabel('Jenis', { exact: true }).selectOption('receive');
 
         const row = page.getByRole('row').filter({ hasText: note });
-        await expect(row).toContainText('receive');
-        await expect(row).toContainText(productOption.productName);
-        await expect(row).toContainText('3.00');
-        await expect(row).toContainText(locationOption.locationName);
+        await expect(row).toContainText('Masuk');
+        await expect(row).toContainText('E2E Stock Product');
+        await expect(row.getByRole('cell').filter({ hasText: /^3([.,]00)?$/ })).toHaveCount(1);
+        await expect(row).toContainText('E2E Rack 01');
     });
 
     test('@receive-modal keyboard, mobile, and dark-mode runtime proof', async ({ page }) => {
@@ -54,12 +54,12 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         const dialog = page.getByRole('dialog', { name: 'Terima Barang' });
         await expect(dialog).toBeVisible();
         await expect(dialog).toBeInViewport();
-        await expect(dialog.getByLabel('Produk')).toBeFocused();
+        await expect(dialog.getByRole('combobox', { name: 'Barang' })).toBeFocused();
 
         await page.keyboard.press('Shift+Tab');
         await expect(dialog.getByRole('button', { name: 'Tutup' })).toBeFocused();
         await page.keyboard.press('Tab');
-        await expect(dialog.getByLabel('Produk')).toBeFocused();
+        await expect(dialog.getByRole('combobox', { name: 'Barang' })).toBeFocused();
 
         await page.keyboard.press('Escape');
         await expect(dialog).toBeHidden();
@@ -86,7 +86,7 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
         await page.getByRole('link', { name: 'E2E-LINKED-SUB' }).click();
         await expect(page).toHaveURL(/\/admin\/subscriptions\/\d+$/);
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Subscription E2E-LINKED-SUB' }),
+            page.getByRole('main').getByRole('heading', { name: 'Langganan E2E-LINKED-SUB' }),
         ).toBeVisible();
     });
 });
@@ -164,25 +164,4 @@ async function openLinkedAsset(page: Page) {
         .filter({ hasText: 'E2E-LINKED-ASSET-001' })
         .getByRole('link', { name: 'Lihat', exact: true })
         .click();
-}
-
-async function selectFirstRealOption(select: Locator) {
-    const option = select.locator('option').nth(1);
-    const value = await option.getAttribute('value');
-    const fullLabel = (await option.textContent())?.trim();
-    const displayLabel = fullLabel?.split(' - ').pop()?.trim();
-
-    expect(value).toBeTruthy();
-    expect(fullLabel).toBeTruthy();
-    expect(displayLabel).toBeTruthy();
-    await select.selectOption(value!);
-
-    const productName = fullLabel?.split(' (')[0]?.trim();
-    const locationName = displayLabel?.split(' (')[0]?.trim();
-    return {
-        fullLabel: fullLabel!,
-        displayLabel: displayLabel!,
-        productName: productName!,
-        locationName: locationName!,
-    };
 }

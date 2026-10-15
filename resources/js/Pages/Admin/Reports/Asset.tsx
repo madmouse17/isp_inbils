@@ -13,7 +13,8 @@ import {
     Card,
     CardContent,
     DateRangePicker,
-    NativeSelect,
+    EnumBadge,
+    SearchSelect,
     Table,
     TBody,
     TD,
@@ -23,9 +24,9 @@ import {
     type DateRange,
 } from '@/Components/ui';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { NETWORK_ASSET_STATUS, NETWORK_ASSET_TYPE, labelOf, optionsOf } from '@/lib/statuses';
 import type { ReportMeta } from '@/types';
 import { AssetCharts } from './components/AssetCharts';
-import { codeLabel } from './components/chartData';
 import { DrillLink, type DrillLinks } from './components/DrillLink';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
@@ -67,11 +68,11 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
     };
 
     return (
-        <AdminLayout title="Asset Utilization">
+        <AdminLayout title="Pemanfaatan Aset">
             <div className="space-y-6">
                 <PageHeader
-                    title="Asset Utilization"
-                    subtitle="Status distribution, per-location, and installation history."
+                    title="Pemanfaatan Aset"
+                    subtitle="Sebaran status aset, jumlah per lokasi, dan riwayat pemasangan."
                     actions={
                         <>
                             <FormulaVersionLabel version={meta.formula_version} />
@@ -86,19 +87,15 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <NativeSelect
-                                label="Asset Type"
-                                value={assetType}
-                                onChange={(e) => setAssetType(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="router">Router</option>
-                                <option value="switch">Switch</option>
-                                <option value="olt">OLT</option>
-                                <option value="onu_ont">ONU/ONT</option>
-                                <option value="radio">Radio</option>
-                                <option value="antenna">Antenna</option>
-                            </NativeSelect>
+                            <div className="w-full sm:w-56">
+                                <SearchSelect
+                                    label="Jenis aset"
+                                    placeholder="Semua jenis"
+                                    options={optionsOf(NETWORK_ASSET_TYPE)}
+                                    value={assetType}
+                                    onChange={setAssetType}
+                                />
+                            </div>
                             <DateRangePicker
                                 label="Periode"
                                 value={range}
@@ -108,7 +105,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
-                                    Run
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
@@ -120,7 +117,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.installation_count.label}
                                     </p>
                                     <p className="text-2xl font-bold">
@@ -137,7 +134,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.customer_linked_count.label}
                                     </p>
                                     <p className="text-2xl font-bold">
@@ -154,7 +151,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.retired_count.label}
                                     </p>
                                     <p className="text-2xl font-bold">{data.retired_count ?? 0}</p>
@@ -183,7 +180,7 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                     <THead>
                                         <TR>
                                             <TH>Status</TH>
-                                            <TH>Count</TH>
+                                            <TH>Jumlah</TH>
                                         </TR>
                                     </THead>
                                     <TBody>
@@ -194,19 +191,24 @@ export default function Asset({ data, filters, meta, can, drill }: Props) {
                                                     colSpan={2}
                                                     className="py-10 text-center text-muted-foreground"
                                                 >
-                                                    No data found.
+                                                    Tidak ada data.
                                                 </TD>
                                             </TR>
                                         ) : (
                                             Object.entries(data.status_distribution ?? {}).map(
                                                 ([s, c]) => (
                                                     <TR key={s}>
-                                                        <TD>{codeLabel(s)}</TD>
+                                                        <TD>
+                                                            <EnumBadge
+                                                                map={NETWORK_ASSET_STATUS}
+                                                                value={s}
+                                                            />
+                                                        </TD>
                                                         <TD>
                                                             {c}
                                                             <DrillLink
                                                                 href={drill.status_distribution}
-                                                                label={`${s} assets`}
+                                                                label={`aset ${labelOf(NETWORK_ASSET_STATUS, s)}`}
                                                                 group={s}
                                                             />
                                                         </TD>

@@ -27,9 +27,6 @@ export type {
     Unit as InventoryUnit,
     Stock as InventoryStock,
     StockMovement as InventoryStockMovement,
-    StockRow,
-    MovementRow,
-    Movement,
 } from './inventory';
 export type {
     NetworkAsset as InventoryNetworkAsset,

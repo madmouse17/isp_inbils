@@ -18,6 +18,7 @@ class UpdateTicketCategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'default_sla_hours' => ['required', 'integer', 'min:1', 'max:720'],
             'default_response_hours' => ['required', 'integer', 'min:1', 'max:720', 'lte:default_sla_hours'],
+            'customer_hint' => ['nullable', 'string', 'max:500'],
             'is_active' => ['required', 'boolean'],
         ];
     }
@@ -37,6 +38,7 @@ class UpdateTicketCategoryRequest extends FormRequest
             'name' => 'nama',
             'default_sla_hours' => 'target penyelesaian',
             'default_response_hours' => 'target respons',
+            'customer_hint' => 'saran untuk pelanggan',
             'is_active' => 'status',
         ];
     }

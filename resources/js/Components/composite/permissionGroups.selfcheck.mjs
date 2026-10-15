@@ -14,11 +14,14 @@ registerHooks({
 
 const {
     filterPermissions,
+    formatGroup,
+    formatPermission,
     groupPermissions,
     permissionGroupSection,
     setGroupPermissions,
     setPermission,
 } = await import('./permissionGroups.ts');
+const { PERMISSION_GROUP_LABELS, PERMISSION_LABELS } = await import('./permissionLabels.ts');
 
 const permissions = [
     { id: 1, name: 'billing.view', group: 'billing' },
@@ -56,6 +59,8 @@ const everyGroup = [
     'alpha',
 ].map((group, id) => ({ id, name: `${group}.view`, group }));
 
+// Sidebar order, then unknown groups alphabetically (`portal` has no sidebar entry since technician and
+// customer logins went app-only, so it sorts with the unknown ones).
 assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
     'dashboard',
     'ticket',
@@ -69,7 +74,6 @@ assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
     'odn',
     'inventory',
     'billing',
-    'portal',
     'report',
     'company',
     'organization',
@@ -80,6 +84,7 @@ assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
     'system',
     'developer',
     'alpha',
+    'portal',
     'zebra',
 ]);
 
@@ -88,26 +93,43 @@ assert.equal(permissionGroupSection('ticket'), 'Operasional');
 assert.equal(permissionGroupSection('service'), 'Pelanggan & Layanan');
 assert.equal(permissionGroupSection('network_asset'), 'Jaringan');
 assert.equal(permissionGroupSection('inventory'), 'Inventaris');
-assert.equal(permissionGroupSection('portal'), 'Keuangan & Laporan');
+assert.equal(permissionGroupSection('portal'), 'Lainnya');
 assert.equal(permissionGroupSection('system'), 'Administrasi');
-assert.equal(permissionGroupSection('zebra'), 'Other');
+assert.equal(permissionGroupSection('zebra'), 'Lainnya');
 
-// Every seeded permission group must land under a sidebar section, never under "Other".
+// Every seeded permission group but `portal` must land under a sidebar section, never under "Lainnya",
+// and every seeded group and permission must have its Indonesian label.
 const seeder = readFileSync(
     new URL('../../../../database/seeders/RolePermissionSeeder.php', import.meta.url),
     'utf8',
 );
-const seededGroups = new Set(
-    [...seeder.matchAll(/'([a-z_]+)\.[a-z_.]+'/g)].map(([, group]) => group),
-);
+const seededNames = new Set([...seeder.matchAll(/'([a-z_]+\.[a-z_.]+)'/g)].map(([, name]) => name));
+const seededGroups = new Set([...seededNames].map((name) => name.split('.')[0]));
 assert.ok(seededGroups.size > 20, 'the seeder permission list was found');
 for (const group of seededGroups) {
-    assert.notEqual(
-        permissionGroupSection(group),
-        'Other',
-        `seeded group "${group}" has no sidebar section`,
-    );
+    if (group !== 'portal') {
+        assert.notEqual(
+            permissionGroupSection(group),
+            'Lainnya',
+            `seeded group "${group}" has no sidebar section`,
+        );
+    }
+    assert.ok(PERMISSION_GROUP_LABELS[group], `seeded group "${group}" has no label`);
 }
+for (const name of seededNames) {
+    assert.ok(PERMISSION_LABELS[name], `seeded permission "${name}" has no label`);
+}
+assert.deepEqual(
+    Object.keys(PERMISSION_LABELS).filter((name) => !seededNames.has(name)),
+    [],
+    'a label for a permission the seeder does not know',
+);
+
+// A name nobody described yet shows its code, never an invented English phrase.
+assert.equal(formatPermission('spk.approve'), 'Setujui SPK');
+assert.equal(formatPermission('odd.new_thing'), 'odd.new_thing');
+assert.equal(formatGroup('network_asset'), 'Aset jaringan');
+assert.equal(formatGroup('odd'), 'odd');
 
 assert.deepEqual(setGroupPermissions([], permissions.slice(1), true), ['spk.view', 'spk.create']);
 assert.deepEqual(setGroupPermissions(['spk.view', 'billing.view'], permissions.slice(1), false), [
@@ -134,7 +156,7 @@ assert.deepEqual(
     searchable.map(({ name }) => name),
 );
 assert.deepEqual(names('  EXPORT '), ['billing.invoice.export', 'system.document.export']);
-assert.deepEqual(names('two factor'), ['users.two_factor.reset']);
+assert.deepEqual(names('atur ulang 2fa'), ['users.two_factor.reset']);
 assert.deepEqual(names('Two_Factor'), ['users.two_factor.reset']);
 assert.deepEqual(names('nothing matches this'), []);
 assert.deepEqual(Object.keys(groupPermissions(filterPermissions(searchable, 'export'))), [

@@ -16,6 +16,6 @@ class IpAddressController extends Controller
 
         IpAssignmentService::release($address);
 
-        return back()->with('success', "Address {$address->address} released.");
+        return back()->with('success', "Alamat {$address->address} dilepas.");
     }
 }

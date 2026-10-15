@@ -33,14 +33,14 @@ class StoreLocationRequest extends FormRequest
 
                     if ($type === 'region') {
                         if (! blank($value)) {
-                            $fail('Region location cannot have parent.');
+                            $fail('Lokasi Wilayah tidak boleh punya induk.');
                         }
 
                         return;
                     }
 
                     if (blank($value)) {
-                        $fail('Parent location is required for non-region location.');
+                        $fail('Induk lokasi wajib diisi untuk lokasi selain Wilayah.');
                     }
                 },
             ],
@@ -50,16 +50,39 @@ class StoreLocationRequest extends FormRequest
                     return;
                 }
 
-                $fail('Latitude and longitude must be provided together.');
+                $fail('Lintang dan bujur harus diisi bersamaan.');
             }],
             'lng' => ['nullable', 'numeric', 'between:-180,180', function (string $attribute, mixed $value, \Closure $fail): void {
                 if ($this->filled('lat') === $this->filled('lng')) {
                     return;
                 }
 
-                $fail('Latitude and longitude must be provided together.');
+                $fail('Lintang dan bujur harus diisi bersamaan.');
             }],
             'is_active' => ['boolean'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'code.not_regex' => 'Kode tidak boleh memuat tanda ">".',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'code' => 'kode',
+            'name' => 'nama',
+            'type' => 'tipe',
+            'parent_id' => 'induk',
+            'address' => 'alamat',
+            'lat' => 'lintang',
+            'lng' => 'bujur',
+            'is_active' => 'status aktif',
         ];
     }
 }

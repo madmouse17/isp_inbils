@@ -25,7 +25,7 @@ final class UserDeletionGuard
 
         if ($isAdjustmentActor) {
             throw ValidationException::withMessages([
-                'user' => 'Cannot delete a user who requested or reviewed stock adjustments. Deactivate the account instead.',
+                'user' => 'Pengguna yang pernah mengajukan atau memeriksa penyesuaian stok tidak bisa dihapus. Nonaktifkan akunnya.',
             ]);
         }
     }

@@ -195,7 +195,7 @@ class ConsolidatedBusinessReportTest extends TestCase
         $this->assertNull($props['data']);
         $this->assertSame('currency_mismatch', $props['refusal']['code']);
         $this->assertEqualsCanonicalizing(['IDR', 'USD'], $props['refusal']['currencies']);
-        $this->assertStringContainsString('currenc', strtolower($props['refusal']['message']));
+        $this->assertStringContainsString('mata uang', strtolower($props['refusal']['message']));
         $this->assertSame([$this->head->id, $this->subA->id, $this->subB->id], array_column($props['context']['companies'], 'id'));
     }
 
@@ -321,10 +321,10 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $byCompany = [];
         foreach ($records as $record) {
-            $byCompany[$record['Company']][$record['Metric'].($record['Breakdown'] === '' ? '' : ' / '.$record['Breakdown'])] = $record['Value'];
+            $byCompany[$record['Perusahaan']][$record['Metrik'].($record['Rincian'] === '' ? '' : ' / '.$record['Rincian'])] = $record['Nilai'];
         }
 
-        $this->assertSame(['Group Head', 'Sub A', 'Sub B', 'Consolidated'], array_keys($byCompany));
+        $this->assertSame(['Group Head', 'Sub A', 'Sub B', 'Total konsolidasi'], array_keys($byCompany));
 
         $labels = [];
         foreach (MetricRegistry::forReport(ReportType::Business) as $metric) {
@@ -333,7 +333,7 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $total = $screen->inertiaProps('data.total');
         foreach (['mrr', 'revenue_paid', 'recurring_revenue', 'one_time_revenue', 'outstanding', 'active_subscriptions', 'churn', 'sla_compliance_pct', 'installation_count'] as $key) {
-            $this->assertEquals($total[$key], (float) $byCompany['Consolidated'][$labels[$key]], "{$key} in the file differs from the screen");
+            $this->assertEquals($total[$key], (float) $byCompany['Total konsolidasi'][$labels[$key]], "{$key} in the file differs from the screen");
         }
 
         foreach ($screen->inertiaProps('data.rows') as $index => $row) {
@@ -350,13 +350,13 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $records = collect($this->csvRecords(
             $this->actingAs($this->headAdmin)->get(route('admin.reports.consolidated.export', self::JANUARY))
-        ))->where('Company', 'Consolidated')->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
+        ))->where('Perusahaan', 'Total konsolidasi')->keyBy(fn (array $record): string => $record['Metrik'].'|'.$record['Rincian']);
 
-        $this->assertSame('Snapshot: period filter not applied', $records['MRR|']['Scope']);
-        $this->assertSame('Period: 2026-01-01 to 2026-01-31', $records['Revenue (Paid)|']['Scope']);
-        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filters']);
-        $this->assertSame('v1', $records['MRR|']['Version']);
-        $this->assertSame('currency', $records['MRR|']['Unit']);
+        $this->assertSame('Posisi saat ini: filter periode tidak berlaku', $records['MRR|']['Cakupan']);
+        $this->assertSame('Periode: 2026-01-01 sampai 2026-01-31', $records['Pendapatan terbayar|']['Cakupan']);
+        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filter']);
+        $this->assertSame('v1', $records['MRR|']['Versi']);
+        $this->assertSame('currency', $records['MRR|']['Satuan']);
     }
 
     public function test_the_file_is_a_csv_download_named_for_the_report(): void

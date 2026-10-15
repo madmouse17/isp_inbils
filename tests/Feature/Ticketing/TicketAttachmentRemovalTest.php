@@ -58,7 +58,7 @@ class TicketAttachmentRemovalTest extends TestCase
             $this->actingAs($this->uploader)
                 ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file]))
                 ->assertRedirect()
-                ->assertSessionHas('success', 'Attachment removed.');
+                ->assertSessionHas('success', 'Lampiran berhasil dihapus.');
 
             $this->assertNull(Media::query()->find($file->id), $status);
         }

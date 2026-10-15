@@ -6,8 +6,7 @@ use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\InventoryRequest;
-use Modules\SPK\Models\WorkOrder;
-use Modules\Ticketing\Models\Ticket;
+use Modules\Inventory\Support\InventoryRequestSources;
 
 class StoreInventoryRequestRequest extends FormRequest
 {
@@ -32,25 +31,18 @@ class StoreInventoryRequestRequest extends FormRequest
                 'nullable',
                 'integer',
                 'required_with:source_type',
-                function ($attribute, $value, $fail) use ($companyId) {
-                    if (! $value) {
-                        return;
-                    }
-                    $sourceType = $this->input('source_type');
-                    if ($sourceType === 'work_order') {
-                        $exists = WorkOrder::where('id', $value)->where('company_id', $companyId)->exists();
-                        if (! $exists) {
-                            $fail('Work order yang dipilih tidak valid untuk perusahaan ini.');
-                        }
-                    } elseif ($sourceType === 'ticket') {
-                        $exists = Ticket::where('id', $value)->where('company_id', $companyId)->exists();
-                        if (! $exists) {
-                            $fail('Ticket yang dipilih tidak valid untuk perusahaan ini.');
-                        }
+                function ($attribute, $value, $fail) {
+                    // The pickers read the same query: only a record the person may already open can be named.
+                    $user = $this->user();
+
+                    if ($this->input('source_type') === 'work_order' && ! InventoryRequestSources::workOrderBase($user)->whereKey($value)->exists()) {
+                        $fail('SPK yang dipilih tidak valid untuk perusahaan ini.');
+                    } elseif ($this->input('source_type') === 'ticket' && ! InventoryRequestSources::ticketBase($user)->whereKey($value)->exists()) {
+                        $fail('Tiket yang dipilih tidak valid untuk perusahaan ini.');
                     }
                 },
             ],
-            'needed_at' => ['nullable', 'date'],
+            'needed_at' => ['nullable', 'date_format:Y-m-d'],
             'reason' => ['required', 'string', 'max:2000'],
             'submit' => ['nullable', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
@@ -67,6 +59,23 @@ class StoreInventoryRequestRequest extends FormRequest
             ],
             'items.*.quantity_requested' => ['required', 'numeric', 'gt:0'],
             'items.*.note' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'source_type' => 'jenis rujukan',
+            'source_id' => 'rujukan',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'needed_at.date_format' => 'Tanggal dibutuhkan harus berupa tanggal yang valid.',
         ];
     }
 }

@@ -65,7 +65,7 @@ class CustomerContactController extends Controller
             ]);
         });
 
-        return back()->with('success', 'Contact added.');
+        return back()->with('success', 'Kontak ditambahkan.');
     }
 
     public function update(UpdateCustomerContactRequest $request, Customer $customer, CustomerContact $contact): RedirectResponse
@@ -100,7 +100,7 @@ class CustomerContactController extends Controller
             }
         });
 
-        return back()->with('success', 'Contact updated.');
+        return back()->with('success', 'Kontak diperbarui.');
     }
 
     public function destroy(Customer $customer, CustomerContact $contact): RedirectResponse
@@ -124,7 +124,7 @@ class CustomerContactController extends Controller
             }
         });
 
-        return back()->with('success', 'Contact deleted.');
+        return back()->with('success', 'Kontak dihapus.');
     }
 
     public function export(Customer $customer, Request $request): HttpResponse|StreamedResponse
@@ -138,24 +138,24 @@ class CustomerContactController extends Controller
             ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
 
         $columns = [
-            'name' => 'Name',
-            'role' => 'Position',
-            'phone' => 'Phone',
+            'name' => 'Nama',
+            'role' => 'Jabatan',
+            'phone' => 'Telepon',
             'email' => 'Email',
-            'is_primary' => 'Primary',
+            'is_primary' => 'Utama',
         ];
         $map = static fn (CustomerContact $contact): array => [
             'name' => $contact->name,
             'role' => $contact->role ?? '-',
             'phone' => $contact->phone ?? '-',
             'email' => $contact->email ?? '-',
-            'is_primary' => $contact->is_primary ? 'Yes' : 'No',
+            'is_primary' => $contact->is_primary ? 'Ya' : 'Tidak',
         ];
 
         $filename = 'customer-contacts-'.$customer->id.'-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Customer Contacts', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Kontak Pelanggan', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

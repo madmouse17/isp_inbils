@@ -31,16 +31,16 @@ export function SubscriptionIpPanel({
     return (
         <Card>
             <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
-                <CardTitle>IP address</CardTitle>
+                <CardTitle>Alamat IP</CardTitle>
                 {editable && usable.length > 0 && (
                     <Button type="button" size="sm" onClick={() => setAssigning(true)}>
-                        Assign static IP
+                        Berikan IP statis
                     </Button>
                 )}
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
                 {addresses.length === 0 ? (
-                    <p className="text-muted-foreground">Dynamic (assigned by router)</p>
+                    <p className="text-muted-foreground">Dinamis (diberikan router)</p>
                 ) : (
                     <ul className="divide-y">
                         {addresses.map((address) => (
@@ -60,12 +60,12 @@ export function SubscriptionIpPanel({
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        aria-label={`Release ${address.address}`}
+                                        aria-label={`Lepas ${address.address}`}
                                         onClick={() =>
                                             setConfirm({
-                                                title: `Release ${address.address}?`,
-                                                description: `${subscription.code} goes back to a dynamic address and ${address.address} returns to its pool.`,
-                                                confirmLabel: 'Release address',
+                                                title: `Lepas ${address.address}?`,
+                                                description: `${subscription.code} kembali memakai alamat dinamis dan ${address.address} kembali ke pool-nya.`,
+                                                confirmLabel: 'Lepas alamat',
                                                 href: route(
                                                     'admin.ipam.addresses.destroy',
                                                     address.id,
@@ -73,7 +73,7 @@ export function SubscriptionIpPanel({
                                             })
                                         }
                                     >
-                                        Release
+                                        Lepas
                                     </Button>
                                 )}
                             </li>
@@ -82,13 +82,12 @@ export function SubscriptionIpPanel({
                 )}
                 {editable && pools.length === 0 && (
                     <p className="text-muted-foreground">
-                        No static pool is registered for this subscription&apos;s POP. Register one
-                        under{' '}
+                        Belum ada pool statis untuk POP langganan ini. Daftarkan di{' '}
                         <Link
                             href={route('admin.ipam.prefixes.index')}
                             className="font-medium text-primary hover:underline"
                         >
-                            IP Addresses
+                            Alamat IP
                         </Link>
                         .
                     </p>

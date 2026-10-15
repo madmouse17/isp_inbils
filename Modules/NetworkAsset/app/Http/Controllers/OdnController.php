@@ -48,7 +48,7 @@ class OdnController extends Controller
             ],
             'ponPorts' => $isOlt ? OdnOccupancyQuery::ponPortRows($asset) : [],
             'splitters' => $isOlt ? [] : OdnOccupancyQuery::splitterRows($asset),
-            'inputOptions' => $isOlt ? [] : OdnOccupancyQuery::inputOptions(),
+            ...($isOlt ? [] : ['inputPortOptions' => OdnOccupancyQuery::inputPortOptions($request)]),
             'can' => [
                 'manage' => $request->user()?->can('odn.manage') ?? false,
                 'assign' => $request->user()?->can('odn.assign') ?? false,

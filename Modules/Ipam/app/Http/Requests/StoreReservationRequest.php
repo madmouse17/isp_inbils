@@ -22,4 +22,13 @@ class StoreReservationRequest extends FormRequest
             'note' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'address' => 'alamat',
+            'note' => 'catatan',
+        ];
+    }
 }

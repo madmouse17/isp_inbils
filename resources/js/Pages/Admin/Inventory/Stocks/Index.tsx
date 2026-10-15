@@ -1,23 +1,26 @@
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Badge } from '@/Components/ui/Badge';
 import { Button } from '@/Components/ui/Button';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
 import { Modal } from '@/Components/ui/Modal';
 import { Textarea } from '@/Components/ui/Textarea';
-import { NativeSelect } from '@/Components/ui';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { formatNumber } from '@/lib/format';
+import { STOCK_ADJUSTMENT_STATUS } from '@/lib/statuses';
 import { useForm, usePage } from '@inertiajs/react';
-import { useMemo, useRef, useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 
 type StockRow = {
     id: number;
     product_id?: number | null;
-    product?: { id: number; name: string } | null;
+    product?: { id: number; name: string; sku?: string | null } | null;
     location_id?: number | null;
     quantity: number | string;
     reserved_quantity?: number | string | null;
@@ -25,20 +28,9 @@ type StockRow = {
     location?: { id: number; name: string; code?: string | null } | null;
 };
 
-type ProductOption = {
-    id: number;
-    name: string;
-    sku?: string | null;
-};
-
-type LocationOption = {
-    id: number;
-    name: string;
-    code?: string | null;
-};
-
 type AdjustmentRequestRow = {
     id: number;
+    status: string;
     old_quantity: number | string;
     new_quantity: number | string;
     delta: number | string;
@@ -55,8 +47,12 @@ type MaybeWrapped<T> = T[] | { data?: T[] };
 
 type Props = {
     stocks: Paginator<StockRow>;
-    products: MaybeWrapped<ProductOption>;
-    locations: MaybeWrapped<LocationOption>;
+    /** Answers of the server-side search; only present after the first search. */
+    productOptions?: RemoteOption[];
+    locationOptions?: RemoteOption[];
+    /** The options behind `filters.product_id` and `filters.location_id`, so the filters read before any search. */
+    selectedProduct: RemoteOption | null;
+    selectedLocation: RemoteOption | null;
     adjustmentRequests: MaybeWrapped<AdjustmentRequestRow>;
     filters: {
         search?: string;
@@ -95,17 +91,22 @@ type AdjustFormData = {
 type DecisionState = { row: AdjustmentRequestRow; mode: 'approve' | 'reject' };
 
 const locationLabel = (location?: { name: string; code?: string | null } | null) =>
-    location ? `${location.name}${location.code ? ` (${location.code})` : ''}` : '-';
+    location ? (location.code ? `${location.code} - ${location.name}` : location.name) : '-';
 
 const signed = (value: number | string) => {
     const number = Number(value);
     return `${number > 0 ? '+' : ''}${formatNumber(number)}`;
 };
 
+const quantityCell = (value?: number | string | null) =>
+    value === null || value === undefined ? <EmptyCell /> : formatNumber(value);
+
 export default function StockIndex({
     stocks,
-    products,
-    locations,
+    productOptions,
+    locationOptions,
+    selectedProduct,
+    selectedLocation,
     adjustmentRequests,
     filters,
     can,
@@ -114,7 +115,7 @@ export default function StockIndex({
     const receiveErrors = errors as Partial<Record<keyof ReceiveFormData, string>>;
     const canReceive = can.receive ?? false;
     const pagination = toPagination(stocks);
-    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
             location_id: filters.location_id ?? '',
@@ -124,12 +125,14 @@ export default function StockIndex({
             sort_dir: filters.sort_dir ?? filters.direction ?? '',
             per_page: pagination.per_page,
         },
-        { only: ['stocks', 'filters'] },
+        { only: ['stocks', 'filters', 'selectedProduct', 'selectedLocation'] },
+    );
+    const hasFilters = Boolean(
+        params.search || params.location_id || params.product_id || params.low_stock,
     );
 
     const [receiveOpen, setReceiveOpen] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const productSelectRef = useRef<HTMLSelectElement>(null);
 
     const form = useForm<ReceiveFormData>({
         product_id: 0,
@@ -156,7 +159,7 @@ export default function StockIndex({
         e.preventDefault();
         const quantity = Number(form.data.quantity);
         if (form.data.product_id <= 0 || form.data.location_id <= 0 || !(quantity > 0)) {
-            setFormError('Produk, lokasi, dan jumlah (> 0) wajib diisi.');
+            setFormError('Barang, lokasi, dan jumlah (lebih dari 0) wajib diisi.');
             return;
         }
         setFormError(null);
@@ -242,49 +245,49 @@ export default function StockIndex({
         [adjustmentRequests],
     );
 
-    const productOptions = useMemo(
-        () => (Array.isArray(products) ? products : (products?.data ?? [])),
-        [products],
-    );
-    const locationOptions = useMemo(
-        () => (Array.isArray(locations) ? locations : (locations?.data ?? [])),
-        [locations],
-    );
-
     const columns: DataTableColumn<StockRow>[] = useMemo(
         () => [
             {
                 key: 'product',
-                header: 'Product',
-                cell: (row) => <span className="font-medium">{row.product?.name ?? '-'}</span>,
+                header: 'Barang',
+                cell: (row) =>
+                    row.product ? (
+                        <div>
+                            <span className="font-medium">{row.product.name}</span>
+                            {row.product.sku ? (
+                                <span className="block text-xs text-muted-foreground">
+                                    {row.product.sku}
+                                </span>
+                            ) : null}
+                        </div>
+                    ) : (
+                        <EmptyCell />
+                    ),
             },
             {
                 key: 'location',
-                header: 'Location',
-                cell: (row) =>
-                    row.location
-                        ? `${row.location.name}${row.location.code ? ` (${row.location.code})` : ''}`
-                        : '-',
+                header: 'Lokasi',
+                cell: (row) => (row.location ? locationLabel(row.location) : <EmptyCell />),
             },
             {
                 key: 'quantity',
-                header: 'Quantity',
+                header: 'Jumlah',
                 sortable: true,
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.quantity ?? '-'),
+                cell: (row) => quantityCell(row.quantity),
             },
             {
                 key: 'reserved_quantity',
-                header: 'Reserved',
+                header: 'Dicadangkan',
                 sortable: true,
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.reserved_quantity ?? '-'),
+                cell: (row) => quantityCell(row.reserved_quantity),
             },
             {
                 key: 'available',
-                header: 'Available',
+                header: 'Tersedia',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.available ?? '-'),
+                cell: (row) => quantityCell(row.available),
             },
         ],
         [],
@@ -293,7 +296,7 @@ export default function StockIndex({
     const adjustmentColumns: DataTableColumn<AdjustmentRequestRow>[] = [
         {
             key: 'product',
-            header: 'Produk',
+            header: 'Barang',
             cell: (row) => <span className="font-medium">{row.product?.name ?? '-'}</span>,
         },
         { key: 'location', header: 'Lokasi', cell: (row) => locationLabel(row.location) },
@@ -315,6 +318,11 @@ export default function StockIndex({
         },
         { key: 'reason', header: 'Alasan', cell: (row) => row.reason },
         { key: 'requester', header: 'Pemohon', cell: (row) => row.requester?.name ?? '-' },
+        {
+            key: 'status',
+            header: 'Status',
+            cell: (row) => <EnumBadge map={STOCK_ADJUSTMENT_STATUS} value={row.status} />,
+        },
         {
             key: 'actions',
             header: 'Aksi',
@@ -344,7 +352,7 @@ export default function StockIndex({
                         )}
                     </div>
                 ) : (
-                    <span className="text-xs text-muted-foreground">Menunggu penyetujuan</span>
+                    <EmptyCell />
                 ),
         },
     ];
@@ -354,7 +362,7 @@ export default function StockIndex({
             <div className="space-y-4">
                 <PageHeader
                     title="Stok"
-                    description="Current stock per product and location."
+                    description="Jumlah setiap barang di setiap lokasi, dan berapa yang masih tersedia."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
@@ -389,10 +397,7 @@ export default function StockIndex({
                 />
 
                 {pendingRows.length > 0 && (
-                    <section
-                        aria-labelledby="adjustment-requests-heading"
-                        className="space-y-3 rounded-lg border bg-card p-4"
-                    >
+                    <section aria-labelledby="adjustment-requests-heading" className="space-y-3">
                         <div>
                             <h2
                                 id="adjustment-requests-heading"
@@ -410,50 +415,37 @@ export default function StockIndex({
                 )}
 
                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="stock-search"
-                        >
-                            Search
-                        </label>
+                    <div className="min-w-48 flex-1">
                         <Input
                             id="stock-search"
+                            label="Cari stok"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Product, SKU, location..."
+                            placeholder="Barang, SKU, atau lokasi"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <NativeSelect
+                    <div className="w-full md:w-64">
+                        <RemoteSearchSelect
                             id="stock-location"
-                            label="Location"
+                            field="location"
+                            label="Lokasi"
+                            placeholder="Semua lokasi"
+                            options={locationOptions}
+                            selected={selectedLocation}
                             value={params.location_id ?? ''}
-                            onChange={(e) => set('location_id', e.target.value)}
-                            options={[
-                                { value: '', label: 'All' },
-                                ...locationOptions.map((l) => ({
-                                    value: String(l.id),
-                                    label: l.code ? `${l.name} (${l.code})` : l.name,
-                                })),
-                            ]}
-                            className="w-48"
+                            onChange={(value) => set('location_id', value)}
                         />
                     </div>
-                    <div className="space-y-1">
-                        <NativeSelect
+                    <div className="w-full md:w-64">
+                        <RemoteSearchSelect
                             id="stock-product"
-                            label="Product"
+                            field="product"
+                            label="Barang"
+                            placeholder="Semua barang"
+                            options={productOptions}
+                            selected={selectedProduct}
                             value={params.product_id ?? ''}
-                            onChange={(e) => set('product_id', e.target.value)}
-                            options={[
-                                { value: '', label: 'All' },
-                                ...productOptions.map((p) => ({
-                                    value: String(p.id),
-                                    label: p.sku ? `${p.name} (${p.sku})` : p.name,
-                                })),
-                            ]}
-                            className="w-56"
+                            onChange={(value) => set('product_id', value)}
                         />
                     </div>
                 </div>
@@ -461,8 +453,20 @@ export default function StockIndex({
                 <DataTable
                     columns={columns}
                     data={stocks.data}
-                    emptyTitle="No stocks"
-                    emptyDescription="No stock records match the current filters."
+                    itemLabel="stok"
+                    emptyTitle="Belum ada stok"
+                    emptyDescription="Stok muncul setelah barang diterima di sebuah lokasi."
+                    emptyAction={
+                        canReceive ? (
+                            <Button type="button" onClick={openReceive} aria-haspopup="dialog">
+                                Terima Barang
+                            </Button>
+                        ) : undefined
+                    }
+                    hasFilters={hasFilters}
+                    onResetFilters={() =>
+                        setMany({ search: '', location_id: '', product_id: '', low_stock: '' })
+                    }
                     loading={processing}
                     pagination={pagination}
                     sortBy={sortBy}
@@ -480,36 +484,26 @@ export default function StockIndex({
                 size="lg"
             >
                 <form onSubmit={submit} className="space-y-4">
-                    <NativeSelect
+                    <RemoteSearchSelect
                         id="receive-product"
-                        label="Produk"
+                        field="product"
+                        label="Barang"
+                        placeholder="Cari nama atau SKU"
                         required
-                        autoFocus
-                        ref={productSelectRef}
+                        options={productOptions}
                         value={form.data.product_id > 0 ? String(form.data.product_id) : ''}
-                        onChange={(e) => form.setData('product_id', Number(e.target.value) || 0)}
-                        options={[
-                            { value: '', label: 'Pilih produk' },
-                            ...productOptions.map((p) => ({
-                                value: String(p.id),
-                                label: p.sku ? `${p.name} (${p.sku})` : p.name,
-                            })),
-                        ]}
+                        onChange={(value) => form.setData('product_id', Number(value) || 0)}
                         error={receiveErrors.product_id}
                     />
-                    <NativeSelect
+                    <RemoteSearchSelect
                         id="receive-location"
+                        field="location"
                         label="Lokasi"
+                        placeholder="Cari kode atau nama lokasi"
                         required
+                        options={locationOptions}
                         value={form.data.location_id > 0 ? String(form.data.location_id) : ''}
-                        onChange={(e) => form.setData('location_id', Number(e.target.value) || 0)}
-                        options={[
-                            { value: '', label: 'Pilih lokasi' },
-                            ...locationOptions.map((l) => ({
-                                value: String(l.id),
-                                label: l.code ? `${l.name} (${l.code})` : l.name,
-                            })),
-                        ]}
+                        onChange={(value) => form.setData('location_id', Number(value) || 0)}
                         error={receiveErrors.location_id}
                     />
                     <Input
@@ -532,7 +526,11 @@ export default function StockIndex({
                         maxLength={500}
                         error={receiveErrors.note}
                     />
-                    {formError && <p className="text-sm text-destructive-text">{formError}</p>}
+                    {formError && (
+                        <p role="alert" className="text-sm text-destructive-text">
+                            {formError}
+                        </p>
+                    )}
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="outline" onClick={closeReceive}>
                             Batal
@@ -554,44 +552,32 @@ export default function StockIndex({
                     <p className="text-sm text-muted-foreground">
                         Stok baru berubah setelah pengguna lain yang berwenang menyetujui.
                     </p>
-                    <NativeSelect
+                    <RemoteSearchSelect
                         id="adjust-product"
-                        label="Produk"
+                        field="product"
+                        label="Barang"
+                        placeholder="Cari nama atau SKU"
                         required
+                        options={productOptions}
                         value={
                             adjustForm.data.product_id > 0 ? String(adjustForm.data.product_id) : ''
                         }
-                        onChange={(e) =>
-                            adjustForm.setData('product_id', Number(e.target.value) || 0)
-                        }
-                        options={[
-                            { value: '', label: 'Pilih produk' },
-                            ...productOptions.map((p) => ({
-                                value: String(p.id),
-                                label: p.sku ? `${p.name} (${p.sku})` : p.name,
-                            })),
-                        ]}
+                        onChange={(value) => adjustForm.setData('product_id', Number(value) || 0)}
                         error={adjustForm.errors.product_id}
                     />
-                    <NativeSelect
+                    <RemoteSearchSelect
                         id="adjust-location"
+                        field="location"
                         label="Lokasi"
+                        placeholder="Cari kode atau nama lokasi"
                         required
+                        options={locationOptions}
                         value={
                             adjustForm.data.location_id > 0
                                 ? String(adjustForm.data.location_id)
                                 : ''
                         }
-                        onChange={(e) =>
-                            adjustForm.setData('location_id', Number(e.target.value) || 0)
-                        }
-                        options={[
-                            { value: '', label: 'Pilih lokasi' },
-                            ...locationOptions.map((l) => ({
-                                value: String(l.id),
-                                label: l.code ? `${l.name} (${l.code})` : l.name,
-                            })),
-                        ]}
+                        onChange={(value) => adjustForm.setData('location_id', Number(value) || 0)}
                         error={adjustForm.errors.location_id}
                     />
                     <Input
@@ -599,7 +585,7 @@ export default function StockIndex({
                         type="number"
                         min={0}
                         step="any"
-                        label="Jumlah Baru (hasil hitung fisik)"
+                        label="Jumlah baru (hasil hitung fisik)"
                         required
                         value={adjustForm.data.new_quantity}
                         onChange={(e) => adjustForm.setData('new_quantity', e.target.value)}
@@ -654,7 +640,7 @@ export default function StockIndex({
                         {decision.mode === 'reject' && (
                             <Textarea
                                 id="decision-reason"
-                                label="Alasan Penolakan"
+                                label="Alasan penolakan"
                                 required
                                 minLength={3}
                                 maxLength={500}

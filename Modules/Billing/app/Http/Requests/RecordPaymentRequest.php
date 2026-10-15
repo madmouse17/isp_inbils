@@ -21,4 +21,26 @@ class RecordPaymentRequest extends FormRequest
             'notes' => ['nullable', 'string', 'max:500'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'amount' => 'jumlah',
+            'method' => 'metode',
+            'reference' => 'referensi',
+            'notes' => 'catatan',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'amount.required' => 'Jumlah wajib diisi.',
+            'amount.min' => 'Jumlah harus lebih dari nol.',
+            'method.required' => 'Metode wajib dipilih.',
+            'method.in' => 'Metode yang dipilih tidak dikenal.',
+        ];
+    }
 }

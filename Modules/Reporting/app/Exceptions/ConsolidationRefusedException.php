@@ -11,8 +11,8 @@ class ConsolidationRefusedException extends RuntimeException
     public function __construct(public readonly array $currencies)
     {
         parent::__construct(
-            'Consolidation refused: the companies report in different currencies ('.implode(', ', $currencies).'). '
-            .'Amounts in different currencies cannot be added up.'
+            'Laporan konsolidasi ditolak: perusahaan yang dipilih memakai mata uang berbeda ('.implode(', ', $currencies).'). '
+            .'Jumlah dalam mata uang berbeda tidak bisa dijumlahkan. Pilih perusahaan yang memakai satu mata uang yang sama.'
         );
     }
 }

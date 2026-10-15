@@ -6,10 +6,10 @@ import { PageHeader } from '@/Components/composite';
 import {
     Alert,
     AlertDescription,
-    Badge,
     Button,
     Card,
     CardContent,
+    EnumBadge,
     Input,
     Label,
     Modal,
@@ -23,6 +23,7 @@ import {
     TR,
 } from '@/Components/ui';
 import { renderTemplate, validateTemplate, type ResetPeriod } from '@/lib/numberTemplate';
+import { RESET_PERIOD, optionsOf } from '@/lib/statuses';
 import type { PageProps } from '@/types';
 import type { NumberSequence, NumberSequenceToken } from '@/types/number-sequence';
 
@@ -39,18 +40,6 @@ interface SequenceForm {
     reset_period: ResetPeriod;
     allow_manual: boolean;
 }
-
-const RESET_LABELS: Record<ResetPeriod, string> = {
-    never: 'Tidak pernah',
-    yearly: 'Setiap tahun',
-    monthly: 'Setiap bulan',
-    daily: 'Setiap hari',
-};
-
-const RESET_OPTIONS = (Object.keys(RESET_LABELS) as ResetPeriod[]).map((value) => ({
-    value,
-    label: RESET_LABELS[value],
-}));
 
 const formOf = (sequence: NumberSequence): SequenceForm => ({
     prefix: sequence.prefix,
@@ -152,16 +141,13 @@ export default function Index({ sequences, company_code, tokens }: IndexProps) {
                                         <TD className="font-medium">{sequence.label}</TD>
                                         <TD className="font-mono text-xs">{sequence.template}</TD>
                                         <TD className="font-mono">{sequence.preview}</TD>
-                                        <TD>{RESET_LABELS[sequence.reset_period]}</TD>
                                         <TD>
-                                            <Badge
-                                                variant={
-                                                    sequence.allow_manual ? 'info' : 'secondary'
-                                                }
-                                            >
-                                                {sequence.allow_manual ? 'Boleh' : 'Tidak'}
-                                            </Badge>
+                                            <EnumBadge
+                                                map={RESET_PERIOD}
+                                                value={sequence.reset_period}
+                                            />
                                         </TD>
+                                        <TD>{sequence.allow_manual ? 'Boleh' : 'Tidak'}</TD>
                                         <TD className="text-right">
                                             <Button
                                                 type="button"
@@ -257,7 +243,7 @@ export default function Index({ sequences, company_code, tokens }: IndexProps) {
                                 setData('reset_period', event.target.value as ResetPeriod)
                             }
                             error={errors.reset_period}
-                            options={RESET_OPTIONS}
+                            options={optionsOf(RESET_PERIOD)}
                         />
                         <div className="space-y-1">
                             <Switch
@@ -270,7 +256,7 @@ export default function Index({ sequences, company_code, tokens }: IndexProps) {
                                 otomatis.
                             </p>
                             {errors.allow_manual && (
-                                <p className="text-sm text-red-700 dark:text-red-400">
+                                <p className="text-sm text-destructive-text">
                                     {errors.allow_manual}
                                 </p>
                             )}

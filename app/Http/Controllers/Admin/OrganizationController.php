@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreOrganizationRequest;
+use App\Http\Requests\Admin\UpdateOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
 use App\Models\Core\OrganizationUnit;
 use App\Services\Core\CompanyService;
@@ -25,6 +27,15 @@ class OrganizationController extends Controller
     use HasIndexQuery;
 
     private const SORTABLE = ['code', 'name', 'type', 'path', 'is_active', 'created_at'];
+
+    /** Stored `type` as the export says it (`lib/statuses/people.ts` ORGANIZATION_TYPE on screen). */
+    private const TYPE_LABELS = [
+        'company' => 'Perusahaan',
+        'branch' => 'Cabang',
+        'area' => 'Area',
+        'unit' => 'Unit',
+        'team' => 'Tim',
+    ];
 
     public function index(Request $request): InertiaResponse
     {
@@ -50,45 +61,22 @@ class OrganizationController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreOrganizationRequest $request): RedirectResponse
     {
         Gate::authorize('store', OrganizationUnit::class);
-        $companyId = CompanyService::currentId();
-        $data = $request->validate([
-            'parent_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
-            'code' => ['required', 'string', 'max:50'],
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'max:50'],
-            'address' => ['nullable', 'string'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'is_active' => ['boolean'],
-        ]);
-        if (array_key_exists('parent_id', $data) && $data['parent_id'] !== null) {
-            abort_unless(OrganizationUnit::query()->whereKey($data['parent_id'])->where('company_id', $companyId)->exists(), 404);
-        }
-        $data['company_id'] = $companyId;
+        $data = $request->validated();
+        $data['company_id'] = CompanyService::currentId();
         OrganizationService::create($data);
 
-        return back()->with('success', 'Organization unit created.');
+        return back()->with('success', 'Unit organisasi dibuat.');
     }
 
-    public function update(Request $request, OrganizationUnit $organization_unit): RedirectResponse
+    public function update(UpdateOrganizationRequest $request, OrganizationUnit $organization_unit): RedirectResponse
     {
         Gate::authorize('update', $organization_unit);
-        $companyId = CompanyService::currentId();
-        OrganizationService::update($organization_unit, $request->validate([
-            'parent_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)],
-            'code' => ['required', 'string', 'max:50'],
-            'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string', 'max:50'],
-            'address' => ['nullable', 'string'],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'email' => ['nullable', 'email', 'max:255'],
-            'is_active' => ['boolean'],
-        ]));
+        OrganizationService::update($organization_unit, $request->validated());
 
-        return back()->with('success', 'Organization unit updated.');
+        return back()->with('success', 'Unit organisasi diperbarui.');
     }
 
     public function move(Request $request, OrganizationUnit $organization_unit): RedirectResponse
@@ -98,7 +86,7 @@ class OrganizationController extends Controller
         $data = $request->validate(['parent_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)]]);
         OrganizationService::move($organization_unit, array_key_exists('parent_id', $data) ? $data['parent_id'] : null);
 
-        return back()->with('success', 'Organization unit moved.');
+        return back()->with('success', 'Unit organisasi dipindahkan.');
     }
 
     public function destroy(OrganizationUnit $organization_unit): RedirectResponse
@@ -106,7 +94,7 @@ class OrganizationController extends Controller
         Gate::authorize('delete', $organization_unit);
         OrganizationService::delete($organization_unit);
 
-        return back()->with('success', 'Organization unit deleted.');
+        return back()->with('success', 'Unit organisasi dihapus.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -119,27 +107,27 @@ class OrganizationController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
-            'type' => 'Type',
-            'path' => 'Path',
-            'children_count' => 'Children',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'type' => 'Jenis',
+            'path' => 'Jalur',
+            'children_count' => 'Sub-unit',
             'is_active' => 'Status',
         ];
 
         $map = static fn (OrganizationUnit $unit): array => [
             'code' => $unit->code,
             'name' => $unit->name,
-            'type' => $unit->type,
+            'type' => self::TYPE_LABELS[$unit->type] ?? $unit->type,
             'path' => $unit->path ?? '-',
             'children_count' => $unit->children_count ?? 0,
-            'is_active' => $unit->is_active ? 'Active' : 'Inactive',
+            'is_active' => $unit->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'organizations-export-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Organizations', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Organisasi', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

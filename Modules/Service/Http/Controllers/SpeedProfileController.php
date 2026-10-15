@@ -52,7 +52,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('store', SpeedProfile::class);
         SpeedProfile::query()->create($request->validated());
 
-        return redirect()->route('admin.speed-profiles.index')->with('success', 'Speed profile created.');
+        return redirect()->route('admin.speed-profiles.index')->with('success', 'Profil kecepatan dibuat.');
     }
 
     public function edit(SpeedProfile $speedProfile): InertiaResponse
@@ -67,7 +67,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('update', $speedProfile);
         $speedProfile->update($request->validated());
 
-        return redirect()->route('admin.speed-profiles.index')->with('success', 'Speed profile updated.');
+        return redirect()->route('admin.speed-profiles.index')->with('success', 'Profil kecepatan diperbarui.');
     }
 
     public function destroy(SpeedProfile $speedProfile): RedirectResponse
@@ -75,7 +75,7 @@ class SpeedProfileController extends Controller
         Gate::authorize('delete', $speedProfile);
         $speedProfile->delete();
 
-        return back()->with('success', 'Speed profile deleted.');
+        return back()->with('success', 'Profil kecepatan dihapus.');
     }
 
     public function export(Request $request): HttpResponse|StreamedResponse
@@ -88,12 +88,12 @@ class SpeedProfileController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
-            'download_max_mbps' => 'Download Max',
-            'upload_max_mbps' => 'Upload Max',
-            'burst_download_mbps' => 'Burst Download',
-            'burst_upload_mbps' => 'Burst Upload',
-            'radius_profile_name' => 'RADIUS Profile',
+            'name' => 'Nama',
+            'download_max_mbps' => 'Unduh maks (Mbps)',
+            'upload_max_mbps' => 'Unggah maks (Mbps)',
+            'burst_download_mbps' => 'Burst unduh (Mbps)',
+            'burst_upload_mbps' => 'Burst unggah (Mbps)',
+            'radius_profile_name' => 'Profil RADIUS',
             'is_active' => 'Status',
         ];
 
@@ -104,13 +104,13 @@ class SpeedProfileController extends Controller
             'burst_download_mbps' => $profile->burst_download_mbps ?? '-',
             'burst_upload_mbps' => $profile->burst_upload_mbps ?? '-',
             'radius_profile_name' => $profile->radius_profile_name ?? '-',
-            'is_active' => $profile->is_active ? 'Active' : 'Inactive',
+            'is_active' => $profile->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         $filename = 'speed-profiles-export-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
-            ? $export->streamPdf('Speed Profiles', $columns, $map, $filename.'.pdf')
+            ? $export->streamPdf('Profil Kecepatan', $columns, $map, $filename.'.pdf')
             : $export->streamCsv($columns, $map, $filename.'.csv');
     }
 

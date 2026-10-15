@@ -42,14 +42,14 @@ class OdnService
         $companyId = self::companyId();
 
         if ($count < 1 || $count > 64) {
-            throw ValidationException::withMessages(['count' => 'Create between 1 and 64 PON ports at a time.']);
+            throw ValidationException::withMessages(['count' => 'Buat antara 1 dan 64 port PON sekaligus.']);
         }
 
         return OdnLock::run($companyId, function () use ($olt, $count): Collection {
             $olt = self::lockAsset($olt->id);
 
             if ($olt->asset_type !== 'olt') {
-                throw ValidationException::withMessages(['asset' => 'PON ports can only be created on an OLT.']);
+                throw ValidationException::withMessages(['asset' => 'Port PON hanya dapat dibuat pada OLT.']);
             }
 
             $highest = (int) OdnPort::query()->where('network_asset_id', $olt->id)->where('kind', OdnPort::KIND_PON)->max('number');
@@ -78,14 +78,14 @@ class OdnService
         $companyId = self::companyId();
 
         if (! in_array($outputs, OdnSplitter::OUTPUTS, true)) {
-            throw ValidationException::withMessages(['outputs' => 'A splitter has 2, 4, 8, 16, 32 or 64 outputs.']);
+            throw ValidationException::withMessages(['outputs' => 'Splitter punya 2, 4, 8, 16, 32 atau 64 keluaran.']);
         }
 
         return OdnLock::run($companyId, function () use ($host, $outputs, $input, $label): OdnSplitter {
             $host = self::lockAsset($host->id);
 
             if (! in_array($host->asset_type, ['odc', 'odp'], true)) {
-                throw ValidationException::withMessages(['asset' => 'Splitters sit in an ODC or an ODP.']);
+                throw ValidationException::withMessages(['asset' => 'Splitter dipasang di ODC atau ODP.']);
             }
 
             $inputPort = $input === null ? null : self::lockFreePort(self::idOf($input), 'input_port_id');
@@ -183,7 +183,7 @@ class OdnService
                 || OdnSplitter::query()->whereIn('input_port_id', $ports->modelKeys())->lockForUpdate()->exists();
 
             if ($attached) {
-                throw ValidationException::withMessages(['splitter' => 'Something is still connected to its outputs. Release the drops and disconnect downstream splitters first.']);
+                throw ValidationException::withMessages(['splitter' => 'Masih ada yang terhubung ke keluarannya. Lepas port drop dan putuskan splitter hilir lebih dulu.']);
             }
 
             OdnPort::query()->where('odn_splitter_id', $locked->id)->delete();
@@ -200,11 +200,11 @@ class OdnService
             $locked = OdnPort::query()->lockForUpdate()->findOrFail(self::idOf($port));
 
             if ($locked->kind !== OdnPort::KIND_PON) {
-                throw ValidationException::withMessages(['port' => 'Only PON ports can be deleted. Delete the splitter to remove its outputs.']);
+                throw ValidationException::withMessages(['port' => 'Hanya port PON yang dapat dihapus. Hapus splitter untuk menghapus keluarannya.']);
             }
 
             if (OdnSplitter::query()->where('input_port_id', $locked->id)->lockForUpdate()->exists()) {
-                throw ValidationException::withMessages(['port' => 'A splitter is connected to this PON port. Disconnect it first.']);
+                throw ValidationException::withMessages(['port' => 'Sebuah splitter terhubung ke port PON ini. Putuskan lebih dulu.']);
             }
 
             $locked->delete();
@@ -226,23 +226,23 @@ class OdnService
             $holder = ServiceSubscription::query()->lockForUpdate()->find(self::idOf($subscription));
 
             if ($holder === null) {
-                throw ValidationException::withMessages(['subscription_id' => 'The subscription does not exist.']);
+                throw ValidationException::withMessages(['subscription_id' => 'Langganan tidak ditemukan.']);
             }
 
             if (! in_array($holder->status, self::DROP_STATUSES, true)) {
-                throw ValidationException::withMessages(['subscription_id' => "Subscription {$holder->code} is {$holder->status} and cannot take a drop."]);
+                throw ValidationException::withMessages(['subscription_id' => "Langganan {$holder->code} tidak dalam layanan, jadi tidak dapat memakai port drop."]);
             }
 
             $target = OdnPort::query()->lockForUpdate()->find(self::idOf($port));
 
             if ($target === null) {
-                throw ValidationException::withMessages([$portField => 'The selected port does not exist.']);
+                throw ValidationException::withMessages([$portField => 'Port yang dipilih tidak ditemukan.']);
             }
 
             $odp = NetworkAsset::query()->find($target->network_asset_id);
 
             if ($target->kind !== OdnPort::KIND_SPLITTER_OUT || $odp === null || $odp->asset_type !== 'odp') {
-                throw ValidationException::withMessages([$portField => 'A customer drop goes on an output port of an ODP.']);
+                throw ValidationException::withMessages([$portField => 'Port drop pelanggan dipasang pada port keluaran ODP.']);
             }
 
             if ($target->subscription_id === $holder->id) {
@@ -250,7 +250,7 @@ class OdnService
             }
 
             if (self::isOccupied($target)) {
-                throw ValidationException::withMessages([$portField => 'This port is already in use.']);
+                throw ValidationException::withMessages([$portField => 'Port ini sudah dipakai.']);
             }
 
             self::assertUnderServingPop($holder, $odp, $portField);
@@ -283,7 +283,7 @@ class OdnService
             $locked = OdnPort::query()->lockForUpdate()->findOrFail(self::idOf($port));
 
             if ($locked->subscription_id === null) {
-                throw ValidationException::withMessages(['port' => 'This port has no drop to release.']);
+                throw ValidationException::withMessages(['port' => 'Port ini tidak punya port drop untuk dilepas.']);
             }
 
             self::clearDrop($locked, 'released');
@@ -370,7 +370,7 @@ class OdnService
             }
         }
 
-        throw ValidationException::withMessages([$portField => "This ODP is not under the serving POP of subscription {$subscription->code}."]);
+        throw ValidationException::withMessages([$portField => "ODP ini tidak berada di bawah POP layanan langganan {$subscription->code}."]);
     }
 
     /**
@@ -389,7 +389,7 @@ class OdnService
             }
 
             if ($splitter !== null && $port->odn_splitter_id === $splitter->id) {
-                throw ValidationException::withMessages(['input_port_id' => 'A splitter cannot be connected to its own output or to anything downstream of it.']);
+                throw ValidationException::withMessages(['input_port_id' => 'Splitter tidak dapat dihubungkan ke keluarannya sendiri atau ke apa pun di hilirnya.']);
             }
 
             $parent = OdnSplitter::query()->sharedLock()->find($port->odn_splitter_id);
@@ -402,7 +402,7 @@ class OdnService
             $port = $upstream;
         }
 
-        throw ValidationException::withMessages(['input_port_id' => 'The fibre chain above this port is deeper than '.self::MAX_HOPS.' splitters.']);
+        throw ValidationException::withMessages(['input_port_id' => 'Rantai fiber di atas port ini lebih dari '.self::MAX_HOPS.' splitter.']);
     }
 
     private static function lockFreePort(int $portId, string $field): OdnPort
@@ -410,11 +410,11 @@ class OdnService
         $port = OdnPort::query()->lockForUpdate()->find($portId);
 
         if ($port === null) {
-            throw ValidationException::withMessages([$field => 'The selected port does not exist.']);
+            throw ValidationException::withMessages([$field => 'Port yang dipilih tidak ditemukan.']);
         }
 
         if (self::isOccupied($port)) {
-            throw ValidationException::withMessages([$field => 'This port is already in use.']);
+            throw ValidationException::withMessages([$field => 'Port ini sudah dipakai.']);
         }
 
         return $port;

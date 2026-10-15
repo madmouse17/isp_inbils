@@ -21,7 +21,7 @@ class HasAnyActiveRole implements ValidationRule
         $user = User::query()->find($value);
 
         if (! $user || ! $user->is_active || ! $user->hasAnyRole($this->roles)) {
-            $fail('The selected :attribute must be an active user with an eligible role.');
+            $fail(':attribute yang dipilih harus berupa pengguna aktif dengan peran yang sesuai.');
         }
     }
 }

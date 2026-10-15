@@ -259,7 +259,7 @@ class ReportDrillTest extends TestCase
         // Report: partial 300000 + sent 120000 + overdue 75000 + overpaid -30000 = 465000.
         // Receivables lists only invoices still unpaid, so it holds 495000: the gap is shown.
         $this->assertSame('465000.00', $response->inertiaProps('tie_out.sum'));
-        $this->assertSame('Receivables', $response->inertiaProps('reconciliation.label'));
+        $this->assertSame('Tunggakan', $response->inertiaProps('reconciliation.label'));
         $this->assertSame('/admin/billing/receivables', $response->inertiaProps('reconciliation.href'));
         $this->assertSame('495000.00', $response->inertiaProps('reconciliation.amount'));
         $this->assertSame('-30000.00', $response->inertiaProps('reconciliation.difference'));
@@ -349,10 +349,10 @@ class ReportDrillTest extends TestCase
 
         $rows = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id');
 
-        $this->assertSame('On time', $rows[$this->w['t_ontime']->id]['sla']);
-        $this->assertSame('On time', $rows[$this->w['t_equal']->id]['sla']);
-        $this->assertSame('Breached', $rows[$this->w['t_breach']->id]['sla']);
-        $this->assertSame('No deadline', $rows[$this->w['t_nodeadline']->id]['sla']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['t_ontime']->id]['sla']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['t_equal']->id]['sla']);
+        $this->assertSame('Terlambat', $rows[$this->w['t_breach']->id]['sla']);
+        $this->assertSame('Tanpa batas', $rows[$this->w['t_nodeadline']->id]['sla']);
         $this->assertSame(60, $rows[$this->w['t_ontime']->id]['resolution_minutes']);
         $this->assertSame(240, $rows[$this->w['t_breach']->id]['resolution_minutes']);
         $this->assertSame(10, $rows[$this->w['t_ontime']->id]['first_response_minutes']);
@@ -400,11 +400,11 @@ class ReportDrillTest extends TestCase
         $this->assertTrue($rate->inertiaProps('tie_out.matches'));
 
         $rows = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id');
-        $this->assertSame('On time', $rows[$this->w['r_early']->id]['response']);
-        $this->assertSame('On time', $rows[$this->w['r_equal']->id]['response']);
-        $this->assertSame('Breached', $rows[$this->w['r_late']->id]['response']);
-        $this->assertSame('No target', $rows[$this->w['r_old']->id]['response']);
-        $this->assertSame('No response', $rows[$this->w['r_silent']->id]['response']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['r_early']->id]['response']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['r_equal']->id]['response']);
+        $this->assertSame('Terlambat', $rows[$this->w['r_late']->id]['response']);
+        $this->assertSame('Tanpa target', $rows[$this->w['r_old']->id]['response']);
+        $this->assertSame('Belum ada respons', $rows[$this->w['r_silent']->id]['response']);
         $this->assertSame('2026-01-12 09:00:00', $rows[$this->w['r_late']->id]['response_deadline']);
     }
 
@@ -489,9 +489,9 @@ class ReportDrillTest extends TestCase
         // Sorted by paid amount: the overpaid one-time 46000, then 150000 and 300000.
         $this->assertSame(
             [$this->w['i_overpaid']->number, $this->w['i_last_day']->number, $this->w['i_first_day']->number],
-            array_column($records, 'Invoice'),
+            array_column($records, 'Tagihan'),
         );
-        $this->assertEquals(496000, array_sum(array_map('floatval', array_column($records, 'Paid'))));
+        $this->assertEquals(496000, array_sum(array_map('floatval', array_column($records, 'Terbayar'))));
         $this->assertCount(3, $records);
 
         $this->get(route('admin.reports.business.drill.export', ['metric' => 'revenue_paid', 'format' => 'pdf', ...self::JANUARY]))

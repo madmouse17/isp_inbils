@@ -76,11 +76,11 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
     };
 
     return (
-        <AdminLayout title="SLA Compliance">
+        <AdminLayout title="Kepatuhan SLA">
             <div className="space-y-6">
                 <PageHeader
-                    title="SLA Compliance"
-                    subtitle="Resolution rate, breach count, and per-category breakdown."
+                    title="Kepatuhan SLA"
+                    subtitle="Tingkat penyelesaian sesuai SLA, jumlah pelanggaran, dan rincian per kategori."
                     actions={
                         <>
                             <FormulaVersionLabel version={meta.formula_version} />
@@ -104,7 +104,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
-                                    Run
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
@@ -116,7 +116,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                         <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.total_resolved.label}
                                     </p>
                                     <p className="text-2xl font-bold">{data.total_resolved ?? 0}</p>
@@ -131,7 +131,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.sla_rate.label}
                                     </p>
                                     <p className="text-2xl font-bold">{data.sla_rate ?? 0}%</p>
@@ -144,7 +144,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.response_rate.label}
                                     </p>
                                     <p className="text-2xl font-bold">
@@ -167,7 +167,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.breach_count.label}
                                     </p>
                                     <p className="text-2xl font-bold">{data.breach_count ?? 0}</p>
@@ -180,11 +180,11 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                             </Card>
                             <Card>
                                 <CardContent>
-                                    <p className="text-sm text-surface-500">
+                                    <p className="text-sm text-muted-foreground">
                                         {meta.metrics.avg_resolution_minutes.label}
                                     </p>
                                     <p className="text-2xl font-bold">
-                                        {data.avg_resolution_minutes ?? '-'} min
+                                        {data.avg_resolution_minutes ?? '-'} menit
                                     </p>
                                     <DrillLink
                                         href={drill.avg_resolution_minutes}
@@ -209,10 +209,10 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                 <Table>
                                     <THead>
                                         <TR>
-                                            <TH>Category</TH>
+                                            <TH>Kategori</TH>
                                             <TH>Total</TH>
-                                            <TH>Compliant</TH>
-                                            <TH>Rate</TH>
+                                            <TH>Sesuai SLA</TH>
+                                            <TH>Persentase</TH>
                                         </TR>
                                     </THead>
                                     <TBody>
@@ -222,7 +222,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                                     colSpan={4}
                                                     className="py-10 text-center text-muted-foreground"
                                                 >
-                                                    No data found.
+                                                    Tidak ada data.
                                                 </TD>
                                             </TR>
                                         ) : (
@@ -233,7 +233,7 @@ export default function Sla({ data, charts, filters, meta, can, drill }: Props) 
                                                         {c.total}
                                                         <DrillLink
                                                             href={drill.by_category}
-                                                            label={`${c.name} resolved tickets`}
+                                                            label={`tiket selesai ${c.name}`}
                                                             group={c.name}
                                                         />
                                                     </TD>

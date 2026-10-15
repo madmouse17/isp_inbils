@@ -23,6 +23,13 @@ class CustomerSubscriptionResource extends JsonResource
             'id' => $subscription->id,
             'code' => $subscription->code,
             'status' => $subscription->status,
+            /**
+             * Why a suspended subscription is on hold; null for any other status. `overdue` lifts by itself once the unpaid
+             * bills are paid, `manual` waits for the ISP. A suspension recorded before the reason existed is null too.
+             *
+             * @var 'overdue'|'manual'|null
+             */
+            'suspension_reason' => $subscription->status === 'suspended' ? $subscription->suspension_source : null,
             'package' => $package === null ? null : [
                 'id' => $package->id,
                 'name' => $package->name,

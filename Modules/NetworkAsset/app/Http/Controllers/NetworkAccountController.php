@@ -82,7 +82,7 @@ class NetworkAccountController extends Controller
             $this->sealSecretFlash($generated);
         }
 
-        return redirect()->route('admin.subscriptions.network-account.show', $subscription)->with('success', 'Network account created.');
+        return redirect()->route('admin.subscriptions.network-account.show', $subscription)->with('success', 'Akun jaringan dibuat.');
     }
 
     public function update(UpdateNetworkAccountRequest $request, ServiceSubscription $subscription): RedirectResponse
@@ -91,7 +91,7 @@ class NetworkAccountController extends Controller
 
         NetworkAccountService::update($this->accountOf($subscription), $request->validated());
 
-        return redirect()->route('admin.subscriptions.network-account.show', $subscription)->with('success', 'Network account updated.');
+        return redirect()->route('admin.subscriptions.network-account.show', $subscription)->with('success', 'Akun jaringan diperbarui.');
     }
 
     public function reveal(ServiceSubscription $subscription): RedirectResponse
@@ -111,7 +111,7 @@ class NetworkAccountController extends Controller
 
         NetworkAccountService::resync($this->accountOf($subscription));
 
-        return back()->with('success', 'Resync queued.');
+        return back()->with('success', 'Sinkron ulang dijadwalkan.');
     }
 
     private function accountOf(ServiceSubscription $subscription): NetworkAccount

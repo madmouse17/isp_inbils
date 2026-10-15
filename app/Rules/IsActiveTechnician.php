@@ -30,7 +30,7 @@ class IsActiveTechnician implements ValidationRule
             ->exists();
 
         if (! $exists) {
-            $fail('Selected technician must be an active employee with SPK lifecycle capability.');
+            $fail('Teknisi yang dipilih harus karyawan aktif yang bisa mengerjakan SPK.');
         }
     }
 }

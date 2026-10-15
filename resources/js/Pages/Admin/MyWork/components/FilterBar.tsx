@@ -5,7 +5,9 @@ import { NativeSelect } from '@/Components/composite/NativeSelect';
 import { Button, DateRangePicker } from '@/Components/ui';
 import { Input } from '@/Components/ui/Input';
 import type { ServerTableFilterValue } from '@/hooks/useServerTable';
+import { optionsOf, PRIORITY } from '@/lib/statuses';
 import type { QueueDomainOption } from '@/types';
+import { MY_WORK_STATUS_FILTER } from './utils';
 
 interface FilterBarProps {
     params: Record<string, string>;
@@ -15,6 +17,8 @@ interface FilterBarProps {
     onSubmitSearch: (event: FormEvent) => void;
     disabled?: boolean;
 }
+
+const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...MY_WORK_STATUS_FILTER];
 
 export function FilterBar({
     params,
@@ -49,9 +53,9 @@ export function FilterBar({
     return (
         <form
             onSubmit={onSubmitSearch}
-            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xs md:flex-row md:flex-wrap md:items-end"
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:flex-row md:flex-wrap md:items-end"
             role="search"
-            aria-label="Filter Pekerjaan Saya"
+            aria-label="Filter pekerjaan saya"
         >
             <div className="min-w-56 flex-1">
                 <Input
@@ -66,53 +70,39 @@ export function FilterBar({
             </div>
 
             {domains.length > 1 && (
-                <div className="w-full sm:w-36">
-                    <NativeSelect
-                        id="mywork-domain"
-                        label="Domain"
-                        value={String(params.domain ?? '')}
-                        onChange={(event) => set('domain', event.target.value)}
-                        options={[
-                            { value: '', label: 'Semua Domain' },
-                            ...domains.map((d) => ({ value: d.value, label: d.label })),
-                        ]}
-                        disabled={disabled}
-                    />
-                </div>
+                <NativeSelect
+                    id="mywork-domain"
+                    label="Jenis"
+                    wrapperClassName="w-full sm:w-44"
+                    value={String(params.domain ?? '')}
+                    onChange={(event) => set('domain', event.target.value)}
+                    options={[
+                        { value: '', label: 'Semua jenis' },
+                        ...domains.map((d) => ({ value: d.value, label: d.label })),
+                    ]}
+                    disabled={disabled}
+                />
             )}
 
-            <div className="w-full sm:w-44">
-                <NativeSelect
-                    id="mywork-status"
-                    label="Status Pekerjaan"
-                    value={String(params.status ?? '')}
-                    onChange={(event) => set('status', event.target.value)}
-                    options={[
-                        { value: '', label: 'Semua Status' },
-                        { value: 'assigned', label: 'Belum Dimulai' },
-                        { value: 'in_progress', label: 'Sedang Dikerjakan' },
-                        { value: 'resolved', label: 'Selesai Ditangani' },
-                    ]}
-                    disabled={disabled}
-                />
-            </div>
+            <NativeSelect
+                id="mywork-status"
+                label="Status"
+                wrapperClassName="w-full sm:w-52"
+                value={String(params.status ?? '')}
+                onChange={(event) => set('status', event.target.value)}
+                options={STATUS_OPTIONS}
+                disabled={disabled}
+            />
 
-            <div className="w-full sm:w-36">
-                <NativeSelect
-                    id="mywork-priority"
-                    label="Prioritas"
-                    value={String(params.priority ?? '')}
-                    onChange={(event) => set('priority', event.target.value)}
-                    options={[
-                        { value: '', label: 'Semua Prioritas' },
-                        { value: 'critical', label: 'Kritis' },
-                        { value: 'high', label: 'Tinggi' },
-                        { value: 'medium', label: 'Sedang' },
-                        { value: 'low', label: 'Rendah' },
-                    ]}
-                    disabled={disabled}
-                />
-            </div>
+            <NativeSelect
+                id="mywork-priority"
+                label="Prioritas"
+                wrapperClassName="w-full sm:w-48"
+                value={String(params.priority ?? '')}
+                onChange={(event) => set('priority', event.target.value)}
+                options={[{ value: '', label: 'Semua prioritas' }, ...optionsOf(PRIORITY)]}
+                disabled={disabled}
+            />
 
             <div className="w-full sm:w-80">
                 <DateRangePicker
@@ -137,10 +127,9 @@ export function FilterBar({
                         variant="outline"
                         onClick={handleReset}
                         disabled={disabled}
-                        aria-label="Atur ulang filter pekerjaan"
+                        leftIcon={<X className="h-4 w-4" />}
                     >
-                        <X className="mr-1.5 h-4 w-4" />
-                        Reset
+                        Reset filter
                     </Button>
                 )}
             </div>

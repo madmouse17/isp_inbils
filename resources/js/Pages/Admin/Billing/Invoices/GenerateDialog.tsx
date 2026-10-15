@@ -5,8 +5,8 @@ import {
     Button,
     Card,
     CardContent,
-    Input,
     Modal,
+    MonthPicker,
     Table,
     TBody,
     TD,
@@ -14,6 +14,8 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
+import { formatRupiah } from '@/lib/format';
 
 interface PreviewRow {
     subscription_id: number;
@@ -36,14 +38,8 @@ const previousMonth = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 };
 
-const idr = (n: number) =>
-    new Intl.NumberFormat('id-ID', {
-        style: 'currency',
-        currency: 'IDR',
-        maximumFractionDigits: 0,
-    }).format(n);
-
 export default function GenerateDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+    const company = useCompany();
     const [period, setPeriod] = useState(previousMonth());
     const [rows, setRows] = useState<PreviewRow[] | null>(null);
     const [skipped, setSkipped] = useState(0);
@@ -68,16 +64,16 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
     };
 
     return (
-        <Modal open={open} onClose={onClose} title="Generate Tagihan Bulanan" size="xl">
+        <Modal open={open} onClose={onClose} title="Buat tagihan bulanan" size="xl">
             <div className="space-y-4">
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Input
+                        <MonthPicker
+                            id="generate-period"
                             label="Periode"
-                            type="month"
                             value={period}
-                            onChange={(e) => {
-                                setPeriod(e.target.value);
+                            onChange={(value) => {
+                                setPeriod(value);
                                 setRows(null);
                             }}
                         />
@@ -91,7 +87,7 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                                         <TR>
                                             <TH>Pelanggan</TH>
                                             <TH>Paket</TH>
-                                            <TH>Hari</TH>
+                                            <TH>Hari aktif</TH>
                                             <TH className="text-right">Total</TH>
                                         </TR>
                                     </THead>
@@ -103,7 +99,9 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                                                 <TD>
                                                     {r.active_days}/{r.days_in_period}
                                                 </TD>
-                                                <TD className="text-right">{idr(r.total)}</TD>
+                                                <TD className="text-right tabular-nums">
+                                                    {formatRupiah(r.total, company)}
+                                                </TD>
                                             </TR>
                                         ))}
                                         {rows.length === 0 && (
@@ -112,7 +110,7 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                                                     colSpan={4}
                                                     className="text-center text-muted-foreground"
                                                 >
-                                                    Tidak ada tagihan baru.
+                                                    Tidak ada tagihan baru untuk periode ini.
                                                 </TD>
                                             </TR>
                                         )}
@@ -128,16 +126,17 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                     </Button>
                     <Button
                         type="button"
+                        variant={rows !== null && rows.length > 0 ? 'outline' : 'primary'}
                         onClick={() => {
                             void preview();
                         }}
                         loading={loading}
                     >
-                        Preview
+                        Lihat pratinjau
                     </Button>
                     {rows !== null && rows.length > 0 && (
                         <Button type="button" variant="primary" onClick={confirm}>
-                            Terbitkan {rows.length} Tagihan
+                            Buat {rows.length} tagihan
                         </Button>
                     )}
                 </div>

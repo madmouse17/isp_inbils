@@ -27,6 +27,17 @@ class InstallNetworkAssetRequest extends FormRequest
         ];
     }
 
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'location_id' => 'lokasi',
+            'customer_id' => 'pelanggan',
+            'subscription_id' => 'langganan',
+            'spk_id' => 'SPK',
+        ];
+    }
+
     public function after(): array
     {
         return [
@@ -44,7 +55,7 @@ class InstallNetworkAssetRequest extends FormRequest
                         ->find($subscriptionId);
 
                     if (is_object($subscription) && (int) $subscription->customer_id !== (int) $customerId) {
-                        $validator->errors()->add('subscription_id', 'Subscription does not belong to customer.');
+                        $validator->errors()->add('subscription_id', 'Langganan bukan milik pelanggan ini.');
                     }
                 }
 
@@ -62,15 +73,15 @@ class InstallNetworkAssetRequest extends FormRequest
                 }
 
                 if ($customerId !== null && (int) $workOrder->customer_id !== (int) $customerId) {
-                    $validator->errors()->add('customer_id', 'Customer does not match the selected SPK.');
+                    $validator->errors()->add('customer_id', 'Pelanggan tidak sesuai dengan SPK yang dipilih.');
                 }
 
                 if ($subscriptionId !== null && (int) $workOrder->subscription_id !== (int) $subscriptionId) {
-                    $validator->errors()->add('subscription_id', 'Subscription does not match the selected SPK.');
+                    $validator->errors()->add('subscription_id', 'Langganan tidak sesuai dengan SPK yang dipilih.');
                 }
 
                 if ($locationId !== null && (int) $workOrder->location_id !== (int) $locationId) {
-                    $validator->errors()->add('location_id', 'Location does not match the selected SPK.');
+                    $validator->errors()->add('location_id', 'Lokasi tidak sesuai dengan SPK yang dipilih.');
                 }
             },
         ];

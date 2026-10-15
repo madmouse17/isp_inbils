@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link, useForm } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTable, DataTableActions, PageHeader } from '@/Components/composite';
+import { DataTable, DataTableActions, NativeSelect, PageHeader } from '@/Components/composite';
 import type { DataTableColumn } from '@/Components/composite';
 import {
     ConfirmRequestDialog,
@@ -11,17 +10,16 @@ import {
 } from '@/Components/composite/ConfirmRequestDialog';
 import { Button, Input, Modal, Switch } from '@/Components/ui';
 import { EnumBadge } from '@/Components/ui/EnumBadge';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/Components/ui/Select';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import { ACTIVE_STATE } from '@/lib/statuses';
 import type { Paginated } from '@/types';
+
+const ACTIVE_OPTIONS = [
+    { value: '', label: 'Semua status' },
+    { value: '1', label: 'Aktif' },
+    { value: '0', label: 'Nonaktif' },
+];
 
 interface CategoryRow {
     id: number;
@@ -48,11 +46,15 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
     /** `'new'` adds a category, a row edits it. */
     const [dialog, setDialog] = useState<'new' | CategoryRow | null>(null);
     const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
-        url: route('admin.service-package-categories.index'),
-        filters,
-        only: ['packageCategories', 'filters', 'can'],
-    });
+    const { params, search, setSearch, set, setMany, sortBy, sortDir, onSort, processing } =
+        useServerTable({
+            url: route('admin.service-package-categories.index'),
+            filters,
+            only: ['packageCategories', 'filters', 'can'],
+        });
+
+    const hasFilters = Boolean(params.search || params.is_active);
+    const resetFilters = () => setMany({ search: '', is_active: '' });
 
     const columns: DataTableColumn<CategoryRow>[] = useMemo(() => {
         const base: DataTableColumn<CategoryRow>[] = [
@@ -146,8 +148,7 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
 
     const newCategory = can.create ? (
         <Button type="button" variant="primary" size="sm" onClick={() => setDialog('new')}>
-            <Plus className="size-4" aria-hidden="true" />
-            Kategori baru
+            Buat Kategori Paket
         </Button>
     ) : undefined;
 
@@ -156,48 +157,33 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
             <div className="space-y-4">
                 <PageHeader
                     title="Kategori Paket"
-                    description="Golongan paket layanan, misalnya Rumahan, Bisnis, dan Korporat. Dipakai untuk mengelompokkan pilihan paket dan laporan."
+                    subtitle="Golongan paket layanan, misalnya Rumahan, Bisnis, dan Korporat. Dipakai untuk mengelompokkan pilihan paket dan laporan."
                     actions={newCategory}
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="pkg-cat-search"
-                        >
-                            Cari
-                        </label>
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-56 flex-1">
                         <Input
                             id="pkg-cat-search"
-                            value={params.search ?? ''}
-                            onChange={(event) => set('search', event.target.value)}
-                            placeholder="Kode atau nama..."
+                            label="Cari"
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Kode atau nama"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label
-                            htmlFor="pkg-cat-active"
-                            className="text-xs font-medium text-muted-foreground"
-                        >
-                            Status
-                        </label>
-                        <Select
-                            value={params.is_active || '__all__'}
-                            onValueChange={(value) =>
-                                set('is_active', value === '__all__' ? '' : value)
-                            }
-                        >
-                            <SelectTrigger id="pkg-cat-active" className="w-36">
-                                <SelectValue placeholder="Semua" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">Semua</SelectItem>
-                                <SelectItem value="1">Aktif</SelectItem>
-                                <SelectItem value="0">Nonaktif</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <NativeSelect
+                        id="pkg-cat-active"
+                        label="Status"
+                        value={params.is_active ?? ''}
+                        onChange={(event) => set('is_active', event.target.value)}
+                        options={ACTIVE_OPTIONS}
+                        wrapperClassName="sm:w-40"
+                    />
+                    {hasFilters ? (
+                        <Button type="button" variant="ghost" onClick={resetFilters}>
+                            Reset filter
+                        </Button>
+                    ) : null}
                 </div>
 
                 <DataTable
@@ -209,8 +195,11 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(perPage) => set('per_page', perPage)}
                     loading={processing}
+                    itemLabel="kategori"
+                    hasFilters={hasFilters}
+                    onResetFilters={resetFilters}
                     emptyTitle="Belum ada kategori paket"
-                    emptyDescription="Tidak ada kategori yang cocok dengan filter. Tambahkan kategori agar paket bisa dikelompokkan."
+                    emptyDescription="Tambahkan kategori agar paket layanan bisa dikelompokkan."
                     emptyAction={newCategory}
                 />
 
@@ -263,7 +252,7 @@ function CategoryDialog({ onClose, category }: CategoryDialogProps) {
         <Modal
             open
             onClose={onClose}
-            title={category ? `Ubah kategori ${category.name}` : 'Kategori baru'}
+            title={category ? 'Ubah Kategori Paket' : 'Buat Kategori Paket'}
         >
             <form onSubmit={submit} className="space-y-4">
                 <Input
@@ -320,7 +309,7 @@ function CategoryDialog({ onClose, category }: CategoryDialogProps) {
                         Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        {category ? 'Simpan' : 'Tambah kategori'}
+                        Simpan
                     </Button>
                 </div>
             </form>

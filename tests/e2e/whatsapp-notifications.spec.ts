@@ -18,6 +18,7 @@ import {
     loginAs,
     logout,
     selectFirstSearchOption,
+    selectSearchOption,
     unique,
 } from './support/demo';
 
@@ -63,7 +64,7 @@ async function saveCustomer(page: Page) {
         (candidate) =>
             candidate.method() === 'PUT' && /\/admin\/customers\/\d+$/.test(candidate.url()),
     );
-    await page.getByRole('button', { name: 'Save Customer' }).click();
+    await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
     await expect(page).toHaveURL(/\/admin\/customers\/?$/);
 
     return (await request).postDataJSON() as Record<string, unknown>;
@@ -117,7 +118,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(card).toContainText('bukan nomor seluler Indonesia yang valid');
 
         await page.goto(`/admin/customers/${plainId}/edit`);
-        await expect(mainOf(page).getByRole('heading', { name: 'Edit Customer' })).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Ubah Pelanggan' })).toBeVisible();
         await expect(page.locator('form')).toHaveCount(1);
         const consent = page.getByRole('checkbox', { name: CONSENT });
         await expect(consent).not.toBeChecked();
@@ -128,7 +129,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(page.getByText(/bukan nomor seluler Indonesia yang valid/)).toBeVisible();
 
         // Saving without touching consent does not send it: a stale form never re-opts anyone in.
-        await page.getByLabel('Notes').fill('E2E consent: unchanged');
+        await page.getByLabel('Catatan', { exact: true }).fill('E2E consent: unchanged');
         expect(await saveCustomer(page)).not.toHaveProperty('whatsapp_opt_in');
 
         // Ticking it records consent.
@@ -158,7 +159,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         // Leave the shared fixture without consent again, and with its notes as they were.
         await page.goto(`/admin/customers/${plainId}/edit`);
         await page.getByRole('checkbox', { name: CONSENT }).uncheck();
-        await page.getByLabel('Notes').fill('');
+        await page.getByLabel('Catatan', { exact: true }).fill('');
         await saveCustomer(page);
     });
 
@@ -183,9 +184,9 @@ test.describe('@lifecycle whatsapp notifications', () => {
             });
         });
         await page.goto(`/admin/customers/${plainId}/edit`);
-        await expect(mainOf(page).getByText(/Read-only view/)).toBeVisible();
+        await expect(mainOf(page).getByText(/Tampilan baca saja/)).toBeVisible();
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeDisabled();
-        await expect(page.getByRole('button', { name: 'Save Customer' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Simpan pelanggan' })).toHaveCount(0);
         await page.unroute(/\/admin\/customers\/\d+\/edit$/);
     });
 
@@ -196,18 +197,18 @@ test.describe('@lifecycle whatsapp notifications', () => {
 
         await loginAs(page, 'admin');
         await page.goto('/admin/customers/create');
-        await expect(mainOf(page).getByRole('heading', { name: 'Create Customer' })).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Buat Pelanggan' })).toBeVisible();
         const consent = page.getByRole('checkbox', { name: CONSENT });
         await expect(consent).not.toBeChecked();
 
-        await page.getByLabel('Name').fill(name);
+        await page.getByLabel('Nama').fill(name);
         await page.getByLabel('Email').fill(`${suffix}@example.test`);
-        await page.getByLabel('Phone').fill('081234560002');
+        await page.getByLabel('Telepon').fill('081234560002');
         await consent.check();
 
-        await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+        await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
         await page.getByLabel('Label').fill(`E2E Install ${suffix}`);
-        await page.getByLabel('Address *', { exact: true }).fill('9 E2E Consent Street');
+        await page.getByLabel('Alamat *', { exact: true }).fill('9 E2E Consent Street');
         await page.getByLabel('Provinsi *', { exact: true }).click();
         await page
             .getByRole('option', { name: /jakarta/i })
@@ -233,25 +234,18 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
         await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
-        await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
-        await page.getByLabel('Name').fill(`${name} Contact`);
-        await page.getByLabel('Phone').fill('081234560003');
+        await page.getByRole('tab', { name: /Kontak \(\d+\)/ }).click();
+        await page.getByLabel('Nama').fill(`${name} Contact`);
+        await page.getByLabel('Telepon').fill('081234560003');
         await page.getByLabel('Email').fill(`contact.${suffix}@example.test`);
 
-        await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-        await selectFirstSearchOption(page, 'Service Package');
-        const pop = page.getByLabel('Serving POP / Location');
-        const popValue = await pop
-            .locator('option')
-            .filter({ hasText: 'Default POP' })
-            .first()
-            .getAttribute('value');
-        expect(popValue).toBeTruthy();
-        await pop.selectOption(popValue!);
+        await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
+        await selectFirstSearchOption(page, 'Paket layanan');
+        await selectSearchOption(page, 'POP pelayan', 'Default POP');
 
-        await page.getByRole('tab', { name: 'Customer Data' }).click();
+        await page.getByRole('tab', { name: 'Data pelanggan' }).click();
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeChecked();
-        await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
+        await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
         await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
         await expect(mainOf(page).getByRole('heading', { name })).toBeVisible();
@@ -264,7 +258,9 @@ test.describe('@lifecycle whatsapp notifications', () => {
         test.setTimeout(90_000);
         await loginAs(page, 'admin');
         await page.goto('/admin/company/settings');
-        await expect(mainOf(page).getByRole('heading', { name: 'Company Settings' })).toBeVisible();
+        await expect(
+            mainOf(page).getByRole('heading', { name: 'Pengaturan Perusahaan' }),
+        ).toBeVisible();
 
         const section = page
             .getByRole('heading', { name: 'WhatsApp', exact: true })
@@ -277,17 +273,19 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(section.locator('input[type="password"]')).toHaveCount(0);
 
         // The WhatsApp keys have their own section; the generic list keeps the rest.
-        await expect(page.getByLabel('whatsapp_enabled')).toHaveCount(0);
-        const dueDays = await page.getByLabel('invoice_due_days').inputValue();
+        const enabled = page.getByRole('switch', { name: 'Aktifkan notifikasi WhatsApp' });
+        await expect(enabled).toHaveCount(1);
+        const dueDays = await page
+            .getByLabel('Jatuh tempo tagihan (hari)', { exact: true })
+            .inputValue();
 
         // Defaults: off, every message type on, quiet 21:00-07:00, cap 1000.
-        const enabled = page.getByRole('switch', { name: 'Aktifkan notifikasi WhatsApp' });
         await expect(enabled).toHaveAttribute('aria-checked', 'false');
         const events = section.getByRole('group', { name: 'Jenis pesan yang dikirim' });
         await expect(events.getByRole('checkbox')).toHaveCount(9);
         await expect(events.getByRole('checkbox', { checked: true })).toHaveCount(9);
-        await expect(page.getByLabel('Jam tenang mulai')).toHaveValue('21:00');
-        await expect(page.getByLabel('Jam tenang selesai')).toHaveValue('07:00');
+        await expect(page.getByLabel('Jam tenang mulai', { exact: true })).toHaveValue('21:00');
+        await expect(page.getByLabel('Jam tenang selesai', { exact: true })).toHaveValue('07:00');
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('1000');
 
         // This month's usage comes from the fixture rows: two sent, one of them delivered.
@@ -305,10 +303,10 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await enabled.click();
         await expect(enabled).toHaveAttribute('aria-checked', 'true');
         await events.getByRole('checkbox', { name: /Pengingat jatuh tempo/ }).uncheck();
-        await page.getByLabel('Jam tenang mulai').fill('20:30');
+        await page.getByLabel('Jam tenang mulai', { exact: true }).fill('20:30');
         await page.getByLabel('Batas pesan per bulan').fill('2500');
-        await page.getByRole('button', { name: 'Save Settings' }).click();
-        await expect(page.getByText('Company settings updated.')).toBeVisible();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page.getByText('Pengaturan perusahaan diperbarui.')).toBeVisible();
 
         await page.reload();
         await expect(
@@ -319,14 +317,16 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(
             reloaded.getByRole('checkbox', { name: /Pengingat jatuh tempo/ }),
         ).not.toBeChecked();
-        await expect(page.getByLabel('Jam tenang mulai')).toHaveValue('20:30');
+        await expect(page.getByLabel('Jam tenang mulai', { exact: true })).toHaveValue('20:30');
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('2500');
         // Saving the section did not touch the other settings.
-        await expect(page.getByLabel('invoice_due_days')).toHaveValue(dueDays);
+        await expect(page.getByLabel('Jatuh tempo tagihan (hari)', { exact: true })).toHaveValue(
+            dueDays,
+        );
 
         // An emptied cap is a validation error, never a silent 0 (which would send nothing).
         await page.getByLabel('Batas pesan per bulan').fill('');
-        await page.getByRole('button', { name: 'Save Settings' }).click();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page.getByText(/batas WhatsApp bulanan wajib diisi/i)).toBeVisible();
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('');
         await page.reload();
@@ -338,10 +338,10 @@ test.describe('@lifecycle whatsapp notifications', () => {
             .getByRole('group', { name: 'Jenis pesan yang dikirim' })
             .getByRole('checkbox', { name: /Pengingat jatuh tempo/ })
             .check();
-        await page.getByLabel('Jam tenang mulai').fill('21:00');
+        await page.getByLabel('Jam tenang mulai', { exact: true }).fill('21:00');
         await page.getByLabel('Batas pesan per bulan').fill('1000');
-        await page.getByRole('button', { name: 'Save Settings' }).click();
-        await expect(page.getByText('Company settings updated.')).toBeVisible();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page.getByText('Pengaturan perusahaan diperbarui.')).toBeVisible();
     });
 
     test('a read-only view disables every WhatsApp control and hides Save, and the server refuses a manager', async ({
@@ -377,11 +377,11 @@ test.describe('@lifecycle whatsapp notifications', () => {
         for (const checkbox of await events.all()) {
             await expect(checkbox).toBeDisabled();
         }
-        await expect(page.getByLabel('Jam tenang mulai')).toBeDisabled();
-        await expect(page.getByLabel('Jam tenang selesai')).toBeDisabled();
+        await expect(page.getByLabel('Jam tenang mulai', { exact: true })).toBeDisabled();
+        await expect(page.getByLabel('Jam tenang selesai', { exact: true })).toBeDisabled();
         await expect(page.getByLabel('Batas pesan per bulan')).toBeDisabled();
         await expect(page.getByLabel('Batas pesan per bulan')).toHaveValue('1000');
-        await expect(page.getByRole('button', { name: 'Save Settings' })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Simpan', exact: true })).toHaveCount(0);
         await page.unroute('**/admin/company/settings');
 
         await logout(page);

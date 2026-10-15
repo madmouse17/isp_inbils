@@ -99,6 +99,14 @@ class RolePersonaSodTest extends TestCase
         $this->assertSame([], SodConflicts::violations(['inventory.request.prepare', 'inventory.request.issue', 'inventory.stock.receive']));
     }
 
+    public function test_conflict_messages_name_the_rule_and_both_sides_in_indonesian(): void
+    {
+        $this->assertSame(
+            ['Pemisahan tugas (persetujuan penyesuaian stok vs operasi stok): inventory.stock.adjust.approve tidak boleh digabung dengan inventory.stock.adjust.request, inventory.stock.receive.'],
+            SodConflicts::violations(['inventory.stock.adjust.approve', 'inventory.stock.adjust.request', 'inventory.stock.receive']),
+        );
+    }
+
     public function test_reseeding_narrows_seeded_roles_and_leaves_custom_roles_untouched(): void
     {
         Role::findByName('manager')->givePermissionTo(['inventory.stock.receive', 'inventory.stock.adjust', 'inventory.request.prepare']);
@@ -152,7 +160,7 @@ class RolePersonaSodTest extends TestCase
         Auth::login($creator);
 
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Cannot cancel own created invoice.');
+        $this->expectExceptionMessage('Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.');
         BillingService::cancel($invoice, 'Self cancellation attempt');
     }
 
@@ -213,7 +221,7 @@ class RolePersonaSodTest extends TestCase
 
         // Self-approval must fail
         $this->expectException(HttpException::class);
-        $this->expectExceptionMessage('Maker-checker: requester cannot approve own stock adjustment request.');
+        $this->expectExceptionMessage('Maker-checker: pemohon tidak boleh menyetujui permintaan penyesuaian stoknya sendiri.');
         StockService::approveAdjustment($request, $requester->id);
     }
 
@@ -305,13 +313,13 @@ class RolePersonaSodTest extends TestCase
                 'name' => 'warehouse_super',
                 'permissions' => ['inventory.request.approve', 'inventory.request.prepare'],
             ])
-            ->assertSessionHasErrors('permissions');
+            ->assertSessionHasErrors(['permissions' => 'Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): inventory.request.approve tidak boleh digabung dengan inventory.request.prepare.']);
         $this->actingAs($actor)
             ->post(route('admin.roles.store'), [
                 'name' => 'break_glass_clone',
                 'permissions' => ['inventory.stock.adjust'],
             ])
-            ->assertSessionHasErrors('permissions');
+            ->assertSessionHasErrors(['permissions' => 'Hanya administrator yang boleh memberikan hak akses darurat inventory.stock.adjust.']);
         $this->assertSame(0, Role::query()->whereIn('name', ['warehouse_super', 'break_glass_clone'])->count());
 
         $this->actingAs($actor)
@@ -398,7 +406,7 @@ class RolePersonaSodTest extends TestCase
         foreach ([$requester, $approver] as $actor) {
             $this->actingAs($admin)
                 ->delete(route('admin.users.destroy', $actor))
-                ->assertSessionHasErrors('user');
+                ->assertSessionHasErrors(['user' => 'Pengguna yang pernah mengajukan atau memeriksa penyesuaian stok tidak bisa dihapus. Nonaktifkan akunnya.']);
             $this->assertTrue(User::query()->whereKey($actor->id)->exists());
         }
 
@@ -414,7 +422,7 @@ class RolePersonaSodTest extends TestCase
 
         $this->actingAs($requester)
             ->delete(route('profile.destroy'), ['password' => 'password'])
-            ->assertSessionHasErrors('user');
+            ->assertSessionHasErrors(['user' => 'Pengguna yang pernah mengajukan atau memeriksa penyesuaian stok tidak bisa dihapus. Nonaktifkan akunnya.']);
 
         $this->assertTrue(User::query()->whereKey($requester->id)->exists());
         $this->assertAuthenticatedAs($requester);

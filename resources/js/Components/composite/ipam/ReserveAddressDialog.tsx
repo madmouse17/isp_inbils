@@ -20,34 +20,34 @@ export function ReserveAddressDialog({ onClose, prefix }: ReserveAddressDialogPr
     };
 
     return (
-        <Modal open onClose={onClose} title={`Reserve an address in ${prefix.cidr}`}>
+        <Modal open onClose={onClose} title={`Cadangkan alamat di ${prefix.cidr}`}>
             <form onSubmit={submit} className="space-y-4">
                 <Input
                     id="reservation-address"
-                    label="Address"
+                    label="Alamat"
                     value={data.address}
                     onChange={(event) => setData('address', event.target.value)}
                     error={errors.address}
-                    hint="A reserved address is never handed to a customer."
+                    hint="Alamat yang dicadangkan tidak pernah diberikan ke pelanggan."
                     autoComplete="off"
                     spellCheck={false}
                     required
                 />
                 <Input
                     id="reservation-note"
-                    label="Note"
+                    label="Catatan"
                     value={data.note}
                     onChange={(event) => setData('note', event.target.value)}
                     error={errors.note}
-                    placeholder="Gateway, router loopback…"
+                    placeholder="Gateway, loopback router..."
                     maxLength={255}
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        Reserve address
+                        Cadangkan alamat
                     </Button>
                 </div>
             </form>

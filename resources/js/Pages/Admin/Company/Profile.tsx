@@ -13,7 +13,6 @@ import {
     PhoneInput,
     Progress,
     Textarea,
-    useToast,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
 import type { Company } from '@/types';
@@ -24,7 +23,6 @@ interface ProfileProps {
 }
 
 export default function Profile({ company, can }: ProfileProps) {
-    const { toast } = useToast();
     const { data, setData, post, processing, progress, errors, reset } = useForm({
         _method: 'put',
         name: company.data.name ?? '',
@@ -41,17 +39,7 @@ export default function Profile({ company, can }: ProfileProps) {
         post(route('admin.company.profile.update'), {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => {
-                reset('logo');
-                toast({ title: 'Company profile updated.', variant: 'success' });
-            },
-            onError: () => {
-                toast({
-                    title: 'Failed to update company profile.',
-                    description: 'Check required fields and allowed file type.',
-                    variant: 'danger',
-                });
-            },
+            onSuccess: () => reset('logo'),
         });
     };
 
@@ -60,14 +48,11 @@ export default function Profile({ company, can }: ProfileProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Perusahaan"
-                    subtitle="Identity and contact data."
+                    subtitle="Identitas dan kontak yang tampil di tagihan dan dokumen."
                     actions={
-                        <Link
-                            href={route('admin.company.settings.edit')}
-                            className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
-                        >
-                            Settings
-                        </Link>
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.company.settings.edit')}>Pengaturan</Link>
+                        </Button>
                     }
                 />
 
@@ -78,7 +63,7 @@ export default function Profile({ company, can }: ProfileProps) {
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
@@ -86,7 +71,7 @@ export default function Profile({ company, can }: ProfileProps) {
                                 disabled={!can.update}
                             />
                             <Input
-                                label="Code"
+                                label="Kode"
                                 value={data.code}
                                 onChange={(e) => setData('code', e.target.value)}
                                 error={errors.code}
@@ -98,22 +83,22 @@ export default function Profile({ company, can }: ProfileProps) {
                                 value={data.logo}
                                 onChange={(file) => setData('logo', file)}
                                 previewUrl={company.data.logo}
-                                previewName={`${company.data.name} logo`}
+                                previewName={`Logo ${company.data.name}`}
                                 acceptedFileTypes={[
                                     'image/jpeg',
                                     'image/png',
                                     'image/webp',
                                     'image/svg+xml',
                                 ]}
-                                hint="Max 10 MB. JPG, PNG, atau WebP akan diperkecil menjadi WebP; SVG disimpan sebagai SVG."
+                                hint="Maksimal 10 MB. JPG, PNG, atau WebP diperkecil menjadi WebP; SVG disimpan apa adanya."
                                 error={errors.logo}
                                 disabled={!can.update}
                             />
                             <PhoneInput
-                                label="Phone"
+                                label="Telepon"
                                 value={data.phone}
                                 onChange={(value) => setData('phone', value)}
-                                hint="Allowed characters: 0-9, (, ), +, -."
+                                hint="Hanya angka dan karakter ( ) + -."
                                 error={errors.phone}
                                 disabled={!can.update}
                             />
@@ -126,15 +111,16 @@ export default function Profile({ company, can }: ProfileProps) {
                                 disabled={!can.update}
                             />
                             <Input
-                                label="Website"
+                                label="Situs web"
                                 value={data.website}
                                 onChange={(e) => setData('website', e.target.value)}
+                                placeholder="https://"
                                 error={errors.website}
                                 disabled={!can.update}
                             />
                             <Textarea
                                 className="md:col-span-2"
-                                label="Address"
+                                label="Alamat"
                                 value={data.address}
                                 onChange={(e) => setData('address', e.target.value)}
                                 error={errors.address}
@@ -151,7 +137,7 @@ export default function Profile({ company, can }: ProfileProps) {
                         {can.update && (
                             <CardFooter className="justify-end">
                                 <Button type="submit" loading={processing}>
-                                    Save Profile
+                                    Simpan
                                 </Button>
                             </CardFooter>
                         )}

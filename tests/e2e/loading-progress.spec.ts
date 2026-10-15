@@ -1,6 +1,6 @@
 import type { Page, Route } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { csrfToken, inertiaProps, loginAs, unique } from './support/demo';
+import { csrfToken, e2eCustomerName, inertiaProps, loginAs, unique } from './support/demo';
 
 /**
  * Loading and progress feedback (lane `loading-progress`, UI card t_b18f253d).
@@ -214,7 +214,7 @@ test.describe('@loading-progress navigation', () => {
         await openAsAdmin(page, '/admin/reports');
         const card = page
             .getByRole('main')
-            .getByRole('link', { name: /^Open / })
+            .getByRole('link', { name: 'Metrik Bisnis', exact: true })
             .first();
         await expect(card).toBeVisible();
         const target = new URL((await card.getAttribute('href')) ?? '', page.url()).pathname;
@@ -249,7 +249,7 @@ test.describe('@loading-progress DataTable', () => {
         page,
     }) => {
         await openAsAdmin(page, '/admin/users');
-        const search = page.getByLabel('Search', { exact: true });
+        const search = page.getByLabel('Cari', { exact: true });
         await expect(search).toBeVisible();
         await expect(page.getByRole('row').filter({ hasText: 'Demo Admin' })).toBeVisible();
 
@@ -287,7 +287,7 @@ test.describe('@loading-progress DataTable', () => {
         page,
     }) => {
         await openAsAdmin(page, '/admin/users');
-        const sortByName = page.getByRole('columnheader', { name: 'Name' }).getByRole('button');
+        const sortByName = page.getByRole('columnheader', { name: 'Nama' }).getByRole('button');
         await expect(sortByName).toBeVisible();
 
         // Page sizes are 10, 25 or 50 on the server: 10 fills the placeholder, the rest are capped.
@@ -313,7 +313,7 @@ test.describe('@loading-progress DataTable', () => {
         page,
     }) => {
         await openAsAdmin(page, '/admin/tickets');
-        const search = page.getByLabel('Search', { exact: true });
+        const search = page.getByLabel('Cari', { exact: true });
         await expect(search).toBeVisible();
 
         await recordLoadingTimeline(page);
@@ -323,7 +323,9 @@ test.describe('@loading-progress DataTable', () => {
             await search.fill('zz-no-such-ticket-loading-progress');
 
             await expectSkeleton(page, 10);
-            await expect(page.getByText('No tickets', { exact: true })).toBeHidden();
+            await expect(
+                page.getByText('Tidak ada tiket yang cocok', { exact: true }),
+            ).toBeHidden();
             await expect(page.getByRole('status').filter({ hasText: BUSY_DATA })).toHaveCount(1);
             await hold.seen;
             await expectBusyBeforeRequest(page);
@@ -333,7 +335,34 @@ test.describe('@loading-progress DataTable', () => {
         }
 
         await expect(busyTable(page)).toHaveCount(0);
-        await expect(page.getByText('No tickets', { exact: true })).toBeVisible();
+        await expect(page.getByText('Tidak ada tiket yang cocok', { exact: true })).toBeVisible();
+        await settleAppChunks(page);
+    });
+
+    test('@loading-progress live filters: choosing one shows the skeleton until the list answers', async ({
+        page,
+    }) => {
+        await openAsAdmin(page, '/admin/evaluations');
+        const reference = page.getByLabel('Jenis referensi', { exact: true });
+        await expect(reference).toBeVisible();
+        await expect(busyTable(page)).toHaveCount(0);
+
+        const hold = await holdInertiaGet(page, (url) => url.pathname === '/admin/evaluations');
+        try {
+            await reference.selectOption({ label: 'Tiket' });
+            await hold.seen;
+
+            await expectSkeleton(page, 10);
+            await expect(page.getByRole('status').filter({ hasText: BUSY_DATA })).toHaveCount(1);
+            // A list refetch is not a navigation: no second busy state on top of the table's.
+            await expect(page.getByRole('main')).not.toHaveAttribute('aria-busy', 'true');
+            await expect(reference).toBeEnabled();
+        } finally {
+            await hold.dispose();
+        }
+
+        await expect(busyTable(page)).toHaveCount(0);
+        await expect(page.getByRole('status').filter({ hasText: DONE_DATA })).toHaveCount(1);
         await settleAppChunks(page);
     });
 
@@ -375,12 +404,11 @@ test.describe('@loading-progress DataTable', () => {
 
 test.describe('@loading-progress submit and filter pages', () => {
     const pages = [
-        { name: 'Evaluations', path: '/admin/evaluations', submit: 'Filter' },
-        { name: 'Item Finder', path: '/admin/inventory/find', submit: 'Search' },
-        { name: 'Asset Trace', path: '/admin/network-assets/trace', submit: 'Trace' },
-        { name: 'Asset Utilization', path: '/admin/reports/asset', submit: 'Run' },
-        { name: 'Business Metrics', path: '/admin/reports/business', submit: 'Run' },
-        { name: 'SLA Compliance', path: '/admin/reports/sla', submit: 'Run' },
+        { name: 'Item Finder', path: '/admin/inventory/find', submit: 'Cari' },
+        { name: 'Asset Trace', path: '/admin/network-assets/trace', submit: 'Lacak' },
+        { name: 'Asset Utilization', path: '/admin/reports/asset', submit: 'Tampilkan' },
+        { name: 'Business Metrics', path: '/admin/reports/business', submit: 'Tampilkan' },
+        { name: 'SLA Compliance', path: '/admin/reports/sla', submit: 'Tampilkan' },
     ];
 
     for (const { name, path, submit } of pages) {
@@ -420,7 +448,7 @@ test.describe('@loading-progress motion and themes', () => {
         }) => {
             await page.emulateMedia({ reducedMotion: reduced ? 'reduce' : 'no-preference' });
             await openAsAdmin(page, '/admin/users');
-            const sortByName = page.getByRole('columnheader', { name: 'Name' }).getByRole('button');
+            const sortByName = page.getByRole('columnheader', { name: 'Nama' }).getByRole('button');
             await expect(sortByName).toBeVisible();
 
             const tableHold = await holdInertiaGet(page, (url) => url.pathname === '/admin/users');
@@ -439,7 +467,7 @@ test.describe('@loading-progress motion and themes', () => {
 
             await settleAppChunks(page);
             await page.goto('/admin/inventory/find');
-            const search = page.getByRole('button', { name: 'Search', exact: true });
+            const search = page.getByRole('button', { name: 'Cari', exact: true });
             const spinnerHold = await holdInertiaGet(
                 page,
                 (url) => url.pathname === '/admin/inventory/find',
@@ -484,7 +512,7 @@ test.describe('@loading-progress motion and themes', () => {
                     dark ? /\bdark\b/ : /^(?!.*\bdark\b)/,
                 );
                 const sortByName = page
-                    .getByRole('columnheader', { name: 'Name' })
+                    .getByRole('columnheader', { name: 'Nama' })
                     .getByRole('button');
                 await expect(sortByName).toBeVisible();
                 const tableHold = await holdInertiaGet(
@@ -508,7 +536,7 @@ test.describe('@loading-progress motion and themes', () => {
                 await page.goto('/admin/reports');
                 const card = page
                     .getByRole('main')
-                    .getByRole('link', { name: /^Open / })
+                    .getByRole('link', { name: 'Metrik Bisnis', exact: true })
                     .first();
                 await expect(card).toBeVisible();
                 const target = new URL((await card.getAttribute('href')) ?? '', page.url())
@@ -572,7 +600,7 @@ test.describe('@loading-progress upload', () => {
             mimeType: 'text/plain',
             buffer: Buffer.alloc(1_000_000, 'x'),
         });
-        const upload = page.getByRole('button', { name: 'Upload', exact: true });
+        const upload = page.getByRole('button', { name: 'Unggah', exact: true });
         await expect(upload).toBeEnabled();
 
         // Throttled upload: the body needs ~10s, so Inertia reports intermediate percentages.
@@ -614,7 +642,7 @@ test.describe('@loading-progress upload', () => {
                 'reduced motion removes the fill transition',
             ).toBe('none');
 
-            await expect(page.getByText('Attachment uploaded.').first()).toBeVisible({
+            await expect(page.getByText('Lampiran berhasil diunggah.').first()).toBeVisible({
                 timeout: 60_000,
             });
             await expect(bar).toBeHidden();
@@ -636,14 +664,18 @@ test.describe('@loading-progress upload', () => {
 async function createOwnedTicket(page: Page, title: string): Promise<string> {
     await settleAppChunks(page);
     await page.goto('/admin/tickets/create');
-    const firstOption = async (label: string) => {
-        const value = await page.getByLabel(label).locator('option').nth(1).getAttribute('value');
-        if (!value) throw new Error(`No option value for ${label}`);
-
-        return value;
-    };
-    const categoryId = await firstOption('Category');
-    const customerId = await firstOption('Customer');
+    // The category list is a prop of the form; the customer is found through the customer list, because its
+    // picker searches the server.
+    const categoryId = (await inertiaProps(page, '/admin/tickets/create')).props?.categories
+        ?.data?.[0]?.id;
+    const customers = await inertiaProps(
+        page,
+        `/admin/customers?search=${encodeURIComponent(e2eCustomerName)}`,
+    );
+    const customerId = (customers.props?.customers?.data ?? []).find(
+        (row: { name: string }) => row.name === e2eCustomerName,
+    )?.id;
+    if (!categoryId || !customerId) throw new Error('No ticket category or customer fixture');
 
     const response = await page.request.post('/admin/tickets', {
         headers: { 'X-XSRF-TOKEN': await csrfToken(page) },

@@ -2,27 +2,20 @@ import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
 import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader } from '@/Components/composite/PageHeader';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
-import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
-import { ExportMenu } from '@/Components/ui/ExportMenu';
-import { Button } from '@/Components/ui/Button';
-import { Input } from '@/Components/ui/Input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/Components/ui/Select';
+import { DataTable, PageHeader } from '@/Components/composite';
+import type { DataTableColumn } from '@/Components/composite';
+import { Button, EnumBadge, ExportMenu, Input, NativeSelect } from '@/Components/ui';
 import { useCan } from '@/hooks/useCan';
+import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
 import { formatDate } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { optionsOf, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 
 type Row = {
     id: number;
     code: string;
+    title: string;
     type: string;
     status: string;
     scheduled_date?: string | null;
@@ -41,17 +34,11 @@ type Props = {
         sort_dir?: string;
         per_page?: string | number;
     };
-    typeOptions?: string[];
-    statusOptions?: string[];
 };
 
-export default function SpkIndex({
-    workOrders,
-    filters,
-    typeOptions = [],
-    statusOptions = [],
-}: Props) {
+export default function SpkIndex({ workOrders, filters }: Props) {
     const can = useCan();
+    const company = useCompany();
     const pagination = toPagination(workOrders);
     const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
@@ -70,62 +57,84 @@ export default function SpkIndex({
         () => [
             {
                 key: 'code',
-                header: 'Number',
+                header: 'Nomor',
                 sortable: true,
                 sortKey: 'code',
                 cell: (row) => (
                     <Link
                         href={route('admin.spk.show', row.id)}
                         className="font-medium text-primary hover:underline"
-                        aria-label={`Open SPK ${row.code}`}
+                        aria-label={`Buka SPK ${row.code}`}
                     >
                         {row.code}
                     </Link>
                 ),
             },
             {
+                key: 'title',
+                header: 'Judul',
+                sortable: true,
+                sortKey: 'title',
+                cell: (row) => row.title,
+            },
+            {
                 key: 'type',
-                header: 'Type',
+                header: 'Jenis',
                 sortable: true,
                 sortKey: 'type',
-                cell: (row) => row.type,
+                cell: (row) => <EnumBadge map={WORK_ORDER_TYPE} value={row.type} />,
             },
             {
                 key: 'status',
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => <StatusBadge status={row.status} />,
+                cell: (row) => <EnumBadge map={WORK_ORDER_STATUS} value={row.status} />,
             },
             {
                 key: 'customer',
-                header: 'Customer',
+                header: 'Pelanggan',
                 cell: (row) => row.customer?.name ?? '-',
             },
             {
                 key: 'scheduled_date',
-                header: 'Scheduled',
+                header: 'Jadwal',
                 sortable: true,
                 sortKey: 'scheduled_date',
-                cell: (row) => formatDate(row.scheduled_date ?? null),
+                cell: (row) => formatDate(row.scheduled_date ?? null, company),
             },
             {
                 key: 'created_at',
-                header: 'Created',
+                header: 'Dibuat',
                 sortable: true,
                 sortKey: 'created_at',
-                cell: (row) => formatDate(row.created_at),
+                cell: (row) => formatDate(row.created_at, company),
             },
         ],
-        [],
+        [company],
     );
+
+    const hasFilters = Boolean(params.search || params.type || params.status);
+    const resetFilters = () => {
+        set('search', '');
+        set('type', '');
+        set('status', '');
+    };
+    const create = can('spk.create') ? (
+        <Button asChild size="sm" variant="primary">
+            <Link href={route('admin.spk.create')}>
+                <Plus className="size-4" aria-hidden="true" />
+                Buat SPK
+            </Link>
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="SPK">
             <div className="space-y-4">
                 <PageHeader
                     title="SPK"
-                    description="Field work orders and installation jobs."
+                    description="Pekerjaan lapangan, dari instalasi sampai perawatan, beserta teknisinya."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
@@ -134,78 +143,54 @@ export default function SpkIndex({
                                 canExport={can('spk.export')}
                                 formats={['csv', 'pdf']}
                             />
-                            {can('spk.create') && (
-                                <Button asChild size="sm" variant="primary">
-                                    <Link href={route('admin.spk.create')}>
-                                        <Plus className="size-4" />
-                                        New SPK
-                                    </Link>
-                                </Button>
-                            )}
+                            {create}
                         </div>
                     }
                 />
 
                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="spk-search"
-                        >
-                            Search
-                        </label>
+                    <div className="min-w-48 flex-1">
                         <Input
                             id="spk-search"
+                            label="Cari"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Number or title…"
+                            placeholder="Nomor atau judul..."
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Type</label>
-                        <Select
-                            value={params.type || '__all__'}
-                            onValueChange={(v) => set('type', v === '__all__' ? '' : v)}
-                        >
-                            <SelectTrigger aria-label="Type" className="w-40">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                {typeOptions.map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                        {s}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Status</label>
-                        <Select
-                            value={params.status || '__all__'}
-                            onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
-                        >
-                            <SelectTrigger aria-label="Status" className="w-40">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                {statusOptions.map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                        {s}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <NativeSelect
+                        id="spk-type"
+                        label="Jenis"
+                        wrapperClassName="w-full sm:w-52"
+                        value={params.type ?? ''}
+                        onChange={(e) => set('type', e.target.value)}
+                        options={[
+                            { value: '', label: 'Semua jenis' },
+                            ...optionsOf(WORK_ORDER_TYPE),
+                        ]}
+                    />
+                    <NativeSelect
+                        id="spk-status"
+                        label="Status"
+                        wrapperClassName="w-full sm:w-52"
+                        value={params.status ?? ''}
+                        onChange={(e) => set('status', e.target.value)}
+                        options={[
+                            { value: '', label: 'Semua status' },
+                            ...optionsOf(WORK_ORDER_STATUS),
+                        ]}
+                    />
                 </div>
 
                 <DataTable
                     columns={columns}
                     data={workOrders.data}
-                    emptyTitle="No work orders"
-                    emptyDescription="No SPK/work orders match the current filters."
+                    emptyTitle="Belum ada SPK"
+                    emptyDescription="SPK dibuat dari halaman ini, dari tiket, atau dari langganan baru."
+                    emptyAction={create}
+                    hasFilters={hasFilters}
+                    onResetFilters={resetFilters}
+                    itemLabel="SPK"
                     loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}

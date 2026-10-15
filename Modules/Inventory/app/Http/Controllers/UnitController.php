@@ -47,7 +47,7 @@ class UnitController extends Controller
         Gate::authorize('store', Unit::class);
         Unit::create($request->validated());
 
-        return back()->with('success', 'Unit created.');
+        return back()->with('success', 'Satuan berhasil dibuat.');
     }
 
     public function update(UpdateUnitRequest $request, Unit $unit): RedirectResponse
@@ -55,20 +55,20 @@ class UnitController extends Controller
         Gate::authorize('update', $unit);
         $unit->update($request->validated());
 
-        return back()->with('success', 'Unit updated.');
+        return back()->with('success', 'Satuan berhasil diubah.');
     }
 
     public function destroy(Unit $unit): RedirectResponse
     {
         Gate::authorize('delete', $unit);
 
-        if ($unit->products()->exists()) {
-            return back()->withErrors(['unit' => 'Cannot delete unit with products.']);
+        if ($unit->products()->exists() || $unit->categories()->exists()) {
+            return back()->withErrors(['unit' => 'Satuan tidak dapat dihapus karena masih dipakai barang atau kategori.']);
         }
 
         $unit->delete();
 
-        return back()->with('success', 'Unit deleted.');
+        return back()->with('success', 'Satuan berhasil dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -82,8 +82,8 @@ class UnitController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'name' => 'Name',
-            'symbol' => 'Symbol',
+            'name' => 'Nama',
+            'symbol' => 'Simbol',
         ];
 
         $map = static fn (Unit $u): array => [
@@ -92,7 +92,7 @@ class UnitController extends Controller
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Units', $columns, $map, "units-export-{$stamp}.pdf");
+            return $export->streamPdf('Satuan', $columns, $map, "units-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "units-export-{$stamp}.csv");

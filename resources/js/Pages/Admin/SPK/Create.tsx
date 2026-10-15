@@ -8,38 +8,30 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    DatePicker,
     Input,
     NativeSelect,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-
-interface OptRow {
-    id: number;
-    name: string;
-}
-interface SubRow {
-    id: number;
-    code: string;
-}
-interface LocRow {
-    id: number;
-    name: string;
-    code: string;
-}
-interface TechRow {
-    id: number;
-    name: string;
-}
+import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
+import type { RemoteOption } from '@/Components/composite';
+import { optionsOf, PRIORITY, WORK_ORDER_TYPE } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    customers: { data: OptRow[] };
-    subscriptions: { data: SubRow[] };
-    locations: { data: LocRow[] };
-    technicians: { data: TechRow[] };
+    /** Sent only after a search: `customer_search`, `subscription_search` and `location_search` ask for them. */
+    customerOptions?: RemoteOption[];
+    subscriptionOptions?: RemoteOption[];
+    locationOptions?: RemoteOption[];
 }
 
-export default function Create({ customers, subscriptions, locations }: CreateProps) {
+/** These kinds of SPK start from a customer's subscription, so both are asked for. */
+const NEEDS_SUBSCRIPTION = ['installation', 'upgrade_service', 'relocation'];
+
+export default function Create({
+    customerOptions,
+    subscriptionOptions,
+    locationOptions,
+}: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         type: 'installation',
         title: '',
@@ -51,6 +43,22 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
         priority: 'medium',
         scheduled_date: '',
     });
+    const needsSubscription = NEEDS_SUBSCRIPTION.includes(data.type);
+
+    const pickCustomer = (value: string) => {
+        setData((previous) => ({ ...previous, customer_id: value, subscription_id: '' }));
+        // The server offers only this customer's subscriptions from now on.
+        router.get(
+            route('admin.spk.create'),
+            { customer_id: value },
+            {
+                only: ['subscriptionOptions'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -58,11 +66,11 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
     };
 
     return (
-        <AdminLayout title="Create SPK">
+        <AdminLayout title="Buat SPK">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create SPK"
-                    subtitle="Fill required fields, then save."
+                    title="Buat SPK"
+                    subtitle="Isi data pekerjaan, lalu simpan sebagai draf."
                     actions={
                         <Button
                             asChild
@@ -70,7 +78,7 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.spk.index')}>Back</Link>
+                            <Link href={route('admin.spk.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -78,87 +86,74 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data pekerjaan</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <NativeSelect
-                                label="Type"
+                                label="Jenis"
                                 value={data.type}
                                 onChange={(e) => setData('type', e.target.value)}
+                                options={optionsOf(WORK_ORDER_TYPE)}
                                 error={errors.type}
                                 required
-                            >
-                                <option value="installation">Installation</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="upgrade_service">Upgrade Service</option>
-                                <option value="relocation">Relocation</option>
-                            </NativeSelect>
+                            />
                             <Input
-                                label="Title"
+                                label="Judul"
                                 value={data.title}
                                 onChange={(e) => setData('title', e.target.value)}
                                 error={errors.title}
                                 required
                             />
-                            <NativeSelect
-                                label="Customer"
+                            <RemoteSearchSelect
+                                field="customer"
+                                label="Pelanggan"
+                                options={customerOptions}
                                 value={data.customer_id}
-                                onChange={(e) => setData('customer_id', e.target.value)}
+                                onChange={pickCustomer}
+                                placeholder="Cari nama atau kode pelanggan"
                                 error={errors.customer_id}
-                            >
-                                <option value="">Select...</option>
-                                {customers.data.map((c) => (
-                                    <option key={c.id} value={c.id}>
-                                        {c.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Subscription"
+                                required={needsSubscription}
+                            />
+                            <RemoteSearchSelect
+                                field="subscription"
+                                label="Langganan"
+                                options={subscriptionOptions}
                                 value={data.subscription_id}
-                                onChange={(e) => setData('subscription_id', e.target.value)}
+                                onChange={(value) => setData('subscription_id', value)}
+                                placeholder="Cari kode langganan"
+                                hint={
+                                    needsSubscription
+                                        ? 'Wajib untuk jenis SPK ini. Pilih pelanggan dulu agar daftar menyempit.'
+                                        : undefined
+                                }
                                 error={errors.subscription_id}
-                            >
-                                <option value="">Select...</option>
-                                {subscriptions.data.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                        {s.code}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Location"
+                                required={needsSubscription}
+                            />
+                            <RemoteSearchSelect
+                                field="location"
+                                label="Lokasi"
+                                options={locationOptions}
                                 value={data.location_id}
-                                onChange={(e) => setData('location_id', e.target.value)}
+                                onChange={(value) => setData('location_id', value)}
+                                placeholder="Cari kode atau nama lokasi"
                                 error={errors.location_id}
-                            >
-                                <option value="">Select...</option>
-                                {locations.data.map((l) => (
-                                    <option key={l.id} value={l.id}>
-                                        {l.code} - {l.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
+                            />
                             <NativeSelect
-                                label="Priority"
+                                label="Prioritas"
                                 value={data.priority}
                                 onChange={(e) => setData('priority', e.target.value)}
-                            >
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                                <option value="urgent">Urgent</option>
-                            </NativeSelect>
-                            <Input
-                                label="Scheduled Date"
-                                type="date"
+                                options={optionsOf(PRIORITY)}
+                                error={errors.priority}
+                            />
+                            <DatePicker
+                                label="Tanggal jadwal"
                                 value={data.scheduled_date}
-                                onChange={(e) => setData('scheduled_date', e.target.value)}
+                                onChange={(value) => setData('scheduled_date', value)}
                                 error={errors.scheduled_date}
                             />
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Description"
+                                    label="Deskripsi"
                                     value={data.description}
                                     onChange={(e) => setData('description', e.target.value)}
                                     error={errors.description}
@@ -173,10 +168,10 @@ export default function Create({ customers, subscriptions, locations }: CreatePr
                             variant="outline"
                             onClick={() => router.get(route('admin.spk.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

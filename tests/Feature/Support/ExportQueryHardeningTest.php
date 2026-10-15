@@ -19,7 +19,7 @@ class ExportQueryHardeningTest extends TestCase
 {
     use RefreshDatabase;
 
-    private const MARKER = '# Export truncated at 3 rows. Narrow the filters to export the remaining rows.';
+    private const MARKER = '# Ekspor dipotong pada 3 baris. Persempit filter untuk mengekspor sisa barisnya.';
 
     public function test_csv_over_the_cap_ends_with_a_marker_row_and_signals_truncation_in_headers(): void
     {

@@ -1,5 +1,14 @@
 import { expect, test } from './support/fixtures';
-import { loginAs } from './support/demo';
+import { inertiaProps, loginAs } from './support/demo';
+
+/** The words of `LOCATION_TYPE` (lib/statuses/location.ts): a marker is named by its type. */
+const TYPE_LABELS = {
+    region: 'Wilayah',
+    area: 'Area',
+    pop: 'POP',
+    rack: 'Rak',
+    site: 'Site',
+} as const;
 
 test('@kanban-t_40cf97ea admin location map is first-class with empty markers and tile fallback', async ({
     page,
@@ -78,10 +87,10 @@ test('@kanban-t_40cf97ea admin location map is first-class with empty markers an
     });
 
     await page.getByRole('button', { name: 'Tambah POP' }).click();
-    const createDialog = page.getByRole('dialog', { name: 'Tambah Lokasi' });
+    const createDialog = page.getByRole('dialog', { name: 'Buat Lokasi' });
     await expect(createDialog).toBeVisible();
-    await expect(createDialog.getByLabel('Latitude')).toHaveValue(/^-?\d+\.\d{7}$/);
-    await expect(createDialog.getByLabel('Longitude')).toHaveValue(/^-?\d+\.\d{7}$/);
+    await expect(createDialog.getByLabel('Lintang')).toHaveValue(/^-?\d+\.\d{7}$/);
+    await expect(createDialog.getByLabel('Bujur')).toHaveValue(/^-?\d+\.\d{7}$/);
 });
 
 test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ page }) => {
@@ -90,6 +99,7 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
     let expectedCode = '';
     let expectedName = '';
     let expectedMarkerAriaLabel = '';
+    let expectedParentPath = '';
 
     await page.route('**/admin/locations**', async (route) => {
         if (route.request().method() !== 'GET') {
@@ -124,10 +134,9 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
         expectedParentId = target.parent_id;
         expectedCode = target.code;
         expectedName = target.name;
-        expectedMarkerAriaLabel =
-            target.type === 'pop'
-                ? 'POP'
-                : target.type.charAt(0).toUpperCase() + target.type.slice(1);
+        expectedMarkerAriaLabel = TYPE_LABELS[target.type];
+        expectedParentPath =
+            flattenRows(tree).find((row) => row.id === target.parent_id)?.path ?? '';
         pageData.props = {
             ...pageData.props,
             tree: Array.isArray(treeSource) ? tree : { ...treeSource, data: tree },
@@ -161,22 +170,27 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
         `.leaflet-marker-icon:has(svg[aria-label="${expectedMarkerAriaLabel}"])`,
     );
     await expect(savedMarker).toHaveCount(1);
-    await expect(map.locator('.leaflet-marker-icon svg[aria-label="Draft location"]')).toHaveCount(
-        0,
-    );
+    await expect(
+        map.locator('.leaflet-marker-icon svg[aria-label="Lokasi baru, belum disimpan"]'),
+    ).toHaveCount(0);
+
     await savedMarker.click();
     const popup = page.locator('.locations-map-popup');
     await expect(popup).toBeVisible();
     await expect(popup).toContainText(expectedCode);
     await expect(popup).toContainText(expectedName);
-    await popup.getByRole('button', { name: 'Edit' }).click();
+    await popup.getByRole('button', { name: 'Ubah' }).click();
 
-    const editDialog = page.getByRole('dialog', { name: /Edit/ });
+    const editDialog = page.getByRole('dialog', { name: /Ubah/ });
     await expect(editDialog).toBeVisible();
-    await expect(editDialog.getByLabel('Address')).toHaveValue(expectedAddress);
-    await expect(editDialog.getByLabel('Parent')).toHaveValue(String(expectedParentId));
-    await editDialog.getByLabel('Latitude').fill('-6.2345678');
-    await editDialog.getByLabel('Longitude').fill('106.8765432');
+    await expect(editDialog.getByLabel('Alamat')).toHaveValue(expectedAddress);
+    // The parent is a searchable field: it shows the path of the parent.
+    expect(expectedParentPath, 'path of the parent row').not.toBe('');
+    await expect(editDialog.getByRole('combobox', { name: 'Induk' })).toHaveValue(
+        expectedParentPath,
+    );
+    await editDialog.getByLabel('Lintang').fill('-6.2345678');
+    await editDialog.getByLabel('Bujur').fill('106.8765432');
 
     const updateRequest = page.waitForRequest((request) => {
         if (!request.url().match(/\/admin\/locations\/\d+$/)) return false;
@@ -186,7 +200,7 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
         return request.method() === 'POST' && /(?:^|&)__?method=put(?:&|$)/i.test(postData);
     });
 
-    await editDialog.getByRole('button', { name: 'Simpan & Konfirmasi Koordinat' }).click();
+    await editDialog.getByRole('button', { name: 'Simpan dan konfirmasi koordinat' }).click();
     const request = await updateRequest;
     const payload = readRequestPayload(request.postData() ?? '');
 
@@ -202,6 +216,7 @@ interface LocationRow {
     code: string;
     name: string;
     type: 'region' | 'area' | 'pop' | 'rack' | 'site';
+    path: string | null;
     address: string | null;
     is_active: boolean;
     children: LocationRow[];
@@ -210,6 +225,39 @@ interface LocationRow {
 function flattenRows(rows: LocationRow[]): LocationRow[] {
     return rows.flatMap((row) => [row, ...flattenRows(row.children ?? [])]);
 }
+
+test('@ui-consistency the Tabel tab lists every location and keeps Hapus off while a location has locations under it', async ({
+    page,
+}) => {
+    // Regression: the table read `row.children.length` from rows that carry no children and crashed for anyone who may delete.
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await loginAs(page, 'admin');
+    const props = (await inertiaProps(page, '/admin/locations?per_page=50')).props as {
+        tree: { data: LocationRow[] };
+        locations: { data: Array<{ id: number; code: string }> };
+    };
+    const parentIds = new Set(
+        flattenRows(props.tree.data).flatMap((row) =>
+            row.parent_id === null ? [] : [row.parent_id],
+        ),
+    );
+    const parent = props.locations.data.find((row) => parentIds.has(row.id));
+    const leaf = props.locations.data.find((row) => !parentIds.has(row.id));
+    expect(parent, 'the table lists a location with locations under it').toBeDefined();
+    expect(leaf, 'the table lists a location without any').toBeDefined();
+
+    await page.goto('/admin/locations?per_page=50');
+    await page.getByRole('tab', { name: 'Tabel' }).click();
+
+    const rowOf = (code: string) =>
+        page.getByRole('row').filter({ has: page.getByText(code, { exact: true }) });
+    await expect(rowOf(parent!.code)).toBeVisible();
+    await expect(rowOf(parent!.code).getByRole('button', { name: 'Hapus' })).toBeDisabled();
+    await expect(rowOf(leaf!.code).getByRole('button', { name: 'Hapus' })).toBeEnabled();
+    expect(pageErrors).toEqual([]);
+});
 
 function readRequestPayload(body: string): Record<string, string> {
     try {

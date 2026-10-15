@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, Input } from '@/Components/ui';
+import { Button, Card, CardContent, EmptyCell, Input } from '@/Components/ui';
 import {
     DataTable,
     DataTableActions,
@@ -61,17 +61,17 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             },
             {
                 key: 'location',
-                header: 'Location',
-                cell: (row) => row.network_asset?.location?.name ?? '-',
+                header: 'Lokasi',
+                cell: (row) => row.network_asset?.location?.name ?? <EmptyCell />,
             },
             {
                 key: 'nasname',
-                header: 'NAS address',
+                header: 'Alamat NAS',
                 cell: (row) => <span className="font-mono text-sm">{row.nasname}</span>,
             },
             {
                 key: 'coa_port',
-                header: 'CoA port',
+                header: 'Port CoA',
                 cell: (row) => row.coa_port,
             },
             {
@@ -81,7 +81,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 className: 'text-right',
                 cell: (row) => (
                     <DataTableActions
@@ -96,7 +96,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
 
     const registerLink = (
         <Button asChild size="sm">
-            <Link href={route('admin.nas-devices.create')}>Register router</Link>
+            <Link href={route('admin.nas-devices.create')}>Daftarkan router</Link>
         </Button>
     );
 
@@ -105,7 +105,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
             <div className="space-y-6">
                 <PageHeader
                     title="Router NAS"
-                    subtitle="Routers that authenticate subscribers against FreeRADIUS."
+                    subtitle="Router yang memakai FreeRADIUS untuk mengautentikasi pelanggan."
                     actions={can.create ? registerLink : undefined}
                 />
 
@@ -114,10 +114,10 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                         <div className="max-w-md">
                             <Input
                                 id="nas-search"
-                                label="Search"
+                                label="Cari"
                                 value={params.search ?? ''}
                                 onChange={(event) => set('search', event.target.value)}
-                                placeholder="Code, name or NAS address"
+                                placeholder="Kode, nama, atau alamat NAS"
                             />
                         </div>
                     </CardContent>
@@ -126,11 +126,12 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                 <DataTable
                     columns={columns}
                     data={nasDevices.data}
-                    emptyTitle={
-                        params.search ? 'No NAS routers match your search' : 'No NAS routers'
-                    }
-                    emptyDescription="Register a router as a RADIUS client so FreeRADIUS accepts its requests."
-                    emptyAction={can.create && !params.search ? registerLink : undefined}
+                    emptyTitle="Belum ada router NAS"
+                    emptyDescription="Daftarkan router sebagai klien RADIUS agar FreeRADIUS menerima permintaannya."
+                    emptyAction={can.create ? registerLink : undefined}
+                    hasFilters={Boolean(params.search)}
+                    onResetFilters={() => set('search', '')}
+                    itemLabel="router NAS"
                     loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}

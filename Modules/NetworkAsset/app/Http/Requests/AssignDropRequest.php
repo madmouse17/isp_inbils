@@ -23,4 +23,12 @@ class AssignDropRequest extends FormRequest
             'subscription_id' => ['required', 'integer', Rule::exists('service_subscriptions', 'id')->where('company_id', CompanyService::currentId())->whereNull('deleted_at')],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'subscription_id' => 'langganan',
+        ];
+    }
 }

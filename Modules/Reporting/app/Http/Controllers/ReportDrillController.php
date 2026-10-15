@@ -36,6 +36,7 @@ class ReportDrillController extends Controller
                 'key' => $source->key,
                 'label' => $source->label,
                 'group' => $filters->group,
+                'kind' => $source->kind->value,
                 'noun' => $source->kind->noun(),
                 'definition' => MetricRegistry::meta($report)['metrics'][$source->metric()] ?? null,
             ],

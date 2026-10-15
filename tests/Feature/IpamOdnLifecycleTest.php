@@ -6,6 +6,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Testing\TestResponse;
@@ -166,9 +167,9 @@ class IpamOdnLifecycleTest extends TestCase
         $this->onboard(['odn_port_id' => $spoofOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
         $this->assertSame($before, $this->onboardingFootprint());
 
-        $offered = array_column(OdnOccupancyQuery::freePortOptions($this->net['pop']->id), 'odp_code');
-        $this->assertNotContains('ODP-SPOOF', $offered, 'the drop picker must not offer it either');
-        $this->assertContains($this->net['odp']->code, $offered);
+        $offered = array_column((OdnOccupancyQuery::dropPortOptions(Request::create('/', 'GET', ['dropPort_search' => 'ODP']), $this->net['pop']->id))(), 'label');
+        $this->assertSame([], array_filter($offered, fn (string $label): bool => str_starts_with($label, 'ODP-SPOOF')), 'the drop picker must not offer it either');
+        $this->assertContains('ODP-A11 · 1:8 · port 1', $offered);
 
         $listed = collect($this->get(route('admin.odn.index', ['pop_id' => $this->net['pop']->id]))->viewData('page')['props']['odps']['data'])->pluck('code');
         $this->assertNotContains('ODP-SPOOF', $listed->all());
@@ -191,7 +192,7 @@ class IpamOdnLifecycleTest extends TestCase
         $this->onboard(['status' => 'active'])->assertStatus(422)->assertJsonValidationErrors('subscription');
     }
 
-    public function test_the_customer_create_page_loads_drop_options_only_on_a_partial_reload(): void
+    public function test_the_customer_create_page_loads_drop_options_only_on_a_search(): void
     {
         $page = route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->id]);
 
@@ -202,12 +203,12 @@ class IpamOdnLifecycleTest extends TestCase
 
         $this->get($page, $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
+            ->assertJsonPath('props.dropPortOptions', []);
+        $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->id, 'dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
+            ->assertOk()
             ->assertJsonCount(8, 'props.dropPortOptions')
-            ->assertJsonPath('props.dropPortOptions.0.odp_code', 'ODP-A11')
-            ->assertJsonPath('props.dropPortOptions.0.free_count', 8)
-            ->assertJsonPath('props.dropPortOptions.0.location_path', 'POP-A > RACK-A1 > SITE-A11')
-            ->assertJsonPath('props.dropPortOptions.0.label', 'ODP-A11 · 1:8 · port 1');
-        $this->get(route('admin.customers.create'), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
+            ->assertJsonPath('props.dropPortOptions.0', ['value' => $this->outputs[0]->id, 'label' => 'ODP-A11 · 1:8 · port 1', 'description' => 'POP-A > RACK-A1 > SITE-A11']);
+        $this->get(route('admin.customers.create', ['dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertJsonPath('props.dropPortOptions', []);
     }
 
@@ -359,12 +360,15 @@ class IpamOdnLifecycleTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page->where('ipAddresses', [])->where('dropPort', null));
     }
 
-    public function test_the_subscription_page_loads_drop_options_only_on_a_partial_reload(): void
+    public function test_the_subscription_page_loads_drop_options_only_on_a_search(): void
     {
         $subscription = $this->makeSubscription($this->company, 'active', $this->net['pop']);
         OdnService::assignDrop($this->outputs[0], $subscription);
 
         $this->get(route('admin.subscriptions.show', $subscription), $this->partialReload('Admin/Subscriptions/Show', 'dropPortOptions'))
+            ->assertOk()
+            ->assertJsonPath('props.dropPortOptions', []);
+        $this->get(route('admin.subscriptions.show', [$subscription, 'dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Subscriptions/Show', 'dropPortOptions'))
             ->assertOk()
             ->assertJsonCount(7, 'props.dropPortOptions');
     }

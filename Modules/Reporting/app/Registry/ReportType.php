@@ -52,28 +52,28 @@ enum ReportType: string
     public function title(): string
     {
         return match ($this) {
-            self::Business => 'Business Metrics',
-            self::Sales => 'Sales KPI',
-            self::Technician => 'Technician Performance',
-            self::Asset => 'Asset Utilization',
-            self::Sla => 'SLA Compliance',
-            self::StockCard => 'Stock Card',
-            self::AuditLog => 'Audit Log',
-            self::Dictionary => 'Data Dictionary',
+            self::Business => 'Metrik Bisnis',
+            self::Sales => 'KPI Penjualan',
+            self::Technician => 'Kinerja Teknisi',
+            self::Asset => 'Pemanfaatan Aset',
+            self::Sla => 'Kepatuhan SLA',
+            self::StockCard => 'Kartu Stok',
+            self::AuditLog => 'Log Audit',
+            self::Dictionary => 'Kamus Data',
         };
     }
 
     public function description(): string
     {
         return match ($this) {
-            self::Business => 'MRR, revenue, churn, outstanding, asset utilization',
-            self::Sales => 'Customers acquired, invoiced, collected and outstanding per acquirer',
-            self::Technician => 'SPK/ticket counts, avg completion, SLA, rating, FRT',
-            self::Asset => 'Status distribution, per-location, installation history',
-            self::Sla => 'Resolution rate, breach count, per-category breakdown',
-            self::StockCard => 'Movement history per product/location',
-            self::AuditLog => 'Activity trail by user/module/date',
-            self::Dictionary => 'Definition, formula and source columns of every report figure',
+            self::Business => 'MRR, pendapatan, churn, piutang, dan sebaran aset',
+            self::Sales => 'Pelanggan baru, tagihan, penagihan, dan piutang per petugas penjualan',
+            self::Technician => 'Jumlah SPK dan tiket, waktu penyelesaian, SLA, dan rating teknisi',
+            self::Asset => 'Sebaran status aset, aset per lokasi, dan riwayat pemasangan',
+            self::Sla => 'Tingkat penyelesaian, pelanggaran SLA, dan rincian per kategori',
+            self::StockCard => 'Riwayat pergerakan stok per barang dan lokasi',
+            self::AuditLog => 'Jejak aktivitas menurut pengguna, modul, dan tanggal',
+            self::Dictionary => 'Definisi, rumus, dan sumber data setiap angka laporan',
         };
     }
 

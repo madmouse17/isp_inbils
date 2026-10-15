@@ -8,7 +8,7 @@ import { inertiaProps, loginAs } from './support/demo';
  * export menu (CSV and PDF only), the drill links, the tie-out and layout at 1280/320 in light and dark.
  */
 
-const summaryHeader = 'Metric,Breakdown,Value,Unit,Scope,Filters,Version';
+const summaryHeader = 'Metrik,Rincian,Nilai,Satuan,Cakupan,Filter,Versi';
 
 async function download(page: Page, path: string, maxRedirects = 20) {
     const response = await page.request.get(path, { maxRedirects });
@@ -51,18 +51,26 @@ test.describe('@smoke @reporting-export report export', () => {
         const text = csv.body.toString('utf8');
         expect(text.charCodeAt(0)).toBe(0xfeff);
         expect(text.slice(1).split('\n')[0].trim()).toBe(summaryHeader);
-        expect(text).toContain('Period: 2026-01-01 to 2026-01-31');
-        expect(text).toContain('Snapshot: period filter not applied');
+        expect(text).toContain('Periode: 2026-01-01 sampai 2026-01-31');
+        expect(text).toContain('Posisi saat ini: filter periode tidak berlaku');
 
         const pdf = await download(page, '/admin/reports/business/export?format=pdf');
         expect(pdf.status).toBe(200);
         expect(pdf.body.subarray(0, 5).toString()).toBe('%PDF-');
 
-        // Only CSV and PDF exist: an Excel request fails validation (redirect back), never a file.
-        const excel = await download(page, '/admin/reports/business/export?format=xlsx', 0);
-        expect(excel.status).toBe(302);
-        expect(excel.disposition).not.toContain('attachment');
-        expect(excel.type).not.toContain('spreadsheet');
+        // Only CSV and PDF exist: an Excel request fails validation on `format` and goes back to the report with
+        // that error, never a file (ReportExportAccessTest::test_only_csv_and_pdf_are_offered).
+        const reportUrl = new URL('/admin/reports/business', page.url()).href;
+        const excel = await page.request.get('/admin/reports/business/export?format=xlsx', {
+            maxRedirects: 0,
+            headers: { Referer: reportUrl },
+        });
+        expect(excel.status()).toBe(302);
+        expect(excel.headers()['location']).toBe(reportUrl);
+        expect(excel.headers()['content-disposition'] ?? '').not.toContain('attachment');
+        expect(excel.headers()['content-type'] ?? '').not.toContain('spreadsheet');
+        const refused = await inertiaProps(page, '/admin/reports/business');
+        expect(refused.props?.errors?.format, 'validation error on format').toBeTruthy();
     });
 
     test('a viewer without report.export sees no export control and gets 403 on the URL', async ({
@@ -71,9 +79,9 @@ test.describe('@smoke @reporting-export report export', () => {
         await loginAs(page, 'staff');
         await page.goto('/admin/reports/business');
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Business Metrics', level: 1 }),
+            page.getByRole('main').getByRole('heading', { name: 'Metrik Bisnis', level: 1 }),
         ).toBeVisible();
-        await expect(page.getByRole('button', { name: /export/i })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /ekspor/i })).toHaveCount(0);
 
         for (const url of [
             '/admin/reports/business/export',
@@ -106,7 +114,7 @@ test.describe('@smoke @reporting-export report export', () => {
         expect(product, 'E2E-STOCK-PRODUCT fixture').toBeTruthy();
 
         await page.goto('/admin/reports/stock-card');
-        await expect(page.getByRole('button', { name: /export/i })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /ekspor/i })).toHaveCount(0);
 
         await page.goto(
             `/admin/reports/stock-card?product_id=${product!.id}&date_from=2026-08-01&date_to=2026-08-11&per_page=10`,
@@ -129,7 +137,7 @@ test.describe('@smoke @reporting-export report export', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/reports/audit-log');
 
-        await page.getByRole('button', { name: 'Ekspor Log' }).click();
+        await page.getByRole('button', { name: 'Ekspor log' }).click();
         await expect(page.getByRole('menuitem', { name: 'Ekspor CSV' })).toBeVisible();
         await expect(page.getByRole('menuitem', { name: 'Ekspor PDF' })).toBeVisible();
         await expect(page.getByRole('menuitem', { name: /excel/i })).toHaveCount(0);
@@ -137,7 +145,7 @@ test.describe('@smoke @reporting-export report export', () => {
 
         const csv = await download(page, '/admin/reports/audit-log/export?format=csv');
         expect(csv.status).toBe(200);
-        expect(csv.body.toString('utf8').slice(1).split('\n')[0]).toContain('Properties');
+        expect(csv.body.toString('utf8').slice(1).split('\n')[0]).toContain('Properti');
         const pdf = await download(page, '/admin/reports/audit-log/export?format=pdf');
         expect(pdf.body.subarray(0, 5).toString()).toBe('%PDF-');
     });
@@ -150,7 +158,7 @@ test.describe('@smoke @reporting-export report drill-down', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/reports/business');
 
-        const link = page.getByRole('link', { name: 'View records behind MRR' });
+        const link = page.getByRole('link', { name: 'Lihat data di balik MRR' });
         await link.focus();
         await expect(link).toBeFocused();
         await page.keyboard.press('Enter');
@@ -158,16 +166,16 @@ test.describe('@smoke @reporting-export report drill-down', () => {
         await expect(page).toHaveURL(/\/admin\/reports\/business\/drill\/mrr/);
         const main = page.getByRole('main');
         await expect(main.getByRole('heading', { name: 'MRR', level: 1 })).toBeVisible();
-        await expect(main.getByText('Rows listed')).toBeVisible();
-        await expect(main.getByText('Figure on Business Metrics')).toBeVisible();
-        await expect(page.getByRole('status').filter({ hasText: 'Ties out' })).toBeVisible();
-        await expect(main.getByText('Snapshot · v1')).toBeVisible();
+        await expect(main.getByText('Baris ditampilkan')).toBeVisible();
+        await expect(main.getByText('Angka di Metrik Bisnis')).toBeVisible();
+        await expect(page.getByRole('status').filter({ hasText: 'Cocok' })).toBeVisible();
+        await expect(main.getByText('Posisi saat ini · v1')).toBeVisible();
 
         const file = await download(page, '/admin/reports/business/drill/mrr/export?format=csv');
         expect(file.status).toBe(200);
-        expect(file.body.toString('utf8').slice(1).split('\n')[0]).toContain('Code,Customer');
+        expect(file.body.toString('utf8').slice(1).split('\n')[0]).toContain('Kode,Pelanggan');
 
-        await main.getByRole('link', { name: 'Back to Business Metrics' }).click();
+        await main.getByRole('link', { name: 'Kembali ke Metrik Bisnis' }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/business(\?|$)/);
     });
 
@@ -175,17 +183,17 @@ test.describe('@smoke @reporting-export report drill-down', () => {
         await loginAs(page, 'admin');
 
         await page.goto('/admin/reports/asset');
-        const statusLink = page.getByRole('link', { name: /^View records behind .* assets$/ });
-        if ((await statusLink.count()) > 0) {
-            await statusLink.first().click();
-            await expect(page).toHaveURL(/\/drill\/status_distribution\?.*group=/);
-            await expect(page.getByRole('status').filter({ hasText: 'Ties out' })).toBeVisible();
-        }
+        // The fixtures hold assets, so the status breakdown always has a row to drill into.
+        const statusLink = page.getByRole('link', { name: /^Lihat data di balik aset .+$/ });
+        await expect(statusLink.first()).toBeVisible();
+        await statusLink.first().click();
+        await expect(page).toHaveURL(/\/drill\/status_distribution\?.*group=/);
+        await expect(page.getByRole('status').filter({ hasText: 'Cocok' })).toBeVisible();
 
         await page.goto('/admin/reports/sla');
-        await page.getByRole('link', { name: 'View records behind Total Resolved' }).click();
+        await page.getByRole('link', { name: 'Lihat data di balik Tiket selesai' }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/sla\/drill\/total_resolved/);
-        await expect(page.getByRole('status').filter({ hasText: 'Ties out' })).toBeVisible();
+        await expect(page.getByRole('status').filter({ hasText: 'Cocok' })).toBeVisible();
     });
 
     test('export menu, drill links and tie-out stay usable across widths and themes', async ({

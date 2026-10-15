@@ -170,9 +170,9 @@ Lihat `docs/WORKFLOW.md` Section 8 (Ticketing). Ringkas state machine:
 
 ### Spawn SPK from ticket
 - Tiket category device_issue/fiber_issue yang butuh field work →
-  `SpawnSpkFromTicketAction`:
+  `TicketService::spawnSpk`:
   - Create SPK type=maintenance, source=ticket.
-  - Pre-fill customer, subscription, network_asset, location dari ticket.
+  - Pre-fill customer, subscription, location dari ticket.
   - spawned_spk_id set (backlink).
   - SPK status=generated (menunggu Kepala Unit assign technician).
 - Trigger: Kepala Unit manual (button "Spawn SPK") OR auto saat resolve-
@@ -242,8 +242,8 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 
 ### Spawn SPK from ticket
 1. Ticket fiber_issue, on_progress, needs field work (fiber cut).
-2. Kepala Unit spawn-spk: SpawnSpkFromTicketAction → SPK type=maintenance,
-   source=ticket, pre-fill customer/subscription/asset/location,
+2. Kepala Unit spawn-spk: `TicketService::spawnSpk` → SPK type=maintenance,
+   source=ticket, pre-fill customer/subscription/location,
    spawned_spk_id set. SPK status=generated.
 3. SPK assigned + completed → ticket resolved (or separate resolve).
 
@@ -275,7 +275,7 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
 - [ ] SLA: deadline per category, breach detection (job + badge),
   resolution_time + FRT tracking.
 - [ ] Auto-routing suggest (category + location + asset → ranked handler).
-- [ ] Spawn SPK from ticket (SpawnSpkFromTicketAction, backlink).
+- [ ] Spawn SPK from ticket (`TicketService::spawnSpk`, backlink).
 - [ ] Link customer/subscription/asset/location (trace 1-klik).
 - [ ] Comment internal/public + attachment.
 - [ ] Code generation unique + race-safe (TKT-{YEAR}-{NNNNN}).
@@ -301,15 +301,14 @@ Lihat `docs/API.md` Section 8 (Ticketing group). Ringkas:
   customer_id + subscription_id direct FK, trace).
 - **Depends on (Phase 3):** NetworkAsset (network_asset_id direct FK —
   trace aset terkait tiket).
-- **Depends on (Phase 4):** SPK (spawned_spk_id backlink — SpawnSpkFromTicketAction
-  panggil SpkService via contract; ticket.spawned_spk_id nullable FK).
+- **Depends on (Phase 4):** SPK (spawned_spk_id backlink — `TicketService::spawnSpk`
+  membuat SPK; ticket.spawned_spk_id nullable FK).
 - **Consumed by (Phase 4):** SPK (SPK ticket_id backlink — GenerateSpkFromTicketAction
   reads ticket for pre-fill). Reporting (technician performance dari
   ticket history + FRT + SLA + rating).
-- **Cross-module:** SpawnSpkFromTicketAction di Modules/Ticketing/Actions/
-  panggil SpkService::createFromTicket (service contract). SpkService
-  return WorkOrder, ticket.spawned_spk_id set. Allowed (orchestrator
-  action, like CompleteSpkAction).
+- **Cross-module:** `TicketService::spawnSpk` (Ticketing) membuat SPK lewat model
+  `WorkOrder` dan mengisi ticket.spawned_spk_id. Tidak ada action lintas-modul
+  terpisah.
 
 ## Notifikasi WhatsApp (tiket dan SPK)
 

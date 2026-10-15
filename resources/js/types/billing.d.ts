@@ -1,8 +1,10 @@
+import type { INVOICE_SOURCE, INVOICE_STATUS, INVOICE_TYPE, PAYMENT_METHOD } from '@/lib/statuses';
+
 export interface Invoice {
     id: number;
     number: string;
-    type: string;
-    source: string;
+    type: keyof typeof INVOICE_TYPE;
+    source: keyof typeof INVOICE_SOURCE;
     customer_id: number;
     subscription_id?: number | null;
     work_order_id?: number | null;
@@ -10,7 +12,7 @@ export interface Invoice {
     due_date: string;
     billing_period_start?: string | null;
     billing_period_end?: string | null;
-    status: string;
+    status: keyof typeof INVOICE_STATUS;
     subtotal: string;
     tax_amount: string;
     discount_amount: string;
@@ -44,7 +46,7 @@ export interface PaymentEntry {
     id: number;
     invoice_id: number;
     amount: string;
-    method: string;
+    method: keyof typeof PAYMENT_METHOD;
     reference?: string | null;
     paid_at: string;
     /** Null for gateway payments: no human received them. */

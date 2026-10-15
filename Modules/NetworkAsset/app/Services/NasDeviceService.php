@@ -25,7 +25,7 @@ class NasDeviceService
         $nas = DB::transaction(function () use ($data): NasDevice {
             $asset = self::routerAsset((int) $data['network_asset_id']);
 
-            abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'This router asset is already registered as a NAS router.');
+            abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'Aset router ini sudah terdaftar sebagai router NAS.');
 
             $nas = NasDevice::query()->create([
                 'network_asset_id' => $asset->id,
@@ -123,8 +123,8 @@ class NasDeviceService
     {
         $asset = NetworkAsset::query()->whereKey($id)->where('asset_type', 'router')->first();
 
-        abort_if($asset === null, 422, 'Choose a router asset of this company.');
-        abort_if(blank($asset->getAttribute('management_ip')), 422, 'The router asset has no management IP.');
+        abort_if($asset === null, 422, 'Pilih aset router milik perusahaan ini.');
+        abort_if(blank($asset->getAttribute('management_ip')), 422, 'Aset router belum punya IP manajemen.');
 
         return $asset;
     }

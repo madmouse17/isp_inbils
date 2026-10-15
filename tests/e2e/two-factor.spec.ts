@@ -44,26 +44,26 @@ test('@two-factor a user enrols from the profile, then logs in with a code and w
     await expect(page).toHaveURL(/\/login$/);
     await page.goto('/two-factor-challenge');
 
-    await submitCode(page, 'Authentication code', '000000');
+    await submitCode(page, 'Kode autentikasi', '000000');
     await expect(page.getByText(invalidCode)).toBeVisible();
     await expect(page).toHaveURL(/\/two-factor-challenge$/);
 
-    await submitCode(page, 'Authentication code', spentAtLogin);
+    await submitCode(page, 'Kode autentikasi', spentAtLogin);
     await expectDashboard(page);
 
     await startLogin(page, email);
-    await submitCode(page, 'Authentication code', spentAtLogin);
+    await submitCode(page, 'Kode autentikasi', spentAtLogin);
     await expect(page.getByText(invalidCode), 'the same code is refused twice').toBeVisible();
 
-    await page.getByRole('button', { name: 'Use a recovery code' }).click();
-    await submitCode(page, 'Recovery code', codes[0]);
+    await page.getByRole('button', { name: 'Pakai kode pemulihan' }).click();
+    await submitCode(page, 'Kode pemulihan', codes[0]);
     await expectDashboard(page);
 
     await startLogin(page, email);
-    await page.getByRole('button', { name: 'Use a recovery code' }).click();
-    await submitCode(page, 'Recovery code', codes[0]);
+    await page.getByRole('button', { name: 'Pakai kode pemulihan' }).click();
+    await submitCode(page, 'Kode pemulihan', codes[0]);
     await expect(page.getByText(invalidCode), 'a recovery code works once').toBeVisible();
-    await submitCode(page, 'Recovery code', codes[1]);
+    await submitCode(page, 'Kode pemulihan', codes[1]);
     await expectDashboard(page);
 
     await turnOff(page);
@@ -95,34 +95,36 @@ test('@two-factor an admin resets a colleague who lost the authenticator', async
     expect(colleagueId).toBeTruthy();
     expect(adminId).toBeTruthy();
 
+    // Columns: Nama, Email, Peran, Status, 2FA, Aksi. The Status cell also says Aktif, so the 2FA cell is picked by position.
+    const twoFactorCell = () =>
+        page.getByRole('row').filter({ hasText: email }).getByRole('cell').nth(4);
+
     await page.goto(`/admin/users?search=${encodeURIComponent(email)}`);
-    await expect(
-        page.getByRole('row').filter({ hasText: email }).getByText('On', { exact: true }),
-        'the users list shows who has two-factor on',
-    ).toBeVisible();
+    await expect(twoFactorCell(), 'the users list shows who has two-factor on').toHaveText('Aktif');
 
     await page.goto(`/admin/users/${adminId}`);
-    await expect(page.getByText('Two-factor authentication', { exact: true })).toBeVisible();
+    await expect(page.getByText('Autentikasi dua langkah', { exact: true })).toBeVisible();
     await expect(
-        page.getByRole('button', { name: 'Reset two-factor' }),
+        page.getByRole('button', { name: 'Atur ulang 2FA' }),
         'no reset on your own page',
     ).toHaveCount(0);
 
     await page.goto(`/admin/users/${colleagueId}`);
-    await expect(page.getByText('On', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Reset two-factor' }).click();
+    const twoFactor = page.getByRole('region', { name: 'Autentikasi dua langkah' });
+    await expect(twoFactor.getByText('Aktif', { exact: true })).toBeVisible();
+    await twoFactor.getByRole('button', { name: 'Atur ulang 2FA' }).click();
     await expect(page.getByRole('alertdialog')).toContainText(
-        'Reset two-factor authentication for',
+        'Atur ulang autentikasi dua langkah untuk',
     );
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Reset' }).click();
-    await expect(page.getByText('Off', { exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Reset two-factor' })).toHaveCount(0);
+    await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Atur ulang', exact: true })
+        .click();
+    await expect(twoFactor.getByText('Nonaktif', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Atur ulang 2FA' })).toHaveCount(0);
 
     await page.goto(`/admin/users?search=${encodeURIComponent(email)}`);
-    await expect(
-        page.getByRole('row').filter({ hasText: email }).getByText('Off', { exact: true }),
-        'the users list shows the reset',
-    ).toBeVisible();
+    await expect(twoFactorCell(), 'the users list shows the reset').toHaveText('Nonaktif');
 
     // The colleague logs in with the password alone.
     await logout(page);
@@ -133,13 +135,13 @@ test('@two-factor an admin resets a colleague who lost the authenticator', async
 async function createStaffUser(page: Page, email: string) {
     await page.goto('/admin/users/create');
     await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create User', level: 1 }),
+        page.getByRole('main').getByRole('heading', { name: 'Buat Pengguna', level: 1 }),
     ).toBeVisible({ timeout: 15_000 });
-    await page.getByLabel('Name').fill('QA Two-Factor');
+    await page.getByLabel('Nama').fill('QA Two-Factor');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password').fill(userPassword);
+    await page.getByLabel('Kata sandi').fill(userPassword);
     await page.getByRole('checkbox', { name: 'staff', exact: true }).check();
-    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('button', { name: 'Buat', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
 }
 
@@ -154,12 +156,14 @@ async function startLogin(page: Page, email: string) {
     await logout(page);
     await submitPassword(page, email);
     await expect(page).toHaveURL(/\/two-factor-challenge$/);
-    await expect(page.getByRole('heading', { name: 'Two-factor authentication' })).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: 'Autentikasi dua langkah', exact: true }),
+    ).toBeVisible();
 }
 
 async function submitCode(page: Page, label: string, code: string) {
     await page.getByLabel(label).fill(code);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByRole('button', { name: 'Masuk' }).click();
 }
 
 async function expectDashboard(page: Page) {
@@ -172,37 +176,45 @@ async function expectDashboard(page: Page) {
 /** Password confirmation comes first, as for every change to the second factor. */
 async function confirmPassword(page: Page) {
     await expect(page).toHaveURL(/\/confirm-password$/);
-    await page.getByLabel('Password').fill(userPassword);
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.getByLabel('Kata sandi').fill(userPassword);
+    await page.getByRole('button', { name: 'Konfirmasi' }).click();
     await expect(page).toHaveURL(/\/profile$/);
 }
 
 async function enrol(page: Page): Promise<{ secret: string; codes: string[] }> {
     await page.goto('/profile');
-    await expect(page.getByRole('heading', { name: 'Two-Factor Authentication' })).toBeVisible();
+    await expect(
+        page.getByRole('heading', { name: 'Autentikasi dua langkah', exact: true }),
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: 'Enable two-factor authentication' }).click();
+    await page
+        .getByRole('button', { name: 'Aktifkan autentikasi dua langkah', exact: true })
+        .click();
     await confirmPassword(page);
-    await page.getByRole('button', { name: 'Enable two-factor authentication' }).click();
+    await page
+        .getByRole('button', { name: 'Aktifkan autentikasi dua langkah', exact: true })
+        .click();
 
-    await expect(page.getByRole('img', { name: 'QR code for the setup key below' })).toBeVisible();
+    await expect(
+        page.getByRole('img', { name: 'Kode QR untuk kunci pengaturan di bawah' }),
+    ).toBeVisible();
     const secret = (await page.locator('code').first().innerText()).replace(/\s/g, '');
     expect(secret).toMatch(/^[A-Z2-7]{32}$/);
 
-    await page.getByLabel('Authentication code').fill('000000');
-    await page.getByRole('button', { name: 'Confirm and turn on' }).click();
+    await page.getByLabel('Kode autentikasi').fill('000000');
+    await page.getByRole('button', { name: 'Konfirmasi dan aktifkan' }).click();
     await expect(page.getByText(invalidCode)).toBeVisible();
     await expect(
-        page.getByRole('img', { name: 'QR code for the setup key below' }),
+        page.getByRole('img', { name: 'Kode QR untuk kunci pengaturan di bawah' }),
         'a wrong code leaves the QR code on screen',
     ).toBeVisible();
 
-    await page.getByLabel('Authentication code').fill(totp(secret));
-    await page.getByRole('button', { name: 'Confirm and turn on' }).click();
-    await expect(page.getByRole('heading', { name: 'Your recovery codes' })).toBeVisible();
+    await page.getByLabel('Kode autentikasi').fill(totp(secret));
+    await page.getByRole('button', { name: 'Konfirmasi dan aktifkan' }).click();
+    await expect(page.getByRole('heading', { name: 'Kode pemulihan Anda' })).toBeVisible();
 
     const codes = await page
-        .getByRole('list', { name: 'Recovery codes' })
+        .getByRole('list', { name: 'Kode pemulihan' })
         .getByRole('listitem')
         .allInnerTexts();
     expect(codes).toHaveLength(8);
@@ -220,13 +232,13 @@ async function enrol(page: Page): Promise<{ secret: string; codes: string[] }> {
         expect(stored).not.toContain(value);
     }
 
-    await page.getByRole('button', { name: 'I have saved these codes' }).click();
-    await expect(page.getByRole('heading', { name: 'Your recovery codes' })).toBeHidden();
-    await expect(page.getByText('8 recovery codes left.')).toBeVisible();
+    await page.getByRole('button', { name: 'Saya sudah menyimpan kode ini' }).click();
+    await expect(page.getByRole('heading', { name: 'Kode pemulihan Anda' })).toBeHidden();
+    await expect(page.getByText('Sisa kode pemulihan: 8.')).toBeVisible();
 
     // A reload shows neither the setup key nor the codes, anywhere in the page.
     await page.reload();
-    await expect(page.getByText('8 recovery codes left.')).toBeVisible();
+    await expect(page.getByText('Sisa kode pemulihan: 8.')).toBeVisible();
     const html = await page.content();
     for (const value of [secret, ...codes]) {
         expect(html).not.toContain(value);
@@ -237,14 +249,24 @@ async function enrol(page: Page): Promise<{ secret: string; codes: string[] }> {
 
 async function turnOff(page: Page) {
     await page.goto('/profile');
-    await page.getByRole('button', { name: 'Turn off two-factor authentication' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Turn off' }).click();
+    await page
+        .getByRole('button', { name: 'Nonaktifkan autentikasi dua langkah', exact: true })
+        .click();
+    await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Nonaktifkan', exact: true })
+        .click();
     // The new session has not confirmed the password yet.
     await confirmPassword(page);
 
-    await page.getByRole('button', { name: 'Turn off two-factor authentication' }).click();
-    await page.getByRole('alertdialog').getByRole('button', { name: 'Turn off' }).click();
+    await page
+        .getByRole('button', { name: 'Nonaktifkan autentikasi dua langkah', exact: true })
+        .click();
+    await page
+        .getByRole('alertdialog')
+        .getByRole('button', { name: 'Nonaktifkan', exact: true })
+        .click();
     await expect(
-        page.getByRole('button', { name: 'Enable two-factor authentication' }),
+        page.getByRole('button', { name: 'Aktifkan autentikasi dua langkah', exact: true }),
     ).toBeVisible();
 }

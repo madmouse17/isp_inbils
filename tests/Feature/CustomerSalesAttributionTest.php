@@ -457,7 +457,7 @@ class CustomerSalesAttributionTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(route('admin.users.destroy', $acquirer))
-            ->assertSessionHasErrors('user');
+            ->assertSessionHasErrors(['user' => 'Pengguna yang dicatat memperoleh pelanggan tidak bisa dihapus. Nonaktifkan akunnya.']);
         $this->assertDatabaseHas('users', ['id' => $acquirer->id]);
 
         $this->actingAs($admin)
@@ -475,7 +475,7 @@ class CustomerSalesAttributionTest extends TestCase
             ->from('/profile')
             ->delete('/profile', ['password' => 'password'])
             ->assertRedirect('/profile')
-            ->assertSessionHasErrors('user');
+            ->assertSessionHasErrors(['user' => 'Pengguna yang dicatat memperoleh pelanggan tidak bisa dihapus. Nonaktifkan akunnya.']);
 
         $this->assertAuthenticatedAs($acquirer);
         $this->assertDatabaseHas('users', ['id' => $acquirer->id]);

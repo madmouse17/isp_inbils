@@ -44,7 +44,7 @@ class BillingService
     public static function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
         $companyId ??= CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan wajib ada.');
         self::assertCompanyId($companyId);
 
         $periodStart = CarbonImmutable::createFromFormat('Y-m', $period)->startOfMonth()->startOfDay();
@@ -194,7 +194,7 @@ class BillingService
         return DB::transaction(function () use ($invoice) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             self::assertCompanyId($invoice->company_id);
-            abort_if($invoice->status !== 'draft', 422, 'Invoice must be draft to send.');
+            abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dikirim.');
 
             $invoice->update(['status' => 'sent', 'sent_at' => now()]);
 
@@ -209,13 +209,13 @@ class BillingService
     public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
         abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
-        abort_if(Money::compare($amount, '0') <= 0, 422, 'Payment amount must be positive.');
+        abort_if(Money::compare($amount, '0') <= 0, 422, 'Jumlah pembayaran harus lebih dari nol.');
 
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
-            abort_unless(in_array($invoice->status, ['sent', 'partial', 'overdue'], true), 422, 'Invoice does not accept payments in its current status.');
-            abort_if(Money::gt($amount, $invoice->sisa), 422, 'Payment amount exceeds remaining balance.');
+            abort_unless(in_array($invoice->status, ['sent', 'partial', 'overdue'], true), 422, 'Tagihan tidak menerima pembayaran pada statusnya saat ini.');
+            abort_if(Money::gt($amount, $invoice->sisa), 422, 'Jumlah pembayaran melebihi sisa tagihan.');
             abort_if(
                 $reference && Payment::withoutCompany()
                     ->where('company_id', $invoice->company_id)
@@ -223,7 +223,7 @@ class BillingService
                     ->whereNull('cancelled_at')
                     ->exists(),
                 422,
-                'Payment reference already exists.'
+                'Referensi pembayaran sudah ada.'
             );
 
             $payment = Payment::create([
@@ -260,9 +260,9 @@ class BillingService
         return DB::transaction(function () use ($invoice, $reason) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             self::assertCompanyId($invoice->company_id);
-            abort_if($invoice->status === 'cancelled', 422, 'Invoice already cancelled.');
-            abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Cannot cancel invoice with active payments. Reverse payments first.');
-            abort_if($invoice->created_by && (int) Auth::id() === (int) $invoice->created_by, 422, 'Cannot cancel own created invoice.');
+            abort_if($invoice->status === 'cancelled', 422, 'Tagihan sudah dibatalkan.');
+            abort_if($invoice->payments()->whereNull('cancelled_at')->exists(), 422, 'Tagihan yang punya pembayaran aktif tidak bisa dibatalkan. Batalkan pembayarannya dulu.');
+            abort_if($invoice->created_by && (int) Auth::id() === (int) $invoice->created_by, 422, 'Tagihan yang Anda buat sendiri tidak bisa Anda batalkan.');
 
             $invoice->update([
                 'status' => 'cancelled',
@@ -286,14 +286,14 @@ class BillingService
     public static function reversePayment(Payment $payment, string $reason): Payment
     {
         abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
-        abort_if($payment->cancelled_at !== null, 422, 'Payment already cancelled.');
-        abort_if(Auth::id() === $payment->received_by, 422, 'Cannot reverse own recorded payment.');
+        abort_if($payment->cancelled_at !== null, 422, 'Pembayaran sudah dibatalkan.');
+        abort_if(Auth::id() === $payment->received_by, 422, 'Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan.');
 
         return DB::transaction(function () use ($payment, $reason) {
             $payment = Payment::withoutCompany()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
             abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
-            abort_if($payment->cancelled_at !== null, 422, 'Payment already cancelled.');
-            abort_if(Auth::id() === $payment->received_by, 422, 'Cannot reverse own recorded payment.');
+            abort_if($payment->cancelled_at !== null, 422, 'Pembayaran sudah dibatalkan.');
+            abort_if(Auth::id() === $payment->received_by, 422, 'Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan.');
 
             $invoice = Invoice::withoutCompany()->whereKey($payment->invoice_id)->lockForUpdate()->firstOrFail();
 
@@ -327,7 +327,7 @@ class BillingService
         DB::transaction(function () use ($invoice, $data) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             self::assertCompanyId($invoice->company_id);
-            abort_if($invoice->status !== 'draft', 422, 'Can only add items to draft invoices.');
+            abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diberi item.');
 
             if ($productId = ($data['product_id'] ?? null)) {
                 Product::withoutCompany()
@@ -364,7 +364,7 @@ class BillingService
         DB::transaction(function () use ($invoice, $itemId) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
             self::assertCompanyId($invoice->company_id);
-            abort_if($invoice->status !== 'draft', 422, 'Can only remove items from draft invoices.');
+            abort_if($invoice->status !== 'draft', 422, 'Item hanya bisa dihapus dari tagihan draf.');
 
             $item = InvoiceItem::withoutCompany()
                 ->where('id', $itemId)
@@ -413,7 +413,7 @@ class BillingService
     public static function checkOverdue(?int $companyId = null): void
     {
         $companyId ??= CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan wajib ada.');
         self::assertCompanyId($companyId);
 
         Invoice::withoutCompany()
@@ -427,7 +427,7 @@ class BillingService
     public static function receivables(): array
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan wajib ada.');
 
         $invoices = Invoice::withoutCompany()
             ->with('customer:id,name')

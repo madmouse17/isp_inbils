@@ -3,14 +3,21 @@
 namespace Modules\Reporting\Http\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\UserResource;
+use App\Models\Core\Location;
+use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\SearchOptions;
+use Closure;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Inventory\Models\Product;
 use Modules\Reporting\Drill\DrillRegistry;
 use Modules\Reporting\Http\Requests\ReportFilterRequest;
 use Modules\Reporting\Http\Resources\AuditLogResource;
@@ -116,13 +123,21 @@ class ReportController extends Controller
         $technicianId = TechnicianReportAccess::target($actor, $request->input('technician_id'));
         $filters = ReportFilters::fromRequest($request, $technicianId);
         $data = $technicianId ? $filters->payload(ReportType::Technician) : null;
+        $eligible = TechnicianPerformanceQuery::eligibleTechnicians($actor);
 
         return Inertia::render('Admin/Reports/Technician', [
             'data' => $data,
             'charts' => $data === null ? null : $filters->charts(ReportType::Technician, $data),
-            'technicians' => UserResource::collection(
-                TechnicianPerformanceQuery::eligibleTechnicians($actor)->orderBy('name')->get()
+            'technicianOptions' => SearchOptions::for(
+                $request,
+                'technician',
+                clone $eligible,
+                ['users.name', 'users.email'],
+                $this->presentUser(...),
+                $technicianId,
             ),
+            'selectedTechnician' => $this->selectedOption($eligible, $technicianId, $this->presentUser(...)),
+            'hasTechnicians' => (clone $eligible)->exists(),
             'filters' => $request->only(['technician_id', 'date_from', 'date_to']),
             'meta' => MetricRegistry::meta(ReportType::Technician),
             ...$this->exportAndDrill($request, ReportType::Technician, $filters),
@@ -161,6 +176,9 @@ class ReportController extends Controller
         $productId = $request->integer('product_id') ?: null;
         $locationId = $request->integer('location_id') ?: null;
         $movements = null;
+        // The ledger keeps the rows of a deleted product, so the picker must still find it.
+        $products = Product::query()->withTrashed();
+        $locations = Location::query();
 
         if ($productId) {
             $paginator = StockCardQuery::execute(
@@ -183,6 +201,10 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/StockCard', [
             'movements' => $movements,
+            'productOptions' => SearchOptions::for($request, 'product', clone $products, ['name', 'sku'], $this->presentProduct(...), $productId),
+            'selectedProduct' => $this->selectedOption($products, $productId, $this->presentProduct(...)),
+            'locationOptions' => SearchOptions::for($request, 'location', clone $locations, ['name', 'code'], $this->presentLocation(...), $locationId),
+            'selectedLocation' => $this->selectedOption($locations, $locationId, $this->presentLocation(...)),
             'filters' => [
                 'product_id' => $request->input('product_id'),
                 'location_id' => $request->input('location_id'),
@@ -208,9 +230,15 @@ class ReportController extends Controller
         $sortBy = $request->input('sort_by') ?? $request->input('sort') ?? 'created_at';
         $sortDir = $request->input('sort_dir') ?? $request->input('direction') ?? 'desc';
         $perPage = $request->integer('per_page') ?: 25;
+        $userId = $request->integer('user_id') ?: null;
+        // User is not company scoped: members come from company_user.
+        $members = User::query()->whereIn(
+            'users.id',
+            DB::table('company_user')->where('company_id', CompanyService::currentId())->select('user_id'),
+        );
 
         $paginator = AuditLogQuery::paginate(
-            userId: $request->integer('user_id') ?: null,
+            userId: $userId,
             logName: $request->input('log_name'),
             dateFrom: $request->dateFrom(),
             dateTo: $request->dateTo(),
@@ -223,6 +251,8 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/AuditLog', [
             'data' => AuditLogResource::collection($paginator),
+            'userOptions' => SearchOptions::for($request, 'user', clone $members, ['users.name', 'users.email'], $this->presentUser(...), $userId),
+            'selectedUser' => $this->selectedOption($members, $userId, $this->presentUser(...)),
             'filters' => [
                 'user_id' => $request->input('user_id'),
                 'log_name' => $request->input('log_name'),
@@ -240,6 +270,39 @@ class ReportController extends Controller
                 'view_properties' => auth()->user()?->can('report.audit.view') ?? false,
             ],
         ]);
+    }
+
+    /**
+     * The option of the current filter value, read from the same company-scoped query as the search:
+     * a foreign id finds nothing, so its name is never sent.
+     *
+     * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $base
+     * @param  Closure(Model): array{value: int, label: string, description: ?string}  $present
+     * @return array{value: int, label: string, description: ?string}|null
+     */
+    private function selectedOption(Builder $base, ?int $id, Closure $present): ?array
+    {
+        $model = $id === null ? null : (clone $base)->whereKey($id)->first();
+
+        return $model === null ? null : $present($model);
+    }
+
+    /** @return array{value: int, label: string, description: ?string} */
+    private function presentUser(User $user): array
+    {
+        return ['value' => $user->id, 'label' => $user->name, 'description' => $user->email];
+    }
+
+    /** @return array{value: int, label: string, description: ?string} */
+    private function presentProduct(Product $product): array
+    {
+        return ['value' => $product->id, 'label' => $product->name, 'description' => $product->sku];
+    }
+
+    /** @return array{value: int, label: string, description: ?string} */
+    private function presentLocation(Location $location): array
+    {
+        return ['value' => $location->id, 'label' => $location->name, 'description' => $location->code];
     }
 
     /**

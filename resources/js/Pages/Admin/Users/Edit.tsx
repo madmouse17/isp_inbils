@@ -1,10 +1,9 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
 import {
-    Badge,
     Button,
     Card,
     CardContent,
@@ -52,11 +51,11 @@ export default function Edit({ user, roles }: EditProps) {
         );
 
     return (
-        <AdminLayout title="Edit User">
+        <AdminLayout title="Ubah Pengguna">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit User"
-                    subtitle="Update user profile, status, and roles."
+                    title="Ubah Pengguna"
+                    subtitle={`${user.data.name} (${user.data.email})`}
                     actions={
                         <Button
                             asChild
@@ -64,7 +63,7 @@ export default function Edit({ user, roles }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.users.show', user.data.id)}>Back</Link>
+                            <Link href={route('admin.users.show', user.data.id)}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -72,16 +71,11 @@ export default function Edit({ user, roles }: EditProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>
-                                Edit {user.data.name}{' '}
-                                <Badge variant={data.is_active ? 'success' : 'danger'}>
-                                    {data.is_active ? 'Active' : 'Inactive'}
-                                </Badge>
-                            </CardTitle>
+                            <CardTitle>Data akun</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
@@ -96,22 +90,23 @@ export default function Edit({ user, roles }: EditProps) {
                                 required
                             />
                             <Input
-                                label="Password"
+                                label="Kata sandi"
                                 type="password"
+                                autoComplete="new-password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
                                 error={errors.password}
-                                hint="Leave blank to keep current password."
+                                hint="Kosongkan untuk mempertahankan kata sandi saat ini."
                             />
                             <Switch
-                                label="Active"
+                                label="Aktif"
                                 checked={data.is_active}
                                 onCheckedChange={(checked) => setData('is_active', checked)}
                             />
-                            <div className="space-y-2 md:col-span-2">
-                                <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
-                                    Roles
-                                </p>
+                            <fieldset className="space-y-2 md:col-span-2">
+                                <legend className="text-sm font-medium text-foreground">
+                                    Peran
+                                </legend>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {roles.data.map((role) => (
                                         <Checkbox
@@ -124,19 +119,18 @@ export default function Edit({ user, roles }: EditProps) {
                                         />
                                     ))}
                                 </div>
-                            </div>
+                                {errors.roles ? (
+                                    <p className="text-sm text-destructive-text">{errors.roles}</p>
+                                ) : null}
+                            </fieldset>
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.users.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.users.index')}>Batal</Link>
                         </Button>
-                        <Button type="submit" loading={processing}>
-                            Save
+                        <Button type="submit" variant="primary" loading={processing}>
+                            Simpan
                         </Button>
                     </div>
                 </form>

@@ -5,13 +5,12 @@ namespace Modules\Billing\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\DateRangeIndexRequest;
-use App\Http\Resources\CustomerResource;
-use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\SearchOptions;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -20,7 +19,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
+use Modules\Billing\Http\Requests\CancelInvoiceRequest;
 use Modules\Billing\Http\Requests\CreateFromSpkRequest;
+use Modules\Billing\Http\Requests\GenerateInvoicesRequest;
 use Modules\Billing\Http\Requests\RecordPaymentRequest;
 use Modules\Billing\Http\Requests\ReversePaymentRequest;
 use Modules\Billing\Http\Requests\StoreInvoiceItemRequest;
@@ -58,11 +59,21 @@ class InvoiceController extends Controller
             ->paginate($this->perPage($request))
             ->withQueryString();
 
+        $customerId = $request->integer('customer_id');
+        $selectedCustomer = $customerId > 0 ? Customer::query()->find($customerId) : null;
+
         return Inertia::render('Admin/Billing/Invoices/Index', [
             'invoices' => InvoiceResource::collection($invoices),
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
+            'customerOptions' => SearchOptions::for(
+                $request,
+                'customer',
+                Customer::query(),
+                ['name', 'code'],
+                $this->presentCustomer(...),
+                $customerId > 0 ? $customerId : null,
+            ),
+            'selectedCustomer' => $selectedCustomer ? $this->presentCustomer($selectedCustomer) : null,
             'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
-            'statusOptions' => ['draft', 'issued', 'partial', 'paid', 'void', 'written_off'],
             'can' => [
                 'create' => $request->user()?->can('billing.create') ?? false,
                 'export' => $request->user()?->can('billing.export') ?? false,
@@ -85,28 +96,57 @@ class InvoiceController extends Controller
                 ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$value}%"))));
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('create', Invoice::class);
 
+        // The page sends the customer it picked, so only that customer's subscriptions are offered.
+        $customerId = $request->integer('customer_id');
+
         return Inertia::render('Admin/Billing/Invoices/Create', [
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
+            'customerOptions' => SearchOptions::for(
+                $request,
+                'customer',
+                Customer::query()->where('is_active', true),
+                ['name', 'code'],
+                $this->presentCustomer(...),
+            ),
+            'subscriptionOptions' => SearchOptions::for(
+                $request,
+                'subscription',
+                // Joined so the search also finds a subscription by its customer's name; every column is qualified because both tables have `status`, `code` and `company_id`.
+                ServiceSubscription::query()
+                    ->join('customers', 'customers.id', '=', 'service_subscriptions.customer_id')
+                    ->whereNull('customers.deleted_at')
+                    ->whereIn('service_subscriptions.status', ['pending', 'active'])
+                    ->when($customerId > 0, fn (Builder $query) => $query->where('service_subscriptions.customer_id', $customerId))
+                    ->select('service_subscriptions.*', 'customers.name as customer_name'),
+                ['service_subscriptions.code', 'customers.name'],
+                fn (ServiceSubscription $subscription): array => [
+                    'value' => $subscription->id,
+                    'label' => $subscription->code,
+                    'description' => $subscription->customer_name,
+                ],
+            ),
         ]);
     }
 
-    public function generatePreview(Request $request): JsonResponse
+    /** @return array{value: int, label: string, description: string|null} */
+    private function presentCustomer(Customer $customer): array
+    {
+        return ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code];
+    }
+
+    public function generatePreview(GenerateInvoicesRequest $request): JsonResponse
     {
         Gate::authorize('billing.create');
-        $request->validate(['period' => ['required', 'date_format:Y-m']]);
 
         return response()->json(BillingService::generateForPeriod($request->input('period'), dryRun: true));
     }
 
-    public function generate(Request $request): RedirectResponse
+    public function generate(GenerateInvoicesRequest $request): RedirectResponse
     {
         Gate::authorize('billing.create');
-        $request->validate(['period' => ['required', 'date_format:Y-m']]);
 
         $result = BillingService::generateForPeriod($request->input('period'));
 
@@ -129,7 +169,7 @@ class InvoiceController extends Controller
         Invoice::create($data);
 
         return redirect()->route('admin.invoices.index')
-            ->with('success', 'Invoice created.');
+            ->with('success', 'Tagihan dibuat.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -145,24 +185,24 @@ class InvoiceController extends Controller
             ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
 
         $columns = [
-            'Number' => 'number',
-            'Customer' => 'customer.name',
+            'Nomor tagihan' => 'number',
+            'Pelanggan' => 'customer.name',
             'Status' => 'status',
             'Total' => 'total',
-            'Issue Date' => 'issue_date',
-            'Due Date' => 'due_date',
-            'Created' => 'created_at',
+            'Tanggal terbit' => 'issue_date',
+            'Jatuh tempo' => 'due_date',
+            'Dibuat' => 'created_at',
         ];
 
         $map = static function (Invoice $invoice): array {
             return [
-                'Number' => $invoice->number,
-                'Customer' => $invoice->customer?->name,
+                'Nomor tagihan' => $invoice->number,
+                'Pelanggan' => $invoice->customer?->name,
                 'Status' => $invoice->status,
                 'Total' => $invoice->total,
-                'Issue Date' => optional($invoice->issue_date)->format('Y-m-d') ?? (string) $invoice->issue_date,
-                'Due Date' => optional($invoice->due_date)->format('Y-m-d') ?? (string) $invoice->due_date,
-                'Created' => optional($invoice->created_at)?->toDateTimeString(),
+                'Tanggal terbit' => optional($invoice->issue_date)->format('Y-m-d') ?? (string) $invoice->issue_date,
+                'Jatuh tempo' => optional($invoice->due_date)->format('Y-m-d') ?? (string) $invoice->due_date,
+                'Dibuat' => optional($invoice->created_at)?->toDateTimeString(),
             ];
         };
 
@@ -170,7 +210,7 @@ class InvoiceController extends Controller
         $format = strtolower((string) $request->input('format', 'csv'));
 
         return $format === 'pdf'
-            ? $export->downloadPdf('Invoices', $columns, $map, "invoices-export-{$stamp}.pdf")
+            ? $export->downloadPdf('Tagihan', $columns, $map, "invoices-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "invoices-export-{$stamp}.csv");
     }
 
@@ -227,7 +267,7 @@ class InvoiceController extends Controller
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('edit', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Can only edit draft invoices.');
+        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diubah.');
 
         $invoice->load(['customer', 'subscription', 'items']);
 
@@ -240,23 +280,23 @@ class InvoiceController extends Controller
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('update', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Can only edit draft invoices.');
+        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diubah.');
 
         $invoice->update($request->validated());
         BillingService::recalculate($invoice);
 
-        return redirect()->route('admin.invoices.index')->with('success', 'Invoice updated.');
+        return redirect()->route('admin.invoices.index')->with('success', 'Tagihan diperbarui.');
     }
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('delete', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Can only delete draft invoices.');
+        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dihapus.');
 
         $invoice->delete();
 
-        return back()->with('success', 'Invoice deleted.');
+        return back()->with('success', 'Tagihan dihapus.');
     }
 
     public function send(Invoice $invoice): RedirectResponse
@@ -265,7 +305,7 @@ class InvoiceController extends Controller
         Gate::authorize('billing.send');
         BillingService::send($invoice);
 
-        return back()->with('success', 'Invoice sent.');
+        return back()->with('success', 'Tagihan dikirim.');
     }
 
     public function recordPayment(RecordPaymentRequest $request, Invoice $invoice): RedirectResponse
@@ -281,7 +321,7 @@ class InvoiceController extends Controller
             $request->input('notes'),
         );
 
-        return back()->with('success', 'Payment recorded.');
+        return back()->with('success', 'Pembayaran dicatat.');
     }
 
     public function reversePayment(ReversePaymentRequest $request, Invoice $invoice, Payment $payment): RedirectResponse
@@ -291,18 +331,17 @@ class InvoiceController extends Controller
 
         BillingService::reversePayment($payment, $request->input('reason'));
 
-        return back()->with('success', 'Payment reversed.');
+        return back()->with('success', 'Pembayaran dibatalkan.');
     }
 
-    public function cancel(Request $request, Invoice $invoice): RedirectResponse
+    public function cancel(CancelInvoiceRequest $request, Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('billing.cancel');
 
-        $request->validate(['reason' => ['required', 'string', 'max:500']]);
         BillingService::cancel($invoice, $request->input('reason'));
 
-        return back()->with('success', 'Invoice cancelled.');
+        return back()->with('success', 'Tagihan dibatalkan.');
     }
 
     public function createFromSpk(CreateFromSpkRequest $request): RedirectResponse
@@ -312,18 +351,18 @@ class InvoiceController extends Controller
         BillingService::createFromSpk($request->integer('work_order_id'));
 
         return redirect()->route('admin.invoices.index')
-            ->with('success', 'Invoice created from SPK.');
+            ->with('success', 'Tagihan dibuat dari SPK.');
     }
 
     public function addItem(StoreInvoiceItemRequest $request, Invoice $invoice): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('billing.update');
-        abort_if($invoice->status !== 'draft', 422, 'Can only add items to draft invoices.');
+        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diberi item.');
 
         BillingService::addItem($invoice, $request->validated());
 
-        return back()->with('success', 'Item added.');
+        return back()->with('success', 'Item ditambahkan.');
     }
 
     public function removeItem(Invoice $invoice, InvoiceItem $item): RedirectResponse
@@ -332,7 +371,7 @@ class InvoiceController extends Controller
         Gate::authorize('billing.update');
         BillingService::removeItem($invoice, $item->id);
 
-        return back()->with('success', 'Item removed.');
+        return back()->with('success', 'Item dihapus.');
     }
 
     private function ensureSameCompany(Invoice $invoice): void

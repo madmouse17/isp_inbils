@@ -180,7 +180,7 @@ export function LatLngMapPicker({
         <div className={className}>
             <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-xs text-muted-foreground">
-                    Click the map or drag the marker to set coordinates.
+                    Klik peta atau seret penanda untuk mengatur koordinat.
                 </p>
                 <Button
                     type="button"
@@ -189,7 +189,7 @@ export function LatLngMapPicker({
                     disabled={disabled}
                     onClick={useMyLocation}
                 >
-                    Use my location
+                    Gunakan lokasi saya
                 </Button>
             </div>
             <div
@@ -198,7 +198,7 @@ export function LatLngMapPicker({
                 className={`w-full overflow-hidden rounded-md border border-border ${heightClassName} ${
                     disabled ? 'pointer-events-none opacity-60' : ''
                 }`}
-                aria-label="Latitude and longitude map picker"
+                aria-label="Peta untuk memilih lintang dan bujur"
                 role="application"
             />
         </div>

@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import SetupLayout from '@/Layouts/SetupLayout';
 import {
@@ -14,6 +14,7 @@ import {
     Input,
     NativeSelect,
     Progress,
+    SearchSelect,
     Textarea,
 } from '@/Components/ui';
 
@@ -46,7 +47,7 @@ interface SetupFormData {
     admin_name: string;
 }
 
-const steps = ['Company info', 'System config', 'Initial admin', 'Confirmation'];
+const steps = ['Data perusahaan', 'Pengaturan sistem', 'Admin pertama', 'Konfirmasi'];
 
 export default function Wizard({ user, defaults }: SetupWizardProps) {
     const [step, setStep] = useState(0);
@@ -66,6 +67,10 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
         admin_name: user.name,
     };
     const { data, setData, post, processing, progress, errors } = useForm(initialData);
+    const timezoneOptions = useMemo(
+        () => defaults.timezones.map((timezone) => ({ value: timezone, label: timezone })),
+        [defaults.timezones],
+    );
 
     const next = () => {
         const message = validateStep(step, data);
@@ -81,6 +86,13 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
+
+        // Enter inside a field must not skip the remaining steps.
+        if (step < steps.length - 1) {
+            next();
+            return;
+        }
+
         complete();
     };
 
@@ -89,12 +101,13 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
     };
 
     return (
-        <SetupLayout title="Setup Wizard">
+        <SetupLayout title="Pengaturan awal">
             <Card>
                 <CardHeader>
-                    <CardTitle>Setup Wizard</CardTitle>
+                    <CardTitle>Buat perusahaan Anda</CardTitle>
                     <CardDescription>
-                        Complete once to create company profile and first admin.
+                        Isi sekali untuk membuat profil perusahaan dan admin pertama. Semuanya bisa
+                        diubah lagi di Pengaturan Perusahaan.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -119,18 +132,25 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                         </p>
                     )}
 
+                    {step === steps.length - 1 && Object.keys(errors).length > 0 && (
+                        <p className="mt-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-destructive-text">
+                            Data belum bisa disimpan: {Object.values(errors).join(' ')} Kembali ke
+                            langkah yang bersangkutan untuk memperbaikinya.
+                        </p>
+                    )}
+
                     <form onSubmit={submit} className="space-y-5 mt-6">
                         {step === 0 && (
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Input
-                                    label="Company name"
+                                    label="Nama perusahaan"
                                     required
                                     value={data.name}
                                     onChange={(event) => setData('name', event.target.value)}
                                     error={errors.name}
                                 />
                                 <Input
-                                    label="Company code"
+                                    label="Kode perusahaan"
                                     required
                                     value={data.code}
                                     onChange={(event) =>
@@ -146,7 +166,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                                     error={errors.email}
                                 />
                                 <Input
-                                    label="Phone"
+                                    label="Telepon"
                                     value={data.phone}
                                     onChange={(event) => setData('phone', event.target.value)}
                                     error={errors.phone}
@@ -167,7 +187,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                                 />
                                 <div className="sm:col-span-2">
                                     <Textarea
-                                        label="Address"
+                                        label="Alamat"
                                         value={data.address}
                                         onChange={(event) => setData('address', event.target.value)}
                                         error={errors.address}
@@ -179,7 +199,7 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                         {step === 1 && (
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <NativeSelect
-                                    label="Currency"
+                                    label="Mata uang"
                                     required
                                     value={data.currency}
                                     onChange={(event) => setData('currency', event.target.value)}
@@ -191,26 +211,28 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                                         { value: 'EUR', label: 'EUR' },
                                     ]}
                                 />
-                                <NativeSelect
-                                    label="Timezone"
+                                <SearchSelect
+                                    id="timezone"
+                                    label="Zona waktu"
                                     required
                                     value={data.timezone}
-                                    onChange={(event) => setData('timezone', event.target.value)}
+                                    onChange={(timezone) => setData('timezone', timezone)}
                                     error={errors.timezone}
-                                    options={defaults.timezones.map((timezone) => ({
-                                        value: timezone,
-                                        label: timezone,
-                                    }))}
+                                    options={timezoneOptions}
+                                    placeholder="Cari zona waktu"
+                                    emptyText="Zona waktu tidak ditemukan."
                                 />
                                 <Input
-                                    label="Date format"
+                                    label="Format tanggal"
+                                    hint="Mis. d M Y atau d/m/Y."
                                     required
                                     value={data.date_format}
                                     onChange={(event) => setData('date_format', event.target.value)}
                                     error={errors.date_format}
                                 />
                                 <Input
-                                    label="Datetime format"
+                                    label="Format tanggal dan jam"
+                                    hint="Mis. d M Y H:i."
                                     required
                                     value={data.datetime_format}
                                     onChange={(event) =>
@@ -224,25 +246,25 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                         {step === 2 && (
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Input
-                                    label="Admin name"
+                                    label="Nama admin"
                                     required
                                     value={data.admin_name}
                                     onChange={(event) => setData('admin_name', event.target.value)}
                                     error={errors.admin_name}
                                 />
-                                <Input label="Admin email" value={user.email} disabled />
+                                <Input label="Email admin" value={user.email} disabled />
                             </div>
                         )}
 
                         {step === 3 && (
                             <div className="rounded-xl border border-surface-200 bg-surface-50 p-4 text-sm dark:border-surface-800 dark:bg-surface-900">
                                 <dl className="grid gap-3 sm:grid-cols-2">
-                                    <Summary label="Company" value={data.name} />
-                                    <Summary label="Code" value={data.code} />
-                                    <Summary label="Currency" value={data.currency} />
-                                    <Summary label="Timezone" value={data.timezone} />
+                                    <Summary label="Perusahaan" value={data.name} />
+                                    <Summary label="Kode" value={data.code} />
+                                    <Summary label="Mata uang" value={data.currency} />
+                                    <Summary label="Zona waktu" value={data.timezone} />
                                     <Summary label="Admin" value={data.admin_name} />
-                                    <Summary label="Admin email" value={user.email} />
+                                    <Summary label="Email admin" value={user.email} />
                                 </dl>
                             </div>
                         )}
@@ -263,15 +285,15 @@ export default function Wizard({ user, defaults }: SetupWizardProps) {
                         disabled={step === 0 || processing}
                         onClick={() => setStep((current) => Math.max(current - 1, 0))}
                     >
-                        Back
+                        Kembali
                     </Button>
                     {step < steps.length - 1 ? (
                         <Button type="button" onClick={next}>
-                            Next
+                            Lanjut
                         </Button>
                     ) : (
                         <Button type="button" loading={processing} onClick={complete}>
-                            Complete setup
+                            Selesaikan
                         </Button>
                     )}
                 </CardFooter>
@@ -293,18 +315,18 @@ function Summary({ label, value }: { label: string; value: string }) {
 
 function validateStep(step: number, data: SetupFormData): string | null {
     if (step === 0 && (!data.name || !data.code)) {
-        return 'Company name and code are required.';
+        return 'Nama dan kode perusahaan wajib diisi.';
     }
 
     if (
         step === 1 &&
         (!data.currency || !data.timezone || !data.date_format || !data.datetime_format)
     ) {
-        return 'System config fields are required.';
+        return 'Mata uang, zona waktu, dan kedua format wajib diisi.';
     }
 
     if (step === 2 && !data.admin_name) {
-        return 'Admin name is required.';
+        return 'Nama admin wajib diisi.';
     }
 
     return null;

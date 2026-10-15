@@ -27,13 +27,13 @@ final class DashboardAdminStatsQuery
 
     /** @var list<array{name: string, route: string, model: class-string<Model>, permissions: list<string>}> */
     private const MODULES = [
-        ['name' => 'Customer', 'route' => 'admin.customers.index', 'model' => Customer::class, 'permissions' => ['customer.view']],
-        ['name' => 'Service', 'route' => 'admin.service-packages.index', 'model' => ServicePackage::class, 'permissions' => ['service.view', 'service.manage']],
-        ['name' => 'Inventory', 'route' => 'admin.products.index', 'model' => Product::class, 'permissions' => ['inventory.view']],
-        ['name' => 'Network Asset', 'route' => 'admin.network-assets.index', 'model' => NetworkAsset::class, 'permissions' => ['network_asset.view']],
+        ['name' => 'Pelanggan', 'route' => 'admin.customers.index', 'model' => Customer::class, 'permissions' => ['customer.view']],
+        ['name' => 'Layanan', 'route' => 'admin.service-packages.index', 'model' => ServicePackage::class, 'permissions' => ['service.view', 'service.manage']],
+        ['name' => 'Inventaris', 'route' => 'admin.products.index', 'model' => Product::class, 'permissions' => ['inventory.view']],
+        ['name' => 'Aset jaringan', 'route' => 'admin.network-assets.index', 'model' => NetworkAsset::class, 'permissions' => ['network_asset.view']],
         ['name' => 'SPK', 'route' => 'admin.spk.index', 'model' => WorkOrder::class, 'permissions' => ['spk.view']],
-        ['name' => 'Billing', 'route' => 'admin.invoices.index', 'model' => Invoice::class, 'permissions' => ['billing.view']],
-        ['name' => 'Ticketing', 'route' => 'admin.tickets.index', 'model' => Ticket::class, 'permissions' => ['ticket.view']],
+        ['name' => 'Tagihan', 'route' => 'admin.invoices.index', 'model' => Invoice::class, 'permissions' => ['billing.view']],
+        ['name' => 'Tiket', 'route' => 'admin.tickets.index', 'model' => Ticket::class, 'permissions' => ['ticket.view']],
     ];
 
     public static function isEligible(User $user): bool
@@ -54,7 +54,7 @@ final class DashboardAdminStatsQuery
     public static function stats(User $user): array
     {
         $companyId = CompanyService::idFor($user);
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         return [
             'userCount' => User::query()->where('company_id', $companyId)->count(),

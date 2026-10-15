@@ -56,7 +56,7 @@ class CustomerAcquirerQuery
     {
         return static function (string $attribute, mixed $value, Closure $fail): void {
             if (! self::isId($value)) {
-                $fail("The {$attribute} field must be an integer.");
+                $fail('validation.integer')->translate();
             }
         };
     }
@@ -71,7 +71,7 @@ class CustomerAcquirerQuery
     {
         if (Customer::withTrashed()->where('acquired_by_user_id', $user->id)->exists()) {
             throw ValidationException::withMessages([
-                'user' => 'Cannot delete a user credited with acquiring customers. Deactivate the account instead.',
+                'user' => 'Pengguna yang dicatat memperoleh pelanggan tidak bisa dihapus. Nonaktifkan akunnya.',
             ]);
         }
     }

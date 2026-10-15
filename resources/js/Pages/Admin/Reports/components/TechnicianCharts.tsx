@@ -1,6 +1,9 @@
 import { BarChartLazy, LineChartLazy } from '@/Components/ui/ChartLazy';
+import { useCompany } from '@/hooks/useCompany';
+import { todayInZone } from '@/lib/dateRange';
+import { WORK_ORDER_TYPE, labelOf } from '@/lib/statuses';
 import type { TechnicianChartData } from '@/types';
-import { codeLabel, countRows, periodUnit, topRows } from './chartData';
+import { countRows, markRunning, periodUnit, topRows } from './chartData';
 import { ReportChartCard } from './ReportChartCard';
 
 interface TechnicianChartsProps {
@@ -10,13 +13,14 @@ interface TechnicianChartsProps {
 }
 
 export function TechnicianCharts({ charts, spkByType, ticketsByCategory }: TechnicianChartsProps) {
+    const company = useCompany();
     const unit = periodUnit(charts.series);
 
     return (
         <div className="grid gap-4 lg:grid-cols-2">
             <ReportChartCard title={`SPK selesai per ${unit}`} className="lg:col-span-2">
                 <LineChartLazy
-                    data={charts.series.points}
+                    data={markRunning(charts.series, todayInZone(company?.timezone))}
                     xKey="label"
                     lines={[{ key: 'spk_completed', name: 'SPK selesai' }]}
                     ariaLabel={`Grafik garis SPK selesai per ${unit}`}
@@ -24,7 +28,10 @@ export function TechnicianCharts({ charts, spkByType, ticketsByCategory }: Techn
             </ReportChartCard>
             <ReportChartCard title="SPK selesai menurut jenis">
                 <BarChartLazy
-                    data={topRows(countRows(spkByType, codeLabel), 10)}
+                    data={topRows(
+                        countRows(spkByType, (code) => labelOf(WORK_ORDER_TYPE, code)),
+                        10,
+                    )}
                     xKey="name"
                     bars={[{ key: 'value', name: 'SPK selesai' }]}
                     layout="vertical"

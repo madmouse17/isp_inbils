@@ -8,7 +8,6 @@ use App\Http\Requests\Admin\StoreEmployeeRequest;
 use App\Http\Requests\Admin\UpdateEmployeeRequest;
 use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\OrganizationResource;
-use App\Http\Resources\UserResource;
 use App\Http\Resources\VehicleResource;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
@@ -17,6 +16,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -32,6 +32,13 @@ class EmployeeController extends Controller
     use HasIndexQuery;
 
     private const SORTABLE = ['employee_number', 'status', 'hire_date', 'created_at'];
+
+    /** Stored `status` as the export says it (`lib/statuses/people.ts` EMPLOYEE_STATUS on screen). */
+    private const STATUS_LABELS = [
+        'active' => 'Aktif',
+        'inactive' => 'Nonaktif',
+        'terminated' => 'Berhenti',
+    ];
 
     public function index(Request $request): InertiaResponse
     {
@@ -49,7 +56,16 @@ class EmployeeController extends Controller
             'employees' => EmployeeResource::collection($employees),
             'organizations' => OrganizationResource::collection(OrganizationUnit::query()->where('is_active', true)->orderBy('code')->get()),
             'vehicles' => VehicleResource::collection(Vehicle::query()->where('is_active', true)->orderBy('plate_number')->get()),
-            'users' => UserResource::collection(User::query()->where('company_id', CompanyService::currentId())->where('is_active', true)->whereDoesntHave('employeeProfile')->orderBy('name')->get()),
+            'userOptions' => SearchOptions::for(
+                $request,
+                'user',
+                User::query()
+                    ->where(StoreEmployeeRequest::usersOf(CompanyService::currentId()))
+                    ->where('users.is_active', true)
+                    ->whereDoesntHave('employeeProfile'),
+                ['users.name', 'users.email'],
+                fn (User $user): array => ['value' => $user->id, 'label' => $user->name, 'description' => $user->email],
+            ),
             'filters' => $request->only(['search', 'organization_id', 'status', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('employee.manage') ?? false,
@@ -71,7 +87,7 @@ class EmployeeController extends Controller
             EmployeeProfile::create($data);
         });
 
-        return back()->with('success', 'Employee profile created.');
+        return back()->with('success', 'Karyawan dibuat.');
     }
 
     public function update(UpdateEmployeeRequest $request, EmployeeProfile $employee): RedirectResponse
@@ -79,7 +95,7 @@ class EmployeeController extends Controller
         Gate::authorize('update', $employee);
         $employee->update($request->validated());
 
-        return back()->with('success', 'Employee profile updated.');
+        return back()->with('success', 'Karyawan diperbarui.');
     }
 
     public function destroy(EmployeeProfile $employee): RedirectResponse
@@ -87,7 +103,7 @@ class EmployeeController extends Controller
         Gate::authorize('delete', $employee);
         $employee->delete();
 
-        return back()->with('success', 'Employee profile deleted.');
+        return back()->with('success', 'Karyawan dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -101,13 +117,13 @@ class EmployeeController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'employee_number' => 'Employee Number',
-            'name' => 'Name',
+            'employee_number' => 'Nomor karyawan',
+            'name' => 'Nama',
             'email' => 'Email',
-            'organization' => 'Organization',
-            'vehicle' => 'Vehicle',
+            'organization' => 'Organisasi',
+            'vehicle' => 'Kendaraan',
             'status' => 'Status',
-            'phone' => 'Phone',
+            'phone' => 'Telepon',
         ];
 
         $map = static fn (EmployeeProfile $e): array => [
@@ -116,12 +132,12 @@ class EmployeeController extends Controller
             'email' => $e->user?->email ?? '',
             'organization' => $e->organization?->name ?? '',
             'vehicle' => $e->vehicle?->plate_number ?? '',
-            'status' => $e->status,
+            'status' => self::STATUS_LABELS[$e->status] ?? $e->status,
             'phone' => $e->phone ?? '',
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Employees', $columns, $map, "employees-export-{$stamp}.pdf");
+            return $export->streamPdf('Karyawan', $columns, $map, "employees-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "employees-export-{$stamp}.csv");

@@ -89,6 +89,12 @@ class StoreCustomerRequest extends FormRequest
         ];
     }
 
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return ['type' => 'tipe pelanggan'];
+    }
+
     /**
      * The acquirer key is validated only for holders of customer.sales.assign; for everyone else it is
      * never validated and never reaches validated(), so a forged value is ignored and the server
@@ -143,17 +149,17 @@ class StoreCustomerRequest extends FormRequest
 
             if ($addresses->filter(fn (mixed $address): bool => is_array($address)
                 && filter_var($address['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN))->count() !== 1) {
-                $validator->errors()->add('addresses', 'Select exactly one primary address.');
+                $validator->errors()->add('addresses', 'Pilih tepat satu alamat utama.');
             }
 
             if ($addresses->filter(fn (mixed $address): bool => is_array($address)
                 && filter_var($address['is_installation_point'] ?? false, FILTER_VALIDATE_BOOLEAN))->count() !== 1) {
-                $validator->errors()->add('addresses', 'Select exactly one installation address.');
+                $validator->errors()->add('addresses', 'Pilih tepat satu alamat pemasangan.');
             }
 
             if ($contacts->filter(fn (mixed $contact): bool => is_array($contact)
                 && filter_var($contact['is_primary'] ?? false, FILTER_VALIDATE_BOOLEAN))->count() !== 1) {
-                $validator->errors()->add('contacts', 'Select exactly one primary contact.');
+                $validator->errors()->add('contacts', 'Pilih tepat satu kontak utama.');
             }
 
             $addresses->each(function (mixed $address, int $index) use ($validator): void {
@@ -166,7 +172,7 @@ class StoreCustomerRequest extends FormRequest
 
                 if ($codes->every(fn (mixed $code): bool => is_string($code))
                     && ! IndonesiaRegionService::hierarchyExists(...$codes->all())) {
-                    $validator->errors()->add("addresses.{$index}.village_code", 'The selected region hierarchy is invalid.');
+                    $validator->errors()->add("addresses.{$index}.village_code", 'Provinsi, kota/kabupaten, kecamatan, dan kelurahan/desa tidak saling cocok.');
                 }
             });
         }];

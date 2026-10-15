@@ -1,117 +1,62 @@
-/** Inventory domain types for admin stock/product pages. */
+/** Inventory domain types for the admin product, category, unit and request pages. They mirror the resources in `Modules/Inventory/app/Http/Resources`. */
 
 export type Id = number | string;
 
-export type Category = {
-    id: Id;
-    name?: string | null;
-    code?: string | null;
-    unit_id?: Id | null;
-    description?: string | null;
-    parent_id?: Id | null;
-    is_active?: boolean | null;
-    unit?: { id?: Id; name?: string | null; symbol?: string | null } | null;
-    [key: string]: unknown;
-};
-
-export type Product = {
-    id: Id;
-    name?: string | null;
-    sku?: string | null;
-    description?: string | null;
-    category_id?: Id | null;
-    unit_id?: Id | null;
-    category?: {
-        id?: Id;
-        name?: string | null;
-        unit?: { name?: string | null; symbol?: string | null } | null;
-    } | null;
-    unit?: { id?: Id; name?: string | null; symbol?: string | null } | null;
-    sell_price?: string | number | null;
-    cost_price?: string | number | null;
-    min_stock?: string | number | null;
-    track_stock?: boolean | null;
-    is_active?: boolean | null;
-    stocks?: Stock[] | null;
-    movements?: StockMovement[] | null;
-    [key: string]: unknown;
-};
-
-export type Unit = {
-    id: Id;
-    name?: string | null;
-    symbol?: string | null;
-    [key: string]: unknown;
-};
-
-export type Stock = {
-    id: Id;
-    location?: { id?: Id; name?: string | null; path?: string | null } | null;
-    quantity?: number | string | null;
-    reserved_quantity?: number | string | null;
-    available?: number | string | null;
-    [key: string]: unknown;
-};
-
-export type StockMovement = {
-    id: Id;
-    type?: string | null;
-    quantity?: number | string | null;
-    qty?: number | string | null;
-    reference?: string | null;
-    notes?: string | null;
-    created_at?: string | null;
-    [key: string]: unknown;
-};
-
-export interface InventoryProduct {
-    id: Id;
-    sku?: string | null;
-    name: string;
-    category_id?: Id | null;
-    unit_id?: Id | null;
-    min_stock?: number | null;
-    status?: string | null;
-}
-
-export interface InventoryCategory {
+export interface Unit {
     id: Id;
     name: string;
-    unit_id?: Id | null;
+    symbol: string;
 }
 
-export interface InventoryUnit {
+export interface Category {
     id: Id;
+    parent_id: Id | null;
+    unit_id: Id | null;
     name: string;
-    symbol?: string | null;
+    code: string;
+    description: string | null;
+    is_active: boolean;
+    unit?: Unit | null;
+    children_count?: number;
 }
 
-export interface StockRow {
+export interface Stock {
     id: Id;
-    product_id?: Id | null;
-    product?: InventoryProduct | null;
-    location_id?: Id | null;
-    location_name?: string | null;
-    qty?: number | null;
-    quantity?: number | null;
-    min_stock?: number | null;
-    updated_at?: string | null;
+    product_id: Id;
+    location_id: Id;
+    quantity: number | string;
+    reserved_quantity: number | string;
+    available: number | string;
+    location?: { id: Id; name: string; code?: string | null; path?: string | null } | null;
 }
 
-export interface MovementRow {
+export interface StockMovement {
     id: Id;
-    product_id?: Id | null;
-    product?: InventoryProduct | null;
-    type?: string | null;
-    qty?: number | null;
-    quantity?: number | null;
-    reference?: string | null;
-    notes?: string | null;
-    created_at?: string | null;
-    status?: string | null;
+    movement_type: string;
+    quantity: number | string;
+    balance_after: number | string;
+    note: string | null;
+    created_at: string | null;
 }
 
-export type Movement = MovementRow;
+export interface Product {
+    id: Id;
+    sku: string;
+    name: string;
+    description: string | null;
+    category_id: Id | null;
+    unit_id: Id | null;
+    type: string;
+    track_stock: boolean;
+    sell_price: string | number | null;
+    cost_price: string | number | null;
+    min_stock: string | number;
+    is_active: boolean;
+    category?: Category | null;
+    unit?: Unit | null;
+    stocks?: Stock[];
+    movements?: StockMovement[];
+}
 
 export interface InventoryRequestItem {
     id: number;
@@ -139,7 +84,6 @@ export interface InventoryRequestRow {
     id: number;
     code: string;
     status: string;
-    status_label: string;
     needed_at?: string | null;
     reason: string;
     approval_note?: string | null;

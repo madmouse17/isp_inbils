@@ -13,3 +13,10 @@ export const ORGANIZATION_TYPE = {
     unit: { label: 'Unit', tone: 'neutral' },
     team: { label: 'Tim', tone: 'neutral' },
 } satisfies StatusMap;
+
+/** A login's second factor: on, started but not confirmed yet (profile page only), or off. */
+export const TWO_FACTOR_STATE = {
+    enabled: { label: 'Aktif', tone: 'success' },
+    pending: { label: 'Belum selesai', tone: 'warning' },
+    off: { label: 'Nonaktif', tone: 'neutral' },
+} satisfies StatusMap;

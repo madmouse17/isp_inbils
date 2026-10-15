@@ -5,11 +5,13 @@ namespace Modules\NetworkAsset\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
+use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
+use Inertia\OptionalProp;
 use Inertia\Response as InertiaResponse;
 use Modules\NetworkAsset\Http\Requests\StoreNasDeviceRequest;
 use Modules\NetworkAsset\Http\Requests\UpdateNasDeviceRequest;
@@ -59,18 +61,22 @@ class NasDeviceController extends Controller
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function create(Request $request): InertiaResponse
     {
         Gate::authorize('network_asset.nas.manage');
 
-        return Inertia::render('Admin/NasDevices/Create', ['routerAssets' => $this->unregisteredRouters(), 'realm' => $this->realm()]);
+        return Inertia::render('Admin/NasDevices/Create', [
+            'routerAssetOptions' => $this->routerAssetOptions($request),
+            'hasRouterAssets' => $this->unregisteredRouters()->exists(),
+            'realm' => $this->realm(),
+        ]);
     }
 
     public function store(StoreNasDeviceRequest $request): RedirectResponse
     {
         $nasDevice = NasDeviceService::create($request->validated());
 
-        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'NAS router registered.');
+        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'Router NAS didaftarkan.');
     }
 
     public function show(Request $request, NasDevice $nasDevice, RadiusDirectory $radius): InertiaResponse
@@ -112,7 +118,7 @@ class NasDeviceController extends Controller
     {
         NasDeviceService::update($nasDevice, $request->validated());
 
-        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'NAS router updated.');
+        return $this->saved(redirect()->route('admin.nas-devices.show', $nasDevice), $nasDevice, 'Router NAS diperbarui.');
     }
 
     public function destroy(NasDevice $nasDevice): RedirectResponse
@@ -120,9 +126,9 @@ class NasDeviceController extends Controller
         Gate::authorize('network_asset.nas.manage');
 
         $removed = NasDeviceService::delete($nasDevice);
-        $redirect = redirect()->route('admin.nas-devices.index')->with('success', 'NAS router removed.');
+        $redirect = redirect()->route('admin.nas-devices.index')->with('success', 'Router NAS dihapus.');
 
-        return $removed ? $redirect : $redirect->with('warning', 'The RADIUS client row could not be removed (RADIUS is switched off or unreachable). Remove it from the nas table by hand.');
+        return $removed ? $redirect : $redirect->with('warning', 'Baris klien RADIUS tidak dapat dihapus (RADIUS dimatikan atau tidak terjangkau). Hapus dari tabel nas secara manual.');
     }
 
     /** A saved row that RADIUS does not know yet is not an error: the sync writes it later. */
@@ -130,7 +136,7 @@ class NasDeviceController extends Controller
     {
         $redirect->with('success', $message);
 
-        return $nasDevice->last_error === null ? $redirect : $redirect->with('warning', 'Saved, but RADIUS was not updated: '.$nasDevice->last_error.' The sync retries every 15 minutes.');
+        return $nasDevice->last_error === null ? $redirect : $redirect->with('warning', 'Tersimpan, tetapi RADIUS belum diperbarui: '.$nasDevice->last_error.' Sinkronisasi mencoba lagi setiap 15 menit.');
     }
 
     private function realm(): ?string
@@ -170,25 +176,33 @@ class NasDeviceController extends Controller
         ], $sessions);
     }
 
-    /** @return list<array{id: int, code: string, name: string, management_ip: ?string, location_name: ?string}> */
-    private function unregisteredRouters(): array
+    /**
+     * Router assets with a management IP that are not a NAS router yet.
+     *
+     * @return Builder<NetworkAsset>
+     */
+    private function unregisteredRouters(): Builder
     {
         return NetworkAsset::query()
-            ->with('location:id,name')
             ->where('asset_type', 'router')
             ->whereNotNull('management_ip')
-            ->whereNotIn('id', NasDevice::query()->select('network_asset_id'))
-            ->orderBy('code')
-            ->limit(500)
-            ->get()
-            ->map(fn (NetworkAsset $asset): array => [
-                'id' => $asset->id,
-                'code' => $asset->code,
-                'name' => $asset->name,
-                'management_ip' => $asset->getAttribute('management_ip'),
-                'location_name' => $asset->location?->getAttribute('name'),
-            ])
-            ->all();
+            ->whereNotIn('id', NasDevice::query()->select('network_asset_id'));
+    }
+
+    /** Found by code, name or management IP; the option's description is the management IP, which the form copies into the NAS address. */
+    private function routerAssetOptions(Request $request): OptionalProp
+    {
+        return SearchOptions::for(
+            $request,
+            'routerAsset',
+            $this->unregisteredRouters()->with('location:id,name')->orderBy('code'),
+            ['code', 'name', 'management_ip'],
+            fn (NetworkAsset $asset): array => [
+                'value' => $asset->id,
+                'label' => collect([$asset->code, $asset->name, $asset->location?->getAttribute('name')])->filter()->implode(' - '),
+                'description' => $asset->getAttribute('management_ip'),
+            ],
+        );
     }
 
     /**

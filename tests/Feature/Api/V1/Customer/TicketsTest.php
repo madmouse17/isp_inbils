@@ -81,6 +81,20 @@ class TicketsTest extends TestCase
         $this->api('GET', "customer/tickets/{$foreignTicket->id}", token: $this->token)->assertNotFound();
     }
 
+    public function test_ticket_categories_carry_the_customer_hint_the_isp_wrote_and_null_otherwise(): void
+    {
+        $this->category->forceFill(['customer_hint' => 'Matikan modem 30 detik, lalu nyalakan lagi.'])->save();
+        $this->category('Billing');
+
+        $categories = $this->api('GET', 'customer/ticket-categories', token: $this->token)->assertOk()->json('data');
+
+        $this->assertSame(['id', 'name', 'customer_hint'], array_keys($categories[0]));
+        $this->assertSame(
+            ['Billing' => null, 'Support' => 'Matikan modem 30 detik, lalu nyalakan lagi.'],
+            collect($categories)->pluck('customer_hint', 'name')->all(),
+        );
+    }
+
     public function test_customer_detail_hides_internal_fields_and_internal_comments(): void
     {
         Storage::fake('local');

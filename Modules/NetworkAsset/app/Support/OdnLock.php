@@ -26,7 +26,7 @@ final class OdnLock
         try {
             return Cache::lock("odn:topology:{$companyId}", 10)->block(5, fn () => DB::transaction($callback, 3));
         } catch (LockTimeoutException) {
-            abort(409, 'Another change to the fibre plan is in progress. Try again.');
+            abort(409, 'Ada perubahan lain pada rencana fiber yang sedang berjalan. Coba lagi.');
         }
     }
 }

@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite';
@@ -43,11 +43,11 @@ export default function Create({ roles }: CreateProps) {
         );
 
     return (
-        <AdminLayout title="Create User">
+        <AdminLayout title="Buat Pengguna">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create User"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Pengguna"
+                    subtitle="Akun baru masuk dengan email dan kata sandi ini. Peran menentukan hak aksesnya."
                     actions={
                         <Button
                             asChild
@@ -55,7 +55,7 @@ export default function Create({ roles }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.users.index')}>Back</Link>
+                            <Link href={route('admin.users.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -63,11 +63,11 @@ export default function Create({ roles }: CreateProps) {
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Create User</CardTitle>
+                            <CardTitle>Data akun</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
@@ -82,22 +82,24 @@ export default function Create({ roles }: CreateProps) {
                                 required
                             />
                             <Input
-                                label="Password"
+                                label="Kata sandi"
                                 type="password"
+                                autoComplete="new-password"
                                 value={data.password}
                                 onChange={(e) => setData('password', e.target.value)}
                                 error={errors.password}
+                                hint="Minimal 8 karakter."
                                 required
                             />
                             <Switch
-                                label="Active"
+                                label="Aktif"
                                 checked={data.is_active}
                                 onCheckedChange={(checked) => setData('is_active', checked)}
                             />
-                            <div className="space-y-2 md:col-span-2">
-                                <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
-                                    Roles
-                                </p>
+                            <fieldset className="space-y-2 md:col-span-2">
+                                <legend className="text-sm font-medium text-foreground">
+                                    Peran
+                                </legend>
                                 <div className="grid gap-2 md:grid-cols-2">
                                     {roles.data.map((role) => (
                                         <Checkbox
@@ -110,19 +112,18 @@ export default function Create({ roles }: CreateProps) {
                                         />
                                     ))}
                                 </div>
-                            </div>
+                                {errors.roles ? (
+                                    <p className="text-sm text-destructive-text">{errors.roles}</p>
+                                ) : null}
+                            </fieldset>
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.users.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.users.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Buat
                         </Button>
                     </div>
                 </form>

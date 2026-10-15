@@ -83,7 +83,7 @@ class NumberSequenceServerTableExportTest extends TestCase
         $content = $response->streamedContent();
         $this->assertStringContainsString('INV', $content);
         $this->assertStringContainsString('{PREFIX}-{SEQ:4}', $content);
-        $this->assertStringContainsString('Reset Period', $content);
+        $this->assertStringContainsString('Reset nomor', $content);
         $this->assertStringNotContainsString('QTE', $content);
         $this->assertStringNotContainsString('OTH', $content);
     }

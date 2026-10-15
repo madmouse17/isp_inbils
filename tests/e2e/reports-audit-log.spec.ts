@@ -1,5 +1,5 @@
 import { expect, test } from './support/fixtures';
-import { loginAs } from './support/demo';
+import { inertiaProps, loginAs } from './support/demo';
 import { typeDateRange } from './support/dateRange';
 
 test.describe('@smoke @audit-log UI report audit log', () => {
@@ -15,16 +15,14 @@ test.describe('@smoke @audit-log UI report audit log', () => {
 
         // Verify Page Header
         await expect(
-            page.getByRole('main').getByRole('heading', { name: 'Audit Log' }),
+            page.getByRole('main').getByRole('heading', { name: 'Log audit' }),
         ).toBeVisible();
 
         // Verify Filter Card & Controls
-        await expect(page.getByText('Filter & Pencarian Log')).toBeVisible();
-        await expect(
-            page.getByPlaceholder('Cari deskripsi, modul, event, pelaku...'),
-        ).toBeVisible();
+        await expect(page.getByText('Filter log', { exact: true })).toBeVisible();
+        await expect(page.getByPlaceholder('Cari deskripsi, modul, aksi, pelaku...')).toBeVisible();
         await expect(page.getByRole('combobox', { name: 'Modul' })).toBeVisible();
-        await expect(page.getByLabel('ID Pengguna (Causer)')).toBeVisible();
+        await expect(page.getByRole('combobox', { name: 'Pengguna', exact: true })).toBeVisible();
         const rangeField = page.getByLabel('Periode', { exact: true });
         await expect(rangeField).toBeVisible();
 
@@ -45,8 +43,10 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         await expect(calendar).toBeHidden();
 
         // Verify Action Buttons
-        await expect(page.getByRole('button', { name: 'Atur Ulang', exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Terapkan Filter' })).toBeVisible();
+        await expect(
+            page.getByRole('button', { name: 'Reset filter', exact: true }).first(),
+        ).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Terapkan filter' })).toBeVisible();
 
         // Verify Table Column Headers (Desktop)
         await expect(page.getByRole('columnheader', { name: 'Waktu' })).toBeVisible();
@@ -89,9 +89,9 @@ test.describe('@smoke @audit-log UI report audit log', () => {
         await expect(rangeField).toHaveValue('');
 
         // Test search input interaction: submit filter and assert URL & dataset changes
-        const searchInput = page.getByPlaceholder('Cari deskripsi, modul, event, pelaku...');
+        const searchInput = page.getByPlaceholder('Cari deskripsi, modul, aksi, pelaku...');
         await searchInput.fill('customer');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(page).toHaveURL(/search=customer/);
         // Search may match module, event, description, or actor.
         const customerRows = page.locator('tbody tr');
@@ -100,12 +100,12 @@ test.describe('@smoke @audit-log UI report audit log', () => {
             const searchedCells = await row
                 .locator('td:nth-child(n+2):nth-child(-n+5)')
                 .allInnerTexts();
-            expect(searchedCells.join(' ')).toMatch(/customer/i);
+            expect(searchedCells.join(' ')).toMatch(/customer|pelanggan/i);
         }
 
         // Test search by causer (pelaku): submit filter and assert dataset is narrowed to causer rows
         await searchInput.fill('Demo Admin');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(page).toHaveURL(/search=Demo(\+|%20)Admin/);
         const causerCells = page.locator('tbody tr td:nth-child(5)');
         await expect(causerCells.first()).toBeVisible();
@@ -116,7 +116,7 @@ test.describe('@smoke @audit-log UI report audit log', () => {
 
         // Clear search filter and re-apply to restore full dataset
         await searchInput.fill('');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(page).toHaveURL(/\/admin\/reports\/audit-log/);
         await expect(page).not.toHaveURL(/search=/);
         await expect(detailButtons.first()).toHaveAttribute('aria-label', firstLogName!);
@@ -128,10 +128,17 @@ test.describe('@smoke @audit-log UI report audit log', () => {
 
         const ascModuleCells = page.locator('tbody tr td:nth-child(2)');
         await expect(ascModuleCells.first()).toBeVisible();
-        const ascTexts = (await ascModuleCells.allInnerTexts()).map((t) => t.trim().toUpperCase());
-        for (let i = 0; i < ascTexts.length - 1; i++) {
-            expect(ascTexts[i].localeCompare(ascTexts[i + 1])).toBeLessThanOrEqual(0);
-        }
+        // The server sorts on the raw module name while the cells show its label, so the order is read from the
+        // rows the page renders, one cell each.
+        const moduleNames = async () => {
+            const { props } = await inertiaProps(page, page.url());
+
+            return ((props?.data?.data ?? []) as { log_name: string }[]).map((row) => row.log_name);
+        };
+        const ascNames = await moduleNames();
+        expect(ascNames.length, 'rows to compare').toBeGreaterThan(1);
+        await expect(ascModuleCells).toHaveCount(ascNames.length);
+        expect(ascNames, 'Modul ascending').toEqual([...ascNames].sort());
 
         // Clicking sortable header 'Modul' again toggles sort direction to descending
         await moduleHeader.getByRole('button').click();
@@ -139,13 +146,10 @@ test.describe('@smoke @audit-log UI report audit log', () => {
 
         const descModuleCells = page.locator('tbody tr td:nth-child(2)');
         await expect(descModuleCells.first()).toBeVisible();
-        const descTexts = (await descModuleCells.allInnerTexts()).map((t) =>
-            t.trim().toUpperCase(),
-        );
-        for (let i = 0; i < descTexts.length - 1; i++) {
-            expect(descTexts[i].localeCompare(descTexts[i + 1])).toBeGreaterThanOrEqual(0);
-        }
-        expect(descTexts[0]).not.toEqual(ascTexts[0]);
+        const descNames = await moduleNames();
+        await expect(descModuleCells).toHaveCount(descNames.length);
+        expect(descNames, 'Modul descending').toEqual([...descNames].sort().reverse());
+        expect(descNames[0]).not.toEqual(ascNames[0]);
 
         // Test sorting by description without depending on the first seeded value.
         const descriptionHeader = page.getByRole('columnheader', { name: 'Deskripsi' });
@@ -174,12 +178,12 @@ test.describe('@smoke @audit-log UI report audit log', () => {
 
         // Modal should open
         const modal = page.getByRole('dialog', {
-            name: selectedLogName!.replace('Lihat detail log aktivitas', 'Detail Log Aktivitas'),
+            name: selectedLogName!.replace('Lihat detail log aktivitas', 'Detail log aktivitas'),
             exact: true,
         });
         await expect(modal).toBeVisible();
-        await expect(modal.getByText('Informasi Ringkasan')).toBeVisible();
-        await expect(modal.getByText('Properti & Perubahan Nilai')).toBeVisible();
+        await expect(modal.getByText('Ringkasan', { exact: true })).toBeVisible();
+        await expect(modal.getByText('Properti dan perubahan nilai')).toBeVisible();
 
         // Close modal
         await modal.getByRole('button', { name: 'Tutup' }).first().click();

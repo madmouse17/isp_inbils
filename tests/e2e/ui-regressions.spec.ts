@@ -12,7 +12,7 @@ test('@regression admin billing and spk indexes render without page errors', asy
 
     await page.goto('/admin/invoices');
     await expect(page.getByRole('heading', { name: 'Tagihan', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Generate Tagihan' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Buat tagihan bulanan' })).toBeVisible();
 
     expect(pageErrors).toEqual([]);
 });

@@ -1,67 +1,39 @@
-import { NativeSelect } from '@/Components/ui';
+import { RemoteSearchSelect } from '@/Components/composite/RemoteSearchSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
 
 interface DropPortSelectProps {
     id: string;
     value: string;
     onChange: (value: string) => void;
-    /** Free ODP ports under the serving POP; undefined until a partial reload delivered them. */
+    /** The `dropPortOptions` prop: free ODP ports under the serving POP that match the typed text. `undefined` until a search has run. */
     options: DropPortOption[] | undefined;
-    /** True while that partial reload is in flight. */
-    loading: boolean;
-    /** Why no list can be offered yet (e.g. no serving POP chosen); the select stays disabled. */
+    /** Why no port can be searched yet (e.g. no serving POP chosen); the field stays disabled. */
     unavailable?: string;
     error?: string;
 }
 
-/** Free ports grouped under their ODP. A full ODP is never offered, so it cannot be chosen by mistake. */
+/** Free ports are found by typing an ODP code or a splitter label. A full ODP is never offered, so it cannot be chosen by mistake. */
 export function DropPortSelect({
     id,
     value,
     onChange,
     options,
-    loading,
     unavailable,
     error,
 }: DropPortSelectProps) {
-    const groups = new Map<string, DropPortOption[]>();
-
-    for (const option of options ?? []) {
-        groups.set(option.odp_code, [...(groups.get(option.odp_code) ?? []), option]);
-    }
-
-    const empty = options !== undefined && options.length === 0;
-    const hint = unavailable
-        ? unavailable
-        : loading
-          ? 'Loading free ports…'
-          : empty
-            ? 'No free port under this POP'
-            : 'Optional. Reserves the port for this customer.';
-
     return (
-        <NativeSelect
+        <RemoteSearchSelect
+            field="dropPort"
             id={id}
-            label="Drop port (ODP)"
+            label="Port drop (ODP)"
             value={value}
-            onChange={(event) => onChange(event.target.value)}
+            onChange={onChange}
+            options={options}
+            placeholder="Cari kode ODP atau label splitter"
+            emptyText="Tidak ada port kosong yang cocok di bawah POP ini."
+            hint={unavailable ?? 'Opsional. Memesan port untuk pelanggan ini.'}
             error={error}
-            hint={hint}
-            disabled={Boolean(unavailable) || loading || empty || options === undefined}
-        >
-            <option value="">No port chosen</option>
-            {[...groups].map(([code, ports]) => (
-                <optgroup
-                    key={code}
-                    label={`${code} - ${ports[0].location_path} (${ports[0].free_count} free)`}
-                >
-                    {ports.map((port) => (
-                        <option key={port.port_id} value={port.port_id}>
-                            {port.label}
-                        </option>
-                    ))}
-                </optgroup>
-            ))}
-        </NativeSelect>
+            disabled={Boolean(unavailable)}
+        />
     );
 }

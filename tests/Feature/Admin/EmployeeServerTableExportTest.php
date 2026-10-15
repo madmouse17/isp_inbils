@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\Company;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\OrganizationUnit;
@@ -135,7 +136,7 @@ class EmployeeServerTableExportTest extends TestCase
 
         $response = $this->get(route('admin.employees.export', $filters + ['format' => 'csv']))->assertOk();
         $lines = preg_split('/\r?\n/', trim($response->streamedContent()));
-        $this->assertSame('Employee Number', str_getcsv(ltrim((string) array_shift($lines), "\xEF\xBB\xBF"))[0]);
+        $this->assertSame('Nomor karyawan', str_getcsv(ltrim((string) array_shift($lines), "\xEF\xBB\xBF"))[0]);
         $this->assertSame(array_reverse($numbers), array_map(static fn ($line) => str_getcsv($line)[0], $lines));
     }
 
@@ -156,18 +157,18 @@ class EmployeeServerTableExportTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_users_dropdown_is_company_scoped(): void
+    public function test_user_options_are_company_scoped(): void
     {
-        // Create an unassigned user in admin's own company
-        $ownUser = User::factory()->create([
+        // An unassigned user in the admin's own company
+        User::factory()->create([
             'company_id' => $this->admin->company_id,
             'name' => 'Own Unassigned',
             'email_verified_at' => now(),
             'is_active' => true,
         ]);
 
-        // Create an unassigned user in a different company
-        $otherUser = User::factory()->create([
+        // An unassigned user in a different company
+        User::factory()->create([
             'company_id' => $this->otherCompany->id,
             'name' => 'Other Unassigned',
             'email_verified_at' => now(),
@@ -179,9 +180,19 @@ class EmployeeServerTableExportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Employees/Index')
-                ->has('users.data', 2)
-                ->where('users.data.0.name', 'Own Unassigned')
-                ->where('users.data.1.name', $this->admin->name)
+                ->missing('userOptions')
             );
+
+        $this->actingAs($this->admin)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(request()),
+                'X-Inertia-Partial-Component' => 'Admin/Employees/Index',
+                'X-Inertia-Partial-Data' => 'userOptions',
+            ])
+            ->get(route('admin.employees.index', ['user_search' => 'Unassigned']))
+            ->assertOk()
+            ->assertJsonCount(1, 'props.userOptions')
+            ->assertJsonPath('props.userOptions.0.label', 'Own Unassigned');
     }
 }

@@ -16,7 +16,7 @@ class EmployeeResource extends JsonResource
             'vehicle_id' => $this->vehicle_id,
             'employee_number' => $this->employee_number,
             'phone' => $this->phone,
-            'hire_date' => $this->hire_date,
+            'hire_date' => $this->hire_date?->toDateString(),
             'status' => $this->status,
             'skills' => $this->skills,
             'notes' => $this->notes,

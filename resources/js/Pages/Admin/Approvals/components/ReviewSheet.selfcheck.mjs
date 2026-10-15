@@ -51,8 +51,8 @@ test('ReviewSheet.tsx and Index.tsx static contract and interface validation', a
         /disabled=\{\s*submitting \|\| isStale \|\| isReloading \|\| !rejectReason\.trim\(\)\s*\}/,
     );
     assert.match(reviewSheetSource, /loading=\{isReloading\}/);
-    assert.match(reviewSheetSource, /Memuat Ulang\.\.\./);
-    assert.match(reviewSheetSource, /Muat Ulang Antrean/);
+    assert.match(reviewSheetSource, /Memuat ulang\.\.\./);
+    assert.match(reviewSheetSource, /Muat ulang antrean/);
 
     // 5. Index contract: provides asynchronous queue reload and unselects closed item
     assert.match(indexSource, /handleRefreshQueue/);
@@ -132,7 +132,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
                     }));
                     build.onLoad({ filter: /.*/, namespace: 'mock' }, () => ({
                         contents:
-                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children;',
+                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
                         loader: 'js',
                     }));
                 },
@@ -192,7 +192,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
         // Error alert and CTA button appear
         const errorAlert = page.locator('[role="alert"]').first();
         await errorAlert.waitFor();
-        const reloadBtn = page.locator('button:has-text("Muat Ulang Antrean")');
+        const reloadBtn = page.locator('button:has-text("Muat ulang antrean")');
         await reloadBtn.waitFor();
 
         // Fail-closed verification: actions must be disabled
@@ -210,7 +210,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
 
         await reloadBtn.click();
 
-        const inFlightBtn = page.locator('button:has-text("Memuat Ulang...")');
+        const inFlightBtn = page.locator('button:has-text("Memuat ulang...")');
         await inFlightBtn.waitFor();
         assert.equal(await inFlightBtn.isDisabled(), true, 'Reload CTA disabled in-flight');
         assert.equal(await approveBtn.isDisabled(), true, 'Approve remains disabled in-flight');
@@ -559,7 +559,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
 
         // Trigger conflict error
         await approveBtn.click();
-        const reloadBtn = page.locator('button:has-text("Muat Ulang Antrean")');
+        const reloadBtn = page.locator('button:has-text("Muat ulang antrean")');
         await reloadBtn.waitFor();
 
         // Actions fail-closed
@@ -569,8 +569,8 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
         // Click reload -> triggers finish-only path
         await reloadBtn.click();
 
-        // Bounded settlement: "Memuat Ulang..." must NOT hang; must revert to enabled reloadBtn
-        await page.locator('button:has-text("Memuat Ulang...")').waitFor({ state: 'detached' });
+        // Bounded settlement: "Memuat ulang..." must NOT hang; must revert to enabled reloadBtn
+        await page.locator('button:has-text("Memuat ulang...")').waitFor({ state: 'detached' });
         assert.equal(
             await reloadBtn.isDisabled(),
             false,
@@ -584,7 +584,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
 
         // Retry reload -> succeeds and synchronizes
         await reloadBtn.click();
-        await page.locator('button:has-text("Memuat Ulang...")').waitFor({ state: 'detached' });
+        await page.locator('button:has-text("Memuat ulang...")').waitFor({ state: 'detached' });
 
         assert.equal(
             await approveBtn.isDisabled(),
@@ -655,7 +655,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
                     }));
                     build.onLoad({ filter: /.*/, namespace: 'mock' }, () => ({
                         contents:
-                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children;',
+                            'export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts) }; export const Link = (props) => props.children; export const usePage = () => ({ props: { company: { settings: { date_format: "d/m/Y" } } } });',
                         loader: 'js',
                     }));
                 },
@@ -709,7 +709,10 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
             await page.locator('text=Permintaan Barang').first().isVisible(),
             'Domain badge visible',
         );
-        assert.ok(await page.locator('text=Diajukan').first().isVisible(), 'Status badge visible');
+        assert.ok(
+            await page.locator('text=Menunggu persetujuan').first().isVisible(),
+            'Status badge visible',
+        );
 
         // 2. Verify Approval Note & approve post payload
         const noteInput = page.locator('#inv-approve-note');
@@ -770,6 +773,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
             contents: `
                 import React, { useState } from 'react';
                 import ReactDOM from 'react-dom/client';
+                window.React = React;
                 import { ReviewSheet } from './resources/js/Pages/Admin/Approvals/components/ReviewSheet';
                 import { reloadQueue } from './resources/js/Pages/Admin/Approvals/Index';
                 import { getItemCompositeId } from './resources/js/Pages/Admin/Approvals/components/utils';
@@ -859,12 +863,12 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
                                 post: (url, data, opts) => window.__routerPost?.(url, data, opts),
                                 reload: (opts) => window.__routerReload?.(opts),
                             };
-                            export const Link = (props) => props.children;
+                            export const Link = (props) => window.React.createElement('a', { href: props.href }, props.children);
                             export const useForm = () => ({ data: {}, setData: () => {}, post: () => {}, processing: false, errors: {}, reset: () => {} });
                             export const usePage = () => ({ props: { auth: { user: { id: 1, name: 'Test' } }, ziggy: {} } });
                             export const Head = () => null;
                         `,
-                        loader: 'js',
+                        loader: 'jsx',
                     }));
                     build.onResolve({ filter: /^ziggy-js$/ }, () => ({
                         path: 'ziggy-mock',
@@ -890,9 +894,9 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
 
         // Two distinct domain items with the same numeric id: 7
         const spkItem = {
-            id: 7,
             domain: 'spk',
             composite_id: 'spk:7',
+            id: 7,
             code: 'SPK-COLLISION-007',
             title: 'Pemasangan Drop Cable Pelanggan',
             type: 'installation',
@@ -963,7 +967,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         await selectInvBtn.click();
 
         // Verify sheet title and code for Inventory Request
-        const sheetTitle = page.locator('text=Tinjau Permintaan Barang');
+        const sheetTitle = page.getByText(/Tinjau permintaan barang/, { exact: false }).first();
         await sheetTitle.waitFor();
         const codeText = await sheetTitle.textContent();
         assert.ok(codeText.includes('REQ-COLLISION-007'), 'Inventory Request code shown in sheet');

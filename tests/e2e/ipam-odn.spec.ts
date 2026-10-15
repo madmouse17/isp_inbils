@@ -2,11 +2,13 @@ import type { Page } from '@playwright/test';
 
 import {
     e2eCustomerName,
+    expectDetail,
     inertiaProps,
     loginAs,
     logout,
     refreshSession,
     selectFirstSearchOption,
+    selectSearchOption,
     unique,
     type DemoRole,
 } from './support/demo';
@@ -99,32 +101,32 @@ test('@ipam-odn manager registers a /29 static pool, gives a subscription a stat
 
     await test.step('register the pool; a duplicate is refused under the field and keeps the input', async () => {
         await page.goto('/admin/ipam/prefixes');
-        const newPrefix = page.getByRole('button', { name: 'New prefix' });
-        const dialog = page.getByRole('dialog', { name: 'New prefix' });
+        const newPrefix = page.getByRole('button', { name: 'Buat Prefiks' });
+        const dialog = page.getByRole('dialog', { name: 'Buat Prefiks' });
 
         await newPrefix.click();
         await dialog.getByLabel('CIDR').fill(cidr);
-        await dialog.getByLabel('Usage').selectOption('customer_static');
-        await dialog.getByRole('button', { name: 'Register prefix' }).click();
+        await dialog.getByLabel('Peruntukan').selectOption('customer_static');
+        await dialog.getByRole('button', { name: 'Daftarkan prefiks' }).click();
         await expect(dialog).toBeHidden();
 
         const row = page
             .getByRole('row')
             .filter({ has: page.getByRole('link', { name: cidr, exact: true }) });
-        await expect(row).toContainText('Customer static');
+        await expect(row).toContainText('IP statis pelanggan');
         // A /29 is 8 addresses with 6 usable; nothing is assigned yet.
         await expect(row.getByRole('cell').nth(4)).toHaveText('8');
         await expect(row.getByRole('cell').nth(6)).toHaveText('6');
-        await expect(row.getByRole('meter', { name: `${cidr} addresses in use` })).toHaveAttribute(
+        await expect(row.getByRole('meter', { name: `${cidr} alamat terpakai` })).toHaveAttribute(
             'aria-valuenow',
             '0',
         );
 
         await newPrefix.click();
         await dialog.getByLabel('CIDR').fill(cidr);
-        await dialog.getByLabel('Usage').selectOption('customer_static');
-        await dialog.getByRole('button', { name: 'Register prefix' }).click();
-        await expect(dialog.getByText(`${cidr} is already registered.`)).toBeVisible();
+        await dialog.getByLabel('Peruntukan').selectOption('customer_static');
+        await dialog.getByRole('button', { name: 'Daftarkan prefiks' }).click();
+        await expect(dialog.getByText(`${cidr} sudah terdaftar.`)).toBeVisible();
         await expect(dialog.getByLabel('CIDR')).toHaveValue(cidr);
 
         // Escape closes the dialog and focus returns to the button that opened it.
@@ -135,18 +137,20 @@ test('@ipam-odn manager registers a /29 static pool, gives a subscription a stat
 
     await test.step('assign the lowest free address from the subscription page', async () => {
         await page.goto(`/admin/subscriptions/${subscriptionId}`);
-        await expect(page.getByRole('heading', { name: 'IP address' })).toBeVisible();
-        await expect(page.getByText('Dynamic (assigned by router)')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
+        await expect(page.getByText('Dinamis (diberikan router)')).toBeVisible();
 
-        await page.getByRole('button', { name: 'Assign static IP' }).click();
-        const dialog = page.getByRole('dialog', { name: 'Assign a static IP to E2E-LINKED-SUB' });
-        await dialog.getByLabel('Pool').selectOption({ label: `${cidr} (6 free)` });
-        await dialog.getByRole('button', { name: 'Assign address' }).click();
+        await page.getByRole('button', { name: 'Berikan IP statis' }).click();
+        const dialog = page.getByRole('dialog', { name: 'Berikan IP statis ke E2E-LINKED-SUB' });
+        // The pool is a searchable field: open it and pick the pool by its CIDR.
+        await dialog.getByLabel('Pool').click();
+        await page.getByRole('option', { name: new RegExp(`^${cidr}`) }).click();
+        await dialog.getByRole('button', { name: 'Berikan alamat' }).click();
         await expect(dialog).toBeHidden();
 
         await expect(page.getByText(firstAddress, { exact: true })).toBeVisible();
         await expect(page.getByText(`IPv4 · ${cidr}`)).toBeVisible();
-        await expect(page.getByText('Dynamic (assigned by router)')).toHaveCount(0);
+        await expect(page.getByText('Dinamis (diberikan router)')).toHaveCount(0);
     });
 
     await test.step('the prefix page lists the holder; a reservation is taken and given back', async () => {
@@ -155,31 +159,28 @@ test('@ipam-odn manager registers a /29 static pool, gives a subscription a stat
         await expect(page.getByRole('main').getByRole('heading', { name: cidr })).toBeVisible();
 
         const held = page.getByRole('row').filter({ hasText: firstAddress });
-        await expect(held).toContainText('Assigned');
+        await expect(held).toContainText('Dipakai');
         await expect(held.getByRole('link', { name: /E2E-LINKED-SUB/ })).toBeVisible();
 
         // The held address cannot be reserved: the server names the holder under the field.
-        await page.getByRole('button', { name: 'Reserve address' }).click();
-        const dialog = page.getByRole('dialog', { name: `Reserve an address in ${cidr}` });
-        await dialog.getByLabel('Address').fill(firstAddress);
-        await dialog.getByRole('button', { name: 'Reserve address' }).click();
-        await expect(dialog.getByText(new RegExp(`${firstAddress} is already`))).toBeVisible();
-        await expect(dialog.getByLabel('Address')).toHaveValue(firstAddress);
+        await page.getByRole('button', { name: 'Cadangkan alamat' }).click();
+        const dialog = page.getByRole('dialog', { name: `Cadangkan alamat di ${cidr}` });
+        await dialog.getByLabel('Alamat').fill(firstAddress);
+        await dialog.getByRole('button', { name: 'Cadangkan alamat' }).click();
+        await expect(dialog.getByText(new RegExp(`${firstAddress} sudah`))).toBeVisible();
+        await expect(dialog.getByLabel('Alamat')).toHaveValue(firstAddress);
 
-        await dialog.getByLabel('Address').fill(secondAddress);
-        await dialog.getByLabel('Note').fill('Gateway');
-        await dialog.getByRole('button', { name: 'Reserve address' }).click();
+        await dialog.getByLabel('Alamat').fill(secondAddress);
+        await dialog.getByLabel('Catatan').fill('Gateway');
+        await dialog.getByRole('button', { name: 'Cadangkan alamat' }).click();
         await expect(dialog).toBeHidden();
 
         const reserved = page.getByRole('row').filter({ hasText: secondAddress });
-        await expect(reserved).toContainText('Reserved');
+        await expect(reserved).toContainText('Dicadangkan');
         await expect(reserved).toContainText('Gateway');
 
-        await reserved.getByRole('button', { name: `Release ${secondAddress}` }).click();
-        await page
-            .getByRole('alertdialog')
-            .getByRole('button', { name: 'Release address' })
-            .click();
+        await reserved.getByRole('button', { name: `Lepas ${secondAddress}` }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Lepas alamat' }).click();
         // The page behind an open dialog is hidden from the accessibility tree, so wait for it to close first.
         await expect(page.getByRole('alertdialog')).toBeHidden();
         await expect(page.getByRole('row').filter({ hasText: secondAddress })).toHaveCount(0);
@@ -187,25 +188,22 @@ test('@ipam-odn manager registers a /29 static pool, gives a subscription a stat
 
     await test.step('release from the subscription page; the address leaves the prefix', async () => {
         await page.goto(`/admin/subscriptions/${subscriptionId}`);
-        await page.getByRole('button', { name: `Release ${firstAddress}` }).click();
-        await page
-            .getByRole('alertdialog')
-            .getByRole('button', { name: 'Release address' })
-            .click();
+        await page.getByRole('button', { name: `Lepas ${firstAddress}` }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Lepas alamat' }).click();
         await expect(page.getByRole('alertdialog')).toBeHidden();
 
-        await expect(page.getByText('Dynamic (assigned by router)')).toBeVisible();
+        await expect(page.getByText('Dinamis (diberikan router)')).toBeVisible();
         await expect(page.getByText(firstAddress, { exact: true })).toHaveCount(0);
 
         await page.goto('/admin/ipam/prefixes');
         await page.getByRole('link', { name: cidr, exact: true }).click();
         await expect(page.getByRole('row').filter({ hasText: firstAddress })).toHaveCount(0);
-        await expect(page.getByText('No addresses in this block')).toBeVisible();
+        await expect(page.getByText('Belum ada alamat di blok ini')).toBeVisible();
     });
 
     await test.step('a prefix with no address and no child can be deleted', async () => {
-        await page.getByRole('button', { name: 'Delete', exact: true }).click();
-        await page.getByRole('alertdialog').getByRole('button', { name: 'Delete prefix' }).click();
+        await page.getByRole('button', { name: 'Hapus', exact: true }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Hapus prefiks' }).click();
         await expect(page).toHaveURL(/\/admin\/ipam\/prefixes$/);
         await expect(page.getByRole('link', { name: cidr, exact: true })).toHaveCount(0);
     });
@@ -232,10 +230,10 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await expect(page.getByRole('main').getByRole('heading', { name: oltCode })).toBeVisible();
         await expect(page.getByRole('row').filter({ hasText: 'PON 4' })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Add PON ports' }).click();
-        const dialog = page.getByRole('dialog', { name: `Add PON ports to ${oltCode}` });
-        await dialog.getByLabel('Number of ports').fill('2');
-        await dialog.getByRole('button', { name: 'Add ports' }).click();
+        await page.getByRole('button', { name: 'Tambah port PON' }).click();
+        const dialog = page.getByRole('dialog', { name: `Tambah port PON ke ${oltCode}` });
+        await dialog.getByLabel('Jumlah port').fill('2');
+        await dialog.getByRole('button', { name: 'Tambah port' }).click();
         await expect(dialog).toBeHidden();
 
         await expect(page.getByRole('row').filter({ hasText: 'PON 5' })).toBeVisible();
@@ -246,15 +244,17 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         const odpId = await odnAssetId(page, 'odp', odpCode);
         await page.goto(`/admin/odn/assets/${odpId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: odpCode })).toBeVisible();
-        const freePorts = page.getByRole('group', { name: /^Port \d+, free$/ });
+        const freePorts = page.getByRole('group', { name: /^Port \d+, kosong$/ });
         const portsBefore = await freePorts.count();
 
-        await page.getByRole('button', { name: 'Add splitter' }).click();
-        const dialog = page.getByRole('dialog', { name: `Add a splitter to ${odpCode}` });
-        await dialog.getByLabel('Ratio').selectOption('8');
-        await dialog.getByLabel('Upstream port').selectOption({ label: `${oltCode} · PON 5` });
+        await page.getByRole('button', { name: 'Tambah splitter' }).click();
+        const dialog = page.getByRole('dialog', { name: `Tambah splitter ke ${odpCode}` });
+        await dialog.getByLabel('Rasio').selectOption('8');
+        // The upstream port is searched on the server: type the OLT code, then pick the port.
+        await dialog.getByLabel('Port masukan').fill(oltCode);
+        await page.getByRole('option', { name: `${oltCode} · PON 5` }).click();
         await dialog.getByLabel('Label').fill(splitterLabel);
-        await dialog.getByRole('button', { name: 'Add splitter' }).click();
+        await dialog.getByRole('button', { name: 'Tambah splitter' }).click();
         await expect(dialog).toBeHidden();
 
         // The pick list of every card names this splitter's outputs too, so a card is found by its heading.
@@ -262,16 +262,17 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
             has: page.getByRole('heading', { name: `Splitter 1:8 - ${splitterLabel}` }),
         });
         await expect(card).toHaveCount(1);
-        await expect(card.getByText(`Input: ${oltCode} · PON 5`)).toBeVisible();
+        await expect(card.getByText(`Masukan: ${oltCode} · PON 5`)).toBeVisible();
         await expect(freePorts).toHaveCount(portsBefore + 8);
 
-        await card.getByLabel('Upstream port').selectOption({ label: 'Not connected' });
-        await card.getByRole('button', { name: 'Save connection' }).click();
-        await expect(card.getByText('Input: not connected')).toBeVisible();
+        await card.getByRole('button', { name: 'Hapus pilihan: Port masukan' }).click();
+        await card.getByRole('button', { name: 'Simpan sambungan' }).click();
+        await expect(card.getByText('Masukan: belum terhubung')).toBeVisible();
 
-        await card.getByLabel('Upstream port').selectOption({ label: `${oltCode} · PON 5` });
-        await card.getByRole('button', { name: 'Save connection' }).click();
-        await expect(card.getByText(`Input: ${oltCode} · PON 5`)).toBeVisible();
+        await card.getByLabel('Port masukan').fill(oltCode);
+        await page.getByRole('option', { name: `${oltCode} · PON 5` }).click();
+        await card.getByRole('button', { name: 'Simpan sambungan' }).click();
+        await expect(card.getByText(`Masukan: ${oltCode} · PON 5`)).toBeVisible();
     });
 
     const afterSplitter = await odpCounts(page);
@@ -280,13 +281,13 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
 
     await test.step('onboard a customer and choose a free port on that ODP', async () => {
         await page.goto('/admin/customers/create');
-        await page.getByLabel('Name').fill(customerName);
+        await page.getByLabel('Nama').fill(customerName);
         await page.getByLabel('Email').fill(`${customerKey.toLowerCase()}@example.test`);
-        await page.getByLabel('Phone').fill('0800000000');
+        await page.getByLabel('Telepon').fill('0800000000');
 
-        await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+        await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
         await page.getByLabel('Label').fill(`E2E ODN address ${suffix}`);
-        await page.getByLabel('Address *', { exact: true }).fill('9 E2E Fiber Street');
+        await page.getByLabel('Alamat *', { exact: true }).fill('9 E2E Fiber Street');
         await page.getByLabel('Provinsi *', { exact: true }).click();
         await page
             .getByRole('option', { name: /jakarta/i })
@@ -312,46 +313,42 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
         await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
-        await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
-        await page.getByLabel('Name').fill(`${customerName} Contact`);
-        await page.getByLabel('Phone').fill('081200000000');
+        await page.getByRole('tab', { name: /Kontak \(\d+\)/ }).click();
+        await page.getByLabel('Nama').fill(`${customerName} Contact`);
+        await page.getByLabel('Telepon').fill('081200000000');
         await page.getByLabel('Email').fill(`contact.${customerKey.toLowerCase()}@example.test`);
 
-        await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-        await selectFirstSearchOption(page, 'Service Package');
+        await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
+        await selectFirstSearchOption(page, 'Paket layanan');
 
-        // No serving POP yet: the picker waits for one.
-        const ports = page.getByLabel('Drop port (ODP)');
+        // No serving POP yet: the picker waits for one. By role, because the clear button of a
+        // chosen field is also labelled "Hapus pilihan: Port drop (ODP)".
+        const ports = page.getByRole('combobox', { name: 'Port drop (ODP)' });
         await expect(ports).toBeDisabled();
         await expect(
-            page.getByText('Choose the serving POP to list its free ports.'),
+            page.getByText('Pilih POP layanan untuk melihat port kosongnya.'),
         ).toBeVisible();
 
-        const popSelect = page.getByLabel('Serving POP / Location');
-        const popValue = await popSelect
-            .locator('option')
-            .filter({ hasText: popName })
-            .first()
-            .getAttribute('value');
-        expect(popValue).toBeTruthy();
-        await popSelect.selectOption(popValue!);
+        await selectSearchOption(page, 'POP pelayan', popName);
 
         // The ports under that POP arrive by a partial reload; only free ports of an ODP are offered.
         await expect(ports).toBeEnabled();
-        await expect(ports.locator('option').filter({ hasText: portChoice })).toHaveCount(1);
-        await ports.selectOption({ label: portChoice });
-        await expect(ports).not.toHaveValue('');
+        await ports.fill(odpCode);
+        await expect(page.getByRole('option', { name: portChoice })).toHaveCount(1);
+        await page.getByRole('option', { name: portChoice }).click();
+        await expect(ports).toHaveValue(portChoice);
 
         // Changing the POP drops the chosen port; choosing the POP again lists the ports again.
-        await popSelect.selectOption('');
+        await page.getByRole('button', { name: 'Hapus pilihan: POP pelayan' }).click();
         await expect(ports).toBeDisabled();
-        await popSelect.selectOption(popValue!);
+        await selectSearchOption(page, 'POP pelayan', popName);
         await expect(ports).toBeEnabled();
         await expect(ports).toHaveValue('');
-        await ports.selectOption({ label: portChoice });
+        await ports.fill(odpCode);
+        await page.getByRole('option', { name: portChoice }).click();
 
-        await page.getByRole('tab', { name: 'Customer Data' }).click();
-        await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
+        await page.getByRole('tab', { name: 'Data pelanggan' }).click();
+        await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
         await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
         customerId = page.url().match(/\/admin\/customers\/(\d+)$/)![1];
     });
@@ -369,11 +366,11 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         await page.goto(`/admin/customers/${customerId}/subscriptions`);
         await page
             .getByRole('row')
-            .filter({ hasText: 'pending' })
+            .filter({ hasText: 'Menunggu' })
             .getByRole('link', { name: 'Lihat', exact: true })
             .click();
-        await expect(page.getByRole('heading', { name: 'Drop port' })).toBeVisible();
-        await expect(page.getByText('Port 1 on')).toBeVisible();
+        await expect(page.getByRole('heading', { name: 'Port drop' })).toBeVisible();
+        await expect(page.getByText('Port 1 di')).toBeVisible();
         await expect(page.getByRole('link', { name: odpCode })).toBeVisible();
         subscriptionUrl = page.url();
 
@@ -384,23 +381,23 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
         expect(spk, 'installation SPK of the new customer').toBeTruthy();
 
         await page.goto(`/admin/spk/${spk!.id}`);
-        await expect(page.getByText('Drop port:')).toBeVisible();
+        await expectDetail(page, 'Port drop', odpCode);
         await expect(page.getByRole('link', { name: odpCode })).toBeVisible();
     });
 
     await test.step('activate then terminate: the drop port is free again', async () => {
         await page.goto(subscriptionUrl);
-        await page.getByRole('button', { name: 'Activate' }).click();
-        await expect(page.getByRole('button', { name: 'Suspend' })).toBeVisible();
+        await page.getByRole('button', { name: 'Aktifkan', exact: true }).click();
+        await expect(page.getByRole('button', { name: 'Tangguhkan' })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Terminate', exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: 'Terminate Subscription' });
-        await dialog.getByLabel('Reason').fill('E2E ODN lifecycle');
-        await dialog.getByRole('button', { name: 'Terminate' }).click();
+        await page.getByRole('button', { name: 'Hentikan', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: 'Hentikan Langganan' });
+        await dialog.getByLabel('Alasan').fill('E2E ODN lifecycle');
+        await dialog.getByRole('button', { name: 'Hentikan' }).click();
         await expect(dialog).toBeHidden();
 
-        await expect(page.getByText('No drop port recorded.')).toBeVisible();
-        await expect(page.getByText('Dynamic (assigned by router)')).toBeVisible();
+        await expect(page.getByText('Belum ada port drop tercatat.')).toBeVisible();
+        await expect(page.getByText('Dinamis (diberikan router)')).toBeVisible();
 
         const freed = await odpCounts(page);
         expect(freed.used).toBe(afterSplitter.used);
@@ -417,39 +414,39 @@ test('@ipam-odn staff sees the menu entries but no manage control', async ({ pag
 
     await group.getByRole('link', { name: 'Alamat IP' }).click();
     await expect(page.getByRole('main').getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New prefix' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Buat Prefiks' })).toHaveCount(0);
 
     await page.getByRole('link', { name: '10.99.0.0/24', exact: true }).click();
     await expect(
         page.getByRole('main').getByRole('heading', { name: '10.99.0.0/24' }),
     ).toBeVisible();
-    for (const name of ['Edit', 'Delete', 'Reserve address']) {
+    for (const name of ['Ubah', 'Hapus', 'Cadangkan alamat']) {
         await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
     }
-    await expect(page.getByRole('button', { name: /^Release / })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Lepas / })).toHaveCount(0);
 
     await page.goto('/admin/ipam/vlans');
-    await expect(page.getByRole('main').getByRole('heading', { name: 'VLANs' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'New VLAN' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^(Edit|Delete) VLAN/ })).toHaveCount(0);
+    await expect(page.getByRole('main').getByRole('heading', { name: 'VLAN' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Buat VLAN' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(Ubah|Hapus) VLAN/ })).toHaveCount(0);
 
     await page.goto(`/admin/odn/assets/${await odnAssetId(page, 'odp', odpCode)}`);
     await expect(page.getByRole('main').getByRole('heading', { name: odpCode })).toBeVisible();
-    await expect(page.getByRole('group', { name: /^Port \d+, free$/ }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add splitter' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Delete splitter/ })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Save connection' })).toHaveCount(0);
+    await expect(page.getByRole('group', { name: /^Port \d+, kosong$/ }).first()).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Tambah splitter' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Hapus splitter/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Simpan sambungan' })).toHaveCount(0);
 
     await page.goto(`/admin/odn/assets/${await odnAssetId(page, 'olt', oltCode)}`);
     await expect(page.getByRole('main').getByRole('heading', { name: oltCode })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Add PON ports' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: /^Delete PON/ })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Tambah port PON' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^Hapus PON/ })).toHaveCount(0);
 
     // Staff holds odn.assign but not ipam.assign: the drop control stays, the IP control goes.
     await page.goto(`/admin/subscriptions/${await linkedSubscriptionId(page)}`);
-    await expect(page.getByRole('heading', { name: 'IP address' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Assign static IP' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Set drop port' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Alamat IP' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Berikan IP statis' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Atur port drop' })).toBeVisible();
 });
 
 /**

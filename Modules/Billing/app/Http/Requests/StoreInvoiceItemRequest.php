@@ -27,4 +27,29 @@ class StoreInvoiceItemRequest extends FormRequest
             'tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'product_id' => 'barang',
+            'description' => 'deskripsi',
+            'quantity' => 'kuantitas',
+            'unit_price' => 'harga satuan',
+            'discount_amount' => 'diskon',
+            'tax_rate' => 'pajak',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'product_id.exists' => 'Barang yang dipilih tidak ditemukan.',
+            'description.required' => 'Deskripsi wajib diisi.',
+            'quantity.required' => 'Kuantitas wajib diisi.',
+            'quantity.min' => 'Kuantitas minimal :min.',
+            'unit_price.required' => 'Harga satuan wajib diisi.',
+        ];
+    }
 }

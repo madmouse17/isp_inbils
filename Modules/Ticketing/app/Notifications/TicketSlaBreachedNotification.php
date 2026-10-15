@@ -27,10 +27,19 @@ class TicketSlaBreachedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject('SLA breached: '.$this->ticketCode)
-            ->line('Ticket '.$this->ticketCode.' has breached SLA ('.$this->breachType.').')
-            ->line('Ticket ID: '.$this->ticketId)
-            ->line('Company ID: '.($this->companyId ?? 'n/a'));
+            ->subject('SLA terlampaui: '.$this->ticketCode)
+            ->line('Tiket '.$this->ticketCode.' melewati batas SLA '.$this->breachLabel().'.')
+            ->line('ID tiket: '.$this->ticketId)
+            ->line('ID perusahaan: '.($this->companyId ?? '-'));
+    }
+
+    private function breachLabel(): string
+    {
+        return match ($this->breachType) {
+            'response' => 'respons',
+            'resolution' => 'penyelesaian',
+            default => $this->breachType,
+        };
     }
 
     /** @return array<string, mixed> */

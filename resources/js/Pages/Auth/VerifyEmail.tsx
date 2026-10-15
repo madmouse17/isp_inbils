@@ -1,5 +1,6 @@
-import GuestLayout from '@/Layouts/GuestLayout';
+import { Alert, AlertDescription } from '@/Components/ui/Alert';
 import { Button } from '@/Components/ui/Button';
+import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 
@@ -14,36 +15,38 @@ export default function VerifyEmail({ status }: { status?: string }) {
 
     return (
         <GuestLayout>
-            <Head title="Email Verification" />
+            <Head title="Verifikasi email" />
 
-            <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                Thanks for signing up! Before getting started, could you verify your email address
-                by clicking on the link we just emailed to you? If you didn&apos;t receive the
-                email, we will gladly send you another.
-            </div>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">
+                Verifikasi email Anda
+            </h1>
+
+            <p className="mt-2 mb-4 text-sm text-muted-foreground">
+                Buka tautan yang kami kirim ke email Anda untuk memverifikasi alamatnya. Belum
+                menerima email? Kirim ulang tautannya.
+            </p>
 
             {status === 'verification-link-sent' && (
-                <div className="mb-4 text-sm font-medium text-green-600 dark:text-green-400">
-                    A new verification link has been sent to the email address you provided during
-                    registration.
-                </div>
+                <Alert variant="success" className="mb-4">
+                    <AlertDescription>
+                        Tautan verifikasi baru sudah dikirim ke email Anda.
+                    </AlertDescription>
+                </Alert>
             )}
 
-            <form onSubmit={submit}>
-                <div className="mt-4 flex items-center justify-between">
-                    <Button type="submit" loading={processing}>
-                        Resend Verification Email
-                    </Button>
+            <form onSubmit={submit} className="flex flex-wrap items-center justify-between gap-3">
+                <Button type="submit" loading={processing}>
+                    Kirim ulang tautan
+                </Button>
 
-                    <Link
-                        href={route('logout')}
-                        method="post"
-                        as="button"
-                        className="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:outline-hidden dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
-                    >
-                        Log Out
-                    </Link>
-                </div>
+                <Link
+                    href={route('logout')}
+                    method="post"
+                    as="button"
+                    className="inline-flex min-h-11 items-center rounded-md text-sm text-muted-foreground underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
+                >
+                    Keluar
+                </Link>
             </form>
         </GuestLayout>
     );

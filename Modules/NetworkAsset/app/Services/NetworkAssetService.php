@@ -23,23 +23,23 @@ class NetworkAssetService
 
         return DB::transaction(function () use ($asset, $locationId, $customerId, $subscriptionId, $spkId) {
             $asset = self::lockAsset($asset);
-            abort_if($asset->getAttribute('status') !== 'available', 422, 'Asset must be available to install.');
+            abort_if($asset->getAttribute('status') !== 'available', 422, 'Aset harus berstatus tersedia untuk dipasang.');
 
-            $location = self::lockCompanyModel(Location::query(), $locationId, 'location');
-            abort_unless((int) $location->company_id === (int) $asset->company_id, 422, 'Location must belong to the same company as the asset.');
+            $location = self::lockCompanyModel(Location::query(), $locationId, 'Lokasi');
+            abort_unless((int) $location->company_id === (int) $asset->company_id, 422, 'Lokasi harus milik perusahaan yang sama dengan aset.');
 
-            abort_unless($subscriptionId === null || $customerId !== null, 422, 'Customer is required when installing with a subscription.');
+            abort_unless($subscriptionId === null || $customerId !== null, 422, 'Pelanggan wajib diisi saat memasang aset dengan langganan.');
 
             $customer = null;
             if ($customerId !== null) {
-                $customer = self::lockCompanyModel(Customer::query(), $customerId, 'customer');
-                abort_unless((int) $customer->company_id === (int) $asset->company_id, 422, 'Customer must belong to the same company as the asset.');
+                $customer = self::lockCompanyModel(Customer::query(), $customerId, 'Pelanggan');
+                abort_unless((int) $customer->company_id === (int) $asset->company_id, 422, 'Pelanggan harus milik perusahaan yang sama dengan aset.');
             }
 
             $subscription = null;
             if ($subscriptionId !== null) {
-                $subscription = self::lockCompanyModel(ServiceSubscription::query(), $subscriptionId, 'subscription');
-                abort_unless((int) $subscription->company_id === (int) $asset->company_id, 422, 'Subscription must belong to the same company as the asset.');
+                $subscription = self::lockCompanyModel(ServiceSubscription::query(), $subscriptionId, 'Langganan');
+                abort_unless((int) $subscription->company_id === (int) $asset->company_id, 422, 'Langganan harus milik perusahaan yang sama dengan aset.');
             }
 
             $workOrder = null;
@@ -49,18 +49,18 @@ class NetworkAssetService
                     ->where('id', $spkId)
                     ->lockForUpdate()
                     ->first();
-                abort_unless($workOrder !== null, 404, 'Work order not found.');
-                abort_unless((int) $workOrder->company_id === (int) $asset->company_id, 404, 'Work order not found.');
+                abort_unless($workOrder !== null, 404, 'SPK tidak ditemukan.');
+                abort_unless((int) $workOrder->company_id === (int) $asset->company_id, 404, 'SPK tidak ditemukan.');
             }
 
             if ($customer !== null && $subscription !== null && (int) $subscription->customer_id !== (int) $customer->id) {
-                abort(422, 'Subscription must belong to the selected customer.');
+                abort(422, 'Langganan harus milik pelanggan yang dipilih.');
             }
 
             if ($workOrder !== null) {
-                abort_unless($customer === null || (int) $workOrder->customer_id === (int) $customer->id, 422, 'Customer does not match the selected SPK.');
-                abort_unless($subscription === null || (int) $workOrder->subscription_id === (int) $subscription->id, 422, 'Subscription does not match the selected SPK.');
-                abort_unless((int) $workOrder->location_id === (int) $location->id, 422, 'Location does not match the selected SPK.');
+                abort_unless($customer === null || (int) $workOrder->customer_id === (int) $customer->id, 422, 'Pelanggan tidak sesuai dengan SPK yang dipilih.');
+                abort_unless($subscription === null || (int) $workOrder->subscription_id === (int) $subscription->id, 422, 'Langganan tidak sesuai dengan SPK yang dipilih.');
+                abort_unless((int) $workOrder->location_id === (int) $location->id, 422, 'Lokasi tidak sesuai dengan SPK yang dipilih.');
             }
 
             $activeInstall = NetworkAssetInstallation::query()
@@ -68,7 +68,7 @@ class NetworkAssetService
                 ->whereNull('removed_at')
                 ->lockForUpdate()
                 ->exists();
-            abort_if($activeInstall, 422, 'Asset already has an active installation.');
+            abort_if($activeInstall, 422, 'Aset sudah punya pemasangan aktif.');
 
             $asset->update([
                 'status' => 'installed',
@@ -104,7 +104,7 @@ class NetworkAssetService
         return DB::transaction(function () use ($subject, $reason) {
             [$asset, $installation] = self::lockedRemovalTargets($subject);
 
-            abort_if($asset->getAttribute('status') !== 'installed', 422, 'Asset must be installed to remove.');
+            abort_if($asset->getAttribute('status') !== 'installed', 422, 'Aset harus terpasang untuk dilepas.');
 
             $asset->update([
                 'status' => 'available',
@@ -137,7 +137,7 @@ class NetworkAssetService
     {
         return DB::transaction(function () use ($asset, $reason) {
             $asset = self::lockAsset($asset);
-            abort_if($asset->getAttribute('status') !== 'installed', 422, 'Asset must be installed to set maintenance.');
+            abort_if($asset->getAttribute('status') !== 'installed', 422, 'Aset harus terpasang untuk masuk perawatan.');
 
             $asset->update(['status' => 'maintenance']);
 
@@ -154,7 +154,7 @@ class NetworkAssetService
     {
         return DB::transaction(function () use ($asset) {
             $asset = self::lockAsset($asset);
-            abort_if($asset->getAttribute('status') !== 'maintenance', 422, 'Asset must be in maintenance to resume.');
+            abort_if($asset->getAttribute('status') !== 'maintenance', 422, 'Aset harus dalam perawatan untuk dilanjutkan.');
 
             $asset->update(['status' => 'installed']);
 
@@ -168,7 +168,7 @@ class NetworkAssetService
     {
         return DB::transaction(function () use ($asset, $reason) {
             $asset = self::lockAsset($asset);
-            abort_if(! in_array($asset->getAttribute('status'), ['installed', 'maintenance'], true), 422, 'Asset must be installed or in maintenance to mark damaged.');
+            abort_if(! in_array($asset->getAttribute('status'), ['installed', 'maintenance'], true), 422, 'Aset harus terpasang atau dalam perawatan untuk ditandai rusak.');
 
             $asset->update(['status' => 'damaged']);
 
@@ -185,7 +185,7 @@ class NetworkAssetService
     {
         return DB::transaction(function () use ($asset) {
             $asset = self::lockAsset($asset);
-            abort_if($asset->getAttribute('status') !== 'damaged', 422, 'Asset must be damaged to repair.');
+            abort_if($asset->getAttribute('status') !== 'damaged', 422, 'Aset harus rusak untuk diperbaiki.');
 
             $asset->update([
                 'status' => 'available',
@@ -207,7 +207,7 @@ class NetworkAssetService
     {
         return DB::transaction(function () use ($asset, $reason) {
             $asset = self::lockAsset($asset);
-            abort_if($asset->getAttribute('status') === 'retired', 422, 'Asset already retired.');
+            abort_if($asset->getAttribute('status') === 'retired', 422, 'Aset sudah dipensiunkan.');
 
             $asset->update([
                 'status' => 'retired',
@@ -238,7 +238,7 @@ class NetworkAssetService
         $locked = NetworkAsset::withoutCompany()->lockForUpdate()->findOrFail($asset->id);
 
         if ($companyId !== null) {
-            abort_unless((int) $locked->company_id === (int) $companyId, 404, 'Network asset not found.');
+            abort_unless((int) $locked->company_id === (int) $companyId, 404, 'Aset jaringan tidak ditemukan.');
         }
 
         return $locked;
@@ -256,10 +256,10 @@ class NetworkAssetService
 
         $model = $query->whereKey($id)->lockForUpdate()->first();
 
-        abort_unless($model !== null, 404, ucfirst($label).' not found.');
+        abort_unless($model !== null, 404, "{$label} tidak ditemukan.");
 
         if ($companyId !== null) {
-            abort_unless((int) $model->getAttribute('company_id') === (int) $companyId, 404, ucfirst($label).' not found.');
+            abort_unless((int) $model->getAttribute('company_id') === (int) $companyId, 404, "{$label} tidak ditemukan.");
         }
 
         return $model;
@@ -272,7 +272,7 @@ class NetworkAssetService
     {
         if ($subject instanceof NetworkAssetInstallation) {
             $installation = NetworkAssetInstallation::query()->lockForUpdate()->findOrFail($subject->id);
-            abort_if($installation->removed_at !== null, 422, 'Asset installation already removed.');
+            abort_if($installation->removed_at !== null, 422, 'Pemasangan aset sudah dilepas.');
 
             $asset = self::lockAsset(NetworkAsset::query()->findOrFail($installation->network_asset_id));
 
@@ -287,7 +287,7 @@ class NetworkAssetService
             ->first();
 
         if (! $installation) {
-            abort(422, 'Asset must have an active installation to remove.');
+            abort(422, 'Aset harus punya pemasangan aktif untuk dilepas.');
         }
 
         return [$asset, $installation];

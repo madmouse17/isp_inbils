@@ -42,14 +42,14 @@ class PolymorphicBelongsToCompany implements DataAwareRule, ValidationRule
 
         $type = data_get($this->data, $this->typeAttribute);
         if (! is_string($type) || $type === '' || ! array_key_exists($type, $this->typeMap)) {
-            $fail('The selected reference type is not allowed.');
+            $fail('Jenis referensi yang dipilih tidak diizinkan.');
 
             return;
         }
 
         $companyId = CompanyService::currentId();
         if ($companyId === null) {
-            $fail('Company context is required.');
+            $fail('Konteks perusahaan diperlukan.');
 
             return;
         }
@@ -61,7 +61,7 @@ class PolymorphicBelongsToCompany implements DataAwareRule, ValidationRule
             ->exists();
 
         if (! $exists) {
-            $fail('The selected :attribute is invalid for this company.');
+            $fail(':attribute yang dipilih tidak valid untuk perusahaan ini.');
         }
     }
 }

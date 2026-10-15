@@ -60,7 +60,7 @@ class MaterialReturnController extends Controller
         $updated = MaterialReturnService::declareUsage($material_return, $request->user(), $request->validated());
 
         return response()->json([
-            'message' => 'Deklarasi material return berhasil disimpan.',
+            'message' => 'Deklarasi pengembalian material berhasil disimpan.',
             'data' => new MaterialReturnCaseResource($updated),
         ]);
     }
@@ -75,7 +75,7 @@ class MaterialReturnController extends Controller
         $updated = MaterialReturnService::receiveAccept($material_return, $request->user(), $request->validated());
 
         return response()->json([
-            'message' => 'Penerimaan fisik material return berhasil diproses.',
+            'message' => 'Penerimaan fisik pengembalian material berhasil diproses.',
             'data' => new MaterialReturnCaseResource($updated),
         ]);
     }
@@ -90,7 +90,7 @@ class MaterialReturnController extends Controller
         $updated = MaterialReturnService::receiveReject($material_return, $request->user(), $request->validated('reason'));
 
         return response()->json([
-            'message' => 'Penyerahan fisik material return ditolak.',
+            'message' => 'Penyerahan fisik pengembalian material ditolak.',
             'data' => new MaterialReturnCaseResource($updated),
         ]);
     }
@@ -105,7 +105,7 @@ class MaterialReturnController extends Controller
         $case = MaterialReturnService::resolveException($material_return, $request->user(), $request->validated()['resolution_note']);
 
         return response()->json([
-            'message' => 'Pengecualian diskrepansi material berhasil diselesaikan.',
+            'message' => 'Selisih material berhasil diselesaikan.',
             'data' => new MaterialReturnCaseResource($case),
         ]);
     }

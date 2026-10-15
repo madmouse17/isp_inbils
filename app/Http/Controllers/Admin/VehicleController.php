@@ -51,7 +51,7 @@ class VehicleController extends Controller
         Gate::authorize('create', Vehicle::class);
         Vehicle::create($request->validated());
 
-        return back()->with('success', 'Vehicle created.');
+        return back()->with('success', 'Kendaraan dibuat.');
     }
 
     public function update(UpdateVehicleRequest $request, Vehicle $vehicle): RedirectResponse
@@ -59,7 +59,7 @@ class VehicleController extends Controller
         Gate::authorize('update', $vehicle);
         $vehicle->update($request->validated());
 
-        return back()->with('success', 'Vehicle updated.');
+        return back()->with('success', 'Kendaraan diperbarui.');
     }
 
     public function destroy(Vehicle $vehicle): RedirectResponse
@@ -67,7 +67,7 @@ class VehicleController extends Controller
         Gate::authorize('delete', $vehicle);
         $vehicle->delete();
 
-        return back()->with('success', 'Vehicle deleted.');
+        return back()->with('success', 'Kendaraan dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -81,11 +81,11 @@ class VehicleController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'plate_number' => 'Plate',
-            'type' => 'Type',
-            'brand' => 'Brand',
+            'plate_number' => 'Nomor polisi',
+            'type' => 'Jenis',
+            'brand' => 'Merek',
             'model' => 'Model',
-            'is_active' => 'Active',
+            'is_active' => 'Status',
         ];
 
         $map = static fn (Vehicle $v): array => [
@@ -93,11 +93,11 @@ class VehicleController extends Controller
             'type' => $v->type ?? '',
             'brand' => $v->brand ?? '',
             'model' => $v->model ?? '',
-            'is_active' => $v->is_active ? 'Yes' : 'No',
+            'is_active' => $v->is_active ? 'Aktif' : 'Nonaktif',
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Vehicles', $columns, $map, "vehicles-export-{$stamp}.pdf");
+            return $export->streamPdf('Kendaraan', $columns, $map, "vehicles-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "vehicles-export-{$stamp}.csv");

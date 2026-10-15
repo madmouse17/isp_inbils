@@ -1,6 +1,5 @@
 import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTableActions, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
@@ -40,11 +39,12 @@ type Props = {
 };
 
 export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
-        url: route('admin.sla-tiers.index'),
-        filters,
-        only: ['slaTiers', 'filters', 'can'],
-    });
+    const { params, search, setSearch, setMany, set, sortBy, sortDir, onSort, processing } =
+        useServerTable({
+            url: route('admin.sla-tiers.index'),
+            filters,
+            only: ['slaTiers', 'filters', 'can'],
+        });
 
     const columns: DataTableColumn<Row>[] = useMemo(
         () => [
@@ -125,48 +125,41 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
         [],
     );
 
+    const createButton = can.create ? (
+        <Button asChild variant="primary" size="sm">
+            <Link href={route('admin.sla-tiers.create')}>Buat Tingkat SLA</Link>
+        </Button>
+    ) : undefined;
+
     return (
         <AdminLayout title="Tingkat SLA">
             <div className="space-y-4">
                 <PageHeader
                     title="Tingkat SLA"
-                    description="Target layanan per paket. Hasil diukur otomatis dari tiket. Tiket urgent memakai setengah dari target."
+                    subtitle="Target layanan per paket. Hasil diukur otomatis dari tiket. Tiket mendesak memakai setengah dari target."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
                                 <ExportMenu
                                     exportUrl={route('admin.sla-tiers.export')}
                                     params={params}
+                                    formats={['csv', 'pdf']}
                                     canExport={can.export}
                                 />
                             ) : null}
-                            {can.create ? (
-                                <Button asChild variant="primary" size="sm">
-                                    <Link href={route('admin.sla-tiers.create')}>
-                                        <Plus className="size-4" />
-                                        Tingkat baru
-                                    </Link>
-                                </Button>
-                            ) : null}
+                            {createButton}
                         </div>
                     }
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="sla-search"
-                        >
-                            Cari
-                        </label>
-                        <Input
-                            id="sla-search"
-                            value={params.search ?? ''}
-                            onChange={(e) => set('search', e.target.value)}
-                            placeholder="Nama…"
-                        />
-                    </div>
+                <div className="max-w-sm">
+                    <Input
+                        id="sla-search"
+                        label="Cari"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Nama tingkat"
+                    />
                 </div>
 
                 <DataTable
@@ -177,9 +170,13 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                     onSort={onSort}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(perPage) => set('per_page', perPage)}
-                    emptyTitle="Belum ada tingkat SLA"
-                    emptyDescription="Tidak ada tingkat SLA yang cocok dengan filter."
                     loading={processing}
+                    itemLabel="tingkat SLA"
+                    hasFilters={Boolean(params.search)}
+                    onResetFilters={() => setMany({ search: '' })}
+                    emptyTitle="Belum ada tingkat SLA"
+                    emptyDescription="Tingkat SLA menetapkan target respons dan penyelesaian tiket untuk paket layanan."
+                    emptyAction={createButton}
                 />
             </div>
         </AdminLayout>

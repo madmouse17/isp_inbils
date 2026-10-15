@@ -307,7 +307,7 @@ class NetworkAccountHttpTest extends TestCase
 
         $own = $this->postJson(route('admin.subscriptions.network-account.store', $this->subscription), $this->storePayload());
         $own->assertJsonValidationErrors('username');
-        $this->assertSame('This username is not available.', $own->json('errors.username.0'));
+        $this->assertSame('Nama pengguna ini tidak tersedia.', $own->json('errors.username.0'));
     }
 
     public function test_the_same_local_part_in_two_companies_never_collides_because_the_realms_differ(): void

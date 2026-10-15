@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { inertiaProps, loginAs } from './support/demo';
+import { inertiaProps, loginAs, selectSearchOption } from './support/demo';
 import { companyDateFormat, formatIsoAs, typeDateRange } from './support/dateRange';
 
 const movementNotes = Array.from(
@@ -36,20 +36,23 @@ test.describe('@smoke stock card reporting', () => {
 
         await page.goto('/admin/reports/stock-card');
         const main = page.getByRole('main');
-        await expect(main.getByRole('heading', { name: 'Stock Card', exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: /export/i })).toHaveCount(0);
-        await expect(page.getByLabel(/location/i)).toHaveCount(0);
+        await expect(main.getByRole('heading', { name: 'Kartu Stok', exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: /ekspor/i })).toHaveCount(0);
+        await expect(page.getByRole('combobox', { name: 'Lokasi' })).toBeVisible();
         await expect(page.locator('tbody tr')).toHaveCount(0);
+        await expect(
+            page.getByText('Pilih barang lalu tekan Tampilkan untuk melihat pergerakan stok.'),
+        ).toBeVisible();
 
-        const productInput = page.getByRole('spinbutton', { name: 'Product ID', exact: true });
-        await productInput.fill(productId);
+        const productPicker = page.getByRole('combobox', { name: 'Barang' });
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
         await typeDateRange(
             page,
             page.getByLabel('Periode', { exact: true }),
             '2026-08-01',
             '2026-08-11',
         );
-        await page.getByRole('button', { name: 'Run', exact: true }).click();
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         await expect.poll(() => query(page, 'product_id')).toBe(productId);
         await expect.poll(() => query(page, 'date_from')).toBe('2026-08-01');
         await expect.poll(() => query(page, 'date_to')).toBe('2026-08-11');
@@ -59,7 +62,7 @@ test.describe('@smoke stock card reporting', () => {
         await expect(perPage).toHaveValue('10');
         await expect(page.locator('tbody tr')).toHaveCount(10);
 
-        const qtyHeader = page.getByRole('columnheader', { name: 'Qty' });
+        const qtyHeader = page.getByRole('columnheader', { name: 'Jumlah' });
         const qty = qtyHeader.getByRole('button');
         await qty.focus();
         await expect(qty).toBeFocused();
@@ -86,7 +89,7 @@ test.describe('@smoke stock card reporting', () => {
         await expectRowsToContainExactly(page, movementNotes);
 
         await page.reload();
-        await expect(productInput).toHaveValue(productId);
+        await expect(productPicker).toHaveValue('E2E Stock Product');
         const format = await companyDateFormat(page);
         await expect(page.getByLabel('Periode', { exact: true })).toHaveValue(
             `${formatIsoAs('2026-08-01', format)} – ${formatIsoAs('2026-08-11', format)}`,
@@ -95,19 +98,21 @@ test.describe('@smoke stock card reporting', () => {
         await expect(qtyHeader).toHaveAttribute('aria-sort', 'descending');
         await expectRowsToContainExactly(page, movementNotes);
 
-        // A deep-linked location filter (no UI control) must survive client sort visits.
+        // A location filter must survive client sort visits.
         const toLocationName = (
             await page.locator('tbody tr').first().locator('td').nth(4).textContent()
         )?.trim();
-        const { props: stockProps } = await inertiaProps(page, '/admin/stocks');
-        const locations = (stockProps?.locations?.data ?? []) as { id: number; name: string }[];
-        const locationId = String(locations.find((item) => item.name === toLocationName)?.id ?? '');
+        // The id comes from the Lokasi picker, as a person would choose it, and rides in the URL.
+        await selectSearchOption(page, 'Lokasi', toLocationName ?? '');
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
+        await expect.poll(() => query(page, 'location_id')).not.toBeNull();
+        const locationId = query(page, 'location_id') ?? '';
         expect(locationId, `location id for ${toLocationName}`).not.toBe('');
         await page.goto(
             `/admin/reports/stock-card?product_id=${productId}&location_id=${locationId}&date_from=2026-08-01&date_to=2026-08-11&per_page=25`,
         );
         await expectRowsToContainExactly(page, movementNotes);
-        const balance = page.getByRole('columnheader', { name: 'Balance' }).getByRole('button');
+        const balance = page.getByRole('columnheader', { name: 'Saldo' }).getByRole('button');
         await balance.focus();
         await page.keyboard.press('Enter');
         await expect.poll(() => query(page, 'sort')).toBe('balance_after');
@@ -121,7 +126,7 @@ test.describe('@smoke stock card reporting', () => {
             '2026-08-06',
             '2026-08-06',
         );
-        await page.getByRole('button', { name: 'Run', exact: true }).click();
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         await expect.poll(() => query(page, 'date_from')).toBe('2026-08-06');
         await expect.poll(() => query(page, 'date_to')).toBe('2026-08-06');
         await expectRowsToContainExactly(page, [movementNotes[5]]);
@@ -140,11 +145,11 @@ test.describe('@smoke stock card reporting', () => {
                     await expect(page.locator('html')).not.toHaveClass(/\bdark\b/);
                 }
                 await expect(
-                    main.getByRole('heading', { name: 'Stock Card', exact: true }),
+                    main.getByRole('heading', { name: 'Kartu Stok', exact: true }),
                 ).toBeVisible();
                 await expectRowsToContainExactly(page, [movementNotes[5]]);
 
-                const run = page.getByRole('button', { name: 'Run', exact: true });
+                const run = page.getByRole('button', { name: 'Tampilkan', exact: true });
                 await run.focus();
                 await expect(run).toBeFocused();
                 const hasFocusIndicator = await run.evaluate((el) => {

@@ -3,7 +3,9 @@ import { Search, X } from 'lucide-react';
 import { NativeSelect } from '@/Components/composite/NativeSelect';
 import { Button } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
+import { SearchSelect } from '@/Components/ui/SearchSelect';
 import type { ServerTableFilterValue } from '@/hooks/useServerTable';
+import { APPROVAL_TYPE, labelOf, optionsOf, PRIORITY } from '@/lib/statuses';
 
 interface FilterBarProps {
     params: Record<string, string>;
@@ -40,9 +42,9 @@ export function FilterBar({
     return (
         <form
             onSubmit={onSubmitSearch}
-            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-xs md:flex-row md:items-end"
+            className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 md:flex-row md:flex-wrap md:items-end"
             role="search"
-            aria-label="Filter Antrean Approval"
+            aria-label="Filter antrean persetujuan"
         >
             <div className="min-w-56 flex-1">
                 <Input
@@ -56,53 +58,43 @@ export function FilterBar({
                 />
             </div>
 
-            <div className="w-full sm:w-44">
-                <NativeSelect
-                    id="approvals-type"
-                    label="Tipe"
-                    value={String(params.type ?? '')}
-                    onChange={(event) => set('type', event.target.value)}
-                    options={[
-                        { value: '', label: 'Semua Tipe' },
-                        ...types.map((type) => ({ value: type, label: type })),
-                    ]}
-                    disabled={disabled}
-                />
-            </div>
+            <NativeSelect
+                id="approvals-type"
+                label="Jenis"
+                wrapperClassName="w-full sm:w-52"
+                value={String(params.type ?? '')}
+                onChange={(event) => set('type', event.target.value)}
+                options={[
+                    { value: '', label: 'Semua jenis' },
+                    ...types.map((type) => ({ value: type, label: labelOf(APPROVAL_TYPE, type) })),
+                ]}
+                disabled={disabled}
+            />
 
-            <div className="w-full sm:w-48">
-                <NativeSelect
-                    id="approvals-requester"
-                    label="Pemohon"
-                    value={String(params.creator ?? '')}
-                    onChange={(event) => set('creator', event.target.value)}
-                    options={[
-                        { value: '', label: 'Semua Pemohon' },
-                        ...requesters.map((requester) => ({
-                            value: String(requester.id),
-                            label: requester.name,
-                        })),
-                    ]}
-                    disabled={disabled}
-                />
-            </div>
+            <SearchSelect
+                id="approvals-requester"
+                label="Pemohon"
+                className="w-full sm:w-56"
+                value={String(params.creator ?? '')}
+                onChange={(value) => set('creator', value)}
+                options={requesters.map((requester) => ({
+                    value: String(requester.id),
+                    label: requester.name,
+                }))}
+                placeholder="Semua pemohon"
+                emptyText="Tidak ada pemohon yang cocok."
+                disabled={disabled}
+            />
 
-            <div className="w-full sm:w-40">
-                <NativeSelect
-                    id="approvals-priority"
-                    label="Prioritas"
-                    value={String(params.priority ?? '')}
-                    onChange={(event) => set('priority', event.target.value)}
-                    options={[
-                        { value: '', label: 'Semua Prioritas' },
-                        { value: 'urgent', label: 'Urgent' },
-                        { value: 'high', label: 'High' },
-                        { value: 'medium', label: 'Medium' },
-                        { value: 'low', label: 'Low' },
-                    ]}
-                    disabled={disabled}
-                />
-            </div>
+            <NativeSelect
+                id="approvals-priority"
+                label="Prioritas"
+                wrapperClassName="w-full sm:w-48"
+                value={String(params.priority ?? '')}
+                onChange={(event) => set('priority', event.target.value)}
+                options={[{ value: '', label: 'Semua prioritas' }, ...optionsOf(PRIORITY)]}
+                disabled={disabled}
+            />
 
             {hasActiveFilters && (
                 <div className="shrink-0">
@@ -115,7 +107,7 @@ export function FilterBar({
                         leftIcon={<X className="h-4 w-4" />}
                         className="w-full sm:w-auto"
                     >
-                        Reset Filter
+                        Reset filter
                     </Button>
                 </div>
             )}

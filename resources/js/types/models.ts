@@ -1,5 +1,13 @@
 /** Shared domain models for residual admin UI. */
 
+import type {
+    INVOICE_STATUS,
+    NETWORK_ASSET_STATUS,
+    PRIORITY,
+    TICKET_STATUS,
+    WORK_ORDER_STATUS,
+} from '@/lib/statuses';
+
 type Id = number | string;
 
 export type CustomerAddress = {
@@ -281,9 +289,10 @@ export interface Paginated<T> {
     };
 }
 
-export type TicketPriority = 'low' | 'normal' | 'high' | 'urgent';
-export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed';
-export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
-export type SpkStatus = 'draft' | 'open' | 'closed' | 'cancelled';
-export type NetworkAssetStatus = 'active' | 'inactive' | 'maintenance';
+/** Stored values, read from the label maps in `@/lib/statuses`, so a status added there is a type here. */
+export type TicketPriority = keyof typeof PRIORITY;
+export type TicketStatus = keyof typeof TICKET_STATUS;
+export type InvoiceStatus = keyof typeof INVOICE_STATUS;
+export type SpkStatus = keyof typeof WORK_ORDER_STATUS;
+export type NetworkAssetStatus = keyof typeof NETWORK_ASSET_STATUS;
 export type ServicePackageStatus = 'active' | 'inactive';

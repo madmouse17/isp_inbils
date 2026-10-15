@@ -3,25 +3,19 @@ import { useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { DataTableActions } from '@/Components/composite/DataTableActions';
-import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { NativeSelect } from '@/Components/composite/NativeSelect';
+import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Button } from '@/Components/ui/Button';
-import { DateRangePicker } from '@/Components/ui';
-import { Input } from '@/Components/ui/Input';
+import { DateRangePicker, EmptyCell, EnumBadge, ExportMenu, Input } from '@/Components/ui';
 import GenerateDialog from '@/Pages/Admin/Billing/Invoices/GenerateDialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/Components/ui/Select';
 import { useCan } from '@/hooks/useCan';
+import { useCompany } from '@/hooks/useCompany';
 import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatDate, formatMoney } from '@/lib/format';
+import { formatDate, formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { INVOICE_STATUS, optionsOf } from '@/lib/statuses';
 
 type InvoiceRow = {
     id: number;
@@ -47,23 +41,23 @@ type Props = {
         sort_dir?: string;
         per_page?: string | number;
     };
-    statusOptions: string[];
+    customerOptions?: RemoteOption[];
+    selectedCustomer: RemoteOption | null;
 };
 
-const STATUS_LABEL: Record<string, string> = {
-    draft: 'Draft',
-    issued: 'Issued',
-    partial: 'Partial',
-    paid: 'Paid',
-    void: 'Void',
-    written_off: 'Written off',
-};
+const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(INVOICE_STATUS)];
 
-export default function InvoicesIndex({ invoices, filters, statusOptions }: Props) {
+export default function InvoicesIndex({
+    invoices,
+    filters,
+    customerOptions,
+    selectedCustomer,
+}: Props) {
     const can = useCan();
+    const company = useCompany();
     const { errors } = usePage().props as { errors?: Record<string, string | undefined> };
     const [generateOpen, setGenerateOpen] = useState(false);
-    const { params, set, sortBy, sortDir, onSort, processing } = useTableQuery(
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
             search: filters.search ?? '',
             status: filters.status ?? '',
@@ -74,14 +68,18 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
             sort_dir: filters.sort_dir ?? '',
             per_page: filters.per_page ?? toPagination(invoices).per_page,
         },
-        { only: ['invoices', 'filters'] },
+        { only: ['invoices', 'filters', 'selectedCustomer'] },
+    );
+
+    const hasFilters = Boolean(
+        params.search || params.status || params.customer_id || params.date_from || params.date_to,
     );
 
     const columns: DataTableColumn<InvoiceRow>[] = useMemo(
         () => [
             {
                 key: 'number',
-                header: 'Number',
+                header: 'Nomor tagihan',
                 sortable: true,
                 sortKey: 'number',
                 cell: (row) => (
@@ -95,7 +93,7 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
             },
             {
                 key: 'customer',
-                header: 'Customer',
+                header: 'Pelanggan',
                 cell: (row) =>
                     row.customer ? (
                         <div>
@@ -103,7 +101,7 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                             <div className="text-xs text-muted-foreground">{row.customer.code}</div>
                         </div>
                     ) : (
-                        '-'
+                        <EmptyCell />
                     ),
             },
             {
@@ -111,26 +109,21 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 header: 'Status',
                 sortable: true,
                 sortKey: 'status',
-                cell: (row) => (
-                    <StatusBadge
-                        status={row.status}
-                        label={STATUS_LABEL[row.status] ?? row.status}
-                    />
-                ),
+                cell: (row) => <EnumBadge map={INVOICE_STATUS} value={row.status} />,
             },
             {
                 key: 'issue_date',
-                header: 'Issue Date',
+                header: 'Tanggal terbit',
                 sortable: true,
                 sortKey: 'issue_date',
-                cell: (row) => formatDate(row.issue_date),
+                cell: (row) => formatDate(row.issue_date, company),
             },
             {
                 key: 'due_date',
-                header: 'Due Date',
+                header: 'Jatuh tempo',
                 sortable: true,
                 sortKey: 'due_date',
-                cell: (row) => formatDate(row.due_date),
+                cell: (row) => formatDate(row.due_date, company),
             },
             {
                 key: 'total',
@@ -138,21 +131,21 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 sortable: true,
                 sortKey: 'total',
                 className: 'text-right tabular-nums',
-                cell: (row) => formatMoney(row.total),
+                cell: (row) => formatRupiah(row.total, company),
             },
             {
                 key: 'sisa',
-                header: 'Remaining',
+                header: 'Sisa',
                 className: 'text-right tabular-nums',
-                cell: (row) => formatMoney(row.sisa),
+                cell: (row) => formatRupiah(row.sisa, company),
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => <DataTableActions showHref={route('admin.invoices.show', row.id)} />,
             },
         ],
-        [],
+        [company],
     );
 
     return (
@@ -160,13 +153,14 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
             <div className="space-y-4">
                 <PageHeader
                     title="Tagihan"
-                    description="Customer invoices and balances."
+                    description="Daftar tagihan pelanggan beserta sisa yang harus dibayar."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
                                 exportUrl={route('admin.invoices.export')}
                                 params={params}
                                 canExport={can('billing.export')}
+                                formats={['csv', 'pdf']}
                             />
                             {can('billing.create') && (
                                 <>
@@ -176,12 +170,12 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                                         variant="outline"
                                         onClick={() => setGenerateOpen(true)}
                                     >
-                                        Generate Tagihan
+                                        Buat tagihan bulanan
                                     </Button>
                                     <Button asChild size="sm" variant="primary">
                                         <Link href={route('admin.invoices.create')}>
                                             <Plus className="size-4" />
-                                            New invoice
+                                            Buat tagihan
                                         </Link>
                                     </Button>
                                 </>
@@ -191,38 +185,34 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 />
 
                 <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="inv-search"
-                        >
-                            Search
-                        </label>
+                    <div className="min-w-48 flex-1">
                         <Input
                             id="inv-search"
+                            label="Cari tagihan"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Number or customer…"
+                            placeholder="Nomor tagihan atau pelanggan"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label className="text-xs font-medium text-muted-foreground">Status</label>
-                        <Select
-                            value={params.status || '__all__'}
-                            onValueChange={(v) => set('status', v === '__all__' ? '' : v)}
-                        >
-                            <SelectTrigger className="w-40">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                {statusOptions.map((s) => (
-                                    <SelectItem key={s} value={s}>
-                                        {STATUS_LABEL[s] ?? s}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                    <NativeSelect
+                        id="inv-status"
+                        label="Status"
+                        value={params.status ?? ''}
+                        onChange={(e) => set('status', e.target.value)}
+                        options={STATUS_OPTIONS}
+                        wrapperClassName="md:w-44"
+                    />
+                    <div className="w-full md:w-64">
+                        <RemoteSearchSelect
+                            id="inv-customer"
+                            field="customer"
+                            label="Pelanggan"
+                            placeholder="Semua pelanggan"
+                            options={customerOptions}
+                            selected={selectedCustomer}
+                            value={params.customer_id ?? ''}
+                            onChange={(value) => set('customer_id', value)}
+                        />
                     </div>
                     <div className="w-full md:w-80">
                         <DateRangePicker
@@ -241,8 +231,29 @@ export default function InvoicesIndex({ invoices, filters, statusOptions }: Prop
                 <DataTable
                     columns={columns}
                     data={invoices.data}
-                    emptyTitle="No invoices"
-                    emptyDescription="No invoices match the current filters."
+                    itemLabel="tagihan"
+                    emptyTitle="Belum ada tagihan"
+                    emptyDescription="Tagihan muncul di sini setelah dibuat secara manual, dari SPK, atau lewat tagihan bulanan."
+                    emptyAction={
+                        can('billing.create') ? (
+                            <Button asChild size="sm" variant="primary">
+                                <Link href={route('admin.invoices.create')}>
+                                    <Plus className="size-4" />
+                                    Buat tagihan
+                                </Link>
+                            </Button>
+                        ) : undefined
+                    }
+                    hasFilters={hasFilters}
+                    onResetFilters={() =>
+                        setMany({
+                            search: '',
+                            status: '',
+                            customer_id: '',
+                            date_from: '',
+                            date_to: '',
+                        })
+                    }
                     loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}

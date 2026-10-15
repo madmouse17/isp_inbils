@@ -32,18 +32,30 @@ async function shoot(page: Page, screen: Screen) {
 test('docs screenshots', async ({ page }) => {
     mkdirSync(outDir, { recursive: true });
 
+    // One bad selector must not hide the rest: every failure is listed at the end.
+    const failures: string[] = [];
+    const shootAll = async (screens: Screen[]) => {
+        for (const screen of screens) {
+            try {
+                await shoot(page, screen);
+            } catch (error) {
+                failures.push(`${screen.slug}: ${String(error).split('\n')[0]}`);
+            }
+        }
+    };
+
     // Guest screens first: logging in redirects /login away.
-    for (const screen of manifest.screens.filter((s) => s.auth === false))
-        await shoot(page, screen);
+    await shootAll(manifest.screens.filter((s) => s.auth === false));
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(userFor('admin').email);
-    await page.getByLabel('Password').fill(demoPassword);
-    await page.getByRole('button', { name: 'Log in' }).click();
+    await page.getByLabel('Kata sandi').fill(demoPassword);
+    await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('main').getByRole('heading', { name: 'Dasbor' })).toBeVisible({
         timeout: 15_000,
     });
 
-    for (const screen of manifest.screens.filter((s) => s.auth !== false))
-        await shoot(page, screen);
+    await shootAll(manifest.screens.filter((s) => s.auth !== false));
+
+    expect(failures, 'screens that did not render').toEqual([]);
 });

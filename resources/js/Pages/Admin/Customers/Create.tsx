@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -10,11 +10,12 @@ import {
     CardHeader,
     CardTitle,
     Checkbox,
+    EmptyCell,
+    EnumBadge,
     Input,
     MapPicker,
-    NativeSelect,
-    SearchSelect,
     PhoneInput,
+    SearchSelect,
     Switch,
     Tab,
     TabList,
@@ -34,6 +35,7 @@ import {
 } from '@/Components/composite';
 import type { AcquirerOption } from '@/types/models';
 import { packageGroupOptions, type PackageGroup } from '@/lib/packageGroups';
+import { LOCATION_TYPE, WORK_ORDER_STATUS, labelOf } from '@/lib/statuses';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
@@ -120,7 +122,7 @@ interface CreateProps {
     can: { assignAcquirer: boolean; assignDrop: boolean };
     acquirerOptions: AcquirerOption[];
     acquirerDefaultId: number | null;
-    /** Free ODP ports under the serving POP, delivered by a partial reload (odn.assign only). */
+    /** Free ports under the serving POP, found by typing an ODP code (`dropPort_search`); odn.assign only. */
     dropPortOptions?: DropPortOption[];
 }
 
@@ -165,8 +167,6 @@ export default function Create({
     const mapDefault = useMapDefault();
     const [tab, setTab] = useState('customer');
     const [geocodeSearchingIndex, setGeocodeSearchingIndex] = useState<number | null>(null);
-    const [loadingPorts, setLoadingPorts] = useState(false);
-    const portReload = useRef(0);
     const { data, setData, post, transform, processing, errors } = useForm<CustomerForm>({
         code: '',
         name: '',
@@ -215,10 +215,16 @@ export default function Create({
         >
     >;
 
+    // The drop-port search reloads the page without the serving POP unless the URL keeps it.
+    const popQuery = data.subscription.serving_pop_id
+        ? { serving_pop_id: data.subscription.serving_pop_id }
+        : {};
+
     const reloadRegions = (addresses: AddressInput[]) => {
         router.get(
             route('admin.customers.create'),
             {
+                ...popQuery,
                 region_provinces: addresses.map((address) => address.province_code).filter(Boolean),
                 region_cities: addresses.map((address) => address.city_code).filter(Boolean),
                 region_districts: addresses.map((address) => address.district_code).filter(Boolean),
@@ -273,7 +279,7 @@ export default function Create({
         setGeocodeSearchingIndex(index);
         router.get(
             route('admin.customers.create'),
-            { geocode_query: query, geocode_index: index },
+            { ...popQuery, geocode_query: query, geocode_index: index },
             {
                 only: ['geocodeResults', 'geocodeIndex'],
                 preserveState: true,
@@ -354,6 +360,16 @@ export default function Create({
         [packageGroups, data.type],
     );
 
+    const popOptions = useMemo(
+        () =>
+            locations.map((location) => ({
+                value: String(location.id),
+                label: `${location.code} - ${location.name}`,
+                description: labelOf(LOCATION_TYPE, location.type),
+            })),
+        [locations],
+    );
+
     const selectPackage = (packageId: string) => {
         const selected = packages.find((item) => String(item.id) === packageId);
         setData('subscription', {
@@ -368,23 +384,20 @@ export default function Create({
         });
     };
 
-    /** A port belongs to one POP: changing the POP drops the chosen port and asks for the new POP's free ones. */
+    /**
+     * A port belongs to one POP: changing the POP drops the chosen port. The reload puts the POP in the
+     * address bar, which the drop-port search needs because it sends only its own search text.
+     */
     const selectServingPop = (popId: string) => {
         setData('subscription', { ...data.subscription, serving_pop_id: popId, odn_port_id: '' });
 
-        if (!can.assignDrop || popId === '') return;
-
-        // Only the latest request may end the loading state; an interrupted one finishes late.
-        const request = ++portReload.current;
-        setLoadingPorts(true);
-        router.reload({
-            only: ['dropPortOptions'],
-            data: { serving_pop_id: popId },
-            replace: true,
-            onFinish: () => {
-                if (request === portReload.current) setLoadingPorts(false);
-            },
-        });
+        if (can.assignDrop && popId !== '') {
+            router.reload({
+                only: ['dropPortOptions'],
+                data: { serving_pop_id: popId },
+                replace: true,
+            });
+        }
     };
 
     const submit = (event: FormEvent) => {
@@ -425,12 +438,16 @@ export default function Create({
         });
     };
 
+    const installationLabel = data.addresses.find(
+        (address) => address.is_installation_point,
+    )?.label;
+
     return (
-        <AdminLayout title="Create Customer">
+        <AdminLayout title="Buat Pelanggan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Customer"
-                    subtitle="Create customer, addresses, contacts, subscription, and installation SPK in one submission."
+                    title="Buat Pelanggan"
+                    subtitle="Buat pelanggan, alamat, kontak, langganan, dan SPK pemasangan dalam sekali simpan."
                     actions={
                         <Button
                             asChild
@@ -438,7 +455,7 @@ export default function Create({
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.customers.index')}>Back</Link>
+                            <Link href={route('admin.customers.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -446,11 +463,11 @@ export default function Create({
                     <Card>
                         <CardContent className="pt-6">
                             <Tabs value={tab} onValueChange={setTab}>
-                                <TabList className="overflow-x-auto">
-                                    <Tab value="customer">Customer Data</Tab>
-                                    <Tab value="addresses">Addresses ({data.addresses.length})</Tab>
-                                    <Tab value="contacts">Contacts ({data.contacts.length})</Tab>
-                                    <Tab value="subscription">Subscription & SPK</Tab>
+                                <TabList className="overflow-x-auto" aria-label="Bagian pelanggan">
+                                    <Tab value="customer">Data pelanggan</Tab>
+                                    <Tab value="addresses">Alamat ({data.addresses.length})</Tab>
+                                    <Tab value="contacts">Kontak ({data.contacts.length})</Tab>
+                                    <Tab value="subscription">Langganan & SPK</Tab>
                                 </TabList>
 
                                 <TabPanel value="customer">
@@ -460,7 +477,7 @@ export default function Create({
                                         errors={customerErrors}
                                         codeSequence={codeSequence}
                                         mode="create"
-                                        phoneHint="Link untuk mengatur kata sandi akan dikirim ke email customer."
+                                        phoneHint="Link untuk mengatur kata sandi akan dikirim ke email pelanggan."
                                     />
                                     <div className="mt-4">
                                         <Checkbox
@@ -480,7 +497,7 @@ export default function Create({
                                                 value={data.acquirer_id}
                                                 onChange={(value) => setData('acquirer_id', value)}
                                                 error={formErrors.acquired_by_user_id}
-                                                hint="Defaults to you when you are an eligible employee."
+                                                hint="Terisi dengan nama Anda bila Anda karyawan yang memenuhi syarat."
                                                 disabled={processing}
                                             />
                                         </div>
@@ -491,10 +508,10 @@ export default function Create({
                                     <div className="space-y-4">
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div>
-                                                <p className="font-medium">Customer Addresses</p>
+                                                <p className="font-medium">Alamat pelanggan</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    Select exactly one primary and one installation
-                                                    address.
+                                                    Pilih tepat satu alamat utama dan satu alamat
+                                                    pemasangan.
                                                 </p>
                                             </div>
                                             <Button
@@ -508,7 +525,7 @@ export default function Create({
                                                     ])
                                                 }
                                             >
-                                                Add Address
+                                                Tambah alamat
                                             </Button>
                                         </div>
                                         {formErrors.addresses ? (
@@ -519,7 +536,7 @@ export default function Create({
                                         {data.addresses.map((address, index) => (
                                             <Card key={index}>
                                                 <CardHeader className="space-y-0 flex-row items-center justify-between">
-                                                    <CardTitle>Address {index + 1}</CardTitle>
+                                                    <CardTitle>Alamat {index + 1}</CardTitle>
                                                     <Button
                                                         type="button"
                                                         variant="danger"
@@ -527,14 +544,15 @@ export default function Create({
                                                         disabled={data.addresses.length === 1}
                                                         onClick={() => removeAddress(index)}
                                                     >
-                                                        Remove
+                                                        Hapus
                                                     </Button>
                                                 </CardHeader>
                                                 <CardContent className="grid gap-4 md:grid-cols-2">
                                                     <Input
+                                                        id={`address-${index}-label`}
                                                         label="Label"
                                                         value={address.label}
-                                                        placeholder="Main / Office / Instalation/Home"
+                                                        placeholder="Rumah / Kantor / Pemasangan"
                                                         onChange={(event) =>
                                                             updateAddress(
                                                                 index,
@@ -605,8 +623,9 @@ export default function Create({
                                                         }}
                                                     />
                                                     <Textarea
+                                                        id={`address-${index}-address`}
                                                         className="md:col-span-2"
-                                                        label="Address"
+                                                        label="Alamat"
                                                         value={address.address}
                                                         onChange={(event) =>
                                                             updateAddress(
@@ -622,7 +641,8 @@ export default function Create({
                                                         rows={3}
                                                     />
                                                     <Input
-                                                        label="Postal Code"
+                                                        id={`address-${index}-postal-code`}
+                                                        label="Kode pos"
                                                         value={address.postal_code}
                                                         onChange={(event) =>
                                                             updateAddress(
@@ -639,7 +659,7 @@ export default function Create({
                                                     />
                                                     <div className="flex flex-wrap items-end gap-4">
                                                         <Switch
-                                                            label="Primary address"
+                                                            label="Alamat utama"
                                                             checked={address.is_primary}
                                                             onCheckedChange={(checked) => {
                                                                 if (checked) {
@@ -651,7 +671,7 @@ export default function Create({
                                                             }}
                                                         />
                                                         <Switch
-                                                            label="Installation address"
+                                                            label="Alamat pemasangan"
                                                             checked={address.is_installation_point}
                                                             onCheckedChange={(checked) => {
                                                                 if (checked) {
@@ -664,8 +684,9 @@ export default function Create({
                                                         />
                                                     </div>
                                                     <Textarea
+                                                        id={`address-${index}-notes`}
                                                         className="md:col-span-2"
-                                                        label="Notes"
+                                                        label="Catatan"
                                                         value={address.notes}
                                                         onChange={(event) =>
                                                             updateAddress(
@@ -688,9 +709,9 @@ export default function Create({
                                     <div className="space-y-4">
                                         <div className="flex flex-wrap items-center justify-between gap-3">
                                             <div>
-                                                <p className="font-medium">Customer Contacts</p>
+                                                <p className="font-medium">Kontak pelanggan</p>
                                                 <p className="text-sm text-muted-foreground">
-                                                    Select exactly one primary contact.
+                                                    Pilih tepat satu kontak utama.
                                                 </p>
                                             </div>
                                             <Button
@@ -704,7 +725,7 @@ export default function Create({
                                                     ])
                                                 }
                                             >
-                                                Add Contact
+                                                Tambah kontak
                                             </Button>
                                         </div>
                                         {formErrors.contacts ? (
@@ -715,7 +736,7 @@ export default function Create({
                                         {data.contacts.map((contact, index) => (
                                             <Card key={index}>
                                                 <CardHeader className="space-y-0 flex-row items-center justify-between">
-                                                    <CardTitle>Contact {index + 1}</CardTitle>
+                                                    <CardTitle>Kontak {index + 1}</CardTitle>
                                                     <Button
                                                         type="button"
                                                         variant="danger"
@@ -723,12 +744,13 @@ export default function Create({
                                                         disabled={data.contacts.length === 1}
                                                         onClick={() => removeContact(index)}
                                                     >
-                                                        Remove
+                                                        Hapus
                                                     </Button>
                                                 </CardHeader>
                                                 <CardContent className="grid gap-4 md:grid-cols-2">
                                                     <Input
-                                                        label="Name"
+                                                        id={`contact-${index}-name`}
+                                                        label="Nama"
                                                         value={contact.name}
                                                         onChange={(event) =>
                                                             updateContact(
@@ -741,7 +763,8 @@ export default function Create({
                                                         required
                                                     />
                                                     <Input
-                                                        label="Position"
+                                                        id={`contact-${index}-position`}
+                                                        label="Jabatan"
                                                         value={contact.position}
                                                         onChange={(event) =>
                                                             updateContact(
@@ -755,7 +778,8 @@ export default function Create({
                                                         }
                                                     />
                                                     <PhoneInput
-                                                        label="Phone"
+                                                        id={`contact-${index}-phone`}
+                                                        label="Telepon"
                                                         value={contact.phone}
                                                         onChange={(value) =>
                                                             updateContact(index, 'phone', value)
@@ -766,6 +790,7 @@ export default function Create({
                                                         required
                                                     />
                                                     <Input
+                                                        id={`contact-${index}-email`}
                                                         label="Email"
                                                         type="email"
                                                         value={contact.email}
@@ -782,7 +807,7 @@ export default function Create({
                                                         required
                                                     />
                                                     <Switch
-                                                        label="Primary contact"
+                                                        label="Kontak utama"
                                                         checked={contact.is_primary}
                                                         onCheckedChange={(checked) => {
                                                             if (checked)
@@ -790,8 +815,9 @@ export default function Create({
                                                         }}
                                                     />
                                                     <Textarea
+                                                        id={`contact-${index}-notes`}
                                                         className="md:col-span-2"
-                                                        label="Notes"
+                                                        label="Catatan"
                                                         value={contact.notes}
                                                         onChange={(event) =>
                                                             updateContact(
@@ -814,37 +840,31 @@ export default function Create({
                                     <div className="space-y-4">
                                         <div>
                                             <p className="font-medium">
-                                                Subscription & Installation SPK
+                                                Langganan dan SPK pemasangan
                                             </p>
                                             <p className="text-sm text-muted-foreground">
-                                                A pending subscription and generated installation
-                                                SPK will be created automatically.
+                                                Langganan berstatus Menunggu dan SPK pemasangan
+                                                dibuat otomatis saat pelanggan disimpan.
                                             </p>
                                         </div>
                                         <SearchSelect
                                             id="subscription-package"
-                                            label="Service Package"
+                                            label="Paket layanan"
                                             value={data.subscription.service_package_id}
                                             onChange={selectPackage}
                                             options={packageOptions}
-                                            placeholder="Select package…"
+                                            placeholder="Pilih paket"
                                             error={formErrors['subscription.service_package_id']}
                                             required
                                         />
-                                        <NativeSelect
-                                            label="Serving POP / Location"
+                                        <SearchSelect
+                                            id="subscription-serving-pop"
+                                            label="POP pelayan"
                                             value={data.subscription.serving_pop_id}
-                                            onChange={(event) =>
-                                                selectServingPop(event.target.value)
-                                            }
+                                            onChange={selectServingPop}
+                                            options={popOptions}
+                                            placeholder="Pilih POP atau lokasi"
                                             error={formErrors['subscription.serving_pop_id']}
-                                            options={[
-                                                { value: '', label: 'Select location…' },
-                                                ...locations.map((location) => ({
-                                                    value: String(location.id),
-                                                    label: `${location.code} - ${location.name} (${location.type})`,
-                                                })),
-                                            ]}
                                             required
                                         />
                                         {can.assignDrop && (
@@ -858,10 +878,9 @@ export default function Create({
                                                     })
                                                 }
                                                 options={dropPortOptions}
-                                                loading={loadingPorts}
                                                 unavailable={
                                                     data.subscription.serving_pop_id === ''
-                                                        ? 'Choose the serving POP to list its free ports.'
+                                                        ? 'Pilih POP layanan untuk melihat port kosongnya.'
                                                         : undefined
                                                 }
                                                 error={formErrors['subscription.odn_port_id']}
@@ -869,7 +888,7 @@ export default function Create({
                                         )}
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <Input
-                                                label="Billing Day"
+                                                label="Tanggal tagihan (1-28)"
                                                 type="number"
                                                 min={1}
                                                 max={28}
@@ -884,7 +903,7 @@ export default function Create({
                                                 required
                                             />
                                             <Input
-                                                label="Contract Months"
+                                                label="Masa kontrak (bulan)"
                                                 type="number"
                                                 min={1}
                                                 value={data.subscription.contract_months}
@@ -895,10 +914,10 @@ export default function Create({
                                                     })
                                                 }
                                                 error={formErrors['subscription.contract_months']}
-                                                placeholder="Auto from package"
+                                                placeholder="Otomatis dari paket"
                                             />
                                             <Input
-                                                label="MRC Amount"
+                                                label="Biaya bulanan"
                                                 type="number"
                                                 min={0}
                                                 value={data.subscription.mrc_amount}
@@ -909,10 +928,10 @@ export default function Create({
                                                     })
                                                 }
                                                 error={formErrors['subscription.mrc_amount']}
-                                                placeholder="Auto from package"
+                                                placeholder="Otomatis dari paket"
                                             />
                                             <Input
-                                                label="OTC Installation Fee"
+                                                label="Biaya pemasangan"
                                                 type="number"
                                                 min={0}
                                                 value={data.subscription.otc_installation_fee}
@@ -925,11 +944,11 @@ export default function Create({
                                                 error={
                                                     formErrors['subscription.otc_installation_fee']
                                                 }
-                                                placeholder="Auto from package"
+                                                placeholder="Otomatis dari paket"
                                             />
                                             <Textarea
                                                 className="md:col-span-2"
-                                                label="Subscription Notes"
+                                                label="Catatan langganan"
                                                 value={data.subscription.notes}
                                                 onChange={(event) =>
                                                     setData('subscription', {
@@ -942,20 +961,24 @@ export default function Create({
                                             />
                                         </div>
                                         <Card>
-                                            <CardContent className="space-y-2 pt-6 text-sm">
-                                                <p>
-                                                    Installation address:{' '}
-                                                    <span className="font-medium">
-                                                        {data.addresses.find(
-                                                            (address) =>
-                                                                address.is_installation_point,
-                                                        )?.label || 'Not selected'}
-                                                    </span>
-                                                </p>
-                                                <p>
-                                                    SPK status after create:{' '}
-                                                    <span className="font-medium">Generated</span>
-                                                </p>
+                                            <CardContent className="pt-6">
+                                                <dl className="grid grid-cols-[max-content_1fr] items-center gap-x-6 gap-y-2 text-sm">
+                                                    <dt className="text-muted-foreground">
+                                                        Alamat pemasangan
+                                                    </dt>
+                                                    <dd className="font-medium">
+                                                        {installationLabel || <EmptyCell />}
+                                                    </dd>
+                                                    <dt className="text-muted-foreground">
+                                                        Status SPK setelah dibuat
+                                                    </dt>
+                                                    <dd>
+                                                        <EnumBadge
+                                                            map={WORK_ORDER_STATUS}
+                                                            value="generated"
+                                                        />
+                                                    </dd>
+                                                </dl>
                                             </CardContent>
                                         </Card>
                                     </div>
@@ -964,15 +987,11 @@ export default function Create({
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.customers.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.customers.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create Customer & SPK
+                            Buat pelanggan dan SPK
                         </Button>
                     </div>
                 </form>

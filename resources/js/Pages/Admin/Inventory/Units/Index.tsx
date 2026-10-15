@@ -41,7 +41,7 @@ export default function Index({ units, filters, can }: IndexProps) {
 
     const openEdit = (u: Unit) => {
         setEditing(u);
-        setData({ name: u.name ?? '', symbol: u.symbol ?? '' });
+        setData({ name: u.name, symbol: u.symbol });
         setModalOpen(true);
     };
 
@@ -65,34 +65,40 @@ export default function Index({ units, filters, can }: IndexProps) {
     };
 
     const columns: DataTableColumn<Unit>[] = [
-        { key: 'name', header: 'Name', sortable: true, sortKey: 'name' },
+        { key: 'name', header: 'Nama', sortable: true, sortKey: 'name' },
         {
             key: 'symbol',
-            header: 'Symbol',
+            header: 'Simbol',
             sortable: true,
             sortKey: 'symbol',
             cell: (u) => <span className="font-mono">{u.symbol}</span>,
         },
         {
             key: 'actions',
-            header: 'Actions',
+            header: 'Aksi',
             cell: (u) => (
                 <DataTableActions
                     onEdit={() => openEdit(u)}
                     deleteHref={route('admin.units.destroy', u.id)}
-                    deleteMessage={`Delete ${u.name}?`}
-                    deleteDescription={`This will permanently remove the unit "${u.name}".`}
+                    deleteMessage={`Hapus ${u.name}?`}
+                    deleteDescription={`Satuan "${u.name}" akan dihapus dari daftar. Satuan yang masih dipakai barang atau kategori tidak bisa dihapus.`}
                 />
             ),
         },
     ];
+
+    const createButton = can.create ? (
+        <Button type="button" variant="primary" onClick={openCreate}>
+            Buat Satuan
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="Satuan">
             <div className="space-y-6">
                 <PageHeader
                     title="Satuan"
-                    subtitle="Manage measurement units."
+                    subtitle="Satuan ukur barang, misalnya meter atau buah."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
@@ -101,11 +107,7 @@ export default function Index({ units, filters, can }: IndexProps) {
                                 formats={['csv', 'pdf']}
                                 canExport={can.export}
                             />
-                            {can.create && (
-                                <Button type="button" variant="primary" onClick={openCreate}>
-                                    Create
-                                </Button>
-                            )}
+                            {createButton}
                         </div>
                     }
                 />
@@ -120,6 +122,9 @@ export default function Index({ units, filters, can }: IndexProps) {
                             onPageChange={table.setPage}
                             onPerPageChange={table.setPerPage}
                             loading={table.processing}
+                            itemLabel="satuan"
+                            emptyDescription="Buat satuan lebih dulu, lalu pakai satuan itu pada kategori barang."
+                            emptyAction={createButton}
                         />
                     </CardContent>
                 </Card>
@@ -128,18 +133,18 @@ export default function Index({ units, filters, can }: IndexProps) {
             <Modal
                 open={modalOpen}
                 onClose={() => setModalOpen(false)}
-                title={editing ? 'Edit Unit' : 'Create Unit'}
+                title={editing ? 'Ubah Satuan' : 'Buat Satuan'}
             >
                 <form onSubmit={submitForm} className="space-y-4">
                     <Input
-                        label="Name"
+                        label="Nama"
                         value={data.name}
                         onChange={(e) => setData('name', e.target.value)}
                         error={errors.name}
                         required
                     />
                     <Input
-                        label="Symbol"
+                        label="Simbol"
                         value={data.symbol}
                         onChange={(e) => setData('symbol', e.target.value)}
                         error={errors.symbol}
@@ -151,10 +156,10 @@ export default function Index({ units, filters, can }: IndexProps) {
                             variant="secondary"
                             onClick={() => setModalOpen(false)}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            {editing ? 'Save' : 'Create'}
+                            {editing ? 'Simpan' : 'Buat'}
                         </Button>
                     </div>
                 </form>

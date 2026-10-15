@@ -1,25 +1,19 @@
-import type { FormEvent } from 'react';
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
-    Badge,
-    Button,
-    Card,
-    CardContent,
-    Input,
-    NativeSelect,
-    Pagination,
-    Table,
-    TBody,
-    TD,
-    TH,
-    THead,
-    TR,
-} from '@/Components/ui';
-import { LoadingState, PageHeader } from '@/Components/composite';
-import { DataTableActions } from '@/Components/composite/DataTableActions';
-import { useVisitPending } from '@/hooks/useVisitPending';
+    DataTable,
+    DataTableActions,
+    PageHeader,
+    RemoteSearchSelect,
+} from '@/Components/composite';
+import type { DataTableColumn, RemoteOption } from '@/Components/composite';
+import { Button, EnumBadge, Input, NativeSelect } from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
+import { useServerTable, type ServerTableFilters } from '@/hooks/useServerTable';
+import { formatDateTime } from '@/lib/format';
+import { toPagination } from '@/lib/pagination';
+import { EVALUATION_REFERENCE_TYPE, optionsOf } from '@/lib/statuses';
+import type { PaginationMeta } from '@/types';
 
 interface EvalRow {
     id: number;
@@ -28,158 +22,162 @@ interface EvalRow {
     score: string;
     customer_rating?: string | null;
     evaluated_at: string;
-    comment?: string | null;
     employee?: { name: string } | null;
     evaluator?: { name: string } | null;
 }
 
-interface EmpRow {
-    id: number;
-    name: string;
-}
-
 interface IndexProps extends Record<string, unknown> {
-    evaluations: { data: EvalRow[]; current_page: number; last_page: number };
-    employees: { data: EmpRow[] };
-    filters: { employee_id?: string; reference_type?: string; search?: string };
+    evaluations: {
+        data: EvalRow[];
+        meta: PaginationMeta;
+        referenceOptions?: Record<string, { code: string; title: string }>;
+    };
+    employeeOptions?: RemoteOption[];
+    selectedEmployee?: RemoteOption | null;
+    filters: ServerTableFilters;
     can: { create: boolean };
 }
 
-export default function Index({ evaluations, employees, filters, can }: IndexProps) {
-    const [search, setSearch] = useState(filters.search ?? '');
-    const [employeeId, setEmployeeId] = useState(filters.employee_id ?? '');
-    const [refType, setRefType] = useState(filters.reference_type ?? '');
-    const { pending, callbacks } = useVisitPending();
+export default function Index({
+    evaluations,
+    employeeOptions,
+    selectedEmployee,
+    filters,
+    can,
+}: IndexProps) {
+    const company = useCompany();
+    const { params, set, setMany, sortBy, sortDir, onSort, setPage, processing } = useServerTable({
+        url: route('admin.evaluations.index'),
+        filters,
+        only: ['evaluations', 'filters', 'selectedEmployee'],
+    });
 
-    const submit = (e: FormEvent) => {
-        e.preventDefault();
-        router.get(
-            route('admin.evaluations.index'),
-            { search, employee_id: employeeId, reference_type: refType },
-            { preserveState: true, ...callbacks },
-        );
-    };
+    const columns: DataTableColumn<EvalRow>[] = [
+        {
+            key: 'employee',
+            header: 'Karyawan',
+            cell: (row) => row.employee?.name ?? '-',
+        },
+        {
+            key: 'reference_type',
+            header: 'Referensi',
+            sortable: true,
+            sortKey: 'reference_type',
+            cell: (row) => {
+                const reference =
+                    evaluations.referenceOptions?.[`${row.reference_type}:${row.reference_id}`];
+
+                return (
+                    <span className="inline-flex items-center gap-2">
+                        <EnumBadge map={EVALUATION_REFERENCE_TYPE} value={row.reference_type} />
+                        <span className="font-mono text-xs">
+                            {reference?.code ?? `#${row.reference_id}`}
+                        </span>
+                    </span>
+                );
+            },
+        },
+        {
+            key: 'score',
+            header: 'Nilai',
+            sortable: true,
+            sortKey: 'score',
+            className: 'font-medium',
+            cell: (row) => row.score,
+        },
+        {
+            key: 'customer_rating',
+            header: 'Penilaian pelanggan',
+            cell: (row) => row.customer_rating ?? '-',
+        },
+        {
+            key: 'evaluator',
+            header: 'Penilai',
+            cell: (row) => row.evaluator?.name ?? '-',
+        },
+        {
+            key: 'evaluated_at',
+            header: 'Tanggal',
+            sortable: true,
+            sortKey: 'evaluated_at',
+            cell: (row) => formatDateTime(row.evaluated_at, company),
+        },
+        {
+            key: 'actions',
+            header: 'Aksi',
+            cell: (row) => <DataTableActions showHref={route('admin.evaluations.show', row.id)} />,
+        },
+    ];
+
+    const hasFilters = Boolean(params.search || params.employee_id || params.reference_type);
+    const create = can.create ? (
+        <Button asChild variant="primary" size="sm">
+            <Link href={route('admin.evaluations.create')}>Buat evaluasi</Link>
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="Evaluasi">
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <PageHeader
                     title="Evaluasi"
-                    subtitle="Performance evaluations for SPK and tickets."
-                    actions={
-                        can.create && (
-                            <Button
-                                type="button"
-                                variant="primary"
-                                onClick={() => router.get(route('admin.evaluations.create'))}
-                            >
-                                Create
-                            </Button>
-                        )
-                    }
+                    subtitle="Penilaian kinerja karyawan atas SPK dan tiket yang mereka kerjakan."
+                    actions={create}
                 />
-                <Card>
-                    <CardContent className="space-y-4 pt-6">
-                        <form onSubmit={submit} className="flex flex-wrap gap-2">
-                            <Input
-                                label="Search"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                placeholder="Employee name"
-                            />
-                            <NativeSelect
-                                label="Employee"
-                                value={employeeId}
-                                onChange={(e) => setEmployeeId(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                {employees.data.map((e) => (
-                                    <option key={e.id} value={e.id}>
-                                        {e.name}
-                                    </option>
-                                ))}
-                            </NativeSelect>
-                            <NativeSelect
-                                label="Reference Type"
-                                value={refType}
-                                onChange={(e) => setRefType(e.target.value)}
-                            >
-                                <option value="">All</option>
-                                <option value="WorkOrder">SPK</option>
-                                <option value="Ticket">Ticket</option>
-                            </NativeSelect>
-                            <div className="self-end">
-                                <Button type="submit" variant="secondary" loading={pending}>
-                                    Filter
-                                </Button>
-                            </div>
-                        </form>
-                        {pending ? (
-                            <LoadingState variant="rows" />
-                        ) : (
-                            <Table>
-                                <THead>
-                                    <TR>
-                                        <TH>Employee</TH>
-                                        <TH>Reference</TH>
-                                        <TH>Score</TH>
-                                        <TH>Customer Rating</TH>
-                                        <TH>Evaluator</TH>
-                                        <TH>Date</TH>
-                                        <TH>Actions</TH>
-                                    </TR>
-                                </THead>
-                                <TBody>
-                                    {evaluations.data.length === 0 ? (
-                                        <TR>
-                                            <TD
-                                                colSpan={7}
-                                                className="py-10 text-center text-muted-foreground"
-                                            >
-                                                No data found.
-                                            </TD>
-                                        </TR>
-                                    ) : (
-                                        evaluations.data.map((ev) => (
-                                            <TR key={ev.id}>
-                                                <TD>{ev.employee?.name ?? '-'}</TD>
-                                                <TD>
-                                                    <Badge variant="neutral">
-                                                        {ev.reference_type}:{ev.reference_id}
-                                                    </Badge>
-                                                </TD>
-                                                <TD className="font-medium">{ev.score}</TD>
-                                                <TD>{ev.customer_rating ?? '-'}</TD>
-                                                <TD>{ev.evaluator?.name ?? '-'}</TD>
-                                                <TD className="text-sm">{ev.evaluated_at}</TD>
-                                                <TD>
-                                                    <DataTableActions
-                                                        showHref={route(
-                                                            'admin.evaluations.show',
-                                                            ev.id,
-                                                        )}
-                                                    />
-                                                </TD>
-                                            </TR>
-                                        ))
-                                    )}
-                                </TBody>
-                            </Table>
-                        )}
-                        <Pagination
-                            currentPage={evaluations.current_page}
-                            lastPage={evaluations.last_page}
-                            disabled={pending}
-                            onPageChange={(page) =>
-                                router.get(
-                                    route('admin.evaluations.index'),
-                                    { page },
-                                    { preserveState: true, ...callbacks },
-                                )
-                            }
+
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-48 flex-1">
+                        <Input
+                            id="evaluation-search"
+                            label="Cari"
+                            value={params.search ?? ''}
+                            onChange={(event) => set('search', event.target.value)}
+                            placeholder="Nama karyawan"
                         />
-                    </CardContent>
-                </Card>
+                    </div>
+                    <RemoteSearchSelect
+                        id="evaluation-employee"
+                        field="employee"
+                        label="Karyawan"
+                        className="w-full sm:w-64"
+                        options={employeeOptions}
+                        selected={selectedEmployee}
+                        value={params.employee_id ?? ''}
+                        onChange={(value) => set('employee_id', value)}
+                        placeholder="Cari nama atau Email karyawan"
+                        emptyText="Tidak ada karyawan yang cocok."
+                    />
+                    <NativeSelect
+                        id="evaluation-reference"
+                        label="Jenis referensi"
+                        wrapperClassName="w-full sm:w-48"
+                        value={params.reference_type ?? ''}
+                        onChange={(event) => set('reference_type', event.target.value)}
+                        options={[
+                            { value: '', label: 'Semua jenis' },
+                            ...optionsOf(EVALUATION_REFERENCE_TYPE),
+                        ]}
+                    />
+                </div>
+
+                <DataTable
+                    columns={columns}
+                    data={evaluations.data}
+                    pagination={toPagination(evaluations)}
+                    sortBy={sortBy}
+                    sortDir={sortDir}
+                    onSort={onSort}
+                    onPageChange={setPage}
+                    loading={processing}
+                    hasFilters={hasFilters}
+                    onResetFilters={() =>
+                        setMany({ search: '', employee_id: '', reference_type: '', page: 1 })
+                    }
+                    itemLabel="evaluasi"
+                    emptyTitle="Belum ada evaluasi"
+                    emptyDescription="Evaluasi dibuat setelah SPK atau tiket selesai dikerjakan."
+                    emptyAction={create}
+                />
             </div>
         </AdminLayout>
     );

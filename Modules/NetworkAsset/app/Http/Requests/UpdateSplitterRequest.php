@@ -25,4 +25,13 @@ class UpdateSplitterRequest extends FormRequest
             'label' => ['sometimes', 'nullable', 'string', 'max:100'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'input_port_id' => 'port masukan',
+            'label' => 'label',
+        ];
+    }
 }

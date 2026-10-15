@@ -1,21 +1,12 @@
 import { Link } from '@inertiajs/react';
-import { CheckCircle2, AlertTriangle, Send, Play, XCircle } from 'lucide-react';
-import { Badge, Button, Card, CardContent } from '@/Components/ui';
+import { AlertTriangle, CheckCircle2, Play, Send, XCircle } from 'lucide-react';
+import { Button, Card, CardContent, EnumBadge } from '@/Components/ui';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { PRIORITY, WORK_ITEM_DOMAIN, WORK_ITEM_STATUS } from '@/lib/statuses';
 import type { MyWorkItem } from '@/types';
 import type { ActionType } from './ActionConfirmDialog';
-import {
-    formatAge,
-    formatDate,
-    getDomainLabel,
-    getDomainVariant,
-    getItemImpact,
-    getItemNextStatus,
-    getItemWhyNeedAction,
-    getPriorityLabel,
-    getPriorityVariant,
-    getStatusLabel,
-    getStatusVariant,
-} from './utils';
+import { formatAge, getItemImpact, getItemNextStatus, getItemWhyNeedAction } from './utils';
 
 interface MobileMyWorkCardProps {
     item: MyWorkItem;
@@ -24,38 +15,27 @@ interface MobileMyWorkCardProps {
 }
 
 export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyWorkCardProps) {
+    const company = useCompany();
     const isTicket = item.domain === 'ticket';
 
     return (
-        <Card className="border-border bg-card shadow-xs">
+        <Card>
             <CardContent className="space-y-3 p-4">
-                {/* Header: Code, Domain & Priority */}
                 <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5">
                             <span className="font-semibold wrap-break-word text-foreground">
                                 {item.code}
                             </span>
-                            <Badge
-                                variant={getDomainVariant(item.domain)}
-                                className="text-xs font-semibold"
-                            >
-                                {getDomainLabel(item.domain)}
-                            </Badge>
+                            <EnumBadge map={WORK_ITEM_DOMAIN} value={item.domain} />
                         </div>
                         <p className="mt-1 line-clamp-2 text-sm font-medium wrap-break-word text-foreground">
                             {item.title}
                         </p>
                     </div>
-                    <Badge
-                        variant={getPriorityVariant(item.priority)}
-                        className="shrink-0 text-xs font-semibold"
-                    >
-                        {getPriorityLabel(item.priority)}
-                    </Badge>
+                    <EnumBadge map={PRIORITY} value={item.priority} className="shrink-0" />
                 </div>
 
-                {/* Context Details */}
                 <div className="space-y-1.5 rounded-md bg-muted/40 p-2.5 text-xs">
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Pelanggan:</span>
@@ -65,9 +45,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                     </div>
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Status:</span>
-                        <Badge variant={getStatusVariant(item.status)}>
-                            {getStatusLabel(item.status)}
-                        </Badge>
+                        <EnumBadge map={WORK_ITEM_STATUS} value={item.status} />
                     </div>
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Umur:</span>
@@ -77,25 +55,26 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                     </div>
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">
-                            {isTicket ? 'Batas SLA:' : 'Jadwal Kerja:'}
+                            {isTicket ? 'Batas SLA:' : 'Jadwal kerja:'}
                         </span>
                         <span className="min-w-0 text-right font-medium wrap-break-word text-foreground">
                             {isTicket
-                                ? formatDate(item.due_at ?? item.summary?.sla_deadline)
-                                : formatDate(item.scheduled_date ?? item.summary?.scheduled_date)}
+                                ? formatDateTime(item.due_at ?? item.summary?.sla_deadline, company)
+                                : formatDate(
+                                      item.scheduled_date ?? item.summary?.scheduled_date,
+                                      company,
+                                  )}
                         </span>
                     </div>
                 </div>
 
-                {/* Breach Warning if any */}
                 {item.sla_breached && (
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-destructive-text">
-                        <AlertTriangle className="h-4 w-4 shrink-0" />
-                        <span>SLA Terlampaui! Segera tangani masalah ini.</span>
+                        <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
+                        <span>SLA terlampaui. Segera tangani.</span>
                     </div>
                 )}
 
-                {/* Why need action, impact, and next status */}
                 <div className="space-y-1 text-xs text-muted-foreground">
                     <p className="line-clamp-2">
                         <span className="font-medium text-foreground">Instruksi: </span>
@@ -105,17 +84,16 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                         <span className="font-medium text-foreground">Dampak: </span>
                         {getItemImpact(item)}
                     </p>
-                    <p className="text-xs text-muted-foreground">{getItemNextStatus(item)}</p>
+                    <p>{getItemNextStatus(item)}</p>
                 </div>
 
-                {/* Centered Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2">
                     {item.actions.view && item.detail_url ? (
                         <Link
                             href={item.detail_url}
-                            className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                            className="inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
-                            Lihat Detail
+                            Lihat detail
                         </Link>
                     ) : (
                         <span />
@@ -126,12 +104,11 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                             <Button
                                 type="button"
                                 size="sm"
-                                className="min-h-11"
-                                variant="default"
+                                variant="primary"
+                                leftIcon={<Play className="h-3.5 w-3.5" aria-hidden="true" />}
                                 onClick={() => onActionConfirm(item, 'start')}
                             >
-                                <Play className="mr-1.5 h-3.5 w-3.5" />
-                                Mulai Kerja
+                                Mulai kerja
                             </Button>
                         )}
 
@@ -139,11 +116,12 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                             <Button
                                 type="button"
                                 size="sm"
-                                className="min-h-11"
-                                variant="default"
+                                variant="primary"
+                                leftIcon={
+                                    <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+                                }
                                 onClick={() => onResolve(item)}
                             >
-                                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
                                 Selesaikan
                             </Button>
                         )}
@@ -152,12 +130,11 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                             <Button
                                 type="button"
                                 size="sm"
-                                className="min-h-11"
-                                variant="default"
+                                variant="primary"
+                                leftIcon={<Send className="h-3.5 w-3.5" aria-hidden="true" />}
                                 onClick={() => onActionConfirm(item, 'submit')}
                             >
-                                <Send className="mr-1.5 h-3.5 w-3.5" />
-                                Ajukan Review
+                                Ajukan review
                             </Button>
                         )}
 
@@ -165,12 +142,11 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                             <Button
                                 type="button"
                                 size="sm"
-                                className="min-h-11"
                                 variant="outline"
+                                leftIcon={<XCircle className="h-3.5 w-3.5" aria-hidden="true" />}
                                 onClick={() => onActionConfirm(item, 'close')}
                             >
-                                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                                Tutup Tiket
+                                Tutup tiket
                             </Button>
                         )}
                     </div>

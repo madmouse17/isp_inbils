@@ -4,7 +4,9 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, Modal, Textarea } from '@/Components/ui';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
+import { useCompany } from '@/hooks/useCompany';
 import { useServerTable } from '@/hooks/useServerTable';
+import { formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 interface SubRef {
@@ -33,15 +35,6 @@ interface Filters {
     per_page: number;
 }
 
-const idr = (n: number) =>
-    n > 0
-        ? new Intl.NumberFormat('id-ID', {
-              style: 'currency',
-              currency: 'IDR',
-              maximumFractionDigits: 0,
-          }).format(n)
-        : '-';
-
 export default function Receivables({
     rows,
     totals,
@@ -53,6 +46,7 @@ export default function Receivables({
     filters: Filters;
     can: { suspend: boolean; block: boolean };
 }) {
+    const company = useCompany();
     const [suspending, setSuspending] = useState<SubRef | null>(null);
     const [blocking, setBlocking] = useState<SubRef | null>(null);
     const [reason, setReason] = useState('');
@@ -66,6 +60,9 @@ export default function Receivables({
         },
         only: ['rows', 'totals', 'filters'],
     });
+
+    // A zero bucket is a dash, so the aging columns show only where money is owed.
+    const rupiah = (n: number) => (n > 0 ? formatRupiah(n, company) : '-');
 
     const closeSuspend = () => {
         setSuspending(null);
@@ -101,60 +98,62 @@ export default function Receivables({
             cell: (row) => (
                 <>
                     <Link
-                        className="text-brand-600 hover:underline"
+                        className="text-primary hover:underline"
                         href={route('admin.invoices.index', { customer_id: row.customer_id })}
                     >
                         {row.customer}
                     </Link>
-                    <span className="ml-1 text-surface-400">({row.invoice_count} invoice)</span>
+                    <span className="ml-1 text-muted-foreground">
+                        ({row.invoice_count} tagihan)
+                    </span>
                 </>
             ),
         },
         {
             key: 'current',
-            header: 'Belum Jatuh Tempo',
+            header: 'Belum jatuh tempo',
             sortable: true,
             className: 'text-right',
-            cell: (row) => idr(row.current),
+            cell: (row) => rupiah(row.current),
         },
         {
             key: 'b1_30',
-            header: '1–30 hari',
+            header: '1-30 hari',
             sortable: true,
             className: 'text-right',
-            cell: (row) => idr(row.b1_30),
+            cell: (row) => rupiah(row.b1_30),
         },
         {
             key: 'b31_60',
-            header: '31–60 hari',
+            header: '31-60 hari',
             sortable: true,
             className: 'text-right',
-            cell: (row) => idr(row.b31_60),
+            cell: (row) => rupiah(row.b31_60),
         },
         {
             key: 'b61_90',
-            header: '61–90 hari',
+            header: '61-90 hari',
             sortable: true,
             className: 'text-right',
-            cell: (row) => idr(row.b61_90),
+            cell: (row) => rupiah(row.b61_90),
         },
         {
             key: 'b90_plus',
             header: '>90 hari',
             sortable: true,
-            className: 'text-right font-semibold text-red-600',
-            cell: (row) => idr(row.b90_plus),
+            className: 'text-right font-semibold text-destructive-text',
+            cell: (row) => rupiah(row.b90_plus),
         },
         {
             key: 'total',
             header: 'Total',
             sortable: true,
             className: 'text-right font-semibold',
-            cell: (row) => idr(row.total),
+            cell: (row) => rupiah(row.total),
         },
         {
             key: 'actions',
-            header: 'Tindakan',
+            header: 'Aksi',
             cell: (row) => (
                 <div className="flex flex-wrap justify-end gap-2">
                     {row.subscriptions.map((subscription) => (
@@ -180,7 +179,7 @@ export default function Receivables({
                                     size="sm"
                                     onClick={() => setBlocking(subscription)}
                                 >
-                                    {subscription.blocked_at ? 'Unblock' : 'Block'}{' '}
+                                    {subscription.blocked_at ? 'Buka blokir' : 'Blokir'}{' '}
                                     {subscription.code}
                                 </Button>
                             )}
@@ -204,16 +203,18 @@ export default function Receivables({
                 >
                     {[
                         ['Belum jatuh tempo', totals.current],
-                        ['1–30 hari', totals.b1_30],
-                        ['31–60 hari', totals.b31_60],
-                        ['61–90 hari', totals.b61_90],
+                        ['1-30 hari', totals.b1_30],
+                        ['31-60 hari', totals.b31_60],
+                        ['61-90 hari', totals.b61_90],
                         ['>90 hari', totals.b90_plus],
                         ['Total piutang', totals.total],
                     ].map(([label, value]) => (
                         <Card key={label}>
                             <CardContent className="pt-4">
                                 <p className="text-sm text-muted-foreground">{label}</p>
-                                <p className="mt-1 font-semibold">{idr(Number(value))}</p>
+                                <p className="mt-1 font-semibold">
+                                    {formatRupiah(Number(value), company)}
+                                </p>
                             </CardContent>
                         </Card>
                     ))}
@@ -222,17 +223,18 @@ export default function Receivables({
                     <CardContent className="pt-6">
                         <DataTable
                             columns={columns}
-                            rows={pagination.data ?? []}
+                            data={pagination.data ?? []}
                             pagination={pagination}
                             rowKey="customer_id"
-                            sort={filters.sort_by}
-                            direction={filters.sort_dir}
+                            sortBy={filters.sort_by}
+                            sortDir={filters.sort_dir}
                             onSort={onSort}
                             onPageChange={onPageChange}
                             onPerPageChange={onPerPageChange}
                             loading={table.processing}
+                            itemLabel="pelanggan"
                             emptyTitle="Tidak ada tunggakan"
-                            emptyDescription="Invoice yang belum lunas di perusahaan ini akan muncul di sini."
+                            emptyDescription="Tagihan yang belum lunas di perusahaan ini akan muncul di sini."
                         />
                     </CardContent>
                 </Card>
@@ -240,7 +242,7 @@ export default function Receivables({
                 <Modal
                     open={suspending !== null}
                     onClose={closeSuspend}
-                    title={suspending ? `Isolir subscription ${suspending.code}?` : undefined}
+                    title={suspending ? `Isolir langganan ${suspending.code}?` : undefined}
                 >
                     <div className="space-y-4">
                         <label htmlFor="suspend-reason" className="block text-sm font-medium">

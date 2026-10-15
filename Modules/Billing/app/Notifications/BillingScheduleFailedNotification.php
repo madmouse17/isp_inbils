@@ -26,12 +26,12 @@ class BillingScheduleFailedNotification extends Notification implements ShouldQu
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage())
-            ->subject('Billing schedule failed: '.$this->command)
-            ->line('A billing scheduled command failed.')
-            ->line('Command: '.$this->command)
-            ->line('Company ID: '.($this->companyId ?? 'n/a'))
-            ->line('Job/Request ID: '.($this->jobId ?? 'n/a'))
-            ->line('Check application logs for details. No stack trace included.');
+            ->subject('Jadwal penagihan gagal: '.$this->command)
+            ->line('Perintah terjadwal penagihan gagal dijalankan.')
+            ->line('Perintah: '.$this->command)
+            ->line('ID perusahaan: '.($this->companyId ?? '-'))
+            ->line('ID job/permintaan: '.($this->jobId ?? '-'))
+            ->line('Periksa log aplikasi untuk detailnya. Stack trace tidak disertakan.');
     }
 
     /** @return array<string, mixed> */

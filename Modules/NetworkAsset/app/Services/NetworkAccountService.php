@@ -51,7 +51,7 @@ class NetworkAccountService
         $account = DB::transaction(function () use ($subscription, $data, $typed, $generated): NetworkAccount {
             $username = self::guard($subscription, $data['username']);
 
-            abort_if(NetworkAccount::query()->where('subscription_id', $subscription->id)->exists(), 422, 'This subscription already has a network account.');
+            abort_if(NetworkAccount::query()->where('subscription_id', $subscription->id)->exists(), 422, 'Langganan ini sudah punya akun jaringan.');
 
             $account = NetworkAccount::query()->create([
                 'subscription_id' => $subscription->id,
@@ -150,14 +150,14 @@ class NetworkAccountService
     private static function guard(ServiceSubscription $subscription, string $localPart, ?int $accountId = null): string
     {
         abort_unless((int) $subscription->company_id === CompanyService::currentId(), 404);
-        abort_if($subscription->status === 'terminated', 422, 'A terminated subscription cannot have a network account.');
-        abort_if(blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name')), 422, 'The speed profile of this package has no RADIUS profile name.');
-        abort_if(Realm::forCompany((int) $subscription->company_id) === null, 422, 'The company code cannot be used as a RADIUS realm.');
-        abort_unless(preg_match(self::LOCAL_PART_PATTERN, $localPart) === 1, 422, 'Use 3 to 40 lower-case letters, digits, dots, dashes or underscores.');
+        abort_if($subscription->status === 'terminated', 422, 'Langganan yang sudah berhenti tidak dapat punya akun jaringan.');
+        abort_if(blank($subscription->servicePackage?->speedProfile?->getAttribute('radius_profile_name')), 422, 'Profil kecepatan paket ini belum punya nama profil RADIUS.');
+        abort_if(Realm::forCompany((int) $subscription->company_id) === null, 422, 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS.');
+        abort_unless(preg_match(self::LOCAL_PART_PATTERN, $localPart) === 1, 422, 'Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.');
 
         $username = self::fullUsername($localPart, (int) $subscription->company_id);
 
-        abort_if(self::usernameTaken($username, $accountId), 422, 'This username is not available.');
+        abort_if(self::usernameTaken($username, $accountId), 422, 'Nama pengguna ini tidak tersedia.');
 
         return $username;
     }

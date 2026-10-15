@@ -44,14 +44,14 @@ class IpAssignmentService
             $locked = ServiceSubscription::query()->lockForUpdate()->findOrFail($subscription->id);
 
             if ($locked->status === 'terminated') {
-                throw ValidationException::withMessages(['subscription' => "Subscription {$locked->code} is terminated and cannot hold an address."]);
+                throw ValidationException::withMessages(['subscription' => "Langganan {$locked->code} sudah berhenti dan tidak dapat memakai alamat."]);
             }
 
             // The pool row is the mutex of automatic allocation: concurrent assignments queue here.
             $pool = IpPrefix::query()->lockForUpdate()->findOrFail($pool->id);
 
             if ($pool->usage !== 'customer_static') {
-                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} is not a static customer pool."]);
+                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} bukan pool statis pelanggan."]);
             }
 
             // The subscription row is locked, so its addresses cannot change meanwhile: a plain read is enough
@@ -62,7 +62,7 @@ class IpAssignmentService
                 ->first();
 
             if ($held !== null) {
-                throw ValidationException::withMessages(['ip_prefix_id' => "Subscription {$locked->code} already holds the IPv{$pool->family} address {$held->address}. Release it first."]);
+                throw ValidationException::withMessages(['ip_prefix_id' => "Langganan {$locked->code} sudah memakai alamat IPv{$pool->family} {$held->address}. Lepas dulu."]);
             }
 
             $row = $address === null
@@ -108,7 +108,7 @@ class IpAssignmentService
             $row = IpAddress::query()->lockForUpdate()->findOrFail($address->id);
 
             if ($row->network_asset_id !== null) {
-                throw ValidationException::withMessages(['address' => "{$row->address} belongs to a network asset. Change it on the asset instead."]);
+                throw ValidationException::withMessages(['address' => "{$row->address} milik sebuah aset jaringan. Ubah lewat aset tersebut."]);
             }
 
             self::deleteRow($row, 'released');
@@ -158,7 +158,7 @@ class IpAssignmentService
                     continue;
                 }
 
-                $parsed = IpNotation::address($value) ?? throw ValidationException::withMessages([$field => 'Enter a valid IP address.']);
+                $parsed = IpNotation::address($value) ?? throw ValidationException::withMessages([$field => 'Masukkan alamat IP yang valid.']);
                 $wanted[$parsed->comparable] ??= ['field' => $field, 'parsed' => $parsed];
             }
 
@@ -228,6 +228,20 @@ class IpAssignmentService
         return 'reserved'.($row->note !== null && $row->note !== '' ? " ({$row->note})" : '');
     }
 
+    /** The same holder in Indonesian, for the message a person reads: "dipakai langganan SUB-1", "dipakai aset AST-2" or "dicadangkan (gateway)". */
+    private static function holderPhrase(IpAddress $row): string
+    {
+        if ($row->subscription_id !== null) {
+            return 'dipakai langganan '.ServiceSubscription::query()->withTrashed()->whereKey($row->subscription_id)->value('code');
+        }
+
+        if ($row->network_asset_id !== null) {
+            return 'dipakai aset '.NetworkAsset::query()->withTrashed()->whereKey($row->network_asset_id)->value('code');
+        }
+
+        return 'dicadangkan'.($row->note !== null && $row->note !== '' ? " ({$row->note})" : '');
+    }
+
     /** @return Collection<int, IpAddress> the subscription's addresses, IPv4 first, with their prefix */
     public static function forSubscription(ServiceSubscription $subscription): Collection
     {
@@ -260,7 +274,7 @@ class IpAssignmentService
         $containing = self::containingPrefix($parsed);
 
         if ($containing !== null && $containing->usage !== 'customer_static') {
-            throw ValidationException::withMessages(['address' => "{$parsed->address} belongs to {$containing->cidr} ({$containing->usage}), not a static customer pool."]);
+            throw ValidationException::withMessages(['address' => "{$parsed->address} berada di {$containing->cidr}, yang bukan pool statis pelanggan."]);
         }
 
         self::assertFree($parsed);
@@ -275,11 +289,11 @@ class IpAssignmentService
     private static function allocateLowestFree(IpPrefix $pool, ServiceSubscription $subscription): IpAddress
     {
         if ($pool->family !== 4) {
-            throw ValidationException::withMessages(['address' => 'Automatic allocation works for IPv4 pools only. Type the address.']);
+            throw ValidationException::withMessages(['address' => 'Alokasi otomatis hanya untuk pool IPv4. Ketik alamatnya.']);
         }
 
         if ($pool->prefix_length < self::AUTO_MIN_PREFIX_LENGTH) {
-            throw ValidationException::withMessages(['address' => "{$pool->cidr} is larger than a /".self::AUTO_MIN_PREFIX_LENGTH.'. Type the address.']);
+            throw ValidationException::withMessages(['address' => "{$pool->cidr} lebih besar dari /".self::AUTO_MIN_PREFIX_LENGTH.'. Ketik alamatnya.']);
         }
 
         $low = IpNotation::ipv4ToInt($pool->range_from);
@@ -314,7 +328,7 @@ class IpAssignmentService
             }
 
             if ($candidate === null) {
-                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} has no free address."]);
+                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} tidak punya alamat kosong."]);
             }
 
             $parsed = IpNotation::address(IpNotation::ipv4FromInt($candidate)) ?? throw new LogicException('Allocated an unparseable IPv4 address.');
@@ -327,7 +341,7 @@ class IpAssignmentService
             }
         }
 
-        throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} is busy. Try again."]);
+        throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} sedang sibuk. Coba lagi."]);
     }
 
     private static function claimForAsset(NetworkAsset $asset, ParsedAddress $parsed, string $field): void
@@ -345,16 +359,16 @@ class IpAssignmentService
 
     private static function parseInside(IpPrefix $prefix, string $input): ParsedAddress
     {
-        $parsed = IpNotation::address($input) ?? throw ValidationException::withMessages(['address' => 'Enter a valid IPv4 or IPv6 address.']);
+        $parsed = IpNotation::address($input) ?? throw ValidationException::withMessages(['address' => 'Masukkan alamat IPv4 atau IPv6 yang valid.']);
 
         if ($parsed->family !== $prefix->family || ! IpNotation::between($parsed->comparable, $prefix->range_from, $prefix->range_to)) {
-            throw ValidationException::withMessages(['address' => "{$parsed->address} is outside {$prefix->cidr}."]);
+            throw ValidationException::withMessages(['address' => "{$parsed->address} berada di luar {$prefix->cidr}."]);
         }
 
         // IPv4 blocks up to /30 keep their first and last address for the network and broadcast.
         if ($prefix->family === 4 && $prefix->prefix_length <= 30
             && ($parsed->comparable === $prefix->range_from || $parsed->comparable === $prefix->range_to)) {
-            throw ValidationException::withMessages(['address' => "{$parsed->address} is the network or broadcast address of {$prefix->cidr}."]);
+            throw ValidationException::withMessages(['address' => "{$parsed->address} adalah alamat jaringan atau broadcast dari {$prefix->cidr}."]);
         }
 
         return $parsed;
@@ -374,8 +388,8 @@ class IpAssignmentService
 
         return ValidationException::withMessages([
             $field => $holder === null
-                ? "{$parsed->address} was just taken. Try again."
-                : "{$parsed->address} is already ".self::describeHolder($holder).'.',
+                ? "{$parsed->address} baru saja diambil. Coba lagi."
+                : "{$parsed->address} sudah ".self::holderPhrase($holder).'.',
         ]);
     }
 

@@ -16,6 +16,6 @@ class OdnPortController extends Controller
 
         OdnService::deletePort($port);
 
-        return back()->with('success', 'PON port deleted.');
+        return back()->with('success', 'Port PON dihapus.');
     }
 }

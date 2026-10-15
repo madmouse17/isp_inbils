@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -13,6 +13,7 @@ import {
     Switch,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { BANDWIDTH_TYPE, optionsOf } from '@/lib/statuses';
 
 interface BwData {
     id: number;
@@ -20,7 +21,8 @@ interface BwData {
     download_mbps: number;
     upload_mbps: number;
     type: string;
-    contention_ratio: number;
+    /** Empty for a dedicated profile. */
+    contention_ratio: number | null;
     is_active: boolean;
 }
 
@@ -35,7 +37,7 @@ export default function Edit({ bandwidthProfile }: EditProps) {
         download_mbps: String(b.download_mbps),
         upload_mbps: String(b.upload_mbps),
         type: b.type,
-        contention_ratio: String(b.contention_ratio),
+        contention_ratio: b.contention_ratio === null ? '' : String(b.contention_ratio),
         is_active: b.is_active,
     });
 
@@ -45,11 +47,11 @@ export default function Edit({ bandwidthProfile }: EditProps) {
     };
 
     return (
-        <AdminLayout title="Edit Bandwidth Profile">
+        <AdminLayout title="Ubah Profil Bandwidth">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit Bandwidth Profile"
-                    subtitle="Fill required fields, then save."
+                    title="Ubah Profil Bandwidth"
+                    subtitle="Ubah data profil, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -57,33 +59,32 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.bandwidth-profiles.index')}>Back</Link>
+                            <Link href={route('admin.bandwidth-profiles.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data profil</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <NativeSelect
-                                label="Type"
+                                label="Tipe"
                                 value={data.type}
                                 onChange={(e) => setData('type', e.target.value)}
-                            >
-                                <option value="shared">Shared</option>
-                                <option value="dedicated">Dedicated</option>
-                            </NativeSelect>
+                                error={errors.type}
+                                options={optionsOf(BANDWIDTH_TYPE)}
+                            />
                             <Input
-                                label="Download (Mbps)"
+                                label="Unduh (Mbps)"
                                 type="number"
                                 value={data.download_mbps}
                                 onChange={(e) => setData('download_mbps', e.target.value)}
@@ -91,7 +92,7 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                                 required
                             />
                             <Input
-                                label="Upload (Mbps)"
+                                label="Unggah (Mbps)"
                                 type="number"
                                 value={data.upload_mbps}
                                 onChange={(e) => setData('upload_mbps', e.target.value)}
@@ -99,16 +100,22 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                                 required
                             />
                             <Input
-                                label="Contention Ratio"
+                                label="Rasio kontensi"
                                 type="number"
                                 value={data.contention_ratio}
                                 onChange={(e) => setData('contention_ratio', e.target.value)}
                                 error={errors.contention_ratio}
-                                required
+                                hint={
+                                    data.type === 'shared'
+                                        ? undefined
+                                        : 'Tidak dipakai untuk profil dedikasi.'
+                                }
+                                disabled={data.type !== 'shared'}
+                                required={data.type === 'shared'}
                             />
                             <div className="flex items-end">
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
@@ -116,15 +123,11 @@ export default function Edit({ bandwidthProfile }: EditProps) {
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.bandwidth-profiles.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.bandwidth-profiles.index')}>Batal</Link>
                         </Button>
-                        <Button type="submit" loading={processing}>
-                            Save
+                        <Button type="submit" variant="primary" loading={processing}>
+                            Simpan
                         </Button>
                     </div>
                 </form>

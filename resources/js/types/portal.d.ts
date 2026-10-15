@@ -1,6 +1,7 @@
 /** Online payment attempt contracts, mirroring PaymentAttemptResource. */
+import type { PAYMENT_ATTEMPT_STATUS } from '@/lib/statuses';
 
-export type PaymentAttemptStatus = 'pending' | 'paid' | 'failed' | 'expired' | 'exception';
+export type PaymentAttemptStatus = keyof typeof PAYMENT_ATTEMPT_STATUS;
 
 /** The customer's view of an attempt: never the token, the page URL or the internal reason. */
 export interface PortalPaymentAttempt {

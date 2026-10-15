@@ -19,7 +19,7 @@ class IsEligibleCustomerAcquirer implements ValidationRule
         $companyId = CompanyService::currentId();
 
         if ($companyId === null || ! CustomerAcquirerQuery::isId($value) || ! CustomerAcquirerQuery::isEligible($companyId, (int) $value)) {
-            $fail('Select an active employee who can create customers.');
+            $fail('Pilih karyawan aktif yang berhak membuat pelanggan.');
         }
     }
 }

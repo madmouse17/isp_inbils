@@ -1,18 +1,16 @@
-export type NetworkAssetStatus = 'available' | 'installed' | 'maintenance' | 'damaged' | 'retired';
-export type NetworkAssetType =
-    | 'router'
-    | 'switch'
-    | 'olt'
-    | 'onu_ont'
-    | 'radio'
-    | 'antenna'
-    | 'fiber'
-    | 'odp'
-    | 'odc'
-    | 'rack'
-    | 'power'
-    | 'other';
-export type NetworkAssetOwnership = 'owned' | 'leased' | 'customer_provided';
+import type {
+    NETWORK_ASSET_OWNERSHIP,
+    NETWORK_ASSET_STATUS,
+    NETWORK_ASSET_TYPE,
+    NETWORK_DESIRED_STATE,
+    NETWORK_SERVICE_TYPE,
+    NETWORK_SYNC_STATUS,
+} from '@/lib/statuses/network';
+
+/* The value sets come from the status maps (`lib/statuses/network.ts`), so a new value is added in one place. */
+export type NetworkAssetStatus = keyof typeof NETWORK_ASSET_STATUS;
+export type NetworkAssetType = keyof typeof NETWORK_ASSET_TYPE;
+export type NetworkAssetOwnership = keyof typeof NETWORK_ASSET_OWNERSHIP;
 
 export interface NetworkAssetInstallation {
     id: number;
@@ -58,9 +56,9 @@ export interface NetworkAsset {
 /* RADIUS NAS clients and network accounts. Shapes follow the props contract in
  * .scratch/freeradius/spec.md. No type here can hold a RADIUS shared secret or a subscriber secret. */
 
-export type NetworkServiceType = 'pppoe' | 'hotspot';
-export type NetworkSyncStatus = 'pending' | 'synced' | 'failed';
-export type NetworkDesiredState = 'absent' | 'enabled' | 'isolated';
+export type NetworkServiceType = keyof typeof NETWORK_SERVICE_TYPE;
+export type NetworkSyncStatus = keyof typeof NETWORK_SYNC_STATUS;
+export type NetworkDesiredState = keyof typeof NETWORK_DESIRED_STATE;
 
 export interface NasDevice {
     id: number;
@@ -109,6 +107,7 @@ export interface NetworkAccount {
     disconnect_pending: boolean;
 }
 
+/** The router asset a NAS router is registered on (Edit shows it; Create searches `routerAssetOptions`). */
 export interface RouterAssetOption {
     id: number;
     code: string;

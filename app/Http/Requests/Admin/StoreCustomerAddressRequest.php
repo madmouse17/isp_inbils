@@ -47,7 +47,7 @@ class StoreCustomerAddressRequest extends FormRequest
 
             if ($codes->every(fn (mixed $code): bool => is_string($code))
                 && ! IndonesiaRegionService::hierarchyExists(...$codes->all())) {
-                $validator->errors()->add('village_code', 'The selected region hierarchy is invalid.');
+                $validator->errors()->add('village_code', 'Provinsi, kota/kabupaten, kecamatan, dan kelurahan/desa tidak saling cocok.');
             }
         }];
     }

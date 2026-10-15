@@ -142,14 +142,14 @@ export default function Edit({
     };
 
     return (
-        <AdminLayout title="Edit Customer">
+        <AdminLayout title="Ubah Pelanggan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit Customer"
+                    title="Ubah Pelanggan"
                     subtitle={
                         readOnly
-                            ? 'Read-only view. You do not have permission to update this customer.'
-                            : 'Update customer data, addresses, and contacts.'
+                            ? 'Tampilan baca saja. Anda tidak punya izin untuk mengubah pelanggan ini.'
+                            : 'Ubah data pelanggan, alamat, dan kontaknya.'
                     }
                     actions={
                         <Button
@@ -158,17 +158,19 @@ export default function Edit({
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.customers.show', customer.data.id)}>Back</Link>
+                            <Link href={route('admin.customers.show', customer.data.id)}>
+                                Kembali
+                            </Link>
                         </Button>
                     }
                 />
                 <Card>
                     <CardContent className="pt-6">
                         <Tabs value={tab} onValueChange={setTab}>
-                            <TabList className="overflow-x-auto" aria-label="Customer sections">
-                                <Tab value="customer">Customer Data</Tab>
-                                <Tab value="addresses">Addresses ({addresses.length})</Tab>
-                                <Tab value="contacts">Contacts ({contacts.length})</Tab>
+                            <TabList className="overflow-x-auto" aria-label="Bagian pelanggan">
+                                <Tab value="customer">Data pelanggan</Tab>
+                                <Tab value="addresses">Alamat ({addresses.length})</Tab>
+                                <Tab value="contacts">Kontak ({contacts.length})</Tab>
                             </TabList>
 
                             <TabPanel value="customer">
@@ -241,7 +243,7 @@ export default function Edit({
                                             onClick={cancel}
                                             disabled={processing}
                                         >
-                                            {readOnly ? 'Back' : 'Cancel'}
+                                            {readOnly ? 'Kembali' : 'Batal'}
                                         </Button>
                                         {!readOnly ? (
                                             <Button
@@ -249,7 +251,7 @@ export default function Edit({
                                                 loading={processing}
                                                 disabled={processing}
                                             >
-                                                Save Customer
+                                                Simpan pelanggan
                                             </Button>
                                         ) : null}
                                     </div>

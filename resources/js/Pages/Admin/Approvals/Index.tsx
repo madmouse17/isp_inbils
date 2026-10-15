@@ -1,31 +1,32 @@
 import { useState, type FormEvent } from 'react';
-import { router } from '@inertiajs/react';
+import { Link, router } from '@inertiajs/react';
 import { PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ForbiddenState, LoadingState, ResourceEmpty } from '@/Components/composite/ResourceState';
-import { Badge, Button, Card, CardContent } from '@/Components/ui';
+import { Badge, Button, Card, CardContent, EnumBadge } from '@/Components/ui';
 import { Pagination } from '@/Components/ui/Pagination';
 import { Tabs, TabList, Tab } from '@/Components/ui/Tabs';
 import AdminLayout from '@/Layouts/AdminLayout';
+import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import { useServerTable, type ServerTableFilters } from '@/hooks/useServerTable';
 import { useToast } from '@/hooks/useToast';
+import { formatDate } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
+import {
+    APPROVAL_TYPE,
+    labelOf,
+    PRIORITY,
+    WORK_ITEM_DOMAIN,
+    WORK_ITEM_STATUS,
+} from '@/lib/statuses';
 import type { ApprovalInboxItem, ApprovalInboxSummary, PaginationMeta } from '@/types';
+import { SummaryChips } from '../MyWork/components/SummaryChips';
+import { formatAge } from '../MyWork/components/utils';
 import { FilterBar } from './components/FilterBar';
 import { MobileItemCard } from './components/MobileItemCard';
 import { ReviewSheet, type RefreshQueueResult } from './components/ReviewSheet';
-import { SummaryCards } from './components/SummaryCards';
-import {
-    formatAge,
-    getDomainLabel,
-    getDomainVariant,
-    getItemCompositeId,
-    getPriorityLabel,
-    getPriorityVariant,
-    getStatusLabel,
-    getStatusVariant,
-} from './components/utils';
+import { getItemCompositeId } from './components/utils';
 
 export type { ApprovalInboxItem };
 
@@ -143,6 +144,7 @@ export default function ApprovalInboxIndex({
     requesters,
 }: ApprovalInboxProps) {
     useToast();
+    const company = useCompany();
     const { canAny } = usePermission();
     const canSpk = canAny(['spk.approve', 'spk.reject']);
     const canInventory = canAny(['inventory.request.approve', 'inventory.request.reject']);
@@ -164,13 +166,13 @@ export default function ApprovalInboxIndex({
                 <div className="space-y-6">
                     <PageHeader
                         title="Persetujuan"
-                        subtitle="Antrean peninjauan dan persetujuan yang membutuhkan tindakan Anda"
+                        subtitle="Antrean SPK dan permintaan barang yang menunggu persetujuan Anda."
                     />
                     <ForbiddenState
-                        title="Akses Ditolak"
-                        description="Anda tidak memiliki izin untuk melihat atau memproses antrean persetujuan (SPK atau Permintaan Barang)."
+                        title="Akses ditolak"
+                        description="Anda tidak punya izin untuk melihat atau memproses antrean persetujuan SPK atau permintaan barang."
                         backHref="/admin/dashboard"
-                        backLabel="Kembali ke Dashboard"
+                        backLabel="Kembali ke Dasbor"
                     />
                 </div>
             </AdminLayout>
@@ -220,60 +222,49 @@ export default function ApprovalInboxIndex({
             cell: (row) => (
                 <div className="space-y-1">
                     {row.actions?.view && row.detail_url ? (
-                        <a
+                        <Link
                             href={row.detail_url}
                             className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.code}
-                        </a>
+                        </Link>
                     ) : (
                         <span className="font-semibold text-foreground">{row.code}</span>
                     )}
                     <div>
-                        <Badge
-                            variant={getDomainVariant(row.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getDomainLabel(row.domain)}
-                        </Badge>
+                        <EnumBadge map={WORK_ITEM_DOMAIN} value={row.domain} />
                     </div>
                 </div>
             ),
         },
         {
             key: 'title',
-            header: 'Judul / Alasan',
+            header: 'Judul dan dampak',
             sortable: true,
             sortKey: 'title',
             cell: (row) => (
-                <span className="line-clamp-2 text-sm font-medium text-foreground">
-                    {row.title}
-                </span>
+                <div className="space-y-0.5 max-w-xs">
+                    <span className="line-clamp-2 text-sm font-medium text-foreground">
+                        {row.title}
+                    </span>
+                    <p className="text-xs text-muted-foreground">
+                        {labelOf(APPROVAL_TYPE, row.type)}
+                        {' | '}
+                        {row.summary.label}: {row.summary.count} jenis, {row.summary.quantity} unit
+                    </p>
+                </div>
             ),
-        },
-        {
-            key: 'type',
-            header: 'Tipe',
-            sortable: true,
-            sortKey: 'type',
-            cell: (row) => <Badge variant="outline">{row.type}</Badge>,
         },
         {
             key: 'status',
-            header: 'Status',
-            cell: (row) => (
-                <Badge variant={getStatusVariant(row.status)}>{getStatusLabel(row.status)}</Badge>
-            ),
-        },
-        {
-            key: 'priority',
-            header: 'Prioritas',
+            header: 'Status dan prioritas',
             sortable: true,
             sortKey: 'priority',
             cell: (row) => (
-                <Badge variant={getPriorityVariant(row.priority)}>
-                    {getPriorityLabel(row.priority)}
-                </Badge>
+                <div className="flex flex-col items-start gap-1">
+                    <EnumBadge map={WORK_ITEM_STATUS} value={row.status} />
+                    <EnumBadge map={PRIORITY} value={row.priority} />
+                </div>
             ),
         },
         {
@@ -281,25 +272,13 @@ export default function ApprovalInboxIndex({
             header: 'Pemohon',
             cell: (row) => (
                 <span className="text-sm font-medium text-foreground">
-                    {row.requester?.name ?? `#${row.requester?.id ?? '-'}`}
+                    {row.requester?.name ?? '-'}
                 </span>
             ),
         },
         {
-            key: 'summary',
-            header: 'Dampak Material',
-            cell: (row) => (
-                <div className="space-y-0.5 text-xs">
-                    <p className="line-clamp-1 font-medium text-foreground">{row.summary.label}</p>
-                    <p className="text-muted-foreground">
-                        {row.summary.count} jenis barang &middot; {row.summary.quantity} unit total
-                    </p>
-                </div>
-            ),
-        },
-        {
             key: 'submitted_at',
-            header: 'Waktu & Jadwal',
+            header: 'Waktu dan jadwal',
             sortable: true,
             sortKey: 'created_at',
             cell: (row) => (
@@ -307,9 +286,7 @@ export default function ApprovalInboxIndex({
                     <div>
                         <span className="text-muted-foreground">Diajukan: </span>
                         <span className="font-medium text-foreground">
-                            {row.submitted_at
-                                ? new Date(row.submitted_at).toLocaleDateString('id-ID')
-                                : '-'}
+                            {formatDate(row.submitted_at, company)}
                         </span>
                         <span className="text-muted-foreground">
                             {' '}
@@ -321,7 +298,7 @@ export default function ApprovalInboxIndex({
                             {row.domain === 'inventory_request' ? 'Dibutuhkan: ' : 'Jadwal: '}
                         </span>
                         <span className="font-medium text-foreground">
-                            {row.scheduled_date || '-'}
+                            {formatDate(row.scheduled_date, company)}
                         </span>
                     </div>
                 </div>
@@ -329,60 +306,53 @@ export default function ApprovalInboxIndex({
         },
         {
             key: 'actions',
-            header: 'Aksi',
-            cell: (row) => (
-                <div className="flex items-center gap-2">
-                    {row.actions.approve || row.actions.reject ? (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleOpenReview(row)}
-                        >
-                            Tinjau
-                        </Button>
-                    ) : (
-                        <span className="rounded border border-muted bg-muted/30 px-2 py-0.5 text-xs text-muted-foreground italic">
-                            Maker-checker
-                        </span>
-                    )}
-                    {row.actions?.view && row.detail_url && (
-                        <Button asChild size="sm" variant="outline">
-                            <a href={row.detail_url}>Lihat detail</a>
-                        </Button>
-                    )}
-                </div>
-            ),
+            header: 'Tindakan',
+            cell: (row) =>
+                row.actions.approve || row.actions.reject ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleOpenReview(row)}
+                    >
+                        Tinjau
+                    </Button>
+                ) : (
+                    <span className="text-xs text-muted-foreground">Perlu penyetuju lain</span>
+                ),
         },
     ];
 
     const hasItems = items.data.length > 0;
     const showDomainTabs = canSpk && canInventory;
+    const hasFilters = Boolean(params.search || params.type || params.creator || params.priority);
+    const resetFilters = () => setMany({ search: '', type: '', creator: '', priority: '' });
 
     return (
         <AdminLayout title="Persetujuan">
             <div className="space-y-6">
                 <PageHeader
                     title="Persetujuan"
-                    subtitle="Antrean peninjauan dan persetujuan yang membutuhkan tindakan Anda"
+                    subtitle="SPK dan permintaan barang yang menunggu persetujuan Anda."
                 />
 
-                {/* Summary Metrics Cards */}
-                <SummaryCards summary={summary} domain={String(params.domain ?? '')} />
+                <SummaryChips
+                    label="Ringkasan antrean persetujuan"
+                    chips={[
+                        { key: 'waiting', label: 'Menunggu saya', count: summary.waiting_for_me },
+                        { key: 'processed', label: 'Sudah diproses', count: summary.processed },
+                    ]}
+                />
 
-                {/* Domain Selector Tabs (when user has permissions for both SPK & Inventory) */}
                 {showDomainTabs && (
                     <Tabs
                         value={String(params.domain ?? '')}
                         onValueChange={handleDomainChange}
                         className="space-y-2"
                     >
-                        <TabList
-                            className="border-b border-border"
-                            aria-label="Pilihan Antrean Approval"
-                        >
+                        <TabList className="border-b border-border" aria-label="Pilihan antrean">
                             <Tab value="" className="gap-2">
-                                <span>Semua Antrean</span>
+                                <span>Semua antrean</span>
                                 {!params.domain && summary.waiting_for_me > 0 && (
                                     <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
                                         {summary.waiting_for_me}
@@ -398,7 +368,7 @@ export default function ApprovalInboxIndex({
                                 )}
                             </Tab>
                             <Tab value="inventory_request" className="gap-2">
-                                <span>Permintaan Barang</span>
+                                <span>Permintaan barang</span>
                                 {params.domain === 'inventory_request' &&
                                     summary.waiting_for_me > 0 && (
                                         <Badge
@@ -413,10 +383,8 @@ export default function ApprovalInboxIndex({
                     </Tabs>
                 )}
 
-                {/* Main Content Area: Filter and Items */}
-                <Card className="border-border bg-card shadow-xs">
+                <Card>
                     <CardContent className="space-y-4 pt-6">
-                        {/* Server-driven Filter Bar */}
                         <FilterBar
                             params={params}
                             set={set}
@@ -427,7 +395,6 @@ export default function ApprovalInboxIndex({
                             disabled={visiting}
                         />
 
-                        {/* Desktop Table View (md and above) */}
                         <div className="hidden md:block">
                             <DataTable
                                 columns={columns}
@@ -440,19 +407,21 @@ export default function ApprovalInboxIndex({
                                 loading={processing}
                                 getRowId={getItemCompositeId}
                                 rowKey="composite_id"
+                                hasFilters={hasFilters}
+                                onResetFilters={resetFilters}
+                                itemLabel="persetujuan"
                                 emptyTitle="Tidak ada persetujuan yang menunggu"
-                                emptyDescription="Semua antrean telah diproses atau tidak ada yang memerlukan peninjauan Anda saat ini."
+                                emptyDescription="Semua antrean sudah diproses. Item baru muncul di sini setelah diajukan."
                             />
                         </div>
 
-                        {/* Mobile Stacked Cards View (below md) */}
                         <div className="space-y-4 md:hidden">
                             {processing && !hasItems && <LoadingState variant="rows" rows={4} />}
 
                             {!processing && !hasItems && (
                                 <ResourceEmpty
                                     title="Tidak ada persetujuan yang menunggu"
-                                    description="Semua antrean telah diproses atau tidak ada yang memerlukan peninjauan Anda saat ini."
+                                    description="Semua antrean sudah diproses. Item baru muncul di sini setelah diajukan."
                                     className="my-4"
                                 />
                             )}
@@ -480,7 +449,6 @@ export default function ApprovalInboxIndex({
                     </CardContent>
                 </Card>
 
-                {/* Review Slide-over Sheet */}
                 <ReviewSheet
                     open={reviewOpen}
                     onOpenChange={handleOpenChange}

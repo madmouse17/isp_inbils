@@ -1,7 +1,5 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
 import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
 import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
@@ -40,66 +38,49 @@ export default function UpdatePasswordForm({ className = '' }: { className?: str
     return (
         <section className={className}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                    Update Password
-                </h2>
+                <h2 className="text-lg font-medium text-foreground">Ganti kata sandi</h2>
 
-                <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                    Ensure your account is using a long, random password to stay secure.
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Pakai kata sandi yang panjang dan acak agar akun tetap aman.
                 </p>
             </header>
 
             <form onSubmit={updatePassword} className="space-y-6 mt-6">
-                <div>
-                    <InputLabel htmlFor="current_password" value="Current Password" />
+                <Input
+                    id="current_password"
+                    ref={currentPasswordInput}
+                    label="Kata sandi saat ini"
+                    type="password"
+                    value={data.current_password}
+                    onChange={(e) => setData('current_password', e.target.value)}
+                    autoComplete="current-password"
+                    error={errors.current_password}
+                />
 
-                    <TextInput
-                        id="current_password"
-                        ref={currentPasswordInput}
-                        value={data.current_password}
-                        onChange={(e) => setData('current_password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="current-password"
-                    />
+                <Input
+                    id="password"
+                    ref={passwordInput}
+                    label="Kata sandi baru"
+                    type="password"
+                    value={data.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                    autoComplete="new-password"
+                    error={errors.password}
+                />
 
-                    <InputError message={errors.current_password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="password" value="New Password" />
-
-                    <TextInput
-                        id="password"
-                        ref={passwordInput}
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div>
-                    <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
-
-                    <TextInput
-                        id="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                    />
-
-                    <InputError message={errors.password_confirmation} className="mt-2" />
-                </div>
+                <Input
+                    id="password_confirmation"
+                    label="Ulangi kata sandi baru"
+                    type="password"
+                    value={data.password_confirmation}
+                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                    autoComplete="new-password"
+                    error={errors.password_confirmation}
+                />
 
                 <div className="flex items-center gap-4">
                     <Button type="submit" loading={processing}>
-                        Save
+                        Simpan
                     </Button>
 
                     <Transition
@@ -109,7 +90,9 @@ export default function UpdatePasswordForm({ className = '' }: { className?: str
                         leave="transition ease-in-out"
                         leaveTo="opacity-0"
                     >
-                        <p className="text-sm text-gray-600 dark:text-gray-400">Saved.</p>
+                        <p role="status" className="text-sm text-muted-foreground">
+                            Tersimpan.
+                        </p>
                     </Transition>
                 </div>
             </form>

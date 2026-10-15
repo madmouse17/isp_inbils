@@ -254,7 +254,7 @@ export function CustomerAddressEditor({
         <div className="space-y-4">
             <Card>
                 <CardHeader className="space-y-0 flex-row flex-wrap items-center justify-between">
-                    <CardTitle>Addresses</CardTitle>
+                    <CardTitle>Alamat</CardTitle>
                     {canManage ? (
                         <Button
                             type="button"
@@ -263,14 +263,16 @@ export function CustomerAddressEditor({
                             onClick={startCreate}
                             disabled={processing}
                         >
-                            Add Address
+                            Tambah alamat
                         </Button>
                     ) : null}
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {addresses.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted-foreground">
-                            No addresses yet.
+                            {canManage
+                                ? 'Belum ada alamat. Tambahkan alamat pertama lewat formulir di bawah.'
+                                : 'Belum ada alamat.'}
                         </p>
                     ) : (
                         addresses.map((row) => (
@@ -283,12 +285,12 @@ export function CustomerAddressEditor({
                                         {row.label}
                                         {row.is_primary ? (
                                             <span className="ml-2 text-xs text-muted-foreground">
-                                                (primary)
+                                                (utama)
                                             </span>
                                         ) : null}
                                         {row.is_installation_point ? (
                                             <span className="ml-2 text-xs text-muted-foreground">
-                                                (installation)
+                                                (pemasangan)
                                             </span>
                                         ) : null}
                                     </p>
@@ -312,7 +314,7 @@ export function CustomerAddressEditor({
                                             onClick={() => startEdit(row)}
                                             disabled={processing}
                                         >
-                                            Edit
+                                            Ubah
                                         </Button>
                                         <Button
                                             type="button"
@@ -321,7 +323,7 @@ export function CustomerAddressEditor({
                                             onClick={() => setDeleteTarget(row)}
                                             disabled={processing}
                                         >
-                                            Delete
+                                            Hapus
                                         </Button>
                                     </div>
                                 ) : null}
@@ -334,7 +336,7 @@ export function CustomerAddressEditor({
             {canManage ? (
                 <Card>
                     <CardHeader>
-                        <CardTitle>{editingId ? 'Edit Address' : 'Add Address'}</CardTitle>
+                        <CardTitle>{editingId ? 'Ubah Alamat' : 'Tambah Alamat'}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form
@@ -346,7 +348,7 @@ export function CustomerAddressEditor({
                                 <Input
                                     label="Label"
                                     value={data.label}
-                                    placeholder="Main / Office / Installation / Home"
+                                    placeholder="Rumah / Kantor / Pemasangan"
                                     onChange={(e) => setData('label', e.target.value)}
                                     error={errors.label}
                                     required
@@ -376,12 +378,12 @@ export function CustomerAddressEditor({
                                         className="text-sm text-muted-foreground md:col-span-2"
                                         role="status"
                                     >
-                                        Loading region options…
+                                        Memuat pilihan wilayah...
                                     </p>
                                 ) : null}
                                 <Textarea
                                     className="md:col-span-2"
-                                    label="Address"
+                                    label="Alamat"
                                     value={data.address}
                                     onChange={(e) => setData('address', e.target.value)}
                                     error={errors.address}
@@ -389,21 +391,21 @@ export function CustomerAddressEditor({
                                     rows={2}
                                 />
                                 <Input
-                                    label="Postal Code"
+                                    label="Kode pos"
                                     value={data.postal_code}
                                     onChange={(e) => setData('postal_code', e.target.value)}
                                     error={errors.postal_code}
                                 />
                                 <div className="flex flex-wrap items-end gap-4">
                                     <Switch
-                                        label="Primary address"
+                                        label="Alamat utama"
                                         checked={data.is_primary}
                                         onCheckedChange={(checked) =>
                                             setData('is_primary', checked)
                                         }
                                     />
                                     <Switch
-                                        label="Installation address"
+                                        label="Alamat pemasangan"
                                         checked={data.is_installation_point}
                                         onCheckedChange={(checked) =>
                                             setData('is_installation_point', checked)
@@ -412,7 +414,7 @@ export function CustomerAddressEditor({
                                 </div>
                                 <Textarea
                                     className="md:col-span-2"
-                                    label="Notes"
+                                    label="Catatan"
                                     value={data.notes}
                                     onChange={(e) => setData('notes', e.target.value)}
                                     error={errors.notes}
@@ -426,7 +428,7 @@ export function CustomerAddressEditor({
                                     onClick={cancelEdit}
                                     disabled={processing}
                                 >
-                                    Cancel
+                                    Batal
                                 </Button>
                                 <Button
                                     type="submit"
@@ -434,7 +436,7 @@ export function CustomerAddressEditor({
                                     loading={processing}
                                     disabled={processing}
                                 >
-                                    {editingId ? 'Save' : 'Add'}
+                                    {editingId ? 'Simpan' : 'Tambah'}
                                 </Button>
                             </div>
                         </form>
@@ -451,14 +453,14 @@ export function CustomerAddressEditor({
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            Delete address {deleteTarget?.label ? `"${deleteTarget.label}"` : ''}?
+                            Hapus alamat {deleteTarget?.label ? `"${deleteTarget.label}"` : ''}?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove this address from the customer.
+                            Alamat ini akan dihapus permanen dari pelanggan.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={deleteProcessing}>Batal</AlertDialogCancel>
                         <AlertDialogAction
                             className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
                             onClick={(event) => {
@@ -468,7 +470,7 @@ export function CustomerAddressEditor({
                             disabled={deleteProcessing}
                         >
                             {deleteProcessing ? <Spinner size="sm" /> : null}
-                            Delete
+                            Hapus
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

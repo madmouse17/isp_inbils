@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { Link, router, useForm } from '@inertiajs/react';
+import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from '@/Components/ui';
@@ -22,11 +22,11 @@ export default function Create() {
     };
 
     return (
-        <AdminLayout title="Create Speed Profile">
+        <AdminLayout title="Buat Profil Kecepatan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Speed Profile"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Profil Kecepatan"
+                    subtitle="Isi data profil, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -34,25 +34,25 @@ export default function Create() {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.speed-profiles.index')}>Back</Link>
+                            <Link href={route('admin.speed-profiles.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Data profil</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
                             <Input
-                                label="Download Max (Mbps)"
+                                label="Unduh maksimum (Mbps)"
                                 type="number"
                                 value={data.download_max_mbps}
                                 onChange={(e) => setData('download_max_mbps', e.target.value)}
@@ -60,7 +60,7 @@ export default function Create() {
                                 required
                             />
                             <Input
-                                label="Upload Max (Mbps)"
+                                label="Unggah maksimum (Mbps)"
                                 type="number"
                                 value={data.upload_max_mbps}
                                 onChange={(e) => setData('upload_max_mbps', e.target.value)}
@@ -68,28 +68,28 @@ export default function Create() {
                                 required
                             />
                             <Input
-                                label="Burst Download (Mbps)"
+                                label="Burst unduh (Mbps)"
                                 type="number"
                                 value={data.burst_download_mbps}
                                 onChange={(e) => setData('burst_download_mbps', e.target.value)}
                                 error={errors.burst_download_mbps}
                             />
                             <Input
-                                label="Burst Upload (Mbps)"
+                                label="Burst unggah (Mbps)"
                                 type="number"
                                 value={data.burst_upload_mbps}
                                 onChange={(e) => setData('burst_upload_mbps', e.target.value)}
                                 error={errors.burst_upload_mbps}
                             />
                             <Input
-                                label="RADIUS Profile Name"
+                                label="Nama profil RADIUS"
                                 value={data.radius_profile_name}
                                 onChange={(e) => setData('radius_profile_name', e.target.value)}
                                 error={errors.radius_profile_name}
                             />
                             <div className="flex items-end">
                                 <Switch
-                                    label="Active"
+                                    label="Aktif"
                                     checked={data.is_active}
                                     onCheckedChange={(c) => setData('is_active', c)}
                                 />
@@ -97,15 +97,11 @@ export default function Create() {
                         </CardContent>
                     </Card>
                     <div className="flex justify-end gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => router.get(route('admin.speed-profiles.index'))}
-                        >
-                            Cancel
+                        <Button asChild variant="outline">
+                            <Link href={route('admin.speed-profiles.index')}>Batal</Link>
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

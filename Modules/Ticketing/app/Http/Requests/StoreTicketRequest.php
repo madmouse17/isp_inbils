@@ -70,7 +70,7 @@ class StoreTicketRequest extends FormRequest
         }
 
         if ($this->input('source') === 'customer' && ! $this->input('customer_id')) {
-            $this->getValidatorInstance()->errors()->add('customer_id', 'Customer required when source is customer.');
+            $this->getValidatorInstance()->errors()->add('customer_id', 'Pelanggan wajib diisi jika sumber tiket adalah pelanggan.');
         }
     }
 
@@ -82,6 +82,14 @@ class StoreTicketRequest extends FormRequest
     private function ownCustomerId(): ?int
     {
         return $this->user()?->customer?->id;
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'source' => 'sumber',
+        ];
     }
 
     public function after(): array
@@ -100,7 +108,7 @@ class StoreTicketRequest extends FormRequest
                         ->find($subscriptionId);
 
                     if ($subscription && (int) $subscription->customer_id !== (int) $customerId) {
-                        $validator->errors()->add('subscription_id', 'Subscription does not belong to customer.');
+                        $validator->errors()->add('subscription_id', 'Langganan bukan milik pelanggan yang dipilih.');
                     }
                 }
 
@@ -110,7 +118,7 @@ class StoreTicketRequest extends FormRequest
                         ->find($networkAssetId);
 
                     if ($asset && (int) $asset->customer_id !== $this->ownCustomerId()) {
-                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to customer.');
+                        $validator->errors()->add('network_asset_id', 'Aset jaringan bukan milik pelanggan yang dipilih.');
                     }
                 }
 
@@ -120,7 +128,7 @@ class StoreTicketRequest extends FormRequest
                         ->find($networkAssetId);
 
                     if ($asset && $asset->customer_id !== null && (int) $asset->customer_id !== (int) $customerId) {
-                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to customer.');
+                        $validator->errors()->add('network_asset_id', 'Aset jaringan bukan milik pelanggan yang dipilih.');
                     }
                 }
 
@@ -133,7 +141,7 @@ class StoreTicketRequest extends FormRequest
                         ->find($networkAssetId);
 
                     if ($subscription && $asset && $asset->subscription_id !== null && (int) $asset->subscription_id !== (int) $subscription->id) {
-                        $validator->errors()->add('network_asset_id', 'Network asset does not belong to subscription.');
+                        $validator->errors()->add('network_asset_id', 'Aset jaringan bukan milik langganan yang dipilih.');
                     }
                 }
 
@@ -143,7 +151,7 @@ class StoreTicketRequest extends FormRequest
                         ->find($locationId);
 
                     if (! $location) {
-                        $validator->errors()->add('location_id', 'Selected location is invalid for this company.');
+                        $validator->errors()->add('location_id', 'Lokasi yang dipilih tidak valid untuk perusahaan ini.');
                     }
                 }
             },

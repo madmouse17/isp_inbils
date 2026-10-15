@@ -1,29 +1,19 @@
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
-import { Badge, Button, Modal, Textarea } from '@/Components/ui';
-import type {
-    NasDevice,
-    NetworkDesiredState,
-    NetworkServiceType,
-    NetworkSyncStatus,
-} from '@/types/network-asset';
-import type { BadgeVariant } from '@/Components/ui/Badge';
+import { Button, EnumBadge, Modal, Textarea } from '@/Components/ui';
+import { NAS_RADIUS_STATE, NETWORK_ISOLATED_BECAUSE } from '@/lib/statuses';
+import type { NasDevice, NetworkDesiredState } from '@/types/network-asset';
 
 /*
  * Status words shared by the NAS router pages and the network account page. The text carries the
  * state; the colour only reinforces it, so no badge relies on colour alone.
  */
 
-export const serviceTypeLabel: Record<NetworkServiceType, string> = {
-    pppoe: 'PPPoE',
-    hotspot: 'Hotspot',
-};
-
 /** What RADIUS should hold for a subscription, derived by the server. */
 export const desiredStateExplanation: Record<NetworkDesiredState, string> = {
-    enabled: 'The account is in RADIUS with the speed group of the package.',
-    isolated: 'The account is in the isolir group of the company and its session is disconnected.',
-    absent: 'The account is removed from RADIUS.',
+    enabled: 'Akun ada di RADIUS dengan grup kecepatan paketnya.',
+    isolated: 'Akun ada di grup isolir perusahaan dan sesinya diputus.',
+    absent: 'Akun dihapus dari RADIUS.',
 };
 
 /** Whether FreeRADIUS has the client row (`nas`) Inbils wrote for this router. */
@@ -32,51 +22,13 @@ export function NasStatusBadge({
 }: {
     nas: Pick<NasDevice, 'radius_synced_at' | 'last_error'>;
 }) {
-    if (nas.radius_synced_at) {
-        return <Badge variant="success">Written to RADIUS</Badge>;
-    }
+    const state = nas.radius_synced_at ? 'synced' : nas.last_error ? 'error' : 'waiting';
 
-    if (nas.last_error) {
-        return <Badge variant="danger">Not written</Badge>;
-    }
-
-    return <Badge variant="warning">Waiting to be written</Badge>;
-}
-
-const syncStatuses: Record<NetworkSyncStatus, { tone: BadgeVariant; label: string }> = {
-    pending: { tone: 'warning', label: 'Pending' },
-    synced: { tone: 'success', label: 'Synced' },
-    failed: { tone: 'danger', label: 'Failed' },
-};
-
-export function SyncStatusBadge({ status }: { status: NetworkSyncStatus }) {
-    const { tone, label } = syncStatuses[status];
-
-    return <Badge variant={tone}>{label}</Badge>;
-}
-
-const desiredStates: Record<NetworkDesiredState, { tone: BadgeVariant; label: string }> = {
-    enabled: { tone: 'success', label: 'Enabled' },
-    isolated: { tone: 'warning', label: 'Isolated' },
-    absent: { tone: 'neutral', label: 'Absent' },
-};
-
-export function DesiredStateBadge({ state }: { state: NetworkDesiredState }) {
-    const { tone, label } = desiredStates[state];
-
-    return <Badge variant={tone}>{label}</Badge>;
-}
-
-export function OnlineBadge({ online }: { online: boolean }) {
-    return online ? (
-        <Badge variant="success">Online</Badge>
-    ) : (
-        <Badge variant="neutral">Offline</Badge>
-    );
+    return <EnumBadge map={NAS_RADIUS_STATE} value={state} />;
 }
 
 export function BlockedBadge() {
-    return <Badge variant="danger">Blocked</Badge>;
+    return <EnumBadge map={NETWORK_ISOLATED_BECAUSE} value="blocked" />;
 }
 
 export interface BlockTarget {
@@ -139,7 +91,7 @@ export function SubscriptionBlockModal({
             onClose={close}
             title={
                 target
-                    ? `${unblocking ? 'Unblock' : 'Block'} internet of ${target.code}?`
+                    ? `${unblocking ? 'Buka blokir' : 'Blokir'} internet ${target.code}?`
                     : undefined
             }
         >
@@ -153,13 +105,13 @@ export function SubscriptionBlockModal({
                 <p className="text-sm text-muted-foreground">
                     {unblocking
                         ? isolatedUntilReactivated
-                            ? 'The subscription is suspended, so the service stays isolated until it is reactivated.'
-                            : 'The subscriber is disconnected and gets the normal service back when the router redials.'
-                        : 'The subscriber is isolated and disconnected. Billing goes on and a payment does not lift the block.'}
+                            ? 'Langganan sedang ditangguhkan, jadi layanan tetap diisolir sampai diaktifkan kembali.'
+                            : 'Sesi pelanggan diputus dan layanan normal kembali saat router menyambung ulang.'
+                        : 'Pelanggan diisolir dan sesinya diputus. Tagihan tetap berjalan dan pembayaran tidak mencabut blokir.'}
                 </p>
                 <Textarea
                     id="subscription-block-reason"
-                    label={unblocking ? 'Note (optional)' : 'Reason'}
+                    label={unblocking ? 'Catatan (opsional)' : 'Alasan'}
                     value={reason}
                     onChange={(event) => setReason(event.target.value)}
                     maxLength={500}
@@ -168,7 +120,7 @@ export function SubscriptionBlockModal({
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={close}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button
                         type="submit"
@@ -176,7 +128,7 @@ export function SubscriptionBlockModal({
                         loading={processing}
                         disabled={processing || (!unblocking && reason.trim() === '')}
                     >
-                        {unblocking ? 'Unblock' : 'Block internet'}
+                        {unblocking ? 'Buka blokir' : 'Blokir internet'}
                     </Button>
                 </div>
             </form>

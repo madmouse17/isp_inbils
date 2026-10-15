@@ -23,7 +23,7 @@ class ExportQuery
 {
     public const DEFAULT_MAX_ROWS = 100;
 
-    private const TRUNCATION_NOTICE = '# Export truncated at %d rows. Narrow the filters to export the remaining rows.';
+    private const TRUNCATION_NOTICE = '# Ekspor dipotong pada %d baris. Persempit filter untuk mengekspor sisa barisnya.';
 
     /** Eloquent source, or already materialised rows (aggregate summaries keyed by column header). */
     private Builder|array $query;
@@ -187,7 +187,7 @@ class ExportQuery
     public function format(string $format): self
     {
         $normalized = strtolower(trim($format));
-        $this->format = in_array($normalized, ['csv', 'xlsx', 'pdf'], true) ? $normalized : 'csv';
+        $this->format = in_array($normalized, ['csv', 'pdf'], true) ? $normalized : 'csv';
 
         return $this;
     }
@@ -249,7 +249,6 @@ class ExportQuery
     public function toResponse(): StreamedResponse
     {
         return match ($this->resolveFormat()) {
-            'xlsx' => $this->streamSpreadsheetDownload('xlsx'),
             'pdf' => $this->streamPdfDownload(),
             default => $this->streamCsvDownload(),
         };
@@ -264,7 +263,7 @@ class ExportQuery
         $request = $this->request ?? request();
         $requested = strtolower((string) $request->query('format', 'csv'));
 
-        return in_array($requested, ['csv', 'xlsx', 'pdf'], true) ? $requested : 'csv';
+        return in_array($requested, ['csv', 'pdf'], true) ? $requested : 'csv';
     }
 
     private function maxRowsLimit(): int
@@ -358,34 +357,6 @@ class ExportQuery
         }, $filename, $this->downloadHeaders('text/csv; charset=UTF-8', $max));
     }
 
-    private function streamSpreadsheetDownload(string $ext): StreamedResponse
-    {
-        // ponytail: xlsx is TSV download until a real spreadsheet writer is required
-        $columns = $this->columns;
-        $headers = self::headerRow($columns);
-        $filename = self::safeFilename($this->filename, $ext);
-        $max = $this->maxRowsLimit();
-        $contentType = $ext === 'xlsx'
-            ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            : 'application/octet-stream';
-
-        return response()->streamDownload(function () use ($columns, $headers, $max) {
-            echo implode("\t", $headers)."\n";
-            $count = 0;
-            foreach ($this->rows() as $row) {
-                if ($count >= $max) {
-                    break;
-                }
-                $line = array_map(
-                    static fn ($v) => str_replace(["\t", "\r", "\n"], ' ', (string) $v),
-                    self::dataRow($row, $columns),
-                );
-                echo implode("\t", $line)."\n";
-                $count++;
-            }
-        }, $filename, $this->downloadHeaders($contentType, $max));
-    }
-
     private function streamPdfDownload(): StreamedResponse
     {
         $title = $this->title;
@@ -463,7 +434,7 @@ class ExportQuery
         $base = pathinfo($normalized, PATHINFO_FILENAME);
         $base = Str::slug((string) $base) ?: 'export';
         $ext = ltrim(strtolower($ext), '.');
-        if (! in_array($ext, ['csv', 'xlsx', 'pdf'], true)) {
+        if (! in_array($ext, ['csv', 'pdf'], true)) {
             $ext = 'csv';
         }
 

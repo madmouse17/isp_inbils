@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Reporting;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\Company;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\Core\EmployeeProfile;
@@ -56,11 +57,12 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableJson $page) => $page
                 ->where('data.technician_id', $technician->id)
-                ->where('technicians.data', function ($technicians) use ($technician, $otherTechnician): bool {
-                    $ids = collect($technicians)->pluck('id');
+                ->where('selectedTechnician.value', $technician->id)
+                ->missing('technicians'));
 
-                    return $ids->contains($technician->id) && ! $ids->contains($otherTechnician->id);
-                }));
+        $ids = $this->technicianOptionIds();
+        $this->assertContains($technician->id, $ids);
+        $this->assertNotContains($otherTechnician->id, $ids);
     }
 
     public function test_technician_cannot_view_another_target(): void
@@ -105,9 +107,11 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
         $this->get(route('admin.reports.technician'))
             ->assertOk()
             ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('technicians.data', function ($technicians) use ($foreignTechnician): bool {
-                    return ! collect($technicians)->pluck('id')->contains($foreignTechnician->id);
-                }));
+                ->where('selectedTechnician', null));
+
+        $ids = $this->technicianOptionIds();
+        $this->assertContains($sameCompanyTechnician->id, $ids);
+        $this->assertNotContains($foreignTechnician->id, $ids);
     }
 
     public function test_manager_can_select_same_organization_and_descendant_only(): void
@@ -142,15 +146,12 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
 
         $this->actingAs($manager)
             ->get(route('admin.reports.technician'))
-            ->assertOk()
-            ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('technicians.data', function ($technicians) use ($sameOrg, $descendant, $other): bool {
-                    $ids = collect($technicians)->pluck('id');
+            ->assertOk();
 
-                    return $ids->contains($sameOrg->id)
-                        && $ids->contains($descendant->id)
-                        && ! $ids->contains($other->id);
-                }));
+        $ids = $this->technicianOptionIds();
+        $this->assertContains($sameOrg->id, $ids);
+        $this->assertContains($descendant->id, $ids);
+        $this->assertNotContains($other->id, $ids);
     }
 
     public function test_manager_unit_code_with_like_metacharacters_keeps_narrow_scope(): void
@@ -197,15 +198,12 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
 
         $this->actingAs($manager)
             ->get(route('admin.reports.technician'))
-            ->assertOk()
-            ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('technicians.data', function ($technicians) use ($sameOrg, $descendant, $lookalike): bool {
-                    $ids = collect($technicians)->pluck('id');
+            ->assertOk();
 
-                    return $ids->contains($sameOrg->id)
-                        && $ids->contains($descendant->id)
-                        && ! $ids->contains($lookalike->id);
-                }));
+        $ids = $this->technicianOptionIds();
+        $this->assertContains($sameOrg->id, $ids);
+        $this->assertContains($descendant->id, $ids);
+        $this->assertNotContains($lookalike->id, $ids);
 
         $this->actingAs($manager)
             ->get(route('admin.reports.technician', ['technician_id' => $lookalike->id]))
@@ -256,11 +254,9 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             ->assertForbidden();
 
         $this->get(route('admin.reports.technician'))
-            ->assertOk()
-            ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('technicians.data', function ($technicians) use ($target): bool {
-                    return ! collect($technicians)->pluck('id')->contains($target->id);
-                }));
+            ->assertOk();
+
+        $this->assertNotContains($target->id, $this->technicianOptionIds());
     }
 
     public function test_historical_technician_metrics_include_both_date_boundaries_but_not_active_snapshot(): void
@@ -353,12 +349,30 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
         $this->assertSame(4.0, $metrics['avg_score']);
     }
 
+    /**
+     * Ids the technician picker offers the acting user for a search that matches every fixture name.
+     *
+     * @return list<int>
+     */
+    private function technicianOptionIds(): array
+    {
+        $response = $this->get(route('admin.reports.technician', ['technician_search' => 'Teknisi']), [
+            'X-Inertia' => 'true',
+            'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(request()),
+            'X-Inertia-Partial-Component' => 'Admin/Reports/Technician',
+            'X-Inertia-Partial-Data' => 'technicianOptions',
+        ])->assertOk();
+
+        return array_column($response->json('props.technicianOptions'), 'value');
+    }
+
     /** @return array{0: Company, 1: User} */
     private function makeUserWithRole(string $role): array
     {
         $company = Company::factory()->create(['is_active' => true, 'timezone' => 'UTC']);
         $user = User::factory()->create([
             'company_id' => $company->id,
+            'name' => $role === 'technician' ? 'Teknisi Sendiri' : fake()->name(),
             'is_active' => true,
             'email_verified_at' => now(),
         ]);
@@ -379,6 +393,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
     {
         $technician = User::factory()->create([
             'company_id' => $company->id,
+            'name' => 'Teknisi '.fake()->unique()->numerify('######'),
             'is_active' => true,
             'email_verified_at' => now(),
         ]);

@@ -1,8 +1,6 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import TextInput from '@/Components/TextInput';
-import GuestLayout from '@/Layouts/GuestLayout';
 import { Button } from '@/Components/ui/Button';
+import { Input } from '@/Components/ui/Input';
+import GuestLayout from '@/Layouts/GuestLayout';
 import { Head, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
 
@@ -24,62 +22,50 @@ export default function ResetPassword({ token, email }: { token: string; email: 
 
     return (
         <GuestLayout>
-            <Head title="Reset Password" />
+            <Head title="Atur ulang kata sandi" />
 
-            <form onSubmit={submit}>
-                <div>
-                    <InputLabel htmlFor="email" value="Email" />
+            <h1 className="mb-4 text-xl font-semibold tracking-tight text-foreground">
+                Atur ulang kata sandi
+            </h1>
 
-                    <TextInput
-                        id="email"
-                        type="email"
-                        name="email"
-                        value={data.email}
-                        className="mt-1 block w-full"
-                        autoComplete="username"
-                        onChange={(e) => setData('email', e.target.value)}
-                    />
+            <form onSubmit={submit} className="space-y-4">
+                <Input
+                    id="email"
+                    label="Email"
+                    type="email"
+                    name="email"
+                    value={data.email}
+                    autoComplete="username"
+                    error={errors.email}
+                    onChange={(e) => setData('email', e.target.value)}
+                />
 
-                    <InputError message={errors.email} className="mt-2" />
-                </div>
+                <Input
+                    id="password"
+                    label="Kata sandi baru"
+                    type="password"
+                    name="password"
+                    value={data.password}
+                    autoComplete="new-password"
+                    autoFocus
+                    error={errors.password}
+                    onChange={(e) => setData('password', e.target.value)}
+                />
 
-                <div className="mt-4">
-                    <InputLabel htmlFor="password" value="Password" />
+                <Input
+                    id="password_confirmation"
+                    label="Ulangi kata sandi baru"
+                    type="password"
+                    name="password_confirmation"
+                    value={data.password_confirmation}
+                    autoComplete="new-password"
+                    error={errors.password_confirmation}
+                    onChange={(e) => setData('password_confirmation', e.target.value)}
+                />
 
-                    <TextInput
-                        id="password"
-                        type="password"
-                        name="password"
-                        value={data.password}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        isFocused={true}
-                        onChange={(e) => setData('password', e.target.value)}
-                    />
-
-                    <InputError message={errors.password} className="mt-2" />
-                </div>
-
-                <div className="mt-4">
-                    <InputLabel htmlFor="password_confirmation" value="Confirm Password" />
-
-                    <TextInput
-                        type="password"
-                        name="password_confirmation"
-                        value={data.password_confirmation}
-                        className="mt-1 block w-full"
-                        autoComplete="new-password"
-                        onChange={(e) => setData('password_confirmation', e.target.value)}
-                    />
-
-                    <InputError message={errors.password_confirmation} className="mt-2" />
-                </div>
-
-                <div className="mt-4 flex items-center justify-end">
-                    <Button type="submit" className="ms-4" loading={processing}>
-                        Reset Password
-                    </Button>
-                </div>
+                <Button type="submit" className="w-full" loading={processing}>
+                    Simpan kata sandi
+                </Button>
             </form>
         </GuestLayout>
     );

@@ -39,6 +39,11 @@ class CustomerController extends Controller
 
     private const SORTABLE = ['code', 'name', 'type', 'phone', 'is_active', 'customer_status', 'created_at'];
 
+    /** Export labels; the stored values stay as they are (`lib/statuses/customer.ts` carries the same words for the pages). */
+    private const TYPE_LABELS = ['Individual' => 'Perorangan', 'Company' => 'Perusahaan'];
+
+    private const STATUS_LABELS = ['prospective' => 'Prospek', 'active' => 'Aktif', 'inactive' => 'Nonaktif', 'suspended' => 'Ditangguhkan', 'terminated' => 'Berhenti'];
+
     public function __construct(private readonly OpenStreetMapGeocoder $geocoder) {}
 
     public function index(Request $request): InertiaResponse
@@ -98,7 +103,7 @@ class CustomerController extends Controller
             'acquirerOptions' => $canAssignAcquirer ? CustomerAcquirerQuery::options((int) CompanyService::currentId()) : [],
             'acquirerDefaultId' => $canAssignAcquirer ? CustomerAcquirerQuery::defaultId($request->user()) : null,
             // Free ODP ports under the chosen serving POP; evaluated only on a partial reload that asks for it (query serving_pop_id).
-            ...($canAssignDrop ? ['dropPortOptions' => Inertia::optional(fn () => OdnOccupancyQuery::freePortOptions($request->integer('serving_pop_id') ?: null))] : []),
+            ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $request->integer('serving_pop_id') ?: null)] : []),
             'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop],
             'codeSequence' => self::codeSequence(),
         ]);
@@ -112,7 +117,7 @@ class CustomerController extends Controller
         $customer = CreateCustomerOnboardingAction::execute($request->validated(), $request->user());
 
         return redirect()->route('admin.customers.show', $customer)
-            ->with('success', 'Customer, subscription, and installation SPK created. Link akses dikirim ke '.$customer->email.'.');
+            ->with('success', 'Pelanggan, langganan, dan SPK pemasangan dibuat. Link akses dikirim ke '.$customer->email.'.');
     }
 
     public function show(Request $request, int|string $customer): InertiaResponse
@@ -216,7 +221,7 @@ class CustomerController extends Controller
         });
 
         return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer updated.');
+            ->with('success', 'Pelanggan diperbarui.');
     }
 
     /**
@@ -242,13 +247,13 @@ class CustomerController extends Controller
         Gate::authorize('delete', $customer);
 
         if ($customer->subscriptions()->whereNotIn('status', ['terminated'])->exists()) {
-            return back()->withErrors(['customer' => 'Cannot delete customer with active subscription.']);
+            return back()->withErrors(['customer' => 'Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus.']);
         }
 
         $customer->delete();
 
         return redirect()->route('admin.customers.index')
-            ->with('success', 'Customer deleted.');
+            ->with('success', 'Pelanggan dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse
@@ -263,34 +268,34 @@ class CustomerController extends Controller
             ->fromRequest($request);
 
         $columns = [
-            'code' => 'Code',
-            'name' => 'Name',
-            'type' => 'Type',
+            'code' => 'Kode',
+            'name' => 'Nama',
+            'type' => 'Tipe',
             'email' => 'Email',
-            'phone' => 'Phone',
-            'is_active' => 'Account',
+            'phone' => 'Telepon',
+            'is_active' => 'Akun',
             'customer_status' => 'Status',
         ];
         $acquirers = collect();
 
         if ($this->canViewAcquirer($request)) {
-            $columns['acquired_by'] = 'Acquired By';
+            $columns['acquired_by'] = 'Diperoleh oleh';
             $acquirers = CustomerAcquirerQuery::credited((int) CompanyService::currentId());
         }
 
         $map = static fn (Customer $customer): array => [
             'code' => $customer->code,
             'name' => $customer->name,
-            'type' => $customer->type,
+            'type' => self::TYPE_LABELS[$customer->type] ?? $customer->type,
             'email' => $customer->email ?? '',
             'phone' => $customer->phone ?? '',
-            'is_active' => $customer->is_active ? 'Active' : 'Inactive',
-            'customer_status' => ucfirst($customer->customer_status),
+            'is_active' => $customer->is_active ? 'Aktif' : 'Nonaktif',
+            'customer_status' => self::STATUS_LABELS[$customer->customer_status] ?? $customer->customer_status,
             'acquired_by' => self::acquirerLabel($customer->acquired_by_user_id === null ? null : $acquirers->get($customer->acquired_by_user_id)),
         ];
 
         return $format === 'pdf'
-            ? $export->streamPdf('Customers', $columns, $map, "customers-export-{$stamp}.pdf")
+            ? $export->streamPdf('Pelanggan', $columns, $map, "customers-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "customers-export-{$stamp}.csv");
     }
 
@@ -383,7 +388,7 @@ class CustomerController extends Controller
 
     private static function acquirerLabel(?User $acquirer): string
     {
-        return $acquirer === null ? 'Unassigned' : $acquirer->name.($acquirer->is_active ? '' : ' (inactive)');
+        return $acquirer === null ? 'Belum ditentukan' : $acquirer->name.($acquirer->is_active ? '' : ' (nonaktif)');
     }
 
     private function authorizeOnboarding(): void

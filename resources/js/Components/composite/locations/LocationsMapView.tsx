@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
-import { Button } from '@/Components/ui/Button';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Badge, badgeVariants } from '@/Components/ui/Badge';
+import { Button, buttonVariants } from '@/Components/ui/Button';
 import { Input } from '@/Components/ui/Input';
-import { Badge } from '@/Components/ui/Badge';
+import { NativeSelect } from '@/Components/composite/NativeSelect';
+import { ACTIVE_STATE, LOCATION_TYPE, optionsOf } from '@/lib/statuses';
 import { cn } from '@/lib/utils';
 import { useMapDefault } from '@/hooks/useMapDefault';
 
 /* ---------- Types ---------- */
 
+export type LocationType = keyof typeof LOCATION_TYPE;
+
 export interface MapMarker {
     id: number;
     code: string;
     name: string;
-    type: 'region' | 'area' | 'pop' | 'rack' | 'site';
+    type: LocationType;
     lat: number | string;
     lng: number | string;
     is_active: boolean;
@@ -27,57 +32,95 @@ export interface LocationsMapViewProps {
     className?: string;
 }
 
-/* ---------- Marker icon config per type ---------- */
+/* ---------- Marker look ---------- */
 
-const TYPE_ICONS: Record<MapMarker['type'], { shape: string; label: string; ariaLabel: string }> = {
-    region: {
-        shape: 'M12 2L2 22h20L12 2Z',
-        label: 'R',
-        ariaLabel: 'Region',
-    },
-    area: {
-        shape: 'M4 4h16v16H4V4Z',
-        label: 'A',
-        ariaLabel: 'Area',
-    },
-    pop: {
-        shape: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Z',
-        label: 'P',
-        ariaLabel: 'POP',
-    },
-    rack: {
-        shape: 'M3 3h18v18H3V3ZM6 7h12v2H6V7ZM6 11h12v2H6v-2ZM6 15h12v2H6v-2Z',
-        label: 'K',
-        ariaLabel: 'Rack',
-    },
-    site: {
-        shape: 'M12 0L24 12 12 24 0 12Z',
-        label: 'S',
-        ariaLabel: 'Site',
-    },
+/** One shape per type, so the type reads without colour: the marker and the legend draw the same paths (24 x 24). */
+const TYPE_SHAPES: Record<LocationType, string> = {
+    region: 'M12 2L2 22h20L12 2Z',
+    area: 'M4 4h16v16H4V4Z',
+    pop: 'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2Z',
+    rack: 'M3 3h18v18H3V3ZM6 7h12v2H6V7ZM6 11h12v2H6v-2ZM6 15h12v2H6v-2Z',
+    site: 'M12 0L24 12 12 24 0 12Z',
 };
 
-const INACTIVE_COLOR = '#94a3b8'; // slate-400
+const MARKER_BODY =
+    'M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.27 21.73 0 14 0Z';
 const MARKER_ICON_WIDTH = 28;
 const MARKER_ICON_HEIGHT = 36;
 
-function buildDivIcon(type: MapMarker['type'], isActive: boolean): L.DivIcon {
-    const config = TYPE_ICONS[type];
-    const fill = isActive ? '#2563eb' : INACTIVE_COLOR;
-    const stroke = isActive ? '#1e3a8a' : '#64748b';
+/** The status tokens of the app: an active place is `info`, an inactive one `neutral`, a pin not saved yet `success`. */
+const ACTIVE_FILL = 'var(--status-info)';
+const INACTIVE_FILL = 'var(--status-neutral)';
+const DRAFT_FILL = 'var(--status-success)';
+
+const DRAFT_LABEL = 'Lokasi baru, belum disimpan';
+
+function buildDivIcon(type: LocationType, isActive: boolean): L.DivIcon {
+    const fill = isActive ? ACTIVE_FILL : INACTIVE_FILL;
 
     return L.divIcon({
         className: '',
-        html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36" aria-label="${config.ariaLabel}">
-  <path fill="${fill}" stroke="${stroke}" stroke-width="1.5" d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.27 21.73 0 14 0Z"/>
-  <path fill="white" fill-opacity="0.9" transform="translate(2,2) scale(0.83)" d="${config.shape}"/>
-  <text x="14" y="16" text-anchor="middle" dominant-baseline="central" fill="white" font-size="9" font-weight="bold" font-family="system-ui,sans-serif">${config.label}</text>
+        html: `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_ICON_WIDTH}" height="${MARKER_ICON_HEIGHT}" viewBox="0 0 28 36" role="img" aria-label="${LOCATION_TYPE[type].label}">
+  <path style="fill:${fill};stroke:var(--background)" stroke-width="1.5" d="${MARKER_BODY}"/>
+  <path style="fill:var(--background)" transform="translate(2,2) scale(0.83)" d="${TYPE_SHAPES[type]}"/>
 </svg>`,
-        iconSize: [28, 36],
-        iconAnchor: [14, 36],
-        popupAnchor: [0, -36],
+        iconSize: [MARKER_ICON_WIDTH, MARKER_ICON_HEIGHT],
+        iconAnchor: [MARKER_ICON_WIDTH / 2, MARKER_ICON_HEIGHT],
+        popupAnchor: [0, -MARKER_ICON_HEIGHT],
     });
 }
+
+function buildDraftIcon(): L.DivIcon {
+    return L.divIcon({
+        className: '',
+        html: `<svg xmlns="http://www.w3.org/2000/svg" width="${MARKER_ICON_WIDTH}" height="${MARKER_ICON_HEIGHT}" viewBox="0 0 28 36" role="img" aria-label="${DRAFT_LABEL}">
+  <path style="fill:${DRAFT_FILL};stroke:var(--background)" stroke-width="1.5" stroke-dasharray="4 2" d="${MARKER_BODY}"/>
+  <path style="fill:var(--background)" d="M12.5 8h3v4.5H20v3h-4.5V20h-3v-4.5H8v-3h4.5V8Z"/>
+</svg>`,
+        iconSize: [MARKER_ICON_WIDTH, MARKER_ICON_HEIGHT],
+        iconAnchor: [MARKER_ICON_WIDTH / 2, MARKER_ICON_HEIGHT],
+        popupAnchor: [0, -MARKER_ICON_HEIGHT],
+    });
+}
+
+/*
+ * The map follows the theme. The tiles are inverted in dark mode (a light OpenStreetMap tile would clash with
+ * the tokens), and the popup and the zoom buttons wear the popover and background tokens, so text keeps the
+ * contrast of the rest of the app in both themes. Utilities sit in a later layer than leaflet.css, so they win.
+ */
+const MAP_THEME = cn(
+    'font-sans',
+    'dark:[&_.leaflet-tile-pane]:brightness-90 dark:[&_.leaflet-tile-pane]:contrast-90 dark:[&_.leaflet-tile-pane]:hue-rotate-180 dark:[&_.leaflet-tile-pane]:invert',
+    '[&_.leaflet-popup-content-wrapper]:rounded-lg [&_.leaflet-popup-content-wrapper]:border [&_.leaflet-popup-content-wrapper]:border-border [&_.leaflet-popup-content-wrapper]:bg-popover [&_.leaflet-popup-content-wrapper]:text-popover-foreground [&_.leaflet-popup-content-wrapper]:shadow-md',
+    '[&_.leaflet-popup-tip]:bg-popover [&_.leaflet-popup-tip]:text-popover-foreground',
+    '[&_.leaflet-popup-content]:m-3 [&_.leaflet-popup-content]:text-sm',
+    '[&_.leaflet-popup-close-button]:text-muted-foreground',
+    '[&_.leaflet-bar]:border [&_.leaflet-bar]:border-border [&_.leaflet-bar]:shadow-md',
+    '[&_.leaflet-bar_a]:border-border [&_.leaflet-bar_a]:bg-background [&_.leaflet-bar_a]:text-foreground [&_.leaflet-bar_a:hover]:bg-accent',
+);
+
+/** A node with a class and optional text. The popups are built with it, never with HTML strings, so a name cannot inject markup. */
+function element<K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    className: string,
+    text?: string,
+): HTMLElementTagNameMap[K] {
+    const node = document.createElement(tag);
+    node.className = className;
+    if (text !== undefined) node.textContent = text;
+
+    return node;
+}
+
+function popupButton(label: string, className: string, onClick: () => void): HTMLButtonElement {
+    const button = element('button', className, label);
+    button.type = 'button';
+    button.addEventListener('click', onClick);
+
+    return button;
+}
+
+const BADGE_BASE = 'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold';
 
 /* ---------- Component ---------- */
 
@@ -103,7 +146,7 @@ export function LocationsMapView({
     const canRef = useRef(can);
 
     const [filterText, setFilterText] = useState('');
-    const [filterType, setFilterType] = useState<MapMarker['type'] | ''>('');
+    const [filterType, setFilterType] = useState<LocationType | ''>('');
     const [filterStatus, setFilterStatus] = useState<'active' | 'inactive' | ''>('');
     const [legendOpen, setLegendOpen] = useState(true);
     const [draftPin, setDraftPin] = useState<{ lat: number; lng: number } | null>(null);
@@ -149,8 +192,12 @@ export function LocationsMapView({
         const map = L.map(el, {
             center: [mapDefaultRef.current.center.lat, mapDefaultRef.current.center.lng],
             zoom: mapDefaultRef.current.zoom,
-            zoomControl: true,
+            zoomControl: false,
         });
+        // Bottom right: the search and the filters own the top left, the legend the bottom left.
+        L.control
+            .zoom({ position: 'bottomright', zoomInTitle: 'Perbesar', zoomOutTitle: 'Perkecil' })
+            .addTo(map);
 
         const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution:
@@ -322,42 +369,62 @@ export function LocationsMapView({
                 marker.openPopup();
             });
 
-            /* Build popup HTML */
-            const popupDiv = document.createElement('div');
-            popupDiv.className = 'locations-map-popup';
-            popupDiv.innerHTML = `
-                <div style="min-width:180px;font-family:system-ui,sans-serif;">
-                    <p style="margin:0 0 4px;font-weight:600;font-size:14px;">${escapeHtml(m.code)}</p>
-                    <p style="margin:0 0 4px;font-size:13px;color:#6b7280;">${escapeHtml(m.name)}</p>
-                    <p style="margin:0 0 6px;font-size:12px;">
-                        <span style="display:inline-block;padding:1px 6px;border-radius:4px;background:#e2e8f0;font-size:11px;">${m.type.toUpperCase()}</span>
-                        ${!m.is_active ? '<span style="display:inline-block;padding:1px 6px;border-radius:4px;background:#fef3c7;color:#92400e;font-size:11px;margin-left:4px;">Inactive</span>' : ''}
-                    </p>
-                    <p style="margin:0 0 6px;font-size:11px;color:#9ca3af;">${lat.toFixed(6)}, ${lng.toFixed(6)}</p>
-                    <div class="popup-actions" style="display:flex;gap:4px;"></div>
-                </div>
-            `;
-
-            const actionsDiv = popupDiv.querySelector('.popup-actions') as HTMLDivElement;
+            /* Popup: the same tokens and button styles as the rest of the app */
+            const popupDiv = element('div', 'locations-map-popup min-w-44 space-y-2');
+            const heading = element('div', 'space-y-0.5');
+            heading.append(
+                element('p', 'font-semibold text-foreground', m.code),
+                element('p', 'text-muted-foreground', m.name),
+            );
+            const tags = element('div', 'flex flex-wrap gap-1');
+            tags.append(
+                element(
+                    'span',
+                    `${BADGE_BASE} ${badgeVariants.neutral}`,
+                    LOCATION_TYPE[m.type].label,
+                ),
+            );
+            if (!m.is_active) {
+                tags.append(
+                    element(
+                        'span',
+                        `${BADGE_BASE} ${badgeVariants.neutral}`,
+                        ACTIVE_STATE.false.label,
+                    ),
+                );
+            }
+            const actionsDiv = element('div', 'flex flex-wrap gap-2');
+            popupDiv.append(
+                heading,
+                tags,
+                element(
+                    'p',
+                    'text-xs text-muted-foreground tabular-nums',
+                    `${lat.toFixed(6)}, ${lng.toFixed(6)}`,
+                ),
+                actionsDiv,
+            );
 
             if (canRef.current.update) {
-                const editBtn = document.createElement('button');
-                editBtn.textContent = 'Edit';
-                editBtn.type = 'button';
-                editBtn.style.cssText =
-                    'padding:2px 8px;font-size:12px;border:1px solid #d97706;color:#d97706;border-radius:4px;background:transparent;cursor:pointer;';
-                editBtn.addEventListener('click', () => onMarkerEditRef.current?.(m));
-                actionsDiv.appendChild(editBtn);
+                actionsDiv.append(
+                    popupButton('Ubah', buttonVariants({ variant: 'outline', size: 'sm' }), () =>
+                        onMarkerEditRef.current?.(m),
+                    ),
+                );
             }
 
             if (canRef.current.delete) {
-                const delBtn = document.createElement('button');
-                delBtn.textContent = 'Delete';
-                delBtn.type = 'button';
-                delBtn.style.cssText =
-                    'padding:2px 8px;font-size:12px;border:1px solid #dc2626;color:#dc2626;border-radius:4px;background:transparent;cursor:pointer;';
-                delBtn.addEventListener('click', () => onMarkerDeleteRef.current?.(m));
-                actionsDiv.appendChild(delBtn);
+                actionsDiv.append(
+                    popupButton(
+                        'Hapus',
+                        buttonVariants({
+                            variant: 'outline',
+                            size: 'sm',
+                            className: 'text-destructive-text',
+                        }),
+                        () => onMarkerDeleteRef.current?.(m),
+                    ),
+                );
             }
 
             marker.bindPopup(popupDiv, { maxWidth: 280 });
@@ -387,19 +454,8 @@ export function LocationsMapView({
 
         if (!draftPin) return;
 
-        const draftIcon = L.divIcon({
-            className: '',
-            html: `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="36" viewBox="0 0 28 36" aria-label="Draft location">
-  <path fill="#10b981" stroke="#065f46" stroke-width="1.5" stroke-dasharray="4 2" d="M14 0C6.27 0 0 6.27 0 14c0 10.5 14 22 14 22s14-11.5 14-22C28 6.27 21.73 0 14 0Z"/>
-  <text x="14" y="15" text-anchor="middle" dominant-baseline="central" fill="white" font-size="12" font-weight="bold" font-family="system-ui,sans-serif">+</text>
-</svg>`,
-            iconSize: [28, 36],
-            iconAnchor: [14, 36],
-            popupAnchor: [0, -36],
-        });
-
         const marker = L.marker([draftPin.lat, draftPin.lng], {
-            icon: draftIcon,
+            icon: buildDraftIcon(),
             draggable: true,
         }).addTo(map);
 
@@ -409,33 +465,34 @@ export function LocationsMapView({
         });
 
         /* Draft popup with type choices */
-        const popupDiv = document.createElement('div');
-        popupDiv.style.cssText = 'min-width:160px;font-family:system-ui,sans-serif;';
-        popupDiv.innerHTML = `
-            <p style="margin:0 0 6px;font-weight:600;font-size:13px;">Tambah lokasi baru</p>
-            <p style="margin:0 0 8px;font-size:11px;color:#9ca3af;">${draftPin.lat.toFixed(6)}, ${draftPin.lng.toFixed(6)}</p>
-            <div class="draft-actions" style="display:flex;gap:4px;flex-wrap:wrap;"></div>
-            <button class="draft-cancel" type="button" style="margin-top:6px;padding:2px 8px;font-size:11px;border:1px solid #d1d5db;border-radius:4px;background:transparent;cursor:pointer;color:#6b7280;">Cancel</button>
-        `;
-
-        const actionsDiv = popupDiv.querySelector('.draft-actions') as HTMLDivElement;
+        const popupDiv = element('div', 'min-w-40 space-y-2');
+        popupDiv.append(
+            element('p', 'font-semibold text-foreground', 'Buat lokasi baru di sini'),
+            element(
+                'p',
+                'text-xs text-muted-foreground tabular-nums',
+                `${draftPin.lat.toFixed(6)}, ${draftPin.lng.toFixed(6)}`,
+            ),
+        );
+        const actionsDiv = element('div', 'flex flex-wrap gap-2');
         (['pop', 'site'] as const).forEach((t) => {
-            const btn = document.createElement('button');
-            btn.textContent = `Tambah ${t.toUpperCase()}`;
-            btn.type = 'button';
-            btn.style.cssText =
-                'padding:3px 10px;font-size:12px;border:1px solid #2563eb;color:#2563eb;border-radius:4px;background:transparent;cursor:pointer;';
-            btn.addEventListener('click', () => {
-                onMapClickRef.current?.(draftPin.lat, draftPin.lng, t);
-                setDraftPin(null);
-            });
-            actionsDiv.appendChild(btn);
+            actionsDiv.append(
+                popupButton(
+                    `Tambah ${LOCATION_TYPE[t].label}`,
+                    buttonVariants({ variant: 'primary', size: 'sm' }),
+                    () => {
+                        onMapClickRef.current?.(draftPin.lat, draftPin.lng, t);
+                        setDraftPin(null);
+                    },
+                ),
+            );
         });
-
-        const cancelBtn = popupDiv.querySelector('.draft-cancel') as HTMLButtonElement;
-        cancelBtn.addEventListener('click', () => {
-            setDraftPin(null);
-        });
+        actionsDiv.append(
+            popupButton('Batal', buttonVariants({ variant: 'ghost', size: 'sm' }), () =>
+                setDraftPin(null),
+            ),
+        );
+        popupDiv.append(actionsDiv);
 
         marker.bindPopup(popupDiv, { maxWidth: 240 }).openPopup();
         draftMarkerRef.current = marker;
@@ -465,102 +522,91 @@ export function LocationsMapView({
 
     return (
         <div className={cn('relative', className)}>
-            {/* Search / filter overlay */}
-            <div className="absolute top-3 right-3 left-3 z-1000 flex max-w-md flex-col gap-2 md:right-auto">
-                <div className="rounded-lg border border-border bg-background/95 p-2 shadow-xs backdrop-blur-sm dark:bg-background/95">
+            {/* Search and filters: top left */}
+            <div className="absolute top-3 right-3 left-3 z-1000 max-w-md md:right-auto">
+                <div className="space-y-2 rounded-lg border border-border bg-background/95 p-2 backdrop-blur-sm">
                     <Input
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
-                        placeholder="Cari lokasi..."
-                        aria-label="Search locations on map"
-                        className="text-sm"
+                        placeholder="Cari kode atau nama lokasi"
+                        aria-label="Cari lokasi di peta"
                     />
-                    <div className="mt-2 flex flex-wrap gap-1">
-                        <FilterChip
-                            label="All Types"
-                            active={filterType === ''}
-                            onClick={() => setFilterType('')}
+                    <div className="grid grid-cols-2 gap-2">
+                        <NativeSelect
+                            aria-label="Tipe lokasi"
+                            value={filterType}
+                            onChange={(e) => setFilterType(e.target.value as LocationType | '')}
+                            options={[
+                                { value: '', label: 'Semua tipe' },
+                                ...optionsOf(LOCATION_TYPE),
+                            ]}
                         />
-                        {(['region', 'area', 'pop', 'rack', 'site'] as const).map((t) => (
-                            <FilterChip
-                                key={t}
-                                label={t.toUpperCase()}
-                                active={filterType === t}
-                                onClick={() => setFilterType(filterType === t ? '' : t)}
-                            />
-                        ))}
+                        <NativeSelect
+                            aria-label="Status lokasi"
+                            value={filterStatus}
+                            onChange={(e) =>
+                                setFilterStatus(e.target.value as 'active' | 'inactive' | '')
+                            }
+                            options={[
+                                { value: '', label: 'Semua status' },
+                                { value: 'active', label: ACTIVE_STATE.true.label },
+                                { value: 'inactive', label: ACTIVE_STATE.false.label },
+                            ]}
+                        />
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                        <FilterChip
-                            label="All Status"
-                            active={filterStatus === ''}
-                            onClick={() => setFilterStatus('')}
-                        />
-                        <FilterChip
-                            label="Active"
-                            active={filterStatus === 'active'}
-                            onClick={() =>
-                                setFilterStatus(filterStatus === 'active' ? '' : 'active')
-                            }
-                        />
-                        <FilterChip
-                            label="Inactive"
-                            active={filterStatus === 'inactive'}
-                            onClick={() =>
-                                setFilterStatus(filterStatus === 'inactive' ? '' : 'inactive')
-                            }
-                        />
+                    <div className="flex items-center justify-between gap-2">
+                        <Badge variant="secondary">{filteredMarkers.length} lokasi</Badge>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={fitBounds}
+                            aria-label="Tampilkan semua lokasi di peta"
+                        >
+                            Tampilkan semua
+                        </Button>
                     </div>
                 </div>
             </div>
 
-            {/* Legend */}
+            {/* Legend: bottom left, the same shapes the markers use */}
             <div className="absolute bottom-3 left-3 z-1000">
-                <button
-                    type="button"
-                    onClick={() => setLegendOpen(!legendOpen)}
-                    className="rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium text-foreground shadow-xs hover:bg-accent"
-                    aria-label={legendOpen ? 'Hide legend' : 'Show legend'}
-                >
-                    {legendOpen ? 'Legenda ▾' : 'Legenda ▸'}
-                </button>
-                {legendOpen && (
-                    <div className="mt-1 rounded-lg border border-border bg-background p-2 shadow-xs">
-                        <ul className="space-y-1 text-xs">
-                            {Object.entries(TYPE_ICONS).map(([type, config]) => (
-                                <li key={type} className="flex items-center gap-2">
-                                    <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-primary/10 text-xs font-bold text-primary">
-                                        {config.label}
-                                    </span>
-                                    <span className="text-foreground">{config.ariaLabel}</span>
-                                </li>
-                            ))}
-                            <li className="flex items-center gap-2">
-                                <span
-                                    className="inline-block h-3 w-3 rounded"
-                                    style={{ background: INACTIVE_COLOR }}
-                                />
-                                <span className="text-muted-foreground">Inactive</span>
-                            </li>
-                        </ul>
-                    </div>
-                )}
-            </div>
-
-            {/* Fit bounds + stats */}
-            <div className="absolute right-3 bottom-3 z-1000 flex items-center gap-2">
-                <Badge variant="secondary" className="text-xs">
-                    {filteredMarkers.length} lokasi
-                </Badge>
                 <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={fitBounds}
-                    aria-label="Fit all markers in view"
+                    onClick={() => setLegendOpen(!legendOpen)}
+                    aria-expanded={legendOpen}
+                    aria-label={legendOpen ? 'Sembunyikan legenda' : 'Tampilkan legenda'}
+                    className="bg-background"
+                    rightIcon={
+                        legendOpen ? (
+                            <ChevronDown className="size-4" aria-hidden="true" />
+                        ) : (
+                            <ChevronRight className="size-4" aria-hidden="true" />
+                        )
+                    }
                 >
-                    Fit All
+                    Legenda
                 </Button>
+                {legendOpen && (
+                    <div className="mt-1 rounded-lg border border-border bg-background p-2">
+                        <ul className="space-y-1 text-xs">
+                            {(Object.keys(LOCATION_TYPE) as LocationType[]).map((type) => (
+                                <li key={type} className="flex items-center gap-2">
+                                    <MarkerShape type={type} color={ACTIVE_FILL} />
+                                    <span className="text-foreground">
+                                        {LOCATION_TYPE[type].label}
+                                    </span>
+                                </li>
+                            ))}
+                            <li className="flex items-center gap-2">
+                                <MarkerShape type="pop" color={INACTIVE_FILL} />
+                                <span className="text-foreground">{ACTIVE_STATE.false.label}</span>
+                            </li>
+                        </ul>
+                    </div>
+                )}
             </div>
 
             {/* Map container */}
@@ -568,13 +614,16 @@ export function LocationsMapView({
                 <div
                     id={`locations-map-${mapId}`}
                     ref={containerRef}
-                    className="h-128 w-full rounded-lg border border-border md:h-160"
+                    className={cn(
+                        'h-128 w-full rounded-lg border border-border md:h-160',
+                        MAP_THEME,
+                    )}
                     role="application"
                     aria-label="Peta lokasi"
                 />
                 {tileStatus !== 'ok' && (
                     <div
-                        className="absolute inset-x-3 top-1/2 z-1100 -translate-y-1/2 rounded-lg border border-warning/50 bg-background/95 p-4 text-center shadow-xs backdrop-blur-sm sm:inset-x-1/4 dark:bg-background/95"
+                        className="absolute inset-x-3 top-1/2 z-1100 -translate-y-1/2 rounded-lg border border-warning/50 bg-background/95 p-4 text-center backdrop-blur-sm sm:inset-x-1/4"
                         role={tileStatus === 'error' ? 'alert' : 'status'}
                         aria-live="polite"
                     >
@@ -584,7 +633,7 @@ export function LocationsMapView({
                                 : 'Lapisan peta tidak dapat dimuat'}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Marker dan kontrol peta tetap tersedia. Gunakan tab Tabel untuk melihat
+                            Penanda dan kontrol peta tetap tersedia. Gunakan tab Tabel untuk melihat
                             daftar lokasi tanpa lapisan peta.
                         </p>
                         {tileStatus === 'error' && (
@@ -605,48 +654,25 @@ export function LocationsMapView({
             {/* Tile failure fallback text */}
             <noscript>
                 <p className="p-4 text-sm text-muted-foreground">
-                    Peta memerlukan JavaScript aktif. Gunakan tabel di bawah sebagai fallback.
+                    Peta memerlukan JavaScript aktif. Gunakan tab Tabel sebagai gantinya.
                 </p>
             </noscript>
         </div>
     );
 }
 
-/* ---------- FilterChip ---------- */
-
-function FilterChip({
-    label,
-    active,
-    onClick,
-}: {
-    label: string;
-    active: boolean;
-    onClick: () => void;
-}) {
+/** A type's marker shape in the legend, in the colour its marker has. */
+function MarkerShape({ type, color }: { type: LocationType; color: string }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className={cn(
-                'rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors',
-                active
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground',
-            )}
+        <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="size-5 shrink-0"
+            style={{ fill: color }}
         >
-            {label}
-        </button>
+            <path d={TYPE_SHAPES[type]} />
+        </svg>
     );
-}
-
-/* ---------- Helpers ---------- */
-
-function escapeHtml(str: string): string {
-    return str
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
 }
 
 export default LocationsMapView;

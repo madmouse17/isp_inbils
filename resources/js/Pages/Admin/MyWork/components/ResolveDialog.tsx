@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { CheckCircle2, AlertTriangle } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle, Badge, Button, Textarea } from '@/Components/ui';
+import { Alert, AlertDescription, AlertTitle, Button, EnumBadge, Textarea } from '@/Components/ui';
 import {
     Dialog,
     DialogContent,
@@ -10,9 +10,9 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/Components/ui/dialog';
+import { WORK_ITEM_DOMAIN } from '@/lib/statuses';
 import type { MyWorkItem } from '@/types';
 import type { MyWorkReloadResult } from './ActionConfirmDialog';
-import { getDomainLabel, getDomainVariant } from './utils';
 
 interface ResolveDialogProps {
     open: boolean;
@@ -161,18 +161,13 @@ function ResolveDialogInner({
             <form onSubmit={handleSubmit}>
                 <DialogHeader>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge
-                            variant={getDomainVariant(item.domain)}
-                            className="text-xs font-semibold"
-                        >
-                            {getDomainLabel(item.domain)}
-                        </Badge>
+                        <EnumBadge map={WORK_ITEM_DOMAIN} value={item.domain} />
                         <DialogTitle className="text-lg font-bold wrap-break-word">
-                            Selesaikan Tiket {item.code}
+                            Selesaikan tiket {item.code}
                         </DialogTitle>
                     </div>
                     <DialogDescription className="text-xs text-muted-foreground">
-                        Masukkan penjelasan solusi penanganan masalah pelanggan sebelum menandai
+                        Tulis solusi yang dipakai untuk menangani masalah pelanggan sebelum menandai
                         tiket selesai.
                     </DialogDescription>
                 </DialogHeader>
@@ -190,7 +185,7 @@ function ResolveDialogInner({
                 <div className="space-y-4 mt-4 text-sm">
                     <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 text-xs">
                         <div className="wrap-break-word">
-                            <span className="font-semibold text-foreground">Judul Tiket: </span>
+                            <span className="font-semibold text-foreground">Judul tiket: </span>
                             <span className="text-muted-foreground">{item.title}</span>
                         </div>
                         <div className="wrap-break-word">
@@ -204,7 +199,7 @@ function ResolveDialogInner({
                     <div className="space-y-1.5">
                         <Textarea
                             id="resolution-note"
-                            label="Catatan Solusi / Penanganan"
+                            label="Catatan penyelesaian"
                             required
                             rows={4}
                             value={resolutionNote}
@@ -212,13 +207,13 @@ function ResolveDialogInner({
                                 setResolutionNote(e.target.value);
                                 setNoteError(null);
                             }}
-                            placeholder="Jelaskan tindakan teknis atau solusi yang telah dilakukan untuk mengatasi keluhan pelanggan..."
+                            placeholder="Jelaskan tindakan teknis atau solusi yang sudah dilakukan untuk mengatasi keluhan pelanggan..."
                             disabled={submitting || isStale || isReloading}
                             error={noteError ?? undefined}
                         />
                         <p className="text-xs text-muted-foreground">
-                            Catatan ini akan tersimpan dalam riwayat audit tiket dan dapat ditinjau
-                            saat penutupan (close).
+                            Catatan ini tersimpan di riwayat audit tiket dan bisa dilihat saat tiket
+                            ditutup.
                         </p>
                     </div>
 
@@ -231,7 +226,7 @@ function ResolveDialogInner({
                         >
                             <AlertTriangle className="h-4 w-4" />
                             <AlertTitle>
-                                {isStale ? 'Item Sudah Berubah' : 'Gagal Menyimpan'}
+                                {isStale ? 'Item sudah berubah' : 'Gagal menyimpan'}
                             </AlertTitle>
                             <AlertDescription>{serverError}</AlertDescription>
                             {isStale && onReload && (
@@ -244,7 +239,7 @@ function ResolveDialogInner({
                                     loading={isReloading}
                                     disabled={isReloading || submitting}
                                 >
-                                    {isReloading ? 'Memuat Ulang...' : 'Muat Ulang Pekerjaan'}
+                                    {isReloading ? 'Memuat ulang...' : 'Muat ulang pekerjaan'}
                                 </Button>
                             )}
                         </Alert>
@@ -269,7 +264,7 @@ function ResolveDialogInner({
                         disabled={submitting || isStale || isReloading}
                     >
                         <CheckCircle2 className="mr-1.5 h-4 w-4" />
-                        Selesaikan Tiket
+                        Selesaikan tiket
                     </Button>
                 </DialogFooter>
             </form>

@@ -48,11 +48,22 @@ class StoreNasDeviceRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'network_asset_id.exists' => 'Choose a router asset of this company that has a management IP.',
-            'network_asset_id.unique' => 'This router asset is already registered as a NAS router.',
+            'network_asset_id.exists' => 'Pilih aset router milik perusahaan ini yang punya IP manajemen.',
+            'network_asset_id.unique' => 'Aset router ini sudah terdaftar sebagai router NAS.',
             // Never says which company owns the address: FreeRADIUS clients are global.
-            'nasname.unique' => 'This address is not available.',
-            'radius_secret.regex' => 'Use printable characters without spaces.',
+            'nasname.unique' => 'Alamat ini tidak tersedia.',
+            'radius_secret.regex' => 'Gunakan karakter yang dapat dicetak, tanpa spasi.',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'network_asset_id' => 'aset router',
+            'nasname' => 'alamat NAS',
+            'coa_port' => 'port CoA',
+            'radius_secret' => 'secret RADIUS',
         ];
     }
 
@@ -61,7 +72,7 @@ class StoreNasDeviceRequest extends FormRequest
     {
         return [function (Validator $validator): void {
             if (Realm::forCompany((int) CompanyService::currentId()) === null) {
-                $validator->errors()->add('realm', 'The company code cannot be used as a RADIUS realm: use 1 to 24 letters, digits or dashes.');
+                $validator->errors()->add('realm', 'Kode perusahaan tidak dapat dipakai sebagai realm RADIUS: gunakan 1 sampai 24 huruf, angka, atau tanda hubung.');
             }
         }];
     }

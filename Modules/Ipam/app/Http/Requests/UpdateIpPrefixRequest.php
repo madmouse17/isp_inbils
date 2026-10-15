@@ -29,4 +29,15 @@ class UpdateIpPrefixRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:255'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'usage' => 'peruntukan',
+            'location_id' => 'POP',
+            'vlan_id' => 'VLAN',
+            'description' => 'keterangan',
+        ];
+    }
 }

@@ -112,7 +112,7 @@ test.describe('@datatable-e Receivables', () => {
         await suspendAction.click();
         const dialog = page.getByRole('dialog');
         await expect(dialog).toBeVisible();
-        await expect(dialog.getByRole('heading', { name: /Isolir subscription/ })).toBeVisible();
+        await expect(dialog.getByRole('heading', { name: /Isolir langganan/ })).toBeVisible();
         await expect(dialog.getByRole('button', { name: 'Isolir', exact: true })).toBeDisabled();
         await dialog.getByLabel('Alasan isolir (wajib)').fill('E2E modal verification');
         await expect(dialog.getByRole('button', { name: 'Isolir', exact: true })).toBeEnabled();

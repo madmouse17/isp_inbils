@@ -4,13 +4,14 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
-    Badge,
     Button,
     Card,
     CardContent,
     CardDescription,
     CardHeader,
     CardTitle,
+    EmptyCell,
+    EnumBadge,
     Input,
     Modal,
     NativeSelect,
@@ -21,83 +22,40 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+import { PageHeader } from '@/Components/composite';
+import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
+import {
+    INVOICE_SOURCE,
+    INVOICE_STATUS,
+    INVOICE_TYPE,
+    optionsOf,
+    PAYMENT_ATTEMPT_STATUS,
+    PAYMENT_METHOD,
+    PAYMENT_STATE,
+} from '@/lib/statuses';
+import type { Invoice } from '@/types/billing';
 import type { PaymentAttemptEntry } from '@/types/portal';
 
-interface InvData {
-    id: number;
-    number: string;
-    type: string;
-    source: string;
-    status: string;
-    issue_date: string;
-    due_date: string;
-    subtotal: string;
-    tax_amount: string;
-    discount_amount: string;
-    total: string;
-    paid_amount: string;
-    sisa: string;
-    notes?: string | null;
-    sent_at?: string | null;
-    cancelled_at?: string | null;
-    cancel_reason?: string | null;
-    customer?: { name: string; code: string } | null;
-    subscription?: { code: string } | null;
-    items?: {
-        id: number;
-        description: string;
-        quantity: string;
-        unit_price: string;
-        discount_amount: string;
-        tax_rate: string;
-        line_total: string;
-    }[];
-    payments?: {
-        id: number;
-        amount: string;
-        method: string;
-        reference?: string | null;
-        paid_at: string;
-        cancelled_at?: string | null;
-    }[];
-}
-
 interface ShowProps extends Record<string, unknown> {
-    invoice: { data: InvData };
+    invoice: { data: Invoice };
     onlinePayments: { enabled: boolean; attempts: { data: PaymentAttemptEntry[] } };
 }
 
-const attemptVariant: Record<string, 'success' | 'warning' | 'danger' | 'muted'> = {
-    paid: 'success',
-    pending: 'warning',
-    failed: 'muted',
-    expired: 'muted',
-    exception: 'danger',
-};
-
-const statusVariant = (s: string): 'success' | 'warning' | 'danger' | 'muted' | 'info' =>
-    s === 'paid'
-        ? 'success'
-        : s === 'partial'
-          ? 'info'
-          : s === 'overdue'
-            ? 'danger'
-            : s === 'cancelled'
-              ? 'muted'
-              : 'warning';
+// Staff record these; `midtrans` is written only by the payment gateway (RecordPaymentRequest).
+const MANUAL_METHODS = optionsOf(PAYMENT_METHOD).filter((option) => option.value !== 'midtrans');
 
 export default function Show({ invoice, onlinePayments }: ShowProps) {
     const inv = invoice.data;
     const attempts = onlinePayments.attempts.data;
+    const company = useCompany();
     const { can } = usePermission();
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
     const [reverseTarget, setReverseTarget] = useState<number | null>(null);
-    const { data, setData, post, processing, reset } = useForm({
+    const { data, setData, post, processing, reset, errors } = useForm({
         amount: '',
         method: 'cash',
         reference: '',
@@ -109,6 +67,11 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
         tax_rate: '0',
         reason: '',
     });
+
+    const isDraft = inv.status === 'draft';
+    const canRecordPayment =
+        ['sent', 'partial', 'overdue'].includes(inv.status) && Number(inv.sisa) > 0;
+    const canCancel = !['cancelled', 'paid'].includes(inv.status);
 
     const submitPayment = (e: FormEvent) => {
         e.preventDefault();
@@ -152,11 +115,11 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
     };
 
     return (
-        <AdminLayout title={`Invoice ${inv.number}`}>
+        <AdminLayout title={`Tagihan ${inv.number}`}>
             <div className="space-y-6">
                 <PageHeader
-                    title={`Invoice ${inv.number}`}
-                    subtitle="Record details and related activity."
+                    title={`Tagihan ${inv.number}`}
+                    subtitle="Rincian tagihan, item, pembayaran, dan percobaan pembayaran online."
                     actions={
                         <>
                             <Button
@@ -165,16 +128,17 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.invoices.index')}>Back</Link>
+                                <Link href={route('admin.invoices.index')}>Kembali</Link>
                             </Button>
                             <Button
                                 type="button"
                                 variant="outline"
+                                size="sm"
                                 onClick={() =>
                                     window.open(route('admin.invoices.pdf', inv.id), '_blank')
                                 }
                             >
-                                Download PDF
+                                Unduh PDF
                             </Button>
                         </>
                     }
@@ -183,42 +147,44 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Detail</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <p>
-                                <span className="text-muted-foreground">Customer: </span>
+                                <span className="text-muted-foreground">Pelanggan: </span>
                                 {inv.customer?.name ?? '-'}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Subscription: </span>
+                                <span className="text-muted-foreground">Langganan: </span>
                                 {inv.subscription?.code ?? '-'}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Issue Date: </span>
-                                {inv.issue_date}
+                                <span className="text-muted-foreground">Tanggal terbit: </span>
+                                {formatDate(inv.issue_date, company)}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Due Date: </span>
-                                {inv.due_date}
+                                <span className="text-muted-foreground">Jatuh tempo: </span>
+                                {formatDate(inv.due_date, company)}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Type: </span>
-                                {inv.type}
+                                <span className="text-muted-foreground">Jenis: </span>
+                                <EnumBadge map={INVOICE_TYPE} value={inv.type} />
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Source: </span>
-                                {inv.source}
+                                <span className="text-muted-foreground">Sumber: </span>
+                                <EnumBadge map={INVOICE_SOURCE} value={inv.source} />
                             </p>
                             {inv.notes && (
                                 <p>
-                                    <span className="text-muted-foreground">Notes: </span>
+                                    <span className="text-muted-foreground">Catatan: </span>
                                     {inv.notes}
                                 </p>
                             )}
                             {inv.cancel_reason && (
                                 <p className="text-destructive-text">
-                                    <span className="text-muted-foreground">Cancel Reason: </span>
+                                    <span className="text-muted-foreground">
+                                        Alasan pembatalan:{' '}
+                                    </span>
                                     {inv.cancel_reason}
                                 </p>
                             )}
@@ -226,101 +192,105 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                     </Card>
                     <Card>
                         <CardHeader>
-                            <CardTitle>Status</CardTitle>
+                            <CardTitle>Ringkasan</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-3 text-sm">
                             <p>
                                 <span className="text-muted-foreground">Status: </span>
-                                <StatusBadge variant={statusVariant(inv.status)}>
-                                    {inv.status}
-                                </StatusBadge>
+                                <EnumBadge map={INVOICE_STATUS} value={inv.status} />
                             </p>
                             <p>
                                 <span className="text-muted-foreground">Subtotal: </span>
-                                {inv.subtotal}
+                                {formatRupiah(inv.subtotal, company)}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Tax: </span>
-                                {inv.tax_amount}
+                                <span className="text-muted-foreground">Pajak: </span>
+                                {formatRupiah(inv.tax_amount, company)}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Discount: </span>
-                                {inv.discount_amount}
+                                <span className="text-muted-foreground">Diskon: </span>
+                                {formatRupiah(inv.discount_amount, company)}
                             </p>
                             <p className="text-lg font-bold">
                                 <span className="text-muted-foreground">Total: </span>
-                                {inv.total}
+                                {formatRupiah(inv.total, company)}
                             </p>
                             <p>
-                                <span className="text-muted-foreground">Paid: </span>
-                                {inv.paid_amount}
+                                <span className="text-muted-foreground">Terbayar: </span>
+                                {formatRupiah(inv.paid_amount, company)}
                             </p>
                             <p className="font-medium">
-                                <span className="text-muted-foreground">Remaining: </span>
-                                {inv.sisa}
+                                <span className="text-muted-foreground">Sisa: </span>
+                                {formatRupiah(inv.sisa, company)}
                             </p>
                         </CardContent>
                     </Card>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                            {inv.status === 'draft' && (
-                                <Button
-                                    type="button"
-                                    onClick={() =>
-                                        router.post(route('admin.invoices.send', inv.id))
-                                    }
-                                >
-                                    Send
-                                </Button>
-                            )}
-                            {inv.status === 'draft' && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setItemModal(true)}
-                                >
-                                    Add Item
-                                </Button>
-                            )}
-                            {['sent', 'partial', 'overdue'].includes(inv.status) &&
-                                inv.sisa !== '0' && (
-                                    <Button type="button" onClick={() => setPaymentModal(true)}>
-                                        Record Payment
+                {(isDraft || canRecordPayment || canCancel) && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Aksi</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex flex-wrap gap-2">
+                                {isDraft && (
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        onClick={() =>
+                                            router.post(route('admin.invoices.send', inv.id))
+                                        }
+                                    >
+                                        Kirim tagihan
                                     </Button>
                                 )}
-                            {!['cancelled', 'paid'].includes(inv.status) && (
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => setCancelModal(true)}
-                                >
-                                    Cancel
-                                </Button>
-                            )}
-                        </div>
-                    </CardContent>
-                </Card>
+                                {canRecordPayment && (
+                                    <Button
+                                        type="button"
+                                        variant="primary"
+                                        onClick={() => setPaymentModal(true)}
+                                    >
+                                        Catat pembayaran
+                                    </Button>
+                                )}
+                                {isDraft && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setItemModal(true)}
+                                    >
+                                        Tambah item
+                                    </Button>
+                                )}
+                                {canCancel && (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setCancelModal(true)}
+                                    >
+                                        Batalkan tagihan
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Items</CardTitle>
+                        <CardTitle>Item</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Description</TH>
-                                    <TH>Qty</TH>
-                                    <TH>Unit Price</TH>
-                                    <TH>Discount</TH>
-                                    <TH>Tax%</TH>
-                                    <TH>Line Total</TH>
+                                    <TH>Deskripsi</TH>
+                                    <TH>Jml</TH>
+                                    <TH>Harga satuan</TH>
+                                    <TH>Diskon</TH>
+                                    <TH>Pajak</TH>
+                                    <TH>Total baris</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -330,18 +300,20 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                             colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
-                                            No items.
+                                            Tidak ada item.
                                         </TD>
                                     </TR>
                                 ) : (
                                     (inv.items ?? []).map((i) => (
                                         <TR key={i.id}>
                                             <TD>{i.description}</TD>
-                                            <TD>{i.quantity}</TD>
-                                            <TD>{i.unit_price}</TD>
-                                            <TD>{i.discount_amount}</TD>
-                                            <TD>{i.tax_rate}%</TD>
-                                            <TD className="font-medium">{i.line_total}</TD>
+                                            <TD>{Number(i.quantity)}</TD>
+                                            <TD>{formatRupiah(i.unit_price, company)}</TD>
+                                            <TD>{formatRupiah(i.discount_amount, company)}</TD>
+                                            <TD>{Number(i.tax_rate)}%</TD>
+                                            <TD className="font-medium">
+                                                {formatRupiah(i.line_total, company)}
+                                            </TD>
                                         </TR>
                                     ))
                                 )}
@@ -352,18 +324,20 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Payments</CardTitle>
+                        <CardTitle>Pembayaran</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Amount</TH>
-                                    <TH>Method</TH>
-                                    <TH>Reference</TH>
-                                    <TH>Paid At</TH>
+                                    <TH>Jumlah</TH>
+                                    <TH>Metode</TH>
+                                    <TH>Referensi</TH>
+                                    <TH>Dibayar pada</TH>
                                     <TH>Status</TH>
-                                    <TH></TH>
+                                    <TH>
+                                        <span className="sr-only">Aksi</span>
+                                    </TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -373,24 +347,27 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                             colSpan={6}
                                             className="text-center text-muted-foreground"
                                         >
-                                            No payments.
+                                            Tidak ada pembayaran.
                                         </TD>
                                     </TR>
                                 ) : (
                                     (inv.payments ?? []).map((p) => (
                                         <TR key={p.id}>
-                                            <TD className="font-medium">{p.amount}</TD>
-                                            <TD>
-                                                <Badge variant="neutral">{p.method}</Badge>
+                                            <TD className="font-medium">
+                                                {formatRupiah(p.amount, company)}
                                             </TD>
-                                            <TD>{p.reference ?? '-'}</TD>
-                                            <TD className="text-sm">{p.paid_at}</TD>
                                             <TD>
-                                                {p.cancelled_at ? (
-                                                    <Badge variant="danger">Cancelled</Badge>
-                                                ) : (
-                                                    <Badge variant="success">Active</Badge>
-                                                )}
+                                                <EnumBadge map={PAYMENT_METHOD} value={p.method} />
+                                            </TD>
+                                            <TD>{p.reference || <EmptyCell />}</TD>
+                                            <TD className="text-sm">
+                                                {formatDateTime(p.paid_at, company)}
+                                            </TD>
+                                            <TD>
+                                                <EnumBadge
+                                                    map={PAYMENT_STATE}
+                                                    value={p.cancelled_at ? 'cancelled' : 'active'}
+                                                />
                                             </TD>
                                             <TD>
                                                 {!p.cancelled_at &&
@@ -401,7 +378,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                             size="sm"
                                                             onClick={() => setReverseTarget(p.id)}
                                                         >
-                                                            Reverse
+                                                            Batalkan pembayaran
                                                         </Button>
                                                     )}
                                             </TD>
@@ -416,10 +393,10 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                 {(onlinePayments.enabled || attempts.length > 0) && (
                     <Card>
                         <CardHeader>
-                            <CardTitle>Online payments</CardTitle>
+                            <CardTitle>Pembayaran online</CardTitle>
                             <CardDescription>
-                                Midtrans attempts for this invoice. Read-only: a payment is booked
-                                only when Midtrans confirms it.
+                                Percobaan pembayaran lewat Midtrans untuk tagihan ini. Hanya bisa
+                                dilihat: pembayaran baru tercatat setelah Midtrans mengonfirmasinya.
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -427,11 +404,11 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 <THead>
                                     <TR>
                                         <TH>Status</TH>
-                                        <TH>Amount</TH>
-                                        <TH>Method</TH>
-                                        <TH>Transaction ID</TH>
-                                        <TH>Created</TH>
-                                        <TH>Settled</TH>
+                                        <TH>Jumlah</TH>
+                                        <TH>Metode</TH>
+                                        <TH>ID transaksi</TH>
+                                        <TH>Dibuat</TH>
+                                        <TH>Selesai</TH>
                                     </TR>
                                 </THead>
                                 <TBody>
@@ -441,34 +418,37 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                 colSpan={6}
                                                 className="text-center text-muted-foreground"
                                             >
-                                                No online attempts yet.
+                                                Belum ada percobaan pembayaran online.
                                             </TD>
                                         </TR>
                                     ) : (
                                         attempts.map((a) => (
                                             <TR key={a.id}>
                                                 <TD>
-                                                    <StatusBadge variant={attemptVariant[a.status]}>
-                                                        {a.status}
-                                                    </StatusBadge>
+                                                    <EnumBadge
+                                                        map={PAYMENT_ATTEMPT_STATUS}
+                                                        value={a.status}
+                                                    />
                                                     {a.status_reason && (
                                                         <p
                                                             className={`mt-1 max-w-xs text-xs ${a.status === 'exception' ? 'text-destructive-text' : 'text-muted-foreground'}`}
                                                         >
-                                                            Reason: {a.status_reason}
+                                                            Alasan: {a.status_reason}
                                                         </p>
                                                     )}
                                                 </TD>
-                                                <TD className="font-medium">{a.amount}</TD>
-                                                <TD>{a.payment_type ?? '-'}</TD>
+                                                <TD className="font-medium">
+                                                    {formatRupiah(a.amount, company)}
+                                                </TD>
+                                                <TD>{a.payment_type ?? <EmptyCell />}</TD>
                                                 <TD className="font-mono text-xs break-all">
-                                                    {a.transaction_id ?? '-'}
+                                                    {a.transaction_id ?? <EmptyCell />}
                                                 </TD>
                                                 <TD className="text-sm">
-                                                    {formatDateTime(a.created_at)}
+                                                    {formatDateTime(a.created_at, company)}
                                                 </TD>
                                                 <TD className="text-sm">
-                                                    {formatDateTime(a.settled_at)}
+                                                    {formatDateTime(a.settled_at, company)}
                                                 </TD>
                                             </TR>
                                         ))
@@ -482,37 +462,39 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                 <Modal
                     open={paymentModal}
                     onClose={() => setPaymentModal(false)}
-                    title="Record Payment"
+                    title="Catat pembayaran"
                 >
                     <form onSubmit={submitPayment} className="space-y-4">
-                        <div className="text-sm text-muted-foreground">Remaining: {inv.sisa}</div>
+                        <div className="text-sm text-muted-foreground">
+                            Sisa tagihan: {formatRupiah(inv.sisa, company)}
+                        </div>
                         <Input
-                            label="Amount"
+                            label="Jumlah"
                             type="number"
                             step="0.01"
                             value={data.amount}
                             onChange={(e) => setData('amount', e.target.value)}
+                            error={errors.amount}
                             required
                         />
                         <NativeSelect
-                            label="Method"
+                            label="Metode"
                             value={data.method}
                             onChange={(e) => setData('method', e.target.value)}
-                        >
-                            <option value="cash">Cash</option>
-                            <option value="transfer">Transfer</option>
-                            <option value="cheque">Cheque</option>
-                            <option value="other">Other</option>
-                        </NativeSelect>
-                        <Input
-                            label="Reference"
-                            value={data.reference}
-                            onChange={(e) => setData('reference', e.target.value)}
+                            options={MANUAL_METHODS}
+                            error={errors.method}
                         />
                         <Input
-                            label="Notes"
+                            label="Referensi"
+                            value={data.reference}
+                            onChange={(e) => setData('reference', e.target.value)}
+                            error={errors.reference}
+                        />
+                        <Input
+                            label="Catatan"
                             value={data.notes}
                             onChange={(e) => setData('notes', e.target.value)}
+                            error={errors.notes}
                         />
                         <div className="flex justify-end gap-2">
                             <Button
@@ -520,53 +502,58 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 variant="secondary"
                                 onClick={() => setPaymentModal(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                Record
+                                Simpan
                             </Button>
                         </div>
                     </form>
                 </Modal>
 
-                <Modal open={itemModal} onClose={() => setItemModal(false)} title="Add Item">
+                <Modal open={itemModal} onClose={() => setItemModal(false)} title="Tambah item">
                     <form onSubmit={submitItem} className="space-y-4">
                         <Input
-                            label="Description"
+                            label="Deskripsi"
                             value={data.description}
                             onChange={(e) => setData('description', e.target.value)}
+                            error={errors.description}
                             required
                         />
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Quantity"
+                                label="Kuantitas"
                                 type="number"
                                 step="0.01"
                                 value={data.quantity}
                                 onChange={(e) => setData('quantity', e.target.value)}
+                                error={errors.quantity}
                                 required
                             />
                             <Input
-                                label="Unit Price"
+                                label="Harga satuan"
                                 type="number"
                                 step="0.01"
                                 value={data.unit_price}
                                 onChange={(e) => setData('unit_price', e.target.value)}
+                                error={errors.unit_price}
                                 required
                             />
                             <Input
-                                label="Discount"
+                                label="Diskon"
                                 type="number"
                                 step="0.01"
                                 value={data.discount_amount}
                                 onChange={(e) => setData('discount_amount', e.target.value)}
+                                error={errors.discount_amount}
                             />
                             <Input
-                                label="Tax Rate (%)"
+                                label="Pajak (%)"
                                 type="number"
                                 step="0.01"
                                 value={data.tax_rate}
                                 onChange={(e) => setData('tax_rate', e.target.value)}
+                                error={errors.tax_rate}
                             />
                         </div>
                         <div className="flex justify-end gap-2">
@@ -575,10 +562,10 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 variant="secondary"
                                 onClick={() => setItemModal(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                Add
+                                Simpan
                             </Button>
                         </div>
                     </form>
@@ -587,13 +574,14 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                 <Modal
                     open={cancelModal}
                     onClose={() => setCancelModal(false)}
-                    title="Cancel Invoice"
+                    title="Batalkan tagihan"
                 >
                     <form onSubmit={submitCancel} className="space-y-4">
                         <Input
-                            label="Reason"
+                            label="Alasan"
                             value={data.reason}
                             onChange={(e) => setData('reason', e.target.value)}
+                            error={errors.reason}
                             required
                         />
                         <div className="flex justify-end gap-2">
@@ -602,10 +590,10 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 variant="secondary"
                                 onClick={() => setCancelModal(false)}
                             >
-                                Cancel
+                                Kembali
                             </Button>
                             <Button type="submit" variant="danger" loading={processing}>
-                                Confirm Cancel
+                                Konfirmasi pembatalan
                             </Button>
                         </div>
                     </form>
@@ -614,17 +602,19 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                 <Modal
                     open={reverseTarget !== null}
                     onClose={() => setReverseTarget(null)}
-                    title="Reverse Payment"
+                    title="Batalkan pembayaran"
                 >
                     <form onSubmit={submitReverse} className="space-y-4">
                         <div className="text-sm text-muted-foreground">
-                            Reversing a payment decrements the invoice paid amount and re-derives
-                            its status. The payment is marked cancelled with the actor recorded.
+                            Membatalkan pembayaran mengurangi jumlah terbayar pada tagihan dan
+                            menghitung ulang statusnya. Pembayaran ditandai dibatalkan beserta
+                            pelakunya.
                         </div>
                         <Input
-                            label="Reason"
+                            label="Alasan"
                             value={data.reason}
                             onChange={(e) => setData('reason', e.target.value)}
+                            error={errors.reason}
                             required
                         />
                         <div className="flex justify-end gap-2">
@@ -633,10 +623,10 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 variant="secondary"
                                 onClick={() => setReverseTarget(null)}
                             >
-                                Cancel
+                                Kembali
                             </Button>
                             <Button type="submit" variant="danger" loading={processing}>
-                                Confirm Reverse
+                                Konfirmasi pembatalan
                             </Button>
                         </div>
                     </form>

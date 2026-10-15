@@ -15,6 +15,23 @@ export function formatRupiah(amount: number | string, company?: Company | null):
     }).format(Number.isFinite(value) ? value : 0);
 }
 
+/**
+ * A rupiah figure in the short Indonesian scale for a summary card: `Rp 950 rb`, `Rp 1,2 jt`, `Rp 3,4 M`,
+ * `Rp 1,5 T`. It rounds to one decimal, so a card that shows it also gives the exact `formatRupiah` text.
+ */
+export function formatRupiahCompact(amount: number | string, company?: Company | null): string {
+    const value = typeof amount === 'string' ? Number(amount) : amount;
+    const currency = company?.currency ?? 'IDR';
+    const locale = currency === 'IDR' ? 'id-ID' : 'en-US';
+
+    return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(Number.isFinite(value) ? value : 0);
+}
+
 export function formatMoney(
     value: number | string | null | undefined,
     companyOrCurrency?: Company | string | null,

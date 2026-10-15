@@ -12,10 +12,63 @@
  *   authenticated request context (X-XSRF-TOKEN pattern), while receive and
  *   movement evidence stay on real UI selectors.
  */
+import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { inertiaProps, loginAs, logout, refreshSession, unique } from './support/demo';
+import { companyDateFormat, formatIsoAs } from './support/dateRange';
+import {
+    inertiaProps,
+    loginAs,
+    logout,
+    refreshSession,
+    selectSearchOption,
+    unique,
+} from './support/demo';
 
 const runId = unique('INV');
+
+/**
+ * The options a picker would show for `search`. The page sends them only when asked (an optional Inertia prop),
+ * so the spec asks the way `RemoteSearchSelect` does: a partial reload with the search param.
+ */
+async function pickerOptions(
+    page: Page,
+    prop: 'productOptions' | 'locationOptions',
+    param: 'product_search' | 'location_search',
+    search: string,
+) {
+    const loaded = (await inertiaProps(page, '/admin/stocks')) as unknown as { version?: string };
+    const response = await page.request.get(
+        `/admin/stocks?${new URLSearchParams({ [param]: search })}`,
+        {
+            headers: {
+                Accept: 'application/json',
+                'X-Inertia': 'true',
+                'X-Inertia-Version': loaded.version ?? '',
+                'X-Inertia-Partial-Component': 'Admin/Inventory/Stocks/Index',
+                'X-Inertia-Partial-Data': prop,
+            },
+        },
+    );
+    expect(response.ok(), `${prop} for "${search}"`).toBeTruthy();
+    const body = (await response.json()) as {
+        props: Record<string, { value: number; label: string }[]>;
+    };
+
+    return body.props[prop];
+}
+
+/** A real product and two E2E locations, found through the pickers (no fixed ids). */
+async function stockPickers(page: Page) {
+    const [product] = await pickerOptions(
+        page,
+        'productOptions',
+        'product_search',
+        'E2E-STOCK-PRODUCT',
+    );
+    const locations = await pickerOptions(page, 'locationOptions', 'location_search', 'E2E');
+
+    return { product, locations };
+}
 
 test.describe('@lifecycle inventory', () => {
     test.describe.configure({ mode: 'serial' });
@@ -23,12 +76,13 @@ test.describe('@lifecycle inventory', () => {
     test('receive, issue, transfer, adjust with movement evidence', async ({ page }) => {
         await loginAs(page, 'admin');
 
-        // Resolve real product/location ids from server-rendered props (no
-        // fixed ids); the transfer leg needs a second, different location.
-        const stocksProps = await inertiaProps(page, '/admin/stocks');
-        const productId = stocksProps?.props?.products?.data?.[0]?.id;
-        const locationId = stocksProps?.props?.locations?.data?.[0]?.id;
-        const toLocationId = stocksProps?.props?.locations?.data?.[1]?.id;
+        // Resolve real product/location ids through the pickers (no fixed ids);
+        // the transfer leg needs a second, different location.
+        const { product, locations } = await stockPickers(page);
+        const [from, to] = locations;
+        const productId = product?.value;
+        const locationId = from?.value;
+        const toLocationId = to?.value;
         expect(productId).toBeTruthy();
         expect(locationId).toBeTruthy();
         expect(toLocationId).toBeTruthy();
@@ -45,8 +99,10 @@ test.describe('@lifecycle inventory', () => {
         // Receive through the current Indonesian UI.
         await page.getByRole('button', { name: 'Terima Barang' }).click();
         const dialog = page.getByRole('dialog', { name: 'Terima Barang' });
-        await dialog.getByLabel('Produk').selectOption(String(productId));
-        await dialog.getByLabel('Lokasi').selectOption(String(locationId));
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await expect(dialog.getByRole('combobox', { name: 'Barang' })).toHaveValue(product!.label);
+        await selectSearchOption(page, 'Lokasi', from!.label.split(' - ')[0]);
+        await expect(dialog.getByRole('combobox', { name: 'Lokasi' })).toHaveValue(from!.label);
         await dialog.getByLabel('Jumlah').fill('10');
         await dialog.getByLabel('Catatan').fill(receiveNote);
         await dialog.getByRole('button', { name: 'Simpan' }).click();
@@ -106,9 +162,9 @@ test.describe('@lifecycle inventory', () => {
 
     test('staff requests an adjustment and a different manager approves it', async ({ page }) => {
         await loginAs(page, 'admin');
-        const stocksProps = await inertiaProps(page, '/admin/stocks');
-        const productId = stocksProps?.props?.products?.data?.[0]?.id;
-        const locationId = stocksProps?.props?.locations?.data?.[0]?.id;
+        const { product, locations } = await stockPickers(page);
+        const productId = product?.value;
+        const locationId = locations[0]?.value;
         expect(productId).toBeTruthy();
         expect(locationId).toBeTruthy();
         await logout(page);
@@ -160,15 +216,15 @@ test.describe('@lifecycle inventory', () => {
     }) => {
         await loginAs(page, 'admin');
 
-        const stocksProps = await inertiaProps(page, '/admin/stocks');
-        const productId = stocksProps?.props?.products?.data?.[0]?.id;
-        const locationId = stocksProps?.props?.locations?.data?.[0]?.id;
+        const { product, locations } = await stockPickers(page);
+        const productId = product?.value;
+        const locationId = locations[0]?.value;
         expect(productId).toBeTruthy();
         expect(locationId).toBeTruthy();
 
         // No Issue modal exists anymore; over-issue must still fail loudly at
         // the guarded endpoint. With a JSON expectation InsufficientStock
-        // renders as 422 {"message": "Insufficient stock..."} — never a pass.
+        // renders as 422 {"message": "Stok tidak mencukupi..."}, never a pass.
         const csrf = await refreshSession(page, '/admin/stocks');
         const overissue = await page.request.post('/admin/stocks/issue', {
             headers: { 'X-XSRF-TOKEN': csrf, Accept: 'application/json' },
@@ -181,7 +237,7 @@ test.describe('@lifecycle inventory', () => {
         });
         expect(overissue.status()).toBe(422);
         const body = (await overissue.json()) as { message?: string };
-        expect(body.message ?? '').toMatch(/insufficient/i);
+        expect(body.message ?? '').toMatch(/tidak mencukupi/i);
 
         // Verify the rejected movement was never persisted: browse to Stock Movements
         // and search for the unique note, expecting zero rows.
@@ -189,11 +245,60 @@ test.describe('@lifecycle inventory', () => {
         await expect(
             page.getByRole('main').getByRole('heading', { name: 'Mutasi Stok' }),
         ).toBeVisible({ timeout: 15_000 });
-        const search = page.getByLabel(/search/i).first();
+        const search = page.getByLabel('Cari mutasi');
         await search.fill(`overissue-${runId}`);
-        await page.getByRole('button', { name: 'Filter' }).click();
+        await expect(page).toHaveURL(new RegExp(`search=overissue-${runId}`));
+        await expect(page.getByText('Tidak ada mutasi yang cocok')).toBeVisible();
         await expect(page.getByRole('row').filter({ hasText: `overissue-${runId}` })).toHaveCount(
             0,
         );
+    });
+
+    test('request form takes the needed date, a product and a source type from pickers', async ({
+        page,
+    }) => {
+        await loginAs(page, 'admin');
+        await page.goto('/admin/inventory/requests/create');
+        await expect(
+            page.getByRole('main').getByRole('heading', { name: 'Buat Permintaan Barang' }),
+        ).toBeVisible();
+
+        const format = await companyDateFormat(page);
+        const needed = page.getByLabel('Tanggal Dibutuhkan', { exact: true });
+        await needed.fill(formatIsoAs('2030-03-15', format));
+        await needed.press('Tab');
+
+        await selectSearchOption(page, 'Barang 1', 'E2E-STOCK-PRODUCT');
+        await expect(page.getByRole('combobox', { name: 'Barang 1' })).toHaveValue(
+            /E2E-STOCK-PRODUCT/,
+        );
+        await page.getByLabel('Alasan Kebutuhan Barang').fill(`permintaan-${runId}`);
+
+        // A source type brings its own picker; there is no id to type.
+        await page.getByLabel('Rujukan (opsional)').selectOption('ticket');
+        await expect(page.getByRole('combobox', { name: 'Tiket' })).toBeVisible();
+        await expect(page.getByRole('spinbutton', { name: /ID/ })).toHaveCount(0);
+        await page.getByLabel('Rujukan (opsional)').selectOption('');
+        await expect(page.getByRole('combobox', { name: 'Tiket' })).toHaveCount(0);
+
+        await page.getByRole('button', { name: 'Simpan sebagai Draf' }).click();
+        await expect(page).toHaveURL(/\/admin\/inventory\/requests\/\d+$/);
+        await expect(page.getByRole('main')).toContainText(formatIsoAs('2030-03-15', format));
+    });
+
+    test('movements are filtered by a product picked from the list', async ({ page }) => {
+        await loginAs(page, 'admin');
+        await page.goto('/admin/stock-movements');
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await expect(page).toHaveURL(/product_id=\d+/);
+
+        await page.getByLabel('Cari mutasi').fill('E2E Stock Card Movement 05');
+        await expect(
+            page.getByRole('row').filter({ hasText: 'E2E Stock Card Movement 05' }),
+        ).toBeVisible();
+
+        await page.getByLabel('Jenis', { exact: true }).selectOption('issue');
+        await expect(page).toHaveURL(/movement_type=issue/);
+        await expect(page.getByText('Tidak ada mutasi yang cocok')).toBeVisible();
     });
 });

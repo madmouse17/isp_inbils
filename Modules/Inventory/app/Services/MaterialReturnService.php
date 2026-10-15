@@ -163,7 +163,7 @@ class MaterialReturnService
                 'to_status' => 'awaiting_declaration',
                 'action' => 'created',
                 'actor_id' => $request->issued_by ?? $request->requested_by,
-                'reason' => 'Material return case otomatis dibuat dari serah terima inventory request: '.$request->code,
+                'reason' => 'Kasus pengembalian material dibuat otomatis dari serah terima permintaan barang: '.$request->code,
                 'payload' => [
                     'inventory_request_id' => $request->id,
                     'code' => $request->code,
@@ -194,13 +194,13 @@ class MaterialReturnService
             $payloadHash = self::hashPayload($data);
             $idempotencyKey = $data['idempotency_key'] ?? null;
             if ($idempotencyKey && $c->idempotency_key === $idempotencyKey) {
-                abort_if($c->payload_hash !== null && $c->payload_hash !== $payloadHash, 409, 'Conflict: Idempotency key telah digunakan dengan payload berbeda.');
+                abort_if($c->payload_hash !== null && $c->payload_hash !== $payloadHash, 409, 'Konflik: kunci idempotensi sudah dipakai dengan data yang berbeda.');
 
                 return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation']);
             }
 
-            abort_unless(in_array($c->status, ['awaiting_declaration', 'correction_required'], true), 422, 'Status return case tidak mengizinkan deklarasi material.');
-            abort_unless((int) $c->technician_id === (int) $actor->id, 403, 'Hanya teknisi pemilik custody yang berhak mendeklarasikan sisa barang.');
+            abort_unless(in_array($c->status, ['awaiting_declaration', 'correction_required'], true), 422, 'Status kasus pengembalian tidak mengizinkan deklarasi material.');
+            abort_unless((int) $c->technician_id === (int) $actor->id, 403, 'Hanya teknisi pemilik barang titipan yang berhak mendeklarasikan sisa barang.');
 
             if ($idempotencyKey) {
                 $duplicate = MaterialReturnCase::withoutCompany()
@@ -208,40 +208,40 @@ class MaterialReturnService
                     ->where('idempotency_key', $idempotencyKey)
                     ->where('id', '!=', $c->id)
                     ->exists();
-                abort_if($duplicate, 409, 'Idempotency key telah digunakan pada kasus return lain.');
+                abort_if($duplicate, 409, 'Kunci idempotensi sudah dipakai pada kasus pengembalian lain.');
             }
 
             /** @var Collection<int, MaterialReturnLine> $lines */
             $lines = $c->lines()->lockForUpdate()->get()->keyBy('id');
-            abort_if($lines->isEmpty(), 422, 'Return case tidak memiliki baris material.');
+            abort_if($lines->isEmpty(), 422, 'Kasus pengembalian tidak memiliki baris material.');
 
             $inputLines = collect($data['lines'])->keyBy('id');
             abort_unless($inputLines->count() === $lines->count(), 422, 'Seluruh baris material harus dideklarasikan secara lengkap.');
 
             foreach ($lines as $lineId => $line) {
                 $input = $inputLines->get($lineId);
-                abort_unless($input !== null, 422, "Data deklarasi untuk item ID {$lineId} tidak ditemukan.");
+                abort_unless($input !== null, 422, "Data deklarasi untuk barang ID {$lineId} tidak ditemukan.");
 
                 $used = (float) ($input['actual_used_qty'] ?? 0);
                 $goodReturn = (float) ($input['declared_good_return_qty'] ?? 0);
                 $discrepancy = (float) ($input['declared_discrepancy_qty'] ?? 0);
 
-                abort_if($used < 0 || $goodReturn < 0 || $discrepancy < 0, 422, 'Nilai kuantitas deklarasi tidak boleh negatif.');
+                abort_if($used < 0 || $goodReturn < 0 || $discrepancy < 0, 422, 'Nilai jumlah deklarasi tidak boleh negatif.');
 
                 $product = Product::withoutCompany()->find($line->product_id);
-                abort_if($product && $product->type === 'asset', 422, 'Serialized asset tidak boleh dideklarasikan melalui bulk material return.');
+                abort_if($product && $product->type === 'asset', 422, 'Aset berserial tidak boleh dideklarasikan lewat pengembalian material massal.');
 
                 $issued = (float) $line->issued_qty;
                 $sumDeclared = round($used + $goodReturn + $discrepancy, 2);
 
                 if (abs($issued - $sumDeclared) > 0.001) {
-                    abort(422, "Invariant gagal pada baris {$line->id}: issued ({$issued}) != used ({$used}) + return ({$goodReturn}) + discrepancy ({$discrepancy}).");
+                    abort(422, "Jumlah tidak cocok pada baris {$line->id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + dikembalikan ({$goodReturn}) + selisih ({$discrepancy}).");
                 }
 
                 $discrepancyCode = $input['discrepancy_code'] ?? null;
                 $discrepancyReason = $input['discrepancy_reason'] ?? null;
                 if ($discrepancy > 0) {
-                    abort_unless(! empty($discrepancyCode) && in_array($discrepancyCode, ['damaged', 'lost', 'other'], true), 422, 'Alasan dan kode diskrepansi (damaged/lost/other) wajib diisi jika terdapat selisih material.');
+                    abort_unless(! empty($discrepancyCode) && in_array($discrepancyCode, ['damaged', 'lost', 'other'], true), 422, 'Kode dan alasan selisih (rusak, hilang, atau lainnya) wajib diisi jika ada selisih material.');
                 }
 
                 $line->update([
@@ -290,7 +290,7 @@ class MaterialReturnService
                     ->permission('inventory.return.receive')
                     ->get();
                 if ($receivers->isNotEmpty()) {
-                    Notification::send($receivers, new MaterialReturnDeclaredNotification($c->id, $c->work_order_id, $companyId));
+                    Notification::send($receivers, new MaterialReturnDeclaredNotification($c->id, $c->work_order_id, $companyId, $c->inventory_request_id));
                 }
             });
 
@@ -307,7 +307,7 @@ class MaterialReturnService
      */
     public static function receiveAccept(MaterialReturnCase $case, User $receiver, array $data): MaterialReturnCase
     {
-        abort_unless($receiver->can('inventory.return.receive') || $receiver->hasPermissionTo('inventory.return.receive'), 403, 'Anda tidak memiliki hak akses untuk menerima fisik material return.');
+        abort_unless($receiver->can('inventory.return.receive') || $receiver->hasPermissionTo('inventory.return.receive'), 403, 'Anda tidak memiliki hak akses untuk menerima fisik pengembalian material.');
 
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($receiver);
 
@@ -317,7 +317,7 @@ class MaterialReturnService
                 ->lockForUpdate()
                 ->findOrFail($case->id);
 
-            abort_unless($c->status === 'awaiting_receipt', 422, 'Status return case harus awaiting_receipt untuk penerimaan gudang.');
+            abort_unless($c->status === 'awaiting_receipt', 422, 'Kasus pengembalian harus berstatus menunggu penerimaan gudang untuk diterima.');
             abort_if((int) $c->technician_id === (int) $receiver->id, 403, 'Maker-checker: teknisi pemilik barang tidak boleh menerima fisiknya sendiri di gudang.');
 
             $warehouseLocationId = $c->warehouse_location_id;
@@ -339,14 +339,14 @@ class MaterialReturnService
                 $lost = (float) ($input['lost_qty'] ?? 0);
                 $other = (float) ($input['other_discrepancy_qty'] ?? 0);
 
-                abort_if($acceptedGood < 0 || $damaged < 0 || $lost < 0 || $other < 0, 422, 'Kuantitas penerimaan tidak boleh bernilai negatif.');
+                abort_if($acceptedGood < 0 || $damaged < 0 || $lost < 0 || $other < 0, 422, 'Jumlah penerimaan tidak boleh negatif.');
 
                 $used = (float) $line->actual_used_qty;
                 $issued = (float) $line->issued_qty;
                 $sumPhysical = round($used + $acceptedGood + $damaged + $lost + $other, 2);
 
                 if (abs($issued - $sumPhysical) > 0.001) {
-                    abort(422, "Invariant gagal pada baris {$line->id}: issued ({$issued}) != used ({$used}) + accepted ({$acceptedGood}) + damaged ({$damaged}) + lost ({$lost}) + other ({$other}).");
+                    abort(422, "Jumlah tidak cocok pada baris {$line->id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + diterima ({$acceptedGood}) + rusak ({$damaged}) + hilang ({$lost}) + lainnya ({$other}).");
                 }
 
                 if ($damaged > 0 || $lost > 0 || $other > 0) {
@@ -359,7 +359,7 @@ class MaterialReturnService
                         $line->product_id,
                         $warehouseLocationId,
                         $acceptedGood,
-                        'Penerimaan Fisik Retur Material: Case #'.$c->id,
+                        'Penerimaan Fisik Pengembalian Material: Kasus #'.$c->id,
                         MaterialReturnLine::class,
                         $line->id
                     );
@@ -393,7 +393,7 @@ class MaterialReturnService
                 'to_status' => $toStatus,
                 'action' => 'received_accepted',
                 'actor_id' => $receiver->id,
-                'reason' => $data['reason'] ?? ($hasException ? 'Penerimaan fisik selesai dengan selisih/kerusakan/kehilangan barang.' : 'Penerimaan fisik selesai sempurna dan reconciled.'),
+                'reason' => $data['reason'] ?? ($hasException ? 'Penerimaan fisik selesai dengan selisih, kerusakan, atau kehilangan barang.' : 'Penerimaan fisik selesai sempurna dan telah direkonsiliasi.'),
                 'payload' => [
                     'has_exception' => $hasException,
                     'lines' => $data['lines'],
@@ -430,7 +430,7 @@ class MaterialReturnService
                             ->get();
                     }
                     if ($resolvers->isNotEmpty()) {
-                        Notification::send($resolvers, new MaterialReturnExceptionNotification($c->id, $c->work_order_id, $companyId));
+                        Notification::send($resolvers, new MaterialReturnExceptionNotification($c->id, $c->work_order_id, $companyId, $c->inventory_request_id));
                     }
                 });
             }
@@ -445,7 +445,7 @@ class MaterialReturnService
      */
     public static function receiveReject(MaterialReturnCase $case, User $rejecter, string $reason): MaterialReturnCase
     {
-        abort_unless($rejecter->can('inventory.return.receive') || $rejecter->hasPermissionTo('inventory.return.receive'), 403, 'Anda tidak memiliki hak akses untuk menolak serah terima material return.');
+        abort_unless($rejecter->can('inventory.return.receive') || $rejecter->hasPermissionTo('inventory.return.receive'), 403, 'Anda tidak memiliki hak akses untuk menolak serah terima pengembalian material.');
 
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($rejecter);
 
@@ -455,7 +455,7 @@ class MaterialReturnService
                 ->lockForUpdate()
                 ->findOrFail($case->id);
 
-            abort_unless($c->status === 'awaiting_receipt', 422, 'Status return case harus awaiting_receipt untuk penolakan serah terima fisik.');
+            abort_unless($c->status === 'awaiting_receipt', 422, 'Kasus pengembalian harus berstatus menunggu penerimaan gudang untuk ditolak.');
             abort_if((int) $c->technician_id === (int) $rejecter->id, 403, 'Maker-checker: teknisi tidak boleh menolak serah terima barangnya sendiri.');
             abort_if(empty(trim($reason)), 422, 'Alasan penolakan serah terima fisik wajib diisi.');
 
@@ -487,7 +487,7 @@ class MaterialReturnService
             ], $c);
 
             DB::afterCommit(function () use ($c, $reason, $companyId) {
-                $c->technician->notify(new MaterialReturnRejectedNotification($c->id, $reason, $companyId));
+                $c->technician->notify(new MaterialReturnRejectedNotification($c->id, $reason, $companyId, $c->inventory_request_id));
             });
 
             return $c->fresh(['lines.product', 'events.actor', 'technician', 'warehouseLocation', 'rejecter']);
@@ -500,7 +500,7 @@ class MaterialReturnService
      */
     public static function resolveException(MaterialReturnCase $case, User $resolver, string $resolutionNote): MaterialReturnCase
     {
-        abort_unless($resolver->can('inventory.return.resolve') || $resolver->hasPermissionTo('inventory.return.resolve'), 403, 'Anda tidak memiliki hak akses untuk menyelesaikan pengecualian material return.');
+        abort_unless($resolver->can('inventory.return.resolve') || $resolver->hasPermissionTo('inventory.return.resolve'), 403, 'Anda tidak memiliki hak akses untuk menyelesaikan selisih pengembalian material.');
 
         $companyId = CompanyService::currentId() ?? CompanyService::idFor($resolver);
 
@@ -510,10 +510,10 @@ class MaterialReturnService
                 ->lockForUpdate()
                 ->findOrFail($case->id);
 
-            abort_unless($c->status === 'exception_open', 422, 'Hanya kasus return berstatus exception_open yang dapat diselesaikan (resolve).');
-            abort_if((int) $c->technician_id === (int) $resolver->id, 403, 'Teknisi tidak berhak menyelesaikan diskrepansi barang sendiri.');
-            abort_if((int) $c->received_by === (int) $resolver->id, 403, 'Penerima fisik gudang tidak boleh menyelesaikan (resolve) pengecualian diskrepansi sendiri.');
-            abort_if(empty(trim($resolutionNote)), 422, 'Catatan resolusi diskrepansi wajib diisi.');
+            abort_unless($c->status === 'exception_open', 422, 'Hanya kasus pengembalian yang selisihnya masih perlu diselesaikan yang dapat diselesaikan.');
+            abort_if((int) $c->technician_id === (int) $resolver->id, 403, 'Teknisi tidak berhak menyelesaikan selisih barangnya sendiri.');
+            abort_if((int) $c->received_by === (int) $resolver->id, 403, 'Penerima fisik gudang tidak boleh menyelesaikan selisih yang ia terima sendiri.');
+            abort_if(empty(trim($resolutionNote)), 422, 'Catatan penyelesaian selisih wajib diisi.');
 
             $fromStatus = $c->status;
             $toStatus = 'resolved';

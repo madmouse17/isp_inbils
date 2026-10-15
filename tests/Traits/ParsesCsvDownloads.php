@@ -42,7 +42,7 @@ trait ParsesCsvDownloads
 
         $records = [];
         foreach ($rows as $row) {
-            if (count($row) === 1 && str_starts_with((string) $row[0], '# Export truncated')) {
+            if (count($row) === 1 && str_starts_with((string) $row[0], '# Ekspor dipotong')) {
                 continue;
             }
             $records[] = array_combine($header, $row);
@@ -52,7 +52,7 @@ trait ParsesCsvDownloads
     }
 
     /**
-     * A summary export as `Metric` or `Metric / Breakdown` => Value.
+     * A summary export as `Metrik` or `Metrik / Rincian` => Nilai.
      *
      * @return array<string, string|null>
      */
@@ -60,7 +60,7 @@ trait ParsesCsvDownloads
     {
         $figures = [];
         foreach ($this->csvRecords($response) as $record) {
-            $figures[$record['Breakdown'] === '' ? $record['Metric'] : $record['Metric'].' / '.$record['Breakdown']] = $record['Value'];
+            $figures[$record['Rincian'] === '' ? $record['Metrik'] : $record['Metrik'].' / '.$record['Rincian']] = $record['Nilai'];
         }
 
         return $figures;

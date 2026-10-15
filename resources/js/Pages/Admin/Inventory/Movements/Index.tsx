@@ -1,35 +1,42 @@
-import { useState, type FormEvent } from 'react';
-import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
+import { Link } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
+import { NativeSelect } from '@/Components/composite/NativeSelect';
+import { RemoteSearchSelect, type RemoteOption } from '@/Components/composite/RemoteSearchSelect';
 import { Button } from '@/Components/ui/Button';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
-import { NativeSelect } from '@/Components/ui';
-import { useTableQuery } from '@/hooks/useTableQuery';
-import { formatDateTime } from '@/lib/format';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
+import { useCompany } from '@/hooks/useCompany';
+import { useTableQuery } from '@/hooks/useTableQuery';
+import { formatDateTime, formatNumber } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
+import { optionsOf, STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
 
 type MovementRow = {
     id: number;
     movement_type: string;
     quantity: number | string;
-    reference?: string | null;
     note?: string | null;
     created_at: string | null;
     product?: { id: number; name: string; sku?: string | null } | null;
     from_location?: { id: number; name: string } | null;
     to_location?: { id: number; name: string } | null;
-    created_by?: { id: number; name: string } | null;
 };
 
 type Paginator<T> = PaginationLike<T>;
 
 type Props = {
     movements: Paginator<MovementRow>;
+    /** Answers of the server-side search; only present after the first search. */
+    productOptions?: RemoteOption[];
+    locationOptions?: RemoteOption[];
+    /** The options behind `filters.product_id` and `filters.location_id`, so the filters read before any search. */
+    selectedProduct: RemoteOption | null;
+    selectedLocation: RemoteOption | null;
     filters: {
         search?: string;
         movement_type?: string;
@@ -41,21 +48,21 @@ type Props = {
         sort?: string;
         direction?: string;
     };
-    typeOptions?: string[];
     can: { export?: boolean };
 };
 
-const MOVEMENT_TYPES = [
-    'receive',
-    'issue',
-    'transfer',
-    'adjustment',
-    'reserve',
-    'release',
-    'return',
-];
+const TYPE_OPTIONS = [{ value: '', label: 'Semua jenis' }, ...optionsOf(STOCK_MOVEMENT_TYPE)];
 
-export default function MovementsIndex({ movements, filters, can, typeOptions = [] }: Props) {
+export default function MovementsIndex({
+    movements,
+    productOptions,
+    locationOptions,
+    selectedProduct,
+    selectedLocation,
+    filters,
+    can,
+}: Props) {
+    const company = useCompany();
     const pagination = toPagination(movements);
     const { params, set, setMany, sortBy, sortDir, onSort, processing } = useTableQuery(
         {
@@ -67,28 +74,24 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
             sort_dir: filters.sort_dir ?? filters.direction ?? '',
             per_page: pagination.per_page,
         },
-        { only: ['movements', 'filters'] },
+        { only: ['movements', 'filters', 'selectedProduct', 'selectedLocation'] },
     );
-
-    const [type, setType] = useState(filters.movement_type ?? '');
-
-    const applyFilter = (e: FormEvent) => {
-        e.preventDefault();
-        setMany({ movement_type: type });
-    };
+    const hasFilters = Boolean(
+        params.search || params.movement_type || params.product_id || params.location_id,
+    );
 
     const columns: DataTableColumn<MovementRow>[] = useMemo(
         () => [
             {
                 key: 'movement_type',
-                header: 'Type',
+                header: 'Jenis',
                 sortable: true,
                 sortKey: 'movement_type',
-                cell: (row) => <StatusBadge status={row.movement_type} />,
+                cell: (row) => <EnumBadge map={STOCK_MOVEMENT_TYPE} value={row.movement_type} />,
             },
             {
                 key: 'product',
-                header: 'Product',
+                header: 'Barang',
                 cell: (row) =>
                     row.product ? (
                         <div>
@@ -100,41 +103,41 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
                             ) : null}
                         </div>
                     ) : (
-                        '-'
+                        <EmptyCell />
                     ),
             },
             {
                 key: 'quantity',
-                header: 'Qty',
+                header: 'Jumlah',
                 sortable: true,
                 sortKey: 'quantity',
                 className: 'text-right tabular-nums',
-                cell: (row) => String(row.quantity ?? '-'),
+                cell: (row) => formatNumber(row.quantity),
             },
             {
                 key: 'from',
-                header: 'From',
-                cell: (row) => row.from_location?.name ?? '-',
+                header: 'Dari',
+                cell: (row) => row.from_location?.name ?? <EmptyCell />,
             },
             {
                 key: 'to',
-                header: 'To',
-                cell: (row) => row.to_location?.name ?? '-',
+                header: 'Ke',
+                cell: (row) => row.to_location?.name ?? <EmptyCell />,
             },
             {
                 key: 'note',
-                header: 'Note',
-                cell: (row) => row.note ?? '-',
+                header: 'Catatan',
+                cell: (row) => row.note || <EmptyCell />,
             },
             {
                 key: 'created_at',
-                header: 'Created',
+                header: 'Waktu',
                 sortable: true,
                 sortKey: 'created_at',
-                cell: (row) => formatDateTime(row.created_at),
+                cell: (row) => formatDateTime(row.created_at, company),
             },
         ],
-        [],
+        [company],
     );
 
     return (
@@ -142,7 +145,7 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
             <div className="space-y-4">
                 <PageHeader
                     title="Mutasi Stok"
-                    description="Inbound, outbound, transfer, and adjustment history."
+                    description="Riwayat barang masuk, keluar, transfer, dan penyesuaian. Mutasi yang sudah tercatat tidak bisa diubah."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             <ExportMenu
@@ -152,57 +155,66 @@ export default function MovementsIndex({ movements, filters, can, typeOptions = 
                                 formats={['csv', 'pdf']}
                             />
                             <Button asChild size="sm" variant="outline">
-                                <Link href={route('admin.stocks.index')}>Stocks</Link>
+                                <Link href={route('admin.stocks.index')}>Stok</Link>
                             </Button>
                         </div>
                     }
                 />
 
-                <form
-                    onSubmit={applyFilter}
-                    className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end"
-                >
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="mv-search"
-                        >
-                            Search
-                        </label>
+                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
+                    <div className="min-w-48 flex-1">
                         <Input
                             id="mv-search"
+                            label="Cari mutasi"
                             value={params.search ?? ''}
                             onChange={(e) => set('search', e.target.value)}
-                            placeholder="Product, reference..."
+                            placeholder="Barang, SKU, lokasi, atau catatan"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <NativeSelect
-                            label="Type"
-                            value={type}
-                            onChange={(e) => setType(e.target.value)}
-                            options={[
-                                { value: '', label: 'All' },
-                                ...(typeOptions.length ? typeOptions : MOVEMENT_TYPES).map((t) => ({
-                                    value: t,
-                                    label: t,
-                                })),
-                            ]}
-                            className="w-40"
+                    <NativeSelect
+                        id="mv-type"
+                        label="Jenis"
+                        value={params.movement_type ?? ''}
+                        onChange={(e) => set('movement_type', e.target.value)}
+                        options={TYPE_OPTIONS}
+                        wrapperClassName="md:w-44"
+                    />
+                    <div className="w-full md:w-64">
+                        <RemoteSearchSelect
+                            id="mv-product"
+                            field="product"
+                            label="Barang"
+                            placeholder="Semua barang"
+                            options={productOptions}
+                            selected={selectedProduct}
+                            value={params.product_id ?? ''}
+                            onChange={(value) => set('product_id', value)}
                         />
                     </div>
-                    <div className="self-end">
-                        <Button type="submit" variant="secondary">
-                            Filter
-                        </Button>
+                    <div className="w-full md:w-64">
+                        <RemoteSearchSelect
+                            id="mv-location"
+                            field="location"
+                            label="Lokasi"
+                            placeholder="Semua lokasi"
+                            options={locationOptions}
+                            selected={selectedLocation}
+                            value={params.location_id ?? ''}
+                            onChange={(value) => set('location_id', value)}
+                        />
                     </div>
-                </form>
+                </div>
 
                 <DataTable
                     columns={columns}
                     data={movements.data}
-                    emptyTitle="No movements"
-                    emptyDescription="No stock movements match the current filters."
+                    itemLabel="mutasi"
+                    emptyTitle="Belum ada mutasi stok"
+                    emptyDescription="Mutasi tercatat setiap kali stok masuk, keluar, dipindah, atau disesuaikan."
+                    hasFilters={hasFilters}
+                    onResetFilters={() =>
+                        setMany({ search: '', movement_type: '', product_id: '', location_id: '' })
+                    }
                     loading={processing}
                     sortBy={sortBy}
                     sortDir={sortDir}

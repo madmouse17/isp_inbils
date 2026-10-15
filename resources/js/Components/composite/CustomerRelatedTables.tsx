@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from '@inertiajs/react';
 import {
-    Badge,
+    EmptyCell,
+    EnumBadge,
     Table,
     Tab,
     TabList,
@@ -13,8 +15,15 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import { StatusBadge } from './StatusBadge';
 import { formatDate, formatMoney } from '@/lib/format';
+import {
+    INVOICE_STATUS,
+    PRIORITY,
+    SUBSCRIPTION_STATUS,
+    TICKET_STATUS,
+    WORK_ORDER_STATUS,
+    WORK_ORDER_TYPE,
+} from '@/lib/statuses';
 import type { CustomerAddress, CustomerContact, ServiceSubscription } from '@/types/models';
 
 interface InvoiceHistory {
@@ -66,6 +75,18 @@ interface CustomerRelatedTablesProps {
     historyAccess?: CustomerHistoryAccess;
 }
 
+const DETAIL_LINK = 'font-medium text-primary hover:underline';
+
+function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
+    return (
+        <TR>
+            <TD colSpan={colSpan} className="py-8 text-center text-muted-foreground">
+                {children}
+            </TD>
+        </TR>
+    );
+}
+
 export function CustomerRelatedTables({
     addresses,
     contacts,
@@ -77,229 +98,190 @@ export function CustomerRelatedTables({
 
     return (
         <Tabs value={tab} onValueChange={setTab}>
-            <TabList>
-                <Tab value="addresses">Addresses ({addresses.length})</Tab>
-                <Tab value="contacts">Contacts ({contacts.length})</Tab>
-                <Tab value="subscriptions">Subscriptions ({subscriptions.length})</Tab>
+            <TabList aria-label="Data terkait pelanggan">
+                <Tab value="addresses">Alamat ({addresses.length})</Tab>
+                <Tab value="contacts">Kontak ({contacts.length})</Tab>
+                <Tab value="subscriptions">Langganan ({subscriptions.length})</Tab>
                 {historyAccess.billing ? (
-                    <Tab value="billing">Billing ({history.invoices.length})</Tab>
+                    <Tab value="billing">Tagihan ({history.invoices.length})</Tab>
                 ) : null}
                 {historyAccess.spk ? (
                     <Tab value="spk">SPK ({history.work_orders.length})</Tab>
                 ) : null}
                 {historyAccess.tickets ? (
-                    <Tab value="tickets">Tickets ({history.tickets.length})</Tab>
+                    <Tab value="tickets">Tiket ({history.tickets.length})</Tab>
                 ) : null}
             </TabList>
             <TabPanel value="addresses">
-                <div className="space-y-3">
-                    <Table>
-                        <THead>
-                            <TR>
-                                <TH>Label</TH>
-                                <TH>Address</TH>
-                                <TH>Region</TH>
-                                <TH>Coordinates</TH>
-                                <TH>Installation</TH>
-                                <TH>Primary</TH>
-                            </TR>
-                        </THead>
-                        <TBody>
-                            {addresses.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={6}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No addresses.
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>Label</TH>
+                            <TH>Alamat</TH>
+                            <TH>Wilayah</TH>
+                            <TH>Koordinat</TH>
+                            <TH>Pemasangan</TH>
+                            <TH>Utama</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {addresses.length === 0 ? (
+                            <EmptyRow colSpan={6}>
+                                Belum ada alamat. Tambahkan lewat halaman Ubah Pelanggan.
+                            </EmptyRow>
+                        ) : (
+                            addresses.map((address) => (
+                                <TR key={address.id}>
+                                    <TD>{address.label}</TD>
+                                    <TD>{address.address}</TD>
+                                    <TD>
+                                        {[
+                                            address.village_name,
+                                            address.district_name,
+                                            address.city_name,
+                                            address.province_name,
+                                        ]
+                                            .filter(Boolean)
+                                            .join(', ') ||
+                                            address.city || <EmptyCell />}
                                     </TD>
+                                    <TD>
+                                        {address.lat && address.lng ? (
+                                            <span className="whitespace-nowrap">
+                                                {`${address.lat}, ${address.lng}`}
+                                            </span>
+                                        ) : (
+                                            <EmptyCell />
+                                        )}
+                                    </TD>
+                                    <TD>{address.is_installation_point ? 'Ya' : <EmptyCell />}</TD>
+                                    <TD>{address.is_primary ? 'Ya' : <EmptyCell />}</TD>
                                 </TR>
-                            ) : (
-                                addresses.map((address) => (
-                                    <TR key={address.id}>
-                                        <TD>{address.label}</TD>
-                                        <TD>{address.address}</TD>
-                                        <TD>
-                                            {[
-                                                address.village_name,
-                                                address.district_name,
-                                                address.city_name,
-                                                address.province_name,
-                                            ]
-                                                .filter(Boolean)
-                                                .join(', ') ||
-                                                address.city ||
-                                                '-'}
-                                        </TD>
-                                        <TD>
-                                            {address.lat && address.lng
-                                                ? `${address.lat}, ${address.lng}`
-                                                : '-'}
-                                        </TD>
-                                        <TD>
-                                            {address.is_installation_point ? (
-                                                <Badge variant="success">Yes</Badge>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </TD>
-                                        <TD>
-                                            {address.is_primary ? (
-                                                <Badge variant="brand">Yes</Badge>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </TD>
-                                    </TR>
-                                ))
-                            )}
-                        </TBody>
-                    </Table>
-                </div>
+                            ))
+                        )}
+                    </TBody>
+                </Table>
             </TabPanel>
             <TabPanel value="contacts">
-                <div className="space-y-3">
-                    <Table>
-                        <THead>
-                            <TR>
-                                <TH>Name</TH>
-                                <TH>Position</TH>
-                                <TH>Phone</TH>
-                                <TH>Email</TH>
-                                <TH>Primary</TH>
-                            </TR>
-                        </THead>
-                        <TBody>
-                            {contacts.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={5}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No contacts.
-                                    </TD>
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>Nama</TH>
+                            <TH>Jabatan</TH>
+                            <TH>Telepon</TH>
+                            <TH>Email</TH>
+                            <TH>Utama</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {contacts.length === 0 ? (
+                            <EmptyRow colSpan={5}>
+                                Belum ada kontak. Tambahkan lewat halaman Ubah Pelanggan.
+                            </EmptyRow>
+                        ) : (
+                            contacts.map((contact) => (
+                                <TR key={contact.id}>
+                                    <TD>{contact.name}</TD>
+                                    <TD>{contact.position || <EmptyCell />}</TD>
+                                    <TD>{contact.phone || <EmptyCell />}</TD>
+                                    <TD>{contact.email || <EmptyCell />}</TD>
+                                    <TD>{contact.is_primary ? 'Ya' : <EmptyCell />}</TD>
                                 </TR>
-                            ) : (
-                                contacts.map((contact) => (
-                                    <TR key={contact.id}>
-                                        <TD>{contact.name}</TD>
-                                        <TD>{contact.position ?? '-'}</TD>
-                                        <TD>{contact.phone ?? '-'}</TD>
-                                        <TD>{contact.email ?? '-'}</TD>
-                                        <TD>
-                                            {contact.is_primary ? (
-                                                <Badge variant="brand">Yes</Badge>
-                                            ) : (
-                                                '-'
-                                            )}
-                                        </TD>
-                                    </TR>
-                                ))
-                            )}
-                        </TBody>
-                    </Table>
-                </div>
+                            ))
+                        )}
+                    </TBody>
+                </Table>
             </TabPanel>
             <TabPanel value="subscriptions">
-                <div className="space-y-3">
-                    <Table>
-                        <THead>
-                            <TR>
-                                <TH>Code</TH>
-                                <TH>Package</TH>
-                                <TH>Status</TH>
-                                <TH>MRC</TH>
-                                <TH>Billing Day</TH>
-                            </TR>
-                        </THead>
-                        <TBody>
-                            {subscriptions.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={5}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No subscriptions.
+                <Table>
+                    <THead>
+                        <TR>
+                            <TH>Kode</TH>
+                            <TH>Paket</TH>
+                            <TH>Status</TH>
+                            <TH>Biaya bulanan</TH>
+                            <TH>Tanggal tagih</TH>
+                        </TR>
+                    </THead>
+                    <TBody>
+                        {subscriptions.length === 0 ? (
+                            <EmptyRow colSpan={5}>Belum ada langganan.</EmptyRow>
+                        ) : (
+                            subscriptions.map((subscription) => (
+                                <TR key={subscription.id}>
+                                    <TD className="font-mono text-sm whitespace-nowrap">
+                                        {subscription.code}
                                     </TD>
+                                    <TD>
+                                        {subscription.package?.name ??
+                                            `#${subscription.service_package_id}`}
+                                    </TD>
+                                    <TD>
+                                        <EnumBadge
+                                            map={SUBSCRIPTION_STATUS}
+                                            value={subscription.status}
+                                        />
+                                    </TD>
+                                    <TD className="whitespace-nowrap">
+                                        {formatMoney(subscription.mrc_amount)}
+                                    </TD>
+                                    <TD>{subscription.billing_day}</TD>
                                 </TR>
-                            ) : (
-                                subscriptions.map((subscription) => (
-                                    <TR key={subscription.id}>
-                                        <TD className="font-mono text-sm">{subscription.code}</TD>
-                                        <TD>
-                                            {subscription.package?.name ??
-                                                `#${subscription.service_package_id}`}
-                                        </TD>
-                                        <TD>
-                                            <StatusBadge
-                                                variant={subscriptionStatusVariant(
-                                                    subscription.status,
-                                                )}
-                                            >
-                                                {subscription.status}
-                                            </StatusBadge>
-                                        </TD>
-                                        <TD>{subscription.mrc_amount}</TD>
-                                        <TD>{subscription.billing_day}</TD>
-                                    </TR>
-                                ))
-                            )}
-                        </TBody>
-                    </Table>
-                </div>
+                            ))
+                        )}
+                    </TBody>
+                </Table>
             </TabPanel>
             {historyAccess.billing ? (
                 <TabPanel value="billing">
                     <Table>
                         <THead>
                             <TR>
-                                <TH>Invoice</TH>
-                                <TH>Issue / Due</TH>
-                                <TH>Billed</TH>
-                                <TH>Paid</TH>
-                                <TH>Outstanding</TH>
+                                <TH>Tagihan</TH>
+                                <TH>Terbit / jatuh tempo</TH>
+                                <TH>Ditagih</TH>
+                                <TH>Dibayar</TH>
+                                <TH>Sisa</TH>
                                 <TH>Status</TH>
-                                <TH>Action</TH>
+                                <TH>Aksi</TH>
                             </TR>
                         </THead>
                         <TBody>
                             {history.invoices.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={7}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No billing history.
-                                    </TD>
-                                </TR>
+                                <EmptyRow colSpan={7}>Belum ada riwayat tagihan.</EmptyRow>
                             ) : (
                                 history.invoices.map((invoice) => (
                                     <TR key={invoice.id}>
-                                        <TD className="font-mono text-sm">{invoice.number}</TD>
-                                        <TD>
+                                        <TD className="font-mono text-sm whitespace-nowrap">
+                                            {invoice.number}
+                                        </TD>
+                                        <TD className="whitespace-nowrap">
                                             {formatDate(invoice.issue_date)} /{' '}
                                             {formatDate(invoice.due_date)}
                                         </TD>
-                                        <TD>{formatMoney(invoice.total)}</TD>
-                                        <TD>{formatMoney(invoice.paid_amount)}</TD>
-                                        <TD>
+                                        <TD className="whitespace-nowrap">
+                                            {formatMoney(invoice.total)}
+                                        </TD>
+                                        <TD className="whitespace-nowrap">
+                                            {formatMoney(invoice.paid_amount)}
+                                        </TD>
+                                        <TD className="whitespace-nowrap">
                                             {formatMoney(
                                                 Number(invoice.total) - Number(invoice.paid_amount),
                                             )}
                                         </TD>
                                         <TD>
-                                            <StatusBadge
-                                                variant={historyStatusVariant(invoice.status)}
-                                            >
-                                                {invoice.status}
-                                            </StatusBadge>
+                                            <EnumBadge
+                                                map={INVOICE_STATUS}
+                                                value={invoice.status}
+                                            />
                                         </TD>
                                         <TD>
                                             <Link
                                                 href={route('admin.invoices.show', invoice.id)}
-                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                className={DETAIL_LINK}
                                             >
-                                                Show
+                                                Lihat
                                             </Link>
                                         </TD>
                                     </TR>
@@ -314,46 +296,49 @@ export function CustomerRelatedTables({
                     <Table>
                         <THead>
                             <TR>
-                                <TH>Code</TH>
-                                <TH>Title</TH>
-                                <TH>Type</TH>
-                                <TH>Priority</TH>
+                                <TH>Kode</TH>
+                                <TH>Judul</TH>
+                                <TH>Tipe</TH>
+                                <TH>Prioritas</TH>
                                 <TH>Status</TH>
-                                <TH>Scheduled</TH>
-                                <TH>Action</TH>
+                                <TH>Jadwal</TH>
+                                <TH>Aksi</TH>
                             </TR>
                         </THead>
                         <TBody>
                             {history.work_orders.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={7}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No SPK history.
-                                    </TD>
-                                </TR>
+                                <EmptyRow colSpan={7}>Belum ada riwayat SPK.</EmptyRow>
                             ) : (
                                 history.work_orders.map((workOrder) => (
                                     <TR key={workOrder.id}>
-                                        <TD className="font-mono text-sm">{workOrder.code}</TD>
-                                        <TD>{workOrder.title}</TD>
-                                        <TD>{workOrder.type}</TD>
-                                        <TD>{workOrder.priority}</TD>
-                                        <TD>
-                                            <StatusBadge
-                                                variant={historyStatusVariant(workOrder.status)}
-                                            >
-                                                {workOrder.status}
-                                            </StatusBadge>
+                                        <TD className="font-mono text-sm whitespace-nowrap">
+                                            {workOrder.code}
                                         </TD>
-                                        <TD>{formatDate(workOrder.scheduled_date)}</TD>
+                                        <TD>{workOrder.title}</TD>
+                                        <TD>
+                                            <EnumBadge
+                                                map={WORK_ORDER_TYPE}
+                                                value={workOrder.type}
+                                            />
+                                        </TD>
+                                        <TD>
+                                            <EnumBadge map={PRIORITY} value={workOrder.priority} />
+                                        </TD>
+                                        <TD>
+                                            <EnumBadge
+                                                map={WORK_ORDER_STATUS}
+                                                value={workOrder.status}
+                                            />
+                                        </TD>
+                                        <TD className="whitespace-nowrap">
+                                            {formatDate(workOrder.scheduled_date)}
+                                        </TD>
                                         <TD>
                                             <Link
                                                 href={route('admin.spk.show', workOrder.id)}
-                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                className={DETAIL_LINK}
                                             >
-                                                Show
+                                                Lihat
                                             </Link>
                                         </TD>
                                     </TR>
@@ -368,44 +353,39 @@ export function CustomerRelatedTables({
                     <Table>
                         <THead>
                             <TR>
-                                <TH>Code</TH>
-                                <TH>Title</TH>
-                                <TH>Priority</TH>
+                                <TH>Kode</TH>
+                                <TH>Judul</TH>
+                                <TH>Prioritas</TH>
                                 <TH>Status</TH>
-                                <TH>Created</TH>
-                                <TH>Action</TH>
+                                <TH>Dibuat</TH>
+                                <TH>Aksi</TH>
                             </TR>
                         </THead>
                         <TBody>
                             {history.tickets.length === 0 ? (
-                                <TR>
-                                    <TD
-                                        colSpan={6}
-                                        className="py-8 text-center text-muted-foreground"
-                                    >
-                                        No ticket history.
-                                    </TD>
-                                </TR>
+                                <EmptyRow colSpan={6}>Belum ada riwayat tiket.</EmptyRow>
                             ) : (
                                 history.tickets.map((ticket) => (
                                     <TR key={ticket.id}>
-                                        <TD className="font-mono text-sm">{ticket.code}</TD>
-                                        <TD>{ticket.title}</TD>
-                                        <TD>{ticket.priority}</TD>
-                                        <TD>
-                                            <StatusBadge
-                                                variant={historyStatusVariant(ticket.status)}
-                                            >
-                                                {ticket.status}
-                                            </StatusBadge>
+                                        <TD className="font-mono text-sm whitespace-nowrap">
+                                            {ticket.code}
                                         </TD>
-                                        <TD>{formatDate(ticket.created_at)}</TD>
+                                        <TD>{ticket.title}</TD>
+                                        <TD>
+                                            <EnumBadge map={PRIORITY} value={ticket.priority} />
+                                        </TD>
+                                        <TD>
+                                            <EnumBadge map={TICKET_STATUS} value={ticket.status} />
+                                        </TD>
+                                        <TD className="whitespace-nowrap">
+                                            {formatDate(ticket.created_at)}
+                                        </TD>
                                         <TD>
                                             <Link
                                                 href={route('admin.tickets.show', ticket.id)}
-                                                className="font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                                className={DETAIL_LINK}
                                             >
-                                                Show
+                                                Lihat
                                             </Link>
                                         </TD>
                                     </TR>
@@ -417,28 +397,4 @@ export function CustomerRelatedTables({
             ) : null}
         </Tabs>
     );
-}
-
-function historyStatusVariant(status: string) {
-    if (['paid', 'completed', 'closed', 'resolved', 'active'].includes(status)) return 'success';
-    if (['overdue', 'cancelled', 'rejected', 'terminated'].includes(status)) return 'danger';
-    if (['sent', 'generated', 'assigned', 'in_progress', 'open'].includes(status)) return 'warning';
-
-    return 'muted';
-}
-
-function subscriptionStatusVariant(status: ServiceSubscription['status']) {
-    if (status === 'active') {
-        return 'success';
-    }
-
-    if (status === 'suspended') {
-        return 'warning';
-    }
-
-    if (status === 'terminated') {
-        return 'danger';
-    }
-
-    return 'muted';
 }

@@ -60,9 +60,9 @@ class DashboardTest extends TestCase
             ->where('admin.userCount', 1)
             ->has('admin.modules', 7)
         );
-        // Verify Customer module count is 0
+        // Verify Pelanggan module count is 0
         $modules = $response->inertiaProps('admin.modules');
-        $customerModule = collect($modules)->firstWhere('name', 'Customer');
+        $customerModule = collect($modules)->firstWhere('name', 'Pelanggan');
         $this->assertNotNull($customerModule);
         $this->assertEquals(0, $customerModule['count']);
     }

@@ -39,7 +39,7 @@ class IpPrefixController extends Controller
     {
         $prefix = IpPrefixService::create($request->validated());
 
-        return redirect()->route('admin.ipam.prefixes.index')->with('success', "Prefix {$prefix->cidr} registered.");
+        return redirect()->route('admin.ipam.prefixes.index')->with('success', "Prefiks {$prefix->cidr} didaftarkan.");
     }
 
     public function show(Request $request, IpPrefix $prefix): InertiaResponse
@@ -88,7 +88,7 @@ class IpPrefixController extends Controller
     {
         IpPrefixService::update($prefix, $request->validated());
 
-        return back()->with('success', 'Prefix updated.');
+        return back()->with('success', 'Prefiks diperbarui.');
     }
 
     public function destroy(IpPrefix $prefix): RedirectResponse
@@ -97,6 +97,6 @@ class IpPrefixController extends Controller
 
         IpPrefixService::delete($prefix);
 
-        return redirect()->route('admin.ipam.prefixes.index')->with('success', "Prefix {$prefix->cidr} deleted.");
+        return redirect()->route('admin.ipam.prefixes.index')->with('success', "Prefiks {$prefix->cidr} dihapus.");
     }
 }

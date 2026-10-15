@@ -11,7 +11,6 @@ interface AssignDropDialogProps {
     /** True when a drop already exists: the port then moves instead of being set. */
     moving: boolean;
     options: DropPortOption[] | undefined;
-    loading: boolean;
     unavailable?: string;
 }
 
@@ -21,7 +20,6 @@ export function AssignDropDialog({
     subscription,
     moving,
     options,
-    loading,
     unavailable,
 }: AssignDropDialogProps) {
     const [portId, setPortId] = useState('');
@@ -39,7 +37,7 @@ export function AssignDropDialog({
         <Modal
             open
             onClose={onClose}
-            title={`${moving ? 'Move' : 'Set'} the drop port of ${subscription.code}`}
+            title={`${moving ? 'Pindahkan' : 'Atur'} port drop ${subscription.code}`}
         >
             <form onSubmit={submit} className="space-y-4">
                 <DropPortSelect
@@ -47,7 +45,6 @@ export function AssignDropDialog({
                     value={portId}
                     onChange={setPortId}
                     options={options}
-                    loading={loading}
                     unavailable={unavailable}
                     error={
                         (errors as Record<string, string | undefined>).port ??
@@ -56,7 +53,7 @@ export function AssignDropDialog({
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button
                         type="submit"
@@ -64,7 +61,7 @@ export function AssignDropDialog({
                         loading={processing}
                         disabled={portId === ''}
                     >
-                        {moving ? 'Move drop' : 'Set drop'}
+                        {moving ? 'Pindahkan port drop' : 'Atur port drop'}
                     </Button>
                 </div>
             </form>

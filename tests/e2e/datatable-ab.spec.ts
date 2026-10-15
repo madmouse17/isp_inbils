@@ -25,10 +25,10 @@ type Case = {
     query?: string;
     heading: string;
     search: string;
-    /** Label of the search input; pages already translated use "Cari". */
+    /** Label of the search input; defaults to "Cari". */
     searchLabel?: string;
-    /** Customers submits filters with an explicit button instead of debounce. */
-    submit?: string;
+    /** Below 768px the list is cards, so the table's page-size control is not on screen. */
+    mobileCards?: boolean;
     sortHeader: string;
     sortKey: string;
     params: SortParams;
@@ -46,7 +46,7 @@ const seededCases: Case[] = [
         path: '/admin/users',
         heading: 'Pengguna',
         search: 'Demo',
-        sortHeader: 'Name',
+        sortHeader: 'Nama',
         sortKey: 'name',
         params: SERVER,
         ascFirst: 'Demo Admin',
@@ -58,7 +58,7 @@ const seededCases: Case[] = [
         path: '/admin/roles',
         heading: 'Peran',
         search: 'a',
-        sortHeader: 'Name',
+        sortHeader: 'Nama',
         sortKey: 'name',
         params: SERVER,
         ascFirst: 'admin',
@@ -70,7 +70,7 @@ const seededCases: Case[] = [
         path: '/admin/permissions',
         heading: 'Hak Akses',
         search: 'billing.',
-        sortHeader: 'Name',
+        sortHeader: 'Kode',
         sortKey: 'name',
         params: SERVER,
         ascFirst: 'billing.cancel',
@@ -82,8 +82,8 @@ const seededCases: Case[] = [
         path: '/admin/customers',
         heading: 'Pelanggan',
         search: 'Fiber',
-        submit: 'Filter',
-        sortHeader: 'Name',
+        mobileCards: true,
+        sortHeader: 'Nama',
         sortKey: 'name',
         params: SERVER,
         ascFirst: 'Alto Fiber',
@@ -95,7 +95,7 @@ const seededCases: Case[] = [
         path: '/admin/employees',
         heading: 'Karyawan',
         search: 'DEMO-',
-        sortHeader: 'Emp No',
+        sortHeader: 'Nomor karyawan',
         sortKey: 'employee_number',
         params: SERVER,
         ascFirst: 'DEMO-MANAGER',
@@ -107,7 +107,7 @@ const seededCases: Case[] = [
         path: '/admin/service-packages',
         heading: 'Paket Layanan',
         search: 'PKG-BIZ',
-        sortHeader: 'Monthly',
+        sortHeader: 'Harga bulanan',
         sortKey: 'price_mrc',
         params: SERVER,
         ascFirst: 'Business 100Mbps',
@@ -119,7 +119,7 @@ const seededCases: Case[] = [
         path: '/admin/bandwidth-profiles',
         heading: 'Profil Bandwidth',
         search: 'Home',
-        sortHeader: 'Download (Mbps)',
+        sortHeader: 'Unduh (Mbps)',
         sortKey: 'download_mbps',
         params: SERVER,
         ascFirst: 'Home 10Mbps',
@@ -131,7 +131,7 @@ const seededCases: Case[] = [
         path: '/admin/speed-profiles',
         heading: 'Profil Kecepatan',
         search: 'SP-Home',
-        sortHeader: 'Download (Mbps)',
+        sortHeader: 'Unduh maksimum (Mbps)',
         sortKey: 'download_max_mbps',
         params: SERVER,
         ascFirst: 'SP-Home-10',
@@ -143,7 +143,6 @@ const seededCases: Case[] = [
         path: '/admin/sla-tiers',
         heading: 'Tingkat SLA',
         search: 'l',
-        searchLabel: 'Cari',
         sortHeader: 'Target respons (jam)',
         sortKey: 'response_time_hours',
         params: SERVER,
@@ -182,9 +181,8 @@ async function exerciseTable(page: Page, c: Case) {
     const heading = page.getByRole('main').getByRole('heading', { name: c.heading, exact: true });
     await expect(heading).toBeVisible();
 
-    const search = page.getByLabel(c.searchLabel ?? 'Search', { exact: true });
+    const search = page.getByLabel(c.searchLabel ?? 'Cari', { exact: true });
     await search.fill(c.search);
-    if (c.submit) await page.getByRole('button', { name: c.submit, exact: true }).click();
     await expectQuery(page, 'search', c.search);
     await expect(page.locator('tbody tr').filter({ hasText: c.ascFirst }).first()).toBeVisible();
 
@@ -202,7 +200,7 @@ async function exerciseTable(page: Page, c: Case) {
 
     await page.reload();
     await expect(page.getByLabel('Baris per halaman')).toHaveValue('25');
-    await expect(page.getByLabel(c.searchLabel ?? 'Search', { exact: true })).toHaveValue(c.search);
+    await expect(page.getByLabel(c.searchLabel ?? 'Cari', { exact: true })).toHaveValue(c.search);
     await expect(page.getByRole('columnheader', { name: c.sortHeader })).toHaveAttribute(
         'aria-sort',
         'descending',
@@ -237,12 +235,15 @@ async function exerciseTable(page: Page, c: Case) {
             await page.reload();
             await expect(page.locator('html')).toHaveClass(dark ? /\bdark\b/ : /^(?!.*\bdark\b)/);
             await expect(heading).toBeVisible();
-            const control = page.getByLabel('Baris per halaman');
-            await control.scrollIntoViewIfNeeded();
-            const box = await control.boundingBox();
-            expect(box, `${c.name} rows-per-page box at ${width}`).not.toBeNull();
-            expect(box!.x).toBeGreaterThanOrEqual(0);
-            expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+            // Phones show a card list on the Customers page: no table, so no page-size control to measure.
+            if (!(c.mobileCards && width < 768)) {
+                const control = page.getByLabel('Baris per halaman');
+                await control.scrollIntoViewIfNeeded();
+                const box = await control.boundingBox();
+                expect(box, `${c.name} rows-per-page box at ${width}`).not.toBeNull();
+                expect(box!.x).toBeGreaterThanOrEqual(0);
+                expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+            }
             expect(
                 await page.evaluate(
                     () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -299,7 +300,7 @@ test.describe('@datatable-ab replacement matrix', () => {
                 path: '/admin/organizations',
                 heading: 'Organisasi',
                 search: prefix,
-                sortHeader: 'Code',
+                sortHeader: 'Kode',
                 sortKey: 'code',
                 params: SERVER,
                 ascFirst: codes[0],
@@ -319,7 +320,10 @@ test.describe('@datatable-ab replacement matrix', () => {
 
     test('@datatable-ab Invoices', async ({ page }) => {
         await loginAs(page, 'admin');
-        const index = await inertiaProps(page, '/admin/invoices');
+        const index = await inertiaProps(
+            page,
+            `/admin/customers?search=${encodeURIComponent(e2eCustomerName)}`,
+        );
         const customer = (index.props?.customers?.data ?? []).find(
             (row: { name: string }) => row.name === e2eCustomerName,
         );
@@ -356,7 +360,8 @@ test.describe('@datatable-ab replacement matrix', () => {
                 query: range,
                 heading: 'Tagihan',
                 search: e2eCustomerName,
-                sortHeader: 'Number',
+                searchLabel: 'Cari tagihan',
+                sortHeader: 'Nomor tagihan',
                 sortKey: 'number',
                 params: QUERY,
                 ascFirst: first.number,

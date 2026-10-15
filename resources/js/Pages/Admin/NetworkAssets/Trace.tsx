@@ -2,17 +2,32 @@ import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, Input, Table, TBody, TD, TH, THead, TR } from '@/Components/ui';
-import { LoadingState, PageHeader, StatusBadge } from '@/Components/composite';
+import {
+    Button,
+    Card,
+    CardContent,
+    EmptyCell,
+    EnumBadge,
+    Input,
+    Table,
+    TBody,
+    TD,
+    TH,
+    THead,
+    TR,
+} from '@/Components/ui';
+import { LoadingState, PageHeader } from '@/Components/composite';
 import { useVisitPending } from '@/hooks/useVisitPending';
+import { NETWORK_ASSET_STATUS, NETWORK_ASSET_TYPE } from '@/lib/statuses';
+import type { NetworkAssetStatus, NetworkAssetType } from '@/types/network-asset';
 
 interface TraceResult {
     id: number;
     code: string;
     name: string;
-    asset_type: string;
+    asset_type: NetworkAssetType;
     serial_number?: string | null;
-    status: string;
+    status: NetworkAssetStatus;
     location?: { name: string; path?: string } | null;
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
@@ -38,21 +53,24 @@ export default function Trace({ results, search }: TraceProps) {
     };
 
     return (
-        <AdminLayout title="Asset Trace">
+        <AdminLayout title="Lacak Aset">
             <div className="space-y-6">
-                <PageHeader title="Asset Trace" subtitle="Search by serial, MAC, IP, or code." />
+                <PageHeader
+                    title="Lacak Aset"
+                    subtitle="Cari aset berdasarkan nomor seri, alamat MAC, alamat IP, atau kode."
+                />
                 <Card>
                     <CardContent className="space-y-4 pt-6">
                         <form onSubmit={submit} className="flex gap-2">
                             <Input
-                                label="Search"
+                                label="Cari"
                                 value={query}
                                 onChange={(e) => setQuery(e.target.value)}
-                                placeholder="Serial, MAC, IP, code"
+                                placeholder="Nomor seri, MAC, IP, atau kode"
                             />
                             <div className="self-end">
                                 <Button type="submit" loading={pending}>
-                                    Trace
+                                    Lacak
                                 </Button>
                             </div>
                         </form>
@@ -62,15 +80,15 @@ export default function Trace({ results, search }: TraceProps) {
                             <Table>
                                 <THead>
                                     <TR>
-                                        <TH>Name</TH>
-                                        <TH>Code</TH>
-                                        <TH>Type</TH>
-                                        <TH>Serial</TH>
+                                        <TH>Nama</TH>
+                                        <TH>Kode</TH>
+                                        <TH>Tipe</TH>
+                                        <TH>Nomor seri</TH>
                                         <TH>Status</TH>
-                                        <TH>Location</TH>
-                                        <TH>Path</TH>
-                                        <TH>Customer</TH>
-                                        <TH>Subscription</TH>
+                                        <TH>Lokasi</TH>
+                                        <TH>Jalur</TH>
+                                        <TH>Pelanggan</TH>
+                                        <TH>Langganan</TH>
                                     </TR>
                                 </THead>
                                 <TBody>
@@ -80,7 +98,9 @@ export default function Trace({ results, search }: TraceProps) {
                                                 colSpan={9}
                                                 className="py-10 text-center text-muted-foreground"
                                             >
-                                                No data found.
+                                                {search === ''
+                                                    ? 'Masukkan nomor seri, MAC, IP, atau kode, lalu pilih Lacak.'
+                                                    : `Tidak ada aset yang cocok dengan "${search}". Periksa penulisannya atau coba kata kunci lain.`}
                                             </TD>
                                         </TR>
                                     ) : (
@@ -88,31 +108,25 @@ export default function Trace({ results, search }: TraceProps) {
                                             <TR key={r.id}>
                                                 <TD>{r.name}</TD>
                                                 <TD className="font-mono text-sm">{r.code}</TD>
-                                                <TD>{r.asset_type}</TD>
+                                                <TD>
+                                                    <EnumBadge
+                                                        map={NETWORK_ASSET_TYPE}
+                                                        value={r.asset_type}
+                                                    />
+                                                </TD>
                                                 <TD className="font-mono text-sm">
-                                                    {r.serial_number ?? '-'}
+                                                    {r.serial_number ?? <EmptyCell />}
                                                 </TD>
                                                 <TD>
-                                                    <StatusBadge
-                                                        variant={
-                                                            r.status === 'available'
-                                                                ? 'success'
-                                                                : r.status === 'installed'
-                                                                  ? 'info'
-                                                                  : r.status === 'maintenance'
-                                                                    ? 'warning'
-                                                                    : r.status === 'damaged'
-                                                                      ? 'danger'
-                                                                      : 'muted'
-                                                        }
-                                                    >
-                                                        {r.status}
-                                                    </StatusBadge>
+                                                    <EnumBadge
+                                                        map={NETWORK_ASSET_STATUS}
+                                                        value={r.status}
+                                                    />
                                                 </TD>
-                                                <TD>{r.location?.name ?? '-'}</TD>
-                                                <TD>{r.location?.path ?? '-'}</TD>
-                                                <TD>{r.customer?.name ?? '-'}</TD>
-                                                <TD>{r.subscription?.code ?? '-'}</TD>
+                                                <TD>{r.location?.name ?? <EmptyCell />}</TD>
+                                                <TD>{r.location?.path ?? <EmptyCell />}</TD>
+                                                <TD>{r.customer?.name ?? <EmptyCell />}</TD>
+                                                <TD>{r.subscription?.code ?? <EmptyCell />}</TD>
                                             </TR>
                                         ))
                                     )}

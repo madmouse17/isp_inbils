@@ -26,4 +26,16 @@ class StoreSpeedProfileRequest extends FormRequest
             'is_active' => ['boolean'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'download_max_mbps' => 'unduh maksimum',
+            'upload_max_mbps' => 'unggah maksimum',
+            'burst_download_mbps' => 'burst unduh',
+            'burst_upload_mbps' => 'burst unggah',
+            'radius_profile_name' => 'nama profil RADIUS',
+        ];
+    }
 }

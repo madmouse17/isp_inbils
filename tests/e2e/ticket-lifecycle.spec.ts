@@ -16,7 +16,14 @@ import type { Page } from '@playwright/test';
 
 import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
-import { e2eCustomerName, expectDetail, loginAs, logout, unique } from './support/demo';
+import {
+    e2eCustomerName,
+    expectDetail,
+    loginAs,
+    logout,
+    selectSearchOption,
+    unique,
+} from './support/demo';
 
 const runId = unique('TKT');
 
@@ -73,22 +80,20 @@ test.describe('@lifecycle ticket', () => {
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
-        await expect(page.getByText('resolved').first()).toBeVisible({ timeout: 15_000 });
+        await expect(page.getByText('Diselesaikan').first()).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText(comment)).toBeVisible();
         await expect(page.getByText(resolution)).toBeVisible();
 
-        const firstResponse = await detailValue(page, 'Respons pertama:');
-        expect(firstResponse.trim()).not.toBe('');
-        expect(firstResponse.trim()).not.toBe('-');
+        const firstResponse = await detailValue(page, 'Respons pertama');
+        expect(firstResponse).not.toBe('');
+        expect(firstResponse).not.toBe('-');
 
-        // The line ends with the target's source in parentheses, e.g. "(Target kategori Gangguan)".
-        const deadlineText = (await detailValue(page, 'Target penyelesaian:')).replace(
+        const deadlineText = (await detailValue(page, 'Target penyelesaian')).replace(
             /\s*\(Target [^)]*\)$/,
             '',
         );
-        expect(deadlineText.trim()).not.toBe('-');
         const deadline = parseDate(deadlineText);
-        const resolvedText = await detailValue(page, 'Resolved:');
+        const resolvedText = await detailValue(page, 'Diselesaikan');
         const resolvedAt = parseDate(resolvedText);
         expect(resolvedAt.getTime()).toBeLessThanOrEqual(deadline.getTime());
         await expect(page.getByText('Penyelesaian terlambat')).toHaveCount(0);
@@ -100,12 +105,12 @@ test.describe('@lifecycle ticket', () => {
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
-        await expectDetail(page, 'Handler', 'Demo Technician');
-        await page.getByRole('button', { name: 'Close', exact: true }).click();
-        const closeDialog = page.getByRole('dialog', { name: 'Close' });
-        await closeDialog.getByRole('button', { name: 'Confirm' }).click();
-        await expectDetail(page, 'Status', 'closed');
-        const closedText = await detailValue(page, 'Closed:');
+        await expectDetail(page, 'Petugas', 'Demo Technician');
+        await page.getByRole('button', { name: 'Tutup', exact: true }).click();
+        const closeDialog = page.getByRole('dialog', { name: 'Tutup tiket' });
+        await closeDialog.getByRole('button', { name: 'Tutup tiket' }).click();
+        await expectDetail(page, 'Status', 'Ditutup');
+        const closedText = await detailValue(page, 'Ditutup');
         expect(closedText.trim()).not.toBe('-');
 
         // --- SPK spawn + backlink verification (product data, deterministic) ---
@@ -119,9 +124,9 @@ test.describe('@lifecycle ticket', () => {
         // SPK can be spawned from an assigned ticket, so the admin needs no handler role.
         await assignToHandlerViaUi(page, 'Demo Technician');
 
-        await page.getByRole('button', { name: 'Spawn SPK' }).click();
-        const spawnDialog = page.getByRole('dialog', { name: 'Spawn Spk' });
-        await spawnDialog.getByRole('button', { name: 'Confirm' }).click();
+        await page.getByRole('button', { name: 'Buat SPK' }).click();
+        const spawnDialog = page.getByRole('dialog', { name: 'Buat SPK dari tiket' });
+        await spawnDialog.getByRole('button', { name: 'Buat SPK' }).click();
         await expect(page).toHaveURL(/\/admin\/spk/, { timeout: 15_000 });
 
         // The product stores the backlink in DB (tickets.spawned_spk_id / work_orders.ticket_id)
@@ -133,42 +138,25 @@ test.describe('@lifecycle ticket', () => {
         const spkProps = await inertiaProps(page, `/admin/spk/${spawnedSpkId}`);
         const wo = spkProps?.props?.workOrder?.data;
         expect(wo?.source).toBe('ticket');
-        expect(wo?.title).toContain('SPK from Ticket');
+        expect(wo?.title).toContain('SPK dari tiket');
     });
 });
 
-/** Read the value line that follows a "Label:" line in the Show page main text. */
-async function detailValue(page: import('@playwright/test').Page, label: string) {
-    const text = await page.getByRole('main').innerText();
-    const lines = text
-        .split('\n')
-        .map((l) => l.trim())
-        .filter((l) => l !== '');
-    const idx = lines.findIndex((l) => l.startsWith(label));
-    if (idx === -1) throw new Error(`Label not found: ${label}`);
-    // Value may be on the same line after the label, or the next non-empty line.
-    const same = lines[idx].slice(label.length).trim();
-    if (same) return same;
-    return (lines[idx + 1] ?? '').trim();
+/** Read the value paired with a definition-list label on the Show page. */
+async function detailValue(page: Page, label: string) {
+    const term = page.getByRole('main').locator('dt', { hasText: label }).first();
+    await expect(term).toBeVisible();
+    return (await term.locator('xpath=following-sibling::dd[1]').innerText()).trim();
 }
 
-/** Resolve an active user's id by display name via the admin Users index props. */
-async function resolveUserId(page: import('@playwright/test').Page, name: string) {
-    const props = await inertiaProps(page, `/admin/users?search=${encodeURIComponent(name)}`);
-    const id = props?.props?.users?.data?.find((u: { name: string }) => u.name === name)?.id;
-    if (!id) throw new Error(`Could not resolve user id for ${name}`);
-    return String(id);
-}
-
-/** Assign the open ticket on the Show page to the named handler and assert the Handler detail. */
+/** Assign the open ticket on the Show page to the named handler. */
 async function assignToHandlerViaUi(page: Page, handlerName: string) {
-    const handlerId = await resolveUserId(page, handlerName);
-    await page.getByRole('button', { name: 'Assign' }).click();
-    const assignDialog = page.getByRole('dialog', { name: 'Assign' });
-    await assignDialog.getByLabel('Handler ID').fill(handlerId);
-    await assignDialog.getByRole('button', { name: 'Confirm' }).click();
+    await page.getByRole('button', { name: 'Tugaskan' }).click();
+    const assignDialog = page.getByRole('dialog', { name: 'Tugaskan tiket' });
+    await selectSearchOption(page, 'Petugas', handlerName);
+    await assignDialog.getByRole('button', { name: 'Tugaskan' }).click();
     await expect(assignDialog).toBeHidden({ timeout: 15_000 });
-    await expectDetail(page, 'Handler', handlerName);
+    await expectDetail(page, 'Petugas', handlerName);
 }
 
 /**
@@ -180,7 +168,7 @@ async function assignToHandlerViaUi(page: Page, handlerName: string) {
  * resource entries is deterministic (no timing guess): once all initiated
  * scripts have a responseEnd, no further chunk will start on the current page.
  */
-async function settleAppChunks(page: import('@playwright/test').Page) {
+async function settleAppChunks(page: Page) {
     await page.waitForFunction(
         () => {
             const scripts = performance
@@ -238,43 +226,26 @@ async function settleAppChunks(page: import('@playwright/test').Page) {
 }
 
 function parseDate(text: string): Date {
-    const d = new Date(text);
+    // The company shows `d/m/Y H:i`, which Date cannot read on its own.
+    const shown = text.match(/^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})/);
+    const d = shown
+        ? new Date(+shown[3], +shown[2] - 1, +shown[1], +shown[4], +shown[5])
+        : new Date(text);
     if (Number.isNaN(d.getTime())) throw new Error(`Unparseable date: ${text}`);
     return d;
 }
 
 /** Create a ticket via the admin UI and return its id (no fixed IDs). */
-async function createTicketViaUi(page: import('@playwright/test').Page, title: string) {
-    // The page we navigate away from (post-login Dashboard, or Tickets Index)
-    // lazily loads table/nav chunks (DataTable, ExportMenu, useTableQuery,
-    // Skeleton, …). A hard goto() that starts while those are in flight aborts
-    // them with net::ERR_ABORTED and no correlated navigation event, which the
-    // fail-closed watcher treats as journey-breaking. Settle the current page
-    // first so those chunks finish before we leave it.
+async function createTicketViaUi(page: Page, title: string) {
     await settleAppChunks(page);
     await page.goto('/admin/tickets/create');
-    await expect(
-        page.getByRole('main').getByRole('heading', { name: 'Create Ticket' }),
-    ).toBeVisible();
-    await page.getByLabel('Title').fill(title);
-    await page.getByLabel('Source').selectOption('customer');
-    // Wait for the create page's lazy chunk to finish (selects are populated by it),
-    // so submitting does not abort in-flight code-split requests (fail-closed watcher).
-    const category = page.getByLabel('Category');
-    await expect(category.locator('option', { hasText: 'Device Issue' })).toHaveCount(1);
-    await expect(
-        page.getByLabel('Customer').locator('option', { hasText: e2eCustomerName }),
-    ).toHaveCount(1);
-    // The Inertia layout code-splits nav/menu chunks (DataTable, StatusBadge,
-    // ExportMenu, ...) that start ~0.5s after the create-page document. Submitting
-    // while they are in flight aborts them (net::ERR_ABORTED), which the
-    // fail-closed watcher treats as journey-breaking. settleAppChunks polls
-    // performance resource entries so every already-started chunk gets a
-    // responseEnd before the POST navigates away (deterministic, no timing guess).
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Buat Tiket' })).toBeVisible();
+    await page.getByLabel('Judul').fill(title);
+    await page.getByLabel('Sumber').selectOption('customer');
     await settleAppChunks(page);
-    await category.selectOption({ label: 'Device Issue' });
-    await page.getByLabel('Customer').selectOption({ label: e2eCustomerName });
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await selectSearchOption(page, 'Kategori', 'Device Issue');
+    await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
     await expect(page).toHaveURL(/\/admin\/tickets/);
     return await findTicketId(page, title);
@@ -286,7 +257,7 @@ async function createTicketViaUi(page: import('@playwright/test').Page, title: s
  * supplies code/title, so the title column is blank in the UI; the server-side
  * search still matches title, so we read the id from the Inertia page object.
  */
-async function findTicketId(page: import('@playwright/test').Page, title: string) {
+async function findTicketId(page: Page, title: string) {
     const props = await inertiaProps(page, `/admin/tickets?search=${encodeURIComponent(title)}`);
     const id = props?.props?.tickets?.data?.find((t: { title: string }) => t.title === title)?.id;
     if (!id) throw new Error(`Could not resolve ticket id for ${title}`);
@@ -294,7 +265,7 @@ async function findTicketId(page: import('@playwright/test').Page, title: string
 }
 
 /** Fetch a page and return its decoded Inertia page object (props). */
-async function inertiaProps(page: import('@playwright/test').Page, url: string) {
+async function inertiaProps(page: Page, url: string) {
     const resp = await page.request.get(url, { headers: { Accept: 'text/html' } });
     const html = await resp.text();
     const match = html.match(/data-page="([^"]*)"/);

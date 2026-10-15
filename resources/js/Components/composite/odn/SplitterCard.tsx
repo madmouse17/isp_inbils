@@ -6,17 +6,18 @@ import {
     ConfirmRequestDialog,
     type ConfirmRequest,
 } from '@/Components/composite/ConfirmRequestDialog';
-import { Button, Card, CardContent, CardHeader, CardTitle, NativeSelect } from '@/Components/ui';
-import type { InputOption, Splitter } from '@/types/ipam-odn';
+import { RemoteSearchSelect } from '@/Components/composite/RemoteSearchSelect';
+import { Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/ui';
+import type { PortOption, Splitter } from '@/types/ipam-odn';
 
 interface SplitterCardProps {
     splitter: Splitter;
-    /** Free upstream ports the input can be connected to. */
-    inputOptions: InputOption[];
+    /** The `inputPortOptions` prop: free upstream ports that match the typed text. `undefined` until a search has run. */
+    inputPortOptions: PortOption[] | undefined;
     can: { manage: boolean; assign: boolean };
 }
 
-export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps) {
+export function SplitterCard({ splitter, inputPortOptions, can }: SplitterCardProps) {
     const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
     const current = splitter.input ? String(splitter.input.port_id) : '';
     const form = useForm({ input_port_id: current });
@@ -42,28 +43,28 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                         {splitter.label ? ` - ${splitter.label}` : ''}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground">
-                        Input: {splitter.input ? splitter.input.label : 'not connected'} · {inUse}{' '}
-                        of {splitter.outputs} outputs in use
+                        Masukan: {splitter.input ? splitter.input.label : 'belum terhubung'} ·{' '}
+                        {inUse} dari {splitter.outputs} keluaran terpakai
                     </p>
                 </div>
                 {can.manage && (
                     <Button
                         type="button"
-                        variant="danger"
-                        className="self-start"
+                        variant="outline"
+                        className="self-start text-destructive-text"
                         size="sm"
-                        aria-label={`Delete splitter ${ratio}`}
+                        aria-label={`Hapus splitter ${ratio}`}
                         onClick={() =>
                             setConfirm({
-                                title: `Delete splitter ${ratio}?`,
+                                title: `Hapus splitter ${ratio}?`,
                                 description:
-                                    'Its output ports are removed with it. Release every drop and disconnect downstream splitters first.',
-                                confirmLabel: 'Delete splitter',
+                                    'Port keluarannya ikut terhapus. Lepas semua port drop dan putuskan splitter hilir lebih dulu.',
+                                confirmLabel: 'Hapus splitter',
                                 href: route('admin.odn.splitters.destroy', splitter.id),
                             })
                         }
                     >
-                        Delete
+                        Hapus
                     </Button>
                 )}
             </CardHeader>
@@ -74,29 +75,24 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                         className="flex flex-col gap-2 sm:flex-row sm:items-end"
                     >
                         <div className="sm:max-w-md sm:flex-1">
-                            <NativeSelect
+                            <RemoteSearchSelect
+                                field="inputPort"
                                 id={`splitter-${splitter.id}-input`}
-                                label="Upstream port"
+                                label="Port masukan"
                                 value={form.data.input_port_id}
-                                onChange={(event) =>
-                                    form.setData('input_port_id', event.target.value)
+                                onChange={(value) => form.setData('input_port_id', value)}
+                                options={inputPortOptions}
+                                selected={
+                                    splitter.input
+                                        ? {
+                                              value: splitter.input.port_id,
+                                              label: splitter.input.label,
+                                          }
+                                        : null
                                 }
+                                placeholder="Belum terhubung"
+                                emptyText="Tidak ada port kosong yang cocok."
                                 error={form.errors.input_port_id}
-                                options={[
-                                    { value: '', label: 'Not connected' },
-                                    ...(splitter.input
-                                        ? [
-                                              {
-                                                  value: current,
-                                                  label: `${splitter.input.label} (current)`,
-                                              },
-                                          ]
-                                        : []),
-                                    ...inputOptions.map((option) => ({
-                                        value: String(option.port_id),
-                                        label: option.label,
-                                    })),
-                                ]}
                             />
                         </div>
                         <Button
@@ -105,7 +101,7 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                             loading={form.processing}
                             disabled={form.data.input_port_id === current}
                         >
-                            Save connection
+                            Simpan sambungan
                         </Button>
                     </form>
                 )}
@@ -113,10 +109,10 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                 <ul className="grid grid-cols-2 gap-2 sm:grid-cols-4 2xl:grid-cols-8">
                     {splitter.ports.map((port) => {
                         const state = port.subscription
-                            ? `customer ${port.subscription.code}`
+                            ? `pelanggan ${port.subscription.code}`
                             : port.feeds_splitter_id !== null
-                              ? `feeds splitter ${port.feeds_splitter_id}`
-                              : 'free';
+                              ? `menyuplai splitter ${port.feeds_splitter_id}`
+                              : 'kosong';
 
                         return (
                             <li key={port.id}>
@@ -162,13 +158,13 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                                                     type="button"
                                                     size="sm"
                                                     variant="outline"
-                                                    aria-label={`Release drop on port ${port.number}`}
+                                                    aria-label={`Lepas port drop di port ${port.number}`}
                                                     onClick={() =>
                                                         setConfirm({
-                                                            title: `Release ${port.subscription?.code} from port ${port.number}?`,
+                                                            title: `Lepas ${port.subscription?.code} dari port ${port.number}?`,
                                                             description:
-                                                                'The port becomes free. The subscription itself is not changed.',
-                                                            confirmLabel: 'Release drop',
+                                                                'Port menjadi kosong. Langganannya sendiri tidak berubah.',
+                                                            confirmLabel: 'Lepas port drop',
                                                             href: route(
                                                                 'admin.odn.drops.destroy',
                                                                 port.id,
@@ -176,7 +172,7 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                                                         })
                                                     }
                                                 >
-                                                    Release
+                                                    Lepas
                                                 </Button>
                                             )}
                                         </>
@@ -186,7 +182,7 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                                                 className="size-3.5 shrink-0"
                                                 aria-hidden="true"
                                             />
-                                            Feeds splitter {port.feeds_splitter_id}
+                                            Menyuplai splitter {port.feeds_splitter_id}
                                         </span>
                                     ) : (
                                         <span className="inline-flex items-center gap-1 text-muted-foreground">
@@ -194,7 +190,7 @@ export function SplitterCard({ splitter, inputOptions, can }: SplitterCardProps)
                                                 className="size-3.5 shrink-0"
                                                 aria-hidden="true"
                                             />
-                                            Free
+                                            Kosong
                                         </span>
                                     )}
                                 </div>

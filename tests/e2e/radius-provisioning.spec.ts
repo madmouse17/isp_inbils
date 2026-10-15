@@ -4,7 +4,7 @@
  * Two describes in one file, picked by E2E_RADIUS_LAB:
  *
  * 1. CI (default, RADIUS_ENABLED off in .env.e2e): every server-side RADIUS call is skipped, so the pages show
- *    the honest state ("Waiting to be written", accounts "Pending" with the switch as the reason). The engine
+ *    the honest state ("Menunggu ditulis", accounts "Menunggu" with the switch as the reason). The engine
  *    against a fake RADIUS database is covered by tests/Feature/NetworkAsset; this drives the UI.
  *    Flow: register NAS (secret never shown again) -> router page -> edit keeps the stored secret -> account
  *    with realm suffix and one-time secret -> reveal -> Block/Unblock on Subscriptions/Show -> Block/Unblock
@@ -18,7 +18,7 @@
  *      - the served app needs RADIUS_ENABLED=true and RADIUS_DB_HOST/PORT/DATABASE/USERNAME/PASSWORD of the lab (host
  *        127.0.0.1, port 13306) plus QUEUE_CONNECTION=sync (already in .env.e2e). The runner below exports them from
  *        ~/labs/freeradius/.env, never printing them; scripts/e2e-server-env.mjs forwards them only while
- *        E2E_RADIUS_LAB=1. The local .env.e2e needs no RADIUS lines (without them the NAS page says "Not written");
+ *        E2E_RADIUS_LAB=1. The local .env.e2e needs no RADIUS lines (without them the NAS page says "Gagal ditulis");
  *      - `E2E_RADIUS_LAB=1` (set by the runner; the server env builder also allowlists LAB_RADIUS_SECRET and
  *        LAB_USER_SECRET) or the same line in .env.e2e;
  *      - LAB_RADIUS_SECRET (shared secret) and LAB_USER_SECRET (secret of the lab users) are read at run time from the
@@ -80,10 +80,10 @@ const detail = (page: Page, label: string) =>
     page
         .locator('dt')
         .filter({ hasText: new RegExp(`^${label}$`) })
-        .locator('xpath=following-sibling::dd');
+        .locator('xpath=following-sibling::dd[1]');
 
 const secretPanel = (page: Page) =>
-    page.getByRole('alert').filter({ hasText: 'Secret shown once' });
+    page.getByRole('alert').filter({ hasText: 'Kata sandi hanya tampil sekali' });
 
 async function subscriptionIdOf(page: Page, code: string) {
     const data = await inertiaProps(page, '/admin/billing/receivables?per_page=25');
@@ -153,61 +153,60 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
         const fixture = page.getByRole('row').filter({ hasText: REGISTERED_ROUTER_ASSET });
         await expect(fixture).toContainText('10.99.9.2');
-        await expect(fixture).toContainText('Waiting to be written');
+        await expect(fixture).toContainText('Menunggu ditulis');
         await expect(page.getByRole('row').filter({ hasText: ROUTER_ASSET })).toHaveCount(0);
 
-        await page.getByLabel('Search').fill('10.99.9.2');
+        await page.getByLabel('Cari', { exact: true }).fill('10.99.9.2');
         await expect(
             page.getByRole('row').filter({ hasText: REGISTERED_ROUTER_ASSET }),
         ).toHaveCount(1);
-        await page.getByLabel('Search').fill('no-such-router');
-        await expect(page.getByText('No NAS routers match your search')).toBeVisible();
-        await page.getByLabel('Search').fill('');
+        await page.getByLabel('Cari', { exact: true }).fill('no-such-router');
+        await expect(page.getByText('Tidak ada router NAS yang cocok')).toBeVisible();
+        await page.getByLabel('Cari', { exact: true }).fill('');
 
-        await page.getByRole('link', { name: 'Register router' }).click();
+        await page.getByRole('link', { name: 'Daftarkan router' }).click();
         await expect(
-            mainOf(page).getByRole('heading', { name: 'Register NAS router' }),
+            mainOf(page).getByRole('heading', { name: 'Daftarkan Router NAS' }),
         ).toBeVisible();
 
-        const asset = page.getByLabel('Router asset');
-        // A router that is already registered is not offered again.
-        await expect(asset.locator('option', { hasText: REGISTERED_ROUTER_ASSET })).toHaveCount(0);
-        const assetValue = await asset
-            .locator('option', { hasText: ROUTER_ASSET })
-            .getAttribute('value');
-        expect(assetValue).toBeTruthy();
-        await asset.selectOption(assetValue!);
+        // The router is picked by search; one that is already registered is not offered again.
+        await page.getByLabel('Aset router').fill('E2E-ROUTER');
+        await expect(page.getByRole('option', { name: new RegExp(ROUTER_ASSET) })).toBeVisible();
+        await expect(
+            page.getByRole('option', { name: new RegExp(REGISTERED_ROUTER_ASSET) }),
+        ).toHaveCount(0);
+        await page.getByRole('option', { name: new RegExp(ROUTER_ASSET) }).click();
 
         // The NAS address is prefilled from the management IP of the asset.
-        await expect(page.getByLabel('NAS address')).toHaveValue('10.99.9.1');
-        await expect(page.getByLabel('CoA port')).toHaveValue('1700');
+        await expect(page.getByLabel('Alamat NAS')).toHaveValue('10.99.9.1');
+        await expect(page.getByLabel('Port CoA')).toHaveValue('1700');
         await expect(page.getByLabel('Realm')).toHaveValue(REALM);
         await expect(page.getByLabel('Realm')).toHaveAttribute('readonly', '');
-        const secret = page.getByLabel('RADIUS secret');
+        const secret = page.getByLabel('Secret RADIUS');
         await expect(secret).toHaveAttribute('type', 'password');
         await expect(secret).toHaveValue('');
 
         // A server-side rule shows inline and keeps what was typed; the secret input is reset after submit.
-        await page.getByLabel('NAS address').fill('10.99.9.2');
+        await page.getByLabel('Alamat NAS').fill('10.99.9.2');
         await secret.fill(FAKE_NAS_SECRET);
-        await page.getByRole('button', { name: 'Register router' }).click();
-        await expect(page.getByText('This address is not available.')).toBeVisible();
-        await expect(page.getByLabel('NAS address')).toHaveValue('10.99.9.2');
+        await page.getByRole('button', { name: 'Daftarkan router' }).click();
+        await expect(page.getByText('Alamat ini tidak tersedia.')).toBeVisible();
+        await expect(page.getByLabel('Alamat NAS')).toHaveValue('10.99.9.2');
         await expect(secret).toHaveValue('');
 
-        await page.getByLabel('NAS address').fill('10.99.9.1');
+        await page.getByLabel('Alamat NAS').fill('10.99.9.1');
         await secret.fill('short');
-        await page.getByRole('button', { name: 'Register router' }).click();
+        await page.getByRole('button', { name: 'Daftarkan router' }).click();
         await expect(page.getByText(/minimal 8 karakter/)).toBeVisible();
 
         await secret.fill(FAKE_NAS_SECRET);
-        await page.getByRole('button', { name: 'Register router' }).click();
+        await page.getByRole('button', { name: 'Daftarkan router' }).click();
         await expect(page).toHaveURL(/\/admin\/nas-devices\/\d+$/);
         state.routerId = page.url().match(/\/admin\/nas-devices\/(\d+)$/)![1];
         await expect(
-            mainOf(page).getByRole('heading', { name: `NAS router ${ROUTER_ASSET}` }),
+            mainOf(page).getByRole('heading', { name: `Router NAS ${ROUTER_ASSET}` }),
         ).toBeVisible();
-        await expect(page.getByText('NAS router registered.')).toBeVisible();
+        await expect(page.getByText('Router NAS didaftarkan.')).toBeVisible();
     });
 
     test('the router page shows the restart notice, the switch banner and the isolir URL, never the secret', async ({
@@ -219,38 +218,39 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.goto(`/admin/nas-devices/${state.routerId}`);
 
         // The row is saved, but nothing reached RADIUS: the page says so and why.
-        await expect(detail(page, 'RADIUS client')).toContainText('Not written');
-        await expect(detail(page, 'Last written')).toHaveText('Never');
-        await expect(page.getByRole('alert').filter({ hasText: 'Last error' })).toContainText(
-            SWITCH_OFF_REASON,
-        );
-        await expect(detail(page, 'NAS address')).toHaveText('10.99.9.1');
-        await expect(detail(page, 'CoA target')).toHaveText('10.99.9.1:1700');
+        await expect(detail(page, 'Klien RADIUS')).toContainText('Gagal ditulis');
+        await expect(detail(page, 'Terakhir ditulis')).toHaveText('Belum pernah');
+        await expect(
+            page.getByRole('alert').filter({ hasText: 'Kesalahan terakhir' }),
+        ).toContainText(SWITCH_OFF_REASON);
+        await expect(detail(page, 'Alamat NAS')).toHaveText('10.99.9.1');
+        await expect(detail(page, 'Target CoA')).toHaveText('10.99.9.1:1700');
         await expect(detail(page, 'Realm')).toHaveText(REALM);
-        await expect(detail(page, 'RADIUS secret')).toHaveText('Stored');
+        await expect(detail(page, 'Secret RADIUS')).toHaveText('Tersimpan');
         await expect(
             page.getByText(
-                'RADIUS is switched off for this installation. Nothing is written to FreeRADIUS and no session is listed.',
+                'RADIUS dimatikan untuk instalasi ini. Tidak ada yang ditulis ke FreeRADIUS dan tidak ada sesi yang ditampilkan.',
             ),
         ).toBeVisible();
-        await expect(page.getByText(/Restart FreeRADIUS after adding this NAS/)).toBeVisible();
+        await expect(
+            page.getByText(/Mulai ulang FreeRADIUS setelah menambah NAS ini/),
+        ).toBeVisible();
         // The shared secret is write-only: no page shows it.
         await expect(page.getByText(FAKE_NAS_SECRET)).toHaveCount(0);
-        await expect(page.getByText('Check now')).toHaveCount(0);
 
         const isolir = page.locator('code').filter({ hasText: '/isolir/' });
         state.isolirUrl = (await isolir.innerText()).trim();
         expect(state.isolirUrl).toMatch(/\/isolir\/DEMO$/);
-        await page.getByRole('button', { name: 'Copy URL' }).click();
-        await expect(page.getByRole('button', { name: 'Copied' })).toBeVisible();
+        await page.getByRole('button', { name: 'Salin URL' }).click();
+        await expect(page.getByRole('button', { name: 'Tersalin' })).toBeVisible();
         expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(state.isolirUrl);
 
-        await expect(page.getByText('No open sessions')).toBeVisible();
+        await expect(page.getByText('Tidak ada sesi terbuka')).toBeVisible();
 
         // Removing asks first and can be cancelled.
-        await page.getByRole('button', { name: 'Remove router' }).click();
+        await page.getByRole('button', { name: 'Hapus router' }).click();
         const dialog = page.getByRole('alertdialog');
-        await expect(dialog.getByText('Remove this NAS router?')).toBeVisible();
+        await expect(dialog.getByText('Hapus router NAS ini?')).toBeVisible();
         await dialog.getByRole('button', { name: 'Batal' }).click();
         await expect(dialog).toHaveCount(0);
     });
@@ -258,21 +258,23 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     test('edit keeps the stored secret and saves the change', async ({ page }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/nas-devices/${state.routerId}`);
-        await page.getByRole('link', { name: 'Edit', exact: true }).click();
-        await expect(mainOf(page).getByRole('heading', { name: 'Edit NAS router' })).toBeVisible();
+        await page.getByRole('link', { name: 'Ubah', exact: true }).click();
+        await expect(mainOf(page).getByRole('heading', { name: 'Ubah Router NAS' })).toBeVisible();
 
-        const secret = page.getByLabel('RADIUS secret');
+        const secret = page.getByLabel('Secret RADIUS');
         await expect(secret).toHaveValue('');
-        await expect(secret).toHaveAttribute('placeholder', 'Stored');
-        await expect(page.getByText('A secret is stored. Leave blank to keep it.')).toBeVisible();
-        await expect(page.getByLabel('NAS address')).toHaveValue('10.99.9.1');
+        await expect(secret).toHaveAttribute('placeholder', 'Tersimpan');
+        await expect(
+            page.getByText('Secret sudah tersimpan. Kosongkan untuk mempertahankannya.'),
+        ).toBeVisible();
+        await expect(page.getByLabel('Alamat NAS')).toHaveValue('10.99.9.1');
 
-        await page.getByLabel('CoA port').fill('3799');
-        await page.getByRole('button', { name: 'Save router' }).click();
+        await page.getByLabel('Port CoA').fill('3799');
+        await page.getByRole('button', { name: 'Simpan router' }).click();
         await expect(page).toHaveURL(new RegExp(`/admin/nas-devices/${state.routerId}$`));
-        await expect(page.getByText('NAS router updated.')).toBeVisible();
-        await expect(detail(page, 'CoA target')).toHaveText('10.99.9.1:3799');
-        await expect(detail(page, 'RADIUS secret')).toHaveText('Stored');
+        await expect(page.getByText('Router NAS diperbarui.')).toBeVisible();
+        await expect(detail(page, 'Target CoA')).toHaveText('10.99.9.1:3799');
+        await expect(detail(page, 'Secret RADIUS')).toHaveText('Tersimpan');
     });
 
     test('the account is created with the realm suffix and a generated secret shown once', async ({
@@ -282,58 +284,60 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: ORIGIN });
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await page.getByRole('link', { name: 'Network access' }).click();
+        await page.getByRole('link', { name: 'Akses jaringan' }).click();
         await expect(page).toHaveURL(
             new RegExp(`/admin/subscriptions/${state.subscriptionId}/network-account$`),
         );
-        await expect(mainOf(page).getByRole('heading', { name: 'Network access' })).toBeVisible();
-        await expect(page.getByText(`Subscription ${SUBSCRIPTION}`).first()).toBeVisible();
+        await expect(mainOf(page).getByRole('heading', { name: 'Akses jaringan' })).toBeVisible();
+        await expect(page.getByText(`Langganan ${SUBSCRIPTION}`).first()).toBeVisible();
         await expect(
             page.getByText(
-                'RADIUS is switched off for this installation. Changes are saved but not sent to FreeRADIUS, and online status and usage are not available.',
+                'RADIUS dimatikan untuk instalasi ini. Perubahan disimpan tetapi tidak dikirim ke FreeRADIUS, dan status online serta pemakaian tidak tersedia.',
             ),
         ).toBeVisible();
-        await expect(detail(page, 'Desired state')).toContainText('Enabled');
-        await expect(detail(page, 'Speed profile')).toContainText('RADIUS group');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
+        await expect(detail(page, 'Profil kecepatan')).toContainText('grup RADIUS');
         // There is no NAS select: a subscriber may log in on any router of the company.
-        await expect(page.getByLabel('NAS router')).toHaveCount(0);
+        await expect(page.getByLabel('Router NAS')).toHaveCount(0);
 
         // The username field carries the fixed realm suffix; a username the server rejects shows inline.
         await expect(page.locator('#account-username')).toBeVisible();
         await expect(page.getByText(`@${REALM}`, { exact: true })).toBeVisible();
         await page.locator('#account-username').fill('X!');
-        await page.getByRole('button', { name: 'Create network account' }).click();
+        await page.getByRole('button', { name: 'Buat akun jaringan' }).click();
         await expect(
-            page.getByText('Use 3 to 40 lower-case letters, digits, dots, dashes or underscores.'),
+            page.getByText(
+                'Gunakan 3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.',
+            ),
         ).toBeVisible();
 
         await page.locator('#account-username').fill('e2e-linked');
-        await expect(page.getByLabel('Secret')).toHaveValue('');
-        await page.getByRole('button', { name: 'Create network account' }).click();
+        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
+        await page.getByRole('button', { name: 'Buat akun jaringan' }).click();
 
         const panel = secretPanel(page);
         await expect(panel).toBeVisible();
         state.accountSecret = (await panel.locator('code').innerText()).trim();
         expect(state.accountSecret).toHaveLength(12);
-        await expect(panel).toContainText('It is not kept after you dismiss this message');
+        await expect(panel).toContainText('Kata sandi tidak disimpan setelah pesan ini ditutup');
 
-        await panel.getByRole('button', { name: 'Copy secret' }).click();
-        await expect(panel.getByRole('button', { name: 'Copied' })).toBeVisible();
+        await panel.getByRole('button', { name: 'Salin kata sandi' }).click();
+        await expect(panel.getByRole('button', { name: 'Tersalin' })).toBeVisible();
         expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(state.accountSecret);
 
         // The account exists now and is pending, with the switch as the reason.
         await expect(
-            mainOf(page).getByRole('heading', { name: 'Network account', exact: true }),
+            mainOf(page).getByRole('heading', { name: 'Akun jaringan', exact: true }),
         ).toBeVisible();
-        await expect(detail(page, 'Username').first()).toHaveText(`e2e-linked@${REALM}`);
-        await expect(detail(page, 'Sync status')).toContainText('Pending');
-        await expect(detail(page, 'Sync status')).toContainText(SWITCH_OFF_REASON);
-        await expect(detail(page, 'RADIUS group')).toHaveText('Not in RADIUS yet');
+        await expect(detail(page, 'Nama pengguna').first()).toHaveText(`e2e-linked@${REALM}`);
+        await expect(detail(page, 'Status sinkronisasi')).toContainText('Menunggu');
+        await expect(detail(page, 'Status sinkronisasi')).toContainText(SWITCH_OFF_REASON);
+        await expect(detail(page, 'Grup RADIUS')).toHaveText('Belum ada di RADIUS');
         await expect(detail(page, 'Online')).toHaveText('Offline');
-        await expect(page.getByRole('heading', { name: 'Create network account' })).toHaveCount(0);
+        await expect(page.getByRole('heading', { name: 'Buat akun jaringan' })).toHaveCount(0);
 
         // Dismissing removes it from the page, storage, history and URL.
-        await panel.getByRole('button', { name: 'Dismiss' }).click();
+        await panel.getByRole('button', { name: 'Tutup' }).click();
         await expect(secretPanel(page)).toHaveCount(0);
         await expect(page.getByText(state.accountSecret)).toHaveCount(0);
         const kept = await page.evaluate(() =>
@@ -346,7 +350,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.reload();
         await expect(secretPanel(page)).toHaveCount(0);
         await expect(page.getByText(state.accountSecret)).toHaveCount(0);
-        await expect(page.getByLabel('Secret')).toHaveValue('');
+        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
     });
 
     test('reveal asks for confirmation, shows the secret again once, and the edit form never carries it', async ({
@@ -355,40 +359,42 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
 
-        const reveal = page.getByRole('button', { name: 'Reveal secret' });
+        const reveal = page.getByRole('button', { name: 'Tampilkan kata sandi' });
         await reachByKeyboard(page, reveal);
 
         await reveal.click();
         const dialog = page.getByRole('alertdialog');
-        await expect(dialog.getByText('Reveal secret?')).toBeVisible();
-        await expect(dialog).toContainText('recorded in the audit log');
-        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await expect(dialog.getByText('Tampilkan kata sandi?')).toBeVisible();
+        await expect(dialog).toContainText('dicatat di log audit');
+        await dialog.getByRole('button', { name: 'Batal' }).click();
         await expect(dialog).toHaveCount(0);
         await expect(secretPanel(page)).toHaveCount(0);
 
         await reveal.click();
-        await dialog.getByRole('button', { name: 'Reveal', exact: true }).click();
+        await dialog.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         const panel = secretPanel(page);
         await expect(panel).toBeVisible();
         await expect(panel.locator('code')).toHaveText(state.accountSecret);
         await expect(dialog).toHaveCount(0);
-        await panel.getByRole('button', { name: 'Dismiss' }).click();
+        await panel.getByRole('button', { name: 'Tutup' }).click();
         await expect(page.getByText(state.accountSecret)).toHaveCount(0);
 
         // The edit form starts with the stored local part and a blank secret.
         await expect(page.locator('#account-username')).toHaveValue('e2e-linked');
-        await expect(page.getByLabel('Secret')).toHaveValue('');
-        await expect(page.getByText('Leave blank to keep the current secret.')).toBeVisible();
+        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
+        await expect(
+            page.getByText('Kosongkan untuk mempertahankan kata sandi saat ini.'),
+        ).toBeVisible();
 
         // Renaming keeps the secret: no new one is shown.
         await page.locator('#account-username').fill('e2e-linked-2');
-        await page.getByRole('button', { name: 'Save changes' }).click();
-        await expect(page.getByText('Network account updated.')).toBeVisible();
-        await expect(detail(page, 'Username').first()).toHaveText(`e2e-linked-2@${REALM}`);
+        await page.getByRole('button', { name: 'Simpan perubahan' }).click();
+        await expect(page.getByText('Akun jaringan diperbarui.')).toBeVisible();
+        await expect(detail(page, 'Nama pengguna').first()).toHaveText(`e2e-linked-2@${REALM}`);
         await expect(secretPanel(page)).toHaveCount(0);
 
-        await page.getByRole('button', { name: 'Resync' }).click();
-        await expect(page.getByText('Resync queued.')).toBeVisible();
+        await page.getByRole('button', { name: 'Sinkron ulang' }).click();
+        await expect(page.getByText('Sinkron ulang dijadwalkan.')).toBeVisible();
     });
 
     test('Block and Unblock on Subscriptions need a reason, show the badge and isolate the account', async ({
@@ -396,20 +402,20 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await expect(page.getByText('Blocked', { exact: true })).toHaveCount(0);
+        await expect(page.getByText('Diblokir', { exact: true })).toHaveCount(0);
 
         // Opening by keyboard works and Cancel returns focus to the button.
-        const block = page.getByRole('button', { name: 'Block internet', exact: true });
+        const block = page.getByRole('button', { name: 'Blokir internet', exact: true });
         await reachByKeyboard(page, block);
         await page.keyboard.press('Enter');
         const dialog = page.getByRole('dialog');
-        await expect(dialog.getByText(`Block internet of ${SUBSCRIPTION}?`)).toBeVisible();
+        await expect(dialog.getByText(`Blokir internet ${SUBSCRIPTION}?`)).toBeVisible();
         // The reason is required: nothing is sent while it is empty.
-        const submit = dialog.getByRole('button', { name: 'Block internet', exact: true });
+        const submit = dialog.getByRole('button', { name: 'Blokir internet', exact: true });
         await expect(submit).toBeDisabled();
         await dialog.locator('#subscription-block-reason').fill('   ');
         await expect(submit).toBeDisabled();
-        await dialog.getByRole('button', { name: 'Cancel' }).click();
+        await dialog.getByRole('button', { name: 'Batal' }).click();
         await expect(dialog).toHaveCount(0);
         await expect(block).toBeFocused();
 
@@ -419,53 +425,53 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         );
         await submitBlockModal(
             page,
-            `Block internet of ${SUBSCRIPTION}?`,
+            `Blokir internet ${SUBSCRIPTION}?`,
             'E2E abuse report',
-            'Block internet',
+            'Blokir internet',
         );
         expect((await request).postDataJSON()).toMatchObject({ reason: 'E2E abuse report' });
-        await expect(page.getByText('Subscription blocked.')).toBeVisible();
+        await expect(page.getByText('Internet langganan diblokir.')).toBeVisible();
 
         // Reason, author and time are on the page; the status itself is untouched.
-        await expect(page.locator('p').filter({ hasText: 'Block reason:' })).toContainText(
-            'E2E abuse report',
-        );
-        await expect(page.getByText(/Blocked by:\s*Demo Admin,/)).toBeVisible();
-        await expect(page.getByText('Blocked', { exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Suspend' })).toBeVisible();
+        await expect(detail(page, 'Alasan blokir')).toContainText('E2E abuse report');
+        await expect(detail(page, 'Diblokir oleh')).toContainText(/Demo Admin,/);
+        await expect(page.getByText('Diblokir', { exact: true })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Tangguhkan', exact: true })).toBeVisible();
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Isolated');
-        await expect(detail(page, 'Desired state')).toContainText('Isolated because Blocked.');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Diisolir');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText(
+            'Diisolir karena diblokir.',
+        );
 
         // The audit log has the entry too.
         await page.goto('/admin/reports/audit-log');
-        await page.getByPlaceholder('Cari deskripsi, modul, event, pelaku...').fill('blocked');
-        await page.getByRole('button', { name: 'Terapkan Filter' }).click();
+        await page.getByPlaceholder('Cari deskripsi, modul, aksi, pelaku...').fill('blocked');
+        await page.getByRole('button', { name: 'Terapkan filter' }).click();
         await expect(
             page
                 .getByRole('row')
-                .filter({ hasText: 'service_subscription' })
+                .filter({ hasText: 'Langganan' })
                 .filter({ hasText: 'Demo Admin' })
                 .first(),
         ).toContainText('blocked');
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await page.getByRole('button', { name: 'Unblock', exact: true }).click();
+        await page.getByRole('button', { name: 'Buka blokir', exact: true }).click();
         await expect(page.getByRole('dialog')).toContainText(
-            'The subscriber is disconnected and gets the normal service back when the router redials.',
+            'Sesi pelanggan diputus dan layanan normal kembali saat router menyambung ulang.',
         );
         // The note is optional.
-        await submitBlockModal(page, `Unblock internet of ${SUBSCRIPTION}?`, '', 'Unblock');
-        await expect(page.getByText('Subscription unblocked.')).toBeVisible();
-        await expect(page.getByText('Block reason:')).toHaveCount(0);
+        await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
+        await expect(page.getByText('Blokir internet langganan dibuka.')).toBeVisible();
+        await expect(detail(page, 'Alasan blokir')).toHaveCount(0);
         await expect(
-            page.getByRole('button', { name: 'Block internet', exact: true }),
+            page.getByRole('button', { name: 'Blokir internet', exact: true }),
         ).toBeVisible();
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Enabled');
-        await expect(detail(page, 'Desired state')).not.toContainText('Isolated because');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
+        await expect(detail(page, 'Status yang diharapkan')).not.toContainText('Diisolir karena');
     });
 
     test('Receivables: Block and Unblock sit next to Isolir and Isolir keeps sending source overdue', async ({
@@ -476,31 +482,33 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         const row = page.getByRole('row').filter({ hasText: CUSTOMER });
         await expect(row.getByRole('button', { name: `Isolir ${SUBSCRIPTION}` })).toBeVisible();
 
-        await row.getByRole('button', { name: `Block ${SUBSCRIPTION}` }).click();
+        await row.getByRole('button', { name: `Blokir ${SUBSCRIPTION}` }).click();
         await submitBlockModal(
             page,
-            `Block internet of ${SUBSCRIPTION}?`,
+            `Blokir internet ${SUBSCRIPTION}?`,
             'E2E fraud check',
-            'Block internet',
+            'Blokir internet',
         );
-        await expect(row.getByText('Blocked', { exact: true })).toBeVisible();
-        await expect(row.getByRole('button', { name: `Unblock ${SUBSCRIPTION}` })).toBeVisible();
+        await expect(row.getByText('Diblokir', { exact: true })).toBeVisible();
+        await expect(
+            row.getByRole('button', { name: `Buka blokir ${SUBSCRIPTION}` }),
+        ).toBeVisible();
         await expect(row.getByRole('button', { name: `Isolir ${SUBSCRIPTION}` })).toBeVisible();
 
         // Unblock from the same row while the subscription is still active.
-        await row.getByRole('button', { name: `Unblock ${SUBSCRIPTION}` }).click();
-        await submitBlockModal(page, `Unblock internet of ${SUBSCRIPTION}?`, '', 'Unblock');
-        await expect(row.getByRole('button', { name: `Block ${SUBSCRIPTION}` })).toBeVisible();
-        await expect(row.getByText('Blocked', { exact: true })).toHaveCount(0);
+        await row.getByRole('button', { name: `Buka blokir ${SUBSCRIPTION}` }).click();
+        await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
+        await expect(row.getByRole('button', { name: `Blokir ${SUBSCRIPTION}` })).toBeVisible();
+        await expect(row.getByText('Diblokir', { exact: true })).toHaveCount(0);
 
-        await row.getByRole('button', { name: `Block ${SUBSCRIPTION}` }).click();
+        await row.getByRole('button', { name: `Blokir ${SUBSCRIPTION}` }).click();
         await submitBlockModal(
             page,
-            `Block internet of ${SUBSCRIPTION}?`,
+            `Blokir internet ${SUBSCRIPTION}?`,
             'E2E second block',
-            'Block internet',
+            'Blokir internet',
         );
-        await expect(row.getByText('Blocked', { exact: true })).toBeVisible();
+        await expect(row.getByText('Diblokir', { exact: true })).toBeVisible();
 
         await row.getByRole('button', { name: `Isolir ${SUBSCRIPTION}` }).click();
         const dialog = page.getByRole('dialog');
@@ -516,22 +524,24 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(dialog).toHaveCount(0);
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(detail(page, 'Status').first()).toContainText('suspended');
-        await expect(detail(page, 'Desired state')).toContainText(
-            'Isolated because Suspended and Blocked.',
+        await expect(detail(page, 'Status').first()).toContainText('Ditangguhkan');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText(
+            'Diisolir karena ditangguhkan dan diblokir.',
         );
-        await expect(detail(page, 'Sync status')).toContainText(SWITCH_OFF_REASON);
+        await expect(detail(page, 'Status sinkronisasi')).toContainText(SWITCH_OFF_REASON);
 
         // Unblocking a suspended subscription keeps it isolated until it is reactivated, and the modal says so.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await page.getByRole('button', { name: 'Unblock', exact: true }).click();
+        await page.getByRole('button', { name: 'Buka blokir', exact: true }).click();
         await expect(page.getByRole('dialog')).toContainText(
-            'The subscription is suspended, so the service stays isolated until it is reactivated.',
+            'Langganan sedang ditangguhkan, jadi layanan tetap diisolir sampai diaktifkan kembali.',
         );
-        await submitBlockModal(page, `Unblock internet of ${SUBSCRIPTION}?`, '', 'Unblock');
+        await submitBlockModal(page, `Buka blokir internet ${SUBSCRIPTION}?`, '', 'Buka blokir');
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Isolated because Suspended.');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText(
+            'Diisolir karena ditangguhkan.',
+        );
     });
 
     test('the public isolir page shows the company, its contacts and the login link only', async ({
@@ -541,11 +551,11 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         // Give the company contact fields through the profile form, as staff would.
         await loginAs(page, 'admin');
         await page.goto('/admin/company/profile');
-        await page.getByLabel('Phone').fill('(021)5550100');
+        await page.getByLabel('Telepon').fill('(021)5550100');
         await page.getByLabel('Email').fill('support@demo.inbils.test');
-        await page.getByLabel('Website').fill('https://demo.inbils.test');
-        await page.getByRole('button', { name: 'Save Profile' }).click();
-        await expect(page.getByText('Company profile updated.').first()).toBeVisible();
+        await page.getByLabel('Situs web').fill('https://demo.inbils.test');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page.getByText('Profil perusahaan diperbarui.').first()).toBeVisible();
 
         await logout(page);
         const response = await page.goto(state.isolirUrl);
@@ -591,11 +601,11 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         // Restore the shared fixture: the profile had no contact fields.
         await loginAs(page, 'admin');
         await page.goto('/admin/company/profile');
-        await page.getByLabel('Phone').fill('');
+        await page.getByLabel('Telepon').fill('');
         await page.getByLabel('Email').fill('');
-        await page.getByLabel('Website').fill('');
-        await page.getByRole('button', { name: 'Save Profile' }).click();
-        await expect(page.getByText('Company profile updated.').first()).toBeVisible();
+        await page.getByLabel('Situs web').fill('');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page.getByText('Profil perusahaan diperbarui.').first()).toBeVisible();
     });
 
     test('a manager reads routers, manages accounts and blocks, but cannot manage routers', async ({
@@ -604,12 +614,12 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await loginAs(page, 'manager');
         await page.goto('/admin/nas-devices');
         await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
-        await expect(page.getByRole('link', { name: 'Register router' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Daftarkan router' })).toHaveCount(0);
         await page.goto(`/admin/nas-devices/${state.routerId}`);
         await expect(
-            mainOf(page).getByRole('heading', { name: `NAS router ${ROUTER_ASSET}` }),
+            mainOf(page).getByRole('heading', { name: `Router NAS ${ROUTER_ASSET}` }),
         ).toBeVisible();
-        for (const name of ['Edit', 'Remove router']) {
+        for (const name of ['Ubah', 'Hapus router']) {
             await expect(page.getByRole('button', { name })).toHaveCount(0);
             await expect(page.getByRole('link', { name, exact: true })).toHaveCount(0);
         }
@@ -621,12 +631,12 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
 
         // Managers hold the account permissions: they can reveal.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(page.getByRole('button', { name: 'Reveal secret' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Tampilkan kata sandi' })).toBeVisible();
 
         // And they hold customer.subscription.block.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await expect(
-            page.getByRole('button', { name: 'Block internet', exact: true }),
+            page.getByRole('button', { name: 'Blokir internet', exact: true }),
         ).toBeVisible();
     });
 
@@ -636,17 +646,17 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await loginAs(page, 'staff');
         await page.goto('/admin/nas-devices');
         await expect(mainOf(page).getByRole('heading', { name: 'Router NAS' })).toBeVisible();
-        await expect(page.getByRole('link', { name: 'Register router' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Daftarkan router' })).toHaveCount(0);
         expect((await page.request.get('/admin/nas-devices/create')).status()).toBe(403);
 
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await expect(
-            mainOf(page).getByRole('heading', { name: `Subscription ${SUBSCRIPTION}` }),
+            mainOf(page).getByRole('heading', { name: `Langganan ${SUBSCRIPTION}` }),
         ).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Block internet', exact: true })).toHaveCount(
-            0,
-        );
-        await expect(page.getByRole('button', { name: 'Unblock', exact: true })).toHaveCount(0);
+        await expect(
+            page.getByRole('button', { name: 'Blokir internet', exact: true }),
+        ).toHaveCount(0);
+        await expect(page.getByRole('button', { name: 'Buka blokir', exact: true })).toHaveCount(0);
 
         const token = decodeURIComponent(
             (await page.context().cookies()).find((cookie) => cookie.name === 'XSRF-TOKEN')!.value,
@@ -665,7 +675,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await expect(page.getByRole('link', { name: 'Network access' })).toBeVisible();
+        await expect(page.getByRole('link', { name: 'Akses jaringan' })).toBeVisible();
         // The item sits in a collapsed sidebar group; open it to see the link.
         const navLink = page.locator('aside a', { hasText: 'Router NAS' });
         await expect(navLink).toHaveCount(1);
@@ -698,9 +708,9 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         });
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await expect(
-            mainOf(page).getByRole('heading', { name: `Subscription ${SUBSCRIPTION}` }),
+            mainOf(page).getByRole('heading', { name: `Langganan ${SUBSCRIPTION}` }),
         ).toBeVisible();
-        await expect(page.getByRole('link', { name: 'Network access' })).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Akses jaringan' })).toHaveCount(0);
         await expect(page.locator('aside a', { hasText: 'Router NAS' })).toHaveCount(0);
         await page.unroute('**/admin/**');
     });
@@ -739,10 +749,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         // The block modal at 375 px, dark.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await setTheme(page, 375, true);
-        await page.getByRole('button', { name: 'Block internet', exact: true }).click();
+        await page.getByRole('button', { name: 'Blokir internet', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
         await expectNoHorizontalOverflow(page, 'block modal at 375px dark');
-        await page.getByRole('button', { name: 'Cancel' }).click();
+        await page.getByRole('button', { name: 'Batal' }).click();
 
         await logout(page);
         for (const width of [375, 1280]) {
@@ -764,10 +774,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
     test('cleanup: the subscription is reactivated for the specs that follow', async ({ page }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
-        await page.getByRole('button', { name: 'Reactivate' }).click();
-        await expect(page.getByRole('button', { name: 'Suspend' })).toBeVisible();
+        await page.getByRole('button', { name: 'Aktifkan kembali' }).click();
+        await expect(page.getByRole('button', { name: 'Tangguhkan', exact: true })).toBeVisible();
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Enabled');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
     });
 });
 
@@ -827,40 +837,35 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         lab.subscriptionId = await subscriptionIdOf(page, SUBSCRIPTION);
 
         // The CoA target is the management IP of the asset: the lab NAS listens on the host loopback.
-        await page.goto('/admin/nas-devices/create');
-        const assetId = await page
-            .getByLabel('Router asset')
-            .locator('option', { hasText: ROUTER_ASSET })
-            .getAttribute('value');
+        const assets = await inertiaProps(page, `/admin/network-assets?search=${ROUTER_ASSET}`);
+        const assetId = (assets.props?.assets?.data as Array<{ id: number; code: string }>).find(
+            (item) => item.code === ROUTER_ASSET,
+        )!.id;
         await page.goto(`/admin/network-assets/${assetId}/edit`);
-        await page.getByLabel('Management IP').fill('127.0.0.1');
-        await page.getByRole('button', { name: 'Save', exact: true }).click();
-        await expect(page.getByText('Network asset updated.')).toBeVisible();
+        await page.getByLabel('IP manajemen').fill('127.0.0.1');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
+        await expect(page.getByText('Aset jaringan diperbarui.')).toBeVisible();
 
         await page.goto('/admin/nas-devices/create');
-        const asset = page.getByLabel('Router asset');
-        await asset.selectOption(
-            (await asset.locator('option', { hasText: ROUTER_ASSET }).getAttribute('value'))!,
-        );
-        await expect(page.getByLabel('NAS address')).toHaveValue('127.0.0.1');
-        await page.getByLabel('NAS address').fill(LAB_NAS_ADDRESS);
-        await page.getByLabel('CoA port').fill(LAB_COA_PORT);
-        await page.getByLabel('RADIUS secret').fill(labSecret('LAB_RADIUS_SECRET'));
-        await page.getByRole('button', { name: 'Register router' }).click();
+        await page.getByLabel('Aset router').fill(ROUTER_ASSET);
+        await page.getByRole('option', { name: new RegExp(ROUTER_ASSET) }).click();
+        await expect(page.getByLabel('Alamat NAS')).toHaveValue('127.0.0.1');
+        await page.getByLabel('Alamat NAS').fill(LAB_NAS_ADDRESS);
+        await page.getByLabel('Port CoA').fill(LAB_COA_PORT);
+        await page.getByLabel('Secret RADIUS').fill(labSecret('LAB_RADIUS_SECRET'));
+        await page.getByRole('button', { name: 'Daftarkan router' }).click();
         await expect(page).toHaveURL(/\/admin\/nas-devices\/\d+$/);
         lab.routerId = page.url().match(/\/admin\/nas-devices\/(\d+)$/)![1];
 
         // The client row is in the lab database and the page says so.
-        await expect(detail(page, 'RADIUS client')).toContainText('Written to RADIUS');
-        await expect(detail(page, 'NAS address')).toHaveText(LAB_NAS_ADDRESS);
-        await expect(detail(page, 'CoA target')).toHaveText(`127.0.0.1:${LAB_COA_PORT}`);
+        await expect(detail(page, 'Klien RADIUS')).toContainText('Tertulis ke RADIUS');
+        await expect(detail(page, 'Alamat NAS')).toHaveText(LAB_NAS_ADDRESS);
+        await expect(detail(page, 'Target CoA')).toHaveText(`127.0.0.1:${LAB_COA_PORT}`);
         await expect(detail(page, 'Realm')).toHaveText(REALM);
         expect(await page.locator('body').innerText()).not.toContain(
             labSecret('LAB_RADIUS_SECRET'),
         );
-        await expect(page.getByText('RADIUS is switched off for this installation.')).toHaveCount(
-            0,
-        );
+        await expect(page.getByText('RADIUS dimatikan untuk instalasi ini.')).toHaveCount(0);
 
         // FreeRADIUS reads the `nas` table when it starts; a HUP answers "No files changed. Ignoring" and leaves the
         // clients as they were, so a new NAS needs a restart of the server (proven in the lab, see the ticket).
@@ -890,17 +895,17 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
     }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${lab.subscriptionId}/network-account`);
-        const speed = await detail(page, 'Speed profile').innerText();
-        lab.speedGroup = speed.match(/RADIUS group (\S+)/)![1];
+        const speed = await detail(page, 'Profil kecepatan').innerText();
+        lab.speedGroup = speed.match(/grup RADIUS (\S+)/)![1];
 
         await page.locator('#account-username').fill(LAB_USERNAME);
-        await page.getByLabel('Secret').fill(labSecret('LAB_USER_SECRET'));
-        await page.getByRole('button', { name: 'Create network account' }).click();
+        await page.getByLabel('Kata sandi', { exact: true }).fill(labSecret('LAB_USER_SECRET'));
+        await page.getByRole('button', { name: 'Buat akun jaringan' }).click();
 
-        await expect(detail(page, 'Username').first()).toHaveText(`${LAB_USERNAME}@${REALM}`);
-        await expect(detail(page, 'Sync status')).toContainText('Synced');
-        await expect(detail(page, 'RADIUS group')).toContainText(`${REALM}/${lab.speedGroup}`);
-        await expect(detail(page, 'Desired state')).toContainText('Enabled');
+        await expect(detail(page, 'Nama pengguna').first()).toHaveText(`${LAB_USERNAME}@${REALM}`);
+        await expect(detail(page, 'Status sinkronisasi')).toContainText('Tersinkron');
+        await expect(detail(page, 'Grup RADIUS')).toContainText(`${REALM}/${lab.speedGroup}`);
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
         // An explicit secret is never echoed back.
         await expect(secretPanel(page)).toHaveCount(0);
         expect(await page.locator('body').innerText()).not.toContain(labSecret('LAB_USER_SECRET'));
@@ -948,15 +953,15 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         await expect(detail(page, 'Online')).toHaveText('Online');
 
         await page.goto(`/admin/subscriptions/${lab.subscriptionId}`);
-        await page.getByRole('button', { name: 'Block internet', exact: true }).click();
+        await page.getByRole('button', { name: 'Blokir internet', exact: true }).click();
         await submitBlockModal(
             page,
-            `Block internet of ${SUBSCRIPTION}?`,
+            `Blokir internet ${SUBSCRIPTION}?`,
             'E2E lab abuse test',
-            'Block internet',
+            'Blokir internet',
         );
-        await expect(page.getByText('Subscription blocked.')).toBeVisible();
-        await expect(page.getByText('Blocked', { exact: true })).toBeVisible();
+        await expect(page.getByText('Internet langganan diblokir.')).toBeVisible();
+        await expect(page.getByText('Diblokir', { exact: true })).toBeVisible();
 
         await expect.poll(() => labEvents().map((event) => event.result)).toEqual(['ACK']);
         expect(
@@ -970,9 +975,11 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         expect(result.after.attributes['Mikrotik-Address-List']).toEqual(['isolir']);
 
         await page.goto(`/admin/subscriptions/${lab.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Isolated because Blocked.');
-        await expect(detail(page, 'RADIUS group')).toContainText(`${REALM}/isolir`);
-        await expect(detail(page, 'Sync status')).toContainText('Synced');
+        await expect(detail(page, 'Status yang diharapkan')).toContainText(
+            'Diisolir karena diblokir.',
+        );
+        await expect(detail(page, 'Grup RADIUS')).toContainText(`${REALM}/isolir`);
+        await expect(detail(page, 'Status sinkronisasi')).toContainText('Tersinkron');
         await expect(detail(page, 'Online')).toHaveText('Online');
     });
 
@@ -981,14 +988,14 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
     }) => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${lab.subscriptionId}`);
-        await page.getByRole('button', { name: 'Unblock', exact: true }).click();
+        await page.getByRole('button', { name: 'Buka blokir', exact: true }).click();
         await submitBlockModal(
             page,
-            `Unblock internet of ${SUBSCRIPTION}?`,
+            `Buka blokir internet ${SUBSCRIPTION}?`,
             'E2E lab unblock',
-            'Unblock',
+            'Buka blokir',
         );
-        await expect(page.getByText('Subscription unblocked.')).toBeVisible();
+        await expect(page.getByText('Blokir internet langganan dibuka.')).toBeVisible();
 
         await expect.poll(() => labEvents().map((event) => event.result)).toEqual(['ACK', 'ACK']);
         await expect
@@ -1009,8 +1016,8 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         sim('disconnect', connected.id);
 
         await page.goto(`/admin/subscriptions/${lab.subscriptionId}/network-account`);
-        await expect(detail(page, 'Desired state')).toContainText('Enabled');
-        await expect(detail(page, 'Desired state')).not.toContainText('Isolated because');
-        await expect(detail(page, 'RADIUS group')).toContainText(`${REALM}/${lab.speedGroup}`);
+        await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
+        await expect(detail(page, 'Status yang diharapkan')).not.toContainText('Diisolir karena');
+        await expect(detail(page, 'Grup RADIUS')).toContainText(`${REALM}/${lab.speedGroup}`);
     });
 });

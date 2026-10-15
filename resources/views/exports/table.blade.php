@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="utf-8">
     <title>{{ $title }}</title>
@@ -15,7 +15,7 @@
 <body>
     <h1>{{ $title }}</h1>
     <div class="meta">
-        Rows: {{ count($rows) }}@if(!empty($capped)) (capped at {{ $maxRows }})@endif
+        Baris: {{ count($rows) }}@if(!empty($capped)) (dibatasi sampai {{ $maxRows }})@endif
     </div>
     <table>
         <thead>
@@ -34,7 +34,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="{{ max(count($headers), 1) }}">No data</td>
+                    <td colspan="{{ max(count($headers), 1) }}">Tidak ada data.</td>
                 </tr>
             @endforelse
         </tbody>

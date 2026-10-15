@@ -116,7 +116,7 @@ class InvoiceServerTableExportTest extends TestCase
 
         $lines = preg_split('/\r?\n/', trim(ltrim($content, "\xEF\xBB\xBF")));
         $this->assertSame(
-            ['Number', 'Customer', 'Status', 'Total', 'Issue Date', 'Due Date', 'Created'],
+            ['Nomor tagihan', 'Pelanggan', 'Status', 'Total', 'Tanggal terbit', 'Jatuh tempo', 'Dibuat'],
             str_getcsv($lines[0]),
         );
         $row = str_getcsv($lines[1]);

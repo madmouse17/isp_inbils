@@ -41,7 +41,7 @@ class OrganizationService
             }
 
             if (array_key_exists('parent_id', $data) && $data['parent_id'] !== null && self::hasCycle($unit, (int) $data['parent_id'])) {
-                throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
+                throw ValidationException::withMessages(['parent_id' => 'Unit tidak bisa dipindahkan ke bawah dirinya sendiri atau sub-unitnya.']);
             }
 
             $pathChanged = array_key_exists('code', $data) || array_key_exists('parent_id', $data);
@@ -68,7 +68,7 @@ class OrganizationService
             self::assertParentWithinCompany($unit, $newParentId);
 
             if ($newParentId !== null && self::hasCycle($unit, $newParentId)) {
-                throw ValidationException::withMessages(['parent_id' => 'Cannot move unit below itself.']);
+                throw ValidationException::withMessages(['parent_id' => 'Unit tidak bisa dipindahkan ke bawah dirinya sendiri atau sub-unitnya.']);
             }
 
             return self::update($unit, ['parent_id' => $newParentId]);
@@ -78,7 +78,11 @@ class OrganizationService
     public static function delete(OrganizationUnit $unit): bool
     {
         if ($unit->children()->exists()) {
-            throw ValidationException::withMessages(['organization' => 'Unit still has children.']);
+            throw ValidationException::withMessages(['organization' => 'Unit masih punya sub-unit. Pindahkan atau hapus sub-unitnya dulu.']);
+        }
+
+        if ($unit->employees()->exists()) {
+            throw ValidationException::withMessages(['organization' => 'Unit masih punya karyawan. Pindahkan karyawannya ke unit lain dulu.']);
         }
 
         return DB::transaction(function () use ($unit) {

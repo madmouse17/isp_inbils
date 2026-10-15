@@ -224,14 +224,16 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
 
     public function test_export_adds_the_acquired_by_column_only_for_visible_viewers_and_honors_the_filter(): void
     {
-        $this->customerAcquiredBy($this->staff, ['code' => 'CUS-A', 'name' => 'Acquired Customer']);
+        $this->customerAcquiredBy($this->staff, ['code' => 'CUS-A', 'name' => 'Acquired Customer', 'type' => 'Individual']);
         $this->customerAcquiredBy(null, ['code' => 'CUS-B', 'name' => 'Open Customer']);
         $exportOnly = $this->employeeWithPermissions(['customer.view', 'customer.export']);
 
         $csv = $this->exportCsv($this->manager);
-        $this->assertStringContainsString('Acquired By', $csv);
+        $this->assertStringContainsString('Diperoleh oleh', $csv);
+        $this->assertStringContainsString('Kode', $csv);
+        $this->assertStringContainsString('Perorangan', $csv);
         $this->assertStringContainsString($this->staff->name, $csv);
-        $this->assertStringContainsString('Unassigned', $csv);
+        $this->assertStringContainsString('Belum ditentukan', $csv);
 
         $unassigned = $this->exportCsv($this->manager, ['acquired_by' => 'unassigned']);
         $this->assertStringContainsString('CUS-B', $unassigned);
@@ -242,7 +244,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->assertStringNotContainsString('CUS-B', $byId);
 
         $hidden = $this->exportCsv($exportOnly, ['acquired_by' => 'unassigned']);
-        $this->assertStringNotContainsString('Acquired By', $hidden);
+        $this->assertStringNotContainsString('Diperoleh oleh', $hidden);
         $this->assertStringNotContainsString($this->staff->name, $hidden);
         $this->assertStringContainsString('CUS-A', $hidden, 'The filter is ignored for viewers without attribution access.');
 

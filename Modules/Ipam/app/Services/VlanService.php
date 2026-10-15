@@ -41,7 +41,7 @@ class VlanService
             $fresh = Vlan::query()->lockForUpdate()->findOrFail($vlan->id);
 
             if (IpPrefix::query()->where('vlan_id', $fresh->id)->exists()) {
-                throw ValidationException::withMessages(['vlan' => "VLAN {$fresh->vid} is used by a prefix. Detach it first."]);
+                throw ValidationException::withMessages(['vlan' => "VLAN {$fresh->vid} dipakai sebuah prefiks. Lepas dulu."]);
             }
 
             $fresh->delete();
@@ -58,7 +58,7 @@ class VlanService
         $locationId = $data['location_id'] ?? null;
 
         if ($locationId !== null && ! Location::query()->whereKey($locationId)->exists()) {
-            throw ValidationException::withMessages(['location_id' => 'The selected POP does not exist.']);
+            throw ValidationException::withMessages(['location_id' => 'POP yang dipilih tidak ditemukan.']);
         }
 
         $taken = Vlan::query()
@@ -71,8 +71,8 @@ class VlanService
         if ($taken) {
             throw ValidationException::withMessages([
                 'vid' => $locationId === null
-                    ? "VLAN {$data['vid']} is already registered company-wide."
-                    : "VLAN {$data['vid']} is already registered at this POP.",
+                    ? "VLAN {$data['vid']} sudah terdaftar untuk seluruh perusahaan."
+                    : "VLAN {$data['vid']} sudah terdaftar di POP ini.",
             ]);
         }
     }

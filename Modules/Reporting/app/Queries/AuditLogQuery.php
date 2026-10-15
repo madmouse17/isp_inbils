@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 use Modules\Reporting\Queries\Concerns\AppliesDateRange;
 use Spatie\Activitylog\Models\Activity;
 
@@ -33,12 +34,12 @@ class AuditLogQuery
 
         if ($authCompanyId !== null) {
             if ($companyId !== null && (int) $companyId !== (int) $authCompanyId) {
-                abort(403, 'Cross-tenant query is not allowed.');
+                abort(403, 'Kueri lintas perusahaan tidak diizinkan.');
             }
             $resolvedCompanyId = (int) $authCompanyId;
         } elseif ($contextCompanyId !== null) {
             if ($companyId !== null && (int) $companyId !== (int) $contextCompanyId) {
-                abort(403, 'Cross-tenant query is not allowed.');
+                abort(403, 'Kueri lintas perusahaan tidak diizinkan.');
             }
             $resolvedCompanyId = (int) $contextCompanyId;
         } else {
@@ -50,9 +51,10 @@ class AuditLogQuery
         $query = Activity::query()->where('company_id', (int) $resolvedCompanyId);
 
         if ($userId) {
-            $userBelongsToCompany = User::query()
-                ->where('id', $userId)
+            // A member, as the report's picker lists them: a user homed elsewhere but granted this company acts here too.
+            $userBelongsToCompany = DB::table('company_user')
                 ->where('company_id', (int) $resolvedCompanyId)
+                ->where('user_id', $userId)
                 ->exists();
 
             if (! $userBelongsToCompany) {
@@ -81,7 +83,7 @@ class AuditLogQuery
                             ->whereIn('causer_id', function ($userQuery) use ($term, $resolvedCompanyId) {
                                 $userQuery->select('id')
                                     ->from('users')
-                                    ->where('company_id', (int) $resolvedCompanyId)
+                                    ->whereIn('id', fn ($members) => $members->select('user_id')->from('company_user')->where('company_id', (int) $resolvedCompanyId))
                                     ->where(function ($uq) use ($term) {
                                         $uq->where('name', 'like', "%{$term}%")
                                             ->orWhere('email', 'like', "%{$term}%");

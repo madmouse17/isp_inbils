@@ -77,16 +77,16 @@ class ReportRowExportTest extends TestCase
         $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', $filters)));
 
         $this->assertCount(27, $records, 'the file is the whole ledger, not the 10 rows of the page');
-        $this->assertSame(array_map(fn ($n) => number_format($n, 2, '.', ''), range(1, 27)), array_column($records, 'Quantity'));
+        $this->assertSame(array_map(fn ($n) => number_format($n, 2, '.', ''), range(1, 27)), array_column($records, 'Jumlah'));
         // The first page of the screen and the first rows of the file are the same ledger rows.
         $this->assertSame(
             array_column($screen->inertiaProps('movements.data'), 'balance_after'),
-            array_column(array_slice($records, 0, 10), 'Balance after'),
+            array_column(array_slice($records, 0, 10), 'Saldo setelah'),
         );
-        $this->assertSame($product->name, $records[0]['Product']);
-        $this->assertSame('receive', $records[0]['Type']);
-        $this->assertSame($this->location->name, $records[0]['To']);
-        $this->assertSame('Reporting fixture', $records[0]['Note']);
+        $this->assertSame($product->name, $records[0]['Barang']);
+        $this->assertSame('receive', $records[0]['Jenis']);
+        $this->assertSame($this->location->name, $records[0]['Ke']);
+        $this->assertSame('Reporting fixture', $records[0]['Catatan']);
     }
 
     public function test_stock_card_file_shows_what_a_movement_points_at(): void
@@ -96,7 +96,7 @@ class ReportRowExportTest extends TestCase
 
         $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $product->id])));
 
-        $this->assertSame('Thing #42', $records[0]['Reference']);
+        $this->assertSame('Thing #42', $records[0]['Referensi']);
     }
 
     public function test_stock_card_export_of_another_companys_product_is_not_found(): void
@@ -118,7 +118,7 @@ class ReportRowExportTest extends TestCase
         $rows = $this->csvRows($response);
 
         $this->assertCount(1 + 5 + 1, $rows, 'header + 5 capped rows + marker');
-        $this->assertSame(['# Export truncated at 5 rows. Narrow the filters to export the remaining rows.'], end($rows));
+        $this->assertSame(['# Ekspor dipotong pada 5 baris. Persempit filter untuk mengekspor sisa barisnya.'], end($rows));
         $this->assertSame('1', $response->headers->get('X-Export-Truncated'));
         $this->assertSame('5', $response->headers->get('X-Export-Row-Cap'));
 
@@ -142,7 +142,7 @@ class ReportRowExportTest extends TestCase
 
         $this->assertSame(
             ["'=HYPERLINK(\"http://evil.test\",\"x\")", "'+cmd|calc", "'@SUM(1+1)", "'-2+3"],
-            array_column($records, 'Note'),
+            array_column($records, 'Catatan'),
         );
     }
 
@@ -163,9 +163,9 @@ class ReportRowExportTest extends TestCase
         $records = $this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'stress'])));
 
         $this->assertCount(30, $records, 'every matching row, not the 25 of the page');
-        $this->assertSame(['stress'], array_values(array_unique(array_column($records, 'Module'))));
-        $this->assertSame($this->admin->name, $records[0]['Actor']);
-        $this->assertSame((string) $this->admin->id, $records[0]['Actor ID']);
+        $this->assertSame(['stress'], array_values(array_unique(array_column($records, 'Modul'))));
+        $this->assertSame($this->admin->name, $records[0]['Pelaku']);
+        $this->assertSame((string) $this->admin->id, $records[0]['ID pelaku']);
     }
 
     public function test_audit_file_properties_are_exactly_what_the_screen_shows(): void
@@ -177,8 +177,8 @@ class ReportRowExportTest extends TestCase
 
         $records = $this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing'])));
 
-        $this->assertSame($screenProperties, json_decode((string) $records[0]['Properties'], true));
-        $this->assertStringContainsString('Q1 ünïcode / slash', (string) $records[0]['Properties']);
+        $this->assertSame($screenProperties, json_decode((string) $records[0]['Properti'], true));
+        $this->assertStringContainsString('Q1 ünïcode / slash', (string) $records[0]['Properti']);
     }
 
     public function test_the_audit_pdf_leaves_the_properties_out(): void
@@ -193,8 +193,8 @@ class ReportRowExportTest extends TestCase
         $response = $this->get(route('admin.reports.audit-log.export', ['format' => 'pdf']));
         $this->assertStringStartsWith('%PDF-', $response->streamedContent());
 
-        $this->assertContains('Description', $headers);
-        $this->assertNotContains('Properties', $headers);
+        $this->assertContains('Deskripsi', $headers);
+        $this->assertNotContains('Properti', $headers);
     }
 
     public function test_audit_file_never_holds_a_row_of_another_company(): void
@@ -206,7 +206,7 @@ class ReportRowExportTest extends TestCase
         $this->actingAs($this->admin);
 
         $records = $this->csvRecords($this->get(route('admin.reports.audit-log.export')));
-        $descriptions = array_column($records, 'Description');
+        $descriptions = array_column($records, 'Deskripsi');
 
         $this->assertContains('mine_one', $descriptions);
         $this->assertNotContains('theirs_one', $descriptions);
@@ -217,7 +217,7 @@ class ReportRowExportTest extends TestCase
         AuditService::log('billing', '=cmd|calc', []);
         AuditService::log('billing', '@SUM(A1)', []);
 
-        $descriptions = array_column($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing', 'sort_by' => 'id', 'sort_dir' => 'asc']))), 'Description');
+        $descriptions = array_column($this->csvRecords($this->get(route('admin.reports.audit-log.export', ['log_name' => 'billing', 'sort_by' => 'id', 'sort_dir' => 'asc']))), 'Deskripsi');
 
         $this->assertSame(["'=cmd|calc", "'@SUM(A1)"], $descriptions);
     }

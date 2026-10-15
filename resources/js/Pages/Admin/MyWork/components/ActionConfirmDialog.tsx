@@ -9,8 +9,8 @@ import {
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
 import { Alert, AlertDescription, AlertTitle, Button } from '@/Components/ui';
+import { labelOf, WORK_ITEM_DOMAIN, WORK_ITEM_STATUS } from '@/lib/statuses';
 import type { MyWorkItem } from '@/types';
-import { getDomainLabel } from './utils';
 
 export type ActionType = 'start' | 'submit' | 'close';
 
@@ -100,9 +100,9 @@ function ActionConfirmDialogInner({
         switch (actionType) {
             case 'start':
                 return {
-                    title: `Mulai Pengerjaan ${getDomainLabel(item.domain)} ${item.code}?`,
-                    description: `Status akan diperbarui menjadi 'Sedang Dikerjakan' (${item.domain === 'ticket' ? 'on_progress' : 'in_progress'}). Waktu mulai pengerjaan akan tercatat di sistem audit.`,
-                    confirmLabel: 'Mulai Kerja',
+                    title: `Mulai pengerjaan ${labelOf(WORK_ITEM_DOMAIN, item.domain)} ${item.code}?`,
+                    description: `Status akan menjadi ${labelOf(WORK_ITEM_STATUS, 'in_progress')}. Waktu mulai pengerjaan tercatat di jejak audit.`,
+                    confirmLabel: 'Mulai kerja',
                     route:
                         item.domain === 'ticket'
                             ? route('admin.tickets.start', item.id)
@@ -110,18 +110,18 @@ function ActionConfirmDialogInner({
                 };
             case 'submit':
                 return {
-                    title: `Ajukan Peninjauan SPK ${item.code}?`,
+                    title: `Ajukan SPK ${item.code} untuk review?`,
                     description:
-                        'Pekerjaan lapangan dan deklarasi material akan diajukan ke antrean Approval. Anda tidak dapat mengubah item pekerjaan setelah diajukan hingga proses review selesai.',
-                    confirmLabel: 'Ajukan Review',
+                        'Pekerjaan lapangan dan deklarasi material akan masuk ke antrean persetujuan. Item pekerjaan tidak bisa diubah sampai review selesai.',
+                    confirmLabel: 'Ajukan review',
                     route: route('admin.spk.submit', item.id),
                 };
             case 'close':
                 return {
-                    title: `Tutup Tiket ${item.code}?`,
+                    title: `Tutup tiket ${item.code}?`,
                     description:
-                        'Tiket yang telah terselesaikan akan ditutup secara permanen. Pastikan kendala pelanggan telah tuntas terselesaikan.',
-                    confirmLabel: 'Tutup Tiket',
+                        'Tiket yang sudah diselesaikan akan ditutup permanen. Pastikan kendala pelanggan sudah tuntas.',
+                    confirmLabel: 'Tutup tiket',
                     route: route('admin.tickets.close', item.id),
                 };
         }
@@ -232,7 +232,7 @@ function ActionConfirmDialogInner({
                         aria-live="assertive"
                     >
                         <AlertTitle>
-                            {isStale ? 'Item Sudah Berubah' : 'Terjadi Kesalahan'}
+                            {isStale ? 'Item sudah berubah' : 'Terjadi kesalahan'}
                         </AlertTitle>
                         <AlertDescription>{serverError}</AlertDescription>
                         {isStale && onReload && (
@@ -245,7 +245,7 @@ function ActionConfirmDialogInner({
                                 loading={isReloading}
                                 disabled={isReloading || submitting}
                             >
-                                {isReloading ? 'Memuat Ulang...' : 'Muat Ulang Pekerjaan'}
+                                {isReloading ? 'Memuat ulang...' : 'Muat ulang pekerjaan'}
                             </Button>
                         )}
                     </Alert>

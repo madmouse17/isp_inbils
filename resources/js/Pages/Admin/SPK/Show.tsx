@@ -4,16 +4,17 @@ import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { usePermission } from '@/hooks/usePermission';
+import { useCompany } from '@/hooks/useCompany';
 import {
     Alert,
     AlertDescription,
     AlertTitle,
-    Badge,
     Button,
     Card,
     CardContent,
     CardHeader,
     CardTitle,
+    EnumBadge,
     FileUpload,
     Input,
     Modal,
@@ -27,8 +28,12 @@ import {
     TR,
     useToast,
 } from '@/Components/ui';
-import { MediaPreview, PageHeader } from '@/Components/composite';
+import { MediaPreview, PageHeader, RemoteSearchSelect } from '@/Components/composite';
+import type { RemoteOption } from '@/Components/composite';
+import { formatDate, formatDateTime } from '@/lib/format';
+import { PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type { DropPort } from '@/types/ipam-odn';
+import { checkInText, type CheckInRecord } from '../Tickets/components/checkIn';
 
 interface WoData {
     id: number;
@@ -82,73 +87,90 @@ interface WoData {
     }[];
 }
 
+/** One person the assign dialog offers: `id` is the user the SPK is assigned to. */
+interface TechRow {
+    id: number;
+    name: string;
+    employee_number: string;
+    organization?: string | null;
+    phone?: string | null;
+}
+
 interface ShowProps extends Record<string, unknown> {
     workOrder: { data: WoData };
-    technicians: { data: TechRow[] };
-    products: { data: ProductRow[] };
-    networkAssets: { data: NetworkAssetRow[] };
+    /** Empty unless the viewer may assign this SPK. */
+    technicians: TechRow[];
+    /** Sent only after a search (`product_search`) and after a product is picked (`product_id`). */
+    productOptions?: RemoteOption[];
+    selectedProduct?: {
+        id: number;
+        type: string;
+        unit?: { name: string; symbol: string } | null;
+    } | null;
+    networkAssetOptions?: RemoteOption[];
     /** The ODP port reserved for the customer (read-only); installation SPKs with a drop, odn.view only. */
     dropPort?: DropPort | null;
     can: { uploadEvidence: boolean };
-    checkInSummary?: string | null;
+    checkIn?: CheckInRecord | null;
 }
 
-interface NetworkAssetRow {
-    id: number;
-    code: string;
-    name: string;
-    status: string;
-    product_id?: number | null;
-    product?: {
-        id: number;
-        sku: string;
-        name: string;
-        unit?: { name: string; symbol: string } | null;
-    } | null;
-}
+type ActionModal =
+    'generate' | 'assign' | 'start' | 'submit' | 'approve' | 'reject' | 'cancel' | 'addItem';
 
-interface TechRow {
-    id: number;
-    user_id: number;
-    employee_number: string;
-    phone?: string | null;
-    name: string;
-    user?: { name: string; email: string } | null;
-    organization?: { name: string; code: string } | null;
-}
+const ACTION_TITLE: Record<ActionModal, string> = {
+    generate: 'Terbitkan SPK',
+    assign: 'Tugaskan SPK',
+    start: 'Mulai SPK',
+    submit: 'Ajukan SPK untuk review',
+    approve: 'Setujui SPK',
+    reject: 'Tolak SPK',
+    cancel: 'Batalkan SPK',
+    addItem: 'Tambah item',
+};
 
-interface ProductRow {
-    id: number;
-    sku: string;
-    name: string;
-    type: string;
-    unit?: { name: string; symbol: string } | null;
-    category?: { name: string } | null;
+const ACTION_CONFIRM: Record<ActionModal, string> = {
+    generate: 'Terbitkan',
+    assign: 'Tugaskan',
+    start: 'Mulai',
+    submit: 'Ajukan',
+    approve: 'Setujui',
+    reject: 'Tolak',
+    cancel: 'Batalkan',
+    addItem: 'Tambah',
+};
+
+const ADD_ITEM_KEYS = [
+    'product_id',
+    'network_asset_id',
+    'quantity_reserved',
+    'quantity_used',
+    'note',
+];
+
+function Detail({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="font-medium text-foreground">{children}</dd>
+        </div>
+    );
 }
 
 export default function Show({
     workOrder,
     technicians,
-    products,
-    networkAssets,
+    productOptions,
+    selectedProduct,
+    networkAssetOptions,
     dropPort,
     can: permissions,
-    checkInSummary,
+    checkIn,
 }: ShowProps) {
     const w = workOrder.data;
+    const company = useCompany();
     const { can } = usePermission();
     const { toast } = useToast();
-    const [actionModal, setActionModal] = useState<
-        | 'generate'
-        | 'assign'
-        | 'start'
-        | 'submit'
-        | 'approve'
-        | 'reject'
-        | 'cancel'
-        | 'addItem'
-        | null
-    >(null);
+    const [actionModal, setActionModal] = useState<ActionModal | null>(null);
     const [evidenceFile, setEvidenceFile] = useState<File | null>(null);
     const [evidenceCaption, setEvidenceCaption] = useState('');
     const [uploading, setUploading] = useState(false);
@@ -162,48 +184,33 @@ export default function Show({
         quantity_used: '',
         note: '',
     });
-    const technicianOptions = technicians.data.map((technician) => ({
-        value: String(technician.user_id),
-        label: technician.user?.name ?? technician.name,
-        description: [technician.employee_number, technician.organization?.name, technician.phone]
+    const technicianOptions = technicians.map((technician) => ({
+        value: String(technician.id),
+        label: technician.name,
+        description: [technician.employee_number, technician.organization, technician.phone]
             .filter(Boolean)
             .join(' - '),
     }));
-    const productOptions = products.data.map((product) => ({
-        value: String(product.id),
-        label: `${product.sku} - ${product.name}${product.unit ? ` (${product.unit.symbol})` : ''}`,
-        description: [
-            product.category?.name,
-            product.type,
-            product.unit ? `Unit: ${product.unit.name}` : null,
-        ]
-            .filter(Boolean)
-            .join(' - '),
-    }));
-    const selectedProduct = products.data.find((product) => String(product.id) === data.product_id);
-    const selectedNetworkAsset = networkAssets.data.find(
-        (asset) => String(asset.id) === data.network_asset_id,
-    );
     const isAssetProduct = selectedProduct?.type === 'asset';
-    const networkAssetOptions = networkAssets.data
-        .filter(
-            (asset) =>
-                selectedProduct != null && Number(asset.product_id) === Number(selectedProduct.id),
-        )
-        .map((asset) => ({
-            value: String(asset.id),
-            label: `${asset.code} - ${asset.name}`,
-            description: asset.product ? `${asset.product.sku} - ${asset.product.name}` : undefined,
-        }));
     const selectedUnit = selectedProduct?.unit
         ? `${selectedProduct.unit.name} (${selectedProduct.unit.symbol})`
         : null;
-    const selectedAssetUnit = selectedNetworkAsset?.product?.unit
-        ? `${selectedNetworkAsset.product.unit.name} (${selectedNetworkAsset.product.unit.symbol})`
-        : null;
-    const selectedAssetLabel = selectedNetworkAsset
-        ? `${selectedNetworkAsset.code} - ${selectedNetworkAsset.name}`
-        : null;
+    const canChange = !['completed', 'cancelled'].includes(w.status);
+
+    // The server answers with the picked product's kind and unit, and the free assets of that product.
+    const pickProduct = (value: string) => {
+        setData((previous) => ({ ...previous, product_id: value, network_asset_id: '' }));
+        router.get(
+            route('admin.spk.show', w.id),
+            { product_id: value },
+            {
+                only: ['selectedProduct', 'networkAssetOptions'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+            },
+        );
+    };
 
     const doAction = (e: FormEvent) => {
         e.preventDefault();
@@ -238,19 +245,10 @@ export default function Show({
                 setActionModal(null);
             },
             onError: (formErrors) => {
-                // Pertahankan draft di modal addItem saat validasi server (422) gagal;
-                // modal hanya ditutup bila error tidak terkait field add-item.
-                if (actionModal === 'addItem') {
-                    const addItemKeys = [
-                        'product_id',
-                        'network_asset_id',
-                        'quantity_reserved',
-                        'quantity_used',
-                        'note',
-                    ];
-                    if (!addItemKeys.some((key) => key in formErrors)) {
-                        setActionModal(null);
-                    }
+                // Keep the draft in the add-item dialog while the server (422) rejects a field of it;
+                // close only when the error is about something else.
+                if (actionModal === 'addItem' && !ADD_ITEM_KEYS.some((key) => key in formErrors)) {
+                    setActionModal(null);
                 }
             },
         });
@@ -287,12 +285,12 @@ export default function Show({
             onSuccess: () => {
                 setEvidenceFile(null);
                 setEvidenceCaption('');
-                toast({ title: 'Evidence uploaded.', variant: 'success' });
+                toast({ title: 'Bukti berhasil diunggah.', variant: 'success' });
             },
             onError: () =>
                 toast({
-                    title: 'Failed to upload evidence.',
-                    description: 'Check allowed file type and max 10 MB size.',
+                    title: 'Bukti gagal diunggah.',
+                    description: 'Periksa jenis berkas yang diizinkan dan ukuran maksimal 10 MB.',
                     variant: 'danger',
                 }),
             onFinish: () => setUploading(false),
@@ -304,7 +302,7 @@ export default function Show({
             <div className="space-y-6">
                 <PageHeader
                     title={w.title}
-                    subtitle={`${w.code} · ${w.status}`}
+                    subtitle={w.code}
                     actions={
                         <Button
                             asChild
@@ -312,7 +310,7 @@ export default function Show({
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.spk.index')}>Back</Link>
+                            <Link href={route('admin.spk.index')}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -320,130 +318,76 @@ export default function Show({
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Rincian</CardTitle>
                         </CardHeader>
-                        <CardContent className="grid gap-4 text-sm md:grid-cols-2">
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Type:{' '}
-                                </span>
-                                <Badge variant="neutral">{w.type}</Badge>
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Priority:{' '}
-                                </span>
-                                <Badge
-                                    variant={
-                                        w.priority === 'urgent'
-                                            ? 'danger'
-                                            : w.priority === 'high'
-                                              ? 'brand'
-                                              : 'neutral'
-                                    }
-                                >
-                                    {w.priority}
-                                </Badge>
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Customer:{' '}
-                                </span>
-                                {w.customer?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Subscription:{' '}
-                                </span>
-                                {w.subscription?.code ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Location:{' '}
-                                </span>
-                                {w.location?.name ?? '-'}
-                            </p>
-                            {dropPort && (
-                                <p>
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Drop port:{' '}
-                                    </span>
-                                    <Link
-                                        href={route('admin.odn.assets.show', dropPort.odp_asset_id)}
-                                        className="font-medium text-primary hover:underline"
-                                    >
-                                        {dropPort.odp_code}
-                                    </Link>{' '}
-                                    ({dropPort.odp_name}) · port {dropPort.number}
-                                    {dropPort.location_path && (
-                                        <span className="block text-xs text-surface-500 dark:text-surface-400">
-                                            {dropPort.location_path}
-                                        </span>
-                                    )}
-                                </p>
-                            )}
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Technician:{' '}
-                                </span>
-                                {w.assignee?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Scheduled:{' '}
-                                </span>
-                                {w.scheduled_date ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Started:{' '}
-                                </span>
-                                {w.started_at ?? '-'}
-                            </p>
-                            {checkInSummary && (
-                                <p>
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Check-in:{' '}
-                                    </span>
-                                    {checkInSummary.replace(/^Check-in\s*/i, '')}
-                                </p>
-                            )}
-                            <p>
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Completed:{' '}
-                                </span>
-                                {w.completed_at ?? '-'}
-                            </p>
-                            {w.description && (
-                                <p className="md:col-span-2">
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Description:{' '}
-                                    </span>
-                                    {w.description}
-                                </p>
-                            )}
-                            {w.result && (
-                                <p className="md:col-span-2">
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Result:{' '}
-                                    </span>
-                                    {w.result}
-                                </p>
-                            )}
-                            {w.rejection_reason && (
-                                <p className="md:col-span-2">
-                                    <span className="text-surface-500 dark:text-surface-400">
-                                        Rejection:{' '}
-                                    </span>
-                                    {w.rejection_reason}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid gap-x-6 gap-y-4 text-sm md:grid-cols-2">
+                                <Detail label="Status">
+                                    <EnumBadge map={WORK_ORDER_STATUS} value={w.status} />
+                                </Detail>
+                                <Detail label="Jenis">
+                                    <EnumBadge map={WORK_ORDER_TYPE} value={w.type} />
+                                </Detail>
+                                <Detail label="Prioritas">
+                                    <EnumBadge map={PRIORITY} value={w.priority} />
+                                </Detail>
+                                <Detail label="Pelanggan">{w.customer?.name ?? '-'}</Detail>
+                                <Detail label="Langganan">{w.subscription?.code ?? '-'}</Detail>
+                                <Detail label="Lokasi">{w.location?.name ?? '-'}</Detail>
+                                {dropPort && (
+                                    <Detail label="Port drop">
+                                        <Link
+                                            href={route(
+                                                'admin.odn.assets.show',
+                                                dropPort.odp_asset_id,
+                                            )}
+                                            className="text-primary hover:underline"
+                                        >
+                                            {dropPort.odp_code}
+                                        </Link>{' '}
+                                        ({dropPort.odp_name}), port {dropPort.number}
+                                        {dropPort.location_path && (
+                                            <span className="block text-xs font-normal text-muted-foreground">
+                                                {dropPort.location_path}
+                                            </span>
+                                        )}
+                                    </Detail>
+                                )}
+                                <Detail label="Teknisi">{w.assignee?.name ?? '-'}</Detail>
+                                <Detail label="Jadwal">
+                                    {formatDate(w.scheduled_date, company)}
+                                </Detail>
+                                <Detail label="Dimulai">
+                                    {formatDateTime(w.started_at, company)}
+                                </Detail>
+                                <Detail label="Check-in">{checkInText(checkIn)}</Detail>
+                                <Detail label="Selesai">
+                                    {formatDateTime(w.completed_at, company)}
+                                </Detail>
+                                {w.description && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Deskripsi">{w.description}</Detail>
+                                    </div>
+                                )}
+                                {w.result && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Hasil">{w.result}</Detail>
+                                    </div>
+                                )}
+                                {w.rejection_reason && (
+                                    <div className="md:col-span-2">
+                                        <Detail label="Alasan penolakan">
+                                            {w.rejection_reason}
+                                        </Detail>
+                                    </div>
+                                )}
+                            </dl>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Lifecycle Actions</CardTitle>
+                            <CardTitle>Tindakan</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="flex flex-wrap gap-2">
@@ -452,29 +396,29 @@ export default function Show({
                                         type="button"
                                         onClick={() => setActionModal('generate')}
                                     >
-                                        Generate
+                                        Terbitkan
                                     </Button>
                                 )}
                                 {(w.status === 'draft' ||
                                     w.status === 'generated' ||
                                     w.status === 'rejected') && (
                                     <Button type="button" onClick={() => setActionModal('assign')}>
-                                        Assign
+                                        Tugaskan
                                     </Button>
                                 )}
                                 {w.status === 'assigned' && (
                                     <Button type="button" onClick={() => setActionModal('start')}>
-                                        Start
+                                        Mulai
                                     </Button>
                                 )}
                                 {w.status === 'in_progress' && (
                                     <Button type="button" onClick={() => setActionModal('submit')}>
-                                        Submit for Review
+                                        Ajukan review
                                     </Button>
                                 )}
                                 {w.status === 'waiting_review' && can('spk.approve') && (
                                     <Button type="button" onClick={() => setActionModal('approve')}>
-                                        Approve
+                                        Setujui
                                     </Button>
                                 )}
                                 {w.status === 'waiting_review' && can('spk.reject') && (
@@ -483,16 +427,16 @@ export default function Show({
                                         variant="danger"
                                         onClick={() => setActionModal('reject')}
                                     >
-                                        Reject
+                                        Tolak
                                     </Button>
                                 )}
-                                {!['completed', 'cancelled'].includes(w.status) && (
+                                {canChange && (
                                     <Button
                                         type="button"
                                         variant="outline"
                                         onClick={() => setActionModal('cancel')}
                                     >
-                                        Cancel
+                                        Batalkan
                                     </Button>
                                 )}
                             </div>
@@ -502,14 +446,14 @@ export default function Show({
 
                 <Card>
                     <CardHeader className="space-y-0 flex-row items-center justify-between">
-                        <CardTitle>Items</CardTitle>
-                        {!['completed', 'cancelled'].includes(w.status) && (
+                        <CardTitle>Item</CardTitle>
+                        {canChange && (
                             <Button
                                 type="button"
                                 variant="secondary"
                                 onClick={() => setActionModal('addItem')}
                             >
-                                Add Item
+                                Tambah item
                             </Button>
                         )}
                     </CardHeader>
@@ -517,19 +461,23 @@ export default function Show({
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Product</TH>
-                                    <TH>Network Asset</TH>
-                                    <TH>Unit</TH>
-                                    <TH>Reserved</TH>
-                                    <TH>Used</TH>
-                                    <TH>Note</TH>
+                                    <TH>Barang</TH>
+                                    <TH>Aset jaringan</TH>
+                                    <TH>Satuan</TH>
+                                    <TH>Dicadangkan</TH>
+                                    <TH>Terpakai</TH>
+                                    <TH>Catatan</TH>
                                 </TR>
                             </THead>
                             <TBody>
                                 {(w.items ?? []).length === 0 ? (
                                     <TR>
-                                        <TD colSpan={6} className="text-center text-surface-500">
-                                            No items.
+                                        <TD
+                                            colSpan={6}
+                                            className="py-8 text-center text-muted-foreground"
+                                        >
+                                            Belum ada barang di SPK ini.
+                                            {canChange && ' Pakai "Tambah item" untuk mencatatnya.'}
                                         </TD>
                                     </TR>
                                 ) : (
@@ -565,7 +513,7 @@ export default function Show({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Evidence</CardTitle>
+                        <CardTitle>Bukti</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         {permissions.uploadEvidence && (
@@ -574,7 +522,7 @@ export default function Show({
                                 className="grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-start"
                             >
                                 <FileUpload
-                                    label="Evidence file"
+                                    label="Berkas bukti"
                                     value={evidenceFile}
                                     onChange={setEvidenceFile}
                                     acceptedFileTypes={[
@@ -587,10 +535,10 @@ export default function Show({
                                     required
                                 />
                                 <Input
-                                    label="Caption"
+                                    label="Keterangan"
                                     value={evidenceCaption}
                                     onChange={(event) => setEvidenceCaption(event.target.value)}
-                                    placeholder="Optional caption"
+                                    placeholder="Keterangan (opsional)"
                                 />
                                 <div className="self-end">
                                     <Button
@@ -598,7 +546,7 @@ export default function Show({
                                         disabled={!evidenceFile || uploading}
                                         loading={uploading}
                                     >
-                                        Upload
+                                        Unggah
                                     </Button>
                                 </div>
                                 {uploading && (
@@ -610,52 +558,68 @@ export default function Show({
                                 )}
                             </form>
                         )}
-                        <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
-                            {(w.evidence ?? []).map((ev) => (
-                                <div
-                                    key={ev.id}
-                                    className="rounded-lg border border-surface-200 p-3 dark:border-surface-800"
-                                >
-                                    <p className="text-sm font-medium">
-                                        {ev.type === 'photo' ? 'Photo' : 'Document'}
-                                    </p>
-                                    <p className="text-xs text-surface-500">
-                                        {ev.caption ?? ev.original_name ?? ev.file_path}
-                                    </p>
-                                    <p className="text-xs text-surface-400">{ev.uploaded_at}</p>
-                                    <MediaPreview media={ev} />
-                                </div>
-                            ))}
-                        </div>
+                        {(w.evidence ?? []).length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                Belum ada bukti. Teknisi mengunggah foto atau dokumen pekerjaan di
+                                sini.
+                            </p>
+                        ) : (
+                            <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                                {(w.evidence ?? []).map((ev) => (
+                                    <div
+                                        key={ev.id}
+                                        className="rounded-lg border border-border p-3"
+                                    >
+                                        <p className="text-sm font-medium">
+                                            {ev.type === 'photo' ? 'Foto' : 'Dokumen'}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {ev.caption ?? ev.original_name ?? ev.file_path}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {formatDateTime(ev.uploaded_at, company)}
+                                        </p>
+                                        <MediaPreview media={ev} />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Assignment History</CardTitle>
+                        <CardTitle>Riwayat penugasan</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Technician</TH>
-                                    <TH>Assigned At</TH>
-                                    <TH>Unassigned At</TH>
+                                    <TH>Teknisi</TH>
+                                    <TH>Ditugaskan</TH>
+                                    <TH>Dicabut</TH>
                                 </TR>
                             </THead>
                             <TBody>
                                 {(w.assignments ?? []).length === 0 ? (
                                     <TR>
-                                        <TD colSpan={3} className="text-center text-surface-500">
-                                            No assignments.
+                                        <TD
+                                            colSpan={3}
+                                            className="py-8 text-center text-muted-foreground"
+                                        >
+                                            SPK ini belum pernah ditugaskan.
                                         </TD>
                                     </TR>
                                 ) : (
                                     (w.assignments ?? []).map((a) => (
                                         <TR key={a.id}>
                                             <TD>{a.technician?.name ?? '-'}</TD>
-                                            <TD className="text-sm">{a.assigned_at}</TD>
-                                            <TD className="text-sm">{a.unassigned_at ?? '-'}</TD>
+                                            <TD className="text-sm">
+                                                {formatDateTime(a.assigned_at, company)}
+                                            </TD>
+                                            <TD className="text-sm">
+                                                {formatDateTime(a.unassigned_at, company)}
+                                            </TD>
                                         </TR>
                                     ))
                                 )}
@@ -667,16 +631,12 @@ export default function Show({
                 <Modal
                     open={actionModal !== null}
                     onClose={closeModal}
-                    title={
-                        actionModal
-                            ? actionModal.charAt(0).toUpperCase() + actionModal.slice(1)
-                            : ''
-                    }
+                    title={actionModal ? ACTION_TITLE[actionModal] : ''}
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         {staleError && (
                             <Alert variant="destructive">
-                                <AlertTitle>Work order changed</AlertTitle>
+                                <AlertTitle>SPK sudah berubah</AlertTitle>
                                 <AlertDescription className="space-y-2">
                                     <p>{staleError}</p>
                                     <Button
@@ -685,26 +645,26 @@ export default function Show({
                                         variant="outline"
                                         onClick={reloadWorkOrder}
                                     >
-                                        Reload work order
+                                        Muat ulang SPK
                                     </Button>
                                 </AlertDescription>
                             </Alert>
                         )}
                         {actionModal === 'assign' && (
                             <SearchSelect
-                                label="Technician"
+                                label="Teknisi"
                                 value={data.technician_id}
                                 onChange={(value) => setData('technician_id', value)}
                                 options={technicianOptions}
-                                placeholder="Search technician employee"
-                                emptyText="No technician employees found."
+                                placeholder="Cari karyawan teknisi"
+                                emptyText="Tidak ada karyawan teknisi yang cocok."
                                 error={errors.technician_id}
                                 required
                             />
                         )}
-                        {['reject', 'cancel'].includes(actionModal ?? '') && (
+                        {(actionModal === 'reject' || actionModal === 'cancel') && (
                             <Input
-                                label="Reason"
+                                label="Alasan"
                                 value={data.reason}
                                 onChange={(e) => setData('reason', e.target.value)}
                                 error={errors.reason}
@@ -713,48 +673,33 @@ export default function Show({
                         )}
                         {actionModal === 'addItem' && (
                             <>
-                                <SearchSelect
-                                    label="Product"
-                                    value={data.product_id}
-                                    onChange={(value) => {
-                                        setData((previous) => ({
-                                            ...previous,
-                                            product_id: value,
-                                            // Asset terikat pada produk; reset saat produk berubah
-                                            // agar pasangan tidak valid tidak terkirim.
-                                            network_asset_id: '',
-                                        }));
-                                    }}
+                                <RemoteSearchSelect
+                                    field="product"
+                                    label="Barang"
                                     options={productOptions}
-                                    placeholder="Search product"
-                                    emptyText="No active products found."
+                                    value={data.product_id}
+                                    onChange={pickProduct}
+                                    placeholder="Cari nama atau SKU barang"
                                     error={errors.product_id}
                                     required
                                 />
                                 {isAssetProduct && (
-                                    <SearchSelect
-                                        label="Network Asset"
+                                    <RemoteSearchSelect
+                                        field="networkAsset"
+                                        label="Aset jaringan"
+                                        options={networkAssetOptions}
                                         value={data.network_asset_id}
                                         onChange={(value) => setData('network_asset_id', value)}
-                                        options={networkAssetOptions}
-                                        placeholder="Search available asset"
-                                        emptyText="No available network assets found."
+                                        placeholder="Cari aset yang masih tersedia"
                                         error={errors.network_asset_id}
-                                        hint={
-                                            selectedAssetLabel
-                                                ? `Selected: ${selectedAssetLabel}`
-                                                : selectedAssetUnit
-                                                  ? `Asset product unit: ${selectedAssetUnit}`
-                                                  : undefined
-                                        }
                                         required
                                     />
                                 )}
                                 <Input
                                     label={
                                         selectedUnit
-                                            ? `Quantity Reserved - ${selectedUnit}`
-                                            : 'Quantity Reserved'
+                                            ? `Jumlah dicadangkan - ${selectedUnit}`
+                                            : 'Jumlah dicadangkan'
                                     }
                                     type="number"
                                     step="0.01"
@@ -765,8 +710,8 @@ export default function Show({
                                 <Input
                                     label={
                                         selectedUnit
-                                            ? `Quantity Used - ${selectedUnit}`
-                                            : 'Quantity Used'
+                                            ? `Jumlah terpakai - ${selectedUnit}`
+                                            : 'Jumlah terpakai'
                                     }
                                     type="number"
                                     step="0.01"
@@ -775,7 +720,7 @@ export default function Show({
                                     error={errors.quantity_used}
                                 />
                                 <Input
-                                    label="Note"
+                                    label="Catatan"
                                     value={data.note}
                                     onChange={(e) => setData('note', e.target.value)}
                                     error={errors.note}
@@ -784,10 +729,10 @@ export default function Show({
                         )}
                         <div className="flex justify-end gap-2">
                             <Button type="button" variant="secondary" onClick={closeModal}>
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" loading={processing}>
-                                Confirm
+                                {actionModal ? ACTION_CONFIRM[actionModal] : 'Simpan'}
                             </Button>
                         </div>
                     </form>

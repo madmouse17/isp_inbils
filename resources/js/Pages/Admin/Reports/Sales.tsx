@@ -6,7 +6,6 @@ import {
     DataTable,
     FormulaVersionLabel,
     MetricDefinitionNote,
-    NativeSelect,
     PageHeader,
     type DataTableColumn,
 } from '@/Components/composite';
@@ -18,6 +17,7 @@ import {
     CardHeader,
     CardTitle,
     DateRangePicker,
+    SearchSelect,
     TD,
     TR,
     type DateRange,
@@ -28,6 +28,7 @@ import { formatDate, formatMoney, formatNumber } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 import type { Company, ReportMeta, SalesChartData } from '@/types';
 import { SalesCharts } from './components/SalesCharts';
+import { MoneyFigure } from './components/MoneyFigure';
 
 const SALES_METRIC_KEYS = [
     'customers_acquired',
@@ -95,7 +96,7 @@ function formatMetric(key: SalesMetricKey, metrics: Metrics, company: Company | 
         case 'outstanding':
             return formatMoney(metrics[key], company);
         case 'collection_rate':
-            return metrics.collection_rate === null ? 'n/a' : `${metrics.collection_rate}%`;
+            return metrics.collection_rate === null ? '-' : `${metrics.collection_rate}%`;
     }
 }
 
@@ -164,12 +165,12 @@ export default function Sales({
     const columns: DataTableColumn<Row>[] = [
         {
             key: 'name',
-            header: 'Acquirer',
+            header: 'Petugas penjualan',
             sortable: true,
             cell: (row) => (
                 <div className="flex min-w-40 flex-wrap items-center gap-2">
                     <span className="font-medium wrap-break-word">{row.name}</span>
-                    {!row.is_active && <Badge variant="secondary">Inactive</Badge>}
+                    {!row.is_active && <Badge variant="secondary">Nonaktif</Badge>}
                 </div>
             ),
         },
@@ -186,7 +187,7 @@ export default function Sales({
     const { date_from: from, date_to: to } = filters;
     const period =
         from && to
-            ? `${formatDate(from, company)} – ${formatDate(to, company)}`
+            ? `${formatDate(from, company)} - ${formatDate(to, company)}`
             : from
               ? `dari ${formatDate(from, company)}`
               : to
@@ -198,7 +199,7 @@ export default function Sales({
             <div className="space-y-6">
                 <PageHeader
                     title="KPI Penjualan"
-                    subtitle="Customers acquired, invoiced, collected and outstanding per acquirer."
+                    subtitle="Pelanggan baru, tagihan, pembayaran, dan piutang per petugas penjualan."
                     actions={<FormulaVersionLabel version={meta.formula_version} />}
                 />
                 <Card>
@@ -210,72 +211,65 @@ export default function Sales({
                                     value={range}
                                     onChange={setRange}
                                     error={errors.date_from ?? errors.date_to}
-                                    className="[&_input]:h-11"
                                 />
                             </div>
                             <div className="min-w-0 sm:w-64">
-                                <NativeSelect
-                                    label="Acquirer"
-                                    className="h-11 min-w-0"
+                                <SearchSelect
+                                    label="Petugas penjualan"
                                     value={acquirerId}
-                                    onChange={(e) => setAcquirerId(e.target.value)}
+                                    onChange={setAcquirerId}
+                                    placeholder="Semua petugas"
                                     error={errors.acquirer_id}
-                                    options={[
-                                        { value: '', label: 'All acquirers' },
-                                        ...acquirers.map((acquirer) => ({
-                                            value: String(acquirer.id),
-                                            label: acquirer.is_active
-                                                ? acquirer.name
-                                                : `${acquirer.name} (inactive)`,
-                                        })),
-                                    ]}
+                                    options={acquirers.map((acquirer) => ({
+                                        value: String(acquirer.id),
+                                        label: acquirer.is_active
+                                            ? acquirer.name
+                                            : `${acquirer.name} (nonaktif)`,
+                                    }))}
                                 />
                             </div>
                             <div className="min-w-0 sm:w-64">
-                                <NativeSelect
+                                <SearchSelect
                                     label="Kategori paket"
-                                    className="h-11 min-w-0"
                                     value={categoryId}
-                                    onChange={(e) => setCategoryId(e.target.value)}
+                                    onChange={setCategoryId}
+                                    placeholder="Semua kategori"
                                     error={errors.service_package_category_id}
                                     hint="Pelanggan baru tidak terpengaruh."
-                                    options={[
-                                        { value: '', label: 'Semua kategori' },
-                                        ...packageCategories.map((category) => ({
-                                            value: String(category.id),
-                                            label: category.is_active
-                                                ? category.name
-                                                : `${category.name} (nonaktif)`,
-                                        })),
-                                    ]}
+                                    options={packageCategories.map((category) => ({
+                                        value: String(category.id),
+                                        label: category.is_active
+                                            ? category.name
+                                            : `${category.name} (nonaktif)`,
+                                    }))}
                                 />
                             </div>
                             <div className="self-end">
                                 <Button
                                     type="submit"
-                                    className="h-11 w-full sm:w-auto"
+                                    className="w-full sm:w-auto"
                                     disabled={table.visiting}
                                 >
-                                    Run
+                                    Tampilkan
                                 </Button>
                             </div>
                         </form>
                         <div className="space-y-1 text-sm text-muted-foreground">
                             <p>Periode: {period}</p>
                             <p>
-                                Each figure follows the customer&apos;s current acquirer. Correcting
-                                an acquirer moves that customer&apos;s whole history, so past
-                                periods can change.
+                                Setiap angka mengikuti petugas penjualan pelanggan saat ini.
+                                Mengoreksi petugas memindahkan seluruh riwayat pelanggan itu, jadi
+                                periode yang lalu bisa berubah.
                             </p>
                             <p>
-                                Collected counts every non-reversed payment by payment date. It does
-                                not match Business Metrics Revenue (Paid), which counts fully paid
-                                invoices by issue date.
+                                Terkumpul menghitung setiap pembayaran yang tidak dibatalkan menurut
+                                tanggal bayar. Angkanya tidak sama dengan Pendapatan terbayar di
+                                Metrik Bisnis, yang menghitung tagihan lunas menurut tanggal terbit.
                             </p>
                         </div>
                     </CardContent>
                 </Card>
-                <section aria-label="Totals">
+                <section aria-label="Total">
                     <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         {SALES_METRIC_KEYS.map((key) => (
                             <Card key={key} className="min-w-0">
@@ -284,7 +278,14 @@ export default function Sales({
                                 </CardHeader>
                                 <CardContent>
                                     <p className="text-2xl font-bold wrap-break-word tabular-nums">
-                                        {formatMetric(key, data.totals, company)}
+                                        {key === 'active_mrr' ||
+                                        key === 'invoiced' ||
+                                        key === 'collected' ||
+                                        key === 'outstanding' ? (
+                                            <MoneyFigure value={data.totals[key]} />
+                                        ) : (
+                                            formatMetric(key, data.totals, company)
+                                        )}
                                     </p>
                                     <MetricDefinitionNote definition={meta.metrics[key]} />
                                 </CardContent>
@@ -306,13 +307,13 @@ export default function Sales({
                             onPageChange={(page) => table.setPage(page)}
                             onPerPageChange={(perPage) => table.setPerPage(perPage)}
                             loading={table.processing}
-                            emptyTitle="No acquirers yet"
-                            emptyDescription="Customers credited to an employee appear here. Set Acquired by on a customer to start."
+                            emptyTitle="Belum ada petugas penjualan"
+                            emptyDescription="Pelanggan yang dicatat pada seorang karyawan muncul di sini. Isi kolom Diperoleh oleh pada data pelanggan."
                             footer={
                                 <>
                                     {data.unassigned && (
                                         <FooterRow
-                                            label="Unassigned"
+                                            label="Tanpa petugas"
                                             metrics={data.unassigned}
                                             company={company}
                                         />

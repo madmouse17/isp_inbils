@@ -58,7 +58,7 @@ for (const { role, copy } of appOnlyRoles) {
 
             await expect(page).toHaveURL(/\/profile$/);
             await expect(
-                page.getByRole('main').getByRole('heading', { name: 'Profile', level: 1 }),
+                page.getByRole('main').getByRole('heading', { name: 'Profil', level: 1 }),
             ).toBeVisible();
         });
 
@@ -69,7 +69,7 @@ for (const { role, copy } of appOnlyRoles) {
             await page.goto('/profile');
 
             const main = page.getByRole('main');
-            await expect(main.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
+            await expect(main.getByRole('heading', { name: 'Profil', level: 1 })).toBeVisible();
             await expect(page.getByRole('navigation')).toHaveCount(0);
             await expect(page.locator('aside')).toHaveCount(0);
 
@@ -82,7 +82,7 @@ for (const { role, copy } of appOnlyRoles) {
 
             await page.getByRole('button', { name: 'Keluar' }).click();
 
-            // Breeze's logout lands on the welcome page; the session must be gone.
+            // Logout lands on the login page; the session must be gone.
             await expect(page).toHaveURL(/\/(login)?$/);
             await page.goto('/app-only');
             await expect(page).toHaveURL(/\/login$/);

@@ -1,23 +1,18 @@
 import { Link } from '@inertiajs/react';
 import { useMemo } from 'react';
-import { Plus } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { DataTableActions, PageHeader } from '@/Components/composite';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { DataTableActions, NativeSelect, PageHeader } from '@/Components/composite';
 import { DataTable, type DataTableColumn } from '@/Components/composite/DataTable';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
 import { Button } from '@/Components/ui/Button';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Input } from '@/Components/ui/Input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/Components/ui/Select';
+import { SearchSelect } from '@/Components/ui/SearchSelect';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import { formatDate, formatMoney } from '@/lib/format';
+import { ACTIVE_STATE } from '@/lib/statuses';
 
 type Row = {
     id: number;
@@ -52,6 +47,14 @@ type Props = {
     can: { create: boolean; export: boolean };
 };
 
+const NO_FILTERS = { search: '', is_active: '', sla_tier_id: '', service_package_category_id: '' };
+
+const ACTIVE_OPTIONS = [
+    { value: '', label: 'Semua status' },
+    { value: '1', label: 'Aktif' },
+    { value: '0', label: 'Nonaktif' },
+];
+
 export default function PackagesIndex({
     servicePackages,
     slaTiers,
@@ -59,22 +62,38 @@ export default function PackagesIndex({
     filters,
     can,
 }: Props) {
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
-        url: route('admin.service-packages.index'),
-        filters,
-        only: ['servicePackages', 'filters', 'can', 'slaTiers', 'packageCategories'],
-    });
+    const { params, search, setSearch, set, setMany, sortBy, sortDir, onSort, processing } =
+        useServerTable({
+            url: route('admin.service-packages.index'),
+            filters,
+            only: ['servicePackages', 'filters', 'can', 'slaTiers', 'packageCategories'],
+        });
+
+    const slaOptions = useMemo(
+        () => slaTiers.data.map((tier) => ({ value: String(tier.id), label: tier.name })),
+        [slaTiers],
+    );
+    const categoryOptions = useMemo(
+        () =>
+            packageCategories.map((category) => ({
+                value: String(category.id),
+                label: category.is_active ? category.name : `${category.name} (nonaktif)`,
+            })),
+        [packageCategories],
+    );
+
+    const hasFilters = Object.keys(NO_FILTERS).some((key) => params[key]);
 
     const columns: DataTableColumn<Row>[] = useMemo(
         () => [
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Nama',
                 sortable: true,
                 sortKey: 'name',
                 cell: (row) => (
                     <Link
-                        href={route('admin.service-packages.edit', row.id)}
+                        href={route('admin.service-packages.show', row.id)}
                         className="font-medium text-primary hover:underline"
                     >
                         {row.name}
@@ -83,56 +102,61 @@ export default function PackagesIndex({
             },
             {
                 key: 'code',
-                header: 'Code',
+                header: 'Kode',
                 sortable: true,
                 sortKey: 'code',
-                cell: (row) => row.code,
+                cell: (row) => (
+                    <span className="font-mono text-sm whitespace-nowrap">{row.code}</span>
+                ),
             },
             {
                 key: 'category',
                 header: 'Kategori',
-                cell: (row) => row.category?.name ?? '-',
+                cell: (row) => row.category?.name ?? <EmptyCell />,
             },
             {
                 key: 'price_mrc',
-                header: 'Monthly',
+                header: 'Harga bulanan',
                 sortable: true,
                 sortKey: 'price_mrc',
-                className: 'text-right tabular-nums',
+                headerClassName: 'text-right',
+                className: 'text-right whitespace-nowrap tabular-nums',
                 cell: (row) => formatMoney(row.price_mrc),
             },
             {
                 key: 'price_otc',
-                header: 'One-time',
+                header: 'Harga pemasangan',
                 sortable: true,
                 sortKey: 'price_otc',
-                className: 'text-right tabular-nums',
+                headerClassName: 'text-right',
+                className: 'text-right whitespace-nowrap tabular-nums',
                 cell: (row) => formatMoney(row.price_otc),
             },
             {
                 key: 'is_active',
-                header: 'Active',
+                header: 'Status',
                 sortable: true,
                 sortKey: 'is_active',
-                cell: (row) => <StatusBadge status={row.is_active ? 'active' : 'inactive'} />,
+                cell: (row) => <EnumBadge map={ACTIVE_STATE} value={Boolean(row.is_active)} />,
             },
             {
                 key: 'created_at',
-                header: 'Created',
+                header: 'Dibuat',
                 sortable: true,
                 sortKey: 'created_at',
+                className: 'whitespace-nowrap',
                 cell: (row) => formatDate(row.created_at),
             },
             {
                 key: 'actions',
-                header: 'Actions',
+                header: 'Aksi',
                 cell: (row) => (
                     <DataTableActions
                         showHref={route('admin.service-packages.show', row.id)}
                         editHref={route('admin.service-packages.edit', row.id)}
                         deleteHref={route('admin.service-packages.destroy', row.id)}
-                        deleteMessage={`Delete ${row.name}?`}
-                        deleteDescription={`This will permanently remove the package "${row.name}".`}
+                        deleteMessage={`Hapus ${row.name}?`}
+                        deleteDescription={`Paket "${row.name}" akan dihapus permanen. Paket yang masih dipakai langganan menunggu atau aktif tidak bisa dihapus.`}
                     />
                 ),
             },
@@ -140,125 +164,74 @@ export default function PackagesIndex({
         [],
     );
 
+    const createButton = can.create ? (
+        <Button asChild variant="primary" size="sm">
+            <Link href={route('admin.service-packages.create')}>Buat Paket Layanan</Link>
+        </Button>
+    ) : undefined;
+
     return (
         <AdminLayout title="Paket Layanan">
             <div className="space-y-4">
                 <PageHeader
                     title="Paket Layanan"
-                    description="Service packages sold to customers."
+                    subtitle="Paket yang dijual ke pelanggan, lengkap dengan harga, profil kecepatan, dan tingkat SLA."
                     actions={
                         <div className="flex flex-wrap gap-2">
                             {can.export ? (
                                 <ExportMenu
                                     exportUrl={route('admin.service-packages.export')}
                                     params={params}
+                                    formats={['csv', 'pdf']}
                                     canExport={can.export}
                                 />
                             ) : null}
-                            {can.create ? (
-                                <Button asChild variant="primary" size="sm">
-                                    <Link href={route('admin.service-packages.create')}>
-                                        <Plus className="size-4" />
-                                        New package
-                                    </Link>
-                                </Button>
-                            ) : null}
+                            {createButton}
                         </div>
                     }
                 />
 
-                <div className="flex flex-col gap-3 rounded-lg border bg-card p-3 md:flex-row md:flex-wrap md:items-end">
-                    <div className="space-y-1 min-w-48 flex-1">
-                        <label
-                            className="text-xs font-medium text-muted-foreground"
-                            htmlFor="pkg-search"
-                        >
-                            Search
-                        </label>
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="min-w-56 flex-1">
                         <Input
                             id="pkg-search"
-                            value={params.search ?? ''}
-                            onChange={(e) => set('search', e.target.value)}
-                            placeholder="Name or code…"
+                            label="Cari"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            placeholder="Nama atau kode"
                         />
                     </div>
-                    <div className="space-y-1">
-                        <label
-                            htmlFor="pkg-active"
-                            className="text-xs font-medium text-muted-foreground"
-                        >
-                            Active
-                        </label>
-                        <Select
-                            value={params.is_active || '__all__'}
-                            onValueChange={(value) =>
-                                set('is_active', value === '__all__' ? '' : value)
-                            }
-                        >
-                            <SelectTrigger id="pkg-active" className="w-32">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                <SelectItem value="1">Active</SelectItem>
-                                <SelectItem value="0">Inactive</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1">
-                        <label
-                            htmlFor="pkg-sla"
-                            className="text-xs font-medium text-muted-foreground"
-                        >
-                            SLA Tier
-                        </label>
-                        <Select
-                            value={params.sla_tier_id || '__all__'}
-                            onValueChange={(value) =>
-                                set('sla_tier_id', value === '__all__' ? '' : value)
-                            }
-                        >
-                            <SelectTrigger id="pkg-sla" className="w-48">
-                                <SelectValue placeholder="All" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">All</SelectItem>
-                                {slaTiers.data.map((tier) => (
-                                    <SelectItem key={tier.id} value={String(tier.id)}>
-                                        {tier.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-1">
-                        <label
-                            htmlFor="pkg-category"
-                            className="text-xs font-medium text-muted-foreground"
-                        >
-                            Kategori
-                        </label>
-                        <Select
-                            value={params.service_package_category_id || '__all__'}
-                            onValueChange={(value) =>
-                                set('service_package_category_id', value === '__all__' ? '' : value)
-                            }
-                        >
-                            <SelectTrigger id="pkg-category" className="w-44">
-                                <SelectValue placeholder="Semua" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="__all__">Semua</SelectItem>
-                                {packageCategories.map((category) => (
-                                    <SelectItem key={category.id} value={String(category.id)}>
-                                        {category.is_active
-                                            ? category.name
-                                            : `${category.name} (nonaktif)`}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    <NativeSelect
+                        id="pkg-active"
+                        label="Status"
+                        value={params.is_active ?? ''}
+                        onChange={(e) => set('is_active', e.target.value)}
+                        options={ACTIVE_OPTIONS}
+                        wrapperClassName="sm:w-40"
+                    />
+                    <SearchSelect
+                        id="pkg-sla"
+                        label="Tingkat SLA"
+                        value={params.sla_tier_id ?? ''}
+                        onChange={(value) => set('sla_tier_id', value)}
+                        options={slaOptions}
+                        placeholder="Semua tingkat"
+                        className="sm:w-52"
+                    />
+                    <SearchSelect
+                        id="pkg-category"
+                        label="Kategori"
+                        value={params.service_package_category_id ?? ''}
+                        onChange={(value) => set('service_package_category_id', value)}
+                        options={categoryOptions}
+                        placeholder="Semua kategori"
+                        className="sm:w-52"
+                    />
+                    {hasFilters ? (
+                        <Button type="button" variant="ghost" onClick={() => setMany(NO_FILTERS)}>
+                            Reset filter
+                        </Button>
+                    ) : null}
                 </div>
 
                 <DataTable
@@ -269,9 +242,13 @@ export default function PackagesIndex({
                     onSort={onSort}
                     onPageChange={(page) => set('page', page)}
                     onPerPageChange={(perPage) => set('per_page', perPage)}
-                    emptyTitle="No packages"
-                    emptyDescription="No packages match the current filters."
                     loading={processing}
+                    itemLabel="paket"
+                    hasFilters={hasFilters}
+                    onResetFilters={() => setMany(NO_FILTERS)}
+                    emptyTitle="Belum ada paket layanan"
+                    emptyDescription="Paket layanan dipilih saat membuat langganan, dan harganya disalin ke langganan itu."
+                    emptyAction={createButton}
                 />
             </div>
         </AdminLayout>

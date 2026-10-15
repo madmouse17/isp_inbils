@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import {
     ConfirmRequestDialog,
     type ConfirmRequest,
@@ -12,38 +12,23 @@ interface DropPortPanelProps {
     subscription: { id: number; code: string; terminated: boolean; hasServingPop: boolean };
     dropPort: DropPort | null;
     canAssign: boolean;
-    /** Free ports; the server delivers them only on a partial reload that asks for `dropPortOptions`. */
+    /** The `dropPortOptions` prop: free ports that match the typed text; the server sends it only on a partial reload that asks for it. */
     options: DropPortOption[] | undefined;
 }
 
 export function DropPortPanel({ subscription, dropPort, canAssign, options }: DropPortPanelProps) {
     const [dialogOpen, setDialogOpen] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [confirm, setConfirm] = useState<ConfirmRequest | null>(null);
     const editable = canAssign && !subscription.terminated;
-
-    const openDialog = () => {
-        setDialogOpen(true);
-
-        // The ports on offer change as other drops are recorded, so every opening asks again.
-        if (subscription.hasServingPop) {
-            setLoading(true);
-            router.reload({
-                only: ['dropPortOptions'],
-                replace: true,
-                onFinish: () => setLoading(false),
-            });
-        }
-    };
 
     return (
         <Card>
             <CardHeader className="sm:flex-row sm:items-start sm:justify-between">
-                <CardTitle>Drop port</CardTitle>
+                <CardTitle>Port drop</CardTitle>
                 {editable && (
                     <div className="flex flex-wrap gap-2">
-                        <Button type="button" size="sm" onClick={openDialog}>
-                            {dropPort ? 'Move drop port' : 'Set drop port'}
+                        <Button type="button" size="sm" onClick={() => setDialogOpen(true)}>
+                            {dropPort ? 'Pindahkan port drop' : 'Atur port drop'}
                         </Button>
                         {dropPort && (
                             <Button
@@ -52,14 +37,14 @@ export function DropPortPanel({ subscription, dropPort, canAssign, options }: Dr
                                 variant="outline"
                                 onClick={() =>
                                     setConfirm({
-                                        title: `Release port ${dropPort.number} on ${dropPort.odp_code}?`,
-                                        description: `${subscription.code} keeps its service. The port becomes free.`,
-                                        confirmLabel: 'Release drop',
+                                        title: `Lepas port ${dropPort.number} di ${dropPort.odp_code}?`,
+                                        description: `${subscription.code} tetap berlangganan. Port menjadi kosong.`,
+                                        confirmLabel: 'Lepas port drop',
                                         href: route('admin.odn.drops.destroy', dropPort.port_id),
                                     })
                                 }
                             >
-                                Release
+                                Lepas
                             </Button>
                         )}
                     </div>
@@ -69,7 +54,7 @@ export function DropPortPanel({ subscription, dropPort, canAssign, options }: Dr
                 {dropPort ? (
                     <>
                         <p>
-                            Port {dropPort.number} on{' '}
+                            Port {dropPort.number} di{' '}
                             <Link
                                 href={route('admin.odn.assets.show', dropPort.odp_asset_id)}
                                 className="font-medium text-primary hover:underline"
@@ -83,7 +68,7 @@ export function DropPortPanel({ subscription, dropPort, canAssign, options }: Dr
                         )}
                     </>
                 ) : (
-                    <p className="text-muted-foreground">No drop port recorded.</p>
+                    <p className="text-muted-foreground">Belum ada port drop tercatat.</p>
                 )}
             </CardContent>
 
@@ -93,11 +78,10 @@ export function DropPortPanel({ subscription, dropPort, canAssign, options }: Dr
                     subscription={subscription}
                     moving={dropPort !== null}
                     options={options}
-                    loading={loading}
                     unavailable={
                         subscription.hasServingPop
                             ? undefined
-                            : 'This subscription has no serving POP, so no ports can be offered.'
+                            : 'Langganan ini belum punya POP layanan, jadi belum ada port yang bisa ditawarkan.'
                     }
                 />
             )}

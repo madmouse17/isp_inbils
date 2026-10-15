@@ -19,14 +19,14 @@ class OdnSplitterController extends Controller
 
         $splitter = OdnService::createSplitter($asset, (int) $data['outputs'], $data['input_port_id'] ?? null, $data['label'] ?? null);
 
-        return back()->with('success', "Splitter 1:{$splitter->outputs} added to {$asset->code}.");
+        return back()->with('success', "Splitter 1:{$splitter->outputs} ditambahkan ke {$asset->code}.");
     }
 
     public function update(UpdateSplitterRequest $request, OdnSplitter $splitter): RedirectResponse
     {
         OdnService::updateSplitter($splitter, $request->validated());
 
-        return back()->with('success', 'Splitter updated.');
+        return back()->with('success', 'Splitter diperbarui.');
     }
 
     public function destroy(OdnSplitter $splitter): RedirectResponse
@@ -35,6 +35,6 @@ class OdnSplitterController extends Controller
 
         OdnService::deleteSplitter($splitter);
 
-        return back()->with('success', 'Splitter deleted.');
+        return back()->with('success', 'Splitter dihapus.');
     }
 }

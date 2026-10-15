@@ -108,22 +108,6 @@ final class FieldCheckIn
         ];
     }
 
-    /** @param  array<string, mixed>  $properties */
-    public static function summary(array $properties): string
-    {
-        if (($properties['status'] ?? null) === 'recorded') {
-            $accuracy = isset($properties['accuracy_m']) ? ' (accuracy ±'.rtrim(rtrim(number_format((float) $properties['accuracy_m'], 1), '0'), '.').' m)' : '';
-
-            if (($properties['distance_m'] ?? null) !== null) {
-                return 'Check-in '.number_format((int) $properties['distance_m']).' m from site'.$accuracy;
-            }
-
-            return 'Check-in recorded, no site location to compare'.$accuracy;
-        }
-
-        return 'Check-in unavailable ('.self::reasonLabel((string) ($properties['reason'] ?? 'no_reason')).')';
-    }
-
     private static function distanceMetres(float $fromLat, float $fromLng, float $toLat, float $toLng): int
     {
         $earthMetres = 6371000;
@@ -135,17 +119,5 @@ final class FieldCheckIn
         $a = sin($deltaLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($deltaLng / 2) ** 2;
 
         return (int) round($earthMetres * 2 * atan2(sqrt($a), sqrt(1 - $a)));
-    }
-
-    private static function reasonLabel(string $reason): string
-    {
-        return match ($reason) {
-            'permission_denied' => 'permission denied',
-            'permission_denied_forever' => 'permission denied permanently',
-            'location_disabled' => 'location disabled',
-            'no_fix' => 'no fix',
-            'timeout' => 'timeout',
-            default => 'no reason given',
-        };
     }
 }

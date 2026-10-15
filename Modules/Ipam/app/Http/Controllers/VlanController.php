@@ -40,14 +40,14 @@ class VlanController extends Controller
     {
         $vlan = VlanService::create($request->validated());
 
-        return redirect()->route('admin.ipam.vlans.index')->with('success', "VLAN {$vlan->vid} registered.");
+        return redirect()->route('admin.ipam.vlans.index')->with('success', "VLAN {$vlan->vid} didaftarkan.");
     }
 
     public function update(UpdateVlanRequest $request, Vlan $vlan): RedirectResponse
     {
         VlanService::update($vlan, $request->validated());
 
-        return redirect()->route('admin.ipam.vlans.index')->with('success', 'VLAN updated.');
+        return redirect()->route('admin.ipam.vlans.index')->with('success', 'VLAN diperbarui.');
     }
 
     public function destroy(Vlan $vlan): RedirectResponse
@@ -56,6 +56,6 @@ class VlanController extends Controller
 
         VlanService::delete($vlan);
 
-        return redirect()->route('admin.ipam.vlans.index')->with('success', "VLAN {$vlan->vid} deleted.");
+        return redirect()->route('admin.ipam.vlans.index')->with('success', "VLAN {$vlan->vid} dihapus.");
     }
 }

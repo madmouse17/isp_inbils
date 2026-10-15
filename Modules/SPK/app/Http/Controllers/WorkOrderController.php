@@ -5,7 +5,6 @@ namespace Modules\SPK\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\CustomerResource;
-use App\Http\Resources\EmployeeResource;
 use App\Http\Resources\LocationResource;
 use App\Http\Resources\SubscriptionResource;
 use App\Models\Core\Customer;
@@ -16,18 +15,17 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use App\Support\FieldCheckIn;
+use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Modules\Inventory\Http\Resources\ProductResource;
 use Modules\Inventory\Models\Product;
-use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\NetworkAsset\Services\OdnService;
 use Modules\SPK\Http\Requests\AssignWorkOrderRequest;
@@ -58,9 +56,6 @@ class WorkOrderController extends Controller
 
         return Inertia::render('Admin/SPK/Index', [
             'workOrders' => WorkOrderResource::collection($workOrders),
-            'technicians' => EmployeeResource::collection($this->technicians()),
-            'typeOptions' => ['installation', 'maintenance', 'upgrade_service', 'relocation'],
-            'statusOptions' => ['draft', 'generated', 'assigned', 'in_progress', 'waiting_review', 'completed', 'rejected', 'cancelled'],
             'filters' => $request->only(['type', 'status', 'assigned_to', 'search', 'sort_by', 'sort_dir', 'per_page']),
             'can' => ['create' => $request->user()?->can('spk.create') ?? false, 'export' => $request->user()?->can('spk.export') ?? false],
         ]);
@@ -78,13 +73,13 @@ class WorkOrderController extends Controller
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'code' => 'Code',
-            'title' => 'Title',
-            'type' => 'Type',
+            'code' => 'Kode',
+            'title' => 'Judul',
+            'type' => 'Tipe',
             'status' => 'Status',
-            'priority' => 'Priority',
-            'customer' => 'Customer',
-            'assignee' => 'Technician',
+            'priority' => 'Prioritas',
+            'customer' => 'Pelanggan',
+            'assignee' => 'Teknisi',
         ];
 
         $map = static fn (WorkOrder $wo): array => [
@@ -129,12 +124,7 @@ class WorkOrderController extends Controller
     {
         Gate::authorize('create', WorkOrder::class);
 
-        return Inertia::render('Admin/SPK/Create', [
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
-            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
-            'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'technicians' => EmployeeResource::collection($this->technicians()),
-        ]);
+        return Inertia::render('Admin/SPK/Create', $this->createOptions($request));
     }
 
     public function store(StoreWorkOrderRequest $request): RedirectResponse
@@ -151,7 +141,7 @@ class WorkOrderController extends Controller
         });
 
         return redirect()->route('admin.spk.index')
-            ->with('success', 'SPK created.');
+            ->with('success', 'SPK berhasil dibuat.');
     }
 
     public function show(Request $request, WorkOrder $wo): InertiaResponse
@@ -161,16 +151,41 @@ class WorkOrderController extends Controller
 
         $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'items.networkAsset.product.unit', 'assignments.technician', 'media']);
         $checkIn = FieldCheckIn::recordFor($wo, 'work_order');
+        $productId = $request->integer('product_id');
 
         return Inertia::render('Admin/SPK/Show', [
             'workOrder' => new WorkOrderResource($wo),
-            'technicians' => EmployeeResource::collection($this->technicians()),
-            'products' => ProductResource::collection($this->products()),
-            'networkAssets' => NetworkAssetResource::collection($this->networkAssets()),
+            'technicians' => $this->assignableTechnicians($wo),
+            'productOptions' => SearchOptions::for(
+                $request,
+                'product',
+                Product::query()->with('category:id,name')->where('is_active', true),
+                ['name', 'sku'],
+                fn (Product $product): array => ['value' => $product->id, 'label' => $product->sku.' - '.$product->name, 'description' => $product->category?->name],
+            ),
+            // The product the page just picked: its kind decides whether an asset is asked for, its unit labels the quantities.
+            'selectedProduct' => Inertia::optional(function () use ($productId): ?array {
+                $product = Product::query()->with('unit:id,name,symbol')->where('is_active', true)->find($productId);
+
+                return $product === null ? null : [
+                    'id' => $product->id,
+                    'type' => $product->type,
+                    'unit' => $product->unit?->only(['name', 'symbol']),
+                ];
+            }),
+            // Serialized assets of the picked product that are still free to install.
+            'networkAssetOptions' => SearchOptions::for(
+                $request,
+                'networkAsset',
+                NetworkAsset::query()->where('status', 'available')->where('product_id', $productId),
+                ['code', 'name'],
+                fn (NetworkAsset $asset): array => ['value' => $asset->id, 'label' => $asset->code.' - '.$asset->name],
+            ),
             'can' => [
                 'uploadEvidence' => $request->user()?->can('uploadEvidence', $wo) ?? false,
             ],
-            'checkInSummary' => $checkIn === null ? null : FieldCheckIn::summary($checkIn),
+            // Only what the page words itself: the technician's own coordinates stay out of the props.
+            'checkIn' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
             // The drop reserved for the customer (read-only), so the technician connects the right ODP port.
             'dropPort' => $wo->type === 'installation' && $wo->subscription !== null && Gate::allows('odn.view')
                 ? OdnService::dropPortFor($wo->subscription)
@@ -182,7 +197,7 @@ class WorkOrderController extends Controller
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('edit', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'Can only edit draft or generated SPK.');
+        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
 
         $wo->load(['customer', 'subscription', 'location', 'assignee']);
 
@@ -191,7 +206,7 @@ class WorkOrderController extends Controller
             'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->orderBy('name')->get()),
             'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['pending', 'active'])->orderBy('code')->get()),
             'locations' => LocationResource::collection(Location::query()->where('is_active', true)->orderBy('code')->get()),
-            'technicians' => EmployeeResource::collection($this->technicians()),
+            'technicians' => $this->assignableTechnicians($wo),
         ]);
     }
 
@@ -199,22 +214,22 @@ class WorkOrderController extends Controller
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('update', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'Can only edit draft or generated SPK.');
+        abort_if(! in_array($wo->status, ['draft', 'generated']), 422, 'SPK hanya bisa diubah saat berstatus draf atau menunggu penugasan.');
 
         $wo->update($request->validated());
 
-        return redirect()->route('admin.spk.index')->with('success', 'SPK updated.');
+        return redirect()->route('admin.spk.index')->with('success', 'SPK berhasil diubah.');
     }
 
     public function destroy(WorkOrder $wo): RedirectResponse
     {
         $this->ensureSameCompany($wo);
         Gate::authorize('delete', $wo);
-        abort_if(! in_array($wo->status, ['draft', 'cancelled']), 422, 'Can only delete draft or cancelled SPK.');
+        abort_if(! in_array($wo->status, ['draft', 'cancelled']), 422, 'SPK hanya bisa dihapus saat berstatus draf atau dibatalkan.');
 
         $wo->delete();
 
-        return back()->with('success', 'SPK deleted.');
+        return back()->with('success', 'SPK berhasil dihapus.');
     }
 
     public function generate(WorkOrder $wo): RedirectResponse
@@ -223,7 +238,7 @@ class WorkOrderController extends Controller
         Gate::authorize('spk.update');
         SpkService::generate($wo);
 
-        return back()->with('success', 'SPK generated.');
+        return back()->with('success', 'SPK berhasil diterbitkan.');
     }
 
     public function assign(AssignWorkOrderRequest $request, WorkOrder $wo): RedirectResponse
@@ -247,7 +262,7 @@ class WorkOrderController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'SPK assigned.');
+        return back()->with('success', 'SPK berhasil ditugaskan.');
     }
 
     public function start(WorkOrder $wo): RedirectResponse
@@ -265,7 +280,7 @@ class WorkOrderController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'SPK started.');
+        return back()->with('success', 'SPK mulai dikerjakan.');
     }
 
     public function submit(WorkOrder $wo): RedirectResponse
@@ -282,7 +297,7 @@ class WorkOrderController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'SPK submitted for review.');
+        return back()->with('success', 'SPK diajukan untuk review.');
     }
 
     public function approve(Request $request, WorkOrder $wo): RedirectResponse
@@ -299,7 +314,7 @@ class WorkOrderController extends Controller
             throw $e;
         }
 
-        return back()->with('success', 'SPK approved.');
+        return back()->with('success', 'SPK disetujui.');
     }
 
     public function reject(Request $request, WorkOrder $wo): RedirectResponse
@@ -318,7 +333,7 @@ class WorkOrderController extends Controller
             throw $e;
         }
 
-        return back()->with('success', 'SPK rejected.');
+        return back()->with('success', 'SPK ditolak.');
     }
 
     public function cancel(Request $request, WorkOrder $wo): RedirectResponse
@@ -329,7 +344,7 @@ class WorkOrderController extends Controller
         $request->validate(['reason' => ['required', 'string', 'max:500']]);
         SpkService::cancel($wo, $request->input('reason'));
 
-        return back()->with('success', 'SPK cancelled.');
+        return back()->with('success', 'SPK dibatalkan.');
     }
 
     public function addItem(StoreWorkOrderItemRequest $request, WorkOrder $wo): RedirectResponse
@@ -338,7 +353,7 @@ class WorkOrderController extends Controller
 
         SpkService::addItem($wo, $request->validated());
 
-        return back()->with('success', 'Item added.');
+        return back()->with('success', 'Item berhasil ditambahkan.');
     }
 
     public function removeItem(WorkOrder $wo, WorkOrderItem $item): RedirectResponse
@@ -349,7 +364,7 @@ class WorkOrderController extends Controller
 
         $item->delete();
 
-        return back()->with('success', 'Item removed.');
+        return back()->with('success', 'Item berhasil dihapus.');
     }
 
     public function uploadEvidence(StoreWorkOrderEvidenceRequest $request, WorkOrder $wo): RedirectResponse
@@ -357,7 +372,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         SpkService::addEvidence($wo, $request->user(), $request->evidenceAttributes());
 
-        return back()->with('success', 'Evidence uploaded.');
+        return back()->with('success', 'Bukti berhasil diunggah.');
     }
 
     public function removeEvidence(Request $request, WorkOrder $wo, Media $evidence): RedirectResponse
@@ -365,7 +380,7 @@ class WorkOrderController extends Controller
         $this->ensureSameCompany($wo);
         SpkService::removeEvidence($wo, $evidence->id, $request->user());
 
-        return back()->with('success', 'Evidence removed.');
+        return back()->with('success', 'Bukti berhasil dihapus.');
     }
 
     private function ensureSameCompany(WorkOrder $wo): void
@@ -373,11 +388,20 @@ class WorkOrderController extends Controller
         abort_unless($wo->company_id === CompanyService::currentId(), 404);
     }
 
-    /** @return Collection<int, EmployeeProfile> */
-    private function technicians(): Collection
+    /**
+     * The people the assign dialog offers, and only to someone who may assign this SPK. A dispatcher needs the user to
+     * assign, the name, the employee number, the unit and the phone to choose: no email, role, HR note or vehicle goes out.
+     *
+     * @return list<array{id: int, name: string, employee_number: string, organization: string|null, phone: string|null}>
+     */
+    private function assignableTechnicians(WorkOrder $wo): array
     {
+        if (! Gate::allows('assign', $wo)) {
+            return [];
+        }
+
         return EmployeeProfile::query()
-            ->with(['user', 'organization'])
+            ->with(['user:id,name', 'organization:id,name'])
             ->where('company_id', CompanyService::currentId())
             ->where('status', 'active')
             ->whereHas('user', function ($query) {
@@ -389,26 +413,52 @@ class WorkOrderController extends Controller
                     });
             })
             ->orderBy('employee_number')
-            ->get();
+            ->get()
+            ->map(fn (EmployeeProfile $profile): array => [
+                'id' => $profile->user_id,
+                'name' => $profile->user->getAttribute('name'),
+                'employee_number' => $profile->employee_number,
+                'organization' => $profile->organization?->name,
+                'phone' => $profile->phone,
+            ])
+            ->all();
     }
 
-    /** @return Collection<int, Product> */
-    private function products(): Collection
+    /**
+     * The create form's pickers, searched on the server. Subscriptions narrow to the customer the page sends as
+     * `customer_id`, so a subscription of another customer is never offered.
+     *
+     * @return array<string, mixed>
+     */
+    private function createOptions(Request $request): array
     {
-        return Product::query()
-            ->with(['category', 'unit'])
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-    }
+        $customerId = $request->integer('customer_id');
 
-    /** @return Collection<int, NetworkAsset> */
-    private function networkAssets(): Collection
-    {
-        return NetworkAsset::query()
-            ->with(['product.unit'])
-            ->where('status', 'available')
-            ->orderBy('code')
-            ->get();
+        return [
+            'customerOptions' => SearchOptions::for(
+                $request,
+                'customer',
+                Customer::query()->where('is_active', true),
+                ['name', 'code'],
+                fn (Customer $customer): array => ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code],
+            ),
+            'subscriptionOptions' => SearchOptions::for(
+                $request,
+                'subscription',
+                ServiceSubscription::query()
+                    ->with('customer:id,name')
+                    ->whereIn('status', ['pending', 'active'])
+                    ->when($customerId > 0, fn (Builder $query) => $query->where('customer_id', $customerId)),
+                ['code'],
+                fn (ServiceSubscription $subscription): array => ['value' => $subscription->id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
+            ),
+            'locationOptions' => SearchOptions::for(
+                $request,
+                'location',
+                Location::query()->where('is_active', true),
+                ['code', 'name'],
+                fn (Location $location): array => ['value' => $location->id, 'label' => $location->code.' - '.$location->name],
+            ),
+        ];
     }
 }

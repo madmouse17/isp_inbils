@@ -18,6 +18,17 @@
     </style>
 </head>
 <body>
+    @php
+        // Same labels as INVOICE_STATUS in resources/js/lib/statuses/invoice.ts.
+        $statusLabels = [
+            'draft' => 'Draf',
+            'sent' => 'Belum dibayar',
+            'partial' => 'Sebagian',
+            'paid' => 'Lunas',
+            'overdue' => 'Lewat jatuh tempo',
+            'cancelled' => 'Dibatalkan',
+        ];
+    @endphp
     <div class="header">
         <div class="company-name">{{ $company?->name ?? '' }}</div>
         <div class="muted">{{ $company?->address ?? '' }}</div>
@@ -26,19 +37,19 @@
     <table class="row">
         <tr>
             <td>
-                <strong>INVOICE {{ $invoice->number }}</strong><br>
+                <strong>TAGIHAN {{ $invoice->number }}</strong><br>
                 Tanggal: {{ $invoice->issue_date->format('d/m/Y') }}<br>
                 Jatuh tempo: {{ $invoice->due_date->format('d/m/Y') }}<br>
                 @if ($invoice->billing_period_start)
                     Periode: {{ $invoice->billing_period_start->format('d/m/Y') }} s/d {{ $invoice->billing_period_end->format('d/m/Y') }}<br>
                 @endif
-                <span class="status">{{ $invoice->status }}</span>
+                <span class="status">{{ $statusLabels[$invoice->status] ?? $invoice->status }}</span>
             </td>
             <td class="right">
                 <strong>Kepada:</strong><br>
                 {{ $invoice->customer->name }}<br>
                 @if ($invoice->subscription)
-                    {{ $invoice->subscription->code }} — {{ $invoice->subscription->servicePackage?->name }}
+                    {{ $invoice->subscription->code }} - {{ $invoice->subscription->servicePackage?->name }}
                 @endif
             </td>
         </tr>
@@ -46,7 +57,7 @@
 
     <table class="items">
         <thead>
-            <tr><th>Deskripsi</th><th class="right">Qty</th><th class="right">Harga</th><th class="right">Jumlah</th></tr>
+            <tr><th>Deskripsi</th><th class="right">Jml</th><th class="right">Harga</th><th class="right">Jumlah</th></tr>
         </thead>
         <tbody>
             @foreach ($invoice->items as $item)

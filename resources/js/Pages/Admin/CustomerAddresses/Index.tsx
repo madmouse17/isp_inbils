@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -11,10 +11,10 @@ import {
     type IndonesiaRegionValue,
 } from '@/Components/composite';
 import {
-    Badge,
     Button,
     Card,
     CardContent,
+    EmptyCell,
     Input,
     MapPicker,
     Switch,
@@ -29,12 +29,13 @@ import {
     Pagination,
     type GeocodeResult,
 } from '@/Components/ui';
+import type { Paginated } from '@/types';
 import type { CustomerAddress } from '@/types/models';
 import { useMapDefault } from '@/hooks/useMapDefault';
 
 interface AddressProps {
     customer: { id: number; code: string; name: string };
-    addresses: { data: CustomerAddress[]; current_page: number; last_page: number };
+    addresses: Paginated<CustomerAddress>;
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
 }
@@ -158,26 +159,25 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
     };
 
     return (
-        <AdminLayout title="Customer Addresses">
+        <AdminLayout title="Alamat Pelanggan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Addresses"
+                    title="Alamat"
                     subtitle={`${customer.code} - ${customer.name}`}
                     actions={
                         <>
                             <Button
-                                type="button"
+                                asChild
                                 variant="outline"
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
-                                onClick={() =>
-                                    router.get(route('admin.customers.show', customer.id))
-                                }
                             >
-                                Back
+                                <Link href={route('admin.customers.show', customer.id)}>
+                                    Kembali
+                                </Link>
                             </Button>
-                            <Button type="button" variant="primary" onClick={openCreate}>
-                                Add Address
+                            <Button type="button" variant="primary" size="sm" onClick={openCreate}>
+                                Tambah alamat
                             </Button>
                         </>
                     }
@@ -189,12 +189,12 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             <THead>
                                 <TR>
                                     <TH>Label</TH>
-                                    <TH>Address</TH>
-                                    <TH>City</TH>
-                                    <TH>Postal</TH>
-                                    <TH>Install</TH>
-                                    <TH>Primary</TH>
-                                    <TH>Actions</TH>
+                                    <TH>Alamat</TH>
+                                    <TH>Kota</TH>
+                                    <TH>Kode pos</TH>
+                                    <TH>Pemasangan</TH>
+                                    <TH>Utama</TH>
+                                    <TH>Aksi</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -204,30 +204,21 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                                             colSpan={7}
                                             className="py-10 text-center text-muted-foreground"
                                         >
-                                            No addresses.
+                                            Belum ada alamat. Pakai tombol Tambah alamat untuk
+                                            mencatat yang pertama.
                                         </TD>
                                     </TR>
                                 ) : (
                                     addrList.map((a) => (
                                         <TR key={a.id}>
-                                            <TD>{a.label}</TD>
+                                            <TD className="font-medium">{a.label}</TD>
                                             <TD>{a.address}</TD>
-                                            <TD>{a.city ?? '-'}</TD>
-                                            <TD>{a.postal_code ?? '-'}</TD>
+                                            <TD>{a.city || <EmptyCell />}</TD>
+                                            <TD>{a.postal_code || <EmptyCell />}</TD>
                                             <TD>
-                                                {a.is_installation_point ? (
-                                                    <Badge variant="success">Yes</Badge>
-                                                ) : (
-                                                    '-'
-                                                )}
+                                                {a.is_installation_point ? 'Ya' : <EmptyCell />}
                                             </TD>
-                                            <TD>
-                                                {a.is_primary ? (
-                                                    <Badge variant="brand">Yes</Badge>
-                                                ) : (
-                                                    '-'
-                                                )}
-                                            </TD>
+                                            <TD>{a.is_primary ? 'Ya' : <EmptyCell />}</TD>
                                             <TD>
                                                 <DataTableActions
                                                     onEdit={() => openEdit(a)}
@@ -235,8 +226,8 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                                                         'admin.customers.addresses.destroy',
                                                         [customer.id, a.id],
                                                     )}
-                                                    deleteMessage={`Delete ${a.label}?`}
-                                                    deleteDescription={`This will permanently remove the address "${a.label}".`}
+                                                    deleteMessage={`Hapus ${a.label}?`}
+                                                    deleteDescription={`Alamat "${a.label}" akan dihapus permanen dari pelanggan.`}
                                                 />
                                             </TD>
                                         </TR>
@@ -245,12 +236,13 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             </TBody>
                         </Table>
                         <Pagination
-                            currentPage={addresses.current_page}
-                            lastPage={addresses.last_page}
+                            meta={addresses.meta}
                             onPageChange={(page) =>
-                                router.get(route('admin.customers.addresses.index', customer.id), {
-                                    page,
-                                })
+                                router.get(
+                                    route('admin.customers.addresses.index', customer.id),
+                                    { page },
+                                    { preserveScroll: true },
+                                )
                             }
                         />
                     </CardContent>
@@ -259,11 +251,12 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                 <Modal
                     open={modalOpen}
                     onClose={() => setModalOpen(false)}
-                    title={editId ? 'Edit Address' : 'Add Address'}
+                    title={editId ? 'Ubah Alamat' : 'Tambah Alamat'}
                 >
                     <form onSubmit={submit} className="space-y-4">
                         <Input
                             label="Label"
+                            placeholder="Rumah / Kantor / Pemasangan"
                             value={data.label}
                             onChange={(e) => setData('label', e.target.value)}
                             error={errors.label}
@@ -296,7 +289,7 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                             errors={errors}
                         />
                         <Textarea
-                            label="Address"
+                            label="Alamat"
                             value={data.address}
                             onChange={(e) => setData('address', e.target.value)}
                             error={errors.address}
@@ -305,7 +298,7 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                         />
                         <div className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Postal Code"
+                                label="Kode pos"
                                 value={data.postal_code}
                                 onChange={(e) => setData('postal_code', e.target.value)}
                                 error={errors.postal_code}
@@ -313,18 +306,18 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                         </div>
                         <div className="flex gap-6">
                             <Switch
-                                label="Installation Point"
+                                label="Titik pemasangan"
                                 checked={data.is_installation_point}
                                 onCheckedChange={(c) => setData('is_installation_point', c)}
                             />
                             <Switch
-                                label="Primary"
+                                label="Alamat utama"
                                 checked={data.is_primary}
                                 onCheckedChange={(c) => setData('is_primary', c)}
                             />
                         </div>
                         <Textarea
-                            label="Notes"
+                            label="Catatan"
                             value={data.notes}
                             onChange={(e) => setData('notes', e.target.value)}
                             error={errors.notes}
@@ -336,10 +329,10 @@ export default function Index({ customer, addresses, regions, geocodeResults = [
                                 variant="secondary"
                                 onClick={() => setModalOpen(false)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="primary" loading={processing}>
-                                {editId ? 'Save' : 'Add'}
+                                {editId ? 'Simpan' : 'Tambah'}
                             </Button>
                         </div>
                     </form>

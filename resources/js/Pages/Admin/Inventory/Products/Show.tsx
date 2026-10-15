@@ -1,7 +1,7 @@
-import { Link, router } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+import { PageHeader } from '@/Components/composite';
 import {
     Badge,
     Button,
@@ -9,6 +9,8 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    EmptyCell,
+    EnumBadge,
     Table,
     TBody,
     TD,
@@ -16,46 +18,40 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
-import type { Product, Stock, StockMovement } from '@/types/inventory';
+import { useCompany } from '@/hooks/useCompany';
+import { formatDateTime, formatMoney, formatNumber } from '@/lib/format';
+import { ACTIVE_STATE, STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
+import type { Product } from '@/types/inventory';
 
 interface ShowProps extends Record<string, unknown> {
     product: { data: Product };
 }
 
 export default function Show({ product }: ShowProps) {
+    const company = useCompany();
     const p = product.data;
-    const stocks: Stock[] = p.stocks ?? [];
-    const movements: StockMovement[] = p.movements ?? [];
-    const displayValue = (value: unknown) =>
-        typeof value === 'string' || typeof value === 'number' ? value : '-';
+    const stocks = p.stocks ?? [];
+    const movements = p.movements ?? [];
 
     return (
-        <AdminLayout title={p.name ?? ''}>
+        <AdminLayout title={`Barang ${p.sku}`}>
             <div className="space-y-6">
                 <PageHeader
-                    title={p.name ?? ''}
-                    subtitle={p.sku ?? ''}
+                    title={p.name}
+                    subtitle={p.sku}
                     actions={
                         <>
-                            <Badge variant={p.is_active ? 'success' : 'danger'}>
-                                {p.is_active ? 'Active' : 'Inactive'}
-                            </Badge>
+                            <EnumBadge map={ACTIVE_STATE} value={p.is_active} />
                             <Button
                                 asChild
                                 variant="outline"
                                 size="sm"
                                 leftIcon={<ArrowLeft className="size-4" />}
                             >
-                                <Link href={route('admin.products.index')}>Back</Link>
+                                <Link href={route('admin.products.index')}>Kembali</Link>
                             </Button>
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                onClick={() =>
-                                    (window.location.href = route('admin.products.edit', p.id))
-                                }
-                            >
-                                Edit
+                            <Button asChild variant="secondary">
+                                <Link href={route('admin.products.edit', p.id)}>Ubah</Link>
                             </Button>
                         </>
                     }
@@ -63,48 +59,44 @@ export default function Show({ product }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Product Details</CardTitle>
+                        <CardTitle>Rincian Barang</CardTitle>
                     </CardHeader>
                     <CardContent className="grid gap-4 text-sm md:grid-cols-2">
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">
-                                Category:{' '}
-                            </span>
-                            {p.category?.name ?? '-'}
+                            <span className="text-muted-foreground">Kategori: </span>
+                            {p.category?.name ?? <EmptyCell />}
                         </p>
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">Unit: </span>
-                            {p.unit?.name ?? '-'} ({p.unit?.symbol ?? '-'})
+                            <span className="text-muted-foreground">Satuan: </span>
+                            {p.unit ? `${p.unit.name} (${p.unit.symbol})` : <EmptyCell />}
                         </p>
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">
-                                Sell Price:{' '}
-                            </span>
-                            {p.sell_price ?? '-'}
+                            <span className="text-muted-foreground">Harga Jual: </span>
+                            {p.sell_price === null ? (
+                                <EmptyCell />
+                            ) : (
+                                formatMoney(p.sell_price, company)
+                            )}
                         </p>
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">
-                                Cost Price:{' '}
-                            </span>
-                            {p.cost_price ?? '-'}
+                            <span className="text-muted-foreground">Harga Pokok: </span>
+                            {p.cost_price === null ? (
+                                <EmptyCell />
+                            ) : (
+                                formatMoney(p.cost_price, company)
+                            )}
                         </p>
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">
-                                Min Stock:{' '}
-                            </span>
-                            {p.min_stock ?? '-'}
+                            <span className="text-muted-foreground">Stok Minimum: </span>
+                            {formatNumber(p.min_stock)}
                         </p>
                         <p>
-                            <span className="text-surface-500 dark:text-surface-400">
-                                Track Stock:{' '}
-                            </span>
-                            {p.track_stock ? <Badge variant="brand">Yes</Badge> : '-'}
+                            <span className="text-muted-foreground">Lacak Stok: </span>
+                            {p.track_stock ? <Badge variant="brand">Ya</Badge> : <EmptyCell />}
                         </p>
                         {p.description && (
                             <p className="md:col-span-2">
-                                <span className="text-surface-500 dark:text-surface-400">
-                                    Description:{' '}
-                                </span>
+                                <span className="text-muted-foreground">Deskripsi: </span>
                                 {p.description}
                             </p>
                         )}
@@ -113,17 +105,17 @@ export default function Show({ product }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Stocks per Location</CardTitle>
+                        <CardTitle>Stok per Lokasi</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Location</TH>
-                                    <TH>Path</TH>
-                                    <TH>Quantity</TH>
-                                    <TH>Reserved</TH>
-                                    <TH>Available</TH>
+                                    <TH>Lokasi</TH>
+                                    <TH>Jalur</TH>
+                                    <TH>Jumlah</TH>
+                                    <TH>Dicadangkan</TH>
+                                    <TH>Tersedia</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -133,19 +125,26 @@ export default function Show({ product }: ShowProps) {
                                             colSpan={5}
                                             className="py-10 text-center text-muted-foreground"
                                         >
-                                            No stock records.
+                                            Belum ada stok barang ini di lokasi mana pun. Catat
+                                            penerimaannya di halaman Stok.
                                         </TD>
                                     </TR>
                                 ) : (
                                     stocks.map((s) => (
                                         <TR key={s.id}>
-                                            <TD>{s.location?.name ?? '-'}</TD>
+                                            <TD>{s.location?.name ?? <EmptyCell />}</TD>
                                             <TD className="text-sm text-muted-foreground">
-                                                {s.location?.path ?? '-'}
+                                                {s.location?.path ?? <EmptyCell />}
                                             </TD>
-                                            <TD>{String(s.quantity ?? '-')}</TD>
-                                            <TD>{String(s.reserved_quantity ?? '-')}</TD>
-                                            <TD>{String(s.available ?? '-')}</TD>
+                                            <TD className="tabular-nums">
+                                                {formatNumber(s.quantity)}
+                                            </TD>
+                                            <TD className="tabular-nums">
+                                                {formatNumber(s.reserved_quantity)}
+                                            </TD>
+                                            <TD className="tabular-nums">
+                                                {formatNumber(s.available)}
+                                            </TD>
                                         </TR>
                                     ))
                                 )}
@@ -156,17 +155,17 @@ export default function Show({ product }: ShowProps) {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Recent Movements</CardTitle>
+                        <CardTitle>Mutasi Terbaru</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <THead>
                                 <TR>
-                                    <TH>Type</TH>
-                                    <TH>Quantity</TH>
-                                    <TH>Balance After</TH>
-                                    <TH>Note</TH>
-                                    <TH>Date</TH>
+                                    <TH>Jenis</TH>
+                                    <TH>Jumlah</TH>
+                                    <TH>Saldo</TH>
+                                    <TH>Catatan</TH>
+                                    <TH>Waktu</TH>
                                 </TR>
                             </THead>
                             <TBody>
@@ -176,30 +175,27 @@ export default function Show({ product }: ShowProps) {
                                             colSpan={5}
                                             className="py-10 text-center text-muted-foreground"
                                         >
-                                            No movements.
+                                            Belum ada mutasi stok untuk barang ini.
                                         </TD>
                                     </TR>
                                 ) : (
                                     movements.map((m) => (
                                         <TR key={m.id}>
                                             <TD>
-                                                <StatusBadge
-                                                    variant={
-                                                        m.movement_type === 'receive'
-                                                            ? 'success'
-                                                            : m.movement_type === 'issue'
-                                                              ? 'danger'
-                                                              : 'info'
-                                                    }
-                                                >
-                                                    {String(displayValue(m.movement_type))}
-                                                </StatusBadge>
+                                                <EnumBadge
+                                                    map={STOCK_MOVEMENT_TYPE}
+                                                    value={m.movement_type}
+                                                />
                                             </TD>
-                                            <TD>{m.quantity}</TD>
-                                            <TD>{displayValue(m.balance_after)}</TD>
-                                            <TD>{displayValue(m.note)}</TD>
+                                            <TD className="tabular-nums">
+                                                {formatNumber(m.quantity)}
+                                            </TD>
+                                            <TD className="tabular-nums">
+                                                {formatNumber(m.balance_after)}
+                                            </TD>
+                                            <TD>{m.note || <EmptyCell />}</TD>
                                             <TD className="text-sm text-muted-foreground">
-                                                {m.created_at ?? '-'}
+                                                {formatDateTime(m.created_at, company)}
                                             </TD>
                                         </TR>
                                     ))
@@ -209,9 +205,9 @@ export default function Show({ product }: ShowProps) {
                         <div className="mt-3 flex justify-end">
                             <Link
                                 href={route('admin.stock-movements.index', { product_id: p.id })}
-                                className="text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400"
+                                className="text-sm font-medium text-primary hover:underline"
                             >
-                                View all movements →
+                                Lihat semua mutasi
                             </Link>
                         </div>
                     </CardContent>

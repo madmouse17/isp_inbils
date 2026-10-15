@@ -1,6 +1,7 @@
 import type { Page } from '@playwright/test';
 
 import { apiLogin } from './support/api';
+import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import { expect, test } from './support/fixtures';
 import {
     expectDetail,
@@ -8,10 +9,8 @@ import {
     inertiaProps,
     loginAs,
     logout,
-    selectFirstRealOption,
     selectFirstSearchOption,
-    selectOptionByText,
-    technicianUserId,
+    selectSearchOption,
 } from './support/demo';
 
 const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -27,46 +26,39 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         const title = 'E2E T49387795 SPK lifecycle';
 
         await page.goto('/admin/spk/create');
-        await page.getByLabel('Type').selectOption('maintenance');
-        await page.getByLabel('Title').fill(title);
-        await selectOptionByText(page.getByLabel('Customer'), customerName);
-        await selectFirstRealOption(page.getByLabel('Location'));
-        await page.getByLabel('Priority').selectOption('high');
-        await page.getByLabel('Scheduled Date').fill('2026-07-14');
+        await page.getByLabel('Jenis').selectOption('maintenance');
+        await page.getByLabel('Judul').fill(title);
+        await selectSearchOption(page, 'Pelanggan', customerName);
+        await selectSearchOption(page, 'Lokasi', 'E2E ODP Site 01');
+        await page.getByLabel('Prioritas').selectOption('high');
+        await typeDate(page, 'Tanggal jadwal', '2026-07-14');
         await page
-            .getByLabel('Description')
+            .getByLabel('Deskripsi')
             .fill('Create, assign, start only. PHP tests cover stock, asset, invoice correctness.');
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
-        // store() redirects to the index. The index rows carry the SPK code
-        // link (aria-label "Open SPK SPK-…") and the customer name — the SPK
-        // title is a detail-page field and is NOT rendered in the index, so
-        // target the row via its unique customer name instead.
+        // store() redirects to the index. The customer's onboarding SPK is listed too, so the
+        // row is found by the SPK title, then opened through its code link.
         await expect(page).toHaveURL(/\/admin\/spk$/);
-        const spkRow = page.getByRole('row').filter({ hasText: customerName }).first();
+        await page.goto(`/admin/spk?search=${encodeURIComponent(title)}`);
+        const spkRow = page.getByRole('row').filter({ hasText: title }).first();
         await expect(spkRow).toBeVisible({ timeout: 15_000 });
-        await spkRow.getByRole('link', { name: /Open SPK/ }).click();
+        await spkRow.getByRole('link', { name: /Buka SPK/ }).click();
         await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
         const spkUrl = page.url();
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
-        await expect(page.getByRole('button', { name: 'Assign' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Tugaskan' })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Assign' }).click();
-        const assignDialog = page.getByRole('dialog', { name: 'Assign' });
-        // The SPK assign dialog exposes a combobox (SearchSelect) labeled
-        // "Technician", not a numeric "Technician ID" input: type to filter the
-        // technician employees and pick the option by its employee name. The options
-        // are role=option items in a popover outside the dialog.
-        await assignDialog.getByLabel('Technician').fill('Demo Technician');
-        await page
-            .getByRole('option', { name: /Demo Technician/ })
-            .first()
-            .click();
-        await assignDialog.getByRole('button', { name: 'Confirm' }).click();
+        await page.getByRole('button', { name: 'Tugaskan' }).click();
+        const assignDialog = page.getByRole('dialog', { name: 'Tugaskan SPK' });
+        // The technician is a SearchSelect: type to filter, pick the option by the employee name.
+        // The options are role=option items in a popover outside the dialog.
+        await selectSearchOption(page, 'Teknisi', 'Demo Technician');
+        await assignDialog.getByRole('button', { name: 'Tugaskan' }).click();
 
         await expectSpkState(page, 'assigned');
-        await expectDetail(page, 'Technician', 'Demo Technician');
+        await expectDetail(page, 'Teknisi', 'Demo Technician');
 
         // Starting is limited to the assigned technician (WorkOrderPolicy::start), who works in the app.
         await logout(page);
@@ -80,7 +72,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await loginAs(page, 'admin');
         await page.goto(spkUrl);
         await expectSpkState(page, 'in_progress');
-        await expect(page.getByRole('button', { name: 'Submit for Review' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Ajukan review' })).toBeVisible();
     });
 
     test('@kanban-t_49387795 records invoice payment and shows paid balance', async ({ page }) => {
@@ -89,54 +81,55 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         const reference = `E2E-T49387795-PAY-${runId}`;
 
         await page.goto('/admin/invoices/create');
-        await selectOptionByText(page.getByLabel('Customer'), customerName);
-        await page.getByLabel('Issue Date').fill('2026-07-14');
-        await page.getByLabel('Due Date').fill('2026-07-28');
-        await page.getByLabel('Notes').fill('Payment recording journey.');
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await selectSearchOption(page, 'Pelanggan', customerName);
+        await typeDate(page, 'Tanggal terbit', '2026-07-14');
+        await typeDate(page, 'Jatuh tempo', '2026-07-28');
+        await page.getByLabel('Catatan').fill('Payment recording journey.');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
-        // store() redirects to the index; open the just-created invoice via the
-        // customer-scoped row (one invoice per fresh customer in this journey).
+        // store() redirects to the index; open the just-created invoice through the search on its
+        // customer's name (one invoice per fresh customer in this journey).
         await expect(page).toHaveURL(/\/admin\/invoices$/);
+        await page.goto(`/admin/invoices?search=${encodeURIComponent(customerName)}`);
         const invoiceRow = page.getByRole('row').filter({ hasText: customerName }).first();
         await invoiceRow.getByRole('link', { name: 'Lihat', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
-        await expectDetail(page, 'Status', 'draft');
+        await expectDetail(page, 'Status', 'Draf');
 
-        await page.getByRole('button', { name: 'Add Item' }).click();
-        const itemDialog = page.getByRole('dialog', { name: 'Add Item' });
-        await itemDialog.getByLabel('Description').fill(invoiceLine);
-        await itemDialog.getByLabel('Quantity').fill('1');
-        await itemDialog.getByLabel('Unit Price').fill('120000');
-        await itemDialog.getByLabel('Discount').fill('0');
-        await itemDialog.getByLabel('Tax Rate (%)').fill('0');
-        await itemDialog.getByRole('button', { name: 'Add' }).click();
+        await page.getByRole('button', { name: 'Tambah item' }).click();
+        const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
+        await itemDialog.getByLabel('Deskripsi').fill(invoiceLine);
+        await itemDialog.getByLabel('Kuantitas').fill('1');
+        await itemDialog.getByLabel('Harga satuan').fill('120000');
+        await itemDialog.getByLabel('Diskon').fill('0');
+        await itemDialog.getByLabel('Pajak (%)').fill('0');
+        await itemDialog.getByRole('button', { name: 'Simpan', exact: true }).click();
 
         await expect(page.getByRole('row').filter({ hasText: invoiceLine })).toContainText(
-            '120000.00',
+            /Rp\s*120\.000/,
         );
-        await expectDetail(page, 'Total', '120000.00');
+        await expectDetail(page, 'Total', /Rp\s*120\.000/);
 
-        await page.getByRole('button', { name: 'Send' }).click();
-        await expectDetail(page, 'Status', 'sent');
-        await expect(page.getByRole('button', { name: 'Record Payment' })).toBeVisible();
+        await page.getByRole('button', { name: 'Kirim tagihan' }).click();
+        await expectDetail(page, 'Status', 'Belum dibayar');
+        await expect(page.getByRole('button', { name: 'Catat pembayaran' })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Record Payment' }).click();
-        const paymentDialog = page.getByRole('dialog', { name: 'Record Payment' });
-        await expect(paymentDialog.getByText(/Remaining:\s*120000/)).toBeVisible();
-        await paymentDialog.getByLabel('Amount').fill('120000');
-        await paymentDialog.getByLabel('Method').selectOption('transfer');
-        await paymentDialog.getByLabel('Reference').fill(reference);
-        await paymentDialog.getByLabel('Notes').fill('Paid by E2E.');
-        await paymentDialog.getByRole('button', { name: 'Record' }).click();
+        await page.getByRole('button', { name: 'Catat pembayaran' }).click();
+        const paymentDialog = page.getByRole('dialog', { name: 'Catat pembayaran' });
+        await expect(paymentDialog.getByText(/Sisa tagihan:\s*Rp\s*120\.000/)).toBeVisible();
+        await paymentDialog.getByLabel('Jumlah').fill('120000');
+        await paymentDialog.getByLabel('Metode').selectOption('transfer');
+        await paymentDialog.getByLabel('Referensi').fill(reference);
+        await paymentDialog.getByLabel('Catatan').fill('Paid by E2E.');
+        await paymentDialog.getByRole('button', { name: 'Simpan', exact: true }).click();
 
-        await expectDetail(page, 'Status', 'paid');
-        await expectDetail(page, 'Paid', '120000.00');
-        await expectDetail(page, 'Remaining', '0');
+        await expectDetail(page, 'Status', 'Lunas');
+        await expectDetail(page, 'Terbayar', /Rp\s*120\.000/);
+        await expectDetail(page, 'Sisa', /Rp\s*0(?!\.)/);
         const paymentRow = page.getByRole('row').filter({ hasText: reference });
-        await expect(paymentRow).toContainText('120000.00');
-        await expect(paymentRow).toContainText('transfer');
-        await expect(paymentRow).toContainText('Active');
+        await expect(paymentRow).toContainText(/Rp\s*120\.000/);
+        await expect(paymentRow).toContainText('Transfer');
+        await expect(paymentRow).toContainText('Aktif');
     });
 
     test('@kanban-t_49387795 creates ticket, assigns, starts, comments, and spawns SPK', async ({
@@ -144,39 +137,35 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         request,
     }) => {
         const customerName = await createCustomer(page, `TICKET-${runId}`);
-        const handlerId = await technicianUserId(page);
         const title = 'E2E T49387795 ticket journey';
         const comment = 'E2E T49387795 internal dispatch note';
 
         await page.goto('/admin/tickets/create');
-        await page.getByLabel('Title').fill(title);
-        await selectOptionByText(page.getByLabel('Category'), 'No Internet');
-        await page.getByLabel('Priority').selectOption('high');
-        await selectOptionByText(page.getByLabel('Customer'), customerName);
+        await page.getByLabel('Judul').fill(title);
+        await selectSearchOption(page, 'Kategori', 'No Internet');
+        await page.getByLabel('Prioritas').selectOption('high');
+        await selectSearchOption(page, 'Pelanggan', customerName);
         await page
-            .getByLabel('Description')
+            .getByLabel('Deskripsi')
             .fill('Ticket assignment, start, comment, and SPK spawn journey.');
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
-        // store() redirects to the tickets index (by design). The index rows
-        // render the ticket code and priority/status badges but the title column
-        // is blank (the resource supplies code/title, the column renders number/
-        // subject), so resolve the created ticket's id from the Inertia props of
-        // the title-scoped index, then open its detail page.
+        // store() redirects to the tickets index (by design): resolve the created ticket's id from
+        // the Inertia props of the title-scoped index, then open its detail page.
         await expect(page).toHaveURL(/\/admin\/tickets$/);
         const ticketId = await ticketIdFromIndex(page, title);
         if (!ticketId) throw new Error('Could not resolve created ticket id');
         await page.goto(`/admin/tickets/${ticketId}`);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
-        await expectDetail(page, 'Status', 'open');
+        await expectDetail(page, 'Status', 'Terbuka');
 
-        await page.getByRole('button', { name: 'Assign' }).click();
-        const assignDialog = page.getByRole('dialog', { name: 'Assign' });
-        await assignDialog.getByLabel('Handler ID').fill(handlerId);
-        await assignDialog.getByRole('button', { name: 'Confirm' }).click();
+        await page.getByRole('button', { name: 'Tugaskan' }).click();
+        const assignDialog = page.getByRole('dialog', { name: 'Tugaskan tiket' });
+        await selectSearchOption(page, 'Petugas', 'Demo Technician');
+        await assignDialog.getByRole('button', { name: 'Tugaskan' }).click();
 
-        await expectDetail(page, 'Status', 'assigned');
-        await expectDetail(page, 'Handler', 'Demo Technician');
+        await expectDetail(page, 'Status', 'Ditugaskan');
+        await expectDetail(page, 'Petugas', 'Demo Technician');
 
         // Starting is limited to the assigned handler (TicketPolicy::start).
         const ticketUrl = page.url();
@@ -188,33 +177,39 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         // Internal comments and SPK spawning are staff abilities.
         await loginAs(page, 'admin');
         await page.goto(ticketUrl);
-        await expectDetail(page, 'Status', 'on_progress');
-        await expect(page.getByRole('button', { name: 'Spawn SPK' })).toBeVisible();
+        await expectDetail(page, 'Status', 'Dikerjakan');
+        await expect(page.getByRole('button', { name: 'Buat SPK' })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Add Comment' }).click();
-        const commentDialog = page.getByRole('dialog', { name: 'Comment' });
-        await commentDialog.getByLabel('Comment').fill(comment);
-        await commentDialog.getByLabel('Visibility').selectOption('internal');
-        await commentDialog.getByRole('button', { name: 'Confirm' }).click();
+        await page.getByRole('button', { name: 'Tambah komentar' }).click();
+        const commentDialog = page.getByRole('dialog', { name: 'Tambah komentar' });
+        await commentDialog.getByLabel(/^Komentar/).fill(comment);
+        await commentDialog.getByLabel('Terlihat oleh').selectOption('internal');
+        await commentDialog.getByRole('button', { name: 'Kirim komentar' }).click();
 
         await expect(page.getByText(comment)).toBeVisible();
 
-        await page.getByRole('button', { name: 'Spawn SPK' }).click();
+        await page.getByRole('button', { name: 'Buat SPK' }).click();
         await page
-            .getByRole('dialog', { name: 'Spawn Spk' })
-            .getByRole('button', { name: 'Confirm' })
+            .getByRole('dialog', { name: 'Buat SPK dari tiket' })
+            .getByRole('button', { name: 'Buat SPK' })
             .click();
 
         await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
         await expect(
-            page
-                .getByRole('main')
-                .getByRole('heading', { name: /SPK from Ticket TKT-\d{4}-\d{5}/ }),
+            page.getByRole('main').getByRole('heading', { name: /SPK dari tiket TKT-\d{4}-\d{5}/ }),
         ).toBeVisible();
         await expectSpkState(page, 'generated');
-        await expectDetail(page, 'Customer', customerName);
+        await expectDetail(page, 'Pelanggan', customerName);
     });
 });
+
+/** Type a day into a DatePicker in the company format and commit it with Tab. */
+async function typeDate(page: Page, label: string, iso: string) {
+    const format = await companyDateFormat(page);
+    const field = page.getByLabel(label, { exact: true });
+    await field.fill(formatIsoAs(iso, format));
+    await field.press('Tab');
+}
 
 async function createCustomer(page: Page, key: string) {
     const slug = `E2E-${key}-49387795`;
@@ -222,14 +217,14 @@ async function createCustomer(page: Page, key: string) {
 
     await loginAs(page);
     await page.goto('/admin/customers/create');
-    await page.getByLabel('Name').fill(name);
+    await page.getByLabel('Nama').fill(name);
     await page.getByLabel('Email').fill(`${slug.toLowerCase()}@example.test`);
-    await page.getByLabel('Phone').fill('0800004938');
+    await page.getByLabel('Telepon').fill('0800004938');
 
-    // The create form requires a complete address on the Addresses tab.
-    await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+    // The create form requires a complete address on the Alamat tab.
+    await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
     await page.getByLabel('Label').fill(`E2E Address ${key}`);
-    await page.getByLabel('Address *', { exact: true }).fill('8 E2E Fiber Street');
+    await page.getByLabel('Alamat *', { exact: true }).fill('8 E2E Fiber Street');
     await page.getByLabel('Provinsi *', { exact: true }).click();
     await page
         .getByRole('option', { name: /jakarta/i })
@@ -256,29 +251,20 @@ async function createCustomer(page: Page, key: string) {
     await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
     // The create form also requires a primary contact.
-    await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
-    await page.getByLabel('Name').fill(`${name} Contact`);
-    await page.getByLabel('Phone').fill('081200004938');
+    await page.getByRole('tab', { name: /Kontak \(\d+\)/ }).click();
+    await page.getByLabel('Nama').fill(`${name} Contact`);
+    await page.getByLabel('Telepon').fill('081200004938');
     await page.getByLabel('Email').fill(`contact.${slug.toLowerCase()}@example.test`);
 
-    // Subscription & SPK section: package + serving POP are required and the
-    // E2E seeder provisions "Home 10Mbps" and "Default POP". The POP option
-    // label is rendered as "code — name (type)" (see Create.tsx), so match the
-    // seeded "Default POP" by substring — the same loose pattern as
-    // customer-subscription.spec.ts — instead of an exact label match.
-    await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-    await selectFirstSearchOption(page, 'Service Package');
-    const popSelect = page.getByLabel('Serving POP / Location');
-    const popValue = await popSelect
-        .locator('option')
-        .filter({ hasText: 'Default POP' })
-        .first()
-        .getAttribute('value');
-    expect(popValue).toBeTruthy();
-    await popSelect.selectOption(popValue!);
+    // Langganan & SPK: the package and the serving POP are required, and the E2E seeder
+    // provisions "Home 10Mbps" and "Default POP". Both are SearchSelects, the POP is matched
+    // by substring as in customer-subscription.spec.ts.
+    await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
+    await selectFirstSearchOption(page, 'Paket layanan');
+    await selectSearchOption(page, 'POP pelayan', /Default POP/);
 
-    await page.getByRole('tab', { name: 'Customer Data' }).click();
-    await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
+    await page.getByRole('tab', { name: 'Data pelanggan' }).click();
+    await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
     await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
     await expect(page.getByRole('main').getByRole('heading', { name })).toBeVisible();
@@ -287,11 +273,9 @@ async function createCustomer(page: Page, key: string) {
 }
 
 /**
- * Resolve a ticket id by its unique title via the Tickets index Inertia props
- * (canonical parsing helper: support/demo.ts inertiaProps). Tickets/Index.tsx
- * renders row.number/row.subject but TicketResource supplies code/title, so the
- * title column is blank in the UI; the server-side search still matches title,
- * so we read the id from the Inertia page object.
+ * Resolve a ticket id by its unique title via the Tickets index Inertia props (canonical
+ * parsing helper: support/demo.ts inertiaProps). The server-side search matches the title, so
+ * the title-scoped index lists the ticket the form just created.
  */
 async function ticketIdFromIndex(page: Page, title: string) {
     const { props } = await inertiaProps(

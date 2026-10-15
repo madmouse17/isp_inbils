@@ -25,19 +25,30 @@ import {
 import { buttonVariants } from '@/Components/ui/Button';
 import { Spinner } from '@/Components/ui/Spinner';
 import { cn } from '@/lib/utils';
-import { Badge, Button, Card, CardContent, Input, NativeSelect, Textarea } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    Button,
+    Card,
+    CardContent,
+    EmptyCell,
+    EnumBadge,
+    Input,
+    NativeSelect,
+    SearchSelect,
+    Textarea,
+} from '@/Components/ui';
+import type { SearchSelectOption } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
+import { ACTIVE_STATE, LOCATION_TYPE, labelOf, optionsOf } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 import {
     LocationsMapView,
+    type LocationType,
     type MapMarker,
 } from '@/Components/composite/locations/LocationsMapView';
-import {
-    type LocationNode,
-    type LocationType,
-    locationTypeOptions,
-} from '@/Components/composite/locations/LocationShowSections';
 
 /* ---------- Page props ---------- */
 
@@ -52,12 +63,16 @@ interface LocationRow {
     lat: string | null;
     lng: string | null;
     is_active: boolean;
-    children: LocationRow[];
+}
+
+/** A place of the `tree` prop. The rows of the table carry no children: the tree is where they are found. */
+interface LocationNode extends LocationRow {
+    children: LocationNode[];
 }
 
 interface LocationsProps {
     locations: Paginated<LocationRow>;
-    tree?: { data: LocationNode[] } | LocationNode[];
+    tree: { data: LocationNode[] };
     markers: MapMarker[];
     filters: {
         search?: string | null;
@@ -84,53 +99,45 @@ const emptyLocation = {
     is_active: true,
 };
 
-const typeFilterOptions = [
-    { value: '', label: 'Semua tipe' },
-    { value: 'region', label: 'Region' },
-    { value: 'area', label: 'Area' },
-    { value: 'pop', label: 'POP' },
-    { value: 'rack', label: 'Rack' },
-    { value: 'site', label: 'Site' },
-];
+const typeOptions = optionsOf(LOCATION_TYPE);
 
+const typeFilterOptions = [{ value: '', label: 'Semua tipe' }, ...typeOptions];
+
+/** The server filters on `active` and `inactive`; the words come from the same map as every other status. */
 const statusFilterOptions = [
     { value: '', label: 'Semua status' },
-    { value: 'active', label: 'Active' },
-    { value: 'inactive', label: 'Inactive' },
+    { value: 'active', label: ACTIVE_STATE.true.label },
+    { value: 'inactive', label: ACTIVE_STATE.false.label },
 ];
 
 /* ---------- Page component ---------- */
 
-export default function Index({
-    locations,
-    tree: treeProp,
-    markers,
-    filters,
-    can,
-}: LocationsProps) {
+export default function Index({ locations, tree, markers, filters, can }: LocationsProps) {
     /* -- View tab -- */
     const [viewTab, setViewTab] = useState<string>('map');
 
     /* -- Server table for list view -- */
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.locations.index'),
         filters,
         only: ['locations', 'tree', 'markers', 'filters', 'can'],
     });
+    const hasFilters = Boolean(params.search || params.type || params.status);
 
-    /* -- Flatten tree for parent options -- */
-    const treeSource = treeProp ?? locations;
-    const tree = Array.isArray(treeSource) ? treeSource : treeSource.data;
-    const flat = useMemo(() => flatten(tree), [tree]);
+    /* -- Every place, and which of them have places under them -- */
+    const flat = useMemo(() => flatten(tree.data), [tree.data]);
+    const parentIds = useMemo(
+        () => new Set(flat.flatMap((loc) => (loc.parent_id === null ? [] : [loc.parent_id]))),
+        [flat],
+    );
 
-    const parentOptions = useMemo(
-        () => [
-            { value: '', label: 'No parent (region)' },
-            ...flat.map((loc) => ({
+    const parentOptions = useMemo<SearchSelectOption[]>(
+        () =>
+            flat.map((loc) => ({
                 value: String(loc.id),
                 label: loc.path ?? loc.code,
+                description: `${labelOf(LOCATION_TYPE, loc.type)} - ${loc.name}`,
             })),
-        ],
         [flat],
     );
 
@@ -251,123 +258,121 @@ export default function Index({
     };
 
     /* -- DataTable columns -- */
-    const columns: DataTableColumn<LocationRow>[] = useMemo(
-        () => [
-            {
-                key: 'code',
-                header: 'Code',
-                sortable: true,
-                sortKey: 'code',
-                cell: (row) => <span className="font-semibold text-foreground">{row.code}</span>,
-            },
-            {
-                key: 'name',
-                header: 'Name',
-                sortable: true,
-                sortKey: 'name',
-            },
-            {
-                key: 'type',
-                header: 'Type',
-                sortable: true,
-                sortKey: 'type',
-                cell: (row) => <Badge>{row.type.toUpperCase()}</Badge>,
-            },
-            {
-                key: 'path',
-                header: 'Path',
-                sortable: true,
-                sortKey: 'path',
-                className: 'max-w-48 truncate text-xs text-muted-foreground',
-            },
-            {
-                key: 'is_active',
-                header: 'Status',
-                sortable: true,
-                sortKey: 'is_active',
-                cell: (row) => (
-                    <Badge variant={row.is_active ? 'success' : 'warning'}>
-                        {row.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
+    const columns: DataTableColumn<LocationRow>[] = [
+        {
+            key: 'code',
+            header: 'Kode',
+            sortable: true,
+            sortKey: 'code',
+            cell: (row) => <span className="font-semibold text-foreground">{row.code}</span>,
+        },
+        {
+            key: 'name',
+            header: 'Nama',
+            sortable: true,
+            sortKey: 'name',
+        },
+        {
+            key: 'type',
+            header: 'Tipe',
+            sortable: true,
+            sortKey: 'type',
+            cell: (row) => <EnumBadge map={LOCATION_TYPE} value={row.type} />,
+        },
+        {
+            key: 'path',
+            header: 'Jalur',
+            sortable: true,
+            sortKey: 'path',
+            className: 'max-w-48 truncate text-xs text-muted-foreground',
+        },
+        {
+            key: 'is_active',
+            header: 'Status',
+            sortable: true,
+            sortKey: 'is_active',
+            cell: (row) => <EnumBadge map={ACTIVE_STATE} value={row.is_active} />,
+        },
+        {
+            key: 'coordinates',
+            header: 'Koordinat',
+            cell: (row) =>
+                row.lat && row.lng ? (
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                        {Number(row.lat).toFixed(4)}, {Number(row.lng).toFixed(4)}
+                    </span>
+                ) : (
+                    <EmptyCell />
                 ),
-            },
-            {
-                key: 'coordinates',
-                header: 'Coordinates',
-                cell: (row) =>
-                    row.lat && row.lng ? (
-                        <span className="text-xs text-muted-foreground">
-                            {Number(row.lat).toFixed(4)}, {Number(row.lng).toFixed(4)}
-                        </span>
-                    ) : (
-                        <span className="text-xs text-muted-foreground">-</span>
-                    ),
-            },
-            {
-                key: 'actions',
-                header: 'Actions',
-                cell: (row) => (
-                    <div className="flex flex-wrap gap-1">
-                        {can.update && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => startEdit(row)}
-                            >
-                                Edit
-                            </Button>
-                        )}
-                        {can.move && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                    setMoveTarget(row);
-                                    moveForm.setData('new_parent_id', '');
-                                }}
-                            >
-                                Move
-                            </Button>
-                        )}
-                        {can.delete && (
-                            <Button
-                                type="button"
-                                variant="danger"
-                                size="sm"
-                                onClick={() => setDeleteTarget(row)}
-                                disabled={row.children.length > 0}
-                            >
-                                Delete
-                            </Button>
-                        )}
-                    </div>
-                ),
-            },
-        ],
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- startEdit/moveForm are stable enough; including them causes unnecessary re-renders
-        [can],
-    );
+        },
+        {
+            key: 'actions',
+            header: 'Aksi',
+            cell: (row) => (
+                <div className="flex flex-wrap items-center gap-1">
+                    {can.update && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEdit(row)}
+                        >
+                            Ubah
+                        </Button>
+                    )}
+                    {can.move && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                                setMoveTarget(row);
+                                moveForm.setData('new_parent_id', '');
+                            }}
+                        >
+                            Pindahkan
+                        </Button>
+                    )}
+                    {can.delete && (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive-text"
+                            onClick={() => setDeleteTarget(row)}
+                            disabled={parentIds.has(row.id)}
+                            title={
+                                parentIds.has(row.id)
+                                    ? 'Lokasi ini masih punya lokasi turunan.'
+                                    : undefined
+                            }
+                        >
+                            Hapus
+                        </Button>
+                    )}
+                </div>
+            ),
+        },
+    ];
+
+    const createButton = can.create ? (
+        <Button type="button" variant="primary" onClick={() => openCreate()}>
+            Buat Lokasi
+        </Button>
+    ) : undefined;
 
     return (
         <AdminLayout title="Lokasi">
             <div className="space-y-6">
                 <PageHeader
                     title="Lokasi"
-                    subtitle="Region, area, POP, rack, and site topology."
-                    actions={
-                        can.create ? (
-                            <Button type="button" variant="primary" onClick={() => openCreate()}>
-                                Tambah Lokasi
-                            </Button>
-                        ) : undefined
-                    }
+                    subtitle="Wilayah, area, POP, rak, dan site tempat perangkat jaringan berada."
+                    actions={createButton}
                 />
 
                 {/* View switcher */}
                 <Tabs value={viewTab} onValueChange={setViewTab}>
-                    <TabList aria-label="Location view mode">
+                    <TabList aria-label="Tampilan lokasi">
                         <Tab value="map">Peta</Tab>
                         <Tab value="table">Tabel</Tab>
                     </TabList>
@@ -394,25 +399,23 @@ export default function Index({
                                             label="Cari"
                                             value={params.search ?? ''}
                                             onChange={(e) => set('search', e.target.value)}
-                                            placeholder="Code, name, path, address"
+                                            placeholder="Kode, nama, jalur, atau alamat"
                                         />
                                     </div>
-                                    <div className="w-full md:w-40">
-                                        <NativeSelect
-                                            label="Type"
-                                            value={params.type ?? ''}
-                                            onChange={(e) => set('type', e.target.value)}
-                                            options={typeFilterOptions}
-                                        />
-                                    </div>
-                                    <div className="w-full md:w-40">
-                                        <NativeSelect
-                                            label="Status"
-                                            value={params.status ?? ''}
-                                            onChange={(e) => set('status', e.target.value)}
-                                            options={statusFilterOptions}
-                                        />
-                                    </div>
+                                    <NativeSelect
+                                        label="Tipe"
+                                        wrapperClassName="md:w-40"
+                                        value={params.type ?? ''}
+                                        onChange={(e) => set('type', e.target.value)}
+                                        options={typeFilterOptions}
+                                    />
+                                    <NativeSelect
+                                        label="Status"
+                                        wrapperClassName="md:w-40"
+                                        value={params.status ?? ''}
+                                        onChange={(e) => set('status', e.target.value)}
+                                        options={statusFilterOptions}
+                                    />
                                 </div>
 
                                 <DataTable
@@ -423,8 +426,14 @@ export default function Index({
                                     onSort={onSort}
                                     onPageChange={(page) => set('page', page)}
                                     onPerPageChange={(perPage) => set('per_page', perPage)}
-                                    emptyTitle="Tidak ada lokasi"
-                                    emptyDescription="Tidak ada lokasi yang sesuai dengan filter."
+                                    emptyTitle="Belum ada lokasi"
+                                    emptyDescription="Buat wilayah lebih dulu, lalu area, POP, rak, dan site di bawahnya."
+                                    emptyAction={createButton}
+                                    hasFilters={hasFilters}
+                                    onResetFilters={() =>
+                                        setMany({ search: '', type: '', status: '' })
+                                    }
+                                    itemLabel="lokasi"
                                     loading={processing}
                                 />
                             </CardContent>
@@ -444,7 +453,7 @@ export default function Index({
                 >
                     <DialogContent className="max-w-2xl">
                         <DialogHeader>
-                            <DialogTitle>Tambah Lokasi</DialogTitle>
+                            <DialogTitle>Buat Lokasi</DialogTitle>
                             <DialogDescription>
                                 {createDraftCoords
                                     ? `Koordinat: ${createDraftCoords.lat}, ${createDraftCoords.lng}`
@@ -453,7 +462,7 @@ export default function Index({
                         </DialogHeader>
                         <form onSubmit={submitCreate} className="grid gap-4 lg:grid-cols-2">
                             <Input
-                                label="Code"
+                                label="Kode"
                                 value={createForm.data.code}
                                 onChange={(e) => createForm.setData('code', e.target.value)}
                                 error={createForm.errors.code}
@@ -461,45 +470,48 @@ export default function Index({
                                 autoFocus
                             />
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={createForm.data.name}
                                 onChange={(e) => createForm.setData('name', e.target.value)}
                                 error={createForm.errors.name}
                                 required
                             />
                             <NativeSelect
-                                label="Type"
+                                label="Tipe"
                                 value={createForm.data.type}
                                 onChange={(e) =>
                                     createForm.setData('type', e.target.value as LocationType)
                                 }
-                                options={locationTypeOptions}
+                                options={typeOptions}
                                 error={createForm.errors.type}
                                 required
                             />
-                            <NativeSelect
-                                label="Parent"
+                            <SearchSelect
+                                label="Induk"
                                 value={createForm.data.parent_id}
-                                onChange={(e) => createForm.setData('parent_id', e.target.value)}
+                                onChange={(value) => createForm.setData('parent_id', value)}
                                 options={parentOptions}
+                                placeholder="Cari kode atau jalur lokasi"
+                                emptyText="Tidak ada lokasi yang cocok."
+                                hint="Kosongkan untuk lokasi bertipe Wilayah."
                                 error={createForm.errors.parent_id}
                             />
                             <Textarea
-                                label="Address"
+                                label="Alamat"
                                 value={createForm.data.address}
                                 onChange={(e) => createForm.setData('address', e.target.value)}
                                 error={createForm.errors.address}
                                 className="lg:col-span-2"
                             />
                             <Input
-                                label="Latitude"
+                                label="Lintang"
                                 value={createForm.data.lat}
                                 onChange={(e) => createForm.setData('lat', e.target.value)}
                                 error={createForm.errors.lat}
                                 inputMode="decimal"
                             />
                             <Input
-                                label="Longitude"
+                                label="Bujur"
                                 value={createForm.data.lng}
                                 onChange={(e) => createForm.setData('lng', e.target.value)}
                                 error={createForm.errors.lng}
@@ -515,14 +527,14 @@ export default function Index({
                                     }}
                                     disabled={createForm.processing}
                                 >
-                                    Cancel
+                                    Batal
                                 </Button>
                                 <Button
                                     type="submit"
                                     variant="primary"
                                     loading={createForm.processing}
                                 >
-                                    Create
+                                    Simpan
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -541,61 +553,64 @@ export default function Index({
                 >
                     <DialogContent className="max-w-2xl">
                         <DialogHeader>
-                            <DialogTitle>Edit {editTarget?.code ?? 'Location'}</DialogTitle>
+                            <DialogTitle>Ubah {editTarget?.code ?? 'lokasi'}</DialogTitle>
                             <DialogDescription>
-                                Update data lokasi. Perubahan berlaku setelah disimpan.
+                                Perubahan berlaku setelah disimpan.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={submitEdit} className="grid gap-4 lg:grid-cols-2">
                             <Input
-                                label="Code"
+                                label="Kode"
                                 value={editForm.data.code}
                                 onChange={(e) => editForm.setData('code', e.target.value)}
                                 error={editForm.errors.code}
                                 required
                             />
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={editForm.data.name}
                                 onChange={(e) => editForm.setData('name', e.target.value)}
                                 error={editForm.errors.name}
                                 required
                             />
                             <NativeSelect
-                                label="Type"
+                                label="Tipe"
                                 value={editForm.data.type}
                                 onChange={(e) =>
                                     editForm.setData('type', e.target.value as LocationType)
                                 }
-                                options={locationTypeOptions}
+                                options={typeOptions}
                                 error={editForm.errors.type}
                                 required
                             />
-                            <NativeSelect
-                                label="Parent"
+                            <SearchSelect
+                                label="Induk"
                                 value={editForm.data.parent_id}
-                                onChange={(e) => editForm.setData('parent_id', e.target.value)}
+                                onChange={(value) => editForm.setData('parent_id', value)}
                                 options={parentOptions.filter(
                                     (opt) => opt.value !== String(editTarget?.id),
                                 )}
+                                placeholder="Cari kode atau jalur lokasi"
+                                emptyText="Tidak ada lokasi yang cocok."
+                                hint="Kosongkan untuk lokasi bertipe Wilayah."
                                 error={editForm.errors.parent_id}
                             />
                             <Textarea
-                                label="Address"
+                                label="Alamat"
                                 value={editForm.data.address}
                                 onChange={(e) => editForm.setData('address', e.target.value)}
                                 error={editForm.errors.address}
                                 className="lg:col-span-2"
                             />
                             <Input
-                                label="Latitude"
+                                label="Lintang"
                                 value={editForm.data.lat}
                                 onChange={(e) => editForm.setData('lat', e.target.value)}
                                 error={editForm.errors.lat}
                                 inputMode="decimal"
                             />
                             <Input
-                                label="Longitude"
+                                label="Bujur"
                                 value={editForm.data.lng}
                                 onChange={(e) => editForm.setData('lng', e.target.value)}
                                 error={editForm.errors.lng}
@@ -604,18 +619,19 @@ export default function Index({
 
                             {/* Coordinate change confirmation */}
                             {coordsChanged && (
-                                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm lg:col-span-2 dark:border-amber-700 dark:bg-amber-950">
-                                    <p className="font-medium text-amber-800 dark:text-amber-200">
-                                        Koordinat berubah
-                                    </p>
-                                    <p className="mt-1 text-amber-700 dark:text-amber-300">
-                                        Lama: {editOrigCoords?.lat || '-'},{' '}
-                                        {editOrigCoords?.lng || '-'}
-                                    </p>
-                                    <p className="text-amber-700 dark:text-amber-300">
-                                        Baru: {editForm.data.lat || '-'}, {editForm.data.lng || '-'}
-                                    </p>
-                                </div>
+                                <Alert variant="warning" role="status" className="lg:col-span-2">
+                                    <AlertTitle>Koordinat berubah</AlertTitle>
+                                    <AlertDescription>
+                                        <span className="block">
+                                            Lama: {editOrigCoords?.lat || '-'},{' '}
+                                            {editOrigCoords?.lng || '-'}
+                                        </span>
+                                        <span className="block">
+                                            Baru: {editForm.data.lat || '-'},{' '}
+                                            {editForm.data.lng || '-'}
+                                        </span>
+                                    </AlertDescription>
+                                </Alert>
                             )}
 
                             <DialogFooter className="lg:col-span-2">
@@ -628,10 +644,10 @@ export default function Index({
                                     }}
                                     disabled={editForm.processing}
                                 >
-                                    Cancel
+                                    Batal
                                 </Button>
                                 <Button type="submit" loading={editForm.processing}>
-                                    {coordsChanged ? 'Simpan & Konfirmasi Koordinat' : 'Simpan'}
+                                    {coordsChanged ? 'Simpan dan konfirmasi koordinat' : 'Simpan'}
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -649,20 +665,21 @@ export default function Index({
                 >
                     <DialogContent>
                         <DialogHeader>
-                            <DialogTitle>Pindah {moveTarget?.code ?? 'Location'}</DialogTitle>
+                            <DialogTitle>Pindahkan {moveTarget?.code ?? 'lokasi'}</DialogTitle>
                             <DialogDescription>
-                                Pilih parent baru untuk lokasi ini.
+                                Pilih induk baru untuk lokasi ini.
                             </DialogDescription>
                         </DialogHeader>
                         <form onSubmit={submitMove}>
-                            <NativeSelect
-                                label="New parent"
+                            <SearchSelect
+                                label="Induk baru"
                                 value={moveForm.data.new_parent_id}
-                                onChange={(e) => moveForm.setData('new_parent_id', e.target.value)}
+                                onChange={(value) => moveForm.setData('new_parent_id', value)}
                                 options={parentOptions.filter(
-                                    (opt) =>
-                                        opt.value !== '' && opt.value !== String(moveTarget?.id),
+                                    (opt) => opt.value !== String(moveTarget?.id),
                                 )}
+                                placeholder="Cari kode atau jalur lokasi"
+                                emptyText="Tidak ada lokasi yang cocok."
                                 error={moveForm.errors.new_parent_id}
                                 required
                             />
@@ -673,10 +690,14 @@ export default function Index({
                                     onClick={() => setMoveTarget(null)}
                                     disabled={moveForm.processing}
                                 >
-                                    Cancel
+                                    Batal
                                 </Button>
-                                <Button type="submit" loading={moveForm.processing}>
-                                    Pindah
+                                <Button
+                                    type="submit"
+                                    loading={moveForm.processing}
+                                    disabled={moveForm.data.new_parent_id === ''}
+                                >
+                                    Pindahkan
                                 </Button>
                             </DialogFooter>
                         </form>
@@ -694,17 +715,15 @@ export default function Index({
                     <AlertDialogContent>
                         <AlertDialogHeader>
                             <AlertDialogTitle>
-                                Hapus {deleteTarget?.code ?? 'location'}?
+                                Hapus {deleteTarget?.code ?? 'lokasi'}?
                             </AlertDialogTitle>
                             <AlertDialogDescription>
-                                Lokasi &quot;{deleteTarget?.name}&quot; akan dihapus permanen.
-                                Tindakan ini tidak dapat dibatalkan.
+                                Lokasi &quot;{deleteTarget?.name}&quot; akan dihapus. Tindakan ini
+                                tidak dapat dibatalkan.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                            <AlertDialogCancel disabled={deleteProcessing}>
-                                Cancel
-                            </AlertDialogCancel>
+                            <AlertDialogCancel disabled={deleteProcessing}>Batal</AlertDialogCancel>
                             <AlertDialogAction
                                 className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
                                 onClick={(e) => {
@@ -726,6 +745,6 @@ export default function Index({
 
 /* ---------- Helpers ---------- */
 
-function flatten(locations: LocationRow[]): LocationRow[] {
+function flatten(locations: LocationNode[]): LocationNode[] {
     return locations.flatMap((loc) => [loc, ...flatten(loc.children)]);
 }

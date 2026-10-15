@@ -8,11 +8,11 @@ class InsufficientStockException extends RuntimeException
 {
     public static function forIssue(float $requested, float $available): self
     {
-        return new self("Insufficient stock. Requested: {$requested}, Available: {$available}.");
+        return new self("Stok tidak mencukupi. Diminta: {$requested}, Tersedia: {$available}.");
     }
 
     public static function forReserve(float $requested, float $available): self
     {
-        return new self("Insufficient available stock for reservation. Requested: {$requested}, Available: {$available}.");
+        return new self("Stok tersedia tidak mencukupi untuk reservasi. Diminta: {$requested}, Tersedia: {$available}.");
     }
 }

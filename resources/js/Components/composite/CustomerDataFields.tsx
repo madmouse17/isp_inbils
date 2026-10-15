@@ -1,4 +1,5 @@
 import { Input, NativeSelect, PhoneInput, Switch, Textarea } from '@/Components/ui';
+import { CUSTOMER_TYPE, optionsOf } from '@/lib/statuses';
 import { SequenceCodeField, type CodeSequence } from './SequenceCodeField';
 
 export interface CustomerDataValue {
@@ -37,7 +38,7 @@ export function CustomerDataFields({
     return (
         <div className="grid gap-4 md:grid-cols-2">
             <SequenceCodeField
-                label="Code"
+                label="Kode"
                 value={value.code}
                 onChange={(next) => onChange('code', next)}
                 error={errors.code}
@@ -46,7 +47,7 @@ export function CustomerDataFields({
                 readOnly={readOnly}
             />
             <Input
-                label="Name"
+                label="Nama"
                 value={value.name}
                 onChange={(event) => onChange('name', event.target.value)}
                 error={errors.name}
@@ -54,15 +55,13 @@ export function CustomerDataFields({
                 readOnly={readOnly}
             />
             <NativeSelect
-                label="Type"
+                label="Tipe"
                 value={value.type}
                 onChange={(event) => onChange('type', event.target.value)}
                 error={errors.type}
+                options={optionsOf(CUSTOMER_TYPE)}
                 disabled={readOnly}
-            >
-                <option value="Individual">Individual</option>
-                <option value="Company">Company</option>
-            </NativeSelect>
+            />
             <Input
                 label="Email"
                 type="email"
@@ -73,7 +72,7 @@ export function CustomerDataFields({
                 readOnly={readOnly}
             />
             <PhoneInput
-                label="Phone"
+                label="Telepon"
                 value={value.phone}
                 onChange={(next) => onChange('phone', next)}
                 error={errors.phone}
@@ -82,7 +81,7 @@ export function CustomerDataFields({
                 readOnly={readOnly}
             />
             <Input
-                label="Tax ID (NPWP)"
+                label="NPWP"
                 value={value.tax_id}
                 onChange={(event) => onChange('tax_id', event.target.value)}
                 error={errors.tax_id}
@@ -90,7 +89,7 @@ export function CustomerDataFields({
                 readOnly={readOnly}
             />
             <Input
-                label="Contact Person"
+                label="Narahubung"
                 value={value.contact_person}
                 onChange={(event) => onChange('contact_person', event.target.value)}
                 error={errors.contact_person}
@@ -99,7 +98,7 @@ export function CustomerDataFields({
             />
             <div className="flex items-end">
                 <Switch
-                    label="Account active"
+                    label="Akun aktif"
                     checked={value.is_active}
                     onCheckedChange={(checked) => onChange('is_active', checked)}
                     disabled={readOnly}
@@ -107,7 +106,7 @@ export function CustomerDataFields({
             </div>
             <Textarea
                 className="md:col-span-2"
-                label="Notes"
+                label="Catatan"
                 value={value.notes}
                 onChange={(event) => onChange('notes', event.target.value)}
                 error={errors.notes}

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Inventory;
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Core\Company;
 use App\Models\Core\Location;
 use App\Models\User;
@@ -108,12 +109,20 @@ class InventoryRequestWorkflowTest extends TestCase
         $this->adminUser->assignRole('admin');
     }
 
-    public function test_create_page_lists_products_with_their_sku_as_code(): void
+    public function test_create_page_offers_products_through_the_picker_with_their_sku(): void
     {
-        $response = $this->actingAs($this->technician)->get(route('admin.inventory.requests.create'))->assertOk();
+        $response = $this->actingAs($this->technician)
+            ->withHeaders([
+                'X-Inertia' => 'true',
+                'X-Inertia-Version' => app(HandleInertiaRequests::class)->version(request()),
+                'X-Inertia-Partial-Component' => 'Admin/Inventory/Requests/Create',
+                'X-Inertia-Partial-Data' => 'productOptions',
+            ])
+            ->get(route('admin.inventory.requests.create', ['product_search' => $this->cableProduct->sku]))
+            ->assertOk();
 
-        $product = collect($response->viewData('page')['props']['products'])->firstWhere('id', $this->cableProduct->id);
-        $this->assertSame($this->cableProduct->sku, $product['code']);
+        $option = collect($response->json('props.productOptions'))->firstWhere('value', $this->cableProduct->id);
+        $this->assertStringStartsWith($this->cableProduct->sku.' - ', $option['label']);
     }
 
     public function test_technician_can_create_draft_and_submit_inventory_request(): void
@@ -726,7 +735,7 @@ class InventoryRequestWorkflowTest extends TestCase
             ]);
 
         $resAsset->assertStatus(422);
-        $this->assertStringContainsString('asset', strtolower($resAsset->json('message') ?? ''));
+        $this->assertStringContainsString('aset', strtolower($resAsset->json('message') ?? ''));
     }
 
     public function test_permission_matrix_and_technician_cannot_directly_issue(): void
@@ -1007,7 +1016,7 @@ class InventoryRequestWorkflowTest extends TestCase
         $this->actingAs($this->staffWarehouse)->postJson(route('admin.inventory.requests.ready', $req->id))->assertStatus(200);
 
         $this->assertMakerCheckerAbort(
-            'Maker-checker: penyetujui tidak boleh melakukan serah terima (issue) barang.',
+            'Maker-checker: penyetujui tidak boleh melakukan serah terima barang.',
             fn () => InventoryRequestService::issue($req->fresh(), $this->adminUser),
         );
     }

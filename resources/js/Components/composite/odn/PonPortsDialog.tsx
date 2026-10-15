@@ -23,33 +23,31 @@ export function PonPortsDialog({ onClose, olt }: PonPortsDialogProps) {
     };
 
     return (
-        <Modal open onClose={onClose} title={`Add PON ports to ${olt.code}`} size="sm">
+        <Modal open onClose={onClose} title={`Tambah port PON ke ${olt.code}`} size="sm">
             <form onSubmit={submit} className="space-y-4">
                 {assetError && (
                     <Alert variant="danger">
-                        <AlertDescription className="text-red-700 dark:text-red-400">
-                            {assetError}
-                        </AlertDescription>
+                        <AlertDescription>{assetError}</AlertDescription>
                     </Alert>
                 )}
                 <Input
                     id="pon-count"
-                    label="Number of ports"
+                    label="Jumlah port"
                     type="number"
                     min={1}
                     max={64}
                     value={data.count}
                     onChange={(event) => setData('count', event.target.value)}
                     error={errors.count}
-                    hint="New ports are numbered after the highest existing one."
+                    hint="Port baru dinomori setelah nomor tertinggi yang ada."
                     required
                 />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
-                        Cancel
+                        Batal
                     </Button>
                     <Button type="submit" variant="primary" loading={processing}>
-                        Add ports
+                        Tambah port
                     </Button>
                 </div>
             </form>

@@ -1,0 +1,63 @@
+import type { StatusMap } from './types';
+
+/**
+ * What a model did, as the audit log stores it in `event`. Only model lifecycle events carry one;
+ * entries written by `AuditService::log()` leave it empty and say what happened in `description`.
+ */
+export const AUDIT_EVENT = {
+    created: { label: 'Dibuat', tone: 'success' },
+    updated: { label: 'Diperbarui', tone: 'info' },
+    deleted: { label: 'Dihapus', tone: 'danger' },
+    restored: { label: 'Dipulihkan', tone: 'warning' },
+} satisfies StatusMap;
+
+/** The area of the system an entry belongs to (`log_name`): a kind, so neutral. */
+export const AUDIT_MODULE = {
+    customer: { label: 'Pelanggan', tone: 'neutral' },
+    customer_address: { label: 'Alamat pelanggan', tone: 'neutral' },
+    customer_contact: { label: 'Kontak pelanggan', tone: 'neutral' },
+    service_subscription: { label: 'Langganan', tone: 'neutral' },
+    billing: { label: 'Tagihan', tone: 'neutral' },
+    invoice: { label: 'Dokumen tagihan', tone: 'neutral' },
+    payment_attempt: { label: 'Pembayaran online', tone: 'neutral' },
+    inventory: { label: 'Inventaris', tone: 'neutral' },
+    inventory_request: { label: 'Permintaan barang', tone: 'neutral' },
+    material_return_case: { label: 'Pengembalian material', tone: 'neutral' },
+    product: { label: 'Barang', tone: 'neutral' },
+    category: { label: 'Kategori barang', tone: 'neutral' },
+    unit: { label: 'Satuan', tone: 'neutral' },
+    spk: { label: 'SPK', tone: 'neutral' },
+    work_order: { label: 'Perintah kerja', tone: 'neutral' },
+    ticket: { label: 'Tiket', tone: 'neutral' },
+    ticket_category: { label: 'Kategori tiket', tone: 'neutral' },
+    user: { label: 'Pengguna', tone: 'neutral' },
+    auth: { label: 'Autentikasi', tone: 'neutral' },
+    security: { label: 'Keamanan', tone: 'neutral' },
+    company: { label: 'Perusahaan', tone: 'neutral' },
+    location: { label: 'Lokasi', tone: 'neutral' },
+    network_asset: { label: 'Aset jaringan', tone: 'neutral' },
+    network_account: { label: 'Akun jaringan', tone: 'neutral' },
+    nas_device: { label: 'Perangkat NAS', tone: 'neutral' },
+    odn: { label: 'ODN', tone: 'neutral' },
+    odn_port: { label: 'Port ODN', tone: 'neutral' },
+    odn_splitter: { label: 'Splitter ODN', tone: 'neutral' },
+    ipam: { label: 'IPAM', tone: 'neutral' },
+    ip_address: { label: 'Alamat IP', tone: 'neutral' },
+    ip_prefix: { label: 'Prefiks IP', tone: 'neutral' },
+    vlan: { label: 'VLAN', tone: 'neutral' },
+    organization: { label: 'Organisasi', tone: 'neutral' },
+    organization_unit: { label: 'Unit organisasi', tone: 'neutral' },
+    employee_profile: { label: 'Profil karyawan', tone: 'neutral' },
+    employee_evaluation: { label: 'Evaluasi karyawan', tone: 'neutral' },
+    vehicle: { label: 'Kendaraan', tone: 'neutral' },
+    document_type: { label: 'Jenis dokumen', tone: 'neutral' },
+    service_package: { label: 'Paket layanan', tone: 'neutral' },
+    service_package_category: { label: 'Kategori paket', tone: 'neutral' },
+    bandwidth_profile: { label: 'Profil bandwidth', tone: 'neutral' },
+    speed_profile: { label: 'Profil kecepatan', tone: 'neutral' },
+    sla_tier: { label: 'Tingkat SLA', tone: 'neutral' },
+    number_sequence: { label: 'Penomoran', tone: 'neutral' },
+    whatsapp: { label: 'WhatsApp', tone: 'neutral' },
+    approval: { label: 'Persetujuan', tone: 'neutral' },
+    setting: { label: 'Pengaturan', tone: 'neutral' },
+} satisfies StatusMap;

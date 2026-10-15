@@ -1,12 +1,23 @@
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
 import { Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, CardHeader, CardTitle, Input, Modal } from '@/Components/ui';
-import { PageHeader, StatusBadge } from '@/Components/composite';
+import {
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+    EmptyCell,
+    EnumBadge,
+    Input,
+    Modal,
+} from '@/Components/ui';
+import { PageHeader } from '@/Components/composite';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
-import { formatDateTime } from '@/lib/format';
+import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
+import { SUBSCRIPTION_STATUS } from '@/lib/statuses';
 import type { ServiceSubscription } from '@/types/models';
 import { SubscriptionNetworkPanels } from '@/Components/composite/SubscriptionNetworkPanels';
 import type { DropPort, DropPortOption, StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
@@ -18,9 +29,18 @@ interface ShowProps extends Record<string, unknown> {
     /** Present only for holders of ipam.assign. */
     staticPools?: StaticPool[];
     dropPort: DropPort | null;
-    /** Free ODP ports; delivered by a partial reload that asks for them (odn.assign only). */
+    /** Free ODP ports, found by typing an ODP code; odn.assign only. */
     dropPortOptions?: DropPortOption[];
     can: { assignIp: boolean; assignDrop: boolean; block: boolean };
+}
+
+function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <>
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words">{children}</dd>
+        </>
+    );
 }
 
 export default function Show({
@@ -50,21 +70,12 @@ export default function Show({
         }
     };
 
-    const status =
-        s.status === 'active'
-            ? 'success'
-            : s.status === 'suspended'
-              ? 'warning'
-              : s.status === 'terminated'
-                ? 'danger'
-                : 'muted';
-
     return (
-        <AdminLayout title={`Subscription ${s.code}`}>
+        <AdminLayout title={`Langganan ${s.code}`}>
             <div className="space-y-6">
                 <PageHeader
-                    title={`Subscription ${s.code}`}
-                    subtitle="Record details and related activity."
+                    title={`Langganan ${s.code}`}
+                    subtitle="Rincian, status, dan jaringan langganan ini."
                     actions={
                         <Button
                             asChild
@@ -78,7 +89,7 @@ export default function Show({
                                     Number(s.customer_id ?? 0),
                                 )}
                             >
-                                Back
+                                Kembali
                             </Link>
                         </Button>
                     }
@@ -87,106 +98,85 @@ export default function Show({
                 <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Rincian langganan</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Package: </span>
-                                {s.package?.name ?? `#${s.service_package_id}`}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Kategori paket: </span>
-                                {s.package?.category?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Customer: </span>
-                                {s.customer?.name ?? `#${s.customer_id}`}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">
-                                    Installation Address:{' '}
-                                </span>
-                                {s.installation_address?.label ?? `#${s.installation_address_id}`}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Serving POP: </span>
-                                {s.serving_pop?.name ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">MRC: </span>
-                                {s.mrc_amount}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">OTC: </span>
-                                {s.otc_installation_fee}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Billing Day: </span>
-                                {s.billing_day}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Contract Months: </span>
-                                {s.contract_months ?? '-'}
-                            </p>
-                            {s.notes && (
-                                <p>
-                                    <span className="text-muted-foreground">Notes: </span>
-                                    {s.notes}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Paket">
+                                    {s.package?.name ?? `#${s.service_package_id}`}
+                                </DetailRow>
+                                <DetailRow label="Kategori paket">
+                                    {s.package?.category?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Pelanggan">
+                                    {s.customer?.name ?? `#${s.customer_id}`}
+                                </DetailRow>
+                                <DetailRow label="Alamat pemasangan">
+                                    {s.installation_address?.label ??
+                                        `#${s.installation_address_id}`}
+                                </DetailRow>
+                                <DetailRow label="POP pelayan">
+                                    {s.serving_pop?.name ?? <EmptyCell />}
+                                </DetailRow>
+                                <DetailRow label="Biaya bulanan">
+                                    {formatMoney(s.mrc_amount)}
+                                </DetailRow>
+                                <DetailRow label="Biaya pemasangan">
+                                    {formatMoney(s.otc_installation_fee)}
+                                </DetailRow>
+                                <DetailRow label="Tanggal tagihan">{s.billing_day}</DetailRow>
+                                <DetailRow label="Masa kontrak">
+                                    {s.contract_months ? (
+                                        `${s.contract_months} bulan`
+                                    ) : (
+                                        <EmptyCell />
+                                    )}
+                                </DetailRow>
+                                {s.notes ? <DetailRow label="Catatan">{s.notes}</DetailRow> : null}
+                            </dl>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Status</CardTitle>
                         </CardHeader>
-                        <CardContent className="space-y-3 text-sm">
-                            <p>
-                                <span className="text-muted-foreground">Status: </span>
-                                <StatusBadge variant={status}>{s.status}</StatusBadge>
-                            </p>
-                            {s.blocked_at && (
-                                <div className="space-y-1">
-                                    <p>
-                                        <span className="text-muted-foreground">Internet: </span>
-                                        <BlockedBadge />
-                                    </p>
-                                    <p>
-                                        <span className="text-muted-foreground">
-                                            Block reason:{' '}
-                                        </span>
-                                        {s.block_reason ?? '-'}
-                                    </p>
-                                    <p>
-                                        <span className="text-muted-foreground">Blocked by: </span>
-                                        {s.blocked_by?.name ?? '-'}, {formatDateTime(s.blocked_at)}
-                                    </p>
-                                </div>
-                            )}
-                            <p>
-                                <span className="text-muted-foreground">Activation Date: </span>
-                                {s.activation_date ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Expiration Date: </span>
-                                {s.expiration_date ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Next Invoice: </span>
-                                {s.next_invoice_date ?? '-'}
-                            </p>
-                            <p>
-                                <span className="text-muted-foreground">Terminated At: </span>
-                                {s.terminated_at ?? '-'}
-                            </p>
-                            {s.terminated_reason && (
-                                <p>
-                                    <span className="text-muted-foreground">
-                                        Terminated Reason:{' '}
-                                    </span>
-                                    {s.terminated_reason}
-                                </p>
-                            )}
+                        <CardContent>
+                            <dl className="grid grid-cols-[max-content_1fr] items-center gap-x-6 gap-y-3 text-sm">
+                                <DetailRow label="Status">
+                                    <EnumBadge map={SUBSCRIPTION_STATUS} value={s.status} />
+                                </DetailRow>
+                                {s.blocked_at && (
+                                    <>
+                                        <DetailRow label="Internet">
+                                            <BlockedBadge />
+                                        </DetailRow>
+                                        <DetailRow label="Alasan blokir">
+                                            {s.block_reason ?? <EmptyCell />}
+                                        </DetailRow>
+                                        <DetailRow label="Diblokir oleh">
+                                            {s.blocked_by?.name ?? '-'},{' '}
+                                            {formatDateTime(s.blocked_at)}
+                                        </DetailRow>
+                                    </>
+                                )}
+                                <DetailRow label="Tanggal aktivasi">
+                                    {formatDate(s.activation_date)}
+                                </DetailRow>
+                                <DetailRow label="Tanggal berakhir">
+                                    {formatDate(s.expiration_date)}
+                                </DetailRow>
+                                <DetailRow label="Tagihan berikutnya">
+                                    {formatDate(s.next_invoice_date)}
+                                </DetailRow>
+                                <DetailRow label="Berhenti pada">
+                                    {formatDateTime(s.terminated_at)}
+                                </DetailRow>
+                                {s.terminated_reason ? (
+                                    <DetailRow label="Alasan berhenti">
+                                        {s.terminated_reason}
+                                    </DetailRow>
+                                ) : null}
+                            </dl>
                         </CardContent>
                     </Card>
                 </div>
@@ -207,7 +197,7 @@ export default function Show({
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Lifecycle Actions</CardTitle>
+                        <CardTitle>Aksi langganan</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
@@ -218,7 +208,7 @@ export default function Show({
                                         post(route('admin.subscriptions.activate', s.id))
                                     }
                                 >
-                                    Activate
+                                    Aktifkan
                                 </Button>
                             )}
                             {s.status === 'active' && (
@@ -227,7 +217,7 @@ export default function Show({
                                     variant="outline"
                                     onClick={() => setActionModal('suspend')}
                                 >
-                                    Suspend
+                                    Tangguhkan
                                 </Button>
                             )}
                             {s.status === 'suspended' && (
@@ -237,7 +227,7 @@ export default function Show({
                                         post(route('admin.subscriptions.reactivate', s.id))
                                     }
                                 >
-                                    Reactivate
+                                    Aktifkan kembali
                                 </Button>
                             )}
                             {(s.status === 'active' || s.status === 'suspended') && (
@@ -246,7 +236,7 @@ export default function Show({
                                     variant="danger"
                                     onClick={() => setActionModal('terminate')}
                                 >
-                                    Terminate
+                                    Hentikan
                                 </Button>
                             )}
                             {canBlock && s.status !== 'terminated' && (
@@ -255,7 +245,7 @@ export default function Show({
                                     variant={s.blocked_at ? 'outline' : 'danger'}
                                     onClick={() => setBlockOpen(true)}
                                 >
-                                    {s.blocked_at ? 'Unblock' : 'Block internet'}
+                                    {s.blocked_at ? 'Buka blokir' : 'Blokir internet'}
                                 </Button>
                             )}
                             {can('network_asset.account.view') && (
@@ -266,7 +256,7 @@ export default function Show({
                                             s.id,
                                         )}
                                     >
-                                        Network access
+                                        Akses jaringan
                                     </Link>
                                 </Button>
                             )}
@@ -292,33 +282,26 @@ export default function Show({
                     open={actionModal !== null}
                     onClose={() => setActionModal(null)}
                     title={
-                        actionModal === 'suspend'
-                            ? 'Suspend Subscription'
-                            : 'Terminate Subscription'
+                        actionModal === 'suspend' ? 'Tangguhkan Langganan' : 'Hentikan Langganan'
                     }
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         <Input
-                            label="Reason"
+                            label="Alasan"
                             value={data.reason}
                             onChange={(e) => setData('reason', e.target.value)}
                             required
                         />
-                        {actionModal === 'terminate' && (
-                            <div className="text-sm text-muted-foreground">
-                                ONT release will be available in Phase 3.
-                            </div>
-                        )}
                         <div className="flex justify-end gap-2">
                             <Button
                                 type="button"
                                 variant="secondary"
                                 onClick={() => setActionModal(null)}
                             >
-                                Cancel
+                                Batal
                             </Button>
                             <Button type="submit" variant="danger" loading={processing}>
-                                {actionModal === 'suspend' ? 'Suspend' : 'Terminate'}
+                                {actionModal === 'suspend' ? 'Tangguhkan' : 'Hentikan'}
                             </Button>
                         </div>
                     </form>

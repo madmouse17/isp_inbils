@@ -49,6 +49,18 @@ class TicketCategoryAdminTest extends TestCase
         }
     }
 
+    public function test_the_list_carries_each_categorys_customer_hint(): void
+    {
+        $this->category->forceFill(['customer_hint' => 'Matikan modem 30 detik, lalu nyalakan lagi.'])->save();
+        $this->category($this->company, 'fiber', 'Fiber', 12, 6);
+
+        $this->actingAs($this->user('manager'))->get(route('admin.ticket-categories.index'))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('categories.0.name', 'Fiber')
+            ->where('categories.0.customer_hint', null)
+            ->where('categories.1.customer_hint', 'Matikan modem 30 detik, lalu nyalakan lagi.'));
+    }
+
     public function test_staff_gets_403_and_app_only_personas_are_redirected(): void
     {
         foreach (['staff', 'technician', 'customer'] as $role) {
@@ -72,6 +84,34 @@ class TicketCategoryAdminTest extends TestCase
             'id' => $this->category->id, 'name' => 'Internet Mati', 'code' => 'no_internet',
             'default_sla_hours' => 10, 'default_response_hours' => 3, 'is_active' => false,
         ]);
+    }
+
+    public function test_manager_writes_clears_and_leaves_alone_the_customer_hint(): void
+    {
+        $manager = $this->user('manager');
+        $url = route('admin.ticket-categories.update', $this->category);
+
+        $this->actingAs($manager)->put($url, $this->payload(['customer_hint' => '  Cek kabel LAN ke modem.  ']))->assertSessionHasNoErrors();
+        $this->assertSame('Cek kabel LAN ke modem.', $this->category->fresh()->customer_hint);
+
+        // A form that does not send the field (the page before the hint field existed) must not wipe it.
+        $this->actingAs($manager)->put($url, $this->payload(['name' => 'Tanpa Internet Baru']))->assertSessionHasNoErrors();
+        $this->assertSame('Cek kabel LAN ke modem.', $this->category->fresh()->customer_hint);
+
+        $this->actingAs($manager)->put($url, $this->payload(['customer_hint' => '']))->assertSessionHasNoErrors();
+        $this->assertNull($this->category->fresh()->customer_hint);
+    }
+
+    public function test_the_customer_hint_holds_at_most_500_characters(): void
+    {
+        $manager = $this->user('manager');
+        $url = route('admin.ticket-categories.update', $this->category);
+
+        $this->actingAs($manager)->put($url, $this->payload(['customer_hint' => str_repeat('é', 501)]))->assertSessionHasErrors('customer_hint');
+        $this->assertNull($this->category->fresh()->customer_hint);
+
+        $this->actingAs($manager)->put($url, $this->payload(['customer_hint' => str_repeat('é', 500)]))->assertSessionHasNoErrors();
+        $this->assertSame(500, mb_strlen((string) $this->category->fresh()->customer_hint));
     }
 
     public function test_validation_bounds_and_response_not_longer_than_resolution(): void

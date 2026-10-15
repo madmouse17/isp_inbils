@@ -48,16 +48,16 @@ const febTotal: Figures = {
     collected: 3_000_000,
     rate: '88.24%',
 };
-const none: Figures = { customers: 0, subscriptions: 0, invoiced: 0, collected: 0, rate: 'n/a' };
+const none: Figures = { customers: 0, subscriptions: 0, invoiced: 0, collected: 0, rate: '-' };
 
 const metricLabels = [
-    'Customers Acquired',
-    'Subscriptions Activated',
-    'Active MRR',
-    'Invoiced',
-    'Collected',
-    'Outstanding',
-    'Collection Rate',
+    'Pelanggan baru',
+    'Langganan diaktifkan',
+    'MRR aktif',
+    'Ditagihkan',
+    'Terkumpul',
+    'Piutang',
+    'Tingkat penagihan',
 ] as const;
 
 const hubRoles = ['admin', 'manager'] as const;
@@ -132,7 +132,7 @@ const bodyRow = (page: Page, name: string) =>
         .locator('tbody')
         .getByRole('row')
         .filter({ has: page.getByRole('cell', { name, exact: true }) });
-const footRow = (page: Page, name: 'Unassigned' | 'Total') =>
+const footRow = (page: Page, name: 'Tanpa petugas' | 'Total') =>
     page
         .locator('tfoot')
         .getByRole('row')
@@ -158,14 +158,14 @@ async function expectFigures(row: Locator, expected: Figures) {
 
     // Snapshot figures are only checked for shape: other specs may change them.
     const cells = await cellsOf(row);
-    expect(cells, 'Acquirer + 7 metric cells').toHaveLength(8);
+    expect(cells, 'Petugas + 7 sel metrik').toHaveLength(8);
     expect(cells[3]).toMatch(rupiah);
     expect(cells[6]).toMatch(rupiah);
 }
 
 const totalCard = (page: Page, label: string) =>
     page
-        .getByRole('region', { name: 'Totals' })
+        .getByRole('region', { name: 'Total' })
         .locator(':scope > div > div')
         .filter({ has: page.getByRole('heading', { name: label, exact: true }) });
 
@@ -191,66 +191,72 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect(main.getByRole('heading', { name: 'KPI Penjualan', level: 1 })).toBeVisible();
         await expect(
             main.getByText(
-                'Customers acquired, invoiced, collected and outstanding per acquirer.',
+                'Pelanggan baru, tagihan, pembayaran, dan piutang per petugas penjualan.',
                 { exact: true },
             ),
         ).toBeVisible();
-        await expect(main.getByText('Formula version sales.v1')).toBeVisible();
+        await expect(main.getByText('Versi rumus sales.v1')).toBeVisible();
         const fmt = await dayFormatter(page);
         await expect(
-            main.getByText(`Periode: ${fmt('2025-02-01')} – ${fmt('2025-02-28')}`, {
+            main.getByText(`Periode: ${fmt('2025-02-01')} - ${fmt('2025-02-28')}`, {
                 exact: true,
             }),
         ).toBeVisible();
         await expect(
             main.getByText(
-                "Each figure follows the customer's current acquirer. Correcting an acquirer moves that customer's whole history, so past periods can change.",
+                'Setiap angka mengikuti petugas penjualan pelanggan saat ini. Mengoreksi petugas memindahkan seluruh riwayat pelanggan itu, jadi periode yang lalu bisa berubah.',
                 { exact: true },
             ),
         ).toBeVisible();
         await expect(
             main.getByText(
-                'Collected counts every non-reversed payment by payment date. It does not match Business Metrics Revenue (Paid), which counts fully paid invoices by issue date.',
+                'Terkumpul menghitung setiap pembayaran yang tidak dibatalkan menurut tanggal bayar. Angkanya tidak sama dengan Pendapatan terbayar di Metrik Bisnis, yang menghitung tagihan lunas menurut tanggal terbit.',
                 { exact: true },
             ),
         ).toBeVisible();
-        await expect(page.getByRole('button', { name: /export/i })).toHaveCount(0);
+        await expect(page.getByRole('button', { name: /ekspor/i })).toHaveCount(0);
 
         // Seven total cards, each with its definition, basis and version.
-        const totals = main.getByRole('region', { name: 'Totals' });
+        const totals = main.getByRole('region', { name: 'Total' });
         for (const label of metricLabels) {
             await expect(totals.getByRole('heading', { name: label, exact: true })).toBeVisible();
         }
         await expect(totals.getByRole('heading')).toHaveCount(metricLabels.length);
-        await expect(totals.getByText('Period · v1', { exact: true })).toHaveCount(5);
-        await expect(totals.getByText('Snapshot · v1', { exact: true })).toHaveCount(2);
-        const summaries = totals.getByText('Formula and sources', { exact: true });
+        await expect(totals.getByText('Per periode · v1', { exact: true })).toHaveCount(5);
+        await expect(totals.getByText('Posisi saat ini · v1', { exact: true })).toHaveCount(2);
+        const summaries = totals.getByText('Rumus dan sumber data', { exact: true });
         await expect(summaries).toHaveCount(metricLabels.length);
 
-        await expect(totalCard(page, 'Customers Acquired').locator('p').first()).toHaveText('4');
-        await expect(totalCard(page, 'Subscriptions Activated').locator('p').first()).toHaveText(
-            '4',
+        await expect(totalCard(page, 'Pelanggan baru').locator('p').first()).toHaveText('4');
+        await expect(totalCard(page, 'Langganan diaktifkan').locator('p').first()).toHaveText('4');
+        await expect(totalCard(page, 'Tingkat penagihan').locator('p').first()).toHaveText(
+            '88.24%',
         );
-        await expect(totalCard(page, 'Collection Rate').locator('p').first()).toHaveText('88.24%');
-        for (const [label, amount] of [
-            ['Invoiced', febTotal.invoiced],
-            ['Collected', febTotal.collected],
+        for (const [label, amount, short] of [
+            ['Ditagihkan', febTotal.invoiced, 'Rp 3,4 jt'],
+            ['Terkumpul', febTotal.collected, 'Rp 3 jt'],
         ] as const) {
-            const value = squash(await totalCard(page, label).locator('p').first().innerText());
-            expect(value, label).toMatch(rupiah);
-            expect(digits(value), label).toBe(amount);
+            const figure = totalCard(page, label).locator('p').first();
+            // A card reads short; its tooltip holds the exact rupiah, which a screen reader announces instead.
+            const exact = squash((await figure.locator('[title]').getAttribute('title')) ?? '');
+            expect(exact, label).toMatch(rupiah);
+            expect(digits(exact), label).toBe(amount);
+            // Short on screen, exact for a screen reader.
+            await expect(figure.getByText(short, { exact: true }), label).toBeVisible();
+            await expect(figure, label).toContainText(exact);
         }
-        for (const label of ['Active MRR', 'Outstanding']) {
-            expect(squash(await totalCard(page, label).locator('p').first().innerText())).toMatch(
-                rupiah,
-            );
+        for (const label of ['MRR aktif', 'Piutang']) {
+            const figure = totalCard(page, label).locator('p').first();
+            const exact = squash((await figure.locator('[title]').getAttribute('title')) ?? '');
+            expect(exact, label).toMatch(rupiah);
+            await expect(figure, label).toContainText(exact);
         }
 
         // Formula and sources open by keyboard and show the date column of the metric.
-        const invoiced = totalCard(page, 'Invoiced');
+        const invoiced = totalCard(page, 'Ditagihkan');
         const source = invoiced.locator('code', { hasText: 'invoices.issue_date' });
         await expect(source).toBeHidden();
-        const summary = invoiced.getByText('Formula and sources', { exact: true });
+        const summary = invoiced.getByText('Rumus dan sumber data', { exact: true });
         await summary.focus();
         await expect(summary).toBeFocused();
         await page.keyboard.press('Enter');
@@ -260,11 +266,11 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
 
         // Rows: exact period figures per acquirer and for Unassigned.
         await expect(
-            page.getByRole('columnheader', { name: 'Acquirer', exact: true }),
+            page.getByRole('columnheader', { name: 'Petugas penjualan', exact: true }),
         ).toHaveAttribute('aria-sort', 'ascending');
         await expectFigures(bodyRow(page, manager), febManager);
         await expectFigures(bodyRow(page, staff), febStaff);
-        await expectFigures(footRow(page, 'Unassigned'), febUnassigned);
+        await expectFigures(footRow(page, 'Tanpa petugas'), febUnassigned);
         await expectFigures(footRow(page, 'Total'), febTotal);
 
         // Total reconciles with every visible row plus Unassigned.
@@ -283,7 +289,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     cellsOf(page.locator('tbody tr').nth(index)),
                 ),
             )),
-            await cellsOf(footRow(page, 'Unassigned')),
+            await cellsOf(footRow(page, 'Tanpa petugas')),
         ];
         for (const row of cells) {
             const figures = figuresOf(row);
@@ -300,11 +306,12 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
     test('acquirer filter narrows the table and drops the Unassigned row', async ({ page }) => {
         await loginAs(page, 'manager');
         await page.goto(febUrl);
-        const select = page.getByRole('combobox', { name: 'Acquirer' });
-        const run = page.getByRole('button', { name: 'Run', exact: true });
+        const select = page.getByRole('combobox', { name: 'Petugas penjualan' });
+        const run = page.getByRole('button', { name: 'Tampilkan', exact: true });
         await expect(bodyRow(page, staff)).toHaveCount(1);
 
-        await select.selectOption({ label: staff });
+        await select.fill(staff);
+        await page.getByRole('option', { name: staff }).click();
         await run.click();
         await expect.poll(() => query(page, 'acquirer_id')).toMatch(/^\d+$/);
         expect(query(page, 'date_from')).toBe('2025-02-01');
@@ -312,20 +319,20 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect(page.locator('tbody tr')).toHaveCount(1);
         await expect(bodyRow(page, staff)).toHaveCount(1);
         await expect(bodyRow(page, manager)).toHaveCount(0);
-        await expect(footRow(page, 'Unassigned')).toHaveCount(0);
+        await expect(footRow(page, 'Tanpa petugas')).toHaveCount(0);
         await expectFigures(bodyRow(page, staff), febStaff);
         await expectFigures(footRow(page, 'Total'), febStaff);
 
         const rowCells = (await cellsOf(bodyRow(page, staff))).slice(1);
         expect((await cellsOf(footRow(page, 'Total'))).slice(1)).toEqual(rowCells);
-        await expect(totalCard(page, 'Customers Acquired').locator('p').first()).toHaveText('1');
+        await expect(totalCard(page, 'Pelanggan baru').locator('p').first()).toHaveText('1');
 
-        await select.selectOption({ label: 'All acquirers' });
+        await page.getByRole('button', { name: 'Hapus pilihan: Petugas penjualan' }).click();
         await run.click();
         await expect.poll(() => query(page, 'acquirer_id')).toBeNull();
         await expect(bodyRow(page, manager)).toHaveCount(1);
         await expect(bodyRow(page, staff)).toHaveCount(1);
-        await expectFigures(footRow(page, 'Unassigned'), febUnassigned);
+        await expectFigures(footRow(page, 'Tanpa petugas'), febUnassigned);
         await expectFigures(footRow(page, 'Total'), febTotal);
     });
 
@@ -335,7 +342,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await loginAs(page, 'manager');
         await page.goto(febUrl);
         const period = page.getByLabel('Periode', { exact: true });
-        const run = page.getByRole('button', { name: 'Run', exact: true });
+        const run = page.getByRole('button', { name: 'Tampilkan', exact: true });
         const main = page.getByRole('main');
         const fmt = await dayFormatter(page);
         await expectFigures(bodyRow(page, manager), febManager);
@@ -347,7 +354,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect.poll(() => query(page, 'date_from')).toBe('2025-03-01');
         expect(query(page, 'date_to')).toBe('2025-03-31');
         await expect(
-            main.getByText(`Periode: ${fmt('2025-03-01')} – ${fmt('2025-03-31')}`, {
+            main.getByText(`Periode: ${fmt('2025-03-01')} - ${fmt('2025-03-31')}`, {
                 exact: true,
             }),
         ).toBeVisible();
@@ -433,7 +440,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect(bodyRow(page, manager)).toHaveCount(1);
 
         // Collected: Demo Staff (400000) before Demo Manager (2300000) ascending.
-        const collected = page.getByRole('columnheader', { name: 'Collected', exact: true });
+        const collected = page.getByRole('columnheader', { name: 'Terkumpul', exact: true });
         await collected.getByRole('button').click();
         await expect.poll(() => query(page, 'sort')).toBe('collected');
         expect(query(page, 'direction')).toBe('asc');
@@ -446,7 +453,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await expect.poll(async () => before(await bodyNames(page), manager, staff)).toBe(true);
 
         // Acquirer name: ascending puts Demo Manager first, descending Demo Staff.
-        const acquirer = page.getByRole('columnheader', { name: 'Acquirer', exact: true });
+        const acquirer = page.getByRole('columnheader', { name: 'Petugas penjualan', exact: true });
         await acquirer.getByRole('button').click();
         await expect.poll(() => query(page, 'sort')).toBe('name');
         await expect.poll(() => query(page, 'direction')).toBe('asc');
@@ -473,7 +480,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await page.reload();
         await expect(page.getByLabel('Baris per halaman')).toHaveValue('25');
         await expect(
-            page.getByRole('columnheader', { name: 'Acquirer', exact: true }),
+            page.getByRole('columnheader', { name: 'Petugas penjualan', exact: true }),
         ).toHaveAttribute('aria-sort', 'descending');
         const fmt = await dayFormatter(page);
         await expect(page.getByLabel('Periode', { exact: true })).toHaveValue(
@@ -489,7 +496,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
             await loginAs(page, role);
             await page.goto('/admin/reports');
             const main = page.getByRole('main');
-            await main.getByRole('link', { name: 'Open Sales KPI', exact: true }).click();
+            await main.getByRole('link', { name: 'KPI Penjualan', exact: true }).click();
             await expect(page).toHaveURL(/\/admin\/reports\/sales$/);
             await expect(
                 main.getByRole('heading', { name: 'KPI Penjualan', level: 1 }),
@@ -514,23 +521,31 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     main.getByRole('heading', { name: 'Laporan', level: 1 }),
                 ).toBeVisible();
                 await expect(
-                    main.getByRole('link', { name: 'Open Sales KPI', exact: true }),
+                    main.getByRole('link', { name: 'KPI Penjualan', exact: true }),
                 ).toHaveCount(0);
             }
             await logout(page);
         }
     });
 
-    test('an acquirer id outside the report is refused, not shown as empty', async ({
+    test('an acquirer id outside the report is refused with a validation error, not shown as empty', async ({
         page,
-        expectHttpError,
     }) => {
         await loginAs(page, 'manager');
-        const path = '/admin/reports/sales?acquirer_id=999999999';
-        expectHttpError({ url: path, method: 'GET', status: 403 });
-        const response = await page.goto(path);
-        expect(response?.status()).toBe(403);
-        await expect(page.getByRole('heading', { name: 'KPI Penjualan' })).toHaveCount(0);
+        const reportUrl = new URL('/admin/reports/sales', page.url()).href;
+        // A crafted URL fails validation on `acquirer_id`: the server sends the visitor back where the request
+        // came from, with the error, and never renders the report for that id.
+        const refused = await page.request.get('/admin/reports/sales?acquirer_id=999999999', {
+            maxRedirects: 0,
+            headers: { Referer: reportUrl },
+        });
+        expect(refused.status()).toBe(302);
+        expect(refused.headers()['location']).toBe(reportUrl);
+
+        // The error waits in the session; the report page names it next to the Petugas penjualan field.
+        await page.goto('/admin/reports/sales');
+        await expect(page.getByRole('heading', { name: 'KPI Penjualan', level: 1 })).toBeVisible();
+        await expect(page.getByText('Petugas penjualan tidak ditemukan.')).toBeVisible();
     });
 
     test('stays usable without overflow, keyboard reachable and focus visible across widths and themes', async ({
@@ -551,7 +566,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     await expect(bodyRow(page, manager)).toHaveCount(1);
 
                     // Keyboard: focus ring on Run and on a sort header, then every control in order.
-                    const run = page.getByRole('button', { name: 'Run', exact: true });
+                    const run = page.getByRole('button', { name: 'Tampilkan', exact: true });
                     await expectFocusIndicator(run);
                     const bounds = await run.boundingBox();
                     expect(bounds).not.toBeNull();
@@ -559,7 +574,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
                     await expectFocusIndicator(
                         page
-                            .getByRole('columnheader', { name: 'Collected', exact: true })
+                            .getByRole('columnheader', { name: 'Terkumpul', exact: true })
                             .getByRole('button'),
                     );
 
@@ -582,13 +597,13 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
                     }
                     for (const expected of [
                         'BUTTON:Buka kalender',
-                        'SELECT:Acquirer',
-                        'SELECT:Kategori paket',
-                        'BUTTON:Run',
-                        'BUTTON:Acquirer',
-                        'BUTTON:Customers Acquired',
-                        'BUTTON:Collected',
-                        'BUTTON:Collection Rate',
+                        'INPUT:Petugas penjualan',
+                        'INPUT:Kategori paket',
+                        'BUTTON:Tampilkan',
+                        'BUTTON:Petugas penjualan',
+                        'BUTTON:Pelanggan baru',
+                        'BUTTON:Terkumpul',
+                        'BUTTON:Tingkat penagihan',
                         'SELECT:Baris per halaman',
                     ]) {
                         expect([...reached], expected).toContain(expected);

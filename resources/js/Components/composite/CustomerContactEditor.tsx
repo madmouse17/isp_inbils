@@ -130,7 +130,7 @@ export function CustomerContactEditor({
         <div className="space-y-4">
             <Card>
                 <CardHeader className="space-y-0 flex-row flex-wrap items-center justify-between">
-                    <CardTitle>Contacts</CardTitle>
+                    <CardTitle>Kontak</CardTitle>
                     {canManage ? (
                         <Button
                             type="button"
@@ -139,14 +139,16 @@ export function CustomerContactEditor({
                             onClick={startCreate}
                             disabled={processing}
                         >
-                            Add Contact
+                            Tambah kontak
                         </Button>
                     ) : null}
                 </CardHeader>
                 <CardContent className="space-y-3">
                     {contacts.length === 0 ? (
                         <p className="py-6 text-center text-sm text-muted-foreground">
-                            No contacts yet.
+                            {canManage
+                                ? 'Belum ada kontak. Tambahkan kontak pertama lewat formulir di bawah.'
+                                : 'Belum ada kontak.'}
                         </p>
                     ) : (
                         contacts.map((row) => (
@@ -159,14 +161,14 @@ export function CustomerContactEditor({
                                         {row.name}
                                         {row.is_primary ? (
                                             <span className="ml-2 text-xs text-muted-foreground">
-                                                (primary)
+                                                (utama)
                                             </span>
                                         ) : null}
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         {[row.position, row.phone, row.email]
                                             .filter(Boolean)
-                                            .join(' · ') || '-'}
+                                            .join(', ') || '-'}
                                     </p>
                                 </div>
                                 {canManage ? (
@@ -178,7 +180,7 @@ export function CustomerContactEditor({
                                             onClick={() => startEdit(row)}
                                             disabled={processing}
                                         >
-                                            Edit
+                                            Ubah
                                         </Button>
                                         <Button
                                             type="button"
@@ -187,7 +189,7 @@ export function CustomerContactEditor({
                                             onClick={() => setDeleteTarget(row)}
                                             disabled={processing}
                                         >
-                                            Delete
+                                            Hapus
                                         </Button>
                                     </div>
                                 ) : null}
@@ -200,26 +202,26 @@ export function CustomerContactEditor({
             {canManage ? (
                 <Card>
                     <CardHeader>
-                        <CardTitle>{editingId ? 'Edit Contact' : 'Add Contact'}</CardTitle>
+                        <CardTitle>{editingId ? 'Ubah Kontak' : 'Tambah Kontak'}</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <form onSubmit={submit} className="space-y-4" aria-busy={processing}>
                             <div className="grid gap-4 md:grid-cols-2">
                                 <Input
-                                    label="Name"
+                                    label="Nama"
                                     value={data.name}
                                     onChange={(e) => setData('name', e.target.value)}
                                     error={errors.name}
                                     required
                                 />
                                 <Input
-                                    label="Position"
+                                    label="Jabatan"
                                     value={data.position}
                                     onChange={(e) => setData('position', e.target.value)}
                                     error={errors.position}
                                 />
                                 <PhoneInput
-                                    label="Phone"
+                                    label="Telepon"
                                     value={data.phone}
                                     onChange={(value) => setData('phone', value)}
                                     error={errors.phone}
@@ -234,12 +236,12 @@ export function CustomerContactEditor({
                                 />
                             </div>
                             <Switch
-                                label="Primary contact"
+                                label="Kontak utama"
                                 checked={data.is_primary}
                                 onCheckedChange={(checked) => setData('is_primary', checked)}
                             />
                             <Textarea
-                                label="Notes"
+                                label="Catatan"
                                 value={data.notes}
                                 onChange={(e) => setData('notes', e.target.value)}
                                 error={errors.notes}
@@ -252,7 +254,7 @@ export function CustomerContactEditor({
                                     onClick={cancelEdit}
                                     disabled={processing}
                                 >
-                                    Cancel
+                                    Batal
                                 </Button>
                                 <Button
                                     type="submit"
@@ -260,7 +262,7 @@ export function CustomerContactEditor({
                                     loading={processing}
                                     disabled={processing}
                                 >
-                                    {editingId ? 'Save' : 'Add'}
+                                    {editingId ? 'Simpan' : 'Tambah'}
                                 </Button>
                             </div>
                         </form>
@@ -277,14 +279,14 @@ export function CustomerContactEditor({
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
-                            Delete contact {deleteTarget?.name ? `"${deleteTarget.name}"` : ''}?
+                            Hapus kontak {deleteTarget?.name ? `"${deleteTarget.name}"` : ''}?
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                            This will permanently remove this contact from the customer.
+                            Kontak ini akan dihapus permanen dari pelanggan.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel disabled={deleteProcessing}>Cancel</AlertDialogCancel>
+                        <AlertDialogCancel disabled={deleteProcessing}>Batal</AlertDialogCancel>
                         <AlertDialogAction
                             className={cn(buttonVariants({ variant: 'destructive' }), 'gap-2')}
                             onClick={(event) => {
@@ -294,7 +296,7 @@ export function CustomerContactEditor({
                             disabled={deleteProcessing}
                         >
                             {deleteProcessing ? <Spinner size="sm" /> : null}
-                            Delete
+                            Hapus
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

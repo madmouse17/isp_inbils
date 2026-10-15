@@ -22,4 +22,13 @@ class StoreSubscriptionAddressRequest extends FormRequest
             'address' => ['nullable', 'string', 'max:45'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'ip_prefix_id' => 'pool',
+            'address' => 'alamat',
+        ];
+    }
 }

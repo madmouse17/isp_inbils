@@ -58,17 +58,17 @@ class ReportExportContentTest extends TestCase
 
         $expected = [
             'MRR' => 700000,                  // active S1 + S2 + S6; the suspended, terminated and deleted ones are out
-            'Active Subscriptions' => 3,
-            'Suspended Subscriptions' => 1,
-            'Terminated Subscriptions' => 2,
-            'New Subscriptions' => 3,         // S1, S2, S3 created in January
+            'Langganan aktif' => 3,
+            'Langganan ditangguhkan' => 1,
+            'Langganan berhenti' => 2,
+            'Langganan baru' => 3,            // S1, S2, S3 created in January
             'Churn' => 1,                     // S4 terminated on the last second of January
-            'Revenue (Paid)' => 496000,       // I1 300000 + I2 150000 + I3 paid_amount 46000
-            'Recurring Revenue' => 450000,
-            'One-Time Revenue' => 46000,
-            'Outstanding' => 465000,          // I5 300000 + I6 120000 + I7 75000 + overpaid I10 -30000
-            'SLA Compliance' => 60.0,         // all time, ignores January: 3 of 5 resolved tickets on time
-            'Installations Completed' => 2,
+            'Pendapatan terbayar' => 496000,  // I1 300000 + I2 150000 + I3 paid_amount 46000
+            'Pendapatan berulang' => 450000,
+            'Pendapatan sekali bayar' => 46000,
+            'Piutang' => 465000,              // I5 300000 + I6 120000 + I7 75000 + overpaid I10 -30000
+            'Kepatuhan SLA' => 60.0,          // all time, ignores January: 3 of 5 resolved tickets on time
+            'Pemasangan selesai' => 2,
         ];
 
         foreach ($expected as $metric => $value) {
@@ -76,15 +76,15 @@ class ReportExportContentTest extends TestCase
             $this->assertEquals($value, (float) $figures[$metric], "{$metric} in the file");
         }
 
-        $this->assertEquals(1, (float) $figures['Asset Distribution / available']);
-        $this->assertEquals(2, (float) $figures['Asset Distribution / installed']);
-        $this->assertEquals(1, (float) $figures['Asset Distribution / retired']);
+        $this->assertEquals(1, (float) $figures['Sebaran aset / available']);
+        $this->assertEquals(2, (float) $figures['Sebaran aset / installed']);
+        $this->assertEquals(1, (float) $figures['Sebaran aset / retired']);
 
         // What the file says is what the page says.
         $this->assertEquals($screen->inertiaProps('data.mrr'), (float) $figures['MRR']);
-        $this->assertEquals($screen->inertiaProps('data.revenue_paid'), (float) $figures['Revenue (Paid)']);
-        $this->assertEquals($screen->inertiaProps('data.outstanding'), (float) $figures['Outstanding']);
-        $this->assertEquals($screen->inertiaProps('data.sla_compliance_pct'), (float) $figures['SLA Compliance']);
+        $this->assertEquals($screen->inertiaProps('data.revenue_paid'), (float) $figures['Pendapatan terbayar']);
+        $this->assertEquals($screen->inertiaProps('data.outstanding'), (float) $figures['Piutang']);
+        $this->assertEquals($screen->inertiaProps('data.sla_compliance_pct'), (float) $figures['Kepatuhan SLA']);
     }
 
     public function test_business_file_labels_scope_filters_and_version_of_every_figure(): void
@@ -93,25 +93,25 @@ class ReportExportContentTest extends TestCase
         $this->actingAs($this->admin);
 
         $records = collect($this->csvRecords($this->get(route('admin.reports.business.export', self::JANUARY))))
-            ->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
+            ->keyBy(fn (array $record): string => $record['Metrik'].'|'.$record['Rincian']);
 
-        $this->assertSame('Snapshot: period filter not applied', $records['MRR|']['Scope']);
-        $this->assertSame('Period: 2026-01-01 to 2026-01-31', $records['Revenue (Paid)|']['Scope']);
-        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filters']);
-        $this->assertSame('v1', $records['MRR|']['Version']);
-        $this->assertSame('currency', $records['MRR|']['Unit']);
+        $this->assertSame('Posisi saat ini: filter periode tidak berlaku', $records['MRR|']['Cakupan']);
+        $this->assertSame('Periode: 2026-01-01 sampai 2026-01-31', $records['Pendapatan terbayar|']['Cakupan']);
+        $this->assertSame('date_from=2026-01-01; date_to=2026-01-31', $records['MRR|']['Filter']);
+        $this->assertSame('v1', $records['MRR|']['Versi']);
+        $this->assertSame('currency', $records['MRR|']['Satuan']);
 
         $unfiltered = collect($this->csvRecords($this->get(route('admin.reports.business.export'))))
-            ->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
-        $this->assertSame('Period: no range set', $unfiltered['Revenue (Paid)|']['Scope']);
-        $this->assertSame('none', $unfiltered['Revenue (Paid)|']['Filters']);
+            ->keyBy(fn (array $record): string => $record['Metrik'].'|'.$record['Rincian']);
+        $this->assertSame('Periode: tanpa rentang', $unfiltered['Pendapatan terbayar|']['Cakupan']);
+        $this->assertSame('tidak ada', $unfiltered['Pendapatan terbayar|']['Filter']);
         // Without a range the period figures cover every record.
-        foreach (['Period: from 2026-01-01' => ['date_from' => '2026-01-01'], 'Period: up to 2026-01-31' => ['date_to' => '2026-01-31']] as $scope => $half) {
+        foreach (['Periode: dari 2026-01-01' => ['date_from' => '2026-01-01'], 'Periode: sampai 2026-01-31' => ['date_to' => '2026-01-31']] as $scope => $half) {
             $records = collect($this->csvRecords($this->get(route('admin.reports.business.export', $half))))
-                ->keyBy(fn (array $record): string => $record['Metric'].'|'.$record['Breakdown']);
-            $this->assertSame($scope, $records['Revenue (Paid)|']['Scope']);
+                ->keyBy(fn (array $record): string => $record['Metrik'].'|'.$record['Rincian']);
+            $this->assertSame($scope, $records['Pendapatan terbayar|']['Cakupan']);
         }
-        $this->assertEquals(7496000, (float) $unfiltered['Revenue (Paid)|']['Value']);   // I1 + I2 + I3 + the December I4 of 7000000
+        $this->assertEquals(7496000, (float) $unfiltered['Pendapatan terbayar|']['Nilai']);   // I1 + I2 + I3 + the December I4 of 7000000
     }
 
     public function test_a_company_never_receives_the_rows_of_another_company(): void
@@ -119,12 +119,12 @@ class ReportExportContentTest extends TestCase
         $this->seedBusinessWorld();
 
         $mine = $this->csvFigures($this->actingAs($this->admin)->get(route('admin.reports.business.export', self::JANUARY)));
-        $this->assertEquals(496000, (float) $mine['Revenue (Paid)']);
+        $this->assertEquals(496000, (float) $mine['Pendapatan terbayar']);
 
         $theirs = $this->csvFigures($this->actingAs($this->otherAdmin)->get(route('admin.reports.business.export', self::JANUARY)));
-        $this->assertEquals(9000000, (float) $theirs['Revenue (Paid)'], 'company B sees only its own invoice');
+        $this->assertEquals(9000000, (float) $theirs['Pendapatan terbayar'], 'company B sees only its own invoice');
         $this->assertEquals(5000000, (float) $theirs['MRR']);
-        $this->assertEquals(1, (float) $theirs['Active Subscriptions']);
+        $this->assertEquals(1, (float) $theirs['Langganan aktif']);
     }
 
     public function test_sla_file_matches_the_screen_including_the_unfiltered_category_breakdown(): void
@@ -135,18 +135,18 @@ class ReportExportContentTest extends TestCase
         $screen = $this->get(route('admin.reports.sla', self::JANUARY))->assertOk();
         $figures = $this->csvFigures($this->get(route('admin.reports.sla.export', self::JANUARY)));
 
-        $this->assertEquals(4, (float) $figures['Total Resolved']);         // T1..T4 resolved in January
-        $this->assertEquals(2, (float) $figures['SLA Compliant']);          // T1, T2 (resolved exactly at the deadline)
-        $this->assertEquals(50.0, (float) $figures['SLA Rate']);
-        $this->assertEquals(1, (float) $figures['Breaches']);               // T3 one second late
-        $this->assertEquals(113, (float) $figures['Avg Resolution']);       // (60 + 120 + 240 + 30) / 4 = 112.5 rounds to 113
-        $this->assertEquals(3, (float) $figures['Resolved by Category / Support: total']);   // v1: ignores the period, so T6 counts
-        $this->assertEquals(3, (float) $figures['Resolved by Category / Support: compliant']);
-        $this->assertEquals(2, (float) $figures['Resolved by Category / Outage: total']);
-        $this->assertEquals(0, (float) $figures['Resolved by Category / Outage: compliant']);
+        $this->assertEquals(4, (float) $figures['Tiket selesai']);         // T1..T4 resolved in January
+        $this->assertEquals(2, (float) $figures['Sesuai SLA']);            // T1, T2 (resolved exactly at the deadline)
+        $this->assertEquals(50.0, (float) $figures['Tingkat kepatuhan SLA']);
+        $this->assertEquals(1, (float) $figures['Pelanggaran SLA']);       // T3 one second late
+        $this->assertEquals(113, (float) $figures['Rata-rata waktu penyelesaian']);   // (60 + 120 + 240 + 30) / 4 = 112.5 rounds to 113
+        $this->assertEquals(3, (float) $figures['Tiket selesai per kategori / Support: total']);   // v1: ignores the period, so T6 counts
+        $this->assertEquals(3, (float) $figures['Tiket selesai per kategori / Support: sesuai SLA']);
+        $this->assertEquals(2, (float) $figures['Tiket selesai per kategori / Outage: total']);
+        $this->assertEquals(0, (float) $figures['Tiket selesai per kategori / Outage: sesuai SLA']);
 
-        $this->assertSame($screen->inertiaProps('data.total_resolved'), (int) $figures['Total Resolved']);
-        $this->assertEquals($screen->inertiaProps('data.sla_rate'), (float) $figures['SLA Rate']);
+        $this->assertSame($screen->inertiaProps('data.total_resolved'), (int) $figures['Tiket selesai']);
+        $this->assertEquals($screen->inertiaProps('data.sla_rate'), (float) $figures['Tingkat kepatuhan SLA']);
     }
 
     public function test_asset_file_reproduces_which_figures_honour_the_filters(): void
@@ -155,20 +155,20 @@ class ReportExportContentTest extends TestCase
         $this->actingAs($this->admin);
 
         $all = $this->csvFigures($this->get(route('admin.reports.asset.export', self::JANUARY)));
-        $this->assertEquals(1, (float) $all['Status Distribution / available']);
-        $this->assertEquals(2, (float) $all['Status Distribution / installed']);
-        $this->assertEquals(1, (float) $all['Status Distribution / retired']);
-        $this->assertEquals(3, (float) $all['Assets by Location / POP Central']);
-        $this->assertEquals(1, (float) $all['Assets by Location / POP East']);
-        $this->assertEquals(1, (float) $all['Installations']);              // N1 inside January, N2 a day early
-        $this->assertEquals(2, (float) $all['Customer-Linked']);
-        $this->assertEquals(1, (float) $all['Retired']);
+        $this->assertEquals(1, (float) $all['Sebaran status / available']);
+        $this->assertEquals(2, (float) $all['Sebaran status / installed']);
+        $this->assertEquals(1, (float) $all['Sebaran status / retired']);
+        $this->assertEquals(3, (float) $all['Aset per lokasi / POP Central']);
+        $this->assertEquals(1, (float) $all['Aset per lokasi / POP East']);
+        $this->assertEquals(1, (float) $all['Pemasangan aset']);            // N1 inside January, N2 a day early
+        $this->assertEquals(2, (float) $all['Terhubung ke pelanggan']);
+        $this->assertEquals(1, (float) $all['Dipensiunkan']);
 
         // v1: the type filter narrows the status distribution only.
         $routers = $this->csvFigures($this->get(route('admin.reports.asset.export', [...self::JANUARY, 'asset_type' => 'router'])));
-        $this->assertEquals(1, (float) $routers['Status Distribution / installed']);
-        $this->assertEquals(2, (float) $routers['Customer-Linked']);
-        $this->assertEquals(3, (float) $routers['Assets by Location / POP Central']);
+        $this->assertEquals(1, (float) $routers['Sebaran status / installed']);
+        $this->assertEquals(2, (float) $routers['Terhubung ke pelanggan']);
+        $this->assertEquals(3, (float) $routers['Aset per lokasi / POP Central']);
     }
 
     public function test_pdf_is_a_pdf_with_the_same_title_and_a_download_name(): void
@@ -181,6 +181,31 @@ class ReportExportContentTest extends TestCase
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringContainsString('attachment; filename=business-', (string) $response->headers->get('content-disposition'));
         $this->assertStringStartsWith('%PDF-', $response->streamedContent());
+    }
+
+    public function test_the_pdf_table_view_is_indonesian_with_a_row_count_and_an_empty_state(): void
+    {
+        $empty = view('exports.table', ['title' => 'Metrik Bisnis', 'headers' => ['Metrik', 'Nilai'], 'rows' => [], 'capped' => false, 'maxRows' => 5000])->render();
+
+        $this->assertStringContainsString('<html lang="id">', $empty);
+        $this->assertStringContainsString('Baris: 0', $empty);
+        $this->assertStringContainsString('Tidak ada data.', $empty);
+        $this->assertStringNotContainsString('dibatasi sampai', $empty);
+
+        $capped = view('exports.table', ['title' => 'Metrik Bisnis', 'headers' => ['Metrik'], 'rows' => [['Metrik' => 'MRR']], 'capped' => true, 'maxRows' => 1])->render();
+
+        $this->assertStringContainsString('Baris: 1 (dibatasi sampai 1)', $capped);
+        $this->assertStringNotContainsString('Tidak ada data.', $capped);
+    }
+
+    public function test_the_business_file_headings_are_indonesian(): void
+    {
+        $this->seedBusinessWorld();
+        $this->actingAs($this->admin);
+
+        $rows = $this->csvRows($this->get(route('admin.reports.business.export', self::JANUARY)));
+
+        $this->assertSame(['Metrik', 'Rincian', 'Nilai', 'Satuan', 'Cakupan', 'Filter', 'Versi'], $rows[0]);
     }
 
     private function seedBusinessWorld(): void

@@ -235,12 +235,12 @@ class NumberSequenceEditorTest extends TestCase
     /** @return array<string, array{0: array<string, mixed>, 1: string, 2: string}> */
     public static function invalidPayloads(): array
     {
-        $prefix = 'Prefix hanya boleh berisi huruf, angka, - dan _ (maksimal 20 karakter).';
+        $prefix = 'Awalan hanya boleh berisi huruf, angka, - dan _ (maksimal 20 karakter).';
         $literal = 'Gunakan huruf, angka, tanda - _ / . dan token di dalam kurung kurawal.';
         $seq = 'Format harus memuat tepat satu {SEQ:n}, n antara 1 dan 10.';
 
         return [
-            'prefix blank' => [['prefix' => ''], 'prefix', 'Prefix wajib diisi.'],
+            'prefix blank' => [['prefix' => ''], 'prefix', 'Awalan wajib diisi.'],
             'prefix with a space' => [['prefix' => 'CU S'], 'prefix', $prefix],
             'prefix with a slash' => [['prefix' => 'A/B'], 'prefix', $prefix],
             'prefix too long' => [['prefix' => str_repeat('A', 21)], 'prefix', $prefix],

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { DataTable, type DataTableColumn, DynamicBadge, PageHeader } from '@/Components/composite';
+import { formatGroup, formatPermission } from '@/Components/composite/permissionGroups';
 import { Card, CardContent, Input } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
@@ -23,7 +24,7 @@ interface PermissionsProps {
 }
 
 export default function Index({ permissions, filters }: PermissionsProps) {
-    const { params, set, sortBy, sortDir, onSort, processing } = useServerTable({
+    const { params, set, setMany, sortBy, sortDir, onSort, processing } = useServerTable({
         url: route('admin.permissions.index'),
         filters,
         only: ['permissions', 'filters'],
@@ -33,15 +34,24 @@ export default function Index({ permissions, filters }: PermissionsProps) {
         () => [
             {
                 key: 'name',
-                header: 'Name',
+                header: 'Kode',
                 sortable: true,
                 sortKey: 'name',
-                cell: (permission) => <span className="font-medium">{permission.name}</span>,
+                cell: (permission) => <span className="font-mono text-sm">{permission.name}</span>,
+            },
+            {
+                key: 'function',
+                header: 'Fungsi',
+                cell: (permission) => formatPermission(permission.name),
             },
             {
                 key: 'group',
-                header: 'Group',
-                cell: (permission) => <DynamicBadge value={permission.group} />,
+                header: 'Kelompok',
+                cell: (permission) => (
+                    <DynamicBadge value={permission.group}>
+                        {formatGroup(permission.group)}
+                    </DynamicBadge>
+                ),
             },
         ],
         [],
@@ -50,16 +60,21 @@ export default function Index({ permissions, filters }: PermissionsProps) {
     return (
         <AdminLayout title="Hak Akses">
             <div className="space-y-6">
-                <PageHeader title="Hak Akses" subtitle="Read-only permission matrix." />
+                <PageHeader
+                    title="Hak Akses"
+                    subtitle="Semua hak akses yang bisa diberikan ke peran. Daftar ini hanya untuk dibaca."
+                />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
-                        <Input
-                            label="Search"
-                            value={params.search ?? ''}
-                            onChange={(event) => set('search', event.target.value)}
-                            placeholder="Permission name"
-                        />
+                        <div className="max-w-md">
+                            <Input
+                                label="Cari"
+                                value={params.search ?? ''}
+                                onChange={(event) => set('search', event.target.value)}
+                                placeholder="Kode hak akses, mis. billing.view"
+                            />
+                        </div>
                         <DataTable
                             columns={columns}
                             pagination={toPagination(permissions)}
@@ -68,6 +83,11 @@ export default function Index({ permissions, filters }: PermissionsProps) {
                             onSort={onSort}
                             onPageChange={(page) => set('page', page)}
                             onPerPageChange={(perPage) => set('per_page', perPage)}
+                            emptyTitle="Belum ada hak akses"
+                            emptyDescription="Hak akses dibuat bersama pembaruan sistem."
+                            hasFilters={Boolean(params.search)}
+                            onResetFilters={() => setMany({ search: '' })}
+                            itemLabel="hak akses"
                             loading={processing}
                         />
                     </CardContent>

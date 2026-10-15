@@ -25,9 +25,11 @@ final class SearchOptions
     public const LIMIT = 20;
 
     /**
-     * @param  Builder<Model>  $base  company-scoped query
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $base  company-scoped query
      * @param  list<string>  $searchColumns  columns matched with LIKE; the first one orders the result unless $base is ordered
-     * @param  Closure(Model): array{value: int|string, label: string, description?: string|null}  $present
+     * @param  Closure(TModel): array{value: int|string, label: string, description?: string|null}  $present
      * @param  int|string|null  $selected  key of the current value; its option stays in the list while the user types
      */
     public static function for(
@@ -39,7 +41,9 @@ final class SearchOptions
         int|string|null $selected = null,
     ): OptionalProp {
         return Inertia::optional(function () use ($request, $field, $base, $searchColumns, $present, $selected): array {
-            $term = trim((string) $request->query($field.'_search', ''));
+            // The query string is the caller's: `x_search[]=a` arrives as an array, and only a string is a term.
+            $raw = $request->query($field.'_search');
+            $term = is_string($raw) ? trim($raw) : '';
 
             $models = $base->getModel()->newCollection();
 
@@ -64,16 +68,19 @@ final class SearchOptions
     }
 
     /**
-     * @param  Builder<Model>  $base
+     * @template TModel of Model
+     *
+     * @param  Builder<TModel>  $base
      * @param  list<string>  $searchColumns
      * @param  array<int, int|string>  $exceptKeys
-     * @return Collection<int, Model>
+     * @return Collection<int, TModel>
      */
     private static function matches(Builder $base, array $searchColumns, string $term, array $exceptKeys)
     {
         $pattern = '%'.addcslashes($term, '\\%_').'%';
 
-        $query = (clone $base)->where(function (Builder $group) use ($searchColumns, $pattern): void {
+        $query = clone $base;
+        $query->where(function (Builder $group) use ($searchColumns, $pattern): void {
             foreach ($searchColumns as $column) {
                 $group->orWhere($column, 'like', $pattern);
             }
@@ -87,6 +94,8 @@ final class SearchOptions
             $query->orderBy($searchColumns[0])->orderBy($query->getModel()->getQualifiedKeyName());
         }
 
-        return $query->limit(self::LIMIT)->get();
+        $query->limit(self::LIMIT);
+
+        return $query->get();
     }
 }

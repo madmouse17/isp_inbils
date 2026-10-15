@@ -16,10 +16,10 @@ class MyWorkController extends Controller
     public function index(DateRangeIndexRequest $request): Response
     {
         $companyId = CompanyService::currentId();
-        abort_if($companyId === null, 403, 'Company context is required.');
+        abort_if($companyId === null, 403, 'Konteks perusahaan diperlukan.');
 
         $user = $request->user();
-        abort_unless(MyWorkQuery::isEligible($user), 403, 'No operational permission for any domain.');
+        abort_unless(MyWorkQuery::isEligible($user), 403, 'Anda tidak memiliki izin operasional untuk domain apa pun.');
 
         $unified = MyWorkQuery::filtered($request);
         $perPage = MyWorkQuery::perPage($request);

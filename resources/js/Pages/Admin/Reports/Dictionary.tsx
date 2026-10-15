@@ -9,23 +9,23 @@ interface Props extends Record<string, unknown> {
 
 export default function Dictionary({ reports }: Props) {
     return (
-        <AdminLayout title="Data Dictionary">
+        <AdminLayout title="Kamus Data">
             <div className="space-y-6">
                 <PageHeader
-                    title="Data Dictionary"
-                    subtitle="Definition, formula and source columns of every report figure. Read-only, and the same for every company."
+                    title="Kamus Data"
+                    subtitle="Definisi, rumus, dan kolom sumber setiap angka laporan, sama untuk semua perusahaan."
                 />
                 {reports.length === 0 ? (
-                    <EmptyState title="Dictionary is empty" />
+                    <EmptyState title="Kamus kosong" />
                 ) : (
                     <>
                         <p className="text-sm text-muted-foreground">
-                            Figures are limited to your company. Soft-deleted records are not
-                            counted unless a figure&apos;s known caveats say otherwise. Version v1
-                            records each formula exactly as implemented today, known quirks
-                            included.
+                            Angka dibatasi pada perusahaan Anda. Data yang sudah dihapus tidak
+                            dihitung, kecuali catatan penting sebuah angka menyebut lain. Versi v1
+                            mencatat setiap rumus persis seperti yang berjalan hari ini, termasuk
+                            keanehannya.
                         </p>
-                        <nav aria-label="Reports in this dictionary">
+                        <nav aria-label="Laporan dalam kamus ini">
                             <ul className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
                                 {reports.map((report) => (
                                     <li key={report.key}>
@@ -54,8 +54,8 @@ export default function Dictionary({ reports }: Props) {
                                         {report.title}
                                     </h2>
                                     <p className="text-xs wrap-break-word text-muted-foreground">
-                                        Formula version {report.formula_version ?? 'none'} ·
-                                        Requires{' '}
+                                        Versi rumus {report.formula_version ?? 'tidak ada'} ·
+                                        Memerlukan{' '}
                                         <code className="font-mono">{report.permission}</code>
                                     </p>
                                     <p className="text-sm text-muted-foreground">

@@ -8,33 +8,24 @@ import {
     CardContent,
     CardHeader,
     CardTitle,
+    DatePicker,
     Input,
-    SearchSelect,
     NativeSelect,
     Textarea,
 } from '@/Components/ui';
-import { PageHeader } from '@/Components/composite';
-
-interface LocRow {
-    id: number;
-    name: string;
-    code: string;
-    path?: string | null;
-}
-
-interface ProductRow {
-    id: number;
-    sku: string;
-    name: string;
-    type: string;
-}
+import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/composite';
+import { NETWORK_ASSET_OWNERSHIP, NETWORK_ASSET_TYPE, optionsOf } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    locations: { data: LocRow[] };
-    products: { data: ProductRow[] };
+    /** Sent on a search only (`product_search`), as `SearchOptions` makes it. */
+    productOptions?: RemoteOption[];
+    locationOptions?: RemoteOption[];
 }
 
-export default function Create({ locations, products }: CreateProps) {
+const typeOptions = optionsOf(NETWORK_ASSET_TYPE);
+const ownershipOptions = optionsOf(NETWORK_ASSET_OWNERSHIP);
+
+export default function Create({ productOptions, locationOptions }: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         name: '',
         product_id: '',
@@ -52,16 +43,6 @@ export default function Create({ locations, products }: CreateProps) {
         warranty_expiry: '',
         notes: '',
     });
-    const locationOptions = locations.data.map((location) => ({
-        value: String(location.id),
-        label: `${location.code} - ${location.name}`,
-        description: location.path ?? undefined,
-    }));
-    const productOptions = products.data.map((product) => ({
-        value: String(product.id),
-        label: `${product.sku} - ${product.name}`,
-        description: product.type,
-    }));
 
     const submit = (e: FormEvent) => {
         e.preventDefault();
@@ -69,11 +50,11 @@ export default function Create({ locations, products }: CreateProps) {
     };
 
     return (
-        <AdminLayout title="Create Network Asset">
+        <AdminLayout title="Buat Aset Jaringan">
             <div className="space-y-6">
                 <PageHeader
-                    title="Create Network Asset"
-                    subtitle="Fill required fields, then save."
+                    title="Buat Aset Jaringan"
+                    subtitle="Isi data perangkat, lalu simpan."
                     actions={
                         <Button
                             asChild
@@ -81,94 +62,82 @@ export default function Create({ locations, products }: CreateProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={route('admin.network-assets.index')}>Back</Link>
+                            <Link href={route('admin.network-assets.index')}>Kembali</Link>
                         </Button>
                     }
                 />
                 <form onSubmit={submit} className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Details</CardTitle>
+                            <CardTitle>Detail</CardTitle>
                         </CardHeader>
                         <CardContent className="grid gap-4 md:grid-cols-2">
                             <Input
-                                label="Name"
+                                label="Nama"
                                 value={data.name}
                                 onChange={(e) => setData('name', e.target.value)}
                                 error={errors.name}
                                 required
                             />
-                            <SearchSelect
-                                label="Product"
+                            <RemoteSearchSelect
+                                field="product"
+                                label="Produk"
                                 value={data.product_id}
                                 onChange={(value) => setData('product_id', value)}
                                 options={productOptions}
-                                placeholder="Search product"
-                                emptyText="No active products found."
+                                placeholder="Cari SKU atau nama produk"
+                                emptyText="Tidak ada produk aktif yang cocok."
                                 error={errors.product_id}
                             />
                             <NativeSelect
-                                label="Asset Type"
+                                label="Tipe aset"
                                 value={data.asset_type}
                                 onChange={(e) => setData('asset_type', e.target.value)}
+                                options={typeOptions}
                                 error={errors.asset_type}
-                            >
-                                <option value="router">Router</option>
-                                <option value="switch">Switch</option>
-                                <option value="olt">OLT</option>
-                                <option value="onu_ont">ONU/ONT</option>
-                                <option value="radio">Radio</option>
-                                <option value="antenna">Antenna</option>
-                                <option value="fiber">Fiber</option>
-                                <option value="odp">ODP</option>
-                                <option value="odc">ODC</option>
-                                <option value="rack">Rack</option>
-                                <option value="power">Power</option>
-                                <option value="other">Other</option>
-                            </NativeSelect>
+                            />
                             <Input
-                                label="Serial Number"
+                                label="Nomor seri"
                                 value={data.serial_number}
                                 onChange={(e) => setData('serial_number', e.target.value)}
                                 error={errors.serial_number}
                             />
                             <Input
-                                label="MAC Address"
+                                label="Alamat MAC"
                                 value={data.mac_address}
                                 onChange={(e) => setData('mac_address', e.target.value)}
                                 error={errors.mac_address}
                             />
                             <Input
-                                label="IP Address"
+                                label="Alamat IP"
                                 value={data.ip_address}
                                 onChange={(e) => setData('ip_address', e.target.value)}
                                 error={errors.ip_address}
                             />
                             <Input
-                                label="Management IP"
+                                label="IP manajemen"
                                 value={data.management_ip}
                                 onChange={(e) => setData('management_ip', e.target.value)}
                                 error={errors.management_ip}
                             />
-                            <SearchSelect
-                                label="Location"
+                            <RemoteSearchSelect
+                                field="location"
+                                label="Lokasi"
                                 value={data.location_id}
                                 onChange={(value) => setData('location_id', value)}
                                 options={locationOptions}
-                                placeholder="Search location"
-                                emptyText="No active locations found."
+                                placeholder="Cari kode, nama, atau jalur lokasi"
+                                emptyText="Tidak ada lokasi aktif yang cocok."
                                 error={errors.location_id}
-                                hint="Leave empty if asset is in storage."
+                                hint="Kosongkan jika aset masih di gudang."
                             />
                             <NativeSelect
-                                label="Ownership"
+                                label="Kepemilikan"
                                 value={data.ownership}
                                 onChange={(e) => setData('ownership', e.target.value)}
-                            >
-                                <option value="owned">Owned</option>
-                                <option value="leased">Leased</option>
-                                <option value="customer_provided">Customer Provided</option>
-                            </NativeSelect>
+                                options={ownershipOptions}
+                                error={errors.ownership}
+                            />
                             <Input
                                 label="Vendor"
                                 value={data.vendor}
@@ -181,29 +150,28 @@ export default function Create({ locations, products }: CreateProps) {
                                 onChange={(e) => setData('model', e.target.value)}
                                 error={errors.model}
                             />
-                            <Input
-                                label="Purchase Date"
-                                type="date"
+                            <DatePicker
+                                label="Tanggal pembelian"
                                 value={data.purchase_date}
-                                onChange={(e) => setData('purchase_date', e.target.value)}
+                                onChange={(value) => setData('purchase_date', value)}
                                 error={errors.purchase_date}
                             />
                             <Input
-                                label="Purchase Price"
+                                label="Harga beli"
                                 value={data.purchase_price}
                                 onChange={(e) => setData('purchase_price', e.target.value)}
                                 error={errors.purchase_price}
+                                inputMode="decimal"
                             />
-                            <Input
-                                label="Warranty Expiry"
-                                type="date"
+                            <DatePicker
+                                label="Tanggal garansi berakhir"
                                 value={data.warranty_expiry}
-                                onChange={(e) => setData('warranty_expiry', e.target.value)}
+                                onChange={(value) => setData('warranty_expiry', value)}
                                 error={errors.warranty_expiry}
                             />
                             <div className="md:col-span-2">
                                 <Textarea
-                                    label="Notes"
+                                    label="Catatan"
                                     value={data.notes}
                                     onChange={(e) => setData('notes', e.target.value)}
                                     error={errors.notes}
@@ -218,10 +186,10 @@ export default function Create({ locations, products }: CreateProps) {
                             variant="outline"
                             onClick={() => router.get(route('admin.network-assets.index'))}
                         >
-                            Cancel
+                            Batal
                         </Button>
                         <Button type="submit" variant="primary" loading={processing}>
-                            Create
+                            Simpan
                         </Button>
                     </div>
                 </form>

@@ -46,13 +46,13 @@ enum DrillKind: string
     public function noun(): string
     {
         return match ($this) {
-            self::Subscription => 'subscriptions',
-            self::Invoice => 'invoices',
-            self::Ticket => 'tickets',
+            self::Subscription => 'langganan',
+            self::Invoice => 'tagihan',
+            self::Ticket => 'tiket',
             self::WorkOrder => 'SPK',
-            self::Asset => 'assets',
-            self::Installation => 'installations',
-            self::Evaluation => 'evaluations',
+            self::Asset => 'aset',
+            self::Installation => 'pemasangan',
+            self::Evaluation => 'evaluasi',
         };
     }
 
@@ -99,36 +99,36 @@ enum DrillKind: string
         $sortable = $this->sortable();
         $columns = match ($this) {
             self::Subscription => [
-                'code' => 'Code', 'customer' => 'Customer', 'package' => 'Package', 'status' => 'Status',
-                'mrc_amount' => 'MRC', 'created_at' => 'Created', 'terminated_at' => 'Terminated',
+                'code' => 'Kode', 'customer' => 'Pelanggan', 'package' => 'Paket', 'status' => 'Status',
+                'mrc_amount' => 'MRC', 'created_at' => 'Dibuat', 'terminated_at' => 'Berhenti',
             ],
             self::Invoice => [
-                'number' => 'Invoice', 'customer' => 'Customer', 'type' => 'Type', 'status' => 'Status',
-                'issue_date' => 'Issued', 'total' => 'Total', 'paid_amount' => 'Paid', 'outstanding' => 'Outstanding',
+                'number' => 'Tagihan', 'customer' => 'Pelanggan', 'type' => 'Jenis', 'status' => 'Status',
+                'issue_date' => 'Terbit', 'total' => 'Total', 'paid_amount' => 'Terbayar', 'outstanding' => 'Piutang',
             ],
             self::Ticket => [
-                'code' => 'Ticket', 'title' => 'Title', 'category' => 'Category', 'status' => 'Status',
-                'created_at' => 'Created', 'first_response_at' => 'First response', 'response_deadline' => 'Response deadline',
-                'response' => 'Response', 'resolved_at' => 'Resolved',
-                'sla_deadline' => 'SLA deadline', 'sla' => 'SLA', 'resolution_minutes' => 'Resolution (min)',
-                'first_response_minutes' => 'First response (min)',
+                'code' => 'Tiket', 'title' => 'Judul', 'category' => 'Kategori', 'status' => 'Status',
+                'created_at' => 'Dibuat', 'first_response_at' => 'Respons pertama', 'response_deadline' => 'Target respons',
+                'response' => 'Respons', 'resolved_at' => 'Selesai',
+                'sla_deadline' => 'Batas SLA', 'sla' => 'SLA', 'resolution_minutes' => 'Penyelesaian (menit)',
+                'first_response_minutes' => 'Respons pertama (menit)',
             ],
             self::WorkOrder => [
-                'code' => 'SPK', 'title' => 'Title', 'type' => 'Type', 'status' => 'Status', 'assignee' => 'Technician',
-                'started_at' => 'Started', 'completed_at' => 'Completed', 'work_minutes' => 'Duration (min)',
+                'code' => 'SPK', 'title' => 'Judul', 'type' => 'Jenis', 'status' => 'Status', 'assignee' => 'Teknisi',
+                'started_at' => 'Dimulai', 'completed_at' => 'Selesai', 'work_minutes' => 'Durasi (menit)',
             ],
             self::Asset => [
-                'code' => 'Code', 'name' => 'Name', 'asset_type' => 'Type', 'status' => 'Status',
-                'location' => 'Location', 'customer' => 'Customer', 'serial_number' => 'Serial',
+                'code' => 'Kode', 'name' => 'Nama', 'asset_type' => 'Jenis', 'status' => 'Status',
+                'location' => 'Lokasi', 'customer' => 'Pelanggan', 'serial_number' => 'Serial',
             ],
             self::Installation => [
-                'asset' => 'Asset', 'location' => 'Location', 'customer' => 'Customer',
-                'installed_at' => 'Installed', 'removed_at' => 'Removed', 'installer' => 'Installed by',
+                'asset' => 'Aset', 'location' => 'Lokasi', 'customer' => 'Pelanggan',
+                'installed_at' => 'Dipasang', 'removed_at' => 'Dilepas', 'installer' => 'Dipasang oleh',
             ],
             self::Evaluation => [
-                'evaluated_at' => 'Evaluated', 'employee' => 'Technician', 'score' => 'Score',
-                'customer_rating' => 'Customer rating', 'first_response_minutes' => 'First response (min)',
-                'resolution_minutes' => 'Resolution (min)', 'evaluator' => 'Evaluator',
+                'evaluated_at' => 'Dievaluasi', 'employee' => 'Teknisi', 'score' => 'Skor',
+                'customer_rating' => 'Rating pelanggan', 'first_response_minutes' => 'Respons pertama (menit)',
+                'resolution_minutes' => 'Penyelesaian (menit)', 'evaluator' => 'Evaluator',
             ],
         };
         $numeric = ['mrc_amount', 'total', 'paid_amount', 'outstanding', 'resolution_minutes', 'first_response_minutes', 'work_minutes', 'score', 'customer_rating'];
@@ -303,19 +303,19 @@ enum DrillKind: string
     {
         return match (true) {
             $resolvedAt === null => '',
-            $deadline === null => 'No deadline',
-            $resolvedAt->lessThanOrEqualTo($deadline) => 'On time',
-            default => 'Breached',
+            $deadline === null => 'Tanpa batas',
+            $resolvedAt->lessThanOrEqualTo($deadline) => 'Tepat waktu',
+            default => 'Terlambat',
         };
     }
 
     private static function responseOutcome(?CarbonInterface $respondedAt, ?CarbonInterface $deadline): string
     {
         return match (true) {
-            $deadline === null => 'No target',
-            $respondedAt === null => 'No response',
-            $respondedAt->lessThanOrEqualTo($deadline) => 'On time',
-            default => 'Breached',
+            $deadline === null => 'Tanpa target',
+            $respondedAt === null => 'Belum ada respons',
+            $respondedAt->lessThanOrEqualTo($deadline) => 'Tepat waktu',
+            default => 'Terlambat',
         };
     }
 }

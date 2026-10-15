@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -15,9 +15,9 @@ import {
 } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
-import { StatusBadge } from '@/Components/composite/StatusBadge';
+import { EmptyCell } from '@/Components/ui/EmptyCell';
+import { EnumBadge } from '@/Components/ui/EnumBadge';
 import { Button } from '@/Components/ui/Button';
-import { Badge } from '@/Components/ui/Badge';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/Card';
 import { Table, TBody, TD, TH, THead, TR } from '@/Components/ui/Table';
 import { Input } from '@/Components/ui/Input';
@@ -33,11 +33,17 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '@/Components/ui/alert-dialog';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatNumber } from '@/lib/format';
+import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import type { PageProps } from '@/types';
 import type { InventoryRequestRow, MaterialReturnCaseRow } from '@/types/inventory';
-import { returnStatusLabelMap, returnStatusVariantMap } from './constants';
+import {
+    INVENTORY_REQUEST_SOURCE,
+    INVENTORY_REQUEST_STATUS,
+    MATERIAL_RETURN_STATUS,
+    labelOf,
+} from '@/lib/statuses';
 
 interface Props {
     request: {
@@ -48,6 +54,7 @@ interface Props {
 export default function InventoryRequestsShow({ request }: Props) {
     const r = request.data;
     const items = r.items || [];
+    const company = useCompany();
 
     const { can } = usePermission();
     const { auth } = usePage<PageProps>().props;
@@ -110,7 +117,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                         };
                         throw new Error(
                             errData.message ||
-                                `Gagal memuat berkas retur material (${res.status}).`,
+                                `Gagal memuat berkas pengembalian material (${res.status}).`,
                         );
                     }
                     return res.json() as Promise<{ data?: MaterialReturnCaseRow[] }>;
@@ -358,7 +365,7 @@ export default function InventoryRequestsShow({ request }: Props) {
         },
         {
             key: 'issued',
-            title: 'Selesai Diserahkan (Issued)',
+            title: 'Selesai Diserahkan',
             actor: r.issuer?.name,
             timestamp: r.issued_at ?? null,
             done: r.status === 'issued',
@@ -366,11 +373,11 @@ export default function InventoryRequestsShow({ request }: Props) {
     ];
 
     return (
-        <AdminLayout title={`Permintaan ${r.code}`}>
+        <AdminLayout title={`Permintaan Barang ${r.code}`}>
             <div className="mx-auto space-y-6 max-w-5xl">
                 <PageHeader
-                    title={`Permintaan: ${r.code}`}
-                    description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at)}`}
+                    title={`Permintaan Barang ${r.code}`}
+                    description={`Diajukan oleh ${r.requester?.name ?? 'Pemohon'} pada ${formatDate(r.created_at, company)}`}
                     actions={
                         <div className="flex items-center gap-2">
                             <Button
@@ -475,7 +482,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     className="gap-1.5"
                                 >
                                     <CheckCircle2 className="h-4 w-4" />
-                                    Serah Terima (Issue & Kurangi Stok)
+                                    Serah Terima & Kurangi Stok
                                 </Button>
                             )}
 
@@ -558,7 +565,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     )}
                                     {step.timestamp && (
                                         <span className="mt-auto text-xs text-muted-foreground">
-                                            {formatDate(step.timestamp)}
+                                            {formatDate(step.timestamp, company)}
                                         </span>
                                     )}
                                 </div>
@@ -583,15 +590,15 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     <THead>
                                         <TR>
                                             <TH>Barang</TH>
-                                            <TH className="text-right">Qty Diminta</TH>
-                                            <TH className="text-right">Qty Disetujui</TH>
-                                            <TH className="text-right">Qty Diserahkan</TH>
+                                            <TH className="text-right">Jumlah Diminta</TH>
+                                            <TH className="text-right">Jumlah Disetujui</TH>
+                                            <TH className="text-right">Jumlah Diserahkan</TH>
                                             <TH>Catatan</TH>
                                         </TR>
                                     </THead>
                                     <TBody>
                                         {items.map((item) => {
-                                            const unit = item.product?.unit || 'unit';
+                                            const unit = item.product?.unit ?? '';
                                             return (
                                                 <TR key={item.id}>
                                                     <TD className="font-medium">
@@ -603,24 +610,27 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         )}
                                                     </TD>
                                                     <TD className="text-right font-medium">
-                                                        {item.quantity_requested} {unit}
+                                                        {formatNumber(item.quantity_requested)}{' '}
+                                                        {unit}
                                                     </TD>
                                                     <TD className="text-right">
                                                         {item.quantity_approved !== null &&
                                                         item.quantity_approved !== undefined ? (
                                                             <span className="font-semibold text-brand-600 dark:text-brand-400">
-                                                                {item.quantity_approved} {unit}
+                                                                {formatNumber(
+                                                                    item.quantity_approved,
+                                                                )}{' '}
+                                                                {unit}
                                                             </span>
                                                         ) : (
-                                                            <span className="text-muted-foreground">
-                                                                -
-                                                            </span>
+                                                            <EmptyCell />
                                                         )}
                                                     </TD>
                                                     <TD className="text-right">
                                                         {item.quantity_issued > 0 ? (
                                                             <span className="font-semibold text-success">
-                                                                {item.quantity_issued} {unit}
+                                                                {formatNumber(item.quantity_issued)}{' '}
+                                                                {unit}
                                                             </span>
                                                         ) : (
                                                             <span className="text-muted-foreground">
@@ -629,7 +639,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         )}
                                                     </TD>
                                                     <TD className="text-xs text-muted-foreground">
-                                                        {item.note || '-'}
+                                                        {item.note || <EmptyCell />}
                                                     </TD>
                                                 </TR>
                                             );
@@ -655,15 +665,10 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         </CardDescription>
                                     </div>
                                     {returnCase && (
-                                        <Badge
-                                            variant={
-                                                returnStatusVariantMap[returnCase.status] ||
-                                                'neutral'
-                                            }
-                                        >
-                                            {returnStatusLabelMap[returnCase.status] ||
-                                                returnCase.status}
-                                        </Badge>
+                                        <EnumBadge
+                                            map={MATERIAL_RETURN_STATUS}
+                                            value={returnCase.status}
+                                        />
                                     )}
                                 </CardHeader>
                                 <CardContent className="space-y-4">
@@ -677,9 +682,18 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             <strong>tidak langsung mengubah stok gudang</strong>.
                                             Stok barang baik hanya bertambah setelah petugas gudang
                                             menyetujui penerimaan fisik pada status{' '}
-                                            <em>awaiting_receipt</em>. Kasus diskrepansi (
-                                            <em>exception_open</em>) memerlukan resolusi atasan
-                                            berwenang sebelum status diselesaikan.
+                                            <em>
+                                                {labelOf(
+                                                    MATERIAL_RETURN_STATUS,
+                                                    'awaiting_receipt',
+                                                )}
+                                            </em>
+                                            . Kasus berstatus{' '}
+                                            <em>
+                                                {labelOf(MATERIAL_RETURN_STATUS, 'exception_open')}
+                                            </em>{' '}
+                                            perlu diselesaikan atasan yang berwenang sebelum
+                                            ditutup.
                                         </p>
                                     </div>
 
@@ -702,7 +716,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                 className="h-7 border-destructive/30 text-xs text-destructive-text hover:bg-destructive/20"
                                             >
                                                 <RotateCcw className="mr-1 h-3 w-3" />
-                                                Coba Lagi
+                                                Coba lagi
                                             </Button>
                                         </div>
                                     )}
@@ -726,14 +740,12 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         <div className="text-warning-800 dark:text-warning-200 rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs">
                                             <div className="mb-1 flex items-center gap-1.5 font-medium">
                                                 <ShieldAlert className="size-3.5 shrink-0" />
-                                                <span>
-                                                    Diskrepansi Material Memerlukan Resolusi
-                                                </span>
+                                                <span>Selisih material perlu diselesaikan</span>
                                             </div>
                                             <p>
-                                                Ditemukan selisih (rusak/hilang/diskrepansi) saat
-                                                penerimaan fisik gudang. Kasus ini memerlukan
-                                                keputusan resolusi resmi dari resolver atasan.
+                                                Ditemukan selisih (rusak, hilang, atau lainnya) saat
+                                                gudang memeriksa barang. Atasan yang berwenang harus
+                                                memutuskan penyelesaiannya.
                                             </p>
                                         </div>
                                     )}
@@ -742,13 +754,11 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         <div className="text-success-800 dark:text-success-200 rounded-lg border border-success/50 bg-success/10 p-3 text-xs">
                                             <div className="mb-1 flex items-center gap-1.5 font-medium">
                                                 <CheckCircle2 className="size-3.5 shrink-0" />
-                                                <span>
-                                                    Pengecualian Diskrepansi Berhasil Diselesaikan
-                                                </span>
+                                                <span>Selisih material sudah diselesaikan</span>
                                             </div>
                                             {returnCase.resolution_note && (
                                                 <p>
-                                                    Catatan Resolusi:{' '}
+                                                    Catatan Penyelesaian:{' '}
                                                     <strong>{returnCase.resolution_note}</strong>
                                                 </p>
                                             )}
@@ -757,7 +767,7 @@ export default function InventoryRequestsShow({ request }: Props) {
 
                                     {returnLoading ? (
                                         <div className="py-6 text-center text-xs text-muted-foreground">
-                                            Memuat status rekonsiliasi material...
+                                            Memuat status pengembalian material...
                                         </div>
                                     ) : !returnCase ? (
                                         <div className="py-6 text-center text-xs text-muted-foreground">
@@ -785,7 +795,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                 </THead>
                                                 <TBody>
                                                     {returnCase.lines?.map((line) => {
-                                                        const unit = line.product?.unit || 'unit';
+                                                        const unit = line.product?.unit ?? '';
                                                         const expectedReturn = Math.max(
                                                             0,
                                                             line.issued_qty - line.actual_used_qty,
@@ -796,26 +806,35 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                                     {line.product?.name ?? '-'}
                                                                 </TD>
                                                                 <TD className="text-right text-xs">
-                                                                    {line.issued_qty} {unit}
+                                                                    {formatNumber(line.issued_qty)}{' '}
+                                                                    {unit}
                                                                 </TD>
                                                                 <TD className="text-right text-xs font-semibold text-foreground">
-                                                                    {line.actual_used_qty} {unit}
+                                                                    {formatNumber(
+                                                                        line.actual_used_qty,
+                                                                    )}{' '}
+                                                                    {unit}
                                                                 </TD>
                                                                 <TD className="text-right text-xs font-semibold text-brand-600 dark:text-brand-400">
-                                                                    {line.declared_good_return_qty >
-                                                                    0
-                                                                        ? `${line.declared_good_return_qty} ${unit}`
-                                                                        : `${expectedReturn} ${unit}`}
+                                                                    {formatNumber(
+                                                                        line.declared_good_return_qty >
+                                                                            0
+                                                                            ? line.declared_good_return_qty
+                                                                            : expectedReturn,
+                                                                    )}{' '}
+                                                                    {unit}
                                                                 </TD>
                                                                 <TD className="text-right text-xs font-semibold text-success">
-                                                                    {line.accepted_good_return_qty}{' '}
+                                                                    {formatNumber(
+                                                                        line.accepted_good_return_qty,
+                                                                    )}{' '}
                                                                     {unit}
                                                                 </TD>
                                                                 <TD className="text-right text-xs text-destructive-text">
                                                                     {line.damaged_return_qty +
                                                                         line.lost_qty >
                                                                     0
-                                                                        ? `${line.damaged_return_qty + line.lost_qty} ${unit}`
+                                                                        ? `${formatNumber(line.damaged_return_qty + line.lost_qty)} ${unit}`
                                                                         : '0'}
                                                                 </TD>
                                                             </TR>
@@ -888,7 +907,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                         className="gap-1.5"
                                                     >
                                                         <CheckCircle2 className="h-4 w-4" />
-                                                        Selesaikan Diskrepansi (Resolve)
+                                                        Selesaikan Selisih
                                                     </Button>
                                                 )}
                                             </div>
@@ -909,7 +928,10 @@ export default function InventoryRequestsShow({ request }: Props) {
                                 <div>
                                     <span className="block text-muted-foreground">Status:</span>
                                     <div className="mt-1">
-                                        <StatusBadge status={r.status_label || r.status} />
+                                        <EnumBadge
+                                            map={INVENTORY_REQUEST_STATUS}
+                                            value={r.status}
+                                        />
                                     </div>
                                 </div>
 
@@ -918,7 +940,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         Gudang Penyedia:
                                     </span>
                                     <span className="font-medium text-foreground">
-                                        {r.warehouse_location?.name ?? 'Gudang Utama'}
+                                        {r.warehouse_location?.name ?? <EmptyCell />}
                                     </span>
                                 </div>
 
@@ -927,17 +949,17 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         Tanggal Dibutuhkan:
                                     </span>
                                     <span className="font-medium text-foreground">
-                                        {r.needed_at ? formatDate(r.needed_at) : '-'}
+                                        {r.needed_at ? formatDate(r.needed_at, company) : '-'}
                                     </span>
                                 </div>
 
                                 {r.source_type && r.source_id && (
                                     <div>
                                         <span className="block text-muted-foreground">
-                                            Referensi Tugas:
+                                            Rujukan:
                                         </span>
                                         <span className="rounded bg-muted/60 px-1.5 py-0.5 font-mono font-medium text-foreground">
-                                            {r.source_type === 'work_order' ? 'SPK' : 'TIKET'} #
+                                            {labelOf(INVENTORY_REQUEST_SOURCE, r.source_type)} #
                                             {r.source_id}
                                         </span>
                                     </div>
@@ -1032,7 +1054,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                         )}
                         <div className="space-y-4 py-2 text-xs">
                             <div className="space-y-2">
-                                <Label>Penyesuaian Kuantitas yang Disetujui</Label>
+                                <Label>Jumlah yang disetujui</Label>
                                 {items.map((item) => (
                                     <div
                                         key={item.id}
@@ -1043,6 +1065,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         </span>
                                         <div className="w-24">
                                             <Input
+                                                aria-label={`Jumlah disetujui untuk ${item.product?.name ?? 'barang'}`}
                                                 type="number"
                                                 step="any"
                                                 min="0"
@@ -1063,12 +1086,12 @@ export default function InventoryRequestsShow({ request }: Props) {
                             </div>
                             <div className="space-y-1">
                                 <Label htmlFor="approval_note">
-                                    Catatan Persetujuan (Opsional)
+                                    Catatan Persetujuan (opsional)
                                 </Label>
                                 <Textarea
                                     id="approval_note"
                                     rows={2}
-                                    placeholder="Contoh: Disetujui sesuai kuota kabel bulanan"
+                                    placeholder="Catatan untuk pemohon, jika ada"
                                     value={approveNote}
                                     onChange={(e) => setApproveNote(e.target.value)}
                                 />
@@ -1124,7 +1147,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <Textarea
                                 id="rejection_reason"
                                 rows={3}
-                                placeholder="Contoh: Stok di gudang tidak mencukupi untuk batch pengerjaan ini."
+                                placeholder="Jelaskan alasan penolakan kepada pemohon"
                                 value={rejectReason}
                                 onChange={(e) => setRejectReason(e.target.value)}
                                 required
@@ -1163,8 +1186,9 @@ export default function InventoryRequestsShow({ request }: Props) {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Mulai Penyiapan Barang di Gudang?</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Status permintaan akan diperbarui menjadi &apos;Sedang
-                                Disiapkan&apos; agar teknisi mengetahui barang sedang dikumpulkan.
+                                Status permintaan akan berubah menjadi &ldquo;
+                                {labelOf(INVENTORY_REQUEST_STATUS, 'preparing')}&rdquo; agar teknisi
+                                tahu barang sedang dikumpulkan.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         {actionError && (
@@ -1235,14 +1259,12 @@ export default function InventoryRequestsShow({ request }: Props) {
                 >
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>
-                                Konfirmasi Serah Terima Fisik (Handover)?
-                            </AlertDialogTitle>
+                            <AlertDialogTitle>Konfirmasi serah terima barang?</AlertDialogTitle>
                             <AlertDialogDescription>
                                 Pastikan teknisi pemohon telah memeriksa dan menerima barang fisik.
                                 Aksi ini akan{' '}
                                 <strong>secara permanen mengurangi stok gudang</strong> dan membuat
-                                berkas pertanggungjawaban material return.
+                                berkas pertanggungjawaban pengembalian material.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         {actionError && (
@@ -1262,11 +1284,8 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     handleAction(route('admin.inventory.requests.issue', r.id));
                                 }}
                                 disabled={actionLoading}
-                                className="bg-success hover:bg-success/90"
                             >
-                                {actionLoading
-                                    ? 'Menyerahkan...'
-                                    : 'Konfirmasi Serah Terima (Issue)'}
+                                {actionLoading ? 'Menyerahkan...' : 'Konfirmasi Serah Terima'}
                             </AlertDialogAction>
                         </AlertDialogFooter>
                     </AlertDialogContent>
@@ -1296,12 +1315,12 @@ export default function InventoryRequestsShow({ request }: Props) {
                         )}
                         <div className="py-2">
                             <Label htmlFor="cancellation_reason">
-                                Alasan Pembatalan (Opsional)
+                                Alasan Pembatalan (opsional)
                             </Label>
                             <Textarea
                                 id="cancellation_reason"
                                 rows={2}
-                                placeholder="Contoh: Pekerjaan diundur atau material tidak jadi dibutuhkan."
+                                placeholder="Jelaskan alasan pembatalan, jika ada"
                                 value={cancelReason}
                                 onChange={(e) => setCancelReason(e.target.value)}
                             />
@@ -1356,7 +1375,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                 >
                                     <div className="flex justify-between font-semibold">
                                         <span>{line.product_name ?? 'Barang'}</span>
-                                        <span>Dikeluarkan: {line.issued_qty}</span>
+                                        <span>Dikeluarkan: {formatNumber(line.issued_qty)}</span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
@@ -1439,7 +1458,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                         <AlertDialogHeader>
                             <AlertDialogTitle>Terima Pengembalian Fisik Material</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Verifikasi fisik barang yang dibawa teknisi. Kuantitas barang
+                                Periksa fisik barang yang dibawa teknisi. Jumlah barang dalam
                                 kondisi baik akan{' '}
                                 <strong>secara atomik ditambahkan kembali ke stok gudang</strong>.
                             </AlertDialogDescription>
@@ -1461,7 +1480,10 @@ export default function InventoryRequestsShow({ request }: Props) {
                                 >
                                     <div className="flex justify-between font-semibold">
                                         <span>{line.product_name ?? 'Barang'}</span>
-                                        <span>Deklarasi Sisa: {line.declared_good_return_qty}</span>
+                                        <span>
+                                            Deklarasi Sisa:{' '}
+                                            {formatNumber(line.declared_good_return_qty)}
+                                        </span>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
@@ -1484,9 +1506,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             />
                                         </div>
                                         <div>
-                                            <Label className="text-xs">
-                                                Kondisi Rusak (Damaged)
-                                            </Label>
+                                            <Label className="text-xs">Rusak</Label>
                                             <Input
                                                 type="number"
                                                 step="any"
@@ -1533,7 +1553,6 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     );
                                 }}
                                 disabled={actionLoading}
-                                className="bg-success hover:bg-success/90"
                             >
                                 {actionLoading ? 'Memproses...' : 'Konfirmasi Penerimaan Fisik'}
                             </AlertDialogAction>
@@ -1551,8 +1570,9 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <AlertDialogTitle>Tolak Penyerahan Fisik Barang</AlertDialogTitle>
                             <AlertDialogDescription>
                                 Tolak penerimaan fisik jika barang belum diserahkan ke meja gudang
-                                atau tidak sesuai deklarasi. Status akan berubah menjadi &apos;Perlu
-                                Koreksi&apos; dan tidak ada stok yang berubah.
+                                atau tidak sesuai deklarasi. Status akan berubah menjadi &ldquo;
+                                {labelOf(MATERIAL_RETURN_STATUS, 'correction_required')}&rdquo; dan
+                                stok tidak berubah.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         {actionError && (
@@ -1569,7 +1589,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                             <Textarea
                                 id="return_reject_reason"
                                 rows={3}
-                                placeholder="Contoh: Barang fisik belum diserahkan ke meja gudang"
+                                placeholder="Jelaskan mengapa penyerahan fisik ditolak"
                                 value={returnRejectReason}
                                 onChange={(e) => {
                                     setReturnRejectReason(e.target.value);
@@ -1616,11 +1636,11 @@ export default function InventoryRequestsShow({ request }: Props) {
                 >
                     <AlertDialogContent>
                         <AlertDialogHeader>
-                            <AlertDialogTitle>Selesaikan Pengecualian Diskrepansi</AlertDialogTitle>
+                            <AlertDialogTitle>Selesaikan Selisih Material</AlertDialogTitle>
                             <AlertDialogDescription>
-                                Tinjau catatan selisih/kerusakan/kehilangan pada serah terima retur
-                                material. Masukkan catatan keputusan resolusi untuk menutup
-                                pengecualian ini.
+                                Tinjau selisih, kerusakan, atau kehilangan pada pengembalian
+                                material. Tulis catatan keputusan penyelesaian untuk menutup kasus
+                                ini.
                             </AlertDialogDescription>
                         </AlertDialogHeader>
                         {actionError && (
@@ -1633,11 +1653,11 @@ export default function InventoryRequestsShow({ request }: Props) {
                             </div>
                         )}
                         <div className="py-2">
-                            <Label htmlFor="resolution_note">Catatan Resolusi *</Label>
+                            <Label htmlFor="resolution_note">Catatan Penyelesaian *</Label>
                             <Textarea
                                 id="resolution_note"
                                 rows={3}
-                                placeholder="Contoh: Selisih telah diverifikasi dan disetujui pembebanannya ke invoice pelanggan atau penghapusan aset."
+                                placeholder="Jelaskan keputusan penyelesaian selisih"
                                 value={resolutionNote}
                                 onChange={(e) => {
                                     setResolutionNote(e.target.value);
@@ -1653,7 +1673,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     e.preventDefault();
                                     if (!returnCase) return;
                                     if (resolutionNote.trim().length < 3) {
-                                        setActionError('Catatan resolusi minimal 3 karakter.');
+                                        setActionError('Catatan penyelesaian minimal 3 karakter.');
                                         return;
                                     }
                                     handleReturnApiAction(

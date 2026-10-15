@@ -10,6 +10,7 @@ import type { Page } from '@playwright/test';
 
 import { apiLogin } from './support/api';
 import { expect, test } from './support/fixtures';
+import { companyDateFormat, formatIsoAs } from './support/dateRange';
 import {
     PNG_1X1,
     e2eCustomerName,
@@ -17,7 +18,6 @@ import {
     expectSpkState,
     loginAs,
     logout,
-    selectFirstRealOption,
     selectSearchOption,
     unique,
 } from './support/demo';
@@ -35,17 +35,17 @@ test.describe('@lifecycle SPK installation', () => {
         await loginAs(page, 'admin');
 
         await page.goto('/admin/spk/create');
-        await page.getByLabel('Type').selectOption('installation');
-        await page.getByLabel('Title').fill(title);
-        await selectOptionByTextLoose(page, 'Customer', e2eCustomerName);
-        await selectOptionByTextLoose(page, 'Subscription', 'E2E-LINKED-SUB');
-        await selectFirstRealOption(page.getByLabel('Location'));
-        await page.getByLabel('Priority').selectOption('high');
-        await page.getByLabel('Scheduled Date').fill('2026-07-20');
+        await page.getByLabel('Jenis').selectOption('installation');
+        await page.getByLabel('Judul').fill(title);
+        await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
+        await selectSearchOption(page, 'Langganan', 'E2E-LINKED-SUB');
+        await selectSearchOption(page, 'Lokasi', 'E2E ODP Site 01');
+        await page.getByLabel('Prioritas').selectOption('high');
+        await typeDate(page, 'Tanggal jadwal', '2026-07-20');
         await page
-            .getByLabel('Description')
+            .getByLabel('Deskripsi')
             .fill('P1-C SPK lifecycle with item + evidence + approve.');
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
         await expect(page).toHaveURL(/\/admin\/spk$/);
         await page.goto(`/admin/spk?search=${encodeURIComponent(title)}`);
@@ -57,11 +57,11 @@ test.describe('@lifecycle SPK installation', () => {
         spkUrl = page.url();
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
-        await expectDetail(page, 'Customer', e2eCustomerName);
+        await expectDetail(page, 'Pelanggan', e2eCustomerName);
 
-        await page.getByRole('button', { name: 'Add Item' }).click();
-        const itemDialog = page.getByRole('dialog', { name: 'AddItem' });
-        // Modal title is "AddItem" from actionModal casing — tolerate "Add Item" if UI normalizes later.
+        await page.getByRole('button', { name: 'Tambah item' }).click();
+        const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
+        // Fall back to the last dialog if the accessible title is not exposed yet.
         const dialog =
             (await itemDialog.count()) > 0 ? itemDialog : page.getByRole('dialog').last();
         // Item memakai product NON-asset (E2E-STOCK-PRODUCT) agar deterministik
@@ -74,23 +74,23 @@ test.describe('@lifecycle SPK installation', () => {
         // serial terpakai. Lifecycle SPK (item → assign → start → evidence →
         // reject/approve) tidak bergantung pada asset; jalur asset penuh tetap
         // diuji oleh stock-asset.spec.ts.
-        await selectSearchOption(page, 'Product', /E2E-STOCK-PRODUCT/);
-        await dialog.getByLabel(/Quantity Reserved/).fill('1');
-        await dialog.getByLabel(/Quantity Used/).fill('0');
-        await dialog.getByLabel('Note').fill(`item-${runId}`);
-        await dialog.getByRole('button', { name: 'Confirm' }).click();
+        await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
+        await dialog.getByLabel(/Jumlah dicadangkan/).fill('1');
+        await dialog.getByLabel(/Jumlah terpakai/).fill('0');
+        await dialog.getByLabel('Catatan').fill(`item-${runId}`);
+        await dialog.getByRole('button', { name: 'Tambah' }).click();
 
         await expect(page.getByRole('row').filter({ hasText: `item-${runId}` })).toBeVisible();
 
-        await page.getByRole('button', { name: 'Assign' }).click();
-        await selectSearchOption(page, 'Technician', 'Demo Technician');
+        await page.getByRole('button', { name: 'Tugaskan' }).click();
+        await selectSearchOption(page, 'Teknisi', 'Demo Technician');
         await page
-            .getByRole('dialog', { name: 'Assign' })
-            .getByRole('button', { name: 'Confirm' })
+            .getByRole('dialog', { name: 'Tugaskan SPK' })
+            .getByRole('button', { name: 'Tugaskan' })
             .click();
 
         await expectSpkState(page, 'assigned');
-        await expectDetail(page, 'Technician', 'Demo Technician');
+        await expectDetail(page, 'Teknisi', 'Demo Technician');
     });
 
     test('technician starts, uploads evidence, submits for review through the app API', async ({
@@ -145,12 +145,12 @@ test.describe('@lifecycle SPK installation', () => {
         await logout(page);
         await loginAs(page, 'manager');
         await page.goto(spkUrl);
-        await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Reject' })).toBeVisible();
-        await page.getByRole('button', { name: 'Approve' }).click();
+        await expect(page.getByRole('button', { name: 'Setujui' })).toBeVisible();
+        await expect(page.getByRole('button', { name: 'Tolak' })).toBeVisible();
+        await page.getByRole('button', { name: 'Setujui' }).click();
         await page
-            .getByRole('dialog', { name: 'Approve' })
-            .getByRole('button', { name: 'Confirm' })
+            .getByRole('dialog', { name: 'Setujui SPK' })
+            .getByRole('button', { name: 'Setujui' })
             .click();
         await expectSpkState(page, 'completed');
     });
@@ -160,15 +160,15 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
     await loginAs(page, 'admin');
 
     await page.goto('/admin/spk/create');
-    await page.getByLabel('Type').selectOption('installation');
-    await page.getByLabel('Title').fill(title);
-    await selectOptionByTextLoose(page, 'Customer', customer);
-    await selectOptionByTextLoose(page, 'Subscription', 'E2E-LINKED-SUB');
-    await selectFirstRealOption(page.getByLabel('Location'));
-    await page.getByLabel('Priority').selectOption('high');
-    await page.getByLabel('Scheduled Date').fill('2026-07-20');
-    await page.getByLabel('Description').fill('P1-C SPK lifecycle with item + evidence + approve.');
-    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await page.getByLabel('Jenis').selectOption('installation');
+    await page.getByLabel('Judul').fill(title);
+    await selectSearchOption(page, 'Pelanggan', customer);
+    await selectSearchOption(page, 'Langganan', 'E2E-LINKED-SUB');
+    await selectSearchOption(page, 'Lokasi', 'E2E ODP Site 01');
+    await page.getByLabel('Prioritas').selectOption('high');
+    await typeDate(page, 'Tanggal jadwal', '2026-07-20');
+    await page.getByLabel('Deskripsi').fill('P1-C SPK lifecycle with item + evidence + approve.');
+    await page.getByRole('button', { name: 'Simpan', exact: true }).click();
 
     await expect(page).toHaveURL(/\/admin\/spk$/);
     await page.goto(`/admin/spk?search=${encodeURIComponent(title)}`);
@@ -179,22 +179,22 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
     await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
     await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
     await expectSpkState(page, 'draft');
-    await expectDetail(page, 'Customer', customer);
+    await expectDetail(page, 'Pelanggan', customer);
 
-    await page.getByRole('button', { name: 'Assign' }).click();
-    await selectSearchOption(page, 'Technician', 'Demo Technician');
+    await page.getByRole('button', { name: 'Tugaskan' }).click();
+    await selectSearchOption(page, 'Teknisi', 'Demo Technician');
     await page
-        .getByRole('dialog', { name: 'Assign' })
-        .getByRole('button', { name: 'Confirm' })
+        .getByRole('dialog', { name: 'Tugaskan SPK' })
+        .getByRole('button', { name: 'Tugaskan' })
         .click();
 
     await expectSpkState(page, 'assigned');
-    await expectDetail(page, 'Technician', 'Demo Technician');
+    await expectDetail(page, 'Teknisi', 'Demo Technician');
 
-    await page.getByRole('button', { name: 'Start' }).click();
+    await page.getByRole('button', { name: 'Mulai' }).click();
     await page
-        .getByRole('dialog', { name: 'Start' })
-        .getByRole('button', { name: 'Confirm' })
+        .getByRole('dialog', { name: 'Mulai SPK' })
+        .getByRole('button', { name: 'Mulai' })
         .click();
     await expectSpkState(page, 'in_progress');
 
@@ -203,27 +203,24 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
         mimeType: 'image/png',
         buffer: PNG_1X1,
     });
-    await page.getByLabel('Caption').fill(`caption-${runId}`);
-    await page.getByRole('button', { name: 'Upload' }).click();
+    await page.getByLabel('Keterangan').fill(`caption-${runId}`);
+    await page.getByRole('button', { name: 'Unggah' }).click();
     await expect(page.getByText(`caption-${runId}`)).toBeVisible();
 
-    await page.getByRole('button', { name: 'Submit for Review' }).click();
+    await page.getByRole('button', { name: 'Ajukan review' }).click();
     await page
-        .getByRole('dialog', { name: 'Submit' })
-        .getByRole('button', { name: 'Confirm' })
+        .getByRole('dialog', { name: 'Ajukan SPK untuk review' })
+        .getByRole('button', { name: 'Ajukan' })
         .click();
     await expectSpkState(page, 'waiting_review');
 
     return page.url();
 }
 
-async function selectOptionByTextLoose(page: Page, label: string, text: string) {
-    const select = page.getByLabel(label);
-    const value = await select
-        .locator('option')
-        .filter({ hasText: text })
-        .first()
-        .getAttribute('value');
-    expect(value).toBeTruthy();
-    await select.selectOption(value!);
+/** Type a day into a DatePicker in the company format and commit it with Tab. */
+async function typeDate(page: Page, label: string, iso: string) {
+    const format = await companyDateFormat(page);
+    const field = page.getByLabel(label, { exact: true });
+    await field.fill(formatIsoAs(iso, format));
+    await field.press('Tab');
 }

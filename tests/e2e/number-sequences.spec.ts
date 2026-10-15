@@ -11,8 +11,8 @@ import { expect, test } from './support/fixtures';
 import {
     inertiaProps,
     loginAs,
-    selectFirstRealOption,
     selectFirstSearchOption,
+    selectSearchOption,
     unique,
 } from './support/demo';
 
@@ -57,13 +57,13 @@ async function saveEditor(page: Page, dialog: Locator) {
 
 async function onboardCustomer(page: Page, name: string, slug: string) {
     await page.goto('/admin/customers/create');
-    await page.getByLabel('Name').fill(name);
+    await page.getByLabel('Nama').fill(name);
     await page.getByLabel('Email').fill(`${slug}@example.test`);
-    await page.getByLabel('Phone').fill(`0800${String(Date.now()).slice(-8)}`);
+    await page.getByLabel('Telepon').fill(`0800${String(Date.now()).slice(-8)}`);
 
-    await page.getByRole('tab', { name: /Addresses \(\d+\)/ }).click();
+    await page.getByRole('tab', { name: /Alamat \(\d+\)/ }).click();
     await page.getByLabel('Label').fill(`E2E Address ${slug}`);
-    await page.getByLabel('Address *', { exact: true }).fill('7 E2E Numbering Street');
+    await page.getByLabel('Alamat *', { exact: true }).fill('7 E2E Numbering Street');
     await page.getByLabel('Provinsi *', { exact: true }).click();
     await page
         .getByRole('option', { name: /jakarta/i })
@@ -89,23 +89,16 @@ async function onboardCustomer(page: Page, name: string, slug: string) {
     await page.getByLabel('Bujur', { exact: true }).fill('106.8200000');
     await page.getByRole('button', { name: 'Cari', exact: true }).click();
 
-    await page.getByRole('tab', { name: /Contacts \(\d+\)/ }).click();
-    await page.getByLabel('Name').fill(`${name} Contact`);
-    await page.getByLabel('Phone').fill('081200000777');
+    await page.getByRole('tab', { name: /Kontak \(\d+\)/ }).click();
+    await page.getByLabel('Nama').fill(`${name} Contact`);
+    await page.getByLabel('Telepon').fill('081200000777');
     await page.getByLabel('Email').fill(`contact.${slug}@example.test`);
 
-    await page.getByRole('tab', { name: 'Subscription & SPK' }).click();
-    await selectFirstSearchOption(page, 'Service Package');
-    const popSelect = page.getByLabel('Serving POP / Location');
-    const popValue = await popSelect
-        .locator('option')
-        .filter({ hasText: 'Default POP' })
-        .first()
-        .getAttribute('value');
-    expect(popValue).toBeTruthy();
-    await popSelect.selectOption(popValue!);
+    await page.getByRole('tab', { name: 'Langganan & SPK' }).click();
+    await selectFirstSearchOption(page, 'Paket layanan');
+    await selectSearchOption(page, 'POP pelayan', 'Default POP');
 
-    await page.getByRole('tab', { name: 'Customer Data' }).click();
+    await page.getByRole('tab', { name: 'Data pelanggan' }).click();
 }
 
 test.describe('@lifecycle number sequences', () => {
@@ -151,7 +144,7 @@ test.describe('@lifecycle number sequences', () => {
         const suffix = unique('seq').toLowerCase();
         const name = `E2E Numbering ${suffix}`;
         await onboardCustomer(page, name, suffix);
-        const code = page.getByLabel('Code');
+        const code = page.getByLabel('Kode', { exact: true });
         await expect(code).toHaveAttribute('readonly', '');
         await expect(
             page.getByText('Dibuat otomatis saat disimpan, perkiraan: E2E-000123'),
@@ -160,27 +153,27 @@ test.describe('@lifecycle number sequences', () => {
         const created = page.waitForRequest(
             (request) => request.method() === 'POST' && request.url().endsWith('/admin/customers'),
         );
-        await page.getByRole('button', { name: 'Create Customer & SPK' }).click();
+        await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
         const createdBody = (await created).postDataJSON() as Record<string, unknown>;
         expect(createdBody).not.toHaveProperty('code');
 
         await expect(page).toHaveURL(/\/admin\/customers\/(\d+)$/);
-        await expect(page.getByRole('main').getByText('E2E-000123')).toBeVisible();
+        await expect(page.getByRole('main').getByText('E2E-000123').first()).toBeVisible();
         const customerId = page.url().match(/\/admin\/customers\/(\d+)$/)![1];
 
         // Edit keeps the stored code, shows it read-only and never submits it.
         await page.goto(`/admin/customers/${customerId}/edit`);
-        await expect(page.getByLabel('Code')).toHaveValue('E2E-000123');
-        await expect(page.getByLabel('Code')).toHaveAttribute('readonly', '');
+        await expect(page.getByLabel('Kode', { exact: true })).toHaveValue('E2E-000123');
+        await expect(page.getByLabel('Kode', { exact: true })).toHaveAttribute('readonly', '');
         const updated = page.waitForRequest(
             (request) =>
                 ['PUT', 'POST'].includes(request.method()) &&
                 request.url().endsWith(`/admin/customers/${customerId}`),
         );
-        await page.getByRole('button', { name: 'Save Customer' }).click();
+        await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
         expect(((await updated).postDataJSON() as Record<string, unknown>).code).toBeUndefined();
         await expect(page).toHaveURL(/\/admin\/customers(\/\d+)?$/);
-        await expect(page.getByRole('main').getByText('E2E-000123')).toBeVisible();
+        await expect(page.getByRole('main').getByText('E2E-000123').first()).toBeVisible();
 
         // Restore the original numbering for every later spec.
         const restore = await openEditor(page, original.label);
@@ -207,17 +200,17 @@ test.describe('@lifecycle number sequences', () => {
         await expect(sku).toBeEditable();
         await expect(page.getByText('Kosongkan untuk dibuat otomatis')).toBeVisible();
         await sku.fill(typedSku);
-        await page.getByLabel(/^Name\s*\*?$/).fill(typedName);
-        await selectFirstRealOption(page.getByLabel('Category'));
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.getByLabel(/^Nama\s*\*?$/).fill(typedName);
+        await selectFirstSearchOption(page, 'Kategori');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/products\/?$/);
 
         await page.goto(`/admin/products/create`);
         const generated = await page.getByLabel('SKU').getAttribute('placeholder');
         expect(generated).toBeTruthy();
-        await page.getByLabel(/^Name\s*\*?$/).fill(autoName);
-        await selectFirstRealOption(page.getByLabel('Category'));
-        await page.getByRole('button', { name: 'Create', exact: true }).click();
+        await page.getByLabel(/^Nama\s*\*?$/).fill(autoName);
+        await selectFirstSearchOption(page, 'Kategori');
+        await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/products\/?$/);
 
         await page.goto(`/admin/products?search=${encodeURIComponent(typedName)}`);

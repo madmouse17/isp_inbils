@@ -25,7 +25,7 @@ final class NumberTemplate
     public static function tokens(): array
     {
         return [
-            ['token' => '{PREFIX}', 'description' => 'Prefix dokumen, diatur di kolom Prefix'],
+            ['token' => '{PREFIX}', 'description' => 'Awalan dokumen, diatur di kolom Awalan'],
             ['token' => '{YYYY}', 'description' => 'Tahun 4 digit, mis. 2026'],
             ['token' => '{YY}', 'description' => 'Tahun 2 digit, mis. 26'],
             ['token' => '{MM}', 'description' => 'Bulan 2 digit, mis. 10'],

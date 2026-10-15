@@ -14,30 +14,30 @@ const cases: TableCase[] = [
     {
         name: 'Tiket',
         path: '/admin/tickets',
-        sortHeader: 'Number',
+        sortHeader: 'Nomor',
         prefix: 'DTD-TICKET-',
         filters: [
-            { label: 'Priority', key: 'priority', value: 'high' },
+            { label: 'Prioritas', key: 'priority', value: 'high' },
             { label: 'Status', key: 'status', value: 'open' },
         ],
     },
     {
         name: 'SPK',
         path: '/admin/spk',
-        sortHeader: 'Number',
+        sortHeader: 'Nomor',
         prefix: 'DTD-SPK-',
         filters: [
-            { label: 'Type', key: 'type', value: 'maintenance' },
+            { label: 'Jenis', key: 'type', value: 'maintenance' },
             { label: 'Status', key: 'status', value: 'generated' },
         ],
     },
     {
         name: 'Aset Jaringan',
         path: '/admin/network-assets',
-        sortHeader: 'Code',
+        sortHeader: 'Kode',
         prefix: 'DTD-ASSET-',
         filters: [
-            { label: 'Type', key: 'asset_type', value: 'onu_ont' },
+            { label: 'Tipe', key: 'asset_type', value: 'onu_ont' },
             { label: 'Status', key: 'status', value: 'available' },
         ],
     },
@@ -103,12 +103,11 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expect(
         page.getByRole('main').getByRole('heading', { name: c.name, exact: true }),
     ).toBeVisible();
-    const search = page.getByLabel('Search', { exact: true });
+    const search = page.getByLabel('Cari', { exact: true });
     await search.fill(c.prefix);
     await expectQuery(page, 'search', c.prefix);
     for (const filter of c.filters) {
-        await page.getByRole('combobox', { name: filter.label, exact: true }).click();
-        await page.getByRole('option', { name: filter.value, exact: true }).click();
+        await page.getByLabel(filter.label, { exact: true }).selectOption(filter.value);
         await expectQuery(page, filter.key, filter.value);
     }
     const rows = page.locator('tbody:visible tr');
@@ -131,7 +130,10 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expectQuery(page, 'per_page', '10');
     const preserved = new URL(page.url()).searchParams;
     preserved.delete('page');
-    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman berikutnya', exact: true }));
+    await keyboardFocus(
+        page,
+        page.getByRole('button', { name: 'Halaman berikutnya', exact: true }),
+    );
     await page.keyboard.press('Enter');
     await expectQuery(page, 'page', '2');
     await expectQuerySnapshot(page, preserved);
@@ -144,7 +146,10 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText(`${c.prefix}01`);
     await exportParity(page, c);
-    await keyboardFocus(page, page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }));
+    await keyboardFocus(
+        page,
+        page.getByRole('button', { name: 'Halaman sebelumnya', exact: true }),
+    );
     await page.keyboard.press('Enter');
     await expectQuery(page, 'page', '1');
     await expect(rows.first()).toContainText(`${c.prefix}11`);
@@ -172,8 +177,8 @@ async function exerciseTable(page: Page, c: TableCase, testInfo: TestInfo) {
             await keyboardFocus(page, header.getByRole('button'));
             const controls = [search, size];
             for (const filter of c.filters) {
-                const control = page.getByRole('combobox', { name: filter.label, exact: true });
-                await expect(control).toContainText(filter.value);
+                const control = page.getByLabel(filter.label, { exact: true });
+                await expect(control).toHaveValue(filter.value);
                 controls.push(control);
             }
             for (const control of controls) {

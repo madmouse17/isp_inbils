@@ -2,7 +2,7 @@ import type { Locator, Page, TestInfo } from '@playwright/test';
 import { expect, test } from './support/fixtures';
 import { EMPTY_CHART_TEXT, chartCard, chartSvg, expectChartSettled } from './support/charts';
 import { typeDateRange } from './support/dateRange';
-import { inertiaProps, loginAs, logout } from './support/demo';
+import { inertiaProps, loginAs, logout, technicianUserId } from './support/demo';
 
 // Fixtures: E2eFixtureSeeder::seedSalesKpiFixtures writes customers, subscriptions, invoices and
 // payments on fixed February 2025 days (see the comment block above that method), so the Business
@@ -15,13 +15,7 @@ const range = ({ from, to }: { from: string; to: string }) => `date_from=${from}
 
 /** Admin must pick a technician; the demo technician is the only eligible one in the fixtures. */
 async function technicianQuery(page: Page): Promise<string> {
-    const { props } = await inertiaProps(page, '/admin/reports/technician');
-    const list = props!.technicians as
-        { data?: Array<{ id: number; name: string }> } | Array<{ id: number; name: string }>;
-    const rows = Array.isArray(list) ? list : (list.data ?? []);
-    const demo = rows.find((row) => row.name === 'Demo Technician') ?? rows[0];
-    if (!demo) throw new Error('no eligible technician in the fixtures');
-    return `technician_id=${demo.id}&`;
+    return `technician_id=${await technicianUserId(page)}&`;
 }
 
 /** A chart is drawn when its payload holds something and shows the empty message otherwise. */
@@ -124,7 +118,7 @@ test.describe('@report-charts report charts', () => {
         // Charts sit under the cards, not beside or above them.
         const lastCard = await page
             .getByRole('main')
-            .getByRole('heading', { name: 'SLA Compliance', exact: true })
+            .getByRole('heading', { name: 'Kepatuhan SLA', exact: true })
             .boundingBox();
         const chart = await trend.boundingBox();
         expect(lastCard).not.toBeNull();
@@ -161,7 +155,7 @@ test.describe('@report-charts report charts', () => {
         await expect(period).toHaveValue('');
 
         await typeDateRange(page, period, february.from, february.to);
-        await page.getByRole('button', { name: 'Run', exact: true }).click();
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         await expect(page).toHaveURL(
             new RegExp(`date_from=${february.from}&date_to=${february.to}`),
         );
@@ -172,7 +166,7 @@ test.describe('@report-charts report charts', () => {
 
         // The drawing follows the next range too, not only the first one.
         await typeDateRange(page, period, empty.from, empty.to);
-        await page.getByRole('button', { name: 'Run', exact: true }).click();
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         await expect(page).toHaveURL(new RegExp(`date_from=${empty.from}&date_to=${empty.to}`));
         await expectDrawnWhen(chartCard(page, 'Pendapatan terbayar dan MRR per hari'), false);
     });
@@ -185,15 +179,15 @@ test.describe('@report-charts report charts', () => {
 
         await expect(chartSvg(chartCard(page, 'Pelanggan baru per hari'))).toBeVisible();
 
-        const customers = chartCard(page, 'Pelanggan baru per acquirer');
+        const customers = chartCard(page, 'Pelanggan baru per petugas penjualan');
         await expect(chartSvg(customers)).toHaveAttribute(
             'aria-label',
-            'Grafik batang pelanggan baru per acquirer',
+            'Grafik batang pelanggan baru per petugas penjualan',
         );
         await expect(customers).toContainText('Demo Manager');
         await expect(customers).toContainText('Demo Staff');
 
-        const payments = chartCard(page, 'Pembayaran diterima per acquirer');
+        const payments = chartCard(page, 'Pembayaran diterima per petugas penjualan');
         await expect(chartSvg(payments)).toBeVisible();
         await expect(payments).toContainText('Demo Manager');
 
@@ -201,14 +195,16 @@ test.describe('@report-charts report charts', () => {
         // yet both acquirers are still drawn.
         await page.goto(`/admin/reports/sales?${range(february)}&per_page=10&page=2`);
         await expect(page.getByRole('cell', { name: 'Demo Manager', exact: true })).toHaveCount(0);
-        await expect(chartCard(page, 'Pelanggan baru per acquirer')).toContainText('Demo Staff');
+        await expect(chartCard(page, 'Pelanggan baru per petugas penjualan')).toContainText(
+            'Demo Staff',
+        );
 
         // The filter moves the charts along with the table: outside the fixtures nothing is drawn.
         await page.goto(`/admin/reports/sales?${range(empty)}&per_page=10`);
         for (const title of [
             'Pelanggan baru per hari',
-            'Pelanggan baru per acquirer',
-            'Pembayaran diterima per acquirer',
+            'Pelanggan baru per petugas penjualan',
+            'Pembayaran diterima per petugas penjualan',
         ]) {
             await expectDrawnWhen(chartCard(page, title), false);
         }
@@ -305,8 +301,8 @@ test.describe('@report-charts report charts', () => {
         const business = ['Pendapatan terbayar dan MRR per hari', 'Tagihan menurut status'];
         const sales = [
             'Pelanggan baru per hari',
-            'Pelanggan baru per acquirer',
-            'Pembayaran diterima per acquirer',
+            'Pelanggan baru per petugas penjualan',
+            'Pembayaran diterima per petugas penjualan',
         ];
         const sla = ['Tiket selesai menurut SLA', 'Tiket selesai per kategori'];
         const asset = ['Aset jaringan menurut status', 'Aset jaringan per lokasi'];

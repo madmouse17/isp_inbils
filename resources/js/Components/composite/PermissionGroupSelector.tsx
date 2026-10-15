@@ -4,6 +4,7 @@ import { Badge, Checkbox, Input } from '@/Components/ui';
 import { cn } from '@/lib/utils';
 import {
     filterPermissions,
+    formatGroup,
     formatPermission,
     groupPermissions,
     permissionGroupSection,
@@ -42,14 +43,15 @@ export function PermissionGroupSelector({
     return (
         <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-                Select a category checkbox to select or clear all permissions in that category.
+                Centang kotak kategori untuk memilih atau mengosongkan semua hak akses di kategori
+                itu.
             </p>
             <div className="max-w-sm">
                 <Input
                     id={searchId}
                     type="search"
                     label="Cari hak akses"
-                    placeholder="Nama atau label, mis. export"
+                    placeholder="Nama atau label, mis. ekspor"
                     leftIcon={<Search className="h-4 w-4" aria-hidden="true" />}
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
@@ -96,7 +98,7 @@ export function PermissionGroupSelector({
                                         )}
                                     >
                                         <Checkbox
-                                            aria-label={`Select all ${formatGroup(group)} permissions`}
+                                            aria-label={`Pilih semua hak akses ${formatGroup(group)}`}
                                             checked={allSelected}
                                             indeterminate={selectedCount > 0 && !allSelected}
                                             onCheckedChange={(checked) =>
@@ -132,7 +134,7 @@ export function PermissionGroupSelector({
                             <div>
                                 <h3 className="font-semibold">{formatGroup(currentGroup)}</h3>
                                 <p className="text-xs text-muted-foreground">
-                                    {currentPermissions.length} permissions
+                                    {currentPermissions.length} hak akses
                                 </p>
                             </div>
                         </div>
@@ -140,7 +142,7 @@ export function PermissionGroupSelector({
                             {currentPermissions.map((permission) => (
                                 <Checkbox
                                     key={permission.id}
-                                    label={formatPermission(permission.name, currentGroup)}
+                                    label={formatPermission(permission.name)}
                                     title={permission.name}
                                     checked={value.includes(permission.name)}
                                     onCheckedChange={(checked) =>
@@ -154,15 +156,7 @@ export function PermissionGroupSelector({
                     </div>
                 </div>
             )}
-            {error ? <p className="text-sm text-red-700 dark:text-red-400">{error}</p> : null}
+            {error ? <p className="text-sm text-destructive-text">{error}</p> : null}
         </div>
     );
-}
-
-function formatGroup(group: string): string {
-    if (group.length <= 4) {
-        return group.toUpperCase();
-    }
-
-    return group.charAt(0).toUpperCase() + group.slice(1).replaceAll('_', ' ');
 }

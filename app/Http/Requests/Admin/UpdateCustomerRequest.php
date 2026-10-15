@@ -42,6 +42,12 @@ class UpdateCustomerRequest extends FormRequest
         ];
     }
 
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return ['type' => 'tipe pelanggan'];
+    }
+
     /**
      * Holders of neither sales capability never get these keys validated, so a forged value never
      * reaches validated(). Re-submitting the current acquirer is a no-op (it may be a former employee

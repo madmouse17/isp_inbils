@@ -28,11 +28,19 @@ class NumberSequenceController extends Controller
 
     private const SORTABLE = ['entity_type', 'prefix', 'next_number', 'created_at'];
 
+    /** Stored `reset_period` as the export says it (`lib/statuses/numbering.ts` RESET_PERIOD on screen). */
+    private const RESET_LABELS = [
+        'never' => 'Tidak pernah',
+        'yearly' => 'Setiap tahun',
+        'monthly' => 'Setiap bulan',
+        'daily' => 'Setiap hari',
+    ];
+
     public function index(Request $request): InertiaResponse
     {
         Gate::authorize('viewAny', NumberSequence::class);
 
-        NumberSequenceService::ensureAll(CompanyService::currentId() ?? abort(403, 'Company context is required.'));
+        NumberSequenceService::ensureAll(CompanyService::currentId() ?? abort(403, 'Konteks perusahaan diperlukan.'));
 
         $rows = NumberSequence::query()->with('company:id,code,timezone')->get()->keyBy('entity_type');
         $sequences = collect(app(NumberSequenceRegistry::class)->all())
@@ -64,30 +72,31 @@ class NumberSequenceController extends Controller
 
         $format = strtolower((string) $request->input('format', 'csv'));
         $stamp = now()->format('Ymd-His');
+        $definitions = app(NumberSequenceRegistry::class)->all();
         $export = ExportQuery::make($this->filteredQuery($request))
             ->defaultSort('entity_type', 'asc')
             ->maxRows((int) config('exports.max_rows', 5000));
 
         $columns = [
-            'entity_type' => 'Entity',
-            'prefix' => 'Prefix',
-            'template' => 'Template',
-            'next_number' => 'Next Number',
-            'reset_period' => 'Reset Period',
-            'allow_manual' => 'Allow Manual',
+            'entity_type' => 'Entitas',
+            'prefix' => 'Awalan',
+            'template' => 'Format',
+            'next_number' => 'Nomor berikutnya',
+            'reset_period' => 'Reset nomor',
+            'allow_manual' => 'Input manual',
         ];
 
         $map = static fn (NumberSequence $s): array => [
-            'entity_type' => $s->entity_type,
+            'entity_type' => ($definitions[$s->entity_type] ?? null)?->label ?? $s->entity_type,
             'prefix' => $s->prefix,
             'template' => $s->template,
             'next_number' => $s->next_number,
-            'reset_period' => $s->reset_period->value,
-            'allow_manual' => $s->allow_manual ? 'Yes' : 'No',
+            'reset_period' => self::RESET_LABELS[$s->reset_period->value] ?? $s->reset_period->value,
+            'allow_manual' => $s->allow_manual ? 'Boleh' : 'Tidak',
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Number Sequences', $columns, $map, "number-sequences-export-{$stamp}.pdf");
+            return $export->streamPdf('Penomoran', $columns, $map, "number-sequences-export-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "number-sequences-export-{$stamp}.csv");

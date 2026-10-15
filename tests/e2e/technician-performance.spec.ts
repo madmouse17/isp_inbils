@@ -1,6 +1,14 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './support/fixtures';
-import { csrfToken, inertiaProps, loginAs, logout, refreshSession, unique } from './support/demo';
+import {
+    csrfToken,
+    inertiaProps,
+    loginAs,
+    logout,
+    refreshSession,
+    selectSearchOption,
+    unique,
+} from './support/demo';
 import { chartCard, expectChartSettled } from './support/charts';
 import { typeDateRange } from './support/dateRange';
 
@@ -76,19 +84,23 @@ async function assertLayout(page: Page, width: number, dark: boolean) {
     await page.reload();
     await expect(page.locator('html')).toHaveClass(dark ? /dark/ : /^(?!.*dark)/);
     const period = page.getByLabel('Periode', { exact: true });
-    const run = page.getByRole('button', { name: 'Run' });
+    const run = page.getByRole('button', { name: 'Tampilkan', exact: true });
     await expect(period).toBeVisible();
     await expect(run).toBeVisible();
-    await expect(page.getByLabel('Technician')).toHaveCount(1);
+    await expect(page.getByRole('combobox', { name: 'Teknisi' })).toHaveCount(1);
     // The charts load lazily: wait until they are drawn so the overflow check sees them.
     for (const title of chartTitles) await expectChartSettled(chartCard(page, title));
     expect(
         await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
     ).toBe(true);
 
-    await page.getByLabel('Technician').focus();
-    await expect(page.getByLabel('Technician')).toBeFocused();
+    await page.getByRole('combobox', { name: 'Teknisi' }).focus();
+    await expect(page.getByRole('combobox', { name: 'Teknisi' })).toBeFocused();
     await page.keyboard.press('Tab');
+    // A chosen technician adds a clear button between the picker and the period field.
+    for (let i = 0; i < 3 && !(await period.evaluate((el) => el === document.activeElement)); i++) {
+        await page.keyboard.press('Tab');
+    }
     await expect(period).toBeFocused();
     // The calendar button, and the clear button once a range is set, sit between the field and Run.
     for (let i = 0; i < 5 && !(await run.evaluate((el) => el === document.activeElement)); i++) {
@@ -157,11 +169,8 @@ test('manager hierarchy uses canonical report filters and capability navigation'
                 .locator('details')
                 .filter({ has: page.locator('summary', { hasText: 'Keuangan & Laporan' }) }),
         ).toHaveJSProperty('open', true);
-        await expect(page.getByRole('button', { name: 'Run' })).toBeDisabled();
-        await expect(
-            page.getByLabel('Technician').locator(`option[value="${technician.user_id}"]`),
-        ).toHaveCount(1);
-        await page.getByLabel('Technician').selectOption(String(technician.user_id));
+        await expect(page.getByRole('button', { name: 'Tampilkan', exact: true })).toBeDisabled();
+        await selectSearchOption(page, 'Teknisi', 'Demo Technician');
         await typeDateRange(
             page,
             page.getByLabel('Periode', { exact: true }),
@@ -173,12 +182,12 @@ test('manager hierarchy uses canonical report filters and capability navigation'
                 request.method() === 'GET' &&
                 request.url().includes('/admin/reports/technician?technician_id='),
         );
-        await page.getByRole('button', { name: 'Run' }).click();
+        await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
         const teamUrl = new URL((await teamRequest).url());
         expect(teamUrl.searchParams.get('technician_id')).toBe(String(technician.user_id));
         expect(teamUrl.searchParams.get('date_from')).toBe('2026-02-01');
         expect(teamUrl.searchParams.get('date_to')).toBe('2026-02-28');
-        await expect(page.getByText('SPK Completed')).toBeVisible();
+        await expect(page.getByText('SPK selesai', { exact: true }).first()).toBeVisible();
         for (const dark of [false, true])
             for (const width of [1280, 320]) await assertLayout(page, width, dark);
         await logout(page);
@@ -188,10 +197,9 @@ test('manager hierarchy uses canonical report filters and capability navigation'
         await logout(page);
         await loginAs(page, 'manager');
         await page.goto('/admin/reports/technician');
-        await expect(
-            page.getByLabel('Technician').locator(`option[value="${technician.user_id}"]`),
-        ).toHaveCount(0);
-        await expect(page.getByText('Tidak ada teknisi yang dapat dipilih.')).toBeVisible();
+        await page.getByRole('combobox', { name: 'Teknisi' }).fill('Demo Technician');
+        await expect(page.getByText('Tidak ada hasil.')).toBeVisible();
+        await expect(page.getByRole('option', { name: 'Demo Technician' })).toHaveCount(0);
         const deniedPath = `/admin/reports/technician?technician_id=${technician.user_id}`;
         expectHttpError({ url: deniedPath, method: 'GET', status: 403 });
         const sibling = await page.goto(deniedPath);

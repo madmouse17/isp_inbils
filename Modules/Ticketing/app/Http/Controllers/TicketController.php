@@ -5,23 +5,20 @@ namespace Modules\Ticketing\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Concerns\UploadsMedia;
 use App\Http\Controllers\Controller;
-use App\Http\Resources\CustomerResource;
 use App\Http\Resources\LocationResource;
-use App\Http\Resources\SubscriptionResource;
-use App\Http\Resources\UserResource;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
-use App\Models\User;
+use App\Queries\Admin\DispatchQueueQuery;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
-use Modules\NetworkAsset\Http\Resources\NetworkAssetResource;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Ticketing\Http\Requests\AssignTicketRequest;
 use Modules\Ticketing\Http\Requests\ResolveTicketRequest;
@@ -56,19 +53,6 @@ class TicketController extends Controller
 
         return Inertia::render('Admin/Tickets/Index', [
             'tickets' => TicketResource::collection($tickets),
-            'priorityOptions' => ['low', 'medium', 'high', 'urgent'],
-            'statusOptions' => ['open', 'assigned', 'on_progress', 'resolved', 'closed'],
-            'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
-            'handlers' => UserResource::collection(
-                User::query()
-                    ->where('company_id', CompanyService::currentId())
-                    ->where('is_active', true)
-                    ->where(function ($query) {
-                        $query->whereHas('permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']))
-                            ->orWhereHas('roles.permissions', fn ($permissionQuery) => $permissionQuery->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']));
-                    })
-                    ->orderBy('name')->get()
-            ),
             'filters' => $request->only(['search', 'priority', 'status', 'source', 'category_id', 'assigned_to', 'sla_breached', 'sort_by', 'sort_dir', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('ticket.create') ?? false,
@@ -90,22 +74,22 @@ class TicketController extends Controller
             ->maxRows(ExportQuery::resolveMaxRows(config('exports.max_rows', ExportQuery::DEFAULT_MAX_ROWS)));
 
         $columns = [
-            'Code' => 'code',
-            'Title' => 'title',
-            'Priority' => 'priority',
+            'Kode' => 'code',
+            'Judul' => 'title',
+            'Prioritas' => 'priority',
             'Status' => 'status',
-            'Customer' => 'customer.name',
-            'Created' => 'created_at',
+            'Pelanggan' => 'customer.name',
+            'Dibuat' => 'created_at',
         ];
 
         $map = static function (Ticket $ticket): array {
             return [
-                'Code' => $ticket->code,
-                'Title' => $ticket->title,
-                'Priority' => $ticket->priority,
+                'Kode' => $ticket->code,
+                'Judul' => $ticket->title,
+                'Prioritas' => $ticket->priority,
                 'Status' => $ticket->status,
-                'Customer' => data_get($ticket, 'customer.name', ''),
-                'Created' => optional($ticket->created_at)?->toDateTimeString(),
+                'Pelanggan' => data_get($ticket, 'customer.name', ''),
+                'Dibuat' => optional($ticket->created_at)?->toDateTimeString(),
             ];
         };
 
@@ -113,7 +97,7 @@ class TicketController extends Controller
         $format = strtolower((string) $request->input('format', 'csv'));
 
         return $format === 'pdf'
-            ? $export->downloadPdf('Tickets', $columns, $map, "tickets-export-{$stamp}.pdf")
+            ? $export->downloadPdf('Tiket', $columns, $map, "tickets-export-{$stamp}.pdf")
             : $export->streamCsv($columns, $map, "tickets-export-{$stamp}.csv");
     }
 
@@ -167,19 +151,42 @@ class TicketController extends Controller
         Gate::authorize('create', Ticket::class);
 
         $ownCustomerId = $request->user()->hasRole('customer') ? ($request->user()->customer?->id ?? 0) : null;
+        // The page sends the customer and subscription it has picked, so what follows is offered only for them.
+        $customerId = $request->integer('customer_id');
+        $subscriptionId = $request->integer('subscription_id');
 
         return Inertia::render('Admin/Tickets/Create', [
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
-            'customers' => CustomerResource::collection(Customer::query()->where('is_active', true)->when($ownCustomerId !== null, fn (Builder $q) => $q->whereKey($ownCustomerId))->orderBy('name')->get()),
-            'subscriptions' => SubscriptionResource::collection(ServiceSubscription::query()->whereIn('status', ['active', 'suspended'])->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))->orderBy('code')->get()),
-            'assets' => NetworkAssetResource::collection(
+            'customerOptions' => SearchOptions::for(
+                $request,
+                'customer',
+                Customer::query()->where('is_active', true)->when($ownCustomerId !== null, fn (Builder $q) => $q->whereKey($ownCustomerId)),
+                ['name', 'code'],
+                fn (Customer $customer): array => ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code],
+            ),
+            'subscriptionOptions' => SearchOptions::for(
+                $request,
+                'subscription',
+                ServiceSubscription::query()
+                    ->with('customer:id,name')
+                    ->whereIn('status', ['active', 'suspended'])
+                    ->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))
+                    ->when($customerId > 0, fn (Builder $q) => $q->where('customer_id', $customerId)),
+                ['code'],
+                fn (ServiceSubscription $subscription): array => ['value' => $subscription->id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
+            ),
+            // An asset of nobody (no customer, no subscription) can be reported against anyone, as StoreTicketRequest allows.
+            'networkAssetOptions' => SearchOptions::for(
+                $request,
+                'networkAsset',
                 NetworkAsset::query()
                     ->whereNotIn('status', ['retired', 'decommissioned'])
                     ->whereNull('retired_at')
                     ->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))
-                    ->orderBy('code')
-                    ->limit(100)
-                    ->get()
+                    ->when($customerId > 0, fn (Builder $q) => $q->where(fn (Builder $w) => $w->whereNull('customer_id')->orWhere('customer_id', $customerId)))
+                    ->when($subscriptionId > 0, fn (Builder $q) => $q->where(fn (Builder $w) => $w->whereNull('subscription_id')->orWhere('subscription_id', $subscriptionId))),
+                ['code', 'name'],
+                fn (NetworkAsset $asset): array => ['value' => $asset->id, 'label' => $asset->code.' - '.$asset->name],
             ),
             'canChooseLocation' => $ownCustomerId === null,
             'locations' => LocationResource::collection(
@@ -197,10 +204,10 @@ class TicketController extends Controller
         TicketService::create($request->ticketAttributes(), $request->user()->id);
 
         return redirect()->route('admin.tickets.index')
-            ->with('success', 'Ticket created.');
+            ->with('success', 'Tiket berhasil dibuat.');
     }
 
-    public function show(Ticket $ticket): InertiaResponse
+    public function show(Request $request, Ticket $ticket): InertiaResponse
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('view', $ticket);
@@ -215,6 +222,8 @@ class TicketController extends Controller
 
         return Inertia::render('Admin/Tickets/Show', [
             'ticket' => new TicketResource($ticket),
+            // Who the ticket can be assigned to; empty unless the actor may assign or reassign.
+            'handlers' => DispatchQueueQuery::eligibleHandlers($request),
         ]);
     }
 
@@ -222,7 +231,7 @@ class TicketController extends Controller
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('edit', $ticket);
-        abort_if($ticket->status !== 'open', 422, 'Can only edit open tickets.');
+        abort_if($ticket->status !== 'open', 422, 'Tiket hanya bisa diubah saat berstatus terbuka.');
 
         $ticket->load(['category', 'customer', 'subscription', 'networkAsset', 'location']);
 
@@ -236,22 +245,22 @@ class TicketController extends Controller
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('update', $ticket);
-        abort_if($ticket->status !== 'open', 422, 'Can only edit open tickets.');
+        abort_if($ticket->status !== 'open', 422, 'Tiket hanya bisa diubah saat berstatus terbuka.');
 
         $ticket->update($request->validated());
 
-        return redirect()->route('admin.tickets.index')->with('success', 'Ticket updated.');
+        return redirect()->route('admin.tickets.index')->with('success', 'Tiket berhasil diubah.');
     }
 
     public function destroy(Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
         Gate::authorize('delete', $ticket);
-        abort_if($ticket->status !== 'closed', 422, 'Can only delete closed tickets.');
+        abort_if($ticket->status !== 'closed', 422, 'Tiket hanya bisa dihapus saat berstatus ditutup.');
 
         $ticket->delete();
 
-        return back()->with('success', 'Ticket deleted.');
+        return back()->with('success', 'Tiket berhasil dihapus.');
     }
 
     public function assign(AssignTicketRequest $request, Ticket $ticket): RedirectResponse
@@ -280,7 +289,7 @@ class TicketController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'Ticket assigned.');
+        return back()->with('success', 'Tiket berhasil ditugaskan.');
     }
 
     public function start(Ticket $ticket): RedirectResponse
@@ -298,7 +307,7 @@ class TicketController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'Ticket started.');
+        return back()->with('success', 'Tiket mulai dikerjakan.');
     }
 
     public function resolve(ResolveTicketRequest $request, Ticket $ticket): RedirectResponse
@@ -316,7 +325,7 @@ class TicketController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'Ticket resolved.');
+        return back()->with('success', 'Tiket diselesaikan.');
     }
 
     public function close(Ticket $ticket): RedirectResponse
@@ -333,7 +342,7 @@ class TicketController extends Controller
             throw $exception;
         }
 
-        return back()->with('success', 'Ticket closed.');
+        return back()->with('success', 'Tiket ditutup.');
     }
 
     public function spawnSpk(Request $request, Ticket $ticket): RedirectResponse
@@ -344,7 +353,7 @@ class TicketController extends Controller
         $workOrder = TicketService::spawnSpk($ticket);
 
         return redirect()->route('admin.spk.show', $workOrder)
-            ->with('success', 'SPK spawned from ticket.');
+            ->with('success', 'SPK berhasil dibuat dari tiket.');
     }
 
     public function addComment(StoreTicketCommentRequest $request, Ticket $ticket): RedirectResponse
@@ -354,7 +363,7 @@ class TicketController extends Controller
 
         TicketService::addComment($ticket, $request->validated(), $request->user()->id);
 
-        return back()->with('success', 'Comment added.');
+        return back()->with('success', 'Komentar ditambahkan.');
     }
 
     public function uploadAttachment(UploadTicketAttachmentRequest $request, Ticket $ticket): RedirectResponse
@@ -368,7 +377,7 @@ class TicketController extends Controller
             'uploaded_by' => $request->user()->id,
         ]);
 
-        return back()->with('success', 'Attachment uploaded.');
+        return back()->with('success', 'Lampiran berhasil diunggah.');
     }
 
     public function removeAttachment(Request $request, Ticket $ticket, Media $attachment): RedirectResponse
@@ -378,7 +387,7 @@ class TicketController extends Controller
         // One rule with the apps: the uploader, while the ticket is still being worked. The permission alone is not enough.
         TicketService::removeAttachment($ticket, $attachment->id, $request->user());
 
-        return back()->with('success', 'Attachment removed.');
+        return back()->with('success', 'Lampiran berhasil dihapus.');
     }
 
     private function ensureSameCompany(Ticket $ticket): void

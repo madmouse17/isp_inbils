@@ -20,7 +20,7 @@ class TicketCategoryController extends Controller
         return Inertia::render('Admin/Tickets/Categories/Index', [
             'categories' => TicketCategory::query()
                 ->orderBy('name')
-                ->get(['id', 'code', 'name', 'default_sla_hours', 'default_response_hours', 'is_active']),
+                ->get(['id', 'code', 'name', 'default_sla_hours', 'default_response_hours', 'customer_hint', 'is_active']),
             'can' => ['manage' => (bool) $request->user()?->can('ticket.category.manage')],
         ]);
     }

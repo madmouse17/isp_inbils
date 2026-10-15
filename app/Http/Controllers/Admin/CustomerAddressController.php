@@ -65,12 +65,12 @@ class CustomerAddressController extends Controller
 
         $columns = [
             'label' => 'Label',
-            'address' => 'Address',
-            'city' => 'City',
-            'postal_code' => 'Postal Code',
-            'is_installation_point' => 'Install Point',
-            'is_primary' => 'Primary',
-            'notes' => 'Notes',
+            'address' => 'Alamat',
+            'city' => 'Kota',
+            'postal_code' => 'Kode pos',
+            'is_installation_point' => 'Titik pemasangan',
+            'is_primary' => 'Utama',
+            'notes' => 'Catatan',
         ];
 
         $map = static fn (CustomerAddress $address): array => [
@@ -78,13 +78,13 @@ class CustomerAddressController extends Controller
             'address' => $address->address,
             'city' => $address->city ?? '',
             'postal_code' => $address->postal_code ?? '',
-            'is_installation_point' => $address->is_installation_point ? 'Yes' : 'No',
-            'is_primary' => $address->is_primary ? 'Yes' : 'No',
+            'is_installation_point' => $address->is_installation_point ? 'Ya' : 'Tidak',
+            'is_primary' => $address->is_primary ? 'Ya' : 'Tidak',
             'notes' => $address->notes ?? '',
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Customer Addresses', $columns, $map, "customer-addresses-{$customer->id}-{$stamp}.pdf");
+            return $export->streamPdf('Alamat Pelanggan', $columns, $map, "customer-addresses-{$customer->id}-{$stamp}.pdf");
         }
 
         return $export->streamCsv($columns, $map, "customer-addresses-{$customer->id}-{$stamp}.csv");
@@ -119,7 +119,7 @@ class CustomerAddressController extends Controller
             $customer->addresses()->create($data);
         });
 
-        return back()->with('success', 'Address added.');
+        return back()->with('success', 'Alamat ditambahkan.');
     }
 
     public function update(UpdateCustomerAddressRequest $request, Customer $customer, CustomerAddress $address): RedirectResponse
@@ -164,7 +164,7 @@ class CustomerAddressController extends Controller
             }
         });
 
-        return back()->with('success', 'Address updated.');
+        return back()->with('success', 'Alamat diperbarui.');
     }
 
     public function destroy(Customer $customer, CustomerAddress $address): RedirectResponse
@@ -174,7 +174,7 @@ class CustomerAddressController extends Controller
         Gate::authorize('customer.address.manage');
 
         if ($address->subscriptions()->exists()) {
-            return back()->withErrors(['address' => 'Cannot delete address with active subscription.']);
+            return back()->withErrors(['address' => 'Alamat yang dipakai langganan tidak bisa dihapus.']);
         }
 
         DB::transaction(function () use ($customer, $address) {
@@ -199,7 +199,7 @@ class CustomerAddressController extends Controller
             }
         });
 
-        return back()->with('success', 'Address deleted.');
+        return back()->with('success', 'Alamat dihapus.');
     }
 
     private function ensureSameCompany(Customer $customer): void

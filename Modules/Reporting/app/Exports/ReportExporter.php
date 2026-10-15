@@ -63,7 +63,7 @@ final class ReportExporter
             return $mapped;
         };
 
-        $title = $source->label.($request->input('group') ? ' — '.$request->input('group') : '');
+        $title = $source->label.($request->input('group') ? ' - '.$request->input('group') : '');
         $stem = $request->report()->slug().'-'.str_replace('_', '-', $source->key);
         $export = ExportQuery::make($list->listing($request->sort(), $request->direction()))->maxRows(self::cap());
 
@@ -91,17 +91,17 @@ final class ReportExporter
         $rows = [];
         foreach ($report['rows'] as $row) {
             foreach (self::summaryRows(ReportType::Business, $row['metrics'], $filters) as $line) {
-                $rows[] = ['Company' => $names[$row['company_id']], ...$line];
+                $rows[] = ['Perusahaan' => $names[$row['company_id']], ...$line];
             }
         }
         foreach (self::summaryRows(ReportType::Business, $report['total'], $filters) as $line) {
-            $rows[] = ['Company' => 'Consolidated', ...$line];
+            $rows[] = ['Perusahaan' => 'Total konsolidasi', ...$line];
         }
 
-        $headers = ['Company', 'Metric', 'Breakdown', 'Value', 'Unit', 'Scope', 'Filters', 'Version'];
+        $headers = ['Perusahaan', 'Metrik', 'Rincian', 'Nilai', 'Satuan', 'Cakupan', 'Filter', 'Versi'];
         $map = static fn (array $row): array => $row;
 
-        return self::download(ExportQuery::fromRows($rows), 'csv', 'Business Metrics (Consolidated)', array_combine($headers, $headers), $map, 'business-consolidated');
+        return self::download(ExportQuery::fromRows($rows), 'csv', ReportType::Business->title().' (Konsolidasi)', array_combine($headers, $headers), $map, 'business-consolidated');
     }
 
     private static function summary(ReportExportRequest $request): StreamedResponse
@@ -110,7 +110,7 @@ final class ReportExporter
         $filters = $request->filters();
         $rows = self::summaryRows($report, $filters->payload($report), $filters);
 
-        $headers = ['Metric', 'Breakdown', 'Value', 'Unit', 'Scope', 'Filters', 'Version'];
+        $headers = ['Metrik', 'Rincian', 'Nilai', 'Satuan', 'Cakupan', 'Filter', 'Versi'];
         $columns = array_combine($headers, $headers);
         $map = static fn (array $row): array => $row;
 
@@ -130,19 +130,19 @@ final class ReportExporter
         )->with(['product:id,name', 'fromLocation:id,name', 'toLocation:id,name']);
 
         $columns = [
-            'Date' => 'date', 'Product' => 'product', 'Type' => 'type', 'Quantity' => 'quantity',
-            'Balance after' => 'balance_after', 'From' => 'from', 'To' => 'to', 'Reference' => 'reference', 'Note' => 'note',
+            'Tanggal' => 'date', 'Barang' => 'product', 'Jenis' => 'type', 'Jumlah' => 'quantity',
+            'Saldo setelah' => 'balance_after', 'Dari' => 'from', 'Ke' => 'to', 'Referensi' => 'reference', 'Catatan' => 'note',
         ];
         $map = static fn (StockMovement $movement): array => [
-            'Date' => $movement->created_at?->toDateTimeString(),
-            'Product' => $movement->product?->name,
-            'Type' => $movement->movement_type,
-            'Quantity' => $movement->quantity,
-            'Balance after' => $movement->balance_after,
-            'From' => $movement->fromLocation?->name,
-            'To' => $movement->toLocation?->name,
-            'Reference' => $movement->reference_type === null ? null : class_basename($movement->reference_type).' #'.$movement->reference_id,
-            'Note' => $movement->note,
+            'Tanggal' => $movement->created_at?->toDateTimeString(),
+            'Barang' => $movement->product?->name,
+            'Jenis' => $movement->movement_type,
+            'Jumlah' => $movement->quantity,
+            'Saldo setelah' => $movement->balance_after,
+            'Dari' => $movement->fromLocation?->name,
+            'Ke' => $movement->toLocation?->name,
+            'Referensi' => $movement->reference_type === null ? null : class_basename($movement->reference_type).' #'.$movement->reference_id,
+            'Catatan' => $movement->note,
         ];
 
         return self::download(
@@ -169,32 +169,32 @@ final class ReportExporter
         );
 
         $columns = [
-            'ID' => 'id', 'Time' => 'time', 'Module' => 'module', 'Event' => 'event', 'Description' => 'description',
-            'Actor' => 'actor', 'Actor ID' => 'actor_id', 'Subject type' => 'subject_type', 'Subject ID' => 'subject_id',
+            'ID' => 'id', 'Waktu' => 'time', 'Modul' => 'module', 'Aksi' => 'event', 'Deskripsi' => 'description',
+            'Pelaku' => 'actor', 'ID pelaku' => 'actor_id', 'Jenis subjek' => 'subject_type', 'ID subjek' => 'subject_id',
         ];
         $withProperties = $request->exportFormat() === 'csv';
         if ($withProperties) {
             // Exactly the payload the screen shows to report.audit.view holders; the PDF leaves it out.
-            $columns['Properties'] = 'properties';
+            $columns['Properti'] = 'properties';
         }
 
         $map = static function (Activity $activity) use ($withProperties): array {
             $causer = $activity->causer;
             $row = [
                 'ID' => $activity->id,
-                'Time' => $activity->created_at?->toDateTimeString(),
-                'Module' => $activity->log_name,
-                'Event' => $activity->event,
-                'Description' => $activity->description,
-                'Actor' => $causer instanceof User ? $causer->name : ($activity->causer_id ? 'User #'.$activity->causer_id : 'System'),
-                'Actor ID' => $activity->causer_id,
-                'Subject type' => $activity->subject_type,
-                'Subject ID' => $activity->subject_id,
+                'Waktu' => $activity->created_at?->toDateTimeString(),
+                'Modul' => $activity->log_name,
+                'Aksi' => $activity->event,
+                'Deskripsi' => $activity->description,
+                'Pelaku' => $causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna #'.$activity->causer_id : 'Sistem'),
+                'ID pelaku' => $activity->causer_id,
+                'Jenis subjek' => $activity->subject_type,
+                'ID subjek' => $activity->subject_id,
             ];
 
             if ($withProperties) {
                 $properties = $activity->properties;
-                $row['Properties'] = $properties?->isNotEmpty() ? json_encode($properties->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '';
+                $row['Properti'] = $properties?->isNotEmpty() ? json_encode($properties->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '';
             }
 
             return $row;
@@ -239,20 +239,20 @@ final class ReportExporter
     {
         $applied = $filters->query($report);
         $filterText = $applied === []
-            ? 'none'
+            ? 'tidak ada'
             : implode('; ', array_map(fn (string $key, string|int $value): string => $key.'='.$value, array_keys($applied), $applied));
 
         $rows = [];
         foreach (MetricRegistry::forReport($report) as $metric) {
             foreach (self::entries($payload[$metric->key] ?? null) as $label => $value) {
                 $rows[] = [
-                    'Metric' => $metric->label,
-                    'Breakdown' => (string) $label,
-                    'Value' => $value,
-                    'Unit' => $metric->unit->value,
-                    'Scope' => self::scope($metric, $filters),
-                    'Filters' => $filterText,
-                    'Version' => $metric->version,
+                    'Metrik' => $metric->label,
+                    'Rincian' => (string) $label,
+                    'Nilai' => $value,
+                    'Satuan' => $metric->unit->value,
+                    'Cakupan' => self::scope($metric, $filters),
+                    'Filter' => $filterText,
+                    'Versi' => $metric->version,
                 ];
             }
         }
@@ -283,8 +283,8 @@ final class ReportExporter
         $entries = [];
         foreach ($value as $row) {
             $entries[$row['name'].': total'] = $row['total'];
-            $entries[$row['name'].': compliant'] = $row['compliant'];
-            $entries[$row['name'].': rate (%)'] = $row['rate'];
+            $entries[$row['name'].': sesuai SLA'] = $row['compliant'];
+            $entries[$row['name'].': persentase (%)'] = $row['rate'];
         }
 
         return $entries;
@@ -295,7 +295,7 @@ final class ReportExporter
         $scope = self::periodScope($metric, $filters);
 
         if ($filters->packageCategoryId !== null && $metric->report === ReportType::Business && in_array($metric->key, self::NOT_BY_PACKAGE_CATEGORY, true)) {
-            $scope .= '; Package category filter not applied';
+            $scope .= '; Filter kategori paket tidak berlaku';
         }
 
         return $scope;
@@ -304,14 +304,14 @@ final class ReportExporter
     private static function periodScope(MetricDefinition $metric, ReportFilters $filters): string
     {
         if ($metric->dateBasis === DateBasis::Snapshot) {
-            return 'Snapshot: period filter not applied';
+            return 'Posisi saat ini: filter periode tidak berlaku';
         }
 
         return match (true) {
-            $filters->dateFrom !== null && $filters->dateTo !== null => "Period: {$filters->dateFrom} to {$filters->dateTo}",
-            $filters->dateFrom !== null => "Period: from {$filters->dateFrom}",
-            $filters->dateTo !== null => "Period: up to {$filters->dateTo}",
-            default => 'Period: no range set',
+            $filters->dateFrom !== null && $filters->dateTo !== null => "Periode: {$filters->dateFrom} sampai {$filters->dateTo}",
+            $filters->dateFrom !== null => "Periode: dari {$filters->dateFrom}",
+            $filters->dateTo !== null => "Periode: sampai {$filters->dateTo}",
+            default => 'Periode: tanpa rentang',
         };
     }
 }

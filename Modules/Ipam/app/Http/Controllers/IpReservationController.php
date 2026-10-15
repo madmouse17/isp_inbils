@@ -14,6 +14,6 @@ class IpReservationController extends Controller
     {
         $reservation = IpAssignmentService::reserve($prefix, $request->validated('address'), $request->validated('note'));
 
-        return back()->with('success', "Address {$reservation->address} reserved.");
+        return back()->with('success', "Alamat {$reservation->address} dicadangkan.");
     }
 }

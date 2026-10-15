@@ -4,12 +4,16 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Queries\Admin\DashboardAdminStatsQuery;
+use App\Queries\Admin\DashboardQuery;
 use App\Services\Core\AuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Permission;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use Tests\TestCase;
 use Tests\Traits\BuildsDashboardFixtures;
 
@@ -104,6 +108,40 @@ class DashboardPersonaTest extends TestCase
             ['operations', 'operations', 'operations', 'approvals', 'warehouse', 'warehouse', 'warehouse', 'finance'],
             array_column($this->sections($this->dashboard($admin)), 'group'),
         );
+    }
+
+    public function test_section_titles_are_indonesian(): void
+    {
+        $admin = $this->userWithRole($this->makeCompany(), 'admin');
+        $this->activeEmployeeProfile($admin);
+
+        $this->assertSame([
+            'my_work' => 'Pekerjaan saya',
+            'dispatch_unassigned' => 'Belum ditugaskan',
+            'sla_breached' => 'SLA terlampaui',
+            'approvals' => 'Menunggu persetujuan saya',
+            'warehouse_requests' => 'Antrean permintaan gudang',
+            'return_queue' => 'Antrean retur material',
+            'low_stock' => 'Stok di bawah minimum',
+            'overdue_invoices' => 'Tagihan jatuh tempo',
+        ], array_column($this->sections($this->dashboard($admin)), 'title', 'key'));
+    }
+
+    public function test_a_user_without_a_company_is_refused_in_indonesian(): void
+    {
+        $user = User::factory()->create(['company_id' => null, 'is_active' => true, 'email_verified_at' => now()]);
+        $request = Request::create('/admin/dashboard');
+        $request->setUserResolver(fn (): User => $user);
+
+        foreach ([fn () => DashboardQuery::sections($request), fn () => DashboardAdminStatsQuery::stats($user)] as $call) {
+            try {
+                $call();
+                $this->fail('a user without a company must be refused');
+            } catch (HttpException $exception) {
+                $this->assertSame(403, $exception->getStatusCode());
+                $this->assertSame('Konteks perusahaan diperlukan.', $exception->getMessage());
+            }
+        }
     }
 
     public function test_every_section_carries_the_documented_base_shape_and_an_absolute_href(): void
@@ -280,16 +318,16 @@ class DashboardPersonaTest extends TestCase
 
         $adminModules = collect($this->dashboard($admin)->inertiaProps('admin.modules'))->keyBy('name');
         $this->assertSame(
-            ['Customer', 'Service', 'Inventory', 'Network Asset', 'SPK', 'Billing', 'Ticketing'],
+            ['Pelanggan', 'Layanan', 'Inventaris', 'Aset jaringan', 'SPK', 'Tagihan', 'Tiket'],
             $adminModules->keys()->all(),
         );
-        $this->assertSame(1, $adminModules['Customer']['count']);
-        $this->assertSame(route('admin.customers.index'), $adminModules['Customer']['href']);
+        $this->assertSame(1, $adminModules['Pelanggan']['count']);
+        $this->assertSame(route('admin.customers.index'), $adminModules['Pelanggan']['href']);
 
         $hrModules = collect($this->dashboard($hr)->inertiaProps('admin.modules'))->keyBy('name');
-        $this->assertSame(['Billing', 'Ticketing'], $hrModules->keys()->all());
-        $this->assertSame(1, $hrModules['Billing']['count']);
-        $this->assertSame(1, $hrModules['Ticketing']['count']);
+        $this->assertSame(['Tagihan', 'Tiket'], $hrModules->keys()->all());
+        $this->assertSame(1, $hrModules['Tagihan']['count']);
+        $this->assertSame(1, $hrModules['Tiket']['count']);
 
         $this->assertSame([], $this->dashboard($minimal)->inertiaProps('admin.modules'));
     }

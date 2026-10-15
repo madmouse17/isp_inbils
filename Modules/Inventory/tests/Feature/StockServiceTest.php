@@ -334,7 +334,7 @@ class StockServiceTest extends TestCase
             $this->fail('Replaying stock movement with different quantity must abort 409.');
         } catch (HttpException $e) {
             $this->assertEquals(409, $e->getStatusCode());
-            $this->assertStringContainsString('Idempotency conflict', $e->getMessage());
+            $this->assertStringContainsString('Konflik idempotensi', $e->getMessage());
         }
     }
 
@@ -367,7 +367,7 @@ class StockServiceTest extends TestCase
             $this->fail('Replaying stock movement with different note must abort 409.');
         } catch (HttpException $e) {
             $this->assertEquals(409, $e->getStatusCode());
-            $this->assertStringContainsString('Idempotency conflict', $e->getMessage());
+            $this->assertStringContainsString('Konflik idempotensi', $e->getMessage());
         }
     }
 

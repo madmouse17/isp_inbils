@@ -32,6 +32,23 @@ class ConsolidatedReportRequest extends FormRequest
         ];
     }
 
+    /** @return array<string, string> */
+    public function attributes(): array
+    {
+        return [
+            'date_from' => 'tanggal mulai',
+            'date_to' => 'tanggal akhir',
+        ];
+    }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'date_to.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
+        ];
+    }
+
     /** The effective company when it is a Head, else null. */
     public function head(): ?Company
     {

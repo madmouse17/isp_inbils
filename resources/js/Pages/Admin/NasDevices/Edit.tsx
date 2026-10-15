@@ -29,7 +29,7 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
 
     const asset = routerAssets[0];
     const assetLabel = asset
-        ? `${asset.code} - ${asset.name} (${asset.management_ip ?? 'no management IP'})`
+        ? `${asset.code} - ${asset.name} (${asset.management_ip ?? 'tanpa IP manajemen'})`
         : (nasDevice.network_asset?.code ?? `Router #${nasDevice.id}`);
     const showHref = route('admin.nas-devices.show', nasDevice.id);
 
@@ -43,11 +43,11 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
     };
 
     return (
-        <AdminLayout title="Edit NAS router">
+        <AdminLayout title="Ubah Router NAS">
             <div className="space-y-6">
                 <PageHeader
-                    title="Edit NAS router"
-                    subtitle="Change the address, CoA port or shared secret FreeRADIUS uses for this router."
+                    title="Ubah Router NAS"
+                    subtitle="Ubah alamat, port CoA, atau secret bersama yang dipakai FreeRADIUS untuk router ini."
                     actions={
                         <Button
                             asChild
@@ -55,7 +55,7 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                             size="sm"
                             leftIcon={<ArrowLeft className="size-4" />}
                         >
-                            <Link href={showHref}>Back</Link>
+                            <Link href={showHref}>Kembali</Link>
                         </Button>
                     }
                 />
@@ -67,47 +67,47 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                         </CardHeader>
                         <CardContent className="space-y-4">
                             <dl className="space-y-1.5 text-sm">
-                                <dt className="font-medium text-foreground">Router asset</dt>
+                                <dt className="font-medium text-foreground">Aset router</dt>
                                 <dd className="text-muted-foreground">{assetLabel}</dd>
                             </dl>
                             {realmError ? (
-                                <p role="alert" className="text-sm text-red-700 dark:text-red-400">
+                                <p role="alert" className="text-sm text-destructive-text">
                                     {realmError}
                                 </p>
                             ) : null}
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <Input
-                                    label="NAS address"
+                                    label="Alamat NAS"
                                     value={data.nasname}
                                     onChange={(event) => setData('nasname', event.target.value)}
-                                    hint="The IPv4 address FreeRADIUS sees the router's requests come from."
+                                    hint="Alamat IPv4 yang dilihat FreeRADIUS sebagai asal permintaan router."
                                     error={errors.nasname}
                                     inputMode="decimal"
                                     required
                                 />
                                 <Input
-                                    label="CoA port"
+                                    label="Port CoA"
                                     type="number"
                                     min={1}
                                     max={65535}
                                     value={data.coa_port}
                                     onChange={(event) => setData('coa_port', event.target.value)}
-                                    hint="MikroTik /radius incoming port"
+                                    hint="Port masuk /radius di MikroTik"
                                     error={errors.coa_port}
                                     required
                                 />
                             </div>
                             <Input
-                                label="RADIUS secret"
+                                label="Secret RADIUS"
                                 type="password"
                                 autoComplete="off"
-                                placeholder={nasDevice.has_radius_secret ? 'Stored' : undefined}
+                                placeholder={nasDevice.has_radius_secret ? 'Tersimpan' : undefined}
                                 value={data.radius_secret}
                                 onChange={(event) => setData('radius_secret', event.target.value)}
                                 hint={
                                     nasDevice.has_radius_secret
-                                        ? 'A secret is stored. Leave blank to keep it.'
-                                        : 'Stored encrypted. Inbils never shows it again.'
+                                        ? 'Secret sudah tersimpan. Kosongkan untuk mempertahankannya.'
+                                        : 'Disimpan terenkripsi dan tidak pernah ditampilkan lagi oleh Inbils.'
                                 }
                                 error={errors.radius_secret}
                             />
@@ -115,15 +115,15 @@ export default function Edit({ routerAssets, nasDevice }: EditProps) {
                                 label="Realm"
                                 value={nasDevice.shortname}
                                 readOnly
-                                hint="The company code. Subscribers log in as name@realm."
+                                hint="Kode perusahaan. Pelanggan masuk sebagai nama@realm."
                             />
                         </CardContent>
                         <CardFooter className="justify-end gap-2">
                             <Button asChild variant="outline">
-                                <Link href={showHref}>Cancel</Link>
+                                <Link href={showHref}>Batal</Link>
                             </Button>
                             <Button type="submit" loading={processing} disabled={processing}>
-                                Save router
+                                Simpan router
                             </Button>
                         </CardFooter>
                     </Card>

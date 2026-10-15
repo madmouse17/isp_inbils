@@ -26,7 +26,7 @@ class IpPrefixService
     {
         $companyId = self::companyId();
         $parsed = IpNotation::prefix($data['cidr']) ?? throw ValidationException::withMessages([
-            'cidr' => 'Enter a valid IPv4 or IPv6 prefix in CIDR form, for example 10.20.0.0/22.',
+            'cidr' => 'Masukkan prefiks IPv4 atau IPv6 dalam bentuk CIDR yang valid, misalnya 10.20.0.0/22.',
         ]);
 
         return IpamLock::run('prefixes', $companyId, function () use ($data, $parsed): IpPrefix {
@@ -94,11 +94,11 @@ class IpPrefixService
             $fresh = IpPrefix::query()->lockForUpdate()->findOrFail($prefix->id);
 
             if ($fresh->children()->exists()) {
-                throw ValidationException::withMessages(['prefix' => "{$fresh->cidr} contains other prefixes. Delete those first."]);
+                throw ValidationException::withMessages(['prefix' => "{$fresh->cidr} memuat prefiks lain. Hapus dulu."]);
             }
 
             if (IpAddress::query()->where('ip_prefix_id', $fresh->id)->lockForUpdate()->exists()) {
-                throw ValidationException::withMessages(['prefix' => "{$fresh->cidr} still has addresses. Release them first."]);
+                throw ValidationException::withMessages(['prefix' => "{$fresh->cidr} masih punya alamat. Lepas dulu."]);
             }
 
             $fresh->delete();
@@ -131,7 +131,7 @@ class IpPrefixService
             } elseif ($new->containsPrefix($other)) {
                 $inside[] = $row;
             } else {
-                throw ValidationException::withMessages(['cidr' => "{$new->cidr} partially overlaps {$row->cidr}."]);
+                throw ValidationException::withMessages(['cidr' => "{$new->cidr} tumpang tindih sebagian dengan {$row->cidr}."]);
             }
         }
 
@@ -142,17 +142,17 @@ class IpPrefixService
     private static function assertLinks(array $data): void
     {
         if (($data['location_id'] ?? null) !== null && ! Location::query()->whereKey($data['location_id'])->exists()) {
-            throw ValidationException::withMessages(['location_id' => 'The selected POP does not exist.']);
+            throw ValidationException::withMessages(['location_id' => 'POP yang dipilih tidak ditemukan.']);
         }
 
         if (($data['vlan_id'] ?? null) !== null && ! Vlan::query()->whereKey($data['vlan_id'])->exists()) {
-            throw ValidationException::withMessages(['vlan_id' => 'The selected VLAN does not exist.']);
+            throw ValidationException::withMessages(['vlan_id' => 'VLAN yang dipilih tidak ditemukan.']);
         }
     }
 
     private static function duplicate(ParsedPrefix $parsed): ValidationException
     {
-        return ValidationException::withMessages(['cidr' => "{$parsed->cidr} is already registered."]);
+        return ValidationException::withMessages(['cidr' => "{$parsed->cidr} sudah terdaftar."]);
     }
 
     private static function companyId(): int
