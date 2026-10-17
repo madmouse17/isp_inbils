@@ -39,7 +39,7 @@ class IpAssignmentTest extends TestCase
     private function assign(ServiceSubscription $subscription, IpPrefix $pool, ?string $address = null): TestResponse
     {
         return $this->postJson(route('admin.ipam.subscription-addresses.store', $subscription), [
-            'ip_prefix_id' => $pool->id,
+            'ip_prefix_id' => $pool->public_id,
             'address' => $address,
         ]);
     }

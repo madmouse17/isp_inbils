@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Modules\Ticketing\Models\Ticket;
 
 /**
@@ -99,8 +100,6 @@ class NotificationResource extends JsonResource
     private function message(string $type, ?string $ticketCode, array $data, bool $customerNotification): string
     {
         $requestCode = is_string($data['request_code'] ?? null) ? $data['request_code'] : null;
-        $caseId = $data['case_id'] ?? null;
-        $caseId = is_int($caseId) || (is_string($caseId) && ctype_digit($caseId)) ? (int) $caseId : null;
 
         return match ($type) {
             'invoice_issued' => 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.',
@@ -145,15 +144,9 @@ class NotificationResource extends JsonResource
             'inventory_request_rejected' => $requestCode
                 ? "Permintaan {$requestCode} ditolak."
                 : 'Sebuah permintaan barang ditolak.',
-            'material_return_declared' => $caseId !== null
-                ? "Kasus pengembalian #{$caseId} sudah dideklarasikan dan menunggu penerimaan gudang."
-                : 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.',
-            'material_return_exception' => $caseId !== null
-                ? "Kasus pengembalian #{$caseId} memiliki selisih yang perlu diselesaikan."
-                : 'Pengembalian material memiliki selisih yang perlu diselesaikan.',
-            'material_return_rejected' => $caseId !== null
-                ? "Serah terima kasus pengembalian #{$caseId} ditolak. Periksa kembali deklarasinya."
-                : 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.',
+            'material_return_declared' => 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.',
+            'material_return_exception' => 'Pengembalian material memiliki selisih yang perlu diselesaikan.',
+            'material_return_rejected' => 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.',
             'announcement_published' => is_string($data['title'] ?? null)
                 ? (string) $data['title']
                 : 'Ada pengumuman baru untuk layanan Anda.',
@@ -162,8 +155,11 @@ class NotificationResource extends JsonResource
     }
 
     /**
+     * The record a notification is about, by public id. A stored value that is not a ULID (an integer id from a row
+     * the D6 migration could not map) names nothing: an integer id never leaves the server.
+     *
      * @param  array<string, mixed>  $data
-     * @return array{type: string, id: int}|null
+     * @return array{type: string, id: string}|null
      */
     private function subject(array $data): ?array
     {
@@ -177,8 +173,8 @@ class NotificationResource extends JsonResource
         ] as $key => $type) {
             $id = $data[$key] ?? null;
 
-            if (is_int($id) || (is_string($id) && ctype_digit($id))) {
-                return ['type' => $type, 'id' => (int) $id];
+            if (is_string($id) && Str::isUlid($id)) {
+                return ['type' => $type, 'id' => strtolower($id)];
             }
         }
 
@@ -195,7 +191,7 @@ class NotificationResource extends JsonResource
         $ticketId = $data['ticket_id'] ?? null;
         $payloadCompanyId = $data['company_id'] ?? null;
         $user = $request->user();
-        if (! is_int($ticketId) && ! (is_string($ticketId) && ctype_digit($ticketId))) {
+        if (! is_string($ticketId) || ! Str::isUlid($ticketId)) {
             return null;
         }
         if (! is_int($payloadCompanyId) && ! (is_string($payloadCompanyId) && ctype_digit($payloadCompanyId))) {
@@ -208,7 +204,8 @@ class NotificationResource extends JsonResource
 
         $ticket = Ticket::withoutCompany()
             ->where('company_id', $companyId)
-            ->find((int) $ticketId);
+            ->wherePublicId($ticketId)
+            ->first();
 
         if ($ticket === null || ! Gate::forUser($user)->allows('view', $ticket)) {
             return null;

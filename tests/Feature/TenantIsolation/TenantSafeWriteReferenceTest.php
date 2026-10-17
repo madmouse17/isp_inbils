@@ -262,8 +262,8 @@ class TenantSafeWriteReferenceTest extends TestCase
         ]);
 
         $this->post(route('admin.customers.subscriptions.store', $customer), [
-            'service_package_id' => $package->id,
-            'installation_address_id' => $foreignAddress->id,
+            'service_package_id' => $package->public_id,
+            'installation_address_id' => $foreignAddress->public_id,
             'billing_day' => 5,
         ])->assertSessionHasErrors(['installation_address_id']);
 
@@ -308,10 +308,10 @@ class TenantSafeWriteReferenceTest extends TestCase
             'title' => 'Wrong parent ticket',
             'description' => 'Subscription belongs to other customer',
             'source' => 'customer',
-            'category_id' => $category->id,
+            'category_id' => $category->public_id,
             'priority' => 'medium',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
         ])->assertSessionHasErrors(['subscription_id']);
 
         $this->assertDatabaseMissing('tickets', ['title' => 'Wrong parent ticket']);

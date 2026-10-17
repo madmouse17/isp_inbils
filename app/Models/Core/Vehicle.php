@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\VehicleFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ class Vehicle extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
 

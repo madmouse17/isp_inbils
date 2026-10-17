@@ -80,7 +80,7 @@ class SecurityHardeningTest extends TestCase
     {
         $asset = NetworkAssetFactory::new()->create(['company_id' => $this->company->id, 'asset_type' => 'router', 'management_ip' => '192.0.2.150']);
 
-        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->id, 'nasname' => '192.0.2.150', 'coa_port' => 70000, 'radius_secret' => 'fake-flash-me-1'])
+        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->public_id, 'nasname' => '192.0.2.150', 'coa_port' => 70000, 'radius_secret' => 'fake-flash-me-1'])
             ->assertSessionHasErrors('coa_port');
         $this->assertSame('192.0.2.150', session('_old_input.nasname'));
         $this->assertNull(session('_old_input.radius_secret'));

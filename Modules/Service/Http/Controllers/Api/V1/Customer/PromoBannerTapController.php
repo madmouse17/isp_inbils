@@ -14,11 +14,11 @@ use Modules\Service\Queries\CustomerAudienceQuery;
 
 class PromoBannerTapController extends Controller
 {
-    public function __invoke(Request $request, int $banner, CustomerAudienceQuery $audience): Response
+    public function __invoke(Request $request, string $banner, CustomerAudienceQuery $audience): Response
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
         abort_unless($customer instanceof Customer, 403);
-        $item = $audience->visibleBanners($customer)->findOrFail($banner);
+        $item = $audience->visibleBanners($customer)->wherePublicId($banner)->firstOrFail();
         $timezone = CompanyService::current()?->timezone ?: (string) config('app.timezone');
         $now = CarbonImmutable::now($timezone);
         $key = "promo-banner:{$item->id}:user:{$request->user()->id}:tap:{$now->toDateString()}";

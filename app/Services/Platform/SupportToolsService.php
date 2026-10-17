@@ -75,7 +75,7 @@ class SupportToolsService
         $this->record($actor, $user, 'user.login_unlocked');
     }
 
-    /** @return LengthAwarePaginator<int, array{id: int, uuid: mixed, queue: mixed, job: mixed, exception: string, company: array{id: int, code: string}, failed_at: string}> */
+    /** @return LengthAwarePaginator<int, array{uuid: mixed, queue: mixed, job: mixed, exception: string, company: array{id: string, code: string}, failed_at: string}> */
     public function failedJobs(Company $root, int $page, int $perPage): LengthAwarePaginator
     {
         $companies = $this->companies($root);
@@ -108,17 +108,16 @@ class SupportToolsService
             $companyId = $matches[$id];
 
             return [
-                'id' => $id,
                 'uuid' => $row->uuid,
                 'queue' => $row->queue,
                 'job' => json_decode((string) $row->payload, true)['displayName'] ?? null,
                 'exception' => Str::limit(Str::before((string) $row->exception, "\n"), 200),
-                'company' => ['id' => $companyId, 'code' => $companies[$companyId]->code],
+                'company' => ['id' => $companies[$companyId]->public_id, 'code' => $companies[$companyId]->code],
                 'failed_at' => Carbon::parse($row->failed_at)->toIso8601String(),
             ];
         });
 
-        /** @var LengthAwarePaginator<int, array{id: int, uuid: mixed, queue: mixed, job: mixed, exception: string, company: array{id: int, code: string}, failed_at: string}> $result */
+        /** @var LengthAwarePaginator<int, array{uuid: mixed, queue: mixed, job: mixed, exception: string, company: array{id: string, code: string}, failed_at: string}> $result */
         $result = new LengthAwarePaginator($items, count($matches), $perPage, $page, [
             'path' => Paginator::resolveCurrentPath(),
             'query' => request()->query(),
@@ -127,7 +126,7 @@ class SupportToolsService
         return $result;
     }
 
-    /** @return LengthAwarePaginator<int, array{id: int, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, company: array{id: int, code: string}, failed_at: string}> */
+    /** @return LengthAwarePaginator<int, array{id: string, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, company: array{id: string, code: string}, failed_at: string}> */
     public function failedNotifications(Company $root, int $page, int $perPage): LengthAwarePaginator
     {
         $companies = $this->companies($root);
@@ -138,22 +137,22 @@ class SupportToolsService
             ->where('failed_at', '>=', now()->subDays(self::WINDOW_DAYS))
             ->orderByDesc('failed_at')
             ->orderByDesc('id')
-            ->select(['id', 'company_id', 'event', 'template', 'error_code', 'recipient_last4', 'failed_at'])
+            ->select(['id', 'public_id', 'company_id', 'event', 'template', 'error_code', 'recipient_last4', 'failed_at'])
             ->paginate($perPage, page: $page)
             ->withQueryString();
-        /** @var Collection<int, object{id: mixed, company_id: mixed, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, failed_at: mixed}> $rows */
+        /** @var Collection<int, object{id: mixed, public_id: mixed, company_id: mixed, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, failed_at: mixed}> $rows */
         $rows = collect($result->items());
         $items = $rows->map(fn (object $row): array => [
-            'id' => (int) $row->id,
+            'id' => $row->public_id,
             'event' => $row->event,
             'template' => $row->template,
             'error_code' => $row->error_code,
             'recipient_last4' => $row->recipient_last4,
-            'company' => ['id' => (int) $row->company_id, 'code' => $companies[$row->company_id]->code],
+            'company' => ['id' => $companies[$row->company_id]->public_id, 'code' => $companies[$row->company_id]->code],
             'failed_at' => Carbon::parse($row->failed_at)->toIso8601String(),
         ]);
 
-        /** @var LengthAwarePaginator<int, array{id: int, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, company: array{id: int, code: string}, failed_at: string}> $mapped */
+        /** @var LengthAwarePaginator<int, array{id: string, event: mixed, template: mixed, error_code: mixed, recipient_last4: mixed, company: array{id: string, code: string}, failed_at: string}> $mapped */
         $mapped = new LengthAwarePaginator($items, $result->total(), $result->perPage(), $result->currentPage(), [
             'path' => $result->path(),
             'query' => request()->query(),
@@ -169,7 +168,7 @@ class SupportToolsService
             ->whereKey($root->id)
             ->orWhere('parent_company_id', $root->id)
             ->orderBy('id')
-            ->get(['id', 'code'])
+            ->get(['id', 'public_id', 'code'])
             ->keyBy('id');
     }
 

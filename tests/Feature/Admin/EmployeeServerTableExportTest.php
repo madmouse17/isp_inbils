@@ -117,7 +117,7 @@ class EmployeeServerTableExportTest extends TestCase
 
         $filters = [
             'search' => 'PAGE-EMP-',
-            'organization_id' => $organization->id,
+            'organization_id' => $organization->public_id,
             'status' => 'active',
             'sort' => 'employee_number',
             'direction' => 'desc',

@@ -44,6 +44,6 @@ class SearchOptionsHttpTest extends TestCase
         $this->actingAs($user)
             ->get('/admin/invoices?customer_search=Budi', $this->partialReload('Admin/Billing/Invoices/Index', 'customerOptions'))
             ->assertOk()
-            ->assertJsonPath('props.customerOptions.0.value', $customer->id);
+            ->assertJsonPath('props.customerOptions.0.value', $customer->public_id);
     }
 }

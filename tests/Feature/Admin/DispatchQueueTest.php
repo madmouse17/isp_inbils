@@ -111,7 +111,7 @@ class DispatchQueueTest extends TestCase
                 ->component('Admin/Dispatch/Index')
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'ticket')
-                ->where('items.data.0.id', $ticket->id)
+                ->where('items.data.0.id', $ticket->public_id)
                 ->where('domains', [['value' => 'ticket', 'label' => 'Tiket']])
                 ->where('technicians', [])
             );
@@ -137,7 +137,7 @@ class DispatchQueueTest extends TestCase
                 ->component('Admin/Dispatch/Index')
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'spk')
-                ->where('items.data.0.id', $spk->id)
+                ->where('items.data.0.id', $spk->public_id)
                 ->where('domains', [['value' => 'spk', 'label' => 'SPK']])
                 ->where('handlers', [])
             );
@@ -197,8 +197,8 @@ class DispatchQueueTest extends TestCase
                 ->where('items.meta.total', 2)
                 ->has('items.data', 2)
                 ->where('items.data', function ($items) use ($ticket, $spk): bool {
-                    return $items->contains(fn ($item): bool => $item['id'] === $ticket->id && $item['domain'] === 'ticket')
-                        && $items->contains(fn ($item): bool => $item['id'] === $spk->id && $item['domain'] === 'spk');
+                    return $items->contains(fn ($item): bool => $item['id'] === $ticket->public_id && $item['domain'] === 'ticket')
+                        && $items->contains(fn ($item): bool => $item['id'] === $spk->public_id && $item['domain'] === 'spk');
                 })
             );
     }
@@ -233,8 +233,8 @@ class DispatchQueueTest extends TestCase
                 ->where('items.meta.total', 2)
                 ->has('items.data', 2)
                 ->where('items.data', function ($items) use ($unassignedTicket, $unassignedSpk): bool {
-                    return $items->contains(fn ($item): bool => $item['id'] === $unassignedTicket->id)
-                        && $items->contains(fn ($item): bool => $item['id'] === $unassignedSpk->id);
+                    return $items->contains(fn ($item): bool => $item['id'] === $unassignedTicket->public_id)
+                        && $items->contains(fn ($item): bool => $item['id'] === $unassignedSpk->public_id);
                 })
             );
 
@@ -245,8 +245,8 @@ class DispatchQueueTest extends TestCase
                 ->where('items.meta.total', 2)
                 ->has('items.data', 2)
                 ->where('items.data', function ($items) use ($assignedTicket, $assignedSpk): bool {
-                    return $items->contains(fn ($item): bool => $item['id'] === $assignedTicket->id)
-                        && $items->contains(fn ($item): bool => $item['id'] === $assignedSpk->id);
+                    return $items->contains(fn ($item): bool => $item['id'] === $assignedTicket->public_id)
+                        && $items->contains(fn ($item): bool => $item['id'] === $assignedSpk->public_id);
                 })
             );
 
@@ -286,7 +286,7 @@ class DispatchQueueTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $ticketA->id)
+                ->where('items.data.0.id', $ticketA->public_id)
             );
     }
 
@@ -371,10 +371,10 @@ class DispatchQueueTest extends TestCase
                 ->where('technicians', function (Collection $technicians) use ($eligible, $inactive, $crossCompanyProfile, $crossCompanyUser): bool {
                     $ids = collect($technicians)->pluck('id')->all();
 
-                    return in_array($eligible->id, $ids, true)
-                        && ! in_array($inactive->id, $ids, true)
-                        && ! in_array($crossCompanyProfile->id, $ids, true)
-                        && ! in_array($crossCompanyUser->id, $ids, true);
+                    return in_array($eligible->public_id, $ids, true)
+                        && ! in_array($inactive->public_id, $ids, true)
+                        && ! in_array($crossCompanyProfile->public_id, $ids, true)
+                        && ! in_array($crossCompanyUser->public_id, $ids, true);
                 })
             );
     }
@@ -498,8 +498,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $technician->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticketPayload['updated_at'],
             ])
@@ -508,8 +508,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'spk',
-                'id' => $spk->id,
-                'assignee_id' => $technician->id,
+                'id' => $spk->public_id,
+                'assignee_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $spkPayload['updated_at'],
             ])
@@ -537,8 +537,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $handler->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $handler->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -574,8 +574,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'spk',
-                'id' => $spk->id,
-                'assignee_id' => $technician->id,
+                'id' => $spk->public_id,
+                'assignee_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $spk->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -607,8 +607,8 @@ class DispatchQueueTest extends TestCase
             ->withHeader('X-Inertia', 'true')
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $handler->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $handler->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => now()->subMinute()->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -632,8 +632,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $handler->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $handler->public_id,
             ])
             ->assertSessionHasErrors(['expected_assigned_to', 'expected_updated_at']);
     }
@@ -669,8 +669,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcherA)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticketB->id,
-                'assignee_id' => $handlerA->id,
+                'id' => $ticketB->public_id,
+                'assignee_id' => $handlerA->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticketB->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -699,7 +699,7 @@ class DispatchQueueTest extends TestCase
         foreach ([$ticket, $spk] as $item) {
             foreach (['assignee_id', 'handler_id', 'technician_id'] as $field) {
                 // The request's own company-scoped `exists` rule stops it before the service looks the user up.
-                $this->postAssign($dispatcher, $item, [$field => $foreignTechnician->id])->assertSessionHasErrors($field);
+                $this->postAssign($dispatcher, $item, [$field => $foreignTechnician->public_id])->assertSessionHasErrors($field);
             }
         }
 
@@ -708,8 +708,8 @@ class DispatchQueueTest extends TestCase
         $this->assertSame(0, WorkOrderAssignment::withoutCompany()->where('work_order_id', $spk->id)->count());
         Notification::assertNothingSent();
 
-        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $ownTechnician->id])->assertRedirect();
-        $this->postAssign($dispatcher, $spk, ['assignee_id' => $ownTechnician->id])->assertRedirect();
+        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $ownTechnician->public_id])->assertRedirect();
+        $this->postAssign($dispatcher, $spk, ['assignee_id' => $ownTechnician->public_id])->assertRedirect();
         $this->assertSame($ownTechnician->id, $ticket->fresh()->assigned_to);
         $this->assertSame($ownTechnician->id, $spk->fresh()->assigned_to);
     }
@@ -748,24 +748,24 @@ class DispatchQueueTest extends TestCase
         $page = $this->actingAs($dispatcher)->get(route('admin.dispatch.index'))->assertOk();
         $handlers = array_column($page->inertiaProps('handlers'), 'id');
         $technicians = array_column($page->inertiaProps('technicians'), 'id');
-        $this->assertContains($eligible->id, $handlers);
-        $this->assertContains($eligible->id, $technicians);
+        $this->assertContains($eligible->public_id, $handlers);
+        $this->assertContains($eligible->public_id, $technicians);
 
         foreach ($rejectedEverywhere as $label => $user) {
-            $this->assertNotContains($user->id, $handlers, "{$label} is listed as a ticket handler");
-            $this->assertSame(404, $this->postAssign($dispatcher, $ticket, ['assignee_id' => $user->id])->getStatusCode(), "{$label} was assigned to a ticket");
+            $this->assertNotContains($user->public_id, $handlers, "{$label} is listed as a ticket handler");
+            $this->assertSame(404, $this->postAssign($dispatcher, $ticket, ['assignee_id' => $user->public_id])->getStatusCode(), "{$label} was assigned to a ticket");
         }
 
         foreach ([...$rejectedEverywhere, ...$rejectedForSpk] as $label => $user) {
-            $this->assertNotContains($user->id, $technicians, "{$label} is listed as an SPK technician");
-            $this->assertSame(404, $this->postAssign($dispatcher, $spk, ['assignee_id' => $user->id])->getStatusCode(), "{$label} was assigned to an SPK");
+            $this->assertNotContains($user->public_id, $technicians, "{$label} is listed as an SPK technician");
+            $this->assertSame(404, $this->postAssign($dispatcher, $spk, ['assignee_id' => $user->public_id])->getStatusCode(), "{$label} was assigned to an SPK");
         }
 
         $this->assertNull($ticket->fresh()->assigned_to);
         $this->assertNull($spk->fresh()->assigned_to);
 
-        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $eligible->id])->assertRedirect();
-        $this->postAssign($dispatcher, $spk, ['assignee_id' => $eligible->id])->assertRedirect();
+        $this->postAssign($dispatcher, $ticket, ['assignee_id' => $eligible->public_id])->assertRedirect();
+        $this->postAssign($dispatcher, $spk, ['assignee_id' => $eligible->public_id])->assertRedirect();
         $this->assertSame($eligible->id, $ticket->fresh()->assigned_to);
         $this->assertSame($eligible->id, $spk->fresh()->assigned_to);
     }
@@ -789,8 +789,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $dispatcher->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $dispatcher->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -813,8 +813,8 @@ class DispatchQueueTest extends TestCase
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $handler->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $handler->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -846,7 +846,7 @@ class DispatchQueueTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $spk->id)
+                ->where('items.data.0.id', $spk->public_id)
                 ->where('items.data.0.actions.assign', true)
             );
     }
@@ -869,8 +869,8 @@ class DispatchQueueTest extends TestCase
 
         $rows = collect($this->actingAs($dispatcher)->get(route('admin.dispatch.index'))->assertOk()->inertiaProps('items.data'))->keyBy('id');
 
-        $this->assertNull($rows[$waiting->id]['en_route_at']);
-        $this->assertSame(Carbon::parse('2026-10-16 01:30:00')->toISOString(), $rows[$onTheWay->id]['en_route_at']);
+        $this->assertNull($rows[$waiting->public_id]['en_route_at']);
+        $this->assertSame(Carbon::parse('2026-10-16 01:30:00')->toISOString(), $rows[$onTheWay->public_id]['en_route_at']);
     }
 
     public function test_reassign_permission_only_lists_assigned_items_and_audits_once(): void
@@ -894,16 +894,16 @@ class DispatchQueueTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $ticket->id)
+                ->where('items.data.0.id', $ticket->public_id)
                 ->where('items.data.0.actions.assign', true)
             );
 
         $this->actingAs($dispatcher)
             ->post(route('admin.dispatch.assign'), [
                 'domain' => 'ticket',
-                'id' => $ticket->id,
-                'assignee_id' => $newHandler->id,
-                'expected_assigned_to' => $oldHandler->id,
+                'id' => $ticket->public_id,
+                'assignee_id' => $newHandler->public_id,
+                'expected_assigned_to' => $oldHandler->public_id,
                 'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
             ->assertRedirect();
@@ -917,13 +917,13 @@ class DispatchQueueTest extends TestCase
     }
 
     /**
-     * @param  array<string, int>  $assignee  the assignee under whichever key the caller exercises
+     * @param  array<string, string>  $assignee  the assignee under whichever key the caller exercises
      */
     private function postAssign(User $actor, Ticket|WorkOrder $item, array $assignee): TestResponse
     {
         return $this->actingAs($actor)->post(route('admin.dispatch.assign'), [
             'domain' => $item instanceof Ticket ? 'ticket' : 'spk',
-            'id' => $item->id,
+            'id' => $item->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $item->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ...$assignee,

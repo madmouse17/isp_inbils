@@ -99,7 +99,7 @@ class MyWorkTest extends TestCase
                 ->component('Admin/MyWork/Index')
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'ticket')
-                ->where('items.data.0.id', $myTicket->id)
+                ->where('items.data.0.id', $myTicket->public_id)
             );
     }
 
@@ -136,7 +136,7 @@ class MyWorkTest extends TestCase
                 ->component('Admin/MyWork/Index')
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'spk')
-                ->where('items.data.0.id', $mySpk->id)
+                ->where('items.data.0.id', $mySpk->public_id)
             );
     }
 
@@ -198,7 +198,7 @@ class MyWorkTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/MyWork/Index')
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $ticketA->id)
+                ->where('items.data.0.id', $ticketA->public_id)
             );
     }
 
@@ -321,8 +321,8 @@ class MyWorkTest extends TestCase
         $response->assertInertia(fn (Assert $page) => $page
             ->where('items.data', function (Collection $items) use ($resolvedTicket, $inProgressSpk): bool {
                 return $items->pluck('composite_id')->sort()->values()->all() === collect([
-                    "ticket:{$resolvedTicket->id}",
-                    "spk:{$inProgressSpk->id}",
+                    "ticket:{$resolvedTicket->public_id}",
+                    "spk:{$inProgressSpk->public_id}",
                 ])->sort()->values()->all();
             })
         );
@@ -489,7 +489,7 @@ class MyWorkTest extends TestCase
         $this->actingAs($dispatcher)
             ->withHeaders(['X-Inertia' => 'true'])
             ->post(route('admin.tickets.assign', $ticket), [
-                'handler_id' => $technician->id,
+                'handler_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $ticket->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -523,7 +523,7 @@ class MyWorkTest extends TestCase
         $this->actingAs($dispatcher)
             ->withHeaders(['X-Inertia' => 'true'])
             ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $technician->id,
+                'technician_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -620,8 +620,8 @@ class MyWorkTest extends TestCase
         $this->actingAs($dispatcher)
             ->withHeaders(['X-Inertia' => 'true'])
             ->post(route('admin.tickets.assign', $ticket), [
-                'handler_id' => $technician->id,
-                'expected_assigned_to' => $dispatcher->id,
+                'handler_id' => $technician->public_id,
+                'expected_assigned_to' => $dispatcher->public_id,
                 'expected_updated_at' => $ticket->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
             ->assertStatus(422)

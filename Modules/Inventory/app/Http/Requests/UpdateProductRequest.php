@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +11,14 @@ use Modules\Inventory\Models\Category;
 
 class UpdateProductRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['category_id' => Category::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('inventory.update') ?? false;

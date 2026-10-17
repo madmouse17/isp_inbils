@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Core\Customer;
 use App\Notifications\Channels\WhatsAppChannel;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -60,7 +61,7 @@ class CustomerAccountCreated extends WhatsAppNotification
             'access_link_notice',
             [$this->companyName(), Str::substr((string) $notifiable->email, 0, 1).'***@'.Str::after((string) $notifiable->email, '@')],
             'user',
-            $notifiable->getKey(),
+            $notifiable instanceof Model ? $notifiable : null,
             'access_link_notice:'.$notifiable->getKey().':'.$this->hour,
         );
     }

@@ -44,7 +44,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         const spkRow = page.getByRole('row').filter({ hasText: title }).first();
         await expect(spkRow).toBeVisible({ timeout: 15_000 });
         await spkRow.getByRole('link', { name: /Buka SPK/ }).click();
-        await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/spk\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         const spkUrl = page.url();
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
@@ -93,7 +93,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await page.goto(`/admin/invoices?search=${encodeURIComponent(customerName)}`);
         const invoiceRow = page.getByRole('row').filter({ hasText: customerName }).first();
         await invoiceRow.getByRole('link', { name: 'Lihat', exact: true }).click();
-        await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/invoices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expectDetail(page, 'Status', 'Draf');
 
         await page.getByRole('button', { name: 'Tambah item' }).click();
@@ -194,7 +194,7 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
             .getByRole('button', { name: 'Buat SPK' })
             .click();
 
-        await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/spk\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(
             page.getByRole('main').getByRole('heading', { name: /SPK dari tiket TKT-\d{4}-\d{5}/ }),
         ).toBeVisible();
@@ -266,7 +266,7 @@ async function createCustomer(page: Page, key: string) {
     await page.getByRole('tab', { name: 'Data pelanggan' }).click();
     await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
-    await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
+    await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(page.getByRole('main').getByRole('heading', { name })).toBeVisible();
 
     return name;
@@ -283,7 +283,7 @@ async function ticketIdFromIndex(page: Page, title: string) {
         `/admin/tickets?search=${encodeURIComponent(title)}`,
     );
     const tickets = props?.['tickets'] as
-        { data?: Array<{ id: number; title: string }> } | undefined;
+        { data?: Array<{ id: string; title: string }> } | undefined;
     const ticket = tickets?.data?.find((entry) => entry.title === title);
 
     return ticket ? String(ticket.id) : null;

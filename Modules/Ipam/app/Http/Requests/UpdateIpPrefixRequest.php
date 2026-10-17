@@ -2,14 +2,25 @@
 
 namespace Modules\Ipam\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Ipam\Models\IpPrefix;
+use Modules\Ipam\Models\Vlan;
 
 /** The cidr is not a field here: it is immutable, so a submitted value never reaches validated(). */
 class UpdateIpPrefixRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['location_id' => Location::class, 'vlan_id' => Vlan::class];
+    }
+
     public function authorize(): bool
     {
         $prefix = $this->route('prefix');

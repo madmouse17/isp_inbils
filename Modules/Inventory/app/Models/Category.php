@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +17,7 @@ class Category extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
 

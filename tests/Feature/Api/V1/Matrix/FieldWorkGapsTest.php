@@ -24,11 +24,11 @@ class FieldWorkGapsTest extends TestCase
 
     public function test_a_technician_who_is_not_the_assignee_cannot_submit_the_spk_and_nothing_changes(): void
     {
-        $workOrder = WorkOrder::query()->findOrFail($this->ids['work_order']);
+        $workOrder = WorkOrder::query()->wherePublicId($this->ids['work_order'])->firstOrFail();
 
         foreach ([$this->peerTechnician, $this->foreignTechnician] as $attacker) {
-            $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $this->issueToken($attacker, 'technician'))
-                ->assertStatus($attacker->is($this->peerTechnician) ? 403 : 404);
+            $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $this->issueToken($attacker, 'technician'))
+                ->assertNotFound();
         }
 
         $this->assertSame('in_progress', $workOrder->fresh()->status);
@@ -36,14 +36,14 @@ class FieldWorkGapsTest extends TestCase
 
     public function test_ticket_media_is_streamed_to_the_assigned_technician_only(): void
     {
-        $ticket = Ticket::query()->findOrFail($this->ids['technician_ticket']);
+        $ticket = Ticket::query()->wherePublicId($this->ids['technician_ticket'])->firstOrFail();
         $media = $ticket->addMediaFromString('png')->usingFileName('site.png')
             ->withCustomProperties(['company_id' => $ticket->company_id])->toMediaCollection('attachments');
 
-        $this->api('GET', "media/{$media->id}", token: $this->technicianToken)->assertOk();
+        $this->api('GET', "media/{$media->public_id}", token: $this->technicianToken)->assertOk();
 
-        $this->api('GET', "media/{$media->id}", token: $this->issueToken($this->peerTechnician, 'technician'))->assertNotFound();
-        $this->api('GET', "media/{$media->id}", token: $this->issueToken($this->foreignTechnician, 'technician'))->assertNotFound();
-        $this->api('GET', "media/{$media->id}", token: $this->customerToken)->assertNotFound();
+        $this->api('GET', "media/{$media->public_id}", token: $this->issueToken($this->peerTechnician, 'technician'))->assertNotFound();
+        $this->api('GET', "media/{$media->public_id}", token: $this->issueToken($this->foreignTechnician, 'technician'))->assertNotFound();
+        $this->api('GET', "media/{$media->public_id}", token: $this->customerToken)->assertNotFound();
     }
 }

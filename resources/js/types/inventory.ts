@@ -1,6 +1,6 @@
 /** Inventory domain types for the admin product, category, unit and request pages. They mirror the resources in `Modules/Inventory/app/Http/Resources`. */
 
-export type Id = number | string;
+export type Id = string;
 
 export interface Unit {
     id: Id;
@@ -59,19 +59,19 @@ export interface Product {
 }
 
 export interface InventoryRequestItem {
-    id: number;
-    inventory_request_id: number;
-    product_id: number;
+    id: string;
+    inventory_request_id: string;
+    product_id: string;
     product?: {
-        id: number;
+        id: string;
         name: string;
         code?: string | null;
         type?: string;
         unit?: string | null;
     } | null;
-    source_location_id?: number | null;
+    source_location_id?: string | null;
     source_location?: {
-        id: number;
+        id: string;
         name: string;
     } | null;
     quantity_requested: number;
@@ -81,7 +81,7 @@ export interface InventoryRequestItem {
 }
 
 export interface InventoryRequestRow {
-    id: number;
+    id: string;
     code: string;
     status: string;
     needed_at?: string | null;
@@ -89,40 +89,40 @@ export interface InventoryRequestRow {
     approval_note?: string | null;
     rejection_reason?: string | null;
     cancellation_reason?: string | null;
-    warehouse_location_id?: number | null;
+    warehouse_location_id?: string | null;
     warehouse_location?: {
-        id: number;
+        id: string;
         name: string;
         code?: string | null;
     } | null;
-    requested_by: number;
+    requested_by: string;
     requester?: {
-        id: number;
+        id: string;
         name: string;
         email?: string | null;
     } | null;
-    approved_by?: number | null;
+    approved_by?: string | null;
     approver?: {
-        id: number;
+        id: string;
         name: string;
     } | null;
-    prepared_by?: number | null;
+    prepared_by?: string | null;
     preparer?: {
-        id: number;
+        id: string;
         name: string;
     } | null;
-    ready_by?: number | null;
+    ready_by?: string | null;
     ready_user?: {
-        id: number;
+        id: string;
         name: string;
     } | null;
-    issued_by?: number | null;
+    issued_by?: string | null;
     issuer?: {
-        id: number;
+        id: string;
         name: string;
     } | null;
     source_type?: string | null;
-    source_id?: number | null;
+    source_id?: string | null;
     submitted_at?: string | null;
     approved_at?: string | null;
     prepared_at?: string | null;
@@ -144,42 +144,42 @@ export interface InventoryRequestRow {
 }
 
 export interface MaterialReturnCaseRow {
-    id: number;
-    company_id: number;
-    inventory_request_id?: number | null;
+    id: string;
+    company_id: string;
+    inventory_request_id?: string | null;
     inventory_request?: {
-        id: number;
+        id: string;
         code: string;
         status: string;
     } | null;
-    work_order_id?: number | null;
+    work_order_id?: string | null;
     work_order?: {
-        id: number;
+        id: string;
         code?: string;
         status?: string;
     } | null;
     warehouse_location?: {
-        id: number;
+        id: string;
         name: string;
         code?: string | null;
     } | null;
-    technician_id?: number | null;
+    technician_id?: string | null;
     technician?: {
-        id: number;
+        id: string;
         name: string;
         email?: string | null;
     } | null;
     status: string;
-    declared_by?: number | null;
+    declared_by?: string | null;
     declared_at?: string | null;
-    received_by?: number | null;
+    received_by?: string | null;
     received_at?: string | null;
-    reconciled_by?: number | null;
+    reconciled_by?: string | null;
     reconciled_at?: string | null;
-    rejected_by?: number | null;
+    rejected_by?: string | null;
     rejected_at?: string | null;
     rejection_reason?: string | null;
-    resolved_by?: number | null;
+    resolved_by?: string | null;
     resolved_at?: string | null;
     resolution_note?: string | null;
     created_at: string;
@@ -189,9 +189,9 @@ export interface MaterialReturnCaseRow {
         resolve?: boolean;
     };
     lines?: Array<{
-        id: number;
+        id: string;
         product?: {
-            id: number;
+            id: string;
             name: string;
             sku?: string;
             unit?: string | null;

@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -210,7 +211,7 @@ class SalesKpiReportTest extends TestCase
         ];
 
         $this->assertSameIgnoringKeyOrder(
-            ['id' => $ayu->id, 'name' => 'Ayu Seller', 'is_active' => true, ...$expected],
+            ['id' => $ayu->public_id, 'name' => 'Ayu Seller', 'is_active' => true, ...$expected],
             $data['rows']['data'][0],
         );
         $this->assertSameIgnoringKeyOrder($expected, $data['totals']);
@@ -231,9 +232,9 @@ class SalesKpiReportTest extends TestCase
         );
 
         $this->assertSame([
-            [$amy->id, 'Amy Seller', true],
-            [$mia->id, 'Mia Former', false],
-            [$zed->id, 'Zed Seller', true],
+            [$amy->public_id, 'Amy Seller', true],
+            [$mia->public_id, 'Mia Former', false],
+            [$zed->public_id, 'Zed Seller', true],
         ], $options);
     }
 
@@ -245,7 +246,7 @@ class SalesKpiReportTest extends TestCase
 
         $this->assertCount(1, $rows);
         $this->assertSameIgnoringKeyOrder(
-            ['id' => $idle->id, 'name' => 'Idle Seller', 'is_active' => true, ...self::ZERO_METRICS],
+            ['id' => $idle->public_id, 'name' => 'Idle Seller', 'is_active' => true, ...self::ZERO_METRICS],
             $rows[0],
         );
     }
@@ -258,7 +259,7 @@ class SalesKpiReportTest extends TestCase
         $rows = $this->props()['data']['rows']['data'];
 
         $this->assertCount(1, $rows);
-        $this->assertSame($former->id, $rows[0]['id']);
+        $this->assertSame($former->public_id, $rows[0]['id']);
         $this->assertFalse($rows[0]['is_active']);
         $this->assertSame(1, $rows[0]['customers_acquired']);
     }
@@ -270,8 +271,8 @@ class SalesKpiReportTest extends TestCase
 
         $props = $this->props();
 
-        $this->assertSame([$seller->id], $this->rowIds($props));
-        $this->assertSame([$seller->id], array_column($props['acquirers'], 'id'));
+        $this->assertSame([$seller->public_id], $this->rowIds($props));
+        $this->assertSame([$seller->public_id], array_column($props['acquirers'], 'id'));
     }
 
     // (c) tenancy
@@ -328,7 +329,7 @@ class SalesKpiReportTest extends TestCase
         $technician = $this->employee('technician');
         $this->acquirer('Ayu Seller');
 
-        foreach ([$technician->id, $this->viewer->id] as $userId) {
+        foreach ([$technician->public_id, $this->viewer->public_id] as $userId) {
             $this->visit(['acquirer_id' => $userId])->assertForbidden();
         }
     }
@@ -337,7 +338,7 @@ class SalesKpiReportTest extends TestCase
     {
         $this->acquirer('Ayu Seller');
 
-        foreach ([0, 999999] as $acquirerId) {
+        foreach ([0, 999999, PublicId::new()] as $acquirerId) {
             $this->visit(['acquirer_id' => $acquirerId])->assertSessionHasErrors(['acquirer_id' => 'Petugas penjualan tidak ditemukan.']);
         }
     }
@@ -365,7 +366,7 @@ class SalesKpiReportTest extends TestCase
         $this->assertSame('1000000.00', $props['data']['totals']['invoiced']);
         $this->assertSame('400000.00', $props['data']['totals']['collected']);
         $this->assertSame([$ids['ayu'], $ids['bima']], array_column($props['acquirers'], 'id'));
-        $this->assertSame((string) $ids['ayu'], $props['filters']['acquirer_id']);
+        $this->assertSame($ids['ayu'], $props['filters']['acquirer_id']);
     }
 
     // (d) sorting and paging
@@ -499,7 +500,7 @@ class SalesKpiReportTest extends TestCase
         $second = $this->acquirer('Twin Seller');
         $other = $this->acquirer('Aaron Seller');
 
-        $this->assertSame([$other->id, $first->id, $second->id], $this->rowIds($this->props()));
+        $this->assertSame([$other->public_id, $first->public_id, $second->public_id], $this->rowIds($this->props()));
     }
 
     public function test_names_sort_case_insensitively(): void
@@ -669,7 +670,7 @@ class SalesKpiReportTest extends TestCase
         $before = array_map(fn (string $table): int => DB::table($table)->count(), $tables);
 
         $this->props();
-        $this->props(['acquirer_id' => $ayu->id, 'sort' => 'collected', 'direction' => 'desc', 'per_page' => 25]);
+        $this->props(['acquirer_id' => $ayu->public_id, 'sort' => 'collected', 'direction' => 'desc', 'per_page' => 25]);
         $this->props(['date_from' => '2026-01-01', 'date_to' => '2026-12-31']);
 
         $this->assertSame($before, array_map(fn (string $table): int => DB::table($table)->count(), $tables));
@@ -701,7 +702,7 @@ class SalesKpiReportTest extends TestCase
      * 1 unassigned customer with an unpaid invoice of 250000. Other company: Zed (1 customer, invoice 9000000 with
      * 7000000 paid) and 1 unassigned customer with an unpaid invoice of 3000000.
      *
-     * @return array{ayu: int, bima: int, zed: int}
+     * @return array{ayu: string, bima: string, zed: string}
      */
     private function seedTwoCompanies(): array
     {
@@ -717,7 +718,7 @@ class SalesKpiReportTest extends TestCase
         $this->bill($this->customerAcquiredBy($zed, company: $this->otherCompany), 9000000, 7000000);
         $this->bill($this->customerAcquiredBy(null, company: $this->otherCompany), 3000000, 0);
 
-        return ['ayu' => $ayu->id, 'bima' => $bima->id, 'zed' => $zed->id];
+        return ['ayu' => $ayu->public_id, 'bima' => $bima->public_id, 'zed' => $zed->public_id];
     }
 
     /** ROSTER plus one unassigned customer with an invoice of 250000 of which 100000 is paid. */
@@ -836,16 +837,16 @@ class SalesKpiReportTest extends TestCase
 
     /**
      * @param  list<string>  $names  roster names, in the order they should appear
-     * @return list<int>
+     * @return list<string>
      */
     private function idsOf(array $names): array
     {
-        return array_map(fn (string $name): int => $this->roster[$name]->id, $names);
+        return array_map(fn (string $name): string => $this->roster[$name]->public_id, $names);
     }
 
     /**
      * @param  array<string, mixed>  $props
-     * @return list<int>
+     * @return list<string>
      */
     private function rowIds(array $props): array
     {

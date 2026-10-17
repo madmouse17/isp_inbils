@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Http\Middleware\DetectRecordEnumeration;
 use App\Http\Middleware\HandlePlatformInertiaRequests;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -30,6 +31,7 @@ class PlatformServiceProvider extends ServiceProvider
             StartSession::class,
             ShareErrorsFromSession::class,
             ValidateCsrfToken::class,
+            DetectRecordEnumeration::class,
             SubstituteBindings::class,
             HandlePlatformInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,

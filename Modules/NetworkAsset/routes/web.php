@@ -11,7 +11,7 @@ use Modules\NetworkAsset\Http\Controllers\OdnPonPortController;
 use Modules\NetworkAsset\Http\Controllers\OdnPortController;
 use Modules\NetworkAsset\Http\Controllers\OdnSplitterController;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['asset', 'nasDevice', 'subscription'])->group(function () {
     Route::get('network-assets/export', [NetworkAssetController::class, 'export'])->name('network-assets.export');
     Route::get('network-assets/trace', [NetworkAssetController::class, 'trace'])->name('network-assets.trace');
     Route::resource('network-assets', NetworkAssetController::class)->parameters(['network-assets' => 'asset']);
@@ -37,7 +37,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
 Route::get('isolir/{company:code}', IsolirPageController::class)->middleware('throttle:isolir')->name('isolir.show');
 
 // Optical distribution network register: PON ports, splitters and customer drops.
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin/odn')->name('admin.odn.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin/odn')->name('admin.odn.')->whereUlid(['asset', 'splitter', 'port'])->group(function () {
     Route::get('/', [OdnController::class, 'index'])->name('index');
     Route::get('assets/{asset}', [OdnController::class, 'show'])->name('assets.show');
     Route::post('assets/{asset}/pon-ports', [OdnPonPortController::class, 'store'])->name('pon-ports.store');

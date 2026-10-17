@@ -130,7 +130,7 @@ class IdempotencyMatrixTest extends TestCase
             'company_id' => $this->companyA->id, 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'created_by' => $this->technician->id,
         ]);
         $key = (string) Str::uuid();
-        $url = "technician/work-orders/{$workOrder->id}/start";
+        $url = "technician/work-orders/{$workOrder->public_id}/start";
 
         $first = $this->api('POST', $url, token: $this->technicianToken, headers: ['Idempotency-Key' => $key])->assertOk()->assertJsonPath('data.status', 'in_progress');
         $replay = $this->api('POST', $url, token: $this->technicianToken, headers: ['Idempotency-Key' => $key])->assertOk()->assertHeader('Idempotent-Replayed', 'true');
@@ -144,7 +144,7 @@ class IdempotencyMatrixTest extends TestCase
     {
         $key = (string) Str::uuid();
         $this->issueToken($this->customerUser, 'customer', 'Second phone');
-        $deviceId = $this->customerUser->tokens()->where('name', 'Second phone')->firstOrFail()->id;
+        $deviceId = $this->customerUser->tokens()->where('name', 'Second phone')->firstOrFail()->public_id;
 
         $this->api('DELETE', "devices/{$deviceId}", token: $this->customerToken, headers: ['Idempotency-Key' => $key])->assertNoContent();
         $this->api('DELETE', "devices/{$deviceId}", token: $this->customerToken, headers: ['Idempotency-Key' => $key])->assertNoContent()->assertHeader('Idempotent-Replayed', 'true');

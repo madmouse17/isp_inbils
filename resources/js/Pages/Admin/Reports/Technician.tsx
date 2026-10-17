@@ -19,7 +19,7 @@ type TechnicianMetricKey =
     | 'active_workload';
 
 interface TechData extends Record<string, unknown> {
-    technician_id?: number;
+    technician_id?: string;
     spk_completed?: number;
     tickets_resolved?: number;
     avg_spk_minutes?: number | null;
@@ -57,8 +57,8 @@ export default function Technician({
     drill,
 }: Props) {
     const isSelf =
-        typeof data?.technician_id === 'number' &&
-        Number.isFinite(data.technician_id) &&
+        typeof data?.technician_id === 'string' &&
+        data.technician_id !== '' &&
         filters.technician_id === undefined;
     const serverTarget = filters.technician_id ?? '';
     const {

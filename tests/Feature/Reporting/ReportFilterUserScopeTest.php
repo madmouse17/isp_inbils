@@ -4,6 +4,7 @@ namespace Tests\Feature\Reporting;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Modules\Reporting\Queries\AuditLogQuery;
@@ -46,16 +47,16 @@ class ReportFilterUserScopeTest extends TestCase
         // The picker offers the guest...
         $this->get(route('admin.reports.audit-log', ['user_search' => 'Tamu']), $this->partialReload('Admin/Reports/AuditLog', 'userOptions'))
             ->assertOk()
-            ->assertJsonPath('props.userOptions.0.value', $guest->id);
+            ->assertJsonPath('props.userOptions.0.value', $guest->public_id);
 
         // ...so choosing the guest must list their activity of this company, on the page and in the export.
-        $descriptions = $this->get(route('admin.reports.audit-log', ['user_id' => $guest->id]))
+        $descriptions = $this->get(route('admin.reports.audit-log', ['user_id' => $guest->public_id]))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('selectedUser.value', $guest->id))
+            ->assertInertia(fn ($page) => $page->where('selectedUser.value', $guest->public_id))
             ->inertiaProps('data.data');
         $this->assertSame(['guest_event_in_a'], array_column($descriptions, 'description'));
 
-        $export = $this->get(route('admin.reports.audit-log.export', ['user_id' => $guest->id]))->assertOk()->streamedContent();
+        $export = $this->get(route('admin.reports.audit-log.export', ['user_id' => $guest->public_id]))->assertOk()->streamedContent();
         $this->assertStringContainsString('guest_event_in_a', $export);
         $this->assertStringNotContainsString('admin_event_in_a', $export);
         $this->assertStringNotContainsString('guest_event_at_head', $export);
@@ -85,7 +86,7 @@ class ReportFilterUserScopeTest extends TestCase
 
         $this->actingAs($this->admin);
 
-        foreach ([$outsider->id, $sibling->id, $outsider->id + 10_000] as $userId) {
+        foreach ([$outsider->public_id, $sibling->public_id, PublicId::new(), (string) $outsider->id] as $userId) {
             $this->getJson(route('admin.reports.audit-log', ['user_id' => $userId]))
                 ->assertUnprocessable()
                 ->assertJsonPath('errors.user_id', ['Pengguna tidak ditemukan.']);
@@ -105,14 +106,14 @@ class ReportFilterUserScopeTest extends TestCase
         $this->assertSame(0, AuditLogQuery::paginate(userId: $outsider->id)->total());
     }
 
-    /** @return array<string, array{0: int}> */
+    /** @return array<string, array{0: string}> */
     public static function notAcquirers(): array
     {
-        return ['zero' => [0], 'unknown' => [999_999]];
+        return ['zero' => ['0'], 'an integer id' => ['999999'], 'an unknown public id' => ['01arz3ndektsv4rrffq69g5fav']];
     }
 
     #[DataProvider('notAcquirers')]
-    public function test_the_sales_report_refuses_an_acquirer_nobody_has(int $acquirerId): void
+    public function test_the_sales_report_refuses_an_acquirer_nobody_has(string $acquirerId): void
     {
         $this->actingAs($this->admin)
             ->getJson(route('admin.reports.sales', ['acquirer_id' => $acquirerId]))
@@ -125,7 +126,7 @@ class ReportFilterUserScopeTest extends TestCase
         $foreign = $this->groupUser($this->outsider, 'manager');
 
         $this->actingAs($this->admin)
-            ->getJson(route('admin.reports.sales', ['acquirer_id' => $foreign->id]))
+            ->getJson(route('admin.reports.sales', ['acquirer_id' => $foreign->public_id]))
             ->assertUnprocessable()
             ->assertJsonPath('errors.acquirer_id', ['Petugas penjualan tidak ditemukan.']);
     }
@@ -135,13 +136,14 @@ class ReportFilterUserScopeTest extends TestCase
         $technician = $this->groupUser($this->subA, 'technician');
 
         $this->actingAs($this->admin)
-            ->getJson(route('admin.reports.sales', ['acquirer_id' => $technician->id]))
+            ->getJson(route('admin.reports.sales', ['acquirer_id' => $technician->public_id]))
             ->assertForbidden();
     }
 
     private function activity(Company $company, User $causer, string $description): void
     {
         DB::table('activity_log')->insert([
+            'public_id' => PublicId::new(),
             'company_id' => $company->id,
             'log_name' => 'billing',
             'description' => $description,

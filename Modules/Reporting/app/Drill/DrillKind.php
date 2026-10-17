@@ -184,7 +184,7 @@ enum DrillKind: string
             self::Ticket => ['category:id,name'],
             self::WorkOrder => ['assignee:id,name'],
             self::Asset => ['location:id,name', 'customer:id,name'],
-            self::Installation => ['asset:id,code', 'location:id,name', 'customer:id,name', 'installer:id,name'],
+            self::Installation => ['asset:id,public_id,code', 'location:id,name', 'customer:id,name', 'installer:id,name'],
             self::Evaluation => ['employee:id,name', 'evaluator:id,name'],
         };
     }
@@ -271,20 +271,20 @@ enum DrillKind: string
             ],
         };
 
-        return ['id' => $model->getKey(), ...$row];
+        return ['id' => $model->getAttribute('public_id'), ...$row];
     }
 
     /** The record's own page, for the actor already allowed to list this kind. */
     public function url(Model $model): string
     {
         return match ($this) {
-            self::Subscription => route('admin.subscriptions.show', $model->getKey(), false),
-            self::Invoice => route('admin.invoices.show', $model->getKey(), false),
-            self::Ticket => route('admin.tickets.show', $model->getKey(), false),
-            self::WorkOrder => route('admin.spk.show', $model->getKey(), false),
-            self::Asset => route('admin.network-assets.show', $model->getKey(), false),
-            self::Installation => route('admin.network-assets.show', data_get($model, 'network_asset_id'), false),
-            self::Evaluation => route('admin.evaluations.show', $model->getKey(), false),
+            self::Subscription => route('admin.subscriptions.show', $model, false),
+            self::Invoice => route('admin.invoices.show', $model, false),
+            self::Ticket => route('admin.tickets.show', $model, false),
+            self::WorkOrder => route('admin.spk.show', $model, false),
+            self::Asset => route('admin.network-assets.show', $model, false),
+            self::Installation => route('admin.network-assets.show', data_get($model, 'asset'), false),
+            self::Evaluation => route('admin.evaluations.show', $model, false),
         };
     }
 

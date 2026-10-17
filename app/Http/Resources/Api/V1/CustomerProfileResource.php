@@ -26,7 +26,7 @@ class CustomerProfileResource extends JsonResource
             'contact_person' => $customer->contact_person,
             'status' => $customer->customer_status,
             'addresses' => $this->whenLoaded('addresses', fn () => $customer->addresses->map(fn (CustomerAddress $address): array => [
-                'id' => $address->id,
+                'id' => $address->public_id,
                 'address' => $address->address,
                 'city' => $address->city,
                 'postal_code' => $address->postal_code,

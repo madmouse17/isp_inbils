@@ -47,8 +47,8 @@ class CategoryUnitInheritanceTest extends TestCase
         $this->actingAs($this->admin)->post(route('admin.products.store'), [
             'sku' => 'UNIT-INHERIT-1',
             'name' => 'Inherited unit product',
-            'category_id' => $category->id,
-            'unit_id' => $otherUnit->id,
+            'category_id' => $category->public_id,
+            'unit_id' => $otherUnit->public_id,
             'track_stock' => true,
             'is_active' => true,
         ])->assertRedirect(route('admin.products.index'));
@@ -78,7 +78,7 @@ class CategoryUnitInheritanceTest extends TestCase
         $this->actingAs($this->admin)->put(route('admin.categories.update', $category), [
             'name' => $category->name,
             'code' => $category->code,
-            'unit_id' => $newUnit->id,
+            'unit_id' => $newUnit->public_id,
             'description' => $category->description,
             'is_active' => true,
         ])->assertRedirect();

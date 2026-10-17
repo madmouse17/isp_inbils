@@ -35,7 +35,7 @@ import {
 import type { CustomerAddress } from '@/types/models';
 
 interface CustomerAddressEditorProps {
-    customerId: number;
+    customerId: string;
     addresses: CustomerAddress[];
     regions: IndonesiaRegionOptions;
     geocodeResults?: GeocodeResult[];
@@ -44,7 +44,7 @@ interface CustomerAddressEditorProps {
 }
 
 type AddressForm = {
-    id: number | null;
+    id: string | null;
     label: string;
     address: string;
     city: string;
@@ -104,7 +104,7 @@ export function CustomerAddressEditor({
     } = useForm<AddressForm>(emptyForm());
 
     // Editing state lives outside the Inertia form so it survives partial reloads.
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<CustomerAddress | null>(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
     const [regionLoading, setRegionLoading] = useState(false);
@@ -127,8 +127,8 @@ export function CustomerAddressEditor({
     };
 
     const startEdit = (row: CustomerAddress) => {
-        setEditingId(Number(row.id));
-        setData('id', Number(row.id));
+        setEditingId(row.id);
+        setData('id', row.id);
         setData('label', row.label ?? '');
         setData('address', row.address ?? '');
         setData('city', row.city ?? '');

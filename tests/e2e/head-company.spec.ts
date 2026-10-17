@@ -23,13 +23,13 @@ const addableMetrics = [
     'Langganan ditangguhkan',
 ] as const;
 
-type Membership = { id: number; name: string; is_current: boolean; is_default: boolean };
+type Membership = { id: string; name: string; is_current: boolean; is_default: boolean };
 
 type SharedProps = {
     canSwitch: boolean;
     companies: Membership[];
     companyHierarchy: { can_consolidate: boolean } | null;
-    auth: { user: { company_id: number } };
+    auth: { user: { company_id: string } };
 };
 
 async function sharedProps(page: Page) {
@@ -337,7 +337,7 @@ test.describe('@smoke @head-company head company', () => {
     test('the consolidated report and the switch stay closed to users without the permission, to a subsidiary and to a forged id', async ({
         page,
     }) => {
-        const switchRequest = async (companyId: number) =>
+        const switchRequest = async (companyId: string) =>
             page.request.post('/admin/company/switch', {
                 headers: { 'X-XSRF-TOKEN': await csrfToken(page) },
                 form: { company_id: String(companyId) },
@@ -346,13 +346,14 @@ test.describe('@smoke @head-company head company', () => {
 
         await loginAs(page, 'admin');
         const home = await sharedProps(page);
-        const subsidiaryId = home.companies.find((company) => company.name === subsidiary)?.id ?? 0;
+        const subsidiaryId =
+            home.companies.find((company) => company.name === subsidiary)?.id ?? '';
         expect(home.canConsolidate).toBe(true);
         await expandSidebarGroups(page);
         await expect(consolidatedLink(page)).toBeVisible();
 
         // A forged id changes nothing.
-        expect((await switchRequest(999_999_999)).status()).toBe(403);
+        expect((await switchRequest('01arz3ndektsv4rrffq69g5fav')).status()).toBe(403);
         expect((await sharedProps(page)).companyId).toBe(home.companyId);
 
         // Inside the subsidiary the report is gone: it is no Head.

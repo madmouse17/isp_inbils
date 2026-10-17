@@ -5,6 +5,7 @@ namespace Modules\Ipam\Services;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
@@ -143,7 +144,7 @@ class IpAssignmentService
     public static function syncAssetAddresses(NetworkAsset $asset): void
     {
         $companyId = self::companyId();
-        abort_unless((int) $asset->company_id === $companyId, 404);
+        RecordNotFound::abortUnless((int) $asset->company_id === $companyId);
 
         DB::transaction(function () use ($asset): void {
             // The asset row is the mutex of its own addresses; its rows are then read without a range lock.

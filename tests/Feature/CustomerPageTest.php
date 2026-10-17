@@ -190,8 +190,8 @@ class CustomerPageTest extends TestCase
                 'phone' => '08987654321',
                 'is_active' => false,
                 // Forged related + tenant keys must never reach the database.
-                'addresses' => [['id' => $address->id, 'label' => 'HACKED', 'is_primary' => false]],
-                'contacts' => [['id' => $contact->id, 'name' => 'HACKED']],
+                'addresses' => [['id' => $address->public_id, 'label' => 'HACKED', 'is_primary' => false]],
+                'contacts' => [['id' => $contact->public_id, 'name' => 'HACKED']],
                 'company_id' => $otherCompany->id,
                 'user_id' => $this->admin->id + 1000,
             ])

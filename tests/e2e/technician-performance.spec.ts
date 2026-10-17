@@ -13,14 +13,14 @@ import { chartCard, expectChartSettled } from './support/charts';
 import { typeDateRange } from './support/dateRange';
 
 type Employee = {
-    id: number;
-    user_id: number;
+    id: string;
+    user_id: string;
     employee_number: string;
-    organization_id: number | null;
+    organization_id: string | null;
     status: string;
 };
 
-type Organization = { id: number; code: string };
+type Organization = { id: string; code: string };
 
 // The Technician report draws three charts under its cards; the first is named after the bucket size.
 const chartTitles = [
@@ -58,7 +58,7 @@ async function organizationByCode(page: Page, code: string): Promise<Organizatio
 async function updateEmployee(
     page: Page,
     employee: Employee,
-    organizationId: number | null,
+    organizationId: string | null,
     status = 'active',
 ) {
     const response = await page.request.put(`/admin/employees/${employee.id}`, {

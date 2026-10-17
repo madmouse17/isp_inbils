@@ -25,7 +25,7 @@ class ProductController extends Controller
             ->with('unit:id,name,symbol')
             ->orderBy('name')
             ->orderBy('id')
-            ->paginate($request->perPage(), ['id', 'sku', 'name', 'unit_id']);
+            ->paginate($request->perPage(), ['id', 'public_id', 'sku', 'name', 'unit_id']);
 
         return TechnicianProductResource::collection($products);
     }

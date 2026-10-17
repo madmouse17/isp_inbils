@@ -86,8 +86,8 @@ class EvaluationServerTableExportTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.evaluations.index'))
             ->assertInertia(fn (Assert $page) => $page->where('evaluations.referenceOptions', [
-                "Ticket:{$ticket->id}" => ['code' => 'TKT-EVAL-1', 'title' => 'Gangguan fiber'],
-                "WorkOrder:{$workOrder->id}" => ['code' => 'SPK-EVAL-1', 'title' => 'Pasang ONT'],
+                "Ticket:{$ticket->public_id}" => ['code' => 'TKT-EVAL-1', 'title' => 'Gangguan fiber'],
+                "WorkOrder:{$workOrder->public_id}" => ['code' => 'SPK-EVAL-1', 'title' => 'Pasang ONT'],
             ]));
 
         $this->get(route('admin.evaluations.show', $onTicket))
@@ -102,16 +102,16 @@ class EvaluationServerTableExportTest extends TestCase
         $foreign = $this->makeEvaluation($this->outsider, 'Teknisi Asing');
 
         $this->actingAs($this->admin)
-            ->get(route('admin.evaluations.index', ['employee_id' => $own->employee_id]))
+            ->get(route('admin.evaluations.index', ['employee_id' => $own->employee->public_id]))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('evaluations.data', 1)
                 ->where('selectedEmployee', [
-                    'value' => $own->employee_id,
+                    'value' => $own->employee->public_id,
                     'label' => 'Teknisi Sendiri',
                     'description' => $own->employee->email,
                 ]));
 
-        $this->get(route('admin.evaluations.index', ['employee_id' => $foreign->employee_id]))
+        $this->get(route('admin.evaluations.index', ['employee_id' => $foreign->employee->public_id]))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('evaluations.data', 0)
                 ->where('selectedEmployee', null));

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Route;
 Route::middleware(['auth:platform', 'platform.account', 'platform.2fa'])->group(function () {
     Route::post('companies/{company}/users/{user}/impersonate', [ImpersonationController::class, 'start'])
         ->middleware('platform.password.confirm')
-        ->where(['company' => '[0-9]+', 'user' => '[0-9]+'])
+        ->whereUlid(['company', 'user'])
         ->name('impersonation.start');
 
     Route::post('impersonation/write', [ImpersonationController::class, 'write'])

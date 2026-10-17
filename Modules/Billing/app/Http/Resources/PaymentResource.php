@@ -11,17 +11,17 @@ class PaymentResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'invoice_id' => $this->invoice_id,
+            'id' => $this->public_id,
+            'invoice_id' => $this->invoice?->public_id,
             'amount' => $this->amount,
             'method' => $this->method,
             'reference' => $this->reference,
             'paid_at' => $this->paid_at,
-            'received_by' => $this->received_by,
+            'received_by' => $this->receiver?->public_id,
             'notes' => $this->notes,
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
-            'cancelled_by' => $this->cancelled_by,
+            'cancelled_by' => $this->canceller?->public_id,
         ];
     }
 }

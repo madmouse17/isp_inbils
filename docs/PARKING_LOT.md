@@ -22,3 +22,6 @@ Ideas and feature gaps found while another task was active (AGENTS.md: no "while
 | 2026-10-14 | `GET /admin/spk/{id}/edit` renders a missing `Admin/SPK/Edit` page (500) and sends unbounded lists | WaveSecFix | Remove the route/method or build the page. |
 | 2026-10-16 | Per-company push notification event toggles / in-app opt-out | `push-notifications` N6 | v1 relies on OS notification settings. |
 | 2026-10-16 | Platform: shared-origin session means a tenant-page XSS during impersonation could call platform routes without step-up (design §7 residual) | PlatformSecReview | Add CSP and/or `platform.password.confirm` on provisioning/reactivate, or set `PLATFORM_DOMAIN`. |
+| 2026-10-17 | Customer Beranda feed stays stale after an outage push until pull-to-refresh (refresh on push receive / app resume) | push device QA | Fold into the flow audit fixes. |
+| 2026-10-17 | Technician SPK hero shows the raw `maintenance` type; API now sends `type_label` | push device QA | One-line app fix. |
+| 2026-10-17 | Company logo public path `/storage/companies/<int company id>/company-logo/<int media id>/logo.webp` still exposes integer ids | opaque-ids 04 | Serve logos through a ULID-keyed route or rename the folder on upload. |

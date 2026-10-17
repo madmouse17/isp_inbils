@@ -44,7 +44,7 @@ class MeCompanyTest extends TestCase
 
         $this->assertSame(self::KEYS, array_keys($brand));
         $this->assertSame([
-            'id' => $company->id,
+            'id' => $company->public_id,
             'name' => 'PT Nusa Net',
             'logo_url' => config('filesystems.disks.public.url')."/companies/{$company->id}/company-logo/{$logoId}/logo.webp",
             'brand_color' => '#EA580C',
@@ -64,7 +64,7 @@ class MeCompanyTest extends TestCase
         $brand = $this->api('GET', 'me', token: $this->issueToken($user, 'customer'))->assertOk()->json('data.company');
 
         $this->assertSame(self::KEYS, array_keys($brand));
-        $this->assertSame(['id' => $company->id, 'name' => 'PT Polos'], array_filter($brand, fn (mixed $value): bool => $value !== null));
+        $this->assertSame(['id' => $company->public_id, 'name' => 'PT Polos'], array_filter($brand, fn (mixed $value): bool => $value !== null));
     }
 
     public function test_the_technician_app_gets_the_same_company_block(): void

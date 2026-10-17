@@ -158,7 +158,7 @@ class SubscriptionConnectionTest extends TestCase
 
     private function connection(ServiceSubscription $subscription): TestResponse
     {
-        return $this->api('GET', "customer/subscriptions/{$subscription->id}/connection", token: $this->token);
+        return $this->api('GET', "customer/subscriptions/{$subscription->public_id}/connection", token: $this->token);
     }
 
     /** NAS and framed addresses and the session id are what an app must never see, in a key or as a value. */

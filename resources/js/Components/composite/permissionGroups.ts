@@ -5,7 +5,6 @@ import {
 import { navGroups } from '@/lib/navigation';
 
 export interface PermissionOption {
-    id: number;
     name: string;
     group: string;
 }

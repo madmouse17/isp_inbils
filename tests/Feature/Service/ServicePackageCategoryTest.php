@@ -63,14 +63,21 @@ class ServicePackageCategoryTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function packagePayload(ServicePackage $base, int $categoryId, array $overrides = []): array
+    private function packagePayload(ServicePackage $base, string|int $categoryId, array $overrides = []): array
     {
         return [
             'code' => 'NEW-1', 'name' => 'Paket Baru',
-            'bandwidth_profile_id' => $base->bandwidth_profile_id, 'speed_profile_id' => $base->speed_profile_id, 'sla_tier_id' => $base->sla_tier_id,
+            'bandwidth_profile_id' => $this->publicId('bandwidth_profiles', $base->bandwidth_profile_id),
+            'speed_profile_id' => $this->publicId('speed_profiles', $base->speed_profile_id),
+            'sla_tier_id' => $this->publicId('sla_tiers', $base->sla_tier_id),
             'service_package_category_id' => $categoryId, 'price_mrc' => 200000, 'is_active' => true,
             ...$overrides,
         ];
+    }
+
+    private function publicId(string $table, int $id): string
+    {
+        return (string) DB::table($table)->where('id', $id)->value('public_id');
     }
 
     public function test_index_lists_company_categories_with_the_package_count_including_soft_deleted(): void
@@ -180,14 +187,14 @@ class ServicePackageCategoryTest extends TestCase
         $base = $this->package($active, 'Dasar');
         $url = route('admin.service-packages.store');
 
-        $this->actingAs($manager)->postJson($url, collect($this->packagePayload($base, $active->id))->except('service_package_category_id')->all())
+        $this->actingAs($manager)->postJson($url, collect($this->packagePayload($base, $active->public_id))->except('service_package_category_id')->all())
             ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
-        foreach ([$inactive->id, $foreign->id, 999999] as $id) {
+        foreach ([$inactive->public_id, $foreign->public_id, 999999] as $id) {
             $this->actingAs($manager)->postJson($url, $this->packagePayload($base, $id))
                 ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
         }
 
-        $this->actingAs($manager)->post($url, $this->packagePayload($base, $active->id))->assertRedirect(route('admin.service-packages.index'));
+        $this->actingAs($manager)->post($url, $this->packagePayload($base, $active->public_id))->assertRedirect(route('admin.service-packages.index'));
         $this->assertSame($active->id, ServicePackage::query()->where('code', 'NEW-1')->sole()->service_package_category_id);
     }
 
@@ -200,13 +207,13 @@ class ServicePackageCategoryTest extends TestCase
         $package = $this->package($retired, 'Warisan');
         $url = route('admin.service-packages.update', $package);
 
-        $this->actingAs($manager)->put($url, $this->packagePayload($package, $retired->id, ['code' => $package->code, 'name' => 'Warisan 2']))->assertRedirect();
+        $this->actingAs($manager)->put($url, $this->packagePayload($package, $retired->public_id, ['code' => $package->code, 'name' => 'Warisan 2']))->assertRedirect();
         $this->assertSame('Warisan 2', $package->fresh()->name);
 
-        $this->actingAs($manager)->putJson($url, $this->packagePayload($package, $otherRetired->id, ['code' => $package->code]))
+        $this->actingAs($manager)->putJson($url, $this->packagePayload($package, $otherRetired->public_id, ['code' => $package->code]))
             ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
 
-        $this->actingAs($manager)->put($url, $this->packagePayload($package, $active->id, ['code' => $package->code]))->assertRedirect();
+        $this->actingAs($manager)->put($url, $this->packagePayload($package, $active->public_id, ['code' => $package->code]))->assertRedirect();
         $this->assertSame($active->id, $package->fresh()->service_package_category_id);
     }
 
@@ -217,7 +224,7 @@ class ServicePackageCategoryTest extends TestCase
         $retired = $this->category('LAMA', 5, false);
         $this->category('LAIN', 1, true, $this->other);
         $package = $this->package($retired, 'Warisan');
-        $shape = fn (Assert $page) => $page->where('packageCategories.0', ['id' => $active->id, 'code' => 'RUMAHAN', 'name' => 'Rumahan', 'is_active' => true]);
+        $shape = fn (Assert $page) => $page->where('packageCategories.0', ['id' => $active->public_id, 'code' => 'RUMAHAN', 'name' => 'Rumahan', 'is_active' => true]);
 
         $this->actingAs($manager)->get(route('admin.service-packages.create'))->assertOk()
             ->assertInertia(fn (Assert $page) => $shape($page->has('packageCategories', 1)));
@@ -234,12 +241,12 @@ class ServicePackageCategoryTest extends TestCase
         $this->package($rumahan, 'Home');
         $this->package($bisnis, 'Biz');
 
-        $this->actingAs($manager)->get(route('admin.service-packages.index', ['service_package_category_id' => $bisnis->id]))
+        $this->actingAs($manager)->get(route('admin.service-packages.index', ['service_package_category_id' => $bisnis->public_id]))
             ->assertOk()->assertInertia(fn (Assert $page) => $page
             ->has('servicePackages.data', 1)
-            ->where('servicePackages.data.0.category', ['id' => $bisnis->id, 'code' => 'BISNIS', 'name' => 'Bisnis'])
-            ->where('servicePackages.data.0.service_package_category_id', $bisnis->id)
-            ->where('filters.service_package_category_id', (string) $bisnis->id)
+            ->where('servicePackages.data.0.category', ['id' => $bisnis->public_id, 'code' => 'BISNIS', 'name' => 'Bisnis'])
+            ->where('servicePackages.data.0.service_package_category_id', $bisnis->public_id)
+            ->where('filters.service_package_category_id', $bisnis->public_id)
             ->where('packageCategories', fn ($rows) => collect($rows)->pluck('code')->all() === ['RUMAHAN', 'BISNIS']));
 
         $this->actingAs($manager)->get(route('admin.service-packages.index'))
@@ -271,10 +278,10 @@ class ServicePackageCategoryTest extends TestCase
         $this->assertSame(['PROMO', 'RUMAHAN', 'BISNIS', 'KORPORAT'], $codes('Whatever'));
 
         $groups = CompanyService::runAs($this->company->id, fn () => ServicePackageOptions::grouped('Individual'));
-        $this->assertSame(['id' => $rumahan->id, 'code' => 'RUMAHAN', 'name' => 'Rumahan'], $groups[0]['category']);
+        $this->assertSame(['id' => $rumahan->public_id, 'code' => 'RUMAHAN', 'name' => 'Rumahan'], $groups[0]['category']);
         $this->assertSame(['Home 10', 'Home 20'], array_column($groups[0]['packages'], 'label'));
         $this->assertSame(
-            ['value' => (string) $home->id, 'label' => 'Home 20', 'description' => $home->code.' · Rp '.number_format((float) $home->price_mrc, 0, ',', '.').'/bln'],
+            ['value' => $home->public_id, 'label' => 'Home 20', 'description' => $home->code.' · Rp '.number_format((float) $home->price_mrc, 0, ',', '.').'/bln'],
             $groups[0]['packages'][1],
         );
         $this->assertNotContains($kosong->code, array_column(array_column($groups, 'category'), 'code'));

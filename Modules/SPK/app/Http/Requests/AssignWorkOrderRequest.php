@@ -2,6 +2,8 @@
 
 namespace Modules\SPK\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\User;
 use App\Rules\IsActiveTechnician;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +12,14 @@ use Modules\SPK\Models\WorkOrder;
 
 class AssignWorkOrderRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['technician_id' => User::class, 'expected_assigned_to' => User::class];
+    }
+
     public function authorize(): bool
     {
         $wo = $this->route('wo');

@@ -5,6 +5,7 @@ use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Http\Middleware\Api\EnsureApiAppAccess;
 use App\Http\Middleware\Api\EnsureApiUserIsActive;
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\DetectRecordEnumeration;
 use App\Http\Middleware\EnforceImpersonation;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\Platform\EnsurePlatformAccountIsActive;
@@ -15,10 +16,12 @@ use App\Http\Middleware\RedirectIfNoCompany;
 use App\Http\Middleware\RequireHasCompany;
 use App\Http\Middleware\RequireNoCompany;
 use App\Http\Middleware\ResolveActiveCompany;
+use App\Http\Middleware\TrustConfiguredProxies;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Support\Facades\Route;
@@ -45,6 +48,10 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->append(AssignRequestId::class);
 
+        // TRUSTED_PROXIES (config/security.php) is read per request: .env is not loaded yet while this closure runs,
+        // so `trustProxies(at: env(...))` here would ignore a value that is set only in .env.
+        $middleware->replace(TrustProxies::class, TrustConfiguredProxies::class);
+
         // Password-reset URLs are built from the request host: only APP_URL (and its subdomains) may supply it,
         // plus loopback for the container healthcheck (compose.yaml curls http://localhost:8080/ready) and, when the
         // owner dedicates one, the platform host (read lazily, at request time, from config/platform.php).
@@ -62,6 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
         );
 
         $middleware->web(append: [
+            DetectRecordEnumeration::class,
             EnforceImpersonation::class,
             ResolveActiveCompany::class,
             RedirectIfNoCompany::class,
@@ -86,6 +94,13 @@ return Application::configure(basePath: dirname(__DIR__))
             $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: $guard);
         }
 
+        // Someone walking ids is counted per signed-in user (nobody who is signed out: an address can be everybody's
+        // behind a NAT or a proxy): ahead of route model binding, after the guards above, so the user is known. The
+        // tenant web group, the platform group (PlatformServiceProvider) and the API carry it; config/security.php
+        // switches it off in testing and e2e.
+        $middleware->api(append: [DetectRecordEnumeration::class]);
+        $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: DetectRecordEnumeration::class);
+
         $middleware->alias([
             'redirect.app.only' => RedirectAppOnlyRoles::class,
             'require.no.company' => RequireNoCompany::class,
@@ -107,6 +122,12 @@ return Application::configure(basePath: dirname(__DIR__))
         // answer a 409 or an InsufficientStockException with a redirect or a differently shaped body.
         $exceptions->shouldRenderJsonWhen(fn (Request $request) => $request->is('api/*') || $request->expectsJson());
         $exceptions->render(new RenderApiError([InsufficientStockException::class]));
+
+        // The uniform 404 (K3) holds for a JSON client of the web as well: Laravel's own body would name the model
+        // class or the route, and tell a missing record from a hidden one. Under api/* RenderApiError answers first.
+        $exceptions->render(fn (HttpExceptionInterface $e, Request $request) => $e->getStatusCode() === 404 && $request->expectsJson() && ! $request->is('api/*')
+            ? response()->json(['message' => 'Not Found'], 404)
+            : null);
 
         $exceptions->render(function (HttpExceptionInterface $e, $request) {
             if ($e->getStatusCode() === 409) {
@@ -136,13 +157,19 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->respond(function (SymfonyResponse $response, Throwable $e, Request $request) {
             $status = $response->getStatusCode();
 
-            if (! in_array($status, [403, 404, 419, 500, 503], true)
+            if (! in_array($status, [403, 404, 419, 429, 500, 503], true)
                 || $request->expectsJson()
                 || $request->is('api/*', 'webhooks/*', 'up', 'ready')
                 || ($status === 500 && config('app.debug'))) {
                 return $response;
             }
 
-            return Inertia::render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
+            $page = Inertia::render('Error', ['status' => $status])->toResponse($request)->setStatusCode($status);
+
+            if ($response->headers->has('Retry-After')) {
+                $page->headers->set('Retry-After', (string) $response->headers->get('Retry-After'));
+            }
+
+            return $page;
         });
     })->create();

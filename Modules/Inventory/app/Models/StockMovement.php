@@ -5,9 +5,11 @@ namespace Modules\Inventory\Models;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use LogicException;
 
 /**
@@ -29,6 +31,7 @@ class StockMovement extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'product_id',
@@ -81,5 +84,20 @@ class StockMovement extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /** What the movement was booked for: a work order item or a request item (the column holds the class name). */
+    public function reference(): MorphTo
+    {
+        return $this->morphTo('reference', 'reference_type', 'reference_id');
+    }
+
+    public function referencePublicId(): ?string
+    {
+        if ($this->reference_type === null || ! class_exists($this->reference_type)) {
+            return null;
+        }
+
+        return $this->reference?->getAttribute('public_id');
     }
 }

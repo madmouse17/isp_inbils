@@ -121,8 +121,8 @@ function AssignDialogInner({
         event.preventDefault();
         if (submitting || submitGuardRef.current || isConflict || isReloading) return;
 
-        const assigneeIdNum = Number(selectedAssigneeId);
-        if (!assigneeIdNum || assigneeIdNum <= 0) {
+        const trimmedAssigneeId = selectedAssigneeId.trim();
+        if (!trimmedAssigneeId) {
             setAssigneeError(`Pilih ${roleLabel.toLowerCase()} penerima penugasan.`);
             return;
         }
@@ -138,7 +138,7 @@ function AssignDialogInner({
         const payload = {
             domain: item.domain,
             id: item.id,
-            assignee_id: assigneeIdNum,
+            assignee_id: trimmedAssigneeId,
             expected_assigned_to: item.assigned_to ?? null,
             expected_updated_at: item.updated_at ?? null,
         };

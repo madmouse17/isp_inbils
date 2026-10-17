@@ -27,15 +27,15 @@ abstract class ReportScopedRequest extends ReportFilterRequest
             return $this->applied;
         }
 
-        $technicianId = null;
+        $technician = null;
 
         if ($this->report() === ReportType::Technician) {
             $actor = $this->user();
             TechnicianReportAccess::companyId($actor);
-            $technicianId = TechnicianReportAccess::target($actor, $this->input('technician_id'));
-            abort_if($technicianId === null, 404, 'Pilih teknisi terlebih dahulu.');
+            $technician = TechnicianReportAccess::target($actor, $this->input('technician_id'));
+            abort_if($technician === null, 404, 'Pilih teknisi terlebih dahulu.');
         }
 
-        return $this->applied = ReportFilters::fromRequest($this, $technicianId);
+        return $this->applied = ReportFilters::fromRequest($this, $technician);
     }
 }

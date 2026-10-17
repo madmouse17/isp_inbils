@@ -28,10 +28,10 @@ const manager = 'Demo Manager';
 const staff = 'Demo Staff';
 
 type CustomerRow = {
-    id: number;
+    id: string;
     name: string;
-    acquired_by_user_id?: number | null;
-    acquirer?: { id: number; name: string; is_active: boolean } | null;
+    acquired_by_user_id?: string | null;
+    acquirer?: { id: string; name: string; is_active: boolean } | null;
 };
 
 const acquiredByField = (page: Page) =>
@@ -43,7 +43,7 @@ const correctionReason = (page: Page) => page.getByLabel('Alasan koreksi');
 const saveButton = (page: Page) => page.getByRole('button', { name: 'Simpan pelanggan' });
 const customersIndexUrl = /\/admin\/customers\/?$/;
 
-async function customerIdFor(page: Page, name: string): Promise<number> {
+async function customerIdFor(page: Page, name: string): Promise<string> {
     const { props } = await inertiaProps(
         page,
         `/admin/customers?search=${encodeURIComponent(name)}`,
@@ -54,13 +54,13 @@ async function customerIdFor(page: Page, name: string): Promise<number> {
     return row.id;
 }
 
-async function currentAcquirer(page: Page, id: number): Promise<string | null> {
+async function currentAcquirer(page: Page, id: string): Promise<string | null> {
     const { props } = await inertiaProps(page, `/admin/customers/${id}`);
     const data = props?.customer?.data as CustomerRow | undefined;
     return data?.acquirer?.name ?? null;
 }
 
-async function openEdit(page: Page, id: number) {
+async function openEdit(page: Page, id: string) {
     await page.goto(`/admin/customers/${id}/edit`);
     await expect(
         page.getByRole('main').getByRole('heading', { name: 'Ubah Pelanggan' }),
@@ -88,7 +88,7 @@ async function save(page: Page) {
     await expect(page).toHaveURL(customersIndexUrl);
 }
 
-async function expectShowAcquirer(page: Page, id: number, name: string, expected: string | null) {
+async function expectShowAcquirer(page: Page, id: string, name: string, expected: string | null) {
     await page.goto(`/admin/customers/${id}`);
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { name })).toBeVisible();
@@ -105,7 +105,7 @@ async function expectShowAcquirer(page: Page, id: number, name: string, expected
 }
 
 /** Bring a dedicated customer to a known baseline through the manager UI (logged-in manager required). */
-async function ensureAcquirer(page: Page, name: string, wanted: string | null): Promise<number> {
+async function ensureAcquirer(page: Page, name: string, wanted: string | null): Promise<string> {
     const id = await customerIdFor(page, name);
     const current = await currentAcquirer(page, id);
     if (current === wanted) return id;
@@ -303,7 +303,7 @@ test.describe('@customer-sales-attribution', () => {
         await loginAs(page, 'manager');
         const searchUrl = `/admin/customers?search=${encodeURIComponent(filterSearch)}`;
         const { props } = await inertiaProps(page, searchUrl);
-        const options = (props?.acquirerOptions ?? []) as Array<{ id: number; name: string }>;
+        const options = (props?.acquirerOptions ?? []) as Array<{ id: string; name: string }>;
         const managerId = options.find((option) => option.name === manager)?.id;
         const staffId = options.find((option) => option.name === staff)?.id;
         expect(managerId, 'manager is an acquirer option').toBeDefined();

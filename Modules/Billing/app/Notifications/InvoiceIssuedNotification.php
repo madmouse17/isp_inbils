@@ -22,7 +22,7 @@ class InvoiceIssuedNotification extends InvoiceWhatsAppNotification
             $this->formatMoney($invoice->total),
             $this->formatDate($invoice->due_date),
             $this->appUrl(),
-        ], 'invoice', $invoice->id, 'invoice_issued:'.$invoice->id);
+        ], 'invoice', $invoice, 'invoice_issued:'.$invoice->id);
     }
 
     protected function event(): string

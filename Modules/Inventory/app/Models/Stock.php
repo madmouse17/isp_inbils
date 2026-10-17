@@ -4,6 +4,7 @@ namespace Modules\Inventory\Models;
 
 use App\Models\Core\Location;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,7 @@ class Stock extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'company_id',

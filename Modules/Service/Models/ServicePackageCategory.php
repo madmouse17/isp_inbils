@@ -2,7 +2,9 @@
 
 namespace Modules\Service\Models;
 
+use App\Support\PublicId;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -22,6 +24,7 @@ class ServicePackageCategory extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
 
     /** code => [name, sort_order]: every company starts with these; the codes drive the picker order per customer type. */
@@ -52,7 +55,7 @@ class ServicePackageCategory extends Model
     {
         foreach (self::DEFAULTS as $code => [$name, $sortOrder]) {
             DB::table('service_package_categories')->insertOrIgnore([
-                'company_id' => $companyId, 'code' => $code, 'name' => $name, 'sort_order' => $sortOrder,
+                'public_id' => PublicId::new(), 'company_id' => $companyId, 'code' => $code, 'name' => $name, 'sort_order' => $sortOrder,
                 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
             ]);
         }

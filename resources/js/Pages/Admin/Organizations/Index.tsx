@@ -26,8 +26,8 @@ import { ACTIVE_STATE, ORGANIZATION_TYPE, labelOf, optionsOf } from '@/lib/statu
 import type { PageProps } from '@/types';
 
 interface OrgRow {
-    id: number;
-    parent_id: number | null;
+    id: string;
+    parent_id: string | null;
     code: string;
     name: string;
     type: string;
@@ -76,7 +76,7 @@ const emptyForm: OrganizationForm = {
 
 export default function Index({ organizations, parentOptions, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editId, setEditId] = useState<string | null>(null);
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<OrganizationForm>(emptyForm);
     // A refused delete comes back as a validation error on the page, not on this form.
@@ -127,7 +127,7 @@ export default function Index({ organizations, parentOptions, filters, can }: In
                 code: o.code,
                 name: o.name,
                 type: o.type,
-                parent_id: o.parent_id ? String(o.parent_id) : '',
+                parent_id: o.parent_id ?? '',
                 address: o.address ?? '',
                 phone: o.phone ?? '',
                 email: o.email ?? '',

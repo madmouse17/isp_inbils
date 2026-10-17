@@ -77,7 +77,7 @@ class TicketAssignScopeTest extends TestCase
             ->assertOk()->viewData('page')['props']['ticket']['data'];
 
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $handler->id,
+            'handler_id' => $handler->public_id,
             'expected_assigned_to' => $shown['assigned_to'] ?? null,
             'expected_updated_at' => $shown['updated_at'],
         ])->assertSessionHasNoErrors()->assertRedirect();
@@ -108,7 +108,7 @@ class TicketAssignScopeTest extends TestCase
         $outsider = User::factory()->create(['company_id' => $otherCompany->id, 'is_active' => true]);
 
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $outsider->id,
+            'handler_id' => $outsider->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
         ])
@@ -128,7 +128,7 @@ class TicketAssignScopeTest extends TestCase
         $noRole->assignRole('customer');
 
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $noRole->id,
+            'handler_id' => $noRole->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
         ])
@@ -145,7 +145,7 @@ class TicketAssignScopeTest extends TestCase
         $handler->assignRole('technician');
 
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $handler->id,
+            'handler_id' => $handler->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
         ])
@@ -183,7 +183,7 @@ class TicketAssignScopeTest extends TestCase
 
         $this->actingAs($otherHandler)
             ->post(route('admin.tickets.start', $ticket))
-            ->assertStatus(403);
+            ->assertNotFound();
 
         $this->assertSame('assigned', $ticket->fresh()->status);
     }

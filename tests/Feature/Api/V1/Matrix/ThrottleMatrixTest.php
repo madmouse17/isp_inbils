@@ -3,6 +3,7 @@
 namespace Tests\Feature\Api\V1\Matrix;
 
 use App\Http\Middleware\Api\EnforceIdempotency;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Str;
@@ -76,7 +77,7 @@ class ThrottleMatrixTest extends TestCase
         }
 
         $this->api('POST', $url, token: $this->technicianToken)->assertStatus(429)->assertJsonPath('code', 'too_many_requests');
-        $this->api('POST', 'technician/work-orders/9999999/evidence', token: $this->technicianToken)->assertStatus(429);
+        $this->api('POST', 'technician/work-orders/'.PublicId::new().'/evidence', token: $this->technicianToken)->assertStatus(429);
         $this->assertNotSame(429, $this->api('POST', $url, token: $this->issueToken($this->peerTechnician, 'technician'))->status());
     }
 

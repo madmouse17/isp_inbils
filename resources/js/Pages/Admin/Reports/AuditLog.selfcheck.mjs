@@ -47,7 +47,7 @@ test('AuditLog.tsx static contracts and component integrity', async () => {
 
     // 4c. Event and module badges come from the shared status maps
     assert.match(source, /<EnumBadge map=\{AUDIT_EVENT\}/);
-    assert.match(source, /<EnumBadge map=\{AUDIT_MODULE\}/);
+    assert.match(source, /<EnumBadge map=\{MODULES\}/);
     assert.doesNotMatch(source, /getEventBadgeVariant|formatEventLabel/);
 
     // 4d. No raw palette classes, no shadow-xs

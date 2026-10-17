@@ -2,12 +2,22 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreLocationRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['parent_id' => Location::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('location.create') ?? false;

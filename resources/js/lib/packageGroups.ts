@@ -2,7 +2,7 @@ import type { SearchSelectOption } from '@/Components/ui/SearchSelect';
 
 /** `packageGroups` prop of the package pickers: active packages grouped by their category. */
 export interface PackageGroup {
-    category: { id: number; code: string; name: string };
+    category: { id: string; code: string; name: string };
     packages: { value: string; label: string; description: string }[];
 }
 

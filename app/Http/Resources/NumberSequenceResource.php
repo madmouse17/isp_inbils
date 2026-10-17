@@ -17,7 +17,7 @@ class NumberSequenceResource extends JsonResource
         $definition = app(NumberSequenceRegistry::class)->get($this->entity_type);
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'entity_type' => $this->entity_type,
             'label' => $definition->label,
             'prefix' => $this->prefix,

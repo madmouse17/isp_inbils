@@ -74,7 +74,7 @@ class InactiveCompanyAccessTest extends TestCase
         $this->assertAuthenticatedAs($user);
         $this->assertSame($this->subB->id, session(CompanyService::SESSION_KEY));
         $this->get(route('admin.dashboard'))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subB->id));
+            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subB->public_id));
     }
 
     public function test_a_user_of_an_active_company_still_logs_in_to_the_home_company(): void
@@ -96,12 +96,12 @@ class InactiveCompanyAccessTest extends TestCase
         $user = $this->groupUser($this->subA, 'admin', $this->subB);
 
         $this->actingAs($user)->get(route('admin.dashboard'))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subA->id));
+            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subA->public_id));
 
         $this->suspendWithoutEvents($this->subA);
 
         $this->get(route('admin.dashboard'))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subB->id));
+            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->subB->public_id));
         $this->assertSame($this->subB->id, session(CompanyService::SESSION_KEY));
         $this->assertAuthenticatedAs($user);
     }
@@ -153,7 +153,7 @@ class InactiveCompanyAccessTest extends TestCase
     public function test_a_switched_session_whose_company_is_suspended_with_no_active_home_is_logged_out(): void
     {
         $user = $this->groupUser($this->subA, 'admin', $this->subB);
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subB->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subB->public_id]);
 
         $this->suspendWithoutEvents($this->subA);
         $this->suspendWithoutEvents($this->subB);

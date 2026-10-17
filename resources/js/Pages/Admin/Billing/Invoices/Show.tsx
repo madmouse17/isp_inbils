@@ -54,7 +54,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
     const [paymentModal, setPaymentModal] = useState(false);
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
-    const [reverseTarget, setReverseTarget] = useState<number | null>(null);
+    const [reverseTarget, setReverseTarget] = useState<string | null>(null);
     const { data, setData, post, processing, reset, errors } = useForm({
         amount: '',
         method: 'cash',

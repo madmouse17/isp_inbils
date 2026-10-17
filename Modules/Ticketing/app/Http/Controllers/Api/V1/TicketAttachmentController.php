@@ -29,7 +29,7 @@ class TicketAttachmentController extends Controller
         return (new TicketAttachmentResource($media))->response()->setStatusCode(201);
     }
 
-    public function destroy(Request $request, int $id, int $media): Response
+    public function destroy(Request $request, string $id, string $media): Response
     {
         $ticket = TicketService::findForApp($id, $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE));
         TicketService::removeAttachment($ticket, $media, $request->user());

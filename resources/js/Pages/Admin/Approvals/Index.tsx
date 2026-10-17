@@ -133,7 +133,7 @@ interface ApprovalInboxProps extends Record<string, unknown> {
     summary: ApprovalInboxSummary;
     filters: ServerTableFilters;
     types: string[];
-    requesters: { id: number; name: string }[];
+    requesters: { id: string; name: string }[];
 }
 
 export default function ApprovalInboxIndex({

@@ -5,6 +5,7 @@ namespace Modules\Inventory\Services;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -40,7 +41,7 @@ class MaterialReturnService
             $query->where('technician_id', $user->id);
         } else {
             if (! empty($filters['technician_id'])) {
-                $query->where('technician_id', $filters['technician_id']);
+                $query->where('technician_id', PublicId::resolveOne(User::class, $filters['technician_id']) ?? 0);
             }
         }
 
@@ -49,11 +50,11 @@ class MaterialReturnService
         }
 
         if (! empty($filters['inventory_request_id'])) {
-            $query->where('inventory_request_id', $filters['inventory_request_id']);
+            $query->where('inventory_request_id', PublicId::resolveOne(InventoryRequest::class, $filters['inventory_request_id']) ?? 0);
         }
 
         if (! empty($filters['work_order_id'])) {
-            $query->where('work_order_id', $filters['work_order_id']);
+            $query->where('work_order_id', PublicId::resolveOne(WorkOrder::class, $filters['work_order_id']) ?? 0);
         }
 
         if (! empty($filters['search'])) {
@@ -61,7 +62,7 @@ class MaterialReturnService
             $query->where(function (Builder $q) use ($search) {
                 $q->whereHas('inventoryRequest', fn ($ir) => $ir->where('code', 'like', $search))
                     ->orWhereHas('technician', fn ($t) => $t->where('name', 'like', $search))
-                    ->orWhere('id', 'like', $search);
+                    ->orWhere('public_id', 'like', $search);
             });
         }
 
@@ -220,7 +221,7 @@ class MaterialReturnService
 
             foreach ($lines as $lineId => $line) {
                 $input = $inputLines->get($lineId);
-                abort_unless($input !== null, 422, "Data deklarasi untuk barang ID {$lineId} tidak ditemukan.");
+                abort_unless($input !== null, 422, "Data deklarasi untuk barang {$line->public_id} tidak ditemukan.");
 
                 $used = (float) ($input['actual_used_qty'] ?? 0);
                 $goodReturn = (float) ($input['declared_good_return_qty'] ?? 0);
@@ -235,7 +236,7 @@ class MaterialReturnService
                 $sumDeclared = round($used + $goodReturn + $discrepancy, 2);
 
                 if (abs($issued - $sumDeclared) > 0.001) {
-                    abort(422, "Jumlah tidak cocok pada baris {$line->id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + dikembalikan ({$goodReturn}) + selisih ({$discrepancy}).");
+                    abort(422, "Jumlah tidak cocok pada baris {$line->public_id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + dikembalikan ({$goodReturn}) + selisih ({$discrepancy}).");
                 }
 
                 $discrepancyCode = $input['discrepancy_code'] ?? null;
@@ -329,10 +330,11 @@ class MaterialReturnService
             abort_unless($inputLines->count() === $lines->count(), 422, 'Verifikasi fisik seluruh baris barang harus dilakukan lengkap.');
 
             $hasException = false;
+            $requestCode = $c->inventoryRequest?->code;
 
             foreach ($lines as $lineId => $line) {
                 $input = $inputLines->get($lineId);
-                abort_unless($input !== null, 422, "Data verifikasi fisik baris ID {$lineId} tidak ditemukan.");
+                abort_unless($input !== null, 422, "Data verifikasi fisik baris {$line->public_id} tidak ditemukan.");
 
                 $acceptedGood = (float) ($input['accepted_good_return_qty'] ?? 0);
                 $damaged = (float) ($input['damaged_return_qty'] ?? 0);
@@ -346,7 +348,7 @@ class MaterialReturnService
                 $sumPhysical = round($used + $acceptedGood + $damaged + $lost + $other, 2);
 
                 if (abs($issued - $sumPhysical) > 0.001) {
-                    abort(422, "Jumlah tidak cocok pada baris {$line->id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + diterima ({$acceptedGood}) + rusak ({$damaged}) + hilang ({$lost}) + lainnya ({$other}).");
+                    abort(422, "Jumlah tidak cocok pada baris {$line->public_id}: diserahkan ({$issued}) harus sama dengan terpakai ({$used}) + diterima ({$acceptedGood}) + rusak ({$damaged}) + hilang ({$lost}) + lainnya ({$other}).");
                 }
 
                 if ($damaged > 0 || $lost > 0 || $other > 0) {
@@ -359,7 +361,7 @@ class MaterialReturnService
                         $line->product_id,
                         $warehouseLocationId,
                         $acceptedGood,
-                        'Penerimaan Fisik Pengembalian Material: Kasus #'.$c->id,
+                        'Penerimaan Fisik Pengembalian Material'.($requestCode === null ? '' : ': '.$requestCode),
                         MaterialReturnLine::class,
                         $line->id
                     );

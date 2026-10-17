@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasPublicId;
 use Database\Factories\PlatformAdminFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -27,6 +28,8 @@ class PlatformAdmin extends Authenticatable
 {
     /** @use HasFactory<PlatformAdminFactory> */
     use HasFactory;
+
+    use HasPublicId;
 
     protected $rememberTokenName = '';
 

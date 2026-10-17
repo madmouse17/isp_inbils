@@ -33,10 +33,10 @@ class ConsolidatedReportController extends Controller
         return Inertia::render('Admin/Reports/Consolidated', [
             'context' => [
                 'mode' => 'consolidated',
-                'head' => $head->only(['id', 'name', 'code', 'currency']),
+                'head' => ['id' => $head->public_id, ...$head->only(['name', 'code', 'currency'])],
                 'currency' => $report['currency'] ?? null,
                 'companies' => $companies
-                    ->map(fn (Company $company): array => $company->only(['id', 'name', 'code', 'currency', 'timezone']))
+                    ->map(fn (Company $company): array => ['id' => $company->public_id, ...$company->only(['name', 'code', 'currency', 'timezone'])])
                     ->all(),
             ],
             'data' => $report === null ? null : [

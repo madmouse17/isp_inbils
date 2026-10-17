@@ -6,6 +6,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -312,7 +313,7 @@ class OdnService
     /**
      * The drop port of a subscription as the pages show it, or null.
      *
-     * @return array{port_id: int, number: int, odp_asset_id: int, odp_code: string, odp_name: string, location_path: string|null}|null
+     * @return array{port_id: string, number: int, odp_asset_id: string, odp_code: string, odp_name: string, location_path: string|null}|null
      */
     public static function dropPortFor(ServiceSubscription $subscription): ?array
     {
@@ -321,12 +322,12 @@ class OdnService
             ->leftJoin('locations as l', 'l.id', '=', 'a.location_id')
             ->where('p.company_id', (int) $subscription->company_id)
             ->where('p.subscription_id', $subscription->id)
-            ->first(['p.id as port_id', 'p.number', 'a.id as odp_asset_id', 'a.code as odp_code', 'a.name as odp_name', 'l.path as location_path']);
+            ->first(['p.public_id as port_id', 'p.number', 'a.public_id as odp_asset_id', 'a.code as odp_code', 'a.name as odp_name', 'l.path as location_path']);
 
         return $row === null ? null : [
-            'port_id' => (int) $row->port_id,
+            'port_id' => (string) $row->port_id,
             'number' => (int) $row->number,
-            'odp_asset_id' => (int) $row->odp_asset_id,
+            'odp_asset_id' => (string) $row->odp_asset_id,
             'odp_code' => (string) $row->odp_code,
             'odp_name' => (string) $row->odp_name,
             'location_path' => $row->location_path === null ? null : (string) $row->location_path,
@@ -436,6 +437,7 @@ class OdnService
     private static function portRow(NetworkAsset $host, string $kind, int $number, ?int $splitterId): array
     {
         return [
+            'public_id' => PublicId::new(),
             'company_id' => $host->company_id,
             'network_asset_id' => $host->id,
             'odn_splitter_id' => $splitterId,

@@ -5,6 +5,7 @@ namespace Modules\Inventory\Models;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,6 +13,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 
 /**
  * @property int $id
@@ -54,6 +57,7 @@ class InventoryRequest extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $table = 'inventory_requests';
 
@@ -144,5 +148,47 @@ class InventoryRequest extends Model
     public function source(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    /**
+     * What a request is for. The column holds `work_order` or `ticket`, not a class name, so `source` is not
+     * resolved through the morph relation: `loadSources` sets the record as the relation `source` instead.
+     *
+     * @return array<string, class-string<Model>>
+     */
+    public static function sourceModels(): array
+    {
+        return ['work_order' => WorkOrder::class, 'ticket' => Ticket::class];
+    }
+
+    /**
+     * Loads the record each request is for (a deleted one too) in one query per type, unless it is loaded already.
+     *
+     * @param  Collection<int, self>  $requests
+     */
+    public static function loadSources(Collection $requests): void
+    {
+        foreach (self::sourceModels() as $type => $model) {
+            $matching = $requests->where('source_type', $type)->reject(fn (self $request): bool => $request->relationLoaded('source'));
+
+            if ($matching->isEmpty()) {
+                continue;
+            }
+
+            $records = $model::query()->withTrashed()->whereKey($matching->pluck('source_id')->unique())->get()->keyBy('id');
+
+            $matching->each(fn (self $request) => $request->setRelation('source', $records->get($request->source_id)));
+        }
+    }
+
+    public function sourcePublicId(): ?string
+    {
+        if ($this->source_type === null) {
+            return null;
+        }
+
+        self::loadSources(new Collection([$this]));
+
+        return $this->relationLoaded('source') ? $this->getRelation('source')?->public_id : null;
     }
 }

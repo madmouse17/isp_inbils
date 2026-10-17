@@ -68,10 +68,10 @@ const FAKE_NAS_SECRET = 'e2e-fake-nas-secret';
 
 const state: {
     routerId: string;
-    subscriptionId: number;
+    subscriptionId: string;
     isolirUrl: string;
     accountSecret: string;
-} = { routerId: '', subscriptionId: 0, isolirUrl: '', accountSecret: '' };
+} = { routerId: '', subscriptionId: '', isolirUrl: '', accountSecret: '' };
 
 const mainOf = (page: Page) => page.getByRole('main');
 
@@ -88,11 +88,11 @@ const secretPanel = (page: Page) =>
 async function subscriptionIdOf(page: Page, code: string) {
     const data = await inertiaProps(page, '/admin/billing/receivables?per_page=25');
     const rows = data.props?.rows?.data as
-        Array<{ subscriptions: Array<{ id: number; code: string }> }> | undefined;
+        Array<{ subscriptions: Array<{ id: string; code: string }> }> | undefined;
     const found = rows?.flatMap((row) => row.subscriptions).find((item) => item.code === code);
     if (!found) throw new Error(`${code} is not on the receivables page`);
 
-    return found.id;
+    return String(found.id);
 }
 
 async function expectNoHorizontalOverflow(page: Page, message: string) {
@@ -201,8 +201,8 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
 
         await secret.fill(FAKE_NAS_SECRET);
         await page.getByRole('button', { name: 'Daftarkan router' }).click();
-        await expect(page).toHaveURL(/\/admin\/nas-devices\/\d+$/);
-        state.routerId = page.url().match(/\/admin\/nas-devices\/(\d+)$/)![1];
+        await expect(page).toHaveURL(/\/admin\/nas-devices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
+        state.routerId = page.url().match(/\/admin\/nas-devices\/([0-9A-HJKMNP-TV-Z]{26})$/i)![1];
         await expect(
             mainOf(page).getByRole('heading', { name: `Router NAS ${ROUTER_ASSET}` }),
         ).toBeVisible();
@@ -848,7 +848,7 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
     let scenario: ChildProcess | null = null;
     let scenarioOut = '';
     let scenarioExit: Promise<number | null> = Promise.resolve(null);
-    const lab = { routerId: '', subscriptionId: 0, speedGroup: '' };
+    const lab = { routerId: '', subscriptionId: '', speedGroup: '' };
 
     test.afterAll(() => {
         scenario?.kill();
@@ -862,7 +862,7 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
 
         // The CoA target is the management IP of the asset: the lab NAS listens on the host loopback.
         const assets = await inertiaProps(page, `/admin/network-assets?search=${ROUTER_ASSET}`);
-        const assetId = (assets.props?.assets?.data as Array<{ id: number; code: string }>).find(
+        const assetId = (assets.props?.assets?.data as Array<{ id: string; code: string }>).find(
             (item) => item.code === ROUTER_ASSET,
         )!.id;
         await page.goto(`/admin/network-assets/${assetId}/edit`);
@@ -878,8 +878,8 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         await page.getByLabel('Port CoA').fill(LAB_COA_PORT);
         await page.getByLabel('Secret RADIUS').fill(labSecret('LAB_RADIUS_SECRET'));
         await page.getByRole('button', { name: 'Daftarkan router' }).click();
-        await expect(page).toHaveURL(/\/admin\/nas-devices\/\d+$/);
-        lab.routerId = page.url().match(/\/admin\/nas-devices\/(\d+)$/)![1];
+        await expect(page).toHaveURL(/\/admin\/nas-devices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
+        lab.routerId = page.url().match(/\/admin\/nas-devices\/([0-9A-HJKMNP-TV-Z]{26})$/i)![1];
 
         // The client row is in the lab database and the page says so.
         await expect(detail(page, 'Klien RADIUS')).toContainText('Tertulis ke RADIUS');

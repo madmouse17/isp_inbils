@@ -17,18 +17,18 @@ import {
 import { PageHeader } from '@/Components/composite';
 
 interface OptRow {
-    id: number;
+    id: string;
     name: string;
 }
 
 interface PkgData {
-    id: number;
+    id: string;
     code: string;
     name: string;
-    service_package_category_id: number;
-    bandwidth_profile_id: number | null;
-    speed_profile_id: number | null;
-    sla_tier_id: number | null;
+    service_package_category_id: string;
+    bandwidth_profile_id: string | null;
+    speed_profile_id: string | null;
+    sla_tier_id: string | null;
     price_mrc: string;
     price_otc: string;
     contract_min_months: number | null;
@@ -41,7 +41,7 @@ interface EditProps extends Record<string, unknown> {
     bandwidthProfiles: { data: OptRow[] };
     speedProfiles: { data: OptRow[] };
     slaTiers: { data: OptRow[] };
-    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
 }
 
 const toOptions = (rows: OptRow[]) =>

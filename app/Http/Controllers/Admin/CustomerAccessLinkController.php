@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Gate;
 
 class CustomerAccessLinkController extends Controller
 {
-    public function __invoke(int|string $customer): RedirectResponse
+    public function __invoke(string $customer): RedirectResponse
     {
-        $customer = Customer::forCompany(CompanyService::currentId())->with('user')->findOrFail($customer);
+        $customer = Customer::forCompany(CompanyService::currentId())->with('user')->wherePublicId($customer)->firstOrFail();
         Gate::authorize('update', $customer);
 
         $user = $customer->user;

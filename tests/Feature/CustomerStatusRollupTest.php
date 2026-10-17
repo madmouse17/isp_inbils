@@ -197,7 +197,7 @@ class CustomerStatusRollupTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
-                ->where('customers.data.0.id', $suspended->id)
+                ->where('customers.data.0.id', $suspended->public_id)
                 ->where('customers.data.0.customer_status', 'suspended'));
 
         $this->get(route('admin.customers.index', ['sort' => 'customer_status', 'direction' => 'asc']))
@@ -214,7 +214,7 @@ class CustomerStatusRollupTest extends TestCase
         $this->get(route('admin.customers.index', ['account' => 'inactive']))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
-                ->where('customers.data.0.id', $off->id));
+                ->where('customers.data.0.id', $off->public_id));
     }
 
     public function test_command_dry_run_writes_nothing_and_real_run_is_idempotent_and_tenant_scoped(): void

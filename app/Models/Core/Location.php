@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\LocationFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -18,6 +19,7 @@ class Location extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
 

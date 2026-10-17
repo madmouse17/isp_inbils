@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Platform\Audit;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -10,6 +11,14 @@ use Illuminate\Validation\Rule;
 
 class AuditIndexRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['company_id' => Company::class, 'platform_admin_id' => PlatformAdmin::class];
+    }
+
     public function authorize(): bool
     {
         return true;

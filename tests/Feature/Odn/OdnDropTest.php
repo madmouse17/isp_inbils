@@ -35,7 +35,7 @@ class OdnDropTest extends TestCase
         [, $this->outputs] = $this->splitter($this->net['odp'], 8);
     }
 
-    private function drop(OdnPort $port, int $subscriptionId): TestResponse
+    private function drop(OdnPort $port, string $subscriptionId): TestResponse
     {
         return $this->postJson(route('admin.odn.drops.store', $port), ['subscription_id' => $subscriptionId]);
     }
@@ -49,7 +49,7 @@ class OdnDropTest extends TestCase
     {
         $subscription = $this->makeSubscription($this->company);
 
-        $this->drop($this->outputs[2], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[2], $subscription->public_id)->assertRedirect();
 
         $this->assertSame($subscription->id, $this->outputs[2]->fresh()->subscription_id);
         $this->assertSame($this->outputs[2]->id, $this->portOf($subscription->id));
@@ -66,7 +66,7 @@ class OdnDropTest extends TestCase
     {
         $subscription = $this->makeSubscription($this->company, $status);
 
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
 
         $this->assertSame($this->outputs[0]->id, $this->portOf($subscription->id));
     }
@@ -75,7 +75,7 @@ class OdnDropTest extends TestCase
     {
         $subscription = $this->makeSubscription($this->company, 'terminated');
 
-        $this->drop($this->outputs[0], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('subscription_id');
+        $this->drop($this->outputs[0], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('subscription_id');
 
         $this->assertNull($this->outputs[0]->fresh()->subscription_id);
     }
@@ -84,9 +84,9 @@ class OdnDropTest extends TestCase
     {
         $holder = $this->makeSubscription($this->company);
         $other = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $holder->id)->assertRedirect();
+        $this->drop($this->outputs[0], $holder->public_id)->assertRedirect();
 
-        $this->drop($this->outputs[0], $other->id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($this->outputs[0], $other->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
 
         $this->assertSame($holder->id, $this->outputs[0]->fresh()->subscription_id);
         $this->assertNull($this->portOf($other->id));
@@ -97,7 +97,7 @@ class OdnDropTest extends TestCase
         $this->splitter($this->net['odc'], 4, $this->outputs[1]);
         $subscription = $this->makeSubscription($this->company);
 
-        $this->drop($this->outputs[1], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($this->outputs[1], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
     }
 
     public function test_only_an_odp_output_port_can_carry_a_drop(): void
@@ -106,8 +106,8 @@ class OdnDropTest extends TestCase
         [, $odcOutputs] = $this->splitter($this->net['odc'], 4, $pon[0]);
         $subscription = $this->makeSubscription($this->company);
 
-        $this->drop($pon[0], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('port');
-        $this->drop($odcOutputs[1], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($pon[0], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($odcOutputs[1], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
 
         $this->assertNull($this->portOf($subscription->id));
     }
@@ -118,10 +118,10 @@ class OdnDropTest extends TestCase
         [, $otherOutputs] = $this->splitter($otherNet['odp'], 4);
         $subscription = $this->makeSubscription($this->company, 'pending', $this->net['pop']);
 
-        $this->drop($otherOutputs[0], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($otherOutputs[0], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
         $this->assertNull($this->portOf($subscription->id));
 
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
         $this->assertSame($this->outputs[0]->id, $this->portOf($subscription->id));
     }
 
@@ -132,8 +132,8 @@ class OdnDropTest extends TestCase
         $withPop = $this->makeSubscription($this->company, 'pending', $this->net['pop']);
         $withoutPop = $this->makeSubscription($this->company);
 
-        $this->drop($floatingOutputs[0], $withPop->id)->assertStatus(422)->assertJsonValidationErrors('port');
-        $this->drop($floatingOutputs[0], $withoutPop->id)->assertRedirect();
+        $this->drop($floatingOutputs[0], $withPop->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($floatingOutputs[0], $withoutPop->public_id)->assertRedirect();
     }
 
     public function test_the_pop_match_is_by_ancestry_not_by_code_prefix(): void
@@ -144,15 +144,15 @@ class OdnDropTest extends TestCase
         [, $lookalikeOutputs] = $this->splitter($this->odpAt($this->company, $site, 'ODP-A211'), 4);
         $subscription = $this->makeSubscription($this->company, 'pending', $this->net['pop']);
 
-        $this->drop($lookalikeOutputs[0], $subscription->id)->assertStatus(422)->assertJsonValidationErrors('port');
+        $this->drop($lookalikeOutputs[0], $subscription->public_id)->assertStatus(422)->assertJsonValidationErrors('port');
     }
 
     public function test_moving_a_drop_releases_the_old_port_in_the_same_step(): void
     {
         $subscription = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
 
-        $this->drop($this->outputs[5], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[5], $subscription->public_id)->assertRedirect();
 
         $this->assertNull($this->outputs[0]->fresh()->subscription_id);
         $this->assertSame($subscription->id, $this->outputs[5]->fresh()->subscription_id);
@@ -163,10 +163,10 @@ class OdnDropTest extends TestCase
     {
         $subscription = $this->makeSubscription($this->company);
         $holder = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
-        $this->drop($this->outputs[1], $holder->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
+        $this->drop($this->outputs[1], $holder->public_id)->assertRedirect();
 
-        $this->drop($this->outputs[1], $subscription->id)->assertStatus(422);
+        $this->drop($this->outputs[1], $subscription->public_id)->assertStatus(422);
 
         $this->assertSame($subscription->id, $this->outputs[0]->fresh()->subscription_id);
     }
@@ -174,10 +174,10 @@ class OdnDropTest extends TestCase
     public function test_assigning_the_same_port_again_changes_nothing(): void
     {
         $subscription = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
         $before = Activity::query()->where('log_name', 'odn')->count();
 
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
 
         $this->assertSame($this->outputs[0]->id, $this->portOf($subscription->id));
         $this->assertSame($before, Activity::query()->where('log_name', 'odn')->count());
@@ -187,7 +187,7 @@ class OdnDropTest extends TestCase
     {
         $foreign = $this->makeSubscription($this->otherCompany());
 
-        $this->drop($this->outputs[0], $foreign->id)->assertStatus(422)->assertJsonValidationErrors('subscription_id');
+        $this->drop($this->outputs[0], $foreign->public_id)->assertStatus(422)->assertJsonValidationErrors('subscription_id');
 
         $this->assertNull($this->outputs[0]->fresh()->subscription_id);
     }
@@ -196,12 +196,12 @@ class OdnDropTest extends TestCase
     {
         $subscription = $this->makeSubscription($this->company);
         $other = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
 
         $this->deleteJson(route('admin.odn.drops.destroy', $this->outputs[0]))->assertRedirect();
 
         $this->assertNull($this->outputs[0]->fresh()->subscription_id);
-        $this->drop($this->outputs[0], $other->id)->assertRedirect();
+        $this->drop($this->outputs[0], $other->public_id)->assertRedirect();
     }
 
     public function test_releasing_a_port_without_a_drop_is_422(): void
@@ -212,8 +212,8 @@ class OdnDropTest extends TestCase
     public function test_assign_and_release_are_audited_with_subscription_port_and_odp(): void
     {
         $subscription = $this->makeSubscription($this->company);
-        $this->drop($this->outputs[0], $subscription->id)->assertRedirect();
-        $this->drop($this->outputs[1], $subscription->id)->assertRedirect();
+        $this->drop($this->outputs[0], $subscription->public_id)->assertRedirect();
+        $this->drop($this->outputs[1], $subscription->public_id)->assertRedirect();
         $this->deleteJson(route('admin.odn.drops.destroy', $this->outputs[1]))->assertRedirect();
 
         $assigned = Activity::query()->where('log_name', 'odn')->where('description', 'drop_assigned')->orderBy('id')->get();
@@ -262,9 +262,9 @@ class OdnDropTest extends TestCase
         OdnService::assignDrop($this->outputs[3], $subscription);
 
         $this->assertSame([
-            'port_id' => $this->outputs[3]->id,
+            'port_id' => $this->outputs[3]->public_id,
             'number' => 4,
-            'odp_asset_id' => $this->net['odp']->id,
+            'odp_asset_id' => $this->net['odp']->public_id,
             'odp_code' => 'ODP-A11',
             'odp_name' => $this->net['odp']->name,
             'location_path' => 'POP-A > RACK-A1 > SITE-A11',

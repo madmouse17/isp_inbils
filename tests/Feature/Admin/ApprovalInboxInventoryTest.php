@@ -74,7 +74,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Approvals/Index')
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $submittedReq->id)
+                ->where('items.data.0.id', $submittedReq->public_id)
                 ->where('items.data.0.domain', 'inventory_request')
                 ->where('items.data.0.code', 'REQ-SUB-001')
                 ->where('items.data.0.title', 'Permintaan FO Baru')
@@ -113,7 +113,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Approvals/Index')
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $otherReq->id)
+                ->where('items.data.0.id', $otherReq->public_id)
                 ->where('summary.waiting_for_me', 1)
             );
 
@@ -137,7 +137,7 @@ class ApprovalInboxInventoryTest extends TestCase
         // 4. Direct POST by manager to approve own request must fail-closed (403 forbidden)
         $this->actingAs($manager)
             ->post(route('admin.inventory.requests.approve', $ownReq), [
-                'items' => [['id' => $ownReq->items->first()->id, 'quantity_approved' => 1]],
+                'items' => [['id' => $ownReq->items->first()->public_id, 'quantity_approved' => 1]],
             ])
             ->assertForbidden();
 
@@ -174,7 +174,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $reqA->id)
+                ->where('items.data.0.id', $reqA->public_id)
                 ->where('items.data.0.code', 'REQ-A-001')
             );
 
@@ -184,14 +184,14 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $reqB->id)
+                ->where('items.data.0.id', $reqB->public_id)
                 ->where('items.data.0.code', 'REQ-B-001')
             );
 
         // Direct cross-tenant POST approve fails-closed (403 forbidden or 404 not found)
         $approveResponse = $this->actingAs($managerB)
             ->post(route('admin.inventory.requests.approve', $reqA), [
-                'items' => [['id' => $reqA->items->first()->id, 'quantity_approved' => 1]],
+                'items' => [['id' => $reqA->items->first()->public_id, 'quantity_approved' => 1]],
             ]);
         $this->assertTrue(in_array($approveResponse->getStatusCode(), [403, 404], true));
 
@@ -263,7 +263,7 @@ class ApprovalInboxInventoryTest extends TestCase
         // Direct POST to approve fails-closed (403)
         $this->actingAs($rejecterOnly)
             ->post(route('admin.inventory.requests.approve', $req), [
-                'items' => [['id' => $req->items->first()->id, 'quantity_approved' => 1]],
+                'items' => [['id' => $req->items->first()->public_id, 'quantity_approved' => 1]],
             ])
             ->assertForbidden();
 
@@ -296,7 +296,7 @@ class ApprovalInboxInventoryTest extends TestCase
 
         $this->actingAs($manager)
             ->post(route('admin.inventory.requests.approve', $reqToApprove), [
-                'items' => [['id' => $reqToApprove->items->first()->id, 'quantity_approved' => 2]],
+                'items' => [['id' => $reqToApprove->items->first()->public_id, 'quantity_approved' => 2]],
             ])
             ->assertRedirect();
 
@@ -363,7 +363,7 @@ class ApprovalInboxInventoryTest extends TestCase
         // First approval succeeds
         $this->actingAs($manager)
             ->post(route('admin.inventory.requests.approve', $req), [
-                'items' => [['id' => $req->items->first()->id, 'quantity_approved' => 1]],
+                'items' => [['id' => $req->items->first()->public_id, 'quantity_approved' => 1]],
             ])
             ->assertRedirect();
 
@@ -374,7 +374,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->from(route('admin.approvals.index'))
             ->withHeader('X-Inertia', 'true')
             ->post(route('admin.inventory.requests.approve', $req), [
-                'items' => [['id' => $req->items->first()->id, 'quantity_approved' => 1]],
+                'items' => [['id' => $req->items->first()->public_id, 'quantity_approved' => 1]],
             ]);
 
         $approveResponse->assertRedirect(route('admin.approvals.index'))
@@ -427,7 +427,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $req1->id)
+                ->where('items.data.0.id', $req1->public_id)
             );
 
         // 2. Filter by type
@@ -436,22 +436,22 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $req2->id)
+                ->where('items.data.0.id', $req2->public_id)
             );
 
         // 3. Filter by creator
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $techA->id]))
+            ->get(route('admin.approvals.index', ['creator' => $techA->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $req1->id)
+                ->where('items.data.0.id', $req1->public_id)
             );
 
         // 4. Non-requester creator ID is ignored safely
         $foreignUser = User::factory()->create(['is_active' => true]);
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $foreignUser->id]))
+            ->get(route('admin.approvals.index', ['creator' => $foreignUser->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 2)
@@ -462,16 +462,16 @@ class ApprovalInboxInventoryTest extends TestCase
             ->get(route('admin.approvals.index', ['sort' => 'code', 'direction' => 'asc']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('items.data.0.id', $req1->id)
-                ->where('items.data.1.id', $req2->id)
+                ->where('items.data.0.id', $req1->public_id)
+                ->where('items.data.1.id', $req2->public_id)
             );
 
         $this->actingAs($manager)
             ->get(route('admin.approvals.index', ['sort' => 'code', 'direction' => 'desc']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('items.data.0.id', $req2->id)
-                ->where('items.data.1.id', $req1->id)
+                ->where('items.data.0.id', $req2->public_id)
+                ->where('items.data.1.id', $req1->public_id)
             );
     }
 
@@ -512,7 +512,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'spk')
-                ->where('items.data.0.id', $spk->id)
+                ->where('items.data.0.id', $spk->public_id)
             );
 
         // Filter domain=inventory_request only gets Inventory Request
@@ -522,7 +522,7 @@ class ApprovalInboxInventoryTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
                 ->where('items.data.0.domain', 'inventory_request')
-                ->where('items.data.0.id', $inv->id)
+                ->where('items.data.0.id', $inv->public_id)
             );
     }
 
@@ -657,9 +657,9 @@ class ApprovalInboxInventoryTest extends TestCase
                 ->has('items.data', 2)
                 // Deterministic tie-breaker: domain 'inventory_request' precedes 'spk' in alphabetical domain order
                 ->where('items.data.0.domain', 'inventory_request')
-                ->where('items.data.0.composite_id', "inventory_request:{$tieInv->id}")
+                ->where('items.data.0.composite_id', "inventory_request:{$tieInv->public_id}")
                 ->where('items.data.1.domain', 'spk')
-                ->where('items.data.1.composite_id', "spk:{$tieSpk->id}")
+                ->where('items.data.1.composite_id', "spk:{$tieSpk->public_id}")
             );
     }
 

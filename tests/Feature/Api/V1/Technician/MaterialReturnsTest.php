@@ -36,14 +36,14 @@ class MaterialReturnsTest extends TestCase
 
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('GET', 'technician/material-returns?work_order_id='.$workOrder->id, token: $token)
+        $this->api('GET', 'technician/material-returns?work_order_id='.$workOrder->public_id, token: $token)
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $myCase->id)
+            ->assertJsonPath('data.0.id', $myCase->public_id)
             ->assertJsonPath('data.0.lines.0.product.name', 'Fiber Cable');
 
-        $this->api('GET', "technician/material-returns/{$myCase->id}", token: $token)->assertOk();
-        $this->api('GET', "technician/material-returns/{$otherCase->id}", token: $token)->assertNotFound();
+        $this->api('GET', "technician/material-returns/{$myCase->public_id}", token: $token)->assertOk();
+        $this->api('GET', "technician/material-returns/{$otherCase->public_id}", token: $token)->assertNotFound();
     }
 
     public function test_declare_moves_case_and_replays_by_service_key_after_cache_flush(): void
@@ -53,7 +53,7 @@ class MaterialReturnsTest extends TestCase
         $line = $case->lines()->firstOrFail();
         $key = (string) Str::uuid();
         $payload = ['lines' => [[
-            'id' => $line->id,
+            'id' => $line->public_id,
             'actual_used_qty' => 4,
             'declared_good_return_qty' => 5,
             'declared_discrepancy_qty' => 1,
@@ -62,14 +62,14 @@ class MaterialReturnsTest extends TestCase
         ]]];
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('POST', "technician/material-returns/{$case->id}/declare", $payload, $token, ['Idempotency-Key' => $key])
+        $this->api('POST', "technician/material-returns/{$case->public_id}/declare", $payload, $token, ['Idempotency-Key' => $key])
             ->assertOk()
             ->assertJsonPath('data.status', 'awaiting_receipt')
             ->assertJsonPath('data.lines.0.actual_used_qty', 4);
 
         Cache::forget(EnforceIdempotency::cacheKey($technician->id, $key));
 
-        $this->api('POST', "technician/material-returns/{$case->id}/declare", $payload, $token, ['Idempotency-Key' => $key])
+        $this->api('POST', "technician/material-returns/{$case->public_id}/declare", $payload, $token, ['Idempotency-Key' => $key])
             ->assertOk()
             ->assertJsonPath('data.status', 'awaiting_receipt');
 
@@ -84,8 +84,8 @@ class MaterialReturnsTest extends TestCase
         $key = (string) Str::uuid();
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('POST', "technician/material-returns/{$case->id}/declare", ['lines' => [[
-            'id' => $line->id,
+        $this->api('POST', "technician/material-returns/{$case->public_id}/declare", ['lines' => [[
+            'id' => $line->public_id,
             'actual_used_qty' => 10,
             'declared_good_return_qty' => 0,
             'declared_discrepancy_qty' => 0,
@@ -93,8 +93,8 @@ class MaterialReturnsTest extends TestCase
 
         Cache::forget(EnforceIdempotency::cacheKey($technician->id, $key));
 
-        $this->api('POST', "technician/material-returns/{$case->id}/declare", ['lines' => [[
-            'id' => $line->id,
+        $this->api('POST', "technician/material-returns/{$case->public_id}/declare", ['lines' => [[
+            'id' => $line->public_id,
             'actual_used_qty' => 9,
             'declared_good_return_qty' => 1,
             'declared_discrepancy_qty' => 0,
@@ -108,7 +108,7 @@ class MaterialReturnsTest extends TestCase
         $workOrder->addMediaFromString('proof')->usingFileName('proof.jpg')->withCustomProperties(['company_id' => $workOrder->company_id, 'type' => 'photo', 'uploaded_by' => $technician->id])->toMediaCollection('evidence');
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $token)
             ->assertStatus(422)
             ->assertJsonPath('code', 'unprocessable');
 
@@ -120,7 +120,7 @@ class MaterialReturnsTest extends TestCase
             'declared_discrepancy_qty' => 0,
         ]], 'idempotency_key' => (string) Str::uuid()]);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $token)
             ->assertOk()
             ->assertJsonPath('data.status', 'waiting_review');
     }

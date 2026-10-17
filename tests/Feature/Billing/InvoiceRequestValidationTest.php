@@ -53,7 +53,7 @@ class InvoiceRequestValidationTest extends TestCase
     {
         $this->actingAs($this->user)
             ->postJson(route('admin.invoices.store'), [
-                'customer_id' => $this->customer->id,
+                'customer_id' => $this->customer->public_id,
                 'issue_date' => $value,
                 'due_date' => $value,
             ])
@@ -67,7 +67,7 @@ class InvoiceRequestValidationTest extends TestCase
     {
         $this->actingAs($this->user)
             ->post(route('admin.invoices.store'), [
-                'customer_id' => $this->customer->id,
+                'customer_id' => $this->customer->public_id,
                 'issue_date' => '2026-07-01',
                 'due_date' => '2026-07-31',
             ])

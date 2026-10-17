@@ -75,7 +75,7 @@ class PaymentAttemptServiceTest extends TestCase
         $this->assertSame('tok-'.$attempt->order_id, $attempt->snap_token);
         $this->assertSame('https://app.sandbox.midtrans.com/snap/v4/redirection/tok-'.$attempt->order_id, $attempt->redirect_url);
         $this->assertTrue($attempt->expires_at->between(now()->addHours(23), now()->addHours(25)));
-        $this->assertMatchesRegularExpression('/^'.$invoice->company_id.'-'.$invoice->id.'-[a-z0-9]{12}$/', $attempt->order_id);
+        $this->assertMatchesRegularExpression('/^INB-[0-9A-HJKMNP-TV-Z]{26}$/', $attempt->order_id);
         $this->assertLessThanOrEqual(50, strlen($attempt->order_id));
         $this->assertSame(1, $this->snapCalls());
         $this->assertSame(1, Activity::query()->where('log_name', 'payment_attempt')->where('description', 'created')->count());
@@ -199,8 +199,17 @@ class PaymentAttemptServiceTest extends TestCase
 
         $this->assertSame($invoiceA->number, $invoiceB->number);
         $this->assertNotSame($attemptA->order_id, $attemptB->order_id);
-        $this->assertStringStartsWith($companyB->id.'-'.$invoiceB->id.'-', $attemptB->order_id);
+        $this->assertMatchesRegularExpression('/^INB-[0-9A-HJKMNP-TV-Z]{26}$/', $attemptB->order_id);
         $this->assertSame($companyB->id, $attemptB->company_id);
+    }
+
+    public function test_a_new_order_id_is_inb_and_a_ulid_and_fits_the_midtrans_limit(): void
+    {
+        $first = PaymentAttempt::newOrderId();
+
+        $this->assertMatchesRegularExpression('/^INB-[0-9A-HJKMNP-TV-Z]{26}$/', $first);
+        $this->assertLessThanOrEqual(50, strlen($first));
+        $this->assertNotSame($first, PaymentAttempt::newOrderId());
     }
 
     public function test_an_invoice_of_another_company_is_not_found(): void

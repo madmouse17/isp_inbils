@@ -66,7 +66,7 @@ final class InventoryRequestSources
             self::workOrderBase($user)->with('customer:id,name')->latest('id'),
             ['code', 'title'],
             fn (WorkOrder $workOrder): array => [
-                'value' => $workOrder->id,
+                'value' => $workOrder->public_id,
                 'label' => $workOrder->code.' - '.$workOrder->title,
                 'description' => $workOrder->customer?->name,
             ],
@@ -87,7 +87,7 @@ final class InventoryRequestSources
             self::ticketBase($user)->with('customer:id,name')->latest('id'),
             ['code', 'title'],
             fn (Ticket $ticket): array => [
-                'value' => $ticket->id,
+                'value' => $ticket->public_id,
                 'label' => $ticket->code.' - '.$ticket->title,
                 'description' => $ticket->customer?->name,
             ],

@@ -24,13 +24,13 @@ class SubscriptionConnectionController extends Controller
      *
      * @response array{data: array{status: 'online'|'offline', since: string|null, last_seen_at: string|null}|null}
      */
-    public function __invoke(Request $request, int $id, RadiusDirectory $radius): JsonResponse
+    public function __invoke(Request $request, string $id, RadiusDirectory $radius): JsonResponse
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
 
         abort_unless($customer instanceof Customer, 403);
 
-        $subscription = $customer->subscriptions()->findOrFail($id);
+        $subscription = $customer->subscriptions()->wherePublicId($id)->firstOrFail();
         // A hotspot user comes and goes with the device, so "offline" would tell the customer nothing about the line.
         $username = NetworkAccount::query()->where('subscription_id', $subscription->id)->where('service_type', 'pppoe')->value('username');
 

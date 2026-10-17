@@ -30,27 +30,17 @@ class MaterialReturnDeclaredNotification extends Notification implements ShouldQ
 
     public function toMail(object $notifiable): MailMessage
     {
+        $records = $this->returnRecords();
         $mail = (new MailMessage())
-            ->subject('Deklarasi Pengembalian Material: Kasus #'.$this->caseId)
-            ->line('Teknisi sudah mendeklarasikan sisa material dan siap menyerahkannya ke gudang.')
-            ->line('Nomor Kasus Pengembalian: #'.$this->caseId);
+            ->subject($this->returnSubject('Deklarasi Pengembalian Material', $records))
+            ->line('Teknisi sudah mendeklarasikan sisa material dan siap menyerahkannya ke gudang.');
 
-        if ($this->workOrderId) {
-            $mail->line('Terkait SPK #'.$this->workOrderId);
-        }
-
-        return $mail->action('Lihat Kasus Pengembalian', $this->returnPageUrl());
+        return $this->returnReference($mail, $records)->action('Lihat Kasus Pengembalian', $this->returnPageUrl($records));
     }
 
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        return [
-            'type' => 'material_return_declared',
-            'case_id' => $this->caseId,
-            'work_order_id' => $this->workOrderId,
-            'company_id' => $this->companyId,
-            'inventory_request_id' => $this->inventoryRequestId,
-        ];
+        return $this->returnData('material_return_declared', $this->returnRecords());
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Api\V1\Platform;
 
+use App\Support\Database\PublicIdColumn;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Database\Migrations\Migration;
@@ -71,6 +72,8 @@ class TokenHousekeepingTest extends TestCase
             if (! Schema::hasTable('device_tokens')) {
                 $deviceTokens->up();
             }
+
+            PublicIdColumn::add(['personal_access_tokens', 'device_tokens']);
         }
     }
 

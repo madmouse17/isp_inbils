@@ -2,13 +2,31 @@
 
 namespace Modules\Service\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Service\Models\BandwidthProfile;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageCategory;
+use Modules\Service\Models\SLATier;
+use Modules\Service\Models\SpeedProfile;
 
 class UpdateServicePackageRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'bandwidth_profile_id' => BandwidthProfile::class,
+            'speed_profile_id' => SpeedProfile::class,
+            'sla_tier_id' => SLATier::class,
+            'service_package_category_id' => ServicePackageCategory::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('service.update') || $this->user()?->can('service.manage');

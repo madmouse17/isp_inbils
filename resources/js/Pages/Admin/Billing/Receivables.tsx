@@ -10,14 +10,14 @@ import { formatRupiah } from '@/lib/format';
 import { toPagination, type PaginationLike } from '@/lib/pagination';
 
 interface SubRef {
-    id: number;
+    id: string;
     code: string;
     status: string;
     blocked_at: string | null;
 }
 
 interface Row {
-    customer_id: number;
+    customer_id: string;
     customer: string;
     current: number;
     b1_30: number;

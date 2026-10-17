@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -151,7 +152,7 @@ class InvoicesTest extends TestCase
             array_keys($item),
         );
         $this->assertNull($item['subscription_id']);
-        $this->assertSame($invoice->id, $item['id']);
+        $this->assertSame($invoice->public_id, $item['id']);
         $this->assertSame('154600.00', $item['total']);
         $this->assertSame('100000.00', $item['sisa']);
     }
@@ -171,9 +172,9 @@ class InvoicesTest extends TestCase
 
         $byNumber = collect($this->list()->assertOk()->json('data'))->pluck('subscription_id', 'number')->sortKeys()->all();
 
-        $this->assertSame(['INV-ONE-OFF' => null, 'INV-SUB' => $subscription->id], $byNumber);
-        $this->api('GET', "customer/invoices/{$recurring->id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', $subscription->id);
-        $this->api('GET', "customer/invoices/{$oneTime->id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', null);
+        $this->assertSame(['INV-ONE-OFF' => null, 'INV-SUB' => $subscription->public_id], $byNumber);
+        $this->api('GET', "customer/invoices/{$recurring->public_id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', $subscription->public_id);
+        $this->api('GET', "customer/invoices/{$oneTime->public_id}", token: $this->token)->assertOk()->assertJsonPath('data.subscription_id', null);
     }
 
     public function test_unpaid_is_the_open_invoices_with_the_earliest_due_date_first(): void
@@ -239,7 +240,7 @@ class InvoicesTest extends TestCase
         $this->paymentOn($invoice, ['paid_at' => now()->subDay()]);
         $this->reverse($this->paymentOn($invoice, ['amount' => '1000.00']));
 
-        $api = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $api = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
         $api->assertJsonPath('data.sisa', '100000.00')
             ->assertJsonCount(1, 'data.items')
             ->assertJsonCount(1, 'data.payments')
@@ -252,9 +253,9 @@ class InvoicesTest extends TestCase
         $cancelled = $this->invoiceOf($this->customer, ['status' => 'cancelled']);
         $paid = $this->invoiceOf($this->customer, ['status' => 'paid', 'paid_amount' => 154600]);
 
-        $this->api('GET', "customer/invoices/{$cancelled->id}", token: $this->token)->assertOk()
+        $this->api('GET', "customer/invoices/{$cancelled->public_id}", token: $this->token)->assertOk()
             ->assertJsonPath('data.payment', ['enabled' => true, 'can_pay' => false, 'blocked_reason' => 'Tagihan sudah dibatalkan.']);
-        $this->api('GET', "customer/invoices/{$paid->id}", token: $this->token)->assertOk()
+        $this->api('GET', "customer/invoices/{$paid->public_id}", token: $this->token)->assertOk()
             ->assertJsonPath('data.payment', ['enabled' => true, 'can_pay' => false, 'blocked_reason' => 'Tagihan sudah lunas.']);
     }
 
@@ -263,7 +264,7 @@ class InvoicesTest extends TestCase
         $invoice = $this->invoiceOf($this->customer);
         $this->disableMidtrans();
 
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk()
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk()
             ->assertJsonPath('data.payment', ['enabled' => false, 'can_pay' => false, 'blocked_reason' => null]);
     }
 
@@ -275,7 +276,7 @@ class InvoicesTest extends TestCase
         $elsewhere = $this->invoiceOf($stranger);
         $draft = $this->invoiceOf($this->customer, ['status' => 'draft']);
 
-        foreach ([$theirs->id, $elsewhere->id, $draft->id, 999999] as $id) {
+        foreach ([$theirs->public_id, $elsewhere->public_id, $draft->public_id, PublicId::new(), 999999] as $id) {
             $this->api('GET', "customer/invoices/{$id}", token: $this->token)->assertNotFound()->assertJsonPath('code', 'not_found');
         }
         $this->api('GET', 'customer/invoices/abc', token: $this->token)->assertNotFound();
@@ -289,12 +290,12 @@ class InvoicesTest extends TestCase
 
         $technician = $this->issueToken($this->technicianLogin(), 'technician');
         $this->api('GET', 'customer/invoices', token: $technician)->assertForbidden()->assertJsonPath('code', 'forbidden');
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $technician)->assertForbidden();
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $technician)->assertForbidden();
 
         $this->revokeCustomerPermission('portal.invoice.view');
 
         $this->list()->assertForbidden()->assertJsonPath('code', 'forbidden');
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertForbidden();
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertForbidden();
     }
 
     public function test_a_flagged_legacy_password_is_refused_on_every_invoice_call(): void
@@ -303,7 +304,7 @@ class InvoicesTest extends TestCase
         $this->customerUser->forceFill(['must_change_password' => true])->save();
 
         $this->list()->assertForbidden()->assertJsonPath('code', 'password_reset_required');
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertForbidden()->assertJsonPath('code', 'password_reset_required');
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertForbidden()->assertJsonPath('code', 'password_reset_required');
     }
 
     public function test_no_gateway_ledger_or_staff_field_reaches_the_app(): void
@@ -312,7 +313,7 @@ class InvoicesTest extends TestCase
         $this->paymentOn($invoice);
         $attempt = PaymentAttempt::factory()->forInvoice($invoice)->create();
 
-        foreach ([$this->list(), $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)] as $response) {
+        foreach ([$this->list(), $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)] as $response) {
             $response->assertOk();
             $this->assertNoInternalFields($response);
             $this->assertStringNotContainsString($attempt->order_id, (string) $response->getContent());
@@ -330,26 +331,26 @@ class InvoicesTest extends TestCase
         $this->paymentOn($invoice, ['method' => 'transfer', 'reference' => 'BANK-REF-INTERNAL', 'paid_at' => now()->subDay()]);
         $plain = $this->invoiceOf($this->customer, ['billing_period_start' => null, 'billing_period_end' => null]);
 
-        $api = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $api = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
         $api->assertJsonPath('data.billing_period', ['start' => '2026-09-01', 'end' => '2026-09-30'])
             ->assertJsonPath('data.payments.0.reference', '7-42-abcdef123456')
             ->assertJsonPath('data.payments.0.method_label', 'Pembayaran online')
             ->assertJsonPath('data.payments.1.reference', null)
             ->assertJsonPath('data.payments.1.method_label', 'Transfer bank');
         $this->assertStringNotContainsString('BANK-REF', (string) $api->getContent());
-        $this->api('GET', "customer/invoices/{$plain->id}", token: $this->token)->assertOk()->assertJsonPath('data.billing_period', null);
+        $this->api('GET', "customer/invoices/{$plain->public_id}", token: $this->token)->assertOk()->assertJsonPath('data.billing_period', null);
     }
 
     public function test_the_detail_shows_the_latest_attempt_of_this_invoice_with_the_pay_link_only_while_it_is_open(): void
     {
         $invoice = $this->invoiceOf($this->customer);
-        $none = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $none = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
         $none->assertJsonPath('data.payment_attempt', null);
 
         PaymentAttempt::factory()->forInvoice($invoice)->status('failed')->create();
         $open = PaymentAttempt::factory()->forInvoice($invoice)->create();
 
-        $detail = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $detail = $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
         $detail->assertJsonPath('data.payment_attempt.status', 'pending')
             ->assertJsonPath('data.payment_attempt.redirect_url', $open->redirect_url)
             ->assertJsonPath('data.payment_attempt.expires_at', $open->expires_at->toIso8601String());
@@ -358,13 +359,13 @@ class InvoicesTest extends TestCase
         $this->assertStringNotContainsString($open->order_id, (string) $detail->getContent());
 
         $open->forceFill(['expires_at' => now()->subMinute()])->save();
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk()
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk()
             ->assertJsonPath('data.payment_attempt.status', 'expire')
             ->assertJsonPath('data.payment_attempt.redirect_url', null);
 
         foreach (['paid' => 'settlement', 'expired' => 'expire', 'failed' => 'failed', 'exception' => 'failed'] as $stored => $shown) {
             PaymentAttempt::factory()->forInvoice($invoice)->status($stored)->create();
-            $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk()
+            $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk()
                 ->assertJsonPath('data.payment_attempt.status', $shown)
                 ->assertJsonPath('data.payment_attempt.redirect_url', null);
         }
@@ -378,13 +379,13 @@ class InvoicesTest extends TestCase
         [, $neighbour] = $this->customerLogin($this->customerUser->company);
         $theirs = $this->invoiceOf($neighbour, ['status' => 'paid', 'paid_amount' => 154600]);
 
-        $response = $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertOk();
+        $response = $this->api('GET', "customer/invoices/{$paid->public_id}/receipt", token: $this->token)->assertOk();
         $response->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $response->getContent());
 
-        $this->api('GET', "customer/invoices/{$unpaid->id}/receipt", token: $this->token)->assertNotFound();
-        $this->api('GET', "customer/invoices/{$theirs->id}/receipt", token: $this->token)->assertNotFound();
-        $this->api('GET', "customer/invoices/{$paid->id}/receipt")->assertUnauthorized();
+        $this->api('GET', "customer/invoices/{$unpaid->public_id}/receipt", token: $this->token)->assertNotFound();
+        $this->api('GET', "customer/invoices/{$theirs->public_id}/receipt", token: $this->token)->assertNotFound();
+        $this->api('GET', "customer/invoices/{$paid->public_id}/receipt")->assertUnauthorized();
     }
 
     public function test_the_receipt_is_throttled(): void
@@ -392,9 +393,9 @@ class InvoicesTest extends TestCase
         $paid = $this->invoiceOf($this->customer, ['status' => 'paid', 'paid_amount' => 154600]);
 
         foreach (range(1, 6) as $ignored) {
-            $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertOk();
+            $this->api('GET', "customer/invoices/{$paid->public_id}/receipt", token: $this->token)->assertOk();
         }
 
-        $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertStatus(429);
+        $this->api('GET', "customer/invoices/{$paid->public_id}/receipt", token: $this->token)->assertStatus(429);
     }
 }

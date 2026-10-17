@@ -11,6 +11,7 @@ use App\Support\NumberSequences\NumberSequenceDefinition;
 use App\Support\NumberSequences\NumberSequenceRegistry;
 use App\Support\NumberSequences\NumberTemplate;
 use App\Support\NumberSequences\ResetPeriod;
+use App\Support\PublicId;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -65,6 +66,7 @@ class NumberSequenceTest extends TestCase
         $now = now();
 
         DB::table('customers')->insert(array_map(static fn (string $code): array => [
+            'public_id' => PublicId::new(),
             'company_id' => $companyId,
             'code' => $code,
             'name' => $code,

@@ -30,7 +30,12 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+// Every record in a URL is its ULID public_id (spec .scratch/opaque-ids): an integer id never matches a route.
+// `notification` is a UUID (the notifications table key) and stays unconstrained here.
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid([
+    'user', 'role', 'location', 'customer', 'address', 'contact', 'subscription', 'evaluation',
+    'organization_unit', 'employee', 'vehicle', 'number_sequence', 'document_type', 'media',
+])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::get('approvals', [ApprovalInboxController::class, 'index'])->name('approvals.index');
@@ -53,7 +58,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
     Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');
     // Role definitions are platform-owned (ADR-003): a tenant admin reads them and assigns them through Pengguna.
-    Route::resource('roles', RoleController::class)->only(['index', 'show']);
+    Route::resource('roles', RoleController::class)->only(['index', 'show'])->scoped(['role' => 'public_id']);
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
 
@@ -78,7 +83,7 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
                 'demo',
                 Location::query(),
                 ['name', 'code'],
-                fn (Location $location): array => ['value' => $location->id, 'label' => $location->name, 'description' => $location->code],
+                fn (Location $location): array => ['value' => $location->public_id, 'label' => $location->name, 'description' => $location->code],
             ),
         ]);
     })->middleware('can:developer.components.view')->name('components');
@@ -134,8 +139,8 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::get('documents/export', [DocumentController::class, 'export'])->name('documents.export');
     Route::resource('documents', DocumentController::class, ['parameters' => ['documents' => 'document_type']])->except(['create', 'edit', 'show']);
     Route::post('documents/media', [DocumentController::class, 'uploadMedia'])->name('documents.media.store');
-    Route::delete('documents/media/{media}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
+    Route::delete('documents/media/{media:public_id}', [DocumentController::class, 'deleteMedia'])->name('documents.media.destroy');
 
     // Uploaded files (ticket attachments, SPK evidence, customer documents): authorized per owner
-    Route::get('media/{media}', [MediaController::class, 'show'])->whereNumber('media')->name('media.show');
+    Route::get('media/{media:public_id}', [MediaController::class, 'show'])->name('media.show');
 });

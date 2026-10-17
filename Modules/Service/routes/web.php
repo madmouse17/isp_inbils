@@ -9,7 +9,9 @@ use Modules\Service\Http\Controllers\ServicePackageController;
 use Modules\Service\Http\Controllers\SLATierController;
 use Modules\Service\Http\Controllers\SpeedProfileController;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->whereUlid([
+    'announcement', 'promo_banner', 'service_package', 'pkg', 'service_package_category', 'bandwidth_profile', 'speed_profile', 'sla_tier',
+])->group(function () {
     Route::group(['prefix' => 'admin', 'as' => 'admin.'], function () {
         Route::get('announcements', [AnnouncementController::class, 'index'])->name('announcements.index');
         Route::post('announcements', [AnnouncementController::class, 'store'])->name('announcements.store');

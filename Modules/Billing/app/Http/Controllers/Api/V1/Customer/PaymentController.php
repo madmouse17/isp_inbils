@@ -22,10 +22,10 @@ class PaymentController extends Controller
             ->select('id');
 
         $payments = Payment::query()
-            ->select('id', 'invoice_id', 'amount', 'method', 'reference', 'paid_at')
+            ->select('id', 'public_id', 'invoice_id', 'amount', 'method', 'reference', 'paid_at')
             ->whereIn('invoice_id', $invoices)
             ->whereNull('cancelled_at')
-            ->with('invoice:id,number')
+            ->with('invoice:id,public_id,number')
             ->orderByDesc('paid_at')
             ->orderByDesc('id')
             ->paginate($request->perPage())

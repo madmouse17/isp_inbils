@@ -10,6 +10,8 @@ use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -59,8 +61,9 @@ class InvoiceController extends Controller
             ->paginate($this->perPage($request))
             ->withQueryString();
 
-        $customerId = $request->integer('customer_id');
-        $selectedCustomer = $customerId > 0 ? Customer::query()->find($customerId) : null;
+        $customerKey = $request->query('customer_id');
+        $customerKey = is_string($customerKey) && $customerKey !== '' ? $customerKey : null;
+        $selectedCustomer = $customerKey === null ? null : Customer::query()->wherePublicId($customerKey)->first();
 
         return Inertia::render('Admin/Billing/Invoices/Index', [
             'invoices' => InvoiceResource::collection($invoices),
@@ -70,7 +73,7 @@ class InvoiceController extends Controller
                 Customer::query(),
                 ['name', 'code'],
                 $this->presentCustomer(...),
-                $customerId > 0 ? $customerId : null,
+                $customerKey,
             ),
             'selectedCustomer' => $selectedCustomer ? $this->presentCustomer($selectedCustomer) : null,
             'filters' => $request->only(['type', 'status', 'source', 'customer_id', 'search', 'date_from', 'date_to', 'sort_by', 'sort_dir', 'per_page']),
@@ -88,7 +91,7 @@ class InvoiceController extends Controller
             ->when($request->input('type'), fn ($query, $value) => $query->where('type', $value))
             ->when($request->input('status'), fn ($query, $value) => $query->where('status', $value))
             ->when($request->input('source'), fn ($query, $value) => $query->where('source', $value))
-            ->when($request->input('customer_id'), fn ($query, $value) => $query->where('customer_id', $value))
+            ->when($request->input('customer_id'), fn ($query, $value) => $query->where('customer_id', PublicId::resolveOne(Customer::class, $value) ?? 0))
             ->when($request->input('date_from'), fn ($query, $value) => $query->whereDate('issue_date', '>=', $value))
             ->when($request->input('date_to'), fn ($query, $value) => $query->whereDate('issue_date', '<=', $value))
             ->when($request->input('search'), fn ($query, $value) => $query->where(fn ($search) => $search
@@ -101,7 +104,7 @@ class InvoiceController extends Controller
         Gate::authorize('create', Invoice::class);
 
         // The page sends the customer it picked, so only that customer's subscriptions are offered.
-        $customerId = $request->integer('customer_id');
+        $customerId = PublicId::resolveOne(Customer::class, $request->query('customer_id'));
 
         return Inertia::render('Admin/Billing/Invoices/Create', [
             'customerOptions' => SearchOptions::for(
@@ -119,11 +122,11 @@ class InvoiceController extends Controller
                     ->join('customers', 'customers.id', '=', 'service_subscriptions.customer_id')
                     ->whereNull('customers.deleted_at')
                     ->whereIn('service_subscriptions.status', ['pending', 'active'])
-                    ->when($customerId > 0, fn (Builder $query) => $query->where('service_subscriptions.customer_id', $customerId))
+                    ->when($request->filled('customer_id'), fn (Builder $query) => $query->where('service_subscriptions.customer_id', $customerId ?? 0))
                     ->select('service_subscriptions.*', 'customers.name as customer_name'),
                 ['service_subscriptions.code', 'customers.name'],
                 fn (ServiceSubscription $subscription): array => [
-                    'value' => $subscription->id,
+                    'value' => $subscription->public_id,
                     'label' => $subscription->code,
                     'description' => $subscription->customer_name,
                 ],
@@ -131,10 +134,10 @@ class InvoiceController extends Controller
         ]);
     }
 
-    /** @return array{value: int, label: string, description: string|null} */
+    /** @return array{value: string, label: string, description: string|null} */
     private function presentCustomer(Customer $customer): array
     {
-        return ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code];
+        return ['value' => $customer->public_id, 'label' => $customer->name, 'description' => $customer->code];
     }
 
     public function generatePreview(GenerateInvoicesRequest $request): JsonResponse
@@ -327,7 +330,7 @@ class InvoiceController extends Controller
     public function reversePayment(ReversePaymentRequest $request, Invoice $invoice, Payment $payment): RedirectResponse
     {
         $this->ensureSameCompany($invoice);
-        abort_unless($payment->invoice_id === $invoice->id, 404);
+        RecordNotFound::abortUnless($payment->invoice_id === $invoice->id);
 
         BillingService::reversePayment($payment, $request->input('reason'));
 
@@ -376,6 +379,6 @@ class InvoiceController extends Controller
 
     private function ensureSameCompany(Invoice $invoice): void
     {
-        abort_unless($invoice->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($invoice->company_id === CompanyService::currentId());
     }
 }

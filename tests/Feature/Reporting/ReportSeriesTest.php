@@ -335,7 +335,7 @@ class ReportSeriesTest extends TestCase
 
         $this->actingAs($this->admin);
         $without = $this->get(route('admin.reports.technician'))->assertOk()->inertiaProps();
-        $with = $this->get(route('admin.reports.technician', ['technician_id' => $technician->id, 'date_from' => '2026-01-05', 'date_to' => '2026-01-11']))
+        $with = $this->get(route('admin.reports.technician', ['technician_id' => $technician->public_id, 'date_from' => '2026-01-05', 'date_to' => '2026-01-11']))
             ->assertOk()->inertiaProps();
 
         $this->assertNull($without['charts']);

@@ -18,7 +18,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { formatRupiah } from '@/lib/format';
 
 interface PreviewRow {
-    subscription_id: number;
+    subscription_id: string;
     customer: string;
     package: string;
     active_days: number;

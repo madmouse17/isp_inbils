@@ -2,15 +2,30 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Rules\PolymorphicBelongsToCompany;
 use App\Services\Core\CompanyService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Models\Product;
 use Modules\SPK\Models\WorkOrderItem;
 
 class StockIssueRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string|\Closure> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'product_id' => Product::class,
+            'location_id' => Location::class,
+            'reference_id' => fn (array $input): ?string => is_string($type = $input['reference_type'] ?? null) ? (self::referenceTypes()[$type] ?? null) : null,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('inventory.stock.issue') ?? false;

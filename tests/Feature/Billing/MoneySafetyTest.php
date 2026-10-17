@@ -122,7 +122,7 @@ class MoneySafetyTest extends TestCase
         ]);
 
         $response = $this->post(route('admin.invoices.items.store', $invoice), [
-            'product_id' => $foreignProduct->id,
+            'product_id' => $foreignProduct->public_id,
             'description' => 'x',
             'quantity' => 1,
             'unit_price' => 10,

@@ -7,6 +7,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -65,6 +66,7 @@ class Ticket extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;

@@ -4,6 +4,7 @@ namespace Modules\Service\Models;
 
 use App\Models\Core\Location;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,7 @@ class Announcement extends Model
     use BelongsToCompany;
     use HasFactory;
     use HasPublicationStatus;
+    use HasPublicId;
 
     public const AUDIENCES = ['all', 'targeted'];
 

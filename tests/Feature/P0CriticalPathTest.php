@@ -119,8 +119,8 @@ class P0CriticalPathTest extends TestCase
                     'notes' => null,
                 ]],
                 'subscription' => [
-                    'service_package_id' => $servicePackage->id,
-                    'serving_pop_id' => $location->id,
+                    'service_package_id' => $servicePackage->public_id,
+                    'serving_pop_id' => $location->public_id,
                     'billing_day' => 5,
                     'mrc_amount' => null,
                     'otc_installation_fee' => null,
@@ -162,7 +162,7 @@ class P0CriticalPathTest extends TestCase
             'status' => 'active',
         ]);
         $this->post(route('admin.spk.assign', $workOrder), [
-            'technician_id' => $technician->id,
+            'technician_id' => $technician->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
         ])->assertRedirect();
@@ -202,16 +202,16 @@ class P0CriticalPathTest extends TestCase
             'title' => 'P0 ticket',
             'description' => 'Needs field SPK',
             'source' => 'customer',
-            'category_id' => $category->id,
+            'category_id' => $category->public_id,
             'priority' => 'medium',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
-            'location_id' => $location->id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
+            'location_id' => $location->public_id,
         ])->assertRedirect();
 
         $ticket = Ticket::where('title', 'P0 ticket')->firstOrFail();
         $this->post(route('admin.tickets.assign', $ticket), [
-            'handler_id' => $admin->id,
+            'handler_id' => $admin->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $ticket->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
         ])->assertRedirect();
@@ -239,9 +239,9 @@ class P0CriticalPathTest extends TestCase
         $servicePackage = ServicePackageFactory::new()->create(['company_id' => $company->id]);
 
         $payload = [
-            'customer_id' => $customer->id,
-            'service_package_id' => $servicePackage->id,
-            'installation_address_id' => $address->id,
+            'customer_id' => $customer->public_id,
+            'service_package_id' => $servicePackage->public_id,
+            'installation_address_id' => $address->public_id,
             'billing_day' => 5,
             'mrc_amount' => 150_000,
             'otc_installation_fee' => 25_000,
@@ -315,7 +315,7 @@ class P0CriticalPathTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $nonTechnician->id,
+                'technician_id' => $nonTechnician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
             ])
@@ -340,7 +340,7 @@ class P0CriticalPathTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $technician->id,
+                'technician_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
             ])
@@ -353,7 +353,7 @@ class P0CriticalPathTest extends TestCase
         ]);
 
         $this->post(route('admin.spk.assign', $workOrder), [
-            'technician_id' => $technician->id,
+            'technician_id' => $technician->public_id,
             'expected_assigned_to' => null,
             'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\TH:i:s.v\Z'),
         ])->assertRedirect();
@@ -395,13 +395,13 @@ class P0CriticalPathTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.items.store', $workOrder), [
-                'product_id' => $inactiveProduct->id,
+                'product_id' => $inactiveProduct->public_id,
                 'quantity_reserved' => 1,
             ])
             ->assertSessionHasErrors('product_id');
 
         $this->post(route('admin.spk.items.store', $workOrder), [
-            'product_id' => $product->id,
+            'product_id' => $product->public_id,
             'quantity_reserved' => 2,
             'note' => 'Router installation',
         ])->assertRedirect();
@@ -456,15 +456,15 @@ class P0CriticalPathTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.items.store', $workOrder), [
-                'product_id' => $product->id,
-                'network_asset_id' => $wrongAsset->id,
+                'product_id' => $product->public_id,
+                'network_asset_id' => $wrongAsset->public_id,
                 'quantity_reserved' => 1,
             ])
             ->assertSessionHasErrors('network_asset_id');
 
         $this->post(route('admin.spk.items.store', $workOrder), [
-            'product_id' => $product->id,
-            'network_asset_id' => $asset->id,
+            'product_id' => $product->public_id,
+            'network_asset_id' => $asset->public_id,
             'quantity_reserved' => 1,
             'quantity_used' => 1,
         ])->assertRedirect();
@@ -493,10 +493,10 @@ class P0CriticalPathTest extends TestCase
         $this->actingAs($admin)
             ->post(route('admin.network-assets.store'), [
                 'name' => 'ONT Customer',
-                'product_id' => $product->id,
+                'product_id' => $product->public_id,
                 'asset_type' => 'onu_ont',
                 'serial_number' => 'ONT-001',
-                'location_id' => $location->id,
+                'location_id' => $location->public_id,
                 'ownership' => 'owned',
             ])
             ->assertRedirect(route('admin.network-assets.index'));

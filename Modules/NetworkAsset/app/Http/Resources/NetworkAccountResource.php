@@ -17,7 +17,7 @@ class NetworkAccountResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'service_type' => $this->service_type,
             'username' => $this->username,
             'sync_status' => $this->sync_status,

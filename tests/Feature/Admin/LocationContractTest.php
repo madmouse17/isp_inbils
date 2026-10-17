@@ -240,7 +240,7 @@ class LocationContractTest extends TestCase
                 'code' => 'BOUND-1',
                 'name' => 'Boundary',
                 'type' => 'area',
-                'parent_id' => $parent->id,
+                'parent_id' => $parent->public_id,
                 'lat' => 90,
                 'lng' => 180,
             ])
@@ -264,7 +264,7 @@ class LocationContractTest extends TestCase
         $location = $this->location(['code' => 'UP-1', 'type' => 'pop', 'lat' => -6.2, 'lng' => 106.8]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $location->id), [
+            ->put(route('admin.locations.update', $location->public_id), [
                 'code' => 'UP-1',
                 'name' => 'Updated',
                 'type' => 'pop',
@@ -328,7 +328,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $foreign->id), [
+            ->put(route('admin.locations.update', $foreign->public_id), [
                 'code' => 'FOREIGN-1',
                 'name' => 'Hacked',
                 'type' => 'region',
@@ -345,7 +345,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.locations.move', $foreign->id), ['new_parent_id' => 1])
+            ->post(route('admin.locations.move', $foreign->public_id), ['new_parent_id' => 1])
             ->assertNotFound();
     }
 
@@ -358,7 +358,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->delete(route('admin.locations.destroy', $foreign->id))
+            ->delete(route('admin.locations.destroy', $foreign->public_id))
             ->assertNotFound();
     }
 
@@ -372,7 +372,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.locations.move', $own->id), ['new_parent_id' => $foreignParent->id])
+            ->post(route('admin.locations.move', $own->public_id), ['new_parent_id' => $foreignParent->public_id])
             ->assertSessionHasErrors('new_parent_id');
 
         $this->assertDatabaseHas('locations', ['id' => $own->id, 'parent_id' => null]);
@@ -389,7 +389,7 @@ class LocationContractTest extends TestCase
         $child = $this->location(['code' => 'AREA-1', 'type' => 'area', 'parent_id' => $region->id]);
 
         $this->actingAs($user)
-            ->post(route('admin.locations.move', $child->id), ['new_parent_id' => $region->id])
+            ->post(route('admin.locations.move', $child->public_id), ['new_parent_id' => $region->public_id])
             ->assertForbidden();
     }
 
@@ -400,7 +400,7 @@ class LocationContractTest extends TestCase
         $child = $this->location(['code' => 'AREA-MV', 'type' => 'area', 'parent_id' => null]);
 
         $this->actingAs($user)
-            ->post(route('admin.locations.move', $child->id), ['new_parent_id' => $region->id])
+            ->post(route('admin.locations.move', $child->public_id), ['new_parent_id' => $region->public_id])
             ->assertRedirect();
 
         $this->assertDatabaseHas('locations', ['id' => $child->id, 'parent_id' => $region->id]);
@@ -416,15 +416,15 @@ class LocationContractTest extends TestCase
             ->assertForbidden();
 
         $this->actingAs($user)
-            ->put(route('admin.locations.update', $own->id), ['code' => 'VIEW-1', 'name' => 'Nope', 'type' => 'region'])
+            ->put(route('admin.locations.update', $own->public_id), ['code' => 'VIEW-1', 'name' => 'Nope', 'type' => 'region'])
             ->assertForbidden();
 
         $this->actingAs($user)
-            ->post(route('admin.locations.move', $own->id), ['new_parent_id' => 1])
+            ->post(route('admin.locations.move', $own->public_id), ['new_parent_id' => 1])
             ->assertForbidden();
 
         $this->actingAs($user)
-            ->delete(route('admin.locations.destroy', $own->id))
+            ->delete(route('admin.locations.destroy', $own->public_id))
             ->assertForbidden();
     }
 
@@ -454,7 +454,7 @@ class LocationContractTest extends TestCase
                 'code' => 'AUDIT-1',
                 'name' => 'Audited',
                 'type' => 'pop',
-                'parent_id' => $area->id,
+                'parent_id' => $area->public_id,
                 'lat' => -6.2,
                 'lng' => 106.8,
                 'is_active' => true,
@@ -498,11 +498,11 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $location->id), [
+            ->put(route('admin.locations.update', $location->public_id), [
                 'code' => 'AUDIT-2',
                 'name' => 'Audited',
                 'type' => 'pop',
-                'parent_id' => $parentArea->id,
+                'parent_id' => $parentArea->public_id,
                 'lat' => -6.3,
                 'lng' => 106.9,
                 'is_active' => false,
@@ -546,7 +546,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->delete(route('admin.locations.destroy', $location->id))
+            ->delete(route('admin.locations.destroy', $location->public_id))
             ->assertRedirect();
 
         $activity = Activity::query()
@@ -573,7 +573,7 @@ class LocationContractTest extends TestCase
         $location = $this->location(['code' => 'AUDIT-3', 'type' => 'region']);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $location->id), [
+            ->put(route('admin.locations.update', $location->public_id), [
                 'code' => 'AUDIT-3',
                 'name' => $location->name,
                 'type' => 'region',
@@ -638,7 +638,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $child->id), [
+            ->put(route('admin.locations.update', $child->public_id), [
                 'code' => $child->code,
                 'name' => 'Updated child',
                 'type' => 'area',
@@ -664,7 +664,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $child->id), [
+            ->put(route('admin.locations.update', $child->public_id), [
                 'code' => $child->code,
                 'name' => $child->name,
                 'type' => 'region',
@@ -689,7 +689,7 @@ class LocationContractTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->put(route('admin.locations.update', $location->id), [
+            ->put(route('admin.locations.update', $location->public_id), [
                 'code' => $location->code,
                 'name' => 'Must not persist',
                 'type' => 'area',
@@ -1182,9 +1182,9 @@ class LocationContractTest extends TestCase
                 ->has('locations.data', 2)
                 ->missing('locations.data.0.children')
                 ->missing('locations.data.1.children')
-                ->where('locations.data.1.parent_id', $region->id)
-                ->where('tree.data.0.id', $region->id)
-                ->where('tree.data.0.children.0.id', $area->id)
+                ->where('locations.data.1.parent_id', $region->public_id)
+                ->where('tree.data.0.id', $region->public_id)
+                ->where('tree.data.0.children.0.id', $area->public_id)
                 ->where('tree.data.0.children.0.children', [])
             );
     }
@@ -1194,7 +1194,7 @@ class LocationContractTest extends TestCase
         $this->actingAs($this->admin);
         $region = $this->location(['code' => 'REG-1', 'type' => 'region']);
 
-        $this->postJson(route('admin.locations.store'), ['code' => 'REG-2', 'name' => 'Wilayah', 'type' => 'region', 'parent_id' => $region->id])
+        $this->postJson(route('admin.locations.store'), ['code' => 'REG-2', 'name' => 'Wilayah', 'type' => 'region', 'parent_id' => $region->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['parent_id' => 'Lokasi Wilayah tidak boleh punya induk.']);
         $this->postJson(route('admin.locations.store'), ['code' => 'AREA-2', 'name' => 'Area', 'type' => 'area'])
@@ -1224,7 +1224,7 @@ class LocationContractTest extends TestCase
         $this->deleteJson(route('admin.locations.destroy', $region))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['location' => 'Lokasi masih punya lokasi turunan.']);
-        $this->postJson(route('admin.locations.move', $pop), ['new_parent_id' => $region->id])
+        $this->postJson(route('admin.locations.move', $pop), ['new_parent_id' => $region->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['new_parent_id' => 'Lokasi POP harus punya induk Area.']);
         $this->postJson(route('admin.locations.move', $pop), [])
@@ -1235,7 +1235,7 @@ class LocationContractTest extends TestCase
             ->assertJsonValidationErrors(['type' => 'Lokasi POP tidak dapat punya induk Rak.']);
 
         $this->delete(route('admin.locations.destroy', $pop))->assertSessionHas('success', 'Lokasi dihapus.');
-        $this->post(route('admin.locations.move', $area), ['new_parent_id' => $region->id])->assertSessionHas('success', 'Lokasi dipindahkan.');
+        $this->post(route('admin.locations.move', $area), ['new_parent_id' => $region->public_id])->assertSessionHas('success', 'Lokasi dipindahkan.');
         $this->put(route('admin.locations.update', $area), ['code' => 'AREA-1', 'name' => 'Area baru', 'type' => 'area'])->assertSessionHas('success', 'Lokasi diperbarui.');
     }
 }

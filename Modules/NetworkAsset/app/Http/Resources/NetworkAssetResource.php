@@ -15,8 +15,8 @@ class NetworkAssetResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'product_id' => $this->product_id,
+            'id' => $this->public_id,
+            'product_id' => $this->product?->public_id,
             'code' => $this->code,
             'name' => $this->name,
             'asset_type' => $this->asset_type,
@@ -24,9 +24,9 @@ class NetworkAssetResource extends JsonResource
             'mac_address' => $this->mac_address,
             'ip_address' => $this->ip_address,
             'management_ip' => $this->management_ip,
-            'location_id' => $this->location_id,
-            'customer_id' => $this->customer_id,
-            'subscription_id' => $this->subscription_id,
+            'location_id' => $this->location?->public_id,
+            'customer_id' => $this->customer?->public_id,
+            'subscription_id' => $this->subscription?->public_id,
             'status' => $this->status,
             'ownership' => $this->ownership,
             'vendor' => $this->vendor,

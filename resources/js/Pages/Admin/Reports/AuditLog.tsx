@@ -58,28 +58,28 @@ import { useServerTable } from '@/hooks/useServerTable';
 import type { PageProps } from '@/types';
 
 export interface AuditLogCauser {
-    id: number;
+    id: string;
     name: string;
     email?: string;
 }
 
 export interface AuditLogRow extends Record<string, unknown> {
-    id: number;
-    company_id: number | null;
+    id: string;
+    company_id: string | null;
     log_name: string;
     description: string;
     event: string | null;
-    causer_id: number | null;
+    causer_id: string | null;
     causer_type: string | null;
     causer: AuditLogCauser | null;
     subject_type: string | null;
-    subject_id: number | null;
+    subject_id: string | null;
     properties?: Record<string, unknown> | unknown[];
     created_at: string;
 }
 
 export interface AuditLogFilters {
-    user_id?: string | number;
+    user_id?: string;
     log_name?: string;
     event?: string;
     date_from?: string;
@@ -123,7 +123,7 @@ export interface AuditLogProps {
 
 const PER_PAGE_OPTIONS = ['10', '15', '25', '50', '100'].map((value) => ({ value, label: value }));
 
-function formatSubjectShort(type?: string | null, id?: number | string | null): string {
+function formatSubjectShort(type?: string | null, id?: string | null): string {
     if (!type && id == null) return '-';
     const cleanType = type ? (type.split('\\').pop() ?? type) : 'Entitas';
     return id != null ? `${cleanType} #${id}` : cleanType;

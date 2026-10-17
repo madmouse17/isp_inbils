@@ -17,7 +17,7 @@ class PromoBannerResource extends JsonResource
         $media = $this->getFirstMedia('promo_banner');
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'title' => $this->title,
             'alt_text' => $this->alt_text,
             'image_url' => $media === null ? null : route('admin.media.show', $media),
@@ -30,8 +30,8 @@ class PromoBannerResource extends JsonResource
             'published_at' => $this->published_at,
             'sort_order' => $this->sort_order,
             'tap_count' => $this->tap_count,
-            'location_targets' => $this->whenLoaded('locations', fn () => $this->locations->map->only(['id', 'code', 'name'])->values()),
-            'package_category_targets' => $this->whenLoaded('servicePackageCategories', fn () => $this->servicePackageCategories->map->only(['id', 'code', 'name'])->values()),
+            'location_targets' => $this->whenLoaded('locations', fn () => $this->locations->map(fn ($location): array => ['id' => $location->public_id, 'code' => $location->code, 'name' => $location->name])->values()),
+            'package_category_targets' => $this->whenLoaded('servicePackageCategories', fn () => $this->servicePackageCategories->map(fn ($category): array => ['id' => $category->public_id, 'code' => $category->code, 'name' => $category->name])->values()),
         ];
     }
 }

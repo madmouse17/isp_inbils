@@ -137,7 +137,7 @@ class InvoiceServerTableExportTest extends TestCase
             ->update(['issue_date' => '2026-09-15']);
         $filters = [
             'search' => 'INV-PAGE', 'status' => 'draft', 'source' => 'manual',
-            'customer_id' => $customer->id, 'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
+            'customer_id' => $customer->public_id, 'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
             'sort_by' => 'number', 'sort_dir' => 'desc', 'per_page' => 25,
         ];
 
@@ -207,7 +207,7 @@ class InvoiceServerTableExportTest extends TestCase
         }
         $filters = [
             'search' => 'INV-MATCH', 'type' => 'one_time', 'source' => 'manual',
-            'customer_id' => $customer->id, 'status' => 'draft',
+            'customer_id' => $customer->public_id, 'status' => 'draft',
             'date_from' => '2026-09-01', 'date_to' => '2026-09-30',
             'sort_by' => 'number', 'sort_dir' => 'desc', 'per_page' => 25,
         ];
@@ -215,15 +215,15 @@ class InvoiceServerTableExportTest extends TestCase
         $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
             ->assertOk()->assertInertia(fn (Assert $page) => $page
             ->has('invoices.data', 2)
-            ->where('invoices.data.0.id', $matches[1]->id)
-            ->where('invoices.data.1.id', $matches[0]->id)
+            ->where('invoices.data.0.id', $matches[1]->public_id)
+            ->where('invoices.data.1.id', $matches[0]->public_id)
             ->where('invoices.meta.per_page', 25)
             ->where('filters.date_from', '2026-09-01')
             ->where('filters.date_to', '2026-09-30')
             ->where('filters.search', 'INV-MATCH')
             ->where('filters.source', 'manual')
             ->where('filters.status', 'draft')
-            ->where('filters.customer_id', (string) $customer->id)
+            ->where('filters.customer_id', $customer->public_id)
             ->where('filters.sort_by', 'number')
             ->where('filters.sort_dir', 'desc')
             );
@@ -249,7 +249,7 @@ class InvoiceServerTableExportTest extends TestCase
 
         $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
             ->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->has('invoices.data', 1)->where('invoices.data.0.id', $match->id)
+            ->has('invoices.data', 1)->where('invoices.data.0.id', $match->public_id)
             );
         $content = $this->get(route('admin.invoices.export', array_merge($filters, ['format' => 'csv'])))
             ->assertOk()->streamedContent();
@@ -265,7 +265,7 @@ class InvoiceServerTableExportTest extends TestCase
         $this->makeInvoice((int) $this->admin->company_id, $customer, 'INV-OWN-FILTER');
         $this->makeInvoice((int) $this->otherCompany->id, $foreignCustomer, 'INV-FOREIGN-FILTER');
         $this->assertDatabaseHas('invoices', ['number' => 'INV-FOREIGN-FILTER', 'customer_id' => $foreignCustomer->id]);
-        $filters = ['customer_id' => $foreignCustomer->id];
+        $filters = ['customer_id' => $foreignCustomer->public_id];
 
         $this->actingAs($this->admin)->get(route('admin.invoices.index', $filters))
             ->assertOk()->assertInertia(fn (Assert $page) => $page

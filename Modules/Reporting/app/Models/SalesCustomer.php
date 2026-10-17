@@ -4,6 +4,7 @@ namespace Modules\Reporting\Models;
 
 use App\Models\Core\ServiceSubscription;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -19,6 +20,7 @@ use Modules\Billing\Models\Payment;
 final class SalesCustomer extends Model
 {
     use BelongsToCompany;
+    use HasPublicId;
     use SoftDeletes;
 
     protected $table = 'customers';

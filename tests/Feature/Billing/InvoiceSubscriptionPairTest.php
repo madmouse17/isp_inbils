@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use Tests\Traits\AsksInertiaForProps;
@@ -38,7 +39,7 @@ class InvoiceSubscriptionPairTest extends TestCase
         $subscription = $this->subscriptionIn($this->user->company);
 
         $this->actingAs($this->user)
-            ->post(route('admin.invoices.store'), ['customer_id' => $subscription->customer_id, 'subscription_id' => $subscription->id])
+            ->post(route('admin.invoices.store'), ['customer_id' => $subscription->customer->public_id, 'subscription_id' => $subscription->public_id])
             ->assertRedirect(route('admin.invoices.index'))
             ->assertSessionHasNoErrors();
 
@@ -51,7 +52,7 @@ class InvoiceSubscriptionPairTest extends TestCase
         $theirs = $this->subscriptionIn($this->user->company);
 
         $this->actingAs($this->user)
-            ->postJson(route('admin.invoices.store'), ['customer_id' => $mine->customer_id, 'subscription_id' => $theirs->id])
+            ->postJson(route('admin.invoices.store'), ['customer_id' => $mine->customer->public_id, 'subscription_id' => $theirs->public_id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -64,7 +65,7 @@ class InvoiceSubscriptionPairTest extends TestCase
         $subscription->delete();
 
         $this->actingAs($this->user)
-            ->postJson(route('admin.invoices.store'), ['customer_id' => $subscription->customer_id, 'subscription_id' => $subscription->id])
+            ->postJson(route('admin.invoices.store'), ['customer_id' => $subscription->customer->public_id, 'subscription_id' => $subscription->public_id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -76,9 +77,9 @@ class InvoiceSubscriptionPairTest extends TestCase
         $mine = $this->subscriptionIn($this->user->company);
         $foreign = $this->subscriptionIn($this->other);
 
-        foreach ([$foreign->id, $foreign->id + 10_000] as $subscriptionId) {
+        foreach ([$foreign->public_id, PublicId::new(), (string) $foreign->id] as $subscriptionId) {
             $this->actingAs($this->user)
-                ->postJson(route('admin.invoices.store'), ['customer_id' => $mine->customer_id, 'subscription_id' => $subscriptionId])
+                ->postJson(route('admin.invoices.store'), ['customer_id' => $mine->customer->public_id, 'subscription_id' => $subscriptionId])
                 ->assertUnprocessable()
                 ->assertJsonPath('errors.subscription_id', ['Langganan yang dipilih tidak ditemukan.']);
         }
@@ -91,12 +92,12 @@ class InvoiceSubscriptionPairTest extends TestCase
 
         $this->actingAs($this->user)
             ->get(
-                route('admin.invoices.create', ['customer_id' => $mine->customer_id, 'subscription_search' => 'SUB-']),
+                route('admin.invoices.create', ['customer_id' => $mine->customer->public_id, 'subscription_search' => 'SUB-']),
                 $this->partialReload('Admin/Billing/Invoices/Create', 'subscriptionOptions'),
             )
             ->assertOk()
             ->assertJsonPath('props.subscriptionOptions', [
-                ['value' => $mine->id, 'label' => $mine->code, 'description' => $mine->customer->name],
+                ['value' => $mine->public_id, 'label' => $mine->code, 'description' => $mine->customer->name],
             ]);
     }
 

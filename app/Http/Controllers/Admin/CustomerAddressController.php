@@ -13,6 +13,7 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\IndonesiaRegionService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class CustomerAddressController extends Controller
         Gate::authorize('customer.address.manage');
 
         return Inertia::render('Admin/CustomerAddresses/Index', [
-            'customer' => $customer->only(['id', 'code', 'name']),
+            'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'addresses' => CustomerAddressResource::collection($this->filteredQuery($customer, $request)->paginate(10)->withQueryString()),
             'filters' => $request->only(['search', 'sort', 'direction']),
             'can' => ['export' => $request->user()?->can('customer.address.export') ?? false],
@@ -84,10 +85,10 @@ class CustomerAddressController extends Controller
         ];
 
         if ($format === 'pdf') {
-            return $export->streamPdf('Alamat Pelanggan', $columns, $map, "customer-addresses-{$customer->id}-{$stamp}.pdf");
+            return $export->streamPdf('Alamat Pelanggan', $columns, $map, "customer-addresses-{$customer->public_id}-{$stamp}.pdf");
         }
 
-        return $export->streamCsv($columns, $map, "customer-addresses-{$customer->id}-{$stamp}.csv");
+        return $export->streamCsv($columns, $map, "customer-addresses-{$customer->public_id}-{$stamp}.csv");
     }
 
     public function store(StoreCustomerAddressRequest $request, Customer $customer): RedirectResponse
@@ -125,7 +126,7 @@ class CustomerAddressController extends Controller
     public function update(UpdateCustomerAddressRequest $request, Customer $customer, CustomerAddress $address): RedirectResponse
     {
         $this->ensureSameCompany($customer);
-        abort_unless($address->customer_id === $customer->id, 404);
+        RecordNotFound::abortUnless($address->customer_id === $customer->id);
         Gate::authorize('customer.address.manage');
 
         $data = IndonesiaRegionService::normalizeAddress($request->validated());
@@ -170,7 +171,7 @@ class CustomerAddressController extends Controller
     public function destroy(Customer $customer, CustomerAddress $address): RedirectResponse
     {
         $this->ensureSameCompany($customer);
-        abort_unless($address->customer_id === $customer->id, 404);
+        RecordNotFound::abortUnless($address->customer_id === $customer->id);
         Gate::authorize('customer.address.manage');
 
         if ($address->subscriptions()->exists()) {
@@ -204,7 +205,7 @@ class CustomerAddressController extends Controller
 
     private function ensureSameCompany(Customer $customer): void
     {
-        abort_unless($customer->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($customer->company_id === CompanyService::currentId());
     }
 
     /** @return Builder<CustomerAddress> */

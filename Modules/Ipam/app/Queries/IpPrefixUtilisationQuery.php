@@ -2,10 +2,13 @@
 
 namespace Modules\Ipam\Queries;
 
+use App\Models\Core\Location;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Modules\Ipam\Models\IpPrefix;
+use Modules\Ipam\Models\Vlan;
 use Modules\Ipam\Support\IpNotation;
 
 /**
@@ -18,7 +21,7 @@ final class IpPrefixUtilisationQuery
     private const ADDRESS_POOLS = ['customer_static', 'infrastructure'];
 
     /**
-     * @param  array<string, mixed>  $filters  family, usage, location_id, vlan_id, search
+     * @param  array<string, mixed>  $filters  family, usage, location_id and vlan_id (public ids), search
      * @return list<array<string, mixed>> flat, family then first address; the UI indents by depth
      */
     public static function rows(array $filters = []): array
@@ -63,7 +66,7 @@ final class IpPrefixUtilisationQuery
      * Static pools a subscription can draw from: company-wide ones and those tied to its serving POP.
      * free is the number of usable addresses left (IPv4); null for IPv6, where addresses are typed.
      *
-     * @return list<array{id: int, cidr: string, family: int, free: string|null}>
+     * @return list<array{id: string, cidr: string, family: int, free: string|null}>
      */
     public static function staticPools(?int $servingPopId): array
     {
@@ -74,7 +77,7 @@ final class IpPrefixUtilisationQuery
             ->orderBy('range_from')
             ->get()
             ->map(fn (IpPrefix $pool): array => [
-                'id' => $pool->id,
+                'id' => $pool->public_id,
                 'cidr' => $pool->cidr,
                 'family' => $pool->family,
                 'free' => self::format($pool, 0, [])['free'],
@@ -89,7 +92,7 @@ final class IpPrefixUtilisationQuery
             ->select('ip_prefixes.*')
             ->selectSub(self::countWithin('assigned'), 'assigned_count')
             ->selectSub(self::countWithin('reserved'), 'reserved_count')
-            ->with(['location:id,code', 'vlan:id,vid,name']);
+            ->with(['location:id,public_id,code', 'vlan:id,public_id,vid,name', 'parent:id,public_id']);
     }
 
     /** Correlated count of addresses of one status inside the outer prefix's range; uses the (company_id, address_cmp) index. */
@@ -118,8 +121,8 @@ final class IpPrefixUtilisationQuery
         return $query
             ->when(in_array($family, [4, 6], true), fn (Builder $q) => $q->where('family', $family))
             ->when(is_string($usage) && in_array($usage, IpPrefix::USAGES, true), fn (Builder $q) => $q->where('usage', $usage))
-            ->when(is_numeric($filters['location_id'] ?? null), fn (Builder $q) => $q->where('location_id', (int) $filters['location_id']))
-            ->when(is_numeric($filters['vlan_id'] ?? null), fn (Builder $q) => $q->where('vlan_id', (int) $filters['vlan_id']))
+            ->when(filled($filters['location_id'] ?? null), fn (Builder $q) => $q->where('location_id', PublicId::resolveOne(Location::class, $filters['location_id']) ?? 0))
+            ->when(filled($filters['vlan_id'] ?? null), fn (Builder $q) => $q->where('vlan_id', PublicId::resolveOne(Vlan::class, $filters['vlan_id']) ?? 0))
             ->when($search !== '', fn (Builder $q) => $q->where(fn (Builder $s) => $s
                 ->where('cidr', 'like', '%'.$search.'%')
                 ->orWhere('description', 'like', '%'.$search.'%')));
@@ -148,14 +151,14 @@ final class IpPrefixUtilisationQuery
         }
 
         return [
-            'id' => $prefix->id,
-            'parent_id' => $prefix->parent_id,
+            'id' => $prefix->public_id,
+            'parent_id' => $prefix->parent?->public_id,
             'depth' => $depth,
             'cidr' => $prefix->cidr,
             'family' => $prefix->family,
             'usage' => $prefix->usage,
-            'location' => $prefix->location === null ? null : ['id' => $prefix->location->id, 'code' => $prefix->location->code],
-            'vlan' => $prefix->vlan === null ? null : ['id' => $prefix->vlan->id, 'vid' => $prefix->vlan->vid, 'name' => $prefix->vlan->name],
+            'location' => $prefix->location === null ? null : ['id' => $prefix->location->public_id, 'code' => $prefix->location->code],
+            'vlan' => $prefix->vlan === null ? null : ['id' => $prefix->vlan->public_id, 'vid' => $prefix->vlan->vid, 'name' => $prefix->vlan->name],
             'description' => $prefix->description,
             'size' => $size,
             'usable' => $usable,

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Core\Company;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 
 class SwitchCompanyRequest extends FormRequest
 {
@@ -22,7 +23,7 @@ class SwitchCompanyRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'company_id' => ['required', 'integer'],
+            'company_id' => ['required', 'ulid'],
         ];
     }
 
@@ -30,6 +31,6 @@ class SwitchCompanyRequest extends FormRequest
     {
         $id = $this->input('company_id');
 
-        return is_numeric($id) ? Company::query()->find((int) $id) : null;
+        return is_string($id) && Str::isUlid($id) ? Company::query()->where('public_id', $id)->first() : null;
     }
 }

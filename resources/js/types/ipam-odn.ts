@@ -11,14 +11,14 @@ export type IpAddressStatus = keyof typeof IP_ADDRESS_STATUS;
 
 /** A prefix as IpPrefixUtilisationQuery formats it. `size` and `free` are exact decimal strings (IPv6 sizes overflow a JS number). */
 export interface PrefixRow {
-    id: number;
-    parent_id: number | null;
+    id: string;
+    parent_id: string | null;
     depth: number;
     cidr: string;
     family: IpFamily;
     usage: IpUsage;
-    location: { id: number; code: string } | null;
-    vlan: { id: number; vid: number; name: string } | null;
+    location: { id: string; code: string } | null;
+    vlan: { id: string; vid: number; name: string } | null;
     description: string | null;
     size: string;
     usable: string | null;
@@ -30,17 +30,17 @@ export interface PrefixRow {
 }
 
 export interface PrefixDetail extends PrefixRow {
-    parent: { id: number; cidr: string } | null;
+    parent: { id: string; cidr: string } | null;
 }
 
 export interface PopOption {
-    id: number;
+    id: string;
     code: string;
     name: string;
 }
 
 export interface VlanOption {
-    id: number;
+    id: string;
     vid: number;
     name: string;
     location_code: string | null;
@@ -48,13 +48,13 @@ export interface VlanOption {
 
 export interface IpAddressHolder {
     type: 'subscription' | 'asset';
-    id: number;
+    id: string;
     label: string;
     href: string;
 }
 
 export interface IpAddressRow {
-    id: number;
+    id: string;
     address: string;
     status: IpAddressStatus;
     /** Null for a reservation. */
@@ -64,17 +64,17 @@ export interface IpAddressRow {
 }
 
 export interface VlanRow {
-    id: number;
+    id: string;
     vid: number;
     name: string;
-    location: { id: number; code: string } | null;
+    location: { id: string; code: string } | null;
     description: string | null;
     prefixes_count: number;
 }
 
 /** What the subscription page lists under "Alamat IP". */
 export interface SubscriptionIpAddress {
-    id: number;
+    id: string;
     family: IpFamily;
     address: string;
     prefix_cidr: string | null;
@@ -83,7 +83,7 @@ export interface SubscriptionIpAddress {
 
 /** A customer static pool a subscription can draw from; `free` is null for IPv6, where the address is typed. */
 export interface StaticPool {
-    id: number;
+    id: string;
     cidr: string;
     family: IpFamily;
     free: string | null;
@@ -92,7 +92,7 @@ export interface StaticPool {
 export type OdnAssetType = 'olt' | 'odc' | 'odp';
 
 export interface OdpRow {
-    asset_id: number;
+    asset_id: string;
     code: string;
     name: string;
     location_path: string | null;
@@ -103,8 +103,8 @@ export interface OdpRow {
 }
 
 export interface PonPortSummary {
-    port_id: number;
-    olt_asset_id: number;
+    port_id: string;
+    olt_asset_id: string;
     olt_code: string;
     number: number;
     label: string | null;
@@ -112,7 +112,7 @@ export interface PonPortSummary {
 }
 
 export interface UnmappedSubscription {
-    subscription_id: number;
+    subscription_id: string;
     code: string;
     customer_name: string | null;
     serving_pop_code: string | null;
@@ -120,7 +120,7 @@ export interface UnmappedSubscription {
 }
 
 export interface OdnAsset {
-    id: number;
+    id: string;
     code: string;
     name: string;
     asset_type: OdnAssetType;
@@ -128,26 +128,26 @@ export interface OdnAsset {
 }
 
 export interface PonPort {
-    id: number;
+    id: string;
     number: number;
     label: string | null;
-    splitter_id: number | null;
+    splitter_id: string | null;
     subscribers: number;
 }
 
 export interface SplitterPort {
-    id: number;
+    id: string;
     number: number;
     label: string | null;
-    subscription: { id: number; code: string; customer_name: string | null } | null;
-    feeds_splitter_id: number | null;
+    subscription: { id: string; code: string; customer_name: string | null } | null;
+    feeds_splitter_id: string | null;
 }
 
 export interface Splitter {
-    id: number;
+    id: string;
     label: string | null;
     outputs: number;
-    input: { port_id: number; label: string } | null;
+    input: { port_id: string; label: string } | null;
     ports: SplitterPort[];
 }
 
@@ -157,7 +157,7 @@ export interface Splitter {
  * (an upstream port a splitter input can connect to) both have this shape.
  */
 export interface PortOption {
-    value: number;
+    value: string;
     label: string;
     description: string | null;
 }
@@ -166,9 +166,9 @@ export type DropPortOption = PortOption;
 
 /** The ODP output port a subscription's drop sits on. */
 export interface DropPort {
-    port_id: number;
+    port_id: string;
     number: number;
-    odp_asset_id: number;
+    odp_asset_id: string;
     odp_code: string;
     odp_name: string;
     location_path: string | null;

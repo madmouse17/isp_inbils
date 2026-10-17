@@ -41,17 +41,17 @@ Route::middleware('api.any')->group(function () {
     Route::post('me/device-token', [DeviceTokenController::class, 'store'])->name('me.device-token.store');
     Route::delete('me/device-token', [DeviceTokenController::class, 'destroy'])->name('me.device-token.destroy');
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
-    Route::delete('devices/{id}', [DeviceController::class, 'destroy'])->whereNumber('id')->name('devices.destroy');
+    Route::delete('devices/{id}', [DeviceController::class, 'destroy'])->whereUlid('id')->name('devices.destroy');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
     Route::post('notifications/{id}/read', [NotificationController::class, 'read'])->whereUuid('id')->name('notifications.read');
-    Route::get('media/{media}', MediaController::class)->whereNumber('media')->name('media.show');
+    Route::get('media/{media:public_id}', MediaController::class)->whereUlid('media')->name('media.show');
 });
 
 Route::middleware('api.customer')->prefix('customer')->name('customer.')->group(function () {
     Route::get('profile', ProfileController::class)->name('profile');
     Route::get('subscriptions', [SubscriptionController::class, 'index'])->name('subscriptions.index');
-    Route::get('subscriptions/{id}', [SubscriptionController::class, 'show'])->whereNumber('id')->name('subscriptions.show');
+    Route::get('subscriptions/{id}', [SubscriptionController::class, 'show'])->whereUlid('id')->name('subscriptions.show');
 });
 
 Route::middleware('api.technician')->prefix('technician')->name('technician.')->group(function () {

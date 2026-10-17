@@ -33,7 +33,7 @@ class EvidenceTest extends TestCase
         $workOrder = $this->workOrder($technician, 'in_progress');
         $capturedAt = now()->subMinutes(5)->toIso8601String();
 
-        $this->multipart($technician, "technician/work-orders/{$workOrder->id}/evidence", [
+        $this->multipart($technician, "technician/work-orders/{$workOrder->public_id}/evidence", [
             'file' => UploadedFile::fake()->image('proof.jpg')->size(3072),
             'caption' => 'Before closing ODP',
             'captured_at' => $capturedAt,
@@ -59,7 +59,7 @@ class EvidenceTest extends TestCase
             'html' => UploadedFile::fake()->createWithContent('bad.html', '<html></html>'),
             'renamed_exe' => UploadedFile::fake()->createWithContent('proof.exe', "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00\xFF\xD9"),
         ] as $file) {
-            $this->multipart($technician, "technician/work-orders/{$workOrder->id}/evidence", ['file' => $file])
+            $this->multipart($technician, "technician/work-orders/{$workOrder->public_id}/evidence", ['file' => $file])
                 ->assertStatus(422)
                 ->assertJsonPath('code', 'validation_failed');
         }
@@ -72,7 +72,7 @@ class EvidenceTest extends TestCase
         $technician = $this->technicianLogin();
         $workOrder = $this->workOrder($technician, 'in_progress');
         $key = (string) Str::uuid();
-        $uri = "technician/work-orders/{$workOrder->id}/evidence";
+        $uri = "technician/work-orders/{$workOrder->public_id}/evidence";
 
         $first = $this->multipart($technician, $uri, ['file' => UploadedFile::fake()->image('proof.jpg')], $key)
             ->assertCreated();
@@ -92,11 +92,11 @@ class EvidenceTest extends TestCase
         $technician = $this->technicianLogin();
         $colleague = $this->technicianLogin($technician->company);
 
-        $this->multipart($colleague, 'technician/work-orders/'.$this->workOrder($technician, 'in_progress')->id.'/evidence', [
+        $this->multipart($colleague, 'technician/work-orders/'.$this->workOrder($technician, 'in_progress')->public_id.'/evidence', [
             'file' => UploadedFile::fake()->image('bad.jpg'),
-        ])->assertForbidden();
+        ])->assertNotFound();
 
-        $this->multipart($technician, 'technician/work-orders/'.$this->workOrder($technician, 'completed')->id.'/evidence', [
+        $this->multipart($technician, 'technician/work-orders/'.$this->workOrder($technician, 'completed')->public_id.'/evidence', [
             'file' => UploadedFile::fake()->image('bad.jpg'),
         ])->assertForbidden();
     }
@@ -109,11 +109,11 @@ class EvidenceTest extends TestCase
         $other = $this->workOrder($technician, 'in_progress');
         $media = $this->evidence($workOrder, $technician);
 
-        $this->api('DELETE', "technician/work-orders/{$other->id}/evidence/{$media->id}", token: $this->issueToken($technician, 'technician'))
+        $this->api('DELETE', "technician/work-orders/{$other->public_id}/evidence/{$media->public_id}", token: $this->issueToken($technician, 'technician'))
             ->assertNotFound();
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/evidence/{$media->id}", token: $this->issueToken($colleague, 'technician'))
-            ->assertForbidden();
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/evidence/{$media->id}", token: $this->issueToken($technician, 'technician'))
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/evidence/{$media->public_id}", token: $this->issueToken($colleague, 'technician'))
+            ->assertNotFound();
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/evidence/{$media->public_id}", token: $this->issueToken($technician, 'technician'))
             ->assertNoContent();
 
         $this->assertNull(Media::query()->find($media->id));

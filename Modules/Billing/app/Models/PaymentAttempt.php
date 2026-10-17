@@ -3,6 +3,7 @@
 namespace Modules\Billing\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -37,6 +38,7 @@ class PaymentAttempt extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     public const TTL_HOURS = 24;
 
@@ -82,10 +84,10 @@ class PaymentAttempt extends Model
         });
     }
 
-    /** Midtrans takes one order_id per merchant, and the merchant is shared by every company. */
-    public static function newOrderId(int $companyId, int $invoiceId): string
+    /** Midtrans takes one order_id per merchant, and the merchant is shared by every company. It names neither one. */
+    public static function newOrderId(): string
     {
-        return $companyId.'-'.$invoiceId.'-'.Str::lower(Str::random(12));
+        return 'INB-'.Str::ulid();
     }
 
     /** Snap wants the amount as a whole number of rupiah. */

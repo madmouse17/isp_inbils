@@ -105,7 +105,7 @@ class InvoiceIndexPickerTest extends TestCase
                 ->missing('customerOptions')
                 ->reloadOnly('customerOptions', fn (Assert $reload) => $reload
                     ->has('customerOptions', 1)
-                    ->where('customerOptions.0.value', $mine->id)
+                    ->where('customerOptions.0.value', $mine->public_id)
                     ->where('customerOptions.0.label', 'Alfa Pelanggan')
                     ->where('customerOptions.0.description', 'CUS-ALFA-1')
                 )
@@ -117,13 +117,13 @@ class InvoiceIndexPickerTest extends TestCase
         $mine = $this->customer('Zaki Pilihan', 'CUS-ZAKI-1');
 
         $this->actingAs($this->user)
-            ->get(route('admin.invoices.index', ['customer_id' => $mine->id]))
+            ->get(route('admin.invoices.index', ['customer_id' => $mine->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedCustomer.value', $mine->id)
+                ->where('selectedCustomer.value', $mine->public_id)
                 ->where('selectedCustomer.label', 'Zaki Pilihan')
                 ->where('selectedCustomer.description', 'CUS-ZAKI-1')
-                ->where('filters.customer_id', (string) $mine->id)
+                ->where('filters.customer_id', $mine->public_id)
             );
     }
 
@@ -132,7 +132,7 @@ class InvoiceIndexPickerTest extends TestCase
         $foreign = $this->customer('Siti Foreign', 'CUS-FOREIGN-1', $this->other);
 
         $this->actingAs($this->user)
-            ->get(route('admin.invoices.index', ['customer_id' => $foreign->id]))
+            ->get(route('admin.invoices.index', ['customer_id' => $foreign->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('selectedCustomer', null)
@@ -156,7 +156,7 @@ class InvoiceIndexPickerTest extends TestCase
                 ->missing('subscriptionOptions')
                 ->reloadOnly('subscriptionOptions', fn (Assert $reload) => $reload
                     ->has('subscriptionOptions', 1)
-                    ->where('subscriptionOptions.0.value', $mine->id)
+                    ->where('subscriptionOptions.0.value', $mine->public_id)
                     ->where('subscriptionOptions.0.label', $mine->code)
                     ->where('subscriptionOptions.0.description', $mine->customer->name)
                 )
@@ -174,7 +174,7 @@ class InvoiceIndexPickerTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->reloadOnly('customerOptions', fn (Assert $reload) => $reload
                     ->has('customerOptions', 1)
-                    ->where('customerOptions.0.value', $mine->id)
+                    ->where('customerOptions.0.value', $mine->public_id)
                 )
             );
     }

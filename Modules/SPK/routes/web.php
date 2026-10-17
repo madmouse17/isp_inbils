@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use Modules\SPK\Http\Controllers\WorkOrderController;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['wo', 'item', 'evidence'])->group(function () {
     Route::get('spk/export', [WorkOrderController::class, 'export'])->name('spk.export');
     Route::resource('spk', WorkOrderController::class)->parameters(['spk' => 'wo']);
     Route::post('spk/{wo}/generate', [WorkOrderController::class, 'generate'])->name('spk.generate');

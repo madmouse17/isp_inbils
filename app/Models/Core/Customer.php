@@ -5,6 +5,7 @@ namespace App\Models\Core;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,7 @@ class Customer extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use InteractsWithMedia;
     use LogsActivity;
     use Notifiable;

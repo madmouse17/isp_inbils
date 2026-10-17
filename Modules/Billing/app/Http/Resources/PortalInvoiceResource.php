@@ -21,10 +21,10 @@ class PortalInvoiceResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'number' => $this->number,
             /** The subscription this invoice bills; null when it belongs to no single subscription. */
-            'subscription_id' => $this->subscription_id,
+            'subscription_id' => $this->subscription?->public_id,
             'issue_date' => $this->issue_date->toDateString(),
             'due_date' => $this->due_date->toDateString(),
             /** The service period the invoice bills; null for an invoice without one. */
@@ -40,7 +40,7 @@ class PortalInvoiceResource extends JsonResource
             'paid_amount' => $this->paid_amount,
             'sisa' => $this->sisa,
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn (InvoiceItem $item): array => [
-                'id' => $item->id,
+                'id' => $item->public_id,
                 'description' => $item->description,
                 'quantity' => $item->quantity,
                 'unit_price' => $item->unit_price,
@@ -49,7 +49,7 @@ class PortalInvoiceResource extends JsonResource
                 'line_total' => $item->line_total,
             ])->all()),
             'payments' => $this->whenLoaded('payments', fn () => $this->payments->map(fn (Payment $payment): array => [
-                'id' => $payment->id,
+                'id' => $payment->public_id,
                 'amount' => $payment->amount,
                 'method' => $payment->method,
                 'method_label' => $payment->methodLabel(),

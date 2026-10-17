@@ -133,6 +133,17 @@ class MidtransWebhookTest extends TestCase
         $this->assertSame(1, Activity::query()->where('log_name', 'invoice')->where('description', 'payment_recorded')->count());
     }
 
+    public function test_an_attempt_that_predates_the_inb_order_id_format_still_settles_through_its_old_id(): void
+    {
+        $attempt = $this->attemptFor(attempt: ['order_id' => '12-345-a1b2c3d4e5f6']);
+
+        $this->notify($attempt)->assertOk()->assertSee('OK');
+
+        $this->assertSame('paid', $this->freshAttempt($attempt)->status);
+        $this->assertSame('paid', $this->freshInvoice($attempt)->status);
+        $this->assertSame('12-345-a1b2c3d4e5f6', $this->payments()->first()->reference);
+    }
+
     public function test_the_notification_is_only_a_trigger_the_state_applied_comes_from_the_status_api(): void
     {
         $attempt = $this->attemptFor();

@@ -9,12 +9,14 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\SPK\Models\WorkOrder;
@@ -234,11 +236,12 @@ class TicketService
      * A ticket as the app user may reach it: any ticket of the company for a technician (the policy then narrows
      * it to the assigned handler), only the customer's own for a customer, so a stranger's id is a plain 404.
      */
-    public static function findForApp(int $id, ?Customer $customer): Ticket
+    public static function findForApp(string $publicId, ?Customer $customer): Ticket
     {
         return Ticket::query()
             ->when($customer, fn (Builder $query, Customer $own): Builder => $query->where('customer_id', $own->id))
-            ->findOrFail($id);
+            ->wherePublicId($publicId)
+            ->firstOrFail();
     }
 
     /** The web's rules for attaching: the permission, plus the ticket policy (company, assignment or ownership). */
@@ -247,6 +250,13 @@ class TicketService
         return $user->can('ticket.attachment.upload')
             && $user->can('view', $ticket)
             && $user->can('attach', $ticket);
+    }
+
+    /** A ticket the policy hides from the user is a 404; one they see but may not attach to is a 403. */
+    public static function assertMayAttach(User $user, Ticket $ticket): void
+    {
+        Gate::forUser($user)->authorize('view', $ticket);
+        abort_unless(self::mayAttach($user, $ticket), 403);
     }
 
     /** Whoever uploaded a file may withdraw it, but only while the ticket is still being worked. */
@@ -268,7 +278,7 @@ class TicketService
         return DB::transaction(function () use ($ticket, $actor, $data, $idempotencyKey): Media {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
-            abort_unless(self::mayAttach($actor, $ticket), 403);
+            self::assertMayAttach($actor, $ticket);
 
             if ($idempotencyKey !== null) {
                 $existing = $ticket->getMedia('attachments')->first(
@@ -296,19 +306,19 @@ class TicketService
         });
     }
 
-    public static function removeAttachment(Ticket $ticket, int $mediaId, User $actor): void
+    public static function removeAttachment(Ticket $ticket, string $mediaPublicId, User $actor): void
     {
-        DB::transaction(function () use ($ticket, $mediaId, $actor): void {
+        DB::transaction(function () use ($ticket, $mediaPublicId, $actor): void {
             $ticket = self::lockedTicket($ticket->id);
             self::assertCompany($ticket);
-            abort_unless(self::mayAttach($actor, $ticket), 403);
-            $media = $ticket->getMedia('attachments')->first(fn (Media $item): bool => (int) $item->id === $mediaId);
-            abort_unless($media instanceof Media, 404);
+            self::assertMayAttach($actor, $ticket);
+            $media = $ticket->getMedia('attachments')->first(fn (Media $item): bool => $item->public_id === strtolower($mediaPublicId));
+            RecordNotFound::abortUnless($media instanceof Media);
             abort_unless(self::mayRemoveAttachment($actor, $ticket, $media), 403);
 
             $media->delete();
 
-            AuditService::log('ticket', 'attachment_removed', ['media_id' => $mediaId, 'removed_by' => $actor->id], $ticket);
+            AuditService::log('ticket', 'attachment_removed', ['media_id' => $media->id, 'removed_by' => $actor->id], $ticket);
         });
     }
 
@@ -479,7 +489,7 @@ class TicketService
 
     private static function assertCompany(Ticket $ticket): void
     {
-        abort_unless($ticket->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($ticket->company_id === CompanyService::currentId());
     }
 
     private static function assertCapability(string $ability): void
@@ -522,14 +532,12 @@ class TicketService
     {
         self::assertCapability($ability);
         $actor = Auth::user();
-        abort_unless(
-            $actor !== null
-            && $actor->is_active
-            && CompanyService::idFor($actor) === (int) $ticket->company_id
+        abort_unless($actor !== null && $actor->is_active, 403);
+        // Another handler's ticket, or another company's, is a record the caller cannot see, not a refused permission.
+        RecordNotFound::abortUnless(
+            CompanyService::idFor($actor) === (int) $ticket->company_id
             && $ticket->assigned_to !== null
             && (int) $ticket->assigned_to === (int) $actor->id
-            && $actor->can($ability),
-            403
         );
     }
 
@@ -537,12 +545,8 @@ class TicketService
     {
         self::assertCapability('ticket.close');
         $actor = Auth::user();
-        abort_unless(
-            $actor !== null
-            && $actor->is_active
-            && CompanyService::idFor($actor) === (int) $ticket->company_id,
-            403
-        );
+        abort_unless($actor !== null && $actor->is_active, 403);
+        RecordNotFound::abortUnless(CompanyService::idFor($actor) === (int) $ticket->company_id);
         // Maker/checker: the handler who resolved the ticket cannot also close it.
         abort_if((int) $ticket->assigned_to === (int) $actor->id, 422, 'Tiket yang Anda selesaikan tidak bisa Anda tutup sendiri.');
     }

@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\PublicId;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -131,5 +132,44 @@ class SubscriptionServerTableExportTest extends TestCase
         $this->assertStringContainsString('SUB-PARITY-INCLUDED', $content);
         $this->assertStringNotContainsString('SUB-PARITY-STATUS-SKIP', $content);
         $this->assertStringNotContainsString('SUB-SEARCH-SKIP', $content);
+    }
+
+    public function test_the_package_filter_takes_the_public_id_the_page_offers(): void
+    {
+        $this->makeSubscription('SUB-PKG-FIRST');
+        $wanted = $this->makeSubscription('SUB-PKG-WANTED');
+        $this->makeSubscription('SUB-PKG-LAST');
+        $package = ServicePackage::withoutCompany()->findOrFail($wanted->service_package_id)->public_id;
+        $filters = ['service_package_id' => $package, 'sort' => 'code', 'direction' => 'asc'];
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.customers.subscriptions.index', [$this->customer] + $filters))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('subscriptions.data', 1)
+                ->where('subscriptions.data.0.code', 'SUB-PKG-WANTED')
+                ->where('filters.service_package_id', $package)
+            );
+
+        $content = $this->actingAs($this->admin)
+            ->get(route('admin.customers.subscriptions.export', [$this->customer, 'format' => 'csv'] + $filters))
+            ->streamedContent();
+
+        $this->assertStringContainsString('SUB-PKG-WANTED', $content);
+        $this->assertStringNotContainsString('SUB-PKG-FIRST', $content);
+        $this->assertStringNotContainsString('SUB-PKG-LAST', $content);
+    }
+
+    public function test_an_integer_unknown_or_foreign_package_id_matches_nothing(): void
+    {
+        $subscription = $this->makeSubscription('SUB-PKG-ONLY');
+        $foreignPackage = ServicePackage::factory()->create(['company_id' => $this->otherCompany->id]);
+
+        foreach ([(string) $subscription->service_package_id, PublicId::new(), $foreignPackage->public_id] as $package) {
+            $this->actingAs($this->admin)
+                ->get(route('admin.customers.subscriptions.index', [$this->customer, 'service_package_id' => $package]))
+                ->assertOk()
+                ->assertInertia(fn (Assert $page) => $page->has('subscriptions.data', 0));
+        }
     }
 }

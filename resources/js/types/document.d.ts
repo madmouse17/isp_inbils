@@ -1,5 +1,5 @@
 export interface DocumentType {
-    id: number;
+    id: string;
     name: string;
     code: string;
     applies_to?: string | null;
@@ -9,13 +9,13 @@ export interface DocumentType {
 }
 
 export interface MediaItem {
-    id: number;
+    id: string;
     file_name: string;
     mime_type?: string | null;
     size: number;
     collection: string;
     document_type?: string | null;
-    uploaded_by?: number | null;
+    uploaded_by?: string | null;
     expires_at?: string | null;
     url?: string;
     created_at?: string;

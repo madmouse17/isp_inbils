@@ -50,11 +50,11 @@ class SearchOptionsTest extends TestCase
         $budi = $this->customer('Budi Santoso', 'CUS-BUDI-1');
 
         $this->assertSame(
-            [['value' => $budi->id, 'label' => 'Budi Santoso', 'description' => 'CUS-BUDI-1']],
+            [['value' => $budi->public_id, 'label' => 'Budi Santoso', 'description' => 'CUS-BUDI-1']],
             $this->resolve($this->customerOptions('bud')),
         );
         $this->assertSame(
-            [['value' => $budi->id, 'label' => 'Budi Santoso', 'description' => 'CUS-BUDI-1']],
+            [['value' => $budi->public_id, 'label' => 'Budi Santoso', 'description' => 'CUS-BUDI-1']],
             $this->resolve($this->customerOptions('BUDI-1')),
         );
     }
@@ -89,7 +89,7 @@ class SearchOptionsTest extends TestCase
         $mine = $this->customer('Siti Aminah');
         $this->customer('Siti Foreign', company: $this->other);
 
-        $this->assertSame([$mine->id], array_column($this->resolve($this->customerOptions('Siti')), 'value'));
+        $this->assertSame([$mine->public_id], array_column($this->resolve($this->customerOptions('Siti')), 'value'));
     }
 
     public function test_the_selected_value_comes_first_and_is_not_repeated(): void
@@ -98,14 +98,14 @@ class SearchOptionsTest extends TestCase
         $match = $this->customer('Andi Cocok');
         $this->customer('Andi Lain', company: $this->other);
 
-        $this->assertSame([$selected->id], array_column($this->resolve($this->customerOptions(null, $selected->id)), 'value'));
+        $this->assertSame([$selected->public_id], array_column($this->resolve($this->customerOptions(null, $selected->public_id)), 'value'));
         $this->assertSame(
-            [$selected->id, $match->id],
-            array_column($this->resolve($this->customerOptions('Andi', $selected->id)), 'value'),
+            [$selected->public_id, $match->public_id],
+            array_column($this->resolve($this->customerOptions('Andi', $selected->public_id)), 'value'),
         );
         $this->assertSame(
-            [$selected->id],
-            array_column($this->resolve($this->customerOptions('Zaki', $selected->id)), 'value'),
+            [$selected->public_id],
+            array_column($this->resolve($this->customerOptions('Zaki', $selected->public_id)), 'value'),
         );
     }
 
@@ -113,7 +113,14 @@ class SearchOptionsTest extends TestCase
     {
         $foreign = $this->customer('Siti Foreign', company: $this->other);
 
-        $this->assertSame([], $this->resolve($this->customerOptions(null, $foreign->id)));
+        $this->assertSame([], $this->resolve($this->customerOptions(null, $foreign->public_id)));
+    }
+
+    public function test_an_integer_is_not_a_selected_value(): void
+    {
+        $customer = $this->customer('Zaki Pilihan');
+
+        $this->assertSame([], $this->resolve($this->customerOptions(null, (string) $customer->id)));
     }
 
     public function test_a_user_of_another_company_never_appears_in_the_options(): void
@@ -133,21 +140,21 @@ class SearchOptionsTest extends TestCase
             'handler',
             $base,
             ['users.name', 'users.email'],
-            fn (User $user): array => ['value' => $user->id, 'label' => $user->name],
-            $theirs->id,
+            fn (User $user): array => ['value' => $user->public_id, 'label' => $user->name],
+            $theirs->public_id,
         );
 
-        $this->assertSame([['value' => $mine->id, 'label' => 'Rina Teknisi', 'description' => null]], $this->resolve($options));
+        $this->assertSame([['value' => $mine->public_id, 'label' => 'Rina Teknisi', 'description' => null]], $this->resolve($options));
     }
 
-    private function customerOptions(?string $term, int|string|null $selected = null): OptionalProp
+    private function customerOptions(?string $term, ?string $selected = null): OptionalProp
     {
         return SearchOptions::for(
             $this->searchRequest('customer', $term),
             'customer',
             Customer::query(),
             ['name', 'code'],
-            fn (Customer $customer): array => ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code],
+            fn (Customer $customer): array => ['value' => $customer->public_id, 'label' => $customer->name, 'description' => $customer->code],
             $selected,
         );
     }
@@ -157,7 +164,7 @@ class SearchOptionsTest extends TestCase
         return Request::create('/', 'GET', $term === null ? [] : [$field.'_search' => $term]);
     }
 
-    /** @return list<array{value: int|string, label: string, description: string|null}> */
+    /** @return list<array{value: string, label: string, description: string|null}> */
     private function resolve(OptionalProp $prop): array
     {
         return $prop();

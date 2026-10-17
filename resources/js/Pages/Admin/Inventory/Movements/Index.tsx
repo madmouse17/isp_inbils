@@ -17,14 +17,14 @@ import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { optionsOf, STOCK_MOVEMENT_TYPE } from '@/lib/statuses';
 
 type MovementRow = {
-    id: number;
+    id: string;
     movement_type: string;
     quantity: number | string;
     note?: string | null;
     created_at: string | null;
-    product?: { id: number; name: string; sku?: string | null } | null;
-    from_location?: { id: number; name: string } | null;
-    to_location?: { id: number; name: string } | null;
+    product?: { id: string; name: string; sku?: string | null } | null;
+    from_location?: { id: string; name: string } | null;
+    to_location?: { id: string; name: string } | null;
 };
 
 type Paginator<T> = PaginationLike<T>;
@@ -43,8 +43,8 @@ type Props = {
         sort_by?: string;
         sort_dir?: string;
         per_page?: string | number;
-        product_id?: string | number;
-        location_id?: string | number;
+        product_id?: string;
+        location_id?: string;
         sort?: string;
         direction?: string;
     };

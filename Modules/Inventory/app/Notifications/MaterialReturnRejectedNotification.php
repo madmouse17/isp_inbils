@@ -30,24 +30,20 @@ class MaterialReturnRejectedNotification extends Notification implements ShouldQ
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage())
-            ->subject('Penyerahan Pengembalian Material Ditolak: Kasus #'.$this->caseId)
-            ->line('Gudang menolak penyerahan fisik pengembalian material Anda.')
-            ->line('Nomor Kasus Pengembalian: #'.$this->caseId)
+        $records = $this->returnRecords();
+        $mail = (new MailMessage())
+            ->subject($this->returnSubject('Penyerahan Pengembalian Material Ditolak', $records))
+            ->line('Gudang menolak penyerahan fisik pengembalian material Anda.');
+
+        return $this->returnReference($mail, $records)
             ->line('Alasan Penolakan: '.$this->reason)
             ->line('Periksa kembali barang fisik atau perbaiki deklarasi pengembalian Anda.')
-            ->action('Lihat Kasus Pengembalian', $this->returnPageUrl());
+            ->action('Lihat Kasus Pengembalian', $this->returnPageUrl($records));
     }
 
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        return [
-            'type' => 'material_return_rejected',
-            'case_id' => $this->caseId,
-            'reason' => $this->reason,
-            'company_id' => $this->companyId,
-            'inventory_request_id' => $this->inventoryRequestId,
-        ];
+        return [...$this->returnData('material_return_rejected', $this->returnRecords()), 'reason' => $this->reason];
     }
 }

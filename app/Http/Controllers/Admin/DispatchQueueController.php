@@ -6,13 +6,16 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\DateRangeIndexRequest;
 use App\Http\Resources\DispatchItemResource;
 use App\Http\Resources\MyWorkItemResource;
+use App\Models\User;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Queries\Admin\MyWorkQuery;
+use App\Rules\PublicIdExists;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -91,33 +94,31 @@ class DispatchQueueController extends Controller
         $user = $request->user();
         abort_unless(DispatchQueueQuery::isEligible($user), 403, 'Anda tidak memiliki izin penugasan untuk domain apa pun.');
 
-        $assignee = ['nullable', 'integer', Rule::exists('users', 'id')->where('company_id', $companyId)];
+        $assignee = ['nullable', new PublicIdExists(User::class, fn (Builder $query) => $query->where('company_id', $companyId))];
 
         $request->validate([
             'domain' => ['required', 'string', 'in:ticket,spk'],
-            'id' => ['required', 'integer'],
+            'id' => ['required', 'ulid'],
             'assignee_id' => $assignee,
             'handler_id' => $assignee,
             'technician_id' => $assignee,
-            'expected_assigned_to' => ['present', 'nullable', 'integer'],
+            'expected_assigned_to' => ['present', 'nullable', 'ulid'],
             'expected_updated_at' => ['required', 'string', 'date_format:Y-m-d\\TH:i:s.v\\Z'],
         ]);
 
         $domain = $request->input('domain');
-        $id = (int) $request->input('id');
-        $assigneeId = (int) ($request->input('assignee_id') ?? $request->input('handler_id') ?? $request->input('technician_id'));
+        $id = (string) $request->input('id');
+        $assigneeId = PublicId::resolveOne(User::class, $request->input('assignee_id') ?? $request->input('handler_id') ?? $request->input('technician_id'));
 
-        if ($assigneeId <= 0) {
+        if ($assigneeId === null) {
             throw ValidationException::withMessages(['assignee_id' => 'Penanggung jawab wajib dipilih.']);
         }
 
-        $expectedAssignedTo = $request->has('expected_assigned_to') && $request->input('expected_assigned_to') !== null
-            ? (int) $request->input('expected_assigned_to')
-            : null;
+        $expectedAssignedTo = PublicId::resolveOne(User::class, $request->input('expected_assigned_to'));
         $expectedUpdatedAt = $request->input('expected_updated_at');
 
         if ($domain === 'ticket') {
-            $ticket = Ticket::forCompany($companyId)->findOrFail($id);
+            $ticket = Ticket::forCompany($companyId)->wherePublicId($id)->firstOrFail();
             Gate::authorize('assign', $ticket);
             try {
                 TicketService::assign($ticket, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt);
@@ -132,7 +133,7 @@ class DispatchQueueController extends Controller
         }
 
         if ($domain === 'spk') {
-            $wo = WorkOrder::forCompany($companyId)->findOrFail($id);
+            $wo = WorkOrder::forCompany($companyId)->wherePublicId($id)->firstOrFail();
             Gate::authorize('assign', $wo);
             try {
                 SpkService::assign($wo, $assigneeId, $user->id, $expectedAssignedTo, $expectedUpdatedAt);

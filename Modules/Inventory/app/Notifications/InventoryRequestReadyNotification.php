@@ -7,9 +7,11 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Inventory\Notifications\Concerns\LinksToInventoryRequest;
 
 class InventoryRequestReadyNotification extends Notification implements ShouldQueue
 {
+    use LinksToInventoryRequest;
     use Queueable;
 
     public function __construct(
@@ -32,7 +34,7 @@ class InventoryRequestReadyNotification extends Notification implements ShouldQu
             ->subject('Permintaan Barang Siap Diambil: '.$this->requestCode)
             ->line('Barang untuk permintaan Anda sudah disiapkan gudang dan siap diambil.')
             ->line('Kode Permintaan: '.$this->requestCode)
-            ->action('Lihat Detail', url('/admin/inventory/requests/'.$this->requestId));
+            ->action('Lihat Detail', $this->requestUrl());
     }
 
     /** @return array<string, mixed> */
@@ -40,7 +42,7 @@ class InventoryRequestReadyNotification extends Notification implements ShouldQu
     {
         return [
             'type' => 'inventory_request_ready',
-            'request_id' => $this->requestId,
+            'request_id' => $this->requestPublicId(),
             'request_code' => $this->requestCode,
             'company_id' => $this->companyId,
         ];

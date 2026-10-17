@@ -15,11 +15,11 @@ import {
 } from '@/Components/ui';
 
 interface RoleOption {
-    id: number;
+    id: string;
     name: string;
 }
 interface UserData {
-    id: number;
+    id: string;
     name: string;
     email: string;
     is_active: boolean;

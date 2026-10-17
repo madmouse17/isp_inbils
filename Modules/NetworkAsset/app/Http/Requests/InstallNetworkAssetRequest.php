@@ -2,13 +2,31 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Customer;
+use App\Models\Core\Location;
+use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Modules\SPK\Models\WorkOrder;
 
 class InstallNetworkAssetRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'location_id' => Location::class,
+            'customer_id' => Customer::class,
+            'subscription_id' => ServiceSubscription::class,
+            'spk_id' => WorkOrder::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('network_asset.install') ?? false;

@@ -28,13 +28,13 @@ import { cn } from '@/lib/utils';
 import type { CustomerContact } from '@/types/models';
 
 interface CustomerContactEditorProps {
-    customerId: number;
+    customerId: string;
     contacts: CustomerContact[];
     canManage: boolean;
 }
 
 type ContactForm = {
-    id: number | null;
+    id: string | null;
     name: string;
     position: string;
     phone: string;
@@ -70,7 +70,7 @@ export function CustomerContactEditor({
     } = useForm<ContactForm>(emptyContact());
 
     // Editing state lives outside the Inertia form so it survives partial reloads.
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [deleteTarget, setDeleteTarget] = useState<CustomerContact | null>(null);
     const [deleteProcessing, setDeleteProcessing] = useState(false);
 
@@ -80,8 +80,8 @@ export function CustomerContactEditor({
     };
 
     const startEdit = (row: CustomerContact) => {
-        setEditingId(Number(row.id));
-        setData('id', Number(row.id));
+        setEditingId(row.id);
+        setData('id', row.id);
         setData('name', row.name ?? '');
         setData('position', row.position ?? '');
         setData('phone', row.phone ?? '');

@@ -53,13 +53,13 @@ interface Metrics {
 }
 
 interface Row extends Metrics {
-    id: number;
+    id: string;
     name: string;
     is_active: boolean;
 }
 
 interface Acquirer {
-    id: number;
+    id: string;
     name: string;
     is_active: boolean;
 }
@@ -72,7 +72,7 @@ interface Props extends Record<string, unknown> {
     };
     charts: SalesChartData;
     acquirers: Acquirer[];
-    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
     filters: {
         date_from: string | null;
         date_to: string | null;

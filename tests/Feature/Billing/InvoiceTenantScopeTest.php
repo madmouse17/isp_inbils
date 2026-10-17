@@ -59,7 +59,7 @@ class InvoiceTenantScopeTest extends TestCase
         ]);
 
         $response = $this->postJson(route('admin.invoices.items.store', $invoice), [
-            'product_id' => $otherProduct->id,
+            'product_id' => $otherProduct->public_id,
             'description' => 'Cross-tenant item',
             'quantity' => 1,
             'unit_price' => 10000,
@@ -113,7 +113,7 @@ class InvoiceTenantScopeTest extends TestCase
         ]);
 
         $response = $this->post(route('admin.invoices.items.store', $invoice), [
-            'product_id' => $product->id,
+            'product_id' => $product->public_id,
             'description' => 'Same-tenant item',
             'quantity' => 1,
             'unit_price' => 10000,

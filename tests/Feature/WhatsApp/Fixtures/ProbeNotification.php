@@ -3,6 +3,7 @@
 namespace Tests\Feature\WhatsApp\Fixtures;
 
 use App\Notifications\WhatsAppNotification;
+use Modules\Billing\Models\Invoice;
 
 /** Smallest possible WhatsApp notification, to drive the channel without any domain code. */
 class ProbeNotification extends WhatsAppNotification
@@ -26,7 +27,7 @@ class ProbeNotification extends WhatsAppNotification
             $this->eventKey,
             ['PT Contoh Net', 'INV-2026-00012', 'Rp 250.000', 'Rp 0', '14 Okt 2026'],
             'invoice',
-            12,
+            (new Invoice())->forceFill(['id' => 12, 'public_id' => '01k0000000000000000000000a']),
             $this->dedupeKey,
         );
     }

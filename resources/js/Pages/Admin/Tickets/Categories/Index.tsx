@@ -24,7 +24,7 @@ import { ACTIVE_STATE } from '@/lib/statuses';
 const CUSTOMER_HINT_MAX = 500;
 
 interface CategoryRow {
-    id: number;
+    id: string;
     code: string;
     name: string;
     default_sla_hours: number;

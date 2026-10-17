@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\User;
+use Illuminate\Auth\Access\Response;
 
 class EmployeeEvaluationPolicy
 {
@@ -12,10 +13,10 @@ class EmployeeEvaluationPolicy
         return $user->can('evaluation.view') || $user->can('evaluation.view.own');
     }
 
-    public function view(User $user, EmployeeEvaluation $eval): bool
+    public function view(User $user, EmployeeEvaluation $eval): bool|Response
     {
         if ($user->hasRole('technician')) {
-            return $eval->employee_id === $user->id;
+            return $eval->employee_id === $user->id ?: Response::denyAsNotFound();
         }
 
         return $user->can('evaluation.view');

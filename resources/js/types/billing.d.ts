@@ -1,13 +1,13 @@
 import type { INVOICE_SOURCE, INVOICE_STATUS, INVOICE_TYPE, PAYMENT_METHOD } from '@/lib/statuses';
 
 export interface Invoice {
-    id: number;
+    id: string;
     number: string;
     type: keyof typeof INVOICE_TYPE;
     source: keyof typeof INVOICE_SOURCE;
-    customer_id: number;
-    subscription_id?: number | null;
-    work_order_id?: number | null;
+    customer_id: string;
+    subscription_id?: string | null;
+    work_order_id?: string | null;
     issue_date: string;
     due_date: string;
     billing_period_start?: string | null;
@@ -24,16 +24,16 @@ export interface Invoice {
     cancelled_at?: string | null;
     cancel_reason?: string | null;
     created_at?: string;
-    customer?: { id: number; name: string; code: string } | null;
-    subscription?: { id: number; code: string } | null;
+    customer?: { id: string; name: string; code: string } | null;
+    subscription?: { id: string; code: string } | null;
     items?: InvoiceItemEntry[];
     payments?: PaymentEntry[];
 }
 
 export interface InvoiceItemEntry {
-    id: number;
-    invoice_id: number;
-    product_id?: number | null;
+    id: string;
+    invoice_id: string;
+    product_id?: string | null;
     description: string;
     quantity: string;
     unit_price: string;
@@ -43,14 +43,14 @@ export interface InvoiceItemEntry {
 }
 
 export interface PaymentEntry {
-    id: number;
-    invoice_id: number;
+    id: string;
+    invoice_id: string;
     amount: string;
     method: keyof typeof PAYMENT_METHOD;
     reference?: string | null;
     paid_at: string;
     /** Null for gateway payments: no human received them. */
-    received_by: number | null;
+    received_by: string | null;
     notes?: string | null;
     cancelled_at?: string | null;
     cancel_reason?: string | null;

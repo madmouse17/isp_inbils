@@ -3,6 +3,7 @@
 namespace Modules\Inventory\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 
 class RejectInventoryRequestRequest extends FormRequest
 {
@@ -16,7 +17,7 @@ class RejectInventoryRequestRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         if ($this->header('X-Inertia')) {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            throw new HttpResponseException(
                 back()->withErrors(['error' => 'Permintaan barang tidak dapat ditolak karena status telah berubah atau Anda tidak berwenang.'])
             );
         }

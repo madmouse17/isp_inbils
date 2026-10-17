@@ -11,7 +11,7 @@ import { toPagination } from '@/lib/pagination';
 import { formatDate } from '@/lib/format';
 
 type Row = {
-    id: number;
+    id: string;
     name: string;
     code?: string | null;
     download_max_mbps?: number | string | null;

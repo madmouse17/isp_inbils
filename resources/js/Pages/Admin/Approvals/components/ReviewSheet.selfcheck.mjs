@@ -150,7 +150,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
         );
 
         const testItem = {
-            id: 101,
+            id: '01arz3ndektsv4rrffq69g5fa1',
             code: 'SPK-TEST-001',
             title: 'Pemasangan Drop Cable Baru',
             type: 'installation',
@@ -159,8 +159,8 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
             age_seconds: 3600,
             submitted_at: '2026-09-08T10:00:00Z',
             scheduled_date: '2026-09-09',
-            detail_url: '/admin/spk/101',
-            requester: { id: 2, name: 'Budi Santoso' },
+            detail_url: '/admin/spk/01arz3ndektsv4rrffq69g5fa1',
+            requester: { id: '01arz3ndektsv4rrffq69g5fa2', name: 'Budi Santoso' },
             summary: { count: 2, quantity: 5, label: 'Kabel Drop & ONT' },
             actions: { approve: true, reject: true },
             evidence: [],
@@ -363,7 +363,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
                             export const router = { post: (url, data, opts) => window.__routerPost?.(url, data, opts), reload: (opts) => window.__routerReload?.(opts) };
                             export const Link = (props) => props.children;
                             export const useForm = () => ({ data: {}, setData: () => {}, post: () => {}, processing: false, errors: {}, reset: () => {} });
-                            export const usePage = () => ({ props: { auth: { user: { id: 1, name: 'Test' } }, ziggy: {} } });
+                            export const usePage = () => ({ props: { auth: { user: { id: '01arz3ndektsv4rrffq69g5fa0', name: 'Test' } }, ziggy: {} } });
                             export const Head = () => null;
                         `,
                         loader: 'js',
@@ -391,7 +391,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
         );
 
         const sampleItem = {
-            id: 202,
+            id: '01arz3ndektsv4rrffq69g5fa3',
             code: 'SPK-INT-002',
             title: 'Instalasi Bounded Reload Test',
             type: 'installation',
@@ -400,8 +400,8 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
             age_seconds: 1200,
             submitted_at: '2026-09-08T11:00:00Z',
             scheduled_date: '2026-09-09',
-            detail_url: '/admin/spk/202',
-            requester: { id: 3, name: 'Siti Rahma' },
+            detail_url: '/admin/spk/01arz3ndektsv4rrffq69g5fa3',
+            requester: { id: '01arz3ndektsv4rrffq69g5fa4', name: 'Siti Rahma' },
             summary: { count: 1, quantity: 1, label: 'Modem ONT' },
             actions: { approve: true, reject: true },
             evidence: [],
@@ -673,7 +673,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
         );
 
         const invItem = {
-            id: 505,
+            id: '01arz3ndektsv4rrffq69g5fa5',
             domain: 'inventory_request',
             code: 'REQ-FO-2026-001',
             title: 'Permintaan Material Kabel FO Drop Core',
@@ -683,8 +683,8 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
             age_seconds: 7200,
             submitted_at: '2026-09-08T08:00:00Z',
             scheduled_date: '2026-09-10',
-            detail_url: '/admin/inventory/requests/505',
-            requester: { id: 7, name: 'Ahmad Teknisi' },
+            detail_url: '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa5',
+            requester: { id: '01arz3ndektsv4rrffq69g5fa6', name: 'Ahmad Teknisi' },
             summary: { count: 3, quantity: 15, label: 'Kabel Drop Core, Fast Connector' },
             actions: { approve: true, reject: true, view: true },
         };
@@ -724,7 +724,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
 
         const calls = await page.evaluate(() => window.__postCalls);
         assert.equal(calls.length, 1, 'One router.post triggered');
-        assert.equal(calls[0].url, '/admin/inventory/requests/505/approve');
+        assert.equal(calls[0].url, '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa5/approve');
         assert.deepEqual(calls[0].data, { approval_note: 'Disetujui untuk maintenance FO ring 2' });
 
         // 3. Mount fresh item for rejection flow
@@ -758,7 +758,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
 
         const finalCalls = await page.evaluate(() => window.__postCalls);
         assert.equal(finalCalls.length, 1, 'Reject post triggered');
-        assert.equal(finalCalls[0].url, '/admin/inventory/requests/505/reject');
+        assert.equal(finalCalls[0].url, '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa5/reject');
         assert.deepEqual(finalCalls[0].data, {
             rejection_reason: 'Stok di gudang tidak mencukupi untuk batch pekerjaan ini.',
         });
@@ -865,7 +865,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
                             };
                             export const Link = (props) => window.React.createElement('a', { href: props.href }, props.children);
                             export const useForm = () => ({ data: {}, setData: () => {}, post: () => {}, processing: false, errors: {}, reset: () => {} });
-                            export const usePage = () => ({ props: { auth: { user: { id: 1, name: 'Test' } }, ziggy: {} } });
+                            export const usePage = () => ({ props: { auth: { user: { id: '01arz3ndektsv4rrffq69g5fa0', name: 'Test' } }, ziggy: {} } });
                             export const Head = () => null;
                         `,
                         loader: 'jsx',
@@ -892,17 +892,17 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
             `<!DOCTYPE html><html><body><div id="root"></div><script>${jsCode}</script></body></html>`,
         );
 
-        // Two distinct domain items with the same numeric id: 7
+        // Two distinct domain items with the same ULID id: '01arz3ndektsv4rrffq69g5fa7'
         const spkItem = {
             domain: 'spk',
-            composite_id: 'spk:7',
-            id: 7,
+            composite_id: 'spk:01arz3ndektsv4rrffq69g5fa7',
+            id: '01arz3ndektsv4rrffq69g5fa7',
             code: 'SPK-COLLISION-007',
             title: 'Pemasangan Drop Cable Pelanggan',
             type: 'installation',
             priority: 'medium',
             status: 'waiting_review',
-            requester: { id: 11, name: 'Teknisi SPK' },
+            requester: { id: '01arz3ndektsv4rrffq69g5fa8', name: 'Teknisi SPK' },
             assigned_to: null,
             submitted_at: '2026-09-08T10:00:00.000Z',
             age_seconds: 120,
@@ -913,22 +913,22 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         };
 
         const invItem = {
-            id: 7,
+            id: '01arz3ndektsv4rrffq69g5fa7',
             domain: 'inventory_request',
-            composite_id: 'inventory_request:7',
+            composite_id: 'inventory_request:01arz3ndektsv4rrffq69g5fa7',
             code: 'REQ-COLLISION-007',
             title: 'Permintaan Patchcord SFP',
             type: 'maintenance',
             priority: 'high',
             status: 'submitted',
-            requester: { id: 22, name: 'Staff Gudang' },
+            requester: { id: '01arz3ndektsv4rrffq69g5fa9', name: 'Staff Gudang' },
             assigned_to: null,
             submitted_at: '2026-09-08T10:05:00.000Z',
             age_seconds: 60,
             scheduled_date: '2026-09-10',
             summary: { label: 'Material Kritis', count: 2, quantity: 5 },
             actions: { approve: true, reject: true, view: true },
-            detail_url: '/admin/inventory/requests/7',
+            detail_url: '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7',
         };
 
         await page.evaluate(
@@ -962,8 +962,8 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
             { spk: spkItem, inv: invItem },
         );
 
-        // 1. Select Inventory Request (composite_id = inventory_request:7)
-        const selectInvBtn = page.locator('#btn-select-inventory_request-7');
+        // 1. Select Inventory Request (composite_id = inventory_request:01arz3ndektsv4rrffq69g5fa7)
+        const selectInvBtn = page.locator('#btn-select-inventory_request-01arz3ndektsv4rrffq69g5fa7');
         await selectInvBtn.click();
 
         // Verify sheet title and code for Inventory Request
@@ -972,17 +972,17 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         const codeText = await sheetTitle.textContent();
         assert.ok(codeText.includes('REQ-COLLISION-007'), 'Inventory Request code shown in sheet');
 
-        // Verify honest affordance: invItem has actions.view = true, detail_url = '/admin/inventory/requests/7'
+        // Verify honest affordance: invItem has actions.view = true, detail_url = '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7'
         const detailLink = page.locator('a:has-text("Lihat detail")');
         assert.equal(
             await detailLink.isVisible(),
             true,
             'Lihat detail button visible when actions.view=true',
         );
-        assert.equal(await detailLink.getAttribute('href'), '/admin/inventory/requests/7');
+        assert.equal(await detailLink.getAttribute('href'), '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7');
 
-        // 2. Trigger queue reload while review sheet is open for Inventory Request {id: 7}
-        // In the returned payload, SPK {id: 7} is at index 0, Inventory Request {id: 7} is at index 1!
+        // 2. Trigger queue reload while review sheet is open for Inventory Request {id: '01arz3ndektsv4rrffq69g5fa7'}
+        // In the returned payload, SPK {id: '01arz3ndektsv4rrffq69g5fa7'} is at index 0, Inventory Request {id: '01arz3ndektsv4rrffq69g5fa7'} is at index 1!
         const refreshResult = await page.evaluate(async () => {
             const res = await window.reloadQueueHelper({
                 router: window.__collisionRouter,
@@ -1009,8 +1009,8 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         );
         assert.equal(
             refreshResult.selectedAfterReload?.composite_id,
-            'inventory_request:7',
-            'Composite ID matches inventory_request:7',
+            'inventory_request:01arz3ndektsv4rrffq69g5fa7',
+            'Composite ID matches inventory_request:01arz3ndektsv4rrffq69g5fa7',
         );
 
         // 3. Confirm that approving the item triggers inventory approve route, NEVER spk approve
@@ -1021,13 +1021,13 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         assert.equal(postCalls.length, 1, 'One approve POST executed');
         assert.equal(
             postCalls[0].url,
-            '/admin/inventory/requests/7/approve',
-            'Approve request targeted inventory endpoint (/admin/inventory/requests/7/approve), NOT SPK!',
+            '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7/approve',
+            'Approve request targeted inventory endpoint (/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7/approve), NOT SPK!',
         );
 
-        // 4. Now select SPK {id: 7} (composite_id = spk:7)
+        // 4. Now select SPK {id: '01arz3ndektsv4rrffq69g5fa7'} (composite_id = spk:01arz3ndektsv4rrffq69g5fa7)
         // Ensure ReviewSheetInner unmounts and remounts with SPK identity and state
-        const selectSpkBtn = page.locator('#btn-select-spk-7');
+        const selectSpkBtn = page.locator('#btn-select-spk-01arz3ndektsv4rrffq69g5fa7');
         await selectSpkBtn.click();
 
         const spkSheetTitle = page.locator('text=Tinjau SPK');
@@ -1040,7 +1040,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         const spkDetailLink = page.locator('a:has-text("Lihat detail")');
         assert.equal(await spkDetailLink.count(), 0, 'Lihat detail hidden when actions.view=false');
 
-        // Approve SPK {id: 7}
+        // Approve SPK {id: '01arz3ndektsv4rrffq69g5fa7'}
         const spkApproveBtn = page.locator('button:has-text("Setujui")');
         await spkApproveBtn.click();
 
@@ -1048,8 +1048,8 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         assert.equal(postCallsAfterSpk.length, 2, 'Second approve POST executed');
         assert.equal(
             postCallsAfterSpk[1].url,
-            '/admin/spk/7/approve',
-            'Approve request targeted SPK endpoint (/admin/spk/7/approve)',
+            '/admin/spk/01arz3ndektsv4rrffq69g5fa7/approve',
+            'Approve request targeted SPK endpoint (/admin/spk/01arz3ndektsv4rrffq69g5fa7/approve)',
         );
     } finally {
         await browser.close();

@@ -5,6 +5,7 @@ namespace Modules\Ipam\Models;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ class IpAddress extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
 
     public const STATUS_ASSIGNED = 'assigned';

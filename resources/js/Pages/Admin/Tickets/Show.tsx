@@ -31,14 +31,14 @@ import { checkInText, type CheckInRecord } from './components/checkIn';
 type DeadlineSource = { type: 'tier' | 'category'; name: string };
 
 interface TData {
-    id: number;
+    id: string;
     code: string;
     title: string;
     description?: string | null;
     source: string;
     status: string;
     priority: string;
-    assigned_to?: number | null;
+    assigned_to?: string | null;
     updated_at?: string | null;
     can?: { start: boolean; close: boolean };
     is_sla_breached: boolean;
@@ -58,14 +58,14 @@ interface TData {
     location?: { name: string; path?: string } | null;
     assignee?: { name: string } | null;
     comments?: {
-        id: number;
+        id: string;
         body: string;
         is_internal: boolean;
         created_at: string;
         author?: { name: string } | null;
     }[];
     attachments?: {
-        id: number;
+        id: string;
         url: string;
         file_path: string;
         original_name?: string | null;
@@ -77,7 +77,7 @@ interface TData {
 interface ShowProps extends Record<string, unknown> {
     ticket: { data: TData };
     /** Who the ticket can go to; empty unless the actor may assign or reassign. */
-    handlers: { id: number; name: string; email: string }[];
+    handlers: { id: string; name: string; email: string }[];
 }
 
 type ActionModal = 'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment';

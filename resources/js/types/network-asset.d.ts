@@ -13,20 +13,20 @@ export type NetworkAssetType = keyof typeof NETWORK_ASSET_TYPE;
 export type NetworkAssetOwnership = keyof typeof NETWORK_ASSET_OWNERSHIP;
 
 export interface NetworkAssetInstallation {
-    id: number;
-    location_id?: number | null;
-    customer_id?: number | null;
-    subscription_id?: number | null;
-    spk_id?: number | null;
-    installed_by?: number | null;
+    id: string;
+    location_id?: string | null;
+    customer_id?: string | null;
+    subscription_id?: string | null;
+    spk_id?: string | null;
+    installed_by?: string | null;
     installed_at?: string | null;
     removed_at?: string | null;
     removal_reason?: string | null;
-    location?: { id: number; code: string; name: string; path: string } | null;
+    location?: { id: string; code: string; name: string; path: string } | null;
 }
 
 export interface NetworkAsset {
-    id: number;
+    id: string;
     code: string;
     name: string;
     asset_type: NetworkAssetType;
@@ -34,9 +34,9 @@ export interface NetworkAsset {
     mac_address?: string | null;
     ip_address?: string | null;
     management_ip?: string | null;
-    location_id?: number | null;
-    customer_id?: number | null;
-    subscription_id?: number | null;
+    location_id?: string | null;
+    customer_id?: string | null;
+    subscription_id?: string | null;
     status: NetworkAssetStatus;
     ownership?: NetworkAssetOwnership | null;
     vendor?: string | null;
@@ -47,9 +47,9 @@ export interface NetworkAsset {
     notes?: string | null;
     installed_at?: string | null;
     retired_at?: string | null;
-    location?: { id: number; code: string; name: string; path: string } | null;
-    customer?: { id: number; code: string; name: string } | null;
-    subscription?: { id: number; code: string } | null;
+    location?: { id: string; code: string; name: string; path: string } | null;
+    customer?: { id: string; code: string; name: string } | null;
+    subscription?: { id: string; code: string } | null;
     installations?: NetworkAssetInstallation[];
 }
 
@@ -61,14 +61,14 @@ export type NetworkSyncStatus = keyof typeof NETWORK_SYNC_STATUS;
 export type NetworkDesiredState = keyof typeof NETWORK_DESIRED_STATE;
 
 export interface NasDevice {
-    id: number;
+    id: string;
     /** Null only when the router asset itself was removed. */
     network_asset: {
-        id: number;
+        id: string;
         code: string;
         name: string;
         management_ip: string | null;
-        location: { id: number; name: string; type: string } | null;
+        location: { id: string; name: string; type: string } | null;
     } | null;
     /** Source address FreeRADIUS sees (`nas.nasname`). */
     nasname: string;
@@ -92,11 +92,11 @@ export interface RadiusSession {
 /** An open session on the NAS router page, with the account it belongs to when Inbils knows it. */
 export interface NasDeviceSession extends RadiusSession {
     username: string;
-    subscription: { id: number; code: string } | null;
+    subscription: { id: string; code: string } | null;
 }
 
 export interface NetworkAccount {
-    id: number;
+    id: string;
     service_type: NetworkServiceType;
     /** Full RADIUS username, `local@realm`. */
     username: string;
@@ -109,7 +109,7 @@ export interface NetworkAccount {
 
 /** The router asset a NAS router is registered on (Edit shows it; Create searches `routerAssetOptions`). */
 export interface RouterAssetOption {
-    id: number;
+    id: string;
     code: string;
     name: string;
     management_ip: string | null;
@@ -117,11 +117,11 @@ export interface RouterAssetOption {
 }
 
 export interface NetworkAccountSubscription {
-    id: number;
+    id: string;
     code: string;
     status: string;
     blocked_at: string | null;
-    customer: { id: number; name: string } | null;
+    customer: { id: string; name: string } | null;
     speed_profile: { name: string; radius_profile_name: string | null } | null;
-    serving_pop: { id: number; name: string } | null;
+    serving_pop: { id: string; name: string } | null;
 }

@@ -34,7 +34,7 @@ class WorkOrderItemsTest extends TestCase
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $token = $this->issueToken($technician, 'technician');
 
-        $response = $this->api('POST', "technician/work-orders/{$workOrder->id}/items", ['product_id' => $cable->id, 'quantity' => '12.5'], $token)
+        $response = $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", ['product_id' => $cable->public_id, 'quantity' => '12.5'], $token)
             ->assertCreated()
             ->assertJsonPath('data.product_name', 'Drop Cable')
             ->assertJsonPath('data.unit', 'mtr')
@@ -45,16 +45,16 @@ class WorkOrderItemsTest extends TestCase
         $this->assertSame(['id', 'product_name', 'unit', 'quantity_reserved', 'quantity_used', 'note'], array_keys($response->json('data')));
 
         $item = WorkOrderItem::withoutCompany()->sole();
-        $this->assertSame($item->id, $response->json('data.id'));
+        $this->assertSame($item->public_id, $response->json('data.id'));
         $this->assertSame($workOrder->id, $item->work_order_id);
         $this->assertSame($technician->company_id, $item->company_id);
         $this->assertSame('12.50', $item->quantity_used);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)
             ->assertOk()
             ->assertJsonPath('data.actions.edit_items', true)
             ->assertJsonCount(1, 'data.items')
-            ->assertJsonPath('data.items.0.id', $item->id)
+            ->assertJsonPath('data.items.0.id', $item->public_id)
             ->assertJsonPath('data.items.0.quantity_used', 12.5);
 
         $log = Activity::query()->where('log_name', 'work_order')->where('description', 'item_recorded')->sole();
@@ -73,13 +73,13 @@ class WorkOrderItemsTest extends TestCase
         ]);
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", ['product_id' => $cable->id, 'quantity' => 8], $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", ['product_id' => $cable->public_id, 'quantity' => 8], $token)
             ->assertCreated()
-            ->assertJsonPath('data.id', $planned->id)
+            ->assertJsonPath('data.id', $planned->public_id)
             ->assertJsonPath('data.quantity_reserved', 20)
             ->assertJsonPath('data.quantity_used', 8)
             ->assertJsonPath('data.note', 'Planned by the manager');
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", ['product_id' => $cable->id, 'quantity' => 3], $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", ['product_id' => $cable->public_id, 'quantity' => 3], $token)
             ->assertCreated()
             ->assertJsonPath('data.quantity_used', 3);
 
@@ -99,16 +99,16 @@ class WorkOrderItemsTest extends TestCase
         $trashed = $this->product($technician, 'Gone Cable', 'mtr');
         $trashed->delete();
         $token = $this->issueToken($technician, 'technician');
-        $uri = "technician/work-orders/{$workOrder->id}/items";
+        $uri = "technician/work-orders/{$workOrder->public_id}/items";
 
         foreach ([null, 0, '0', -1, 'abc', '1.234', 10000000000000.0, [3]] as $quantity) {
-            $this->api('POST', $uri, ['product_id' => $good->id, 'quantity' => $quantity], $token)
+            $this->api('POST', $uri, ['product_id' => $good->public_id, 'quantity' => $quantity], $token)
                 ->assertStatus(422)
                 ->assertJsonPath('code', 'validation_failed')
                 ->assertJsonValidationErrors(['quantity'], 'errors');
         }
 
-        foreach ([null, 'x', 9999999, $foreign->id, $inactive->id, $asset->id, $trashed->id] as $productId) {
+        foreach ([null, 'x', 9999999, $foreign->public_id, $inactive->public_id, $asset->public_id, $trashed->public_id] as $productId) {
             $this->api('POST', $uri, ['product_id' => $productId, 'quantity' => 1], $token)
                 ->assertStatus(422)
                 ->assertJsonValidationErrors(['product_id'], 'errors');
@@ -125,16 +125,16 @@ class WorkOrderItemsTest extends TestCase
         $workOrder = $this->workOrder($technician, 'in_progress');
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $line = $this->line($workOrder, $cable);
-        $body = ['product_id' => $cable->id, 'quantity' => 5];
+        $body = ['product_id' => $cable->public_id, 'quantity' => 5];
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", $body, $this->issueToken($colleague, 'technician'))
-            ->assertForbidden()
-            ->assertJsonPath('code', 'forbidden');
-        // The permission comes before the body: a colleague never learns what is wrong with the product.
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", [], $this->issueToken($colleague, 'technician'))->assertForbidden();
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/{$line->id}", token: $this->issueToken($colleague, 'technician'))->assertForbidden();
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", $body, $this->issueToken($stranger, 'technician'))->assertNotFound();
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/{$line->id}", token: $this->issueToken($stranger, 'technician'))->assertNotFound();
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", $body, $this->issueToken($colleague, 'technician'))
+            ->assertNotFound()
+            ->assertJsonPath('code', 'not_found');
+        // The fence comes before the body: a colleague never learns what is wrong with the product.
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", [], $this->issueToken($colleague, 'technician'))->assertNotFound();
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/{$line->public_id}", token: $this->issueToken($colleague, 'technician'))->assertNotFound();
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", $body, $this->issueToken($stranger, 'technician'))->assertNotFound();
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/{$line->public_id}", token: $this->issueToken($stranger, 'technician'))->assertNotFound();
 
         $this->assertSame('0.00', $line->fresh()->quantity_used);
         $this->assertSame(1, WorkOrderItem::withoutCompany()->count());
@@ -144,8 +144,8 @@ class WorkOrderItemsTest extends TestCase
             $closedLine = $this->line($closed, $cable);
             $token = $this->issueToken($technician, 'technician');
 
-            $this->api('POST', "technician/work-orders/{$closed->id}/items", $body, $token)->assertForbidden();
-            $this->api('DELETE', "technician/work-orders/{$closed->id}/items/{$closedLine->id}", token: $token)->assertForbidden();
+            $this->api('POST', "technician/work-orders/{$closed->public_id}/items", $body, $token)->assertForbidden();
+            $this->api('DELETE', "technician/work-orders/{$closed->public_id}/items/{$closedLine->public_id}", token: $token)->assertForbidden();
             $this->assertNotNull($closedLine->fresh(), $status);
             $this->assertSame('0.00', $closedLine->fresh()->quantity_used, $status);
         }
@@ -157,7 +157,7 @@ class WorkOrderItemsTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
 
         foreach (['assigned' => false, 'in_progress' => true, 'waiting_review' => false] as $status => $editable) {
-            $this->api('GET', 'technician/work-orders/'.$this->workOrder($technician, $status)->id, token: $token)
+            $this->api('GET', 'technician/work-orders/'.$this->workOrder($technician, $status)->public_id, token: $token)
                 ->assertOk()
                 ->assertJsonPath('data.actions.edit_items', $editable);
         }
@@ -173,11 +173,11 @@ class WorkOrderItemsTest extends TestCase
         $otherLine = $this->line($other, $cable);
         $token = $this->issueToken($technician, 'technician');
 
-        $this->api('DELETE', "technician/work-orders/{$other->id}/items/{$line->id}", token: $token)->assertNotFound();
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/9999999", token: $token)->assertNotFound();
+        $this->api('DELETE', "technician/work-orders/{$other->public_id}/items/{$line->public_id}", token: $token)->assertNotFound();
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/9999999", token: $token)->assertNotFound();
         $this->assertNotNull($line->fresh());
 
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/{$line->id}", token: $token)->assertNoContent();
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/{$line->public_id}", token: $token)->assertNoContent();
 
         $this->assertNull(WorkOrderItem::withoutCompany()->find($line->id));
         $this->assertNotNull($otherLine->fresh());
@@ -192,16 +192,16 @@ class WorkOrderItemsTest extends TestCase
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $planned = $this->line($workOrder, $cable, ['quantity_reserved' => 20, 'quantity_used' => 8]);
         $token = $this->issueToken($technician, 'technician');
-        $uri = "technician/work-orders/{$workOrder->id}/items/{$planned->id}";
+        $uri = "technician/work-orders/{$workOrder->public_id}/items/{$planned->public_id}";
 
         $this->api('DELETE', $uri, token: $token)->assertNoContent();
 
         $this->assertSame('0.00', $planned->fresh()->quantity_used);
         $this->assertSame('20.00', $planned->fresh()->quantity_reserved);
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)
             ->assertOk()
             ->assertJsonCount(1, 'data.items')
-            ->assertJsonPath('data.items.0.id', $planned->id)
+            ->assertJsonPath('data.items.0.id', $planned->public_id)
             ->assertJsonPath('data.items.0.quantity_used', 0)
             ->assertJsonPath('data.items.0.quantity_reserved', 20);
         $log = Activity::query()->where('log_name', 'work_order')->where('description', 'item_usage_cleared')->sole();
@@ -214,9 +214,9 @@ class WorkOrderItemsTest extends TestCase
         $this->assertSame(1, Activity::query()->where('description', 'item_usage_cleared')->count());
 
         // The line is still there to record the use again.
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/items", ['product_id' => $cable->id, 'quantity' => 5], $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/items", ['product_id' => $cable->public_id, 'quantity' => 5], $token)
             ->assertCreated()
-            ->assertJsonPath('data.id', $planned->id)
+            ->assertJsonPath('data.id', $planned->public_id)
             ->assertJsonPath('data.quantity_used', 5)
             ->assertJsonPath('data.quantity_reserved', 20);
     }
@@ -228,7 +228,7 @@ class WorkOrderItemsTest extends TestCase
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $noted = $this->line($workOrder, $cable, ['quantity_used' => 3, 'note' => 'Splice at ODP-12']);
 
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/{$noted->id}", token: $this->issueToken($technician, 'technician'))
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/{$noted->public_id}", token: $this->issueToken($technician, 'technician'))
             ->assertNoContent();
 
         $this->assertSame('0.00', $noted->fresh()->quantity_used);
@@ -243,7 +243,7 @@ class WorkOrderItemsTest extends TestCase
         $asset = NetworkAssetFactory::new()->create(['company_id' => $technician->company_id, 'product_id' => $ont->id]);
         $line = $this->line($workOrder, $ont, ['network_asset_id' => $asset->id, 'quantity_used' => 1]);
 
-        $this->api('DELETE', "technician/work-orders/{$workOrder->id}/items/{$line->id}", token: $this->issueToken($technician, 'technician'))
+        $this->api('DELETE', "technician/work-orders/{$workOrder->public_id}/items/{$line->public_id}", token: $this->issueToken($technician, 'technician'))
             ->assertStatus(422)
             ->assertJsonPath('code', 'unprocessable');
 
@@ -259,12 +259,12 @@ class WorkOrderItemsTest extends TestCase
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $token = $this->issueToken($technician, 'technician');
         $key = (string) Str::uuid();
-        $uri = "technician/work-orders/{$workOrder->id}/items";
+        $uri = "technician/work-orders/{$workOrder->public_id}/items";
 
-        $first = $this->api('POST', $uri, ['product_id' => $cable->id, 'quantity' => 4], $token, ['Idempotency-Key' => $key])->assertCreated();
-        $replay = $this->api('POST', $uri, ['product_id' => $cable->id, 'quantity' => 4], $token, ['Idempotency-Key' => $key])->assertCreated()->assertHeader('Idempotent-Replayed', 'true');
+        $first = $this->api('POST', $uri, ['product_id' => $cable->public_id, 'quantity' => 4], $token, ['Idempotency-Key' => $key])->assertCreated();
+        $replay = $this->api('POST', $uri, ['product_id' => $cable->public_id, 'quantity' => 4], $token, ['Idempotency-Key' => $key])->assertCreated()->assertHeader('Idempotent-Replayed', 'true');
         $this->assertSame($first->getContent(), $replay->getContent());
-        $this->api('POST', $uri, ['product_id' => $cable->id, 'quantity' => 9], $token, ['Idempotency-Key' => $key])
+        $this->api('POST', $uri, ['product_id' => $cable->public_id, 'quantity' => 9], $token, ['Idempotency-Key' => $key])
             ->assertStatus(422)
             ->assertJsonPath('code', 'idempotency_conflict');
         $this->assertSame(1, WorkOrderItem::withoutCompany()->count());

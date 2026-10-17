@@ -3,6 +3,7 @@
 namespace Tests\Feature\Platform;
 
 use App\Models\Core\Company;
+use App\Support\PublicId;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -15,6 +16,7 @@ trait BuildsTenantMetrics
     protected function media(?int $companyId, int $size): void
     {
         DB::table('media')->insert([
+            'public_id' => PublicId::new(),
             'model_type' => Company::class,
             'model_id' => $companyId ?? 0,
             'uuid' => (string) fake()->uuid(),
@@ -53,6 +55,7 @@ trait BuildsTenantMetrics
     protected function failedWhatsApp(int $companyId, string $status, mixed $failedAt): int
     {
         return DB::table('whatsapp_messages')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => $companyId,
             'recipient_type' => 'user',
             'recipient_id' => 1,

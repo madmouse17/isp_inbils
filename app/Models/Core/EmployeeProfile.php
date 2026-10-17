@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\EmployeeProfileFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -16,6 +17,7 @@ class EmployeeProfile extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
 

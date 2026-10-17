@@ -16,9 +16,9 @@ import { EVALUATION_REFERENCE_TYPE, optionsOf } from '@/lib/statuses';
 import type { PaginationMeta } from '@/types';
 
 interface EvalRow {
-    id: number;
+    id: string;
     reference_type: string;
-    reference_id: number;
+    reference_id: string;
     score: string;
     customer_rating?: string | null;
     evaluated_at: string;

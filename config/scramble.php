@@ -45,7 +45,7 @@ return [
         /*
          * API version.
          */
-        'version' => '1.0.0',
+        'version' => '1.1.0',
 
         /*
          * Description rendered on the home page of the API documentation (`/docs/api`).
@@ -98,6 +98,13 @@ reuse it for every retry of that action. For 24 hours the server stores the resp
 - the same key with a different request is 422 `idempotency_conflict`;
 - the same key while the first request still runs is 409 `idempotency_in_progress`;
 - 5xx and 429 responses are not stored, so retry them with the same key.
+
+## Identifiers
+
+Every `id` and every field that names another record (`customer_id`, `subscription_id`, ...) is an opaque string: a
+26-character lowercase ULID such as `01m5441c2q1sqrw67nr4dwyakz`. Keep it as a string, never parse or order it as a
+number, and send it back unchanged in paths and bodies. Version 1.1 replaced the integer ids of 1.0. An integer or
+unknown id in a path answers 404 `not_found`; in a body it is 422 `validation_failed`. A notification's `id` is a UUID.
 
 ## Pagination
 

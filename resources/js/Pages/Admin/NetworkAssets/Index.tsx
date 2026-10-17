@@ -14,14 +14,14 @@ import { NETWORK_ASSET_STATUS, NETWORK_ASSET_TYPE, optionsOf } from '@/lib/statu
 import type { NetworkAssetStatus, NetworkAssetType } from '@/types/network-asset';
 
 type AssetRow = {
-    id: number;
+    id: string;
     code: string;
     name: string;
     asset_type: NetworkAssetType;
     status: NetworkAssetStatus;
     serial_number?: string | null;
     created_at: string | null;
-    location?: { id: number; name: string } | null;
+    location?: { id: string; name: string } | null;
 };
 
 type Props = {

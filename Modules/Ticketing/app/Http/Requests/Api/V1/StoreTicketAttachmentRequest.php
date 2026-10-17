@@ -12,18 +12,20 @@ class StoreTicketAttachmentRequest extends FormRequest
     private ?Ticket $ticket = null;
 
     /**
-     * Asked before the file is validated: a ticket the caller may not reach is a 404 (a peer technician a 403),
-     * never a 422 about the upload.
+     * Asked before the file is validated: a ticket the caller may not reach is a 404 (a peer technician's too, the
+     * policy hides it), never a 422 about the upload.
      */
     public function authorize(): bool
     {
-        return TicketService::mayAttach($this->user(), $this->ticket());
+        TicketService::assertMayAttach($this->user(), $this->ticket());
+
+        return true;
     }
 
     public function ticket(): Ticket
     {
         return $this->ticket ??= TicketService::findForApp(
-            (int) $this->route('id'),
+            (string) $this->route('id'),
             $this->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE),
         );
     }

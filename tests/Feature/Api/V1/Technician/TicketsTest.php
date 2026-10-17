@@ -85,17 +85,17 @@ class TicketsTest extends TestCase
         $this->comment($ticket, $this->admin, 'Internal', true);
         $this->comment($ticket, $this->admin, 'Public', false);
 
-        $this->api('GET', "technician/tickets/{$ticket->id}", token: $this->token)
+        $this->api('GET', "technician/tickets/{$ticket->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.customer.name', 'Rina')
             ->assertJsonPath('data.customer.phone', '0812')
-            ->assertJsonPath('data.subscription.id', $this->subscription->id)
+            ->assertJsonPath('data.subscription.id', $this->subscription->public_id)
             ->assertJsonPath('data.location.name', 'Site A')
             ->assertJsonPath('data.location.lat', -6.1753924)
             ->assertJsonCount(2, 'data.comments')
             ->assertJsonPath('data.comments.0.is_internal', true);
 
-        $this->api('GET', "technician/tickets/{$ticket->id}", token: $this->otherToken)->assertForbidden();
+        $this->api('GET', "technician/tickets/{$ticket->public_id}", token: $this->otherToken)->assertNotFound();
         $this->api('GET', 'technician/tickets/999999', token: $this->token)->assertNotFound();
     }
 
@@ -104,7 +104,7 @@ class TicketsTest extends TestCase
         $ticket = $this->assignedTicket('assigned');
         $key = (string) Str::uuid();
 
-        $first = $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+        $first = $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
             'check_in' => ['lat' => -6.199, 'lng' => 106.8, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
@@ -120,7 +120,7 @@ class TicketsTest extends TestCase
         $this->assertSame('ticket', $audit->log_name);
         $this->assertSame(111, $audit->properties['distance_m']);
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
             'check_in' => ['lat' => -6.199, 'lng' => 106.8, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
@@ -134,7 +134,7 @@ class TicketsTest extends TestCase
     {
         $ticket = $this->assignedTicket('assigned');
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
             'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528, 'accuracy_m' => 5],
         ], $this->token, ['Idempotency-Key' => (string) Str::uuid()])
             ->assertOk()
@@ -144,7 +144,7 @@ class TicketsTest extends TestCase
         $this->subscription->installationAddress->update(['lat' => null, 'lng' => null]);
         $other = $this->assignedTicket('assigned');
 
-        $this->api('POST', "technician/tickets/{$other->id}/start", [
+        $this->api('POST', "technician/tickets/{$other->public_id}/start", [
             'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528],
         ], $this->token, ['Idempotency-Key' => (string) Str::uuid()])
             ->assertOk()
@@ -155,14 +155,14 @@ class TicketsTest extends TestCase
     {
         $ticket = $this->assignedTicket('assigned');
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
             'check_in' => ['unavailable_reason' => 'permission_denied'],
         ], $this->token)->assertOk();
 
         $audit = Activity::query()->where('description', 'check_in')->sole();
         $this->assertSame('unavailable', $audit->properties['status']);
         $this->assertSame('permission_denied', $audit->properties['reason']);
-        $this->api('GET', "technician/tickets/{$ticket->id}", token: $this->token)
+        $this->api('GET', "technician/tickets/{$ticket->public_id}", token: $this->token)
             ->assertJsonPath('data.check_in.status', 'unavailable')
             ->assertJsonPath('data.check_in.reason', 'permission_denied')
             ->assertJsonPath('data.check_in.distance_m', null);
@@ -172,13 +172,13 @@ class TicketsTest extends TestCase
     {
         $ticket = $this->assignedTicket('assigned');
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", [
             'check_in' => ['lat' => 91, 'lng' => 106.8, 'accuracy_m' => -1, 'captured_at' => now()->addHour()->toIso8601String()],
         ], $this->token)->assertUnprocessable()
             ->assertJsonValidationErrors(['check_in.lat', 'check_in.accuracy_m', 'check_in.captured_at']);
         $this->assertSame('assigned', $ticket->fresh()->status);
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", token: $this->token)
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.check_in.status', 'none');
     }
@@ -186,8 +186,8 @@ class TicketsTest extends TestCase
     public function test_start_twice_and_start_race_leave_state_unchanged_after_the_first_start(): void
     {
         $ticket = $this->assignedTicket('assigned');
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", token: $this->token)->assertOk();
-        $this->api('POST', "technician/tickets/{$ticket->id}/start", token: $this->token)->assertUnprocessable();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", token: $this->token)->assertOk();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/start", token: $this->token)->assertUnprocessable();
         $this->assertSame('on_progress', $ticket->fresh()->status);
 
         $raced = $this->assignedTicket('assigned');
@@ -199,7 +199,7 @@ class TicketsTest extends TestCase
             }
         });
 
-        $this->api('POST', "technician/tickets/{$raced->id}/start", token: $this->token)
+        $this->api('POST', "technician/tickets/{$raced->public_id}/start", token: $this->token)
             ->assertConflict()
             ->assertJsonPath('code', 'conflict');
     }
@@ -208,22 +208,22 @@ class TicketsTest extends TestCase
     {
         $ticket = $this->assignedTicket('on_progress');
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/comments", ['body' => 'Staff note', 'is_internal' => true], $this->token)
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/comments", ['body' => 'Staff note', 'is_internal' => true], $this->token)
             ->assertCreated()
             ->assertJsonPath('data.is_internal', true);
-        $this->api('POST', "technician/tickets/{$ticket->id}/comments", ['body' => 'Nope'], $this->otherToken)->assertForbidden();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/comments", ['body' => 'Nope'], $this->otherToken)->assertNotFound();
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/resolve", ['resolution_note' => str_repeat('x', 1001)], $this->token)
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/resolve", ['resolution_note' => str_repeat('x', 1001)], $this->token)
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['resolution_note']);
-        $this->api('POST', "technician/tickets/{$ticket->id}/resolve", ['resolution_note' => 'Fixed'], $this->otherToken)->assertForbidden();
-        $this->api('POST', "technician/tickets/{$ticket->id}/resolve", ['resolution_note' => 'Fixed'], $this->token)
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/resolve", ['resolution_note' => 'Fixed'], $this->otherToken)->assertNotFound();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/resolve", ['resolution_note' => 'Fixed'], $this->token)
             ->assertOk()
             ->assertJsonPath('data.status', 'resolved')
             ->assertJsonPath('data.resolution_note', 'Fixed');
 
         $this->assertSame('resolved', $ticket->fresh()->status);
-        $this->postJson("/api/v1/technician/tickets/{$ticket->id}/close", [], ['Authorization' => 'Bearer '.$this->token])->assertNotFound();
+        $this->postJson("/api/v1/technician/tickets/{$ticket->public_id}/close", [], ['Authorization' => 'Bearer '.$this->token])->assertNotFound();
     }
 
     public function test_customer_view_never_sees_internal_technician_comment(): void
@@ -234,10 +234,10 @@ class TicketsTest extends TestCase
         $this->customer->update(['user_id' => $customerUser->id]);
         $customerToken = $this->issueToken($customerUser, 'customer');
 
-        $this->api('POST', "technician/tickets/{$ticket->id}/comments", ['body' => 'Internal', 'is_internal' => true], $this->token)->assertCreated();
-        $this->api('POST', "technician/tickets/{$ticket->id}/comments", ['body' => 'Public', 'is_internal' => false], $this->token)->assertCreated();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/comments", ['body' => 'Internal', 'is_internal' => true], $this->token)->assertCreated();
+        $this->api('POST', "technician/tickets/{$ticket->public_id}/comments", ['body' => 'Public', 'is_internal' => false], $this->token)->assertCreated();
 
-        $this->api('GET', "customer/tickets/{$ticket->id}", token: $customerToken)
+        $this->api('GET', "customer/tickets/{$ticket->public_id}", token: $customerToken)
             ->assertOk()
             ->assertJsonCount(1, 'data.comments')
             ->assertJsonPath('data.comments.0.body', 'Public');

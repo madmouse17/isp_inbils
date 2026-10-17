@@ -63,7 +63,7 @@ export function expectSupportAccessRedirects(
     expectHttpError: (expectation: ExpectedHttpError) => void,
 ) {
     expectHttpError({
-        url: /\/platform\/companies\/\d+\/users\/\d+\/impersonate/,
+        url: /\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}\/users\/[0-9A-HJKMNP-TV-Z]{26}\/impersonate/i,
         method: 'POST',
         status: 409,
     });

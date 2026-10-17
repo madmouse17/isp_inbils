@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\RecordNotFound;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Events\NullDispatcher;
@@ -67,7 +68,7 @@ class ImpersonationService
         }
 
         $companyIds = $this->companyIds($company);
-        abort_unless($user->company_id !== null && in_array((int) $user->company_id, $companyIds, true), 404);
+        RecordNotFound::abortUnless($user->company_id !== null && in_array((int) $user->company_id, $companyIds, true));
 
         $errors = [];
         if (! $company->is_active) {

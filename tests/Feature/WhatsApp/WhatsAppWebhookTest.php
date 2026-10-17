@@ -542,7 +542,7 @@ class WhatsAppWebhookTest extends TestCase
         $receipts = WhatsAppInboundReceipt::withoutCompany()->orderBy('company_id')->get();
         $this->assertSame([$this->company->id, $other->id], $receipts->pluck('company_id')->all());
         $this->assertSame([$hash, $hash], $receipts->pluck('message_hash')->all());
-        $this->assertSame(['id', 'company_id', 'message_hash', 'created_at', 'updated_at'], DB::getSchemaBuilder()->getColumnListing('whatsapp_inbound_receipts'));
+        $this->assertSame(['id', 'company_id', 'message_hash', 'created_at', 'updated_at', 'public_id'], DB::getSchemaBuilder()->getColumnListing('whatsapp_inbound_receipts'));
 
         $stored = (string) json_encode(DB::table('whatsapp_inbound_receipts')->get());
         foreach (['wamid', 'NjI4MTIzNDU2Nzg5MA', '6281234567890', 'STOP', 'stop'] as $leak) {

@@ -1,16 +1,16 @@
 export interface WorkOrder {
-    id: number;
+    id: string;
     code: string;
     type: string;
     title: string;
     description?: string | null;
     status: string;
-    customer_id?: number | null;
-    subscription_id?: number | null;
-    location_id?: number | null;
-    assigned_to?: number | null;
+    customer_id?: string | null;
+    subscription_id?: string | null;
+    location_id?: string | null;
+    assigned_to?: string | null;
     updated_at?: string | null;
-    ticket_id?: number | null;
+    ticket_id?: string | null;
     source: string;
     priority: string;
     scheduled_date?: string | null;
@@ -18,39 +18,39 @@ export interface WorkOrder {
     completed_at?: string | null;
     result?: string | null;
     rejection_reason?: string | null;
-    created_by: number;
+    created_by: string;
     created_at?: string;
-    customer?: { id: number; name: string; code: string } | null;
-    subscription?: { id: number; code: string } | null;
-    location?: { id: number; name: string; path?: string } | null;
-    assignee?: { id: number; name: string } | null;
+    customer?: { id: string; name: string; code: string } | null;
+    subscription?: { id: string; code: string } | null;
+    location?: { id: string; name: string; path?: string } | null;
+    assignee?: { id: string; name: string } | null;
     items?: WorkOrderItem[];
     assignments?: WorkOrderAssignment[];
     evidence?: WorkOrderEvidence[];
 }
 
 export interface WorkOrderItem {
-    id: number;
-    work_order_id: number;
-    product_id: number;
+    id: string;
+    work_order_id: string;
+    product_id: string;
     quantity_reserved: string;
     quantity_used: string;
     note?: string | null;
-    product?: { id: number; sku: string; name: string } | null;
+    product?: { id: string; sku: string; name: string } | null;
 }
 
 export interface WorkOrderAssignment {
-    id: number;
-    technician_id: number;
-    assigned_by: number;
+    id: string;
+    technician_id: string;
+    assigned_by: string;
     assigned_at: string;
     unassigned_at?: string | null;
     reason?: string | null;
-    technician?: { id: number; name: string } | null;
+    technician?: { id: string; name: string } | null;
 }
 
 export interface WorkOrderEvidence {
-    id: number;
+    id: string;
     type: string;
     url: string;
     file_path: string;
@@ -58,6 +58,6 @@ export interface WorkOrderEvidence {
     mime_type?: string | null;
     size_bytes?: number | null;
     caption?: string | null;
-    uploaded_by: number;
+    uploaded_by: string;
     uploaded_at: string;
 }

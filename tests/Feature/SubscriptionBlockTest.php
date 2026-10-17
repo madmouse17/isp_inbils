@@ -254,7 +254,7 @@ class SubscriptionBlockTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('subscription.data.blocked_at', fn ($value) => $value !== null)
                 ->where('subscription.data.block_reason', 'abuse report')
-                ->where('subscription.data.blocked_by', ['id' => $this->admin->id, 'name' => $this->admin->name])
+                ->where('subscription.data.blocked_by', ['id' => $this->admin->public_id, 'name' => $this->admin->name])
                 ->where('can.block', true));
 
         $this->actingAs($this->userWithRole('staff'))
@@ -294,7 +294,7 @@ class SubscriptionBlockTest extends TestCase
             ->get(route('admin.billing.receivables'))
             ->assertInertia(fn (Assert $page) => $page
                 ->has('rows.data.0.subscriptions', 1)
-                ->where('rows.data.0.subscriptions.0.id', $blockedSuspended->id)
+                ->where('rows.data.0.subscriptions.0.id', $blockedSuspended->public_id)
                 ->where('rows.data.0.subscriptions.0.status', 'suspended'));
 
         $this->unblock($blockedSuspended)->assertRedirect();

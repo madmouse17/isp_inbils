@@ -116,7 +116,7 @@ export default function Edit({
                 // is sent only when the user changed it.
                 ...(whatsapp_opt_in !== initialWhatsAppOptIn ? { whatsapp_opt_in } : {}),
                 ...(acquirerChanged
-                    ? { acquired_by_user_id: acquirer_id === '' ? null : Number(acquirer_id) }
+                    ? { acquired_by_user_id: acquirer_id === '' ? null : acquirer_id }
                     : {}),
                 ...(requireReason
                     ? { acquirer_correction_reason: acquirer_correction_reason.trim() }
@@ -260,7 +260,7 @@ export default function Edit({
 
                             <TabPanel value="addresses">
                                 <CustomerAddressEditor
-                                    customerId={Number(c.id)}
+                                    customerId={c.id}
                                     addresses={addresses}
                                     regions={regions}
                                     geocodeResults={geocodeResults}
@@ -271,7 +271,7 @@ export default function Edit({
 
                             <TabPanel value="contacts">
                                 <CustomerContactEditor
-                                    customerId={Number(c.id)}
+                                    customerId={c.id}
                                     contacts={contacts}
                                     canManage={can.contact && !readOnly}
                                 />

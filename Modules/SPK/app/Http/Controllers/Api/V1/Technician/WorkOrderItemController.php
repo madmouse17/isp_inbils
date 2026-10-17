@@ -25,7 +25,7 @@ class WorkOrderItemController extends Controller
      *
      * A line the manager planned (a reservation or a note) stays with `quantity_used` 0; a line that held nothing but this use is deleted. The answer is 204 either way, so read the SPK again to see which. A serialized asset line is refused with 422.
      */
-    public function destroy(Request $request, WorkOrder $wo, int $item): Response
+    public function destroy(Request $request, WorkOrder $wo, string $item): Response
     {
         SpkService::removeMaterial($wo, $item, $request->user());
 

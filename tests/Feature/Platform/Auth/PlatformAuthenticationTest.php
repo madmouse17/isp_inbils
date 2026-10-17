@@ -110,7 +110,7 @@ class PlatformAuthenticationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Platform/Auth/TwoFactorSetup')
-                ->where('platform.admin.id', $admin->id)
+                ->where('platform.admin.id', $admin->public_id)
                 ->where('platform.admin.email', $admin->email)
                 ->where('platform.admin.two_factor_enabled', false)
                 ->where('app.locale', 'id')

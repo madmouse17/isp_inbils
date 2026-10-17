@@ -18,8 +18,8 @@ import type { RemoteOption } from '@/Components/composite';
 import { optionsOf, PRIORITY, TICKET_SOURCE } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    categories: { data: { id: number; name: string }[] };
-    locations: { data: { id: number; name: string; code: string }[] };
+    categories: { data: { id: string; name: string }[] };
+    locations: { data: { id: string; name: string; code: string }[] };
     canChooseLocation: boolean;
     /** Sent only after a search: `customer_search`, `subscription_search` and `networkAsset_search` ask for them. */
     customerOptions?: RemoteOption[];

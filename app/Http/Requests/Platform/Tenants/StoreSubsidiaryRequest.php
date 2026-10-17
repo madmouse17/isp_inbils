@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Platform\Tenants;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\Company;
+use App\Models\User;
 use DateTimeZone;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -14,6 +16,14 @@ use Illuminate\Validation\Rule;
  */
 class StoreSubsidiaryRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['member_ids.*' => User::class];
+    }
+
     public function authorize(): bool
     {
         return true;

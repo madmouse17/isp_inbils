@@ -1,6 +1,6 @@
 # Push notifications (FCM) for the customer and technician apps
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `push-notifications`
 Source: owner 2026-10-16: "pada download ada google-service.json untuk customer apakah bisa untuk firebase push notification, kurang apalagi jika ingin teknisi juga" → P1 "jadikan lane" = ya; P2 (assistant registers the apps and creates the service-account key in the owner's Chrome) = ya.
 

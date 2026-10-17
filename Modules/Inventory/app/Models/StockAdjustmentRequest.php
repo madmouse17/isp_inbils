@@ -5,6 +5,7 @@ namespace Modules\Inventory\Models;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -28,6 +29,7 @@ use Illuminate\Support\Carbon;
 class StockAdjustmentRequest extends Model
 {
     use BelongsToCompany;
+    use HasPublicId;
 
     protected $fillable = [
         'company_id',

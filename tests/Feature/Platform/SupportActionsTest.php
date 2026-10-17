@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Notifications\Platform\TenantAdminInvitation;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Platform\SupportToolsService;
+use App\Support\PublicId;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -133,7 +134,7 @@ class SupportActionsTest extends TestCase
         $this->resetTwoFactor($this->alpha['child'], $this->alpha['branch'])->assertNotFound();
         $this->resend($this->alpha['child'], $this->alpha['branch'])->assertNotFound();
         $this->unlock($this->alpha['child'], $this->alpha['branch'])->assertNotFound();
-        $this->asOperator()->post('/platform/companies/'.$root->id.'/users/999999/unlock')->assertNotFound();
+        $this->asOperator()->post('/platform/companies/'.$root->public_id.'/users/'.PublicId::new().'/unlock')->assertNotFound();
 
         $this->assertTrue($stranger->fresh()->hasTwoFactorEnabled(), 'another tenant\'s second factor is untouched');
         $this->assertSame(1, RateLimiter::attempts($lock), 'and so is its lock');
@@ -387,21 +388,23 @@ class SupportActionsTest extends TestCase
             ->assertJsonPath('meta.last_page', 2)
             ->assertJsonPath('window_days', 30);
 
-        $this->assertSame(array_slice($mine, 0, 10), array_column($first->json('data'), 'id'), 'newest first');
+        $uuids = DB::table('failed_jobs')->whereIn('id', $mine)->pluck('uuid', 'id')->all();
+        $mine = array_map(fn (int $id): string => $uuids[$id], $mine);
+
+        $this->assertSame(array_slice($mine, 0, 10), array_column($first->json('data'), 'uuid'), 'newest first');
         $this->assertSame([
-            'id' => $mine[0],
-            'uuid' => DB::table('failed_jobs')->where('id', $mine[0])->value('uuid'),
+            'uuid' => $mine[0],
             'queue' => 'default',
             'job' => 'App\\Jobs\\ExampleJob',
             'exception' => 'RuntimeException: boom 1',
-            'company' => ['id' => $this->alpha['child']->id, 'code' => 'ALP-C'],
+            'company' => ['id' => $this->alpha['child']->public_id, 'code' => 'ALP-C'],
             'failed_at' => '2026-10-20T11:59:00+00:00',
         ], $first->json('data.0'));
         $this->assertStringNotContainsString('payload', json_encode($first->json('data')));
         $this->assertStringNotContainsString('trace', json_encode($first->json('data')));
 
         $second = $this->asOperator(false)->getJson(route('platform.companies.failed-jobs', [$this->alpha['root'], 'per_page' => 10, 'page' => 2]))->assertOk();
-        $this->assertSame(array_slice($mine, 10), array_column($second->json('data'), 'id'));
+        $this->assertSame(array_slice($mine, 10), array_column($second->json('data'), 'uuid'));
     }
 
     public function test_the_failed_notification_list_holds_this_tenants_failed_messages_alone_newest_first_and_is_paginated(): void
@@ -421,6 +424,9 @@ class SupportActionsTest extends TestCase
             ->assertJsonPath('meta.total', 12)
             ->assertJsonPath('meta.last_page', 2);
 
+        $publicIds = DB::table('whatsapp_messages')->whereIn('id', $mine)->pluck('public_id', 'id')->all();
+        $mine = array_map(fn (int $id): string => $publicIds[$id], $mine);
+
         $this->assertSame(array_slice($mine, 0, 10), array_column($first->json('data'), 'id'));
         $this->assertSame([
             'id' => $mine[0],
@@ -428,7 +434,7 @@ class SupportActionsTest extends TestCase
             'template' => 't',
             'error_code' => '131026',
             'recipient_last4' => '7890',
-            'company' => ['id' => $this->alpha['child']->id, 'code' => 'ALP-C'],
+            'company' => ['id' => $this->alpha['child']->public_id, 'code' => 'ALP-C'],
             'failed_at' => '2026-10-19T12:00:00+00:00',
         ], $first->json('data.0'));
 

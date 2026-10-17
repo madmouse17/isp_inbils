@@ -25,9 +25,9 @@ final class StockMovementReferences
         $requestItemType = (new InventoryRequestItem())->getMorphClass();
 
         $workOrderItems = self::items($movements, $workOrderItemType, fn (array $ids) => WorkOrderItem::query()
-            ->whereIn('id', $ids)->with('workOrder:id,company_id,code')->get()->keyBy('id'));
+            ->whereIn('id', $ids)->with('workOrder:id,public_id,company_id,code')->get()->keyBy('id'));
         $requestItems = self::items($movements, $requestItemType, fn (array $ids) => InventoryRequestItem::query()
-            ->whereIn('id', $ids)->with('inventoryRequest:id,company_id,code,requested_by')->get()->keyBy('id'));
+            ->whereIn('id', $ids)->with('inventoryRequest:id,public_id,company_id,code,requested_by')->get()->keyBy('id'));
 
         $references = [];
         foreach ($movements as $movement) {
@@ -48,11 +48,19 @@ final class StockMovementReferences
                     'admin.inventory.requests.show',
                     $actor,
                 ),
-                default => ['label' => class_basename($movement->reference_type).' #'.$movement->reference_id, 'url' => null],
+                default => ['label' => self::fallbackLabel($movement), 'url' => null],
             };
         }
 
         return $references;
+    }
+
+    /** A reference to anything else: its type and public id, or the type alone when the record is gone. */
+    public static function fallbackLabel(StockMovement $movement): string
+    {
+        $publicId = $movement->referencePublicId();
+
+        return class_basename((string) $movement->reference_type).($publicId === null ? '' : ' #'.$publicId);
     }
 
     /**
@@ -76,7 +84,7 @@ final class StockMovementReferences
 
         return [
             'label' => $noun.' '.$target->code,
-            'url' => $actor->can('view', $target) ? route($route, $target->getKey(), false) : null,
+            'url' => $actor->can('view', $target) ? route($route, $target, false) : null,
         ];
     }
 }

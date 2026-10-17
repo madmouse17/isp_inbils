@@ -47,7 +47,7 @@ test('@platform operator creates a tenant', async ({ page }) => {
     await page.getByLabel('Email admin').fill(email);
     await page.getByRole('button', { name: 'Buat perusahaan' }).click();
 
-    await expect(page).toHaveURL(/\/platform\/companies\/\d+$/);
+    await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(
         page.getByRole('main').getByRole('heading', { name: 'E2E Platform Created' }),
     ).toBeVisible();
@@ -125,7 +125,7 @@ test('@platform operator requests a tenant export once and sees it queued', asyn
     }
 
     await page.getByRole('link', { name: 'Semua ekspor' }).click();
-    await expect(page).toHaveURL(/\/platform\/exports\?company_id=\d+$/);
+    await expect(page).toHaveURL(/\/platform\/exports\?company_id=[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(
         page.getByRole('main').getByRole('cell', { name: 'Antrean', exact: true }),
     ).toBeVisible();
@@ -167,5 +167,5 @@ test('@platform operator starts and stops support access from the company page',
     const banner = page.getByRole('region', { name: 'Akses dukungan' });
     await expect(banner).toContainText('E2E Suspend Admin');
     await banner.getByRole('button', { name: 'Keluar' }).click();
-    await expect(page).toHaveURL(/\/platform\/companies\/\d+$/);
+    await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
 });

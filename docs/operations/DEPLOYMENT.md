@@ -191,7 +191,14 @@ The export reads column types from the database, so run it against a migrated on
 ./vendor/bin/sail exec laravel.test flock /tmp/inbils-phpunit.lock php -d memory_limit=1G artisan test --compact tests/Feature/Api/V1/OpenApiContractTest.php
 ```
 
-The path comes from `config/scramble.php` (`export_path`). The export prints 5 known warnings (two `Rule::in(self::STATUSES)` that cannot be evaluated, three resources without a model); they do not mean drift. Without a migrated database it prints one warning per model and the file changes, so check `git diff` before committing. Where inference is wrong the code carries a PHPDoc hint (`@var` on an array key, `@response` on `InvoiceController::show`, `@return` on the ticket comment resources and `MyWorkItemResource`).
+The path comes from `config/scramble.php` (`export_path`). The export prints 6 known warnings (two `Rule::in(self::STATUSES)` that cannot be evaluated, the rest resources without a model); they do not mean drift. Without a migrated database it prints one warning per model and the file changes, so check `git diff` before committing. Where inference is wrong the code carries a PHPDoc hint (`@var` on an array key, `@response` on `InvoiceController::show`, `@return` on the ticket comment resources and `MyWorkItemResource`).
+
+## Opaque ids release (lane `opaque-ids`)
+
+- The web, the API (OpenAPI 1.1.0, string ids) and both apps ship together; there is no dual-accept period.
+- `php artisan migrate --force` adds `public_id` to 59 tables with a chunked backfill and can be run again after a failure. `activity_log` is updated row by row, so on a large audit log it takes minutes: take the backup first and keep maintenance mode on until it ends.
+- `TRUSTED_PROXIES` (`.env` or the container environment; comma-separated proxy addresses, CIDR ranges allowed, `*` only when the proxy is the single way in): set it behind a reverse proxy or load balancer, a TLS terminator in front of port 8080 for one. Empty, the default, trusts nobody, so every visitor is seen at the proxy's address: the per-address throttles (logins, API, WhatsApp webhook) share one budget and the audit entries carry the proxy's address. The enumeration limiter counts signed-in users only, so it does not depend on it. Other keys (defaults in `config/security.php`): `SECURITY_ENUMERATION_ENABLED`, `SECURITY_ENUMERATION_THRESHOLD` (30), `SECURITY_ENUMERATION_WINDOW` (5 minutes), `SECURITY_ENUMERATION_COOLDOWN` (10 minutes).
+- Old integer links answer 404; users reopen records from the lists.
 
 ## Health and readiness
 

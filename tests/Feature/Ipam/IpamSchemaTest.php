@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Ipam;
 
+use App\Support\Database\PublicIdColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -62,6 +63,8 @@ class IpamSchemaTest extends TestCase
                     $migration->up();
                 }
             }
+
+            PublicIdColumn::add(array_keys(self::MIGRATIONS));
         }
     }
 

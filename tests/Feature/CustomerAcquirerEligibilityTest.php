@@ -66,8 +66,8 @@ class CustomerAcquirerEligibilityTest extends TestCase
         $this->employee('manager', $this->otherCompany, ['name' => 'Foreign Seller']);
 
         $this->assertSame([
-            ['id' => $amy->id, 'name' => 'Amy Seller', 'is_active' => true, 'employee_number' => 'EMP-A'],
-            ['id' => $zed->id, 'name' => 'Zed Seller', 'is_active' => true, 'employee_number' => 'EMP-Z'],
+            ['id' => $amy->public_id, 'name' => 'Amy Seller', 'is_active' => true, 'employee_number' => 'EMP-A'],
+            ['id' => $zed->public_id, 'name' => 'Zed Seller', 'is_active' => true, 'employee_number' => 'EMP-Z'],
         ], CustomerAcquirerQuery::options($this->company->id));
     }
 
@@ -86,8 +86,8 @@ class CustomerAcquirerEligibilityTest extends TestCase
 
         $this->assertSame(
             [
-                ['id' => $eligible->id, 'name' => 'Eligible Seller', 'is_active' => true],
-                ['id' => $former->id, 'name' => 'Former Seller', 'is_active' => false],
+                ['id' => $eligible->public_id, 'name' => 'Eligible Seller', 'is_active' => true],
+                ['id' => $former->public_id, 'name' => 'Former Seller', 'is_active' => false],
             ],
             array_map(fn (array $option): array => array_intersect_key($option, array_flip(['id', 'name', 'is_active'])), $options),
         );

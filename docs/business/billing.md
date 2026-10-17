@@ -327,7 +327,8 @@ uji tercatat sebagai pembayaran sungguhan pada invoice). `MIDTRANS_BASE_URL`
 
 ### payment_attempts
 `company_id`, `invoice_id`, `order_id` (unik global, ≤ 50 karakter,
-`{company_id}-{invoice_id}-{12 acak}`), `amount`, `status`
+`INB-{ULID}`, tanpa id company atau invoice; attempt lama tetap memakai
+`{company_id}-{invoice_id}-{12 acak}` dan dicari lewat `order_id` yang sama), `amount`, `status`
 (`pending|paid|failed|expired|exception`), `status_reason`, `snap_token` dan
 `redirect_url` (tidak pernah diserialisasi/ditampilkan), `transaction_id`,
 `payment_type`, `last_notification` (JSON tanpa `signature_key`),

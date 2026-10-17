@@ -20,7 +20,7 @@ class UserHistoryQuery
             ->where('user_id', $user->id)
             ->whereNull('deleted_at')
             ->orderBy('id')
-            ->get(['id', 'code', 'name']);
+            ->get(['id', 'public_id', 'code', 'name']);
         $customerIds = $customers->pluck('id');
 
         // ponytail: cap each tab at 50 rows; add tab-specific server pagination when a user routinely exceeds it.
@@ -36,7 +36,7 @@ class UserHistoryQuery
                 })
                 ->latest('created_at')
                 ->limit(self::LIMIT)
-                ->get(['id', 'number', 'status', 'issue_date', 'due_date', 'total', 'paid_amount', 'created_at'])
+                ->get(['public_id as id', 'number', 'status', 'issue_date', 'due_date', 'total', 'paid_amount', 'created_at'])
                 ->map(fn (object $row): array => (array) $row)
                 ->all()
             : [];
@@ -54,7 +54,7 @@ class UserHistoryQuery
                 })
                 ->latest('created_at')
                 ->limit(self::LIMIT)
-                ->get(['id', 'code', 'title', 'priority', 'status', 'resolved_at', 'created_at'])
+                ->get(['public_id as id', 'code', 'title', 'priority', 'status', 'resolved_at', 'created_at'])
                 ->map(fn (object $row): array => (array) $row)
                 ->all()
             : [];
@@ -72,7 +72,7 @@ class UserHistoryQuery
                 })
                 ->latest('created_at')
                 ->limit(self::LIMIT)
-                ->get(['id', 'code', 'title', 'type', 'priority', 'status', 'scheduled_date', 'completed_at', 'created_at'])
+                ->get(['public_id as id', 'code', 'title', 'type', 'priority', 'status', 'scheduled_date', 'completed_at', 'created_at'])
                 ->map(fn (object $row): array => (array) $row)
                 ->all()
             : [];
@@ -80,7 +80,7 @@ class UserHistoryQuery
         $linkedCustomer = $customers->first();
 
         return [
-            'linked_customer' => $linkedCustomer ? (array) $linkedCustomer : null,
+            'linked_customer' => $linkedCustomer ? ['id' => $linkedCustomer->public_id, 'code' => $linkedCustomer->code, 'name' => $linkedCustomer->name] : null,
             'invoices' => $invoices,
             'tickets' => $tickets,
             'work_orders' => $workOrders,

@@ -56,7 +56,7 @@ class PaymentReversalTest extends TestCase
         $payment = BillingService::recordPayment($invoice, 40000, 'transfer', 'PAY-REV-1');
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'wrong amount'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'wrong amount'])
             ->assertRedirect();
 
         $fresh = $payment->fresh();
@@ -82,7 +82,7 @@ class PaymentReversalTest extends TestCase
         $this->assertSame('paid', $invoice->fresh()->status);
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'duplicate'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'duplicate'])
             ->assertRedirect();
 
         $invoice = $invoice->fresh();
@@ -103,7 +103,7 @@ class PaymentReversalTest extends TestCase
         $this->assertSame('paid', $invoice->fresh()->status);
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'overcharge'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'overcharge'])
             ->assertRedirect();
 
         $invoice = $invoice->fresh();
@@ -121,11 +121,11 @@ class PaymentReversalTest extends TestCase
         $payment = BillingService::recordPayment($invoice, 40000, 'cash', 'PAY-2X');
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'first'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'first'])
             ->assertRedirect();
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'second'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'second'])
             ->assertStatus(422);
     }
 
@@ -138,7 +138,7 @@ class PaymentReversalTest extends TestCase
         $payment = BillingService::recordPayment($invoice, 40000, 'cash', 'PAY-SELF');
 
         $this->actingAs($recorder)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'oops'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'oops'])
             ->assertStatus(422);
 
         $this->assertNull($payment->fresh()->cancelled_at);
@@ -163,7 +163,7 @@ class PaymentReversalTest extends TestCase
         }
 
         $this->actingAs($otherCompanyUser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'cross-tenant'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'cross-tenant'])
             ->assertNotFound();
     }
 
@@ -174,7 +174,7 @@ class PaymentReversalTest extends TestCase
         $invoice = $this->makeInvoice($user, 100000);
 
         $this->actingAs($user)
-            ->post(route('admin.invoices.cancel', $invoice->id), ['reason' => 'customer request'])
+            ->post(route('admin.invoices.cancel', $invoice), ['reason' => 'customer request'])
             ->assertRedirect();
 
         $fresh = $invoice->fresh();
@@ -193,15 +193,15 @@ class PaymentReversalTest extends TestCase
         $payment = BillingService::recordPayment($invoice, 40000, 'cash', 'PAY-DEADEND');
 
         $this->actingAs($recorder)
-            ->post(route('admin.invoices.cancel', $invoice->id), ['reason' => 'nope'])
+            ->post(route('admin.invoices.cancel', $invoice), ['reason' => 'nope'])
             ->assertStatus(422);
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'no longer needed'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'no longer needed'])
             ->assertRedirect();
 
         $this->actingAs($recorder)
-            ->post(route('admin.invoices.cancel', $invoice->id), ['reason' => 'customer request'])
+            ->post(route('admin.invoices.cancel', $invoice), ['reason' => 'customer request'])
             ->assertRedirect();
 
         $this->assertSame('cancelled', $invoice->fresh()->status);
@@ -214,7 +214,7 @@ class PaymentReversalTest extends TestCase
         $this->actingAs($recorder);
         $invoice = $this->makeInvoice($recorder, 100000);
         $payment = BillingService::recordPayment($invoice, 40000, 'cash', 'PAY-RBAC');
-        $url = route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]);
+        $url = route('admin.invoices.payments.reverse', [$invoice, $payment]);
 
         $this->actingAs($this->userWithRole('staff', (int) $recorder->company_id))->post($url, ['reason' => 'sneaky'])->assertForbidden();
         $this->actingAs($this->userWithRole('technician', (int) $recorder->company_id))->post($url, ['reason' => 'sneaky'])->assertRedirect(route('app-only'));
@@ -232,7 +232,7 @@ class PaymentReversalTest extends TestCase
         $payment = BillingService::recordPayment($invoice, 40000, 'transfer', 'PAY-AUDIT');
 
         $this->actingAs($reverser)
-            ->post(route('admin.invoices.payments.reverse', [$invoice->id, $payment->id]), ['reason' => 'audited reason'])
+            ->post(route('admin.invoices.payments.reverse', [$invoice, $payment]), ['reason' => 'audited reason'])
             ->assertRedirect();
 
         $activity = Activity::query()

@@ -106,13 +106,13 @@ class NetworkAccountHttpTest extends TestCase
             ->where('isolatedBecause', [])
             ->where('radiusEnabled', true)
             ->where('can', ['manage' => true, 'reveal' => true])
-            ->where('subscription.id', $this->subscription->id)
+            ->where('subscription.id', $this->subscription->public_id)
             ->where('subscription.code', $this->subscription->code)
             ->where('subscription.status', 'active')
             ->where('subscription.blocked_at', null)
-            ->where('subscription.customer', ['id' => $this->subscription->customer_id, 'name' => $this->subscription->customer->name])
+            ->where('subscription.customer', ['id' => $this->subscription->customer->public_id, 'name' => $this->subscription->customer->name])
             ->where('subscription.speed_profile.radius_profile_name', 'home-20m')
-            ->where('subscription.serving_pop', ['id' => $this->pop->id, 'name' => 'POP Dago'])
+            ->where('subscription.serving_pop', ['id' => $this->pop->public_id, 'name' => 'POP Dago'])
             ->missing('nasOptions')
             ->missing('installEnabled'));
         $this->assertSame(['id', 'code', 'status', 'blocked_at', 'customer', 'speed_profile', 'serving_pop'], array_keys($response->inertiaProps()['subscription']));

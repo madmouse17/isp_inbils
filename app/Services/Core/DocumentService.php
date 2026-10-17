@@ -4,6 +4,8 @@ namespace App\Services\Core;
 
 use App\Models\Core\Customer;
 use App\Models\Core\DocumentType;
+use App\Models\User;
+use App\Support\RecordNotFound;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -15,7 +17,7 @@ class DocumentService
 {
     private const DEFAULT_COLLECTION = 'documents';
 
-    public static function resolveUploadTarget(string $modelType, int|string $modelId): Customer
+    public static function resolveUploadTarget(string $modelType, string $modelId): Customer
     {
         return self::resolveCustomerTarget($modelType, $modelId);
     }
@@ -52,17 +54,20 @@ class DocumentService
     {
         self::assertCustomerTarget($model);
 
-        return $model->getMedia(self::normalizeCollection($collection))->map(fn (Media $media) => [
-            'id' => $media->id,
-            'file_name' => $media->file_name,
-            'mime_type' => $media->mime_type,
-            'size' => $media->size,
-            'collection' => $media->collection_name,
-            'document_type' => $media->getCustomProperty('document_type_code'),
-            'uploaded_by' => $media->getCustomProperty('uploaded_by'),
-            'expires_at' => $media->getCustomProperty('expires_at'),
-            'url' => route('admin.media.show', $media, false),
-            'created_at' => $media->created_at,
+        $media = $model->getMedia(self::normalizeCollection($collection));
+        $uploaders = User::query()->whereIn('id', $media->map(fn (Media $item): mixed => $item->getCustomProperty('uploaded_by'))->filter()->unique()->values())->pluck('public_id', 'id');
+
+        return $media->map(fn (Media $item) => [
+            'id' => $item->public_id,
+            'file_name' => $item->file_name,
+            'mime_type' => $item->mime_type,
+            'size' => $item->size,
+            'collection' => $item->collection_name,
+            'document_type' => $item->getCustomProperty('document_type_code'),
+            'uploaded_by' => $uploaders->get($item->getCustomProperty('uploaded_by')),
+            'expires_at' => $item->getCustomProperty('expires_at'),
+            'url' => route('admin.media.show', $item, false),
+            'created_at' => $item->created_at,
         ]);
     }
 
@@ -70,7 +75,7 @@ class DocumentService
     {
         self::resolveDeleteTarget($media);
         Gate::authorize('system.setting');
-        abort_unless($media->collection_name === self::DEFAULT_COLLECTION, 404);
+        RecordNotFound::abortUnless($media->collection_name === self::DEFAULT_COLLECTION);
 
         return $media->delete();
     }
@@ -80,32 +85,32 @@ class DocumentService
         return self::resolveMediaTarget($media);
     }
 
-    private static function resolveCustomerTarget(string $modelType, int|string $modelId): Customer
+    private static function resolveCustomerTarget(string $modelType, string $modelId): Customer
     {
-        abort_unless(self::normalizeModelType($modelType) === Customer::class, 404);
+        RecordNotFound::abortUnless(self::normalizeModelType($modelType) === Customer::class);
 
-        $model = Customer::withoutCompany()->find($modelId);
-        abort_unless($model instanceof Customer, 404);
-        abort_unless((int) $model->company_id === (int) CompanyService::currentId(), 404);
+        $model = Customer::withoutCompany()->wherePublicId($modelId)->first();
+        RecordNotFound::abortUnless($model instanceof Customer);
+        RecordNotFound::abortUnless((int) $model->company_id === (int) CompanyService::currentId());
 
         return $model;
     }
 
     private static function resolveMediaTarget(Media $media): Customer
     {
-        abort_unless(self::normalizeModelType((string) $media->model_type) === Customer::class, 404);
+        RecordNotFound::abortUnless(self::normalizeModelType((string) $media->model_type) === Customer::class);
 
         $model = Customer::withoutCompany()->find($media->model_id);
-        abort_unless($model instanceof Customer, 404);
-        abort_unless((int) $model->company_id === (int) CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($model instanceof Customer);
+        RecordNotFound::abortUnless((int) $model->company_id === (int) CompanyService::currentId());
 
         return $model;
     }
 
     private static function assertCustomerTarget(HasMedia $model): Customer
     {
-        abort_unless($model instanceof Customer, 404);
-        abort_unless((int) $model->company_id === (int) CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($model instanceof Customer);
+        RecordNotFound::abortUnless((int) $model->company_id === (int) CompanyService::currentId());
 
         return $model;
     }
@@ -117,7 +122,7 @@ class DocumentService
         }
 
         $documentType = DocumentType::where('code', trim($documentTypeCode))->first();
-        abort_unless($documentType instanceof DocumentType, 404);
+        RecordNotFound::abortUnless($documentType instanceof DocumentType);
 
         return $documentType;
     }
@@ -125,7 +130,7 @@ class DocumentService
     private static function normalizeCollection(?string $collection): string
     {
         $collection = trim((string) ($collection ?: self::DEFAULT_COLLECTION));
-        abort_unless($collection === self::DEFAULT_COLLECTION, 404);
+        RecordNotFound::abortUnless($collection === self::DEFAULT_COLLECTION);
 
         return self::DEFAULT_COLLECTION;
     }

@@ -29,7 +29,7 @@ class ProductPickerTest extends TestCase
         $technician = $this->technicianLogin();
         $foreigner = $this->technicianLogin();
         $this->product($technician, 'Patch Cord', 'PC-001', 'pcs');
-        $this->product($technician, 'Drop Cable', 'DC-001', 'mtr');
+        $drop = $this->product($technician, 'Drop Cable', 'DC-001', 'mtr');
         $this->product($technician, 'Old Cable', 'DC-OLD', 'mtr', ['is_active' => false]);
         $this->product($technician, 'ONT', 'ONT-1', 'pcs', ['type' => 'asset']);
         $this->product($technician, 'Gone Cable', 'DC-GONE', 'mtr')->delete();
@@ -40,7 +40,7 @@ class ProductPickerTest extends TestCase
 
         $this->assertSame(['Cable Tie', 'Drop Cable', 'Patch Cord'], array_column($response->json('data'), 'name'));
         $this->assertSame(['id', 'sku', 'name', 'unit'], array_keys($response->json('data.1')));
-        $this->assertSame(['DC-001', 'mtr'], [$response->json('data.1.sku'), $response->json('data.1.unit')]);
+        $this->assertSame(['DC-001', 'mtr', $drop->public_id], [$response->json('data.1.sku'), $response->json('data.1.unit'), $response->json('data.1.id')]);
         $this->assertSame('pcs', $response->json('data.0.unit'));
         $response->assertJsonPath('meta.total', 3)->assertJsonPath('meta.per_page', 20)->assertJsonPath('meta.current_page', 1);
     }
@@ -106,8 +106,8 @@ class ProductPickerTest extends TestCase
         $response = $this->api('GET', 'technician/warehouses', token: $this->issueToken($technician, 'technician'))->assertOk();
 
         $this->assertSame([
-            ['id' => $alpha->id, 'name' => 'Gudang Alpha', 'code' => 'GD-A'],
-            ['id' => $zulu->id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z'],
+            ['id' => $alpha->public_id, 'name' => 'Gudang Alpha', 'code' => 'GD-A'],
+            ['id' => $zulu->public_id, 'name' => 'Gudang Zulu', 'code' => 'GD-Z'],
         ], $response->json('data'));
         $this->assertSame(['data'], array_keys($response->json()));
     }

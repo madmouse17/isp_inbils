@@ -6,7 +6,7 @@ async function linkedCustomerId(page: Parameters<typeof inertiaProps>[0]) {
         page,
         `/admin/customers?search=${encodeURIComponent(e2eCustomerName)}`,
     );
-    const rows = data.props?.customers?.data as Array<{ id: number; name: string }> | undefined;
+    const rows = data.props?.customers?.data as Array<{ id: string; name: string }> | undefined;
     const customer = rows?.find((row) => row.name === e2eCustomerName);
     if (!customer) throw new Error('E2E linked customer fixture not found');
     return customer.id;

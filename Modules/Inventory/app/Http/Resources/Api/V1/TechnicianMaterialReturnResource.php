@@ -21,19 +21,19 @@ class TechnicianMaterialReturnResource extends JsonResource
         $case = $this->resource;
 
         return [
-            'id' => $case->id,
+            'id' => $case->public_id,
             'status' => $case->status,
             'inventory_request' => $case->relationLoaded('inventoryRequest') ? [
-                'id' => $case->inventoryRequest->id,
+                'id' => $case->inventoryRequest->public_id,
                 'code' => $case->inventoryRequest->code,
                 'status' => $case->inventoryRequest->status,
             ] : null,
             'work_order' => $case->relationLoaded('workOrder') && $case->workOrder !== null ? [
-                'id' => $case->workOrder->id,
+                'id' => $case->workOrder->public_id,
                 'code' => $case->workOrder->code,
             ] : null,
             'warehouse_location' => $case->relationLoaded('warehouseLocation') && $case->warehouseLocation !== null ? [
-                'id' => $case->warehouseLocation->id,
+                'id' => $case->warehouseLocation->public_id,
                 'name' => $case->warehouseLocation->name,
                 'code' => $case->warehouseLocation->code,
             ] : null,
@@ -42,9 +42,9 @@ class TechnicianMaterialReturnResource extends JsonResource
             'rejection_reason' => $case->rejection_reason,
             'resolution_note' => $case->resolution_note,
             'lines' => $case->lines->map(fn (MaterialReturnLine $line): array => [
-                'id' => $line->id,
+                'id' => $line->public_id,
                 'product' => [
-                    'id' => $line->product_id,
+                    'id' => $line->product->public_id,
                     'name' => $line->product->name,
                     'sku' => $line->product->sku,
                     /** @var string|null */

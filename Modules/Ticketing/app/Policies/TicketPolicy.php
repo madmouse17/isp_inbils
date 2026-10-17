@@ -4,8 +4,14 @@ namespace Modules\Ticketing\Policies;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use Illuminate\Auth\Access\Response;
 use Modules\Ticketing\Models\Ticket;
 
+/**
+ * A denial that comes from WHERE the ticket is (another company's, another customer's, another handler's) answers
+ * like a ticket that does not exist: a 404 (spec .scratch/opaque-ids, K3). A missing permission, or a status the
+ * ticket is not in, stays a 403. An ability the user lacks on a ticket they cannot see answers like seeing it.
+ */
 class TicketPolicy
 {
     public function viewAny(User $user): bool
@@ -13,14 +19,18 @@ class TicketPolicy
         return $user->can('ticket.view');
     }
 
-    public function view(User $user, Ticket $ticket): bool
+    public function view(User $user, Ticket $ticket): Response|bool
     {
         if (! $this->sameCompany($user, $ticket)) {
-            return false;
+            return Response::denyAsNotFound();
         }
 
         if ($this->isCustomerUser($user)) {
-            return $user->can('ticket.view') && $this->ownsTicket($user, $ticket);
+            if (! $user->can('ticket.view')) {
+                return false;
+            }
+
+            return $this->ownsTicket($user, $ticket) ?: Response::denyAsNotFound();
         }
 
         if (! $user->can('ticket.view')) {
@@ -29,7 +39,7 @@ class TicketPolicy
 
         if (($user->can('ticket.start') || $user->can('ticket.resolve') || $user->can('ticket.close'))
             && ! $user->can('ticket.assign')) {
-            return $this->isAssignedEligibleHandler($user, $ticket);
+            return $this->isAssignedEligibleHandler($user, $ticket) ?: Response::denyAsNotFound();
         }
 
         return true;
@@ -45,13 +55,16 @@ class TicketPolicy
         return $this->create($user);
     }
 
-    public function comment(User $user, Ticket $ticket): bool
+    public function comment(User $user, Ticket $ticket): Response|bool
     {
-        return $this->sameCompany($user, $ticket)
-            && (! $this->isCustomerUser($user) || $this->ownsTicket($user, $ticket));
+        if (! $this->sameCompany($user, $ticket) || ($this->isCustomerUser($user) && ! $this->ownsTicket($user, $ticket))) {
+            return Response::denyAsNotFound();
+        }
+
+        return true;
     }
 
-    public function attach(User $user, Ticket $ticket): bool
+    public function attach(User $user, Ticket $ticket): Response|bool
     {
         return $this->comment($user, $ticket);
     }
@@ -66,14 +79,18 @@ class TicketPolicy
         return $this->update($user, $ticket);
     }
 
-    public function delete(User $user, Ticket $ticket): bool
+    public function delete(User $user, Ticket $ticket): Response|bool
     {
-        return $this->sameCompany($user, $ticket) && $user->can('ticket.delete');
+        return $this->sameCompany($user, $ticket) ? $user->can('ticket.delete') : Response::denyAsNotFound();
     }
 
-    public function assign(User $user, Ticket $ticket): bool
+    public function assign(User $user, Ticket $ticket): Response|bool
     {
-        if (! $user->is_active || ! $this->sameCompany($user, $ticket)) {
+        if (! $this->sameCompany($user, $ticket)) {
+            return Response::denyAsNotFound();
+        }
+
+        if (! $user->is_active) {
             return false;
         }
 
@@ -84,14 +101,37 @@ class TicketPolicy
         return $user->can('ticket.assign');
     }
 
-    public function reassign(User $user, Ticket $ticket): bool
+    public function reassign(User $user, Ticket $ticket): Response|bool
     {
-        return $this->sameCompany($user, $ticket)
-            && $ticket->assigned_to !== null
-            && $user->can('ticket.reassign');
+        if (! $this->sameCompany($user, $ticket)) {
+            return Response::denyAsNotFound();
+        }
+
+        return $ticket->assigned_to !== null && $user->can('ticket.reassign');
     }
 
-    public function start(User $user, Ticket $ticket): bool
+    public function start(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->mayStart($user, $ticket) ?: $this->refusal($user, $ticket);
+    }
+
+    public function resolve(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->mayResolve($user, $ticket) ?: $this->refusal($user, $ticket);
+    }
+
+    /** A checker (any ticket.close holder in the company other than the handler who resolved it) closes the work. */
+    public function close(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->mayClose($user, $ticket) ?: $this->refusal($user, $ticket);
+    }
+
+    public function spawnSpk(User $user, Ticket $ticket): Response|bool
+    {
+        return $this->sameCompany($user, $ticket) ? $user->can('ticket.spawn_spk') : Response::denyAsNotFound();
+    }
+
+    private function mayStart(User $user, Ticket $ticket): bool
     {
         return $this->sameCompany($user, $ticket)
             && $ticket->status === 'assigned'
@@ -99,7 +139,7 @@ class TicketPolicy
             && $this->isAssignedEligibleHandler($user, $ticket);
     }
 
-    public function resolve(User $user, Ticket $ticket): bool
+    private function mayResolve(User $user, Ticket $ticket): bool
     {
         return $this->sameCompany($user, $ticket)
             && $ticket->status === 'on_progress'
@@ -107,8 +147,7 @@ class TicketPolicy
             && $this->isAssignedEligibleHandler($user, $ticket);
     }
 
-    /** A checker (any ticket.close holder in the company other than the handler who resolved it) closes the work. */
-    public function close(User $user, Ticket $ticket): bool
+    private function mayClose(User $user, Ticket $ticket): bool
     {
         return $this->sameCompany($user, $ticket)
             && $user->is_active
@@ -117,9 +156,12 @@ class TicketPolicy
             && $user->can('ticket.close');
     }
 
-    public function spawnSpk(User $user, Ticket $ticket): bool
+    /** What the user is told when an ability is refused: nothing they could not already see of the ticket. */
+    private function refusal(User $user, Ticket $ticket): Response|bool
     {
-        return $this->sameCompany($user, $ticket) && $user->can('ticket.spawn_spk');
+        $view = $this->view($user, $ticket);
+
+        return $view === true ? false : $view;
     }
 
     private function sameCompany(User $user, Ticket $ticket): bool
@@ -139,9 +181,9 @@ class TicketPolicy
     private function canActOnCurrentStatus(User $user, Ticket $ticket): bool
     {
         return match ($ticket->status) {
-            'assigned' => $this->start($user, $ticket),
-            'on_progress' => $this->resolve($user, $ticket),
-            'resolved' => $this->close($user, $ticket),
+            'assigned' => $this->mayStart($user, $ticket),
+            'on_progress' => $this->mayResolve($user, $ticket),
+            'resolved' => $this->mayClose($user, $ticket),
             default => false,
         };
     }

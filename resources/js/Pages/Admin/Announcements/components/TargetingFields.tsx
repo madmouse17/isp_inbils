@@ -79,7 +79,7 @@ export function TargetingFields({
         onLocationsChange([
             ...locations,
             {
-                id: Number(option.value),
+                id: option.value,
                 name: option.label,
                 description: option.description ?? undefined,
             },

@@ -5,6 +5,7 @@ namespace Modules\SPK\Policies;
 use App\Models\Core\EmployeeProfile;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use Illuminate\Auth\Access\Response;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
@@ -15,10 +16,10 @@ class WorkOrderPolicy
         return $user->can('spk.view');
     }
 
-    public function view(User $user, WorkOrder $wo): bool
+    public function view(User $user, WorkOrder $wo): Response|bool
     {
         if (! $this->sameCompany($user, $wo)) {
-            return false;
+            return Response::denyAsNotFound();
         }
 
         if (! $user->can('spk.view')) {
@@ -26,6 +27,14 @@ class WorkOrderPolicy
         }
 
         return true;
+    }
+
+    /** The technician apps only ever see their own SPKs: another technician's SPK, or another company's, does not exist for them. */
+    public function assignedTo(User $user, WorkOrder $wo): Response|bool
+    {
+        return $this->sameCompany($user, $wo) && $wo->assigned_to !== null && (int) $wo->assigned_to === (int) $user->id
+            ? true
+            : Response::denyAsNotFound();
     }
 
     public function create(User $user): bool

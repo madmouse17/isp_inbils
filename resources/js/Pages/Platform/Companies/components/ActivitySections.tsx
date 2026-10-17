@@ -165,6 +165,7 @@ export function ActivitySections({
                     columns={jobColumns}
                     fullColumns={fullJobColumns}
                     url={route('platform.companies.failed-jobs', tenant.id)}
+                    rowKey="uuid"
                 />
                 <FailedListCard
                     title="WhatsApp gagal"

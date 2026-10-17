@@ -41,7 +41,8 @@ class TicketCategoryAdminTest extends TestCase
                 ->has('categories', 2)
                 ->where('categories.0.name', 'Fiber')
                 ->where('categories.0.is_active', false)
-                ->where('categories.1', fn ($row) => $row['code'] === 'no_internet'
+                ->where('categories.1', fn ($row) => $row['id'] === $this->category->public_id
+                    && $row['code'] === 'no_internet'
                     && $row['default_sla_hours'] === 4
                     && $row['default_response_hours'] === 2
                     && $row['is_active'] === true)
@@ -139,7 +140,7 @@ class TicketCategoryAdminTest extends TestCase
     {
         $foreign = $this->category(Company::factory()->create(), 'foreign', 'Foreign', 8, 4);
 
-        $this->actingAs($this->user('admin'))->put(route('admin.ticket-categories.update', $foreign->id), $this->payload())->assertNotFound();
+        $this->actingAs($this->user('admin'))->put(route('admin.ticket-categories.update', $foreign->public_id), $this->payload())->assertNotFound();
 
         $this->assertSame('Foreign', TicketCategory::withoutCompany()->find($foreign->id)->name);
     }

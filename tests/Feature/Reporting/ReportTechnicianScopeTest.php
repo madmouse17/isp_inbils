@@ -83,14 +83,14 @@ class ReportTechnicianScopeTest extends TestCase
         $this->actingAs($this->manager);
 
         foreach ([$this->inScope, $this->sameUnit] as $technician) {
-            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->id]))->assertOk();
+            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->public_id]))->assertOk();
             $this->drill($technician, 'spk_completed')->assertOk();
         }
 
         foreach ([$this->outOfScope, $this->foreign] as $technician) {
-            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->id]))->assertForbidden();
+            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->public_id]))->assertForbidden();
             $this->drill($technician, 'spk_completed')->assertForbidden();
-            $this->get(route('admin.reports.technician.drill.export', ['metric' => 'spk_completed', 'technician_id' => $technician->id]))->assertForbidden();
+            $this->get(route('admin.reports.technician.drill.export', ['metric' => 'spk_completed', 'technician_id' => $technician->public_id]))->assertForbidden();
         }
     }
 
@@ -102,7 +102,7 @@ class ReportTechnicianScopeTest extends TestCase
         $this->actingAs($wildManager);
 
         foreach ([$this->inScope, $this->sameUnit] as $technician) {
-            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->id]))->assertForbidden();
+            $this->get(route('admin.reports.technician.export', ['technician_id' => $technician->public_id]))->assertForbidden();
             $this->drill($technician, 'spk_completed')->assertForbidden();
         }
     }
@@ -121,7 +121,7 @@ class ReportTechnicianScopeTest extends TestCase
         $this->assertTrue($own->inertiaProps('tie_out.matches'));
 
         foreach ([$this->sameUnit, $this->outOfScope, $this->foreign] as $other) {
-            $this->get(route('admin.reports.technician.export', ['technician_id' => $other->id]))->assertForbidden();
+            $this->get(route('admin.reports.technician.export', ['technician_id' => $other->public_id]))->assertForbidden();
             $this->drill($other, 'spk_completed')->assertForbidden();
         }
     }
@@ -150,7 +150,7 @@ class ReportTechnicianScopeTest extends TestCase
     public function test_technician_lists_tie_out_to_the_screen(): void
     {
         $this->actingAs($this->admin);
-        $screen = $this->get(route('admin.reports.technician', ['technician_id' => $this->inScope->id, ...self::JANUARY]))->assertOk();
+        $screen = $this->get(route('admin.reports.technician', ['technician_id' => $this->inScope->public_id, ...self::JANUARY]))->assertOk();
 
         $this->assertSame(2, $screen->inertiaProps('data.spk_completed'));
         $this->assertSame(2, $screen->inertiaProps('data.tickets_resolved'));
@@ -208,7 +208,7 @@ class ReportTechnicianScopeTest extends TestCase
     public function test_the_technician_summary_file_matches_the_screen(): void
     {
         $this->actingAs($this->admin);
-        $query = ['technician_id' => $this->inScope->id, ...self::JANUARY];
+        $query = ['technician_id' => $this->inScope->public_id, ...self::JANUARY];
 
         $screen = $this->get(route('admin.reports.technician', $query))->assertOk();
         $figures = $this->csvFigures($this->get(route('admin.reports.technician.export', $query)));
@@ -238,7 +238,7 @@ class ReportTechnicianScopeTest extends TestCase
         $response = $this->get(route('admin.reports.sla.drill', ['metric' => 'total_resolved', ...self::JANUARY]));
 
         $this->assertSame(1, $response->inertiaProps('tie_out.rows'));
-        $this->assertSame($mine->id, $response->inertiaProps('rows.data.0.id'));
+        $this->assertSame($mine->public_id, $response->inertiaProps('rows.data.0.id'));
         $this->assertTrue($response->inertiaProps('tie_out.restricted'));
         $this->assertNull($response->inertiaProps('tie_out.matches'), 'a handler sees a part of the figure, so it cannot be proven');
 
@@ -259,7 +259,7 @@ class ReportTechnicianScopeTest extends TestCase
         $response = $this->get(route('admin.reports.business.drill', ['metric' => 'installation_count', ...self::JANUARY]));
 
         $this->assertSame(1, $response->inertiaProps('tie_out.rows'));
-        $this->assertSame($mine->id, $response->inertiaProps('rows.data.0.id'));
+        $this->assertSame($mine->public_id, $response->inertiaProps('rows.data.0.id'));
         $this->assertTrue($response->inertiaProps('tie_out.restricted'));
     }
 
@@ -283,7 +283,7 @@ class ReportTechnicianScopeTest extends TestCase
     /** @param  array<string, mixed>  $query */
     private function drill(User $technician, string $metric, array $query = []): TestResponse
     {
-        return $this->get(route('admin.reports.technician.drill', ['metric' => $metric, 'technician_id' => $technician->id, ...$query]));
+        return $this->get(route('admin.reports.technician.drill', ['metric' => $metric, 'technician_id' => $technician->public_id, ...$query]));
     }
 
     private function unit(string $path, ?OrganizationUnit $parent = null, ?int $companyId = null): OrganizationUnit

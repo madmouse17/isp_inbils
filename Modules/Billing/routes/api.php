@@ -8,8 +8,8 @@ use Modules\Billing\Http\Controllers\Api\V1\Customer\PaymentController as Custom
 
 Route::middleware('api.customer')->prefix('customer')->name('customer.')->group(function (): void {
     Route::get('invoices', [CustomerInvoiceController::class, 'index'])->middleware('can:portal.invoice.view')->name('invoices.index');
-    Route::get('invoices/{id}', [CustomerInvoiceController::class, 'show'])->whereNumber('id')->middleware('can:portal.invoice.view')->name('invoices.show');
-    Route::get('invoices/{id}/receipt', CustomerInvoiceReceiptController::class)->whereNumber('id')->middleware(['can:portal.invoice.view', 'throttle:api-receipt'])->name('invoices.receipt');
-    Route::post('invoices/{id}/pay', CustomerInvoicePayController::class)->whereNumber('id')->middleware(['can:portal.invoice.pay', 'throttle:api-pay'])->name('invoices.pay');
+    Route::get('invoices/{id}', [CustomerInvoiceController::class, 'show'])->whereUlid('id')->middleware('can:portal.invoice.view')->name('invoices.show');
+    Route::get('invoices/{id}/receipt', CustomerInvoiceReceiptController::class)->whereUlid('id')->middleware(['can:portal.invoice.view', 'throttle:api-receipt'])->name('invoices.receipt');
+    Route::post('invoices/{id}/pay', CustomerInvoicePayController::class)->whereUlid('id')->middleware(['can:portal.invoice.pay', 'throttle:api-pay'])->name('invoices.pay');
     Route::get('payments', [CustomerPaymentController::class, 'index'])->middleware('can:portal.invoice.view')->name('payments.index');
 });

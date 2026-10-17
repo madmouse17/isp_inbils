@@ -20,7 +20,7 @@ import type { ServiceSubscription } from '@/types/models';
 import { packageGroupOptions, type PackageGroup } from '@/lib/packageGroups';
 
 interface SubIndexProps {
-    customer: { id: number; code: string; name: string };
+    customer: { id: string; code: string; name: string };
     subscriptions: {
         data: ServiceSubscription[];
         current_page: number;
@@ -30,7 +30,7 @@ interface SubIndexProps {
     };
     /** Active packages by category, ordered for this customer's type. */
     packageGroups: PackageGroup[];
-    addresses: { data: { id: number; label: string; address: string }[] };
+    addresses: { data: { id: string; label: string; address: string }[] };
     filters: {
         search?: string;
         service_package_id?: string;

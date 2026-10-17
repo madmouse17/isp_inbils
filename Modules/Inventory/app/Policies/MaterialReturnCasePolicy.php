@@ -5,6 +5,7 @@ namespace Modules\Inventory\Policies;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Auth\Access\Response;
 use Modules\Inventory\Models\MaterialReturnCase;
 
 class MaterialReturnCasePolicy
@@ -17,10 +18,10 @@ class MaterialReturnCasePolicy
             || $user->hasPermissionTo('inventory.return.view.all');
     }
 
-    public function view(User $user, MaterialReturnCase $case): bool
+    public function view(User $user, MaterialReturnCase $case): bool|Response
     {
         if ($case->company_id !== CompanyService::idFor($user)) {
-            return false;
+            return $this->denyAsNotFound();
         }
 
         if ($user->hasPermissionTo('inventory.return.view.all')) {
@@ -28,7 +29,7 @@ class MaterialReturnCasePolicy
         }
 
         if ($user->hasPermissionTo('inventory.return.view.own')) {
-            return (int) $case->technician_id === (int) $user->id;
+            return (int) $case->technician_id === (int) $user->id ? true : $this->denyAsNotFound();
         }
 
         return false;

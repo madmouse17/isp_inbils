@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Support\NumberSequences\ResetPeriod;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Database\Factories\NumberSequenceFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -26,6 +27,7 @@ class NumberSequence extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     /** Largest value the unsigned integer column `next_number` holds. */
     public const MAX_NUMBER = 4_294_967_295;

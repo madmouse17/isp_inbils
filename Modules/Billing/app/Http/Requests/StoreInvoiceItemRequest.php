@@ -2,12 +2,22 @@
 
 namespace Modules\Billing\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Models\Product;
 
 class StoreInvoiceItemRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['product_id' => Product::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('billing.update') ?? false;

@@ -39,18 +39,18 @@ class SubscriptionInstallationAddressTest extends TestCase
         $this->company = $this->admin->company;
     }
 
-    private function update(ServiceSubscription $subscription, int $addressId): TestResponse
+    private function update(ServiceSubscription $subscription, string $addressId): TestResponse
     {
         return $this->actingAs($this->admin)
             ->put(route('admin.subscriptions.update', $subscription), ['installation_address_id' => $addressId]);
     }
 
-    private function store(Customer $customer, int $addressId): TestResponse
+    private function store(Customer $customer, string $addressId): TestResponse
     {
         $package = ServicePackageFactory::new()->create(['company_id' => $this->company->id]);
 
         return $this->actingAs($this->admin)->post(route('admin.customers.subscriptions.store', $customer), [
-            'service_package_id' => $package->id,
+            'service_package_id' => $package->public_id,
             'installation_address_id' => $addressId,
             'billing_day' => 5,
         ]);
@@ -67,23 +67,28 @@ class SubscriptionInstallationAddressTest extends TestCase
     }
 
     /** The installation address of a subscription of another customer of the same company. */
-    private function addressOfAnotherCustomer(): int
+    private function addressOfAnotherCustomer(): string
     {
-        return $this->subscriptionIn($this->company)->installation_address_id;
+        return $this->publicIdOfAddress($this->subscriptionIn($this->company)->installation_address_id);
     }
 
     /** The installation address of a subscription of another company. */
-    private function addressOfAnotherCompany(): int
+    private function addressOfAnotherCompany(): string
     {
-        return $this->subscriptionIn(Company::factory()->create(['is_active' => true]))->installation_address_id;
+        return $this->publicIdOfAddress($this->subscriptionIn(Company::factory()->create(['is_active' => true]))->installation_address_id);
     }
 
-    private function deletedAddressOf(Customer $customer): int
+    private function deletedAddressOf(Customer $customer): string
     {
         $address = $this->addressOf($customer);
         $address->delete();
 
-        return $address->id;
+        return $address->public_id;
+    }
+
+    private function publicIdOfAddress(int $addressId): string
+    {
+        return (string) CustomerAddress::withoutCompany()->whereKey($addressId)->value('public_id');
     }
 
     public function test_update_refuses_an_address_of_another_customer_of_the_company(): void
@@ -118,7 +123,7 @@ class SubscriptionInstallationAddressTest extends TestCase
         $subscription = $this->subscriptionIn($this->company);
         $second = $this->addressOf($subscription->customer);
 
-        $this->update($subscription, $second->id)->assertSessionHasNoErrors();
+        $this->update($subscription, $second->public_id)->assertSessionHasNoErrors();
 
         $this->assertSame($second->id, $this->freshSubscription($subscription)->installation_address_id);
     }
@@ -194,7 +199,7 @@ class SubscriptionInstallationAddressTest extends TestCase
         $customer = $this->customer();
         $address = $this->addressOf($customer);
 
-        $this->store($customer, $address->id)
+        $this->store($customer, $address->public_id)
             ->assertSessionHasNoErrors()
             ->assertRedirect(route('admin.customers.subscriptions.index', $customer));
 

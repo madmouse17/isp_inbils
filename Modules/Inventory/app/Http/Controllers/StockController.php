@@ -4,7 +4,9 @@ namespace Modules\Inventory\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Models\Core\Location;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -267,7 +269,7 @@ class StockController extends Controller
                 ->get();
 
             $results = $products->map(fn ($p) => [
-                'id' => $p->id,
+                'id' => $p->public_id,
                 'sku' => $p->sku,
                 'name' => $p->name,
                 'stocks' => $p->stocks->map(fn ($s) => [
@@ -301,7 +303,7 @@ class StockController extends Controller
         }
 
         return StockAdjustmentRequest::query()
-            ->with(['product', 'location', 'requester:id,name'])
+            ->with(['product', 'location', 'requester:id,public_id,name'])
             ->where('status', 'pending')
             ->when(! $canReview, fn (Builder $q) => $q->where('requested_by', $user->id))
             ->oldest('id')
@@ -314,8 +316,8 @@ class StockController extends Controller
     {
         $query = Stock::query()
             ->with(['product', 'location'])
-            ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where('location_id', $v))
-            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
+            ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where('location_id', PublicId::resolveOne(Location::class, $v, fn (Builder $location) => $location->withTrashed()) ?? 0))
+            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', PublicId::resolveOne(Product::class, $v, fn (Builder $product) => $product->withTrashed()) ?? 0))
             ->when($request->boolean('low_stock'), fn (Builder $q) => $q->whereHas('product', fn (Builder $product) => $product->withTrashed()->whereColumn('stocks.quantity', '<=', 'products.min_stock')))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $q) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
@@ -333,11 +335,12 @@ class StockController extends Controller
     {
         $query = StockMovement::query()
             ->with(['product', 'fromLocation', 'toLocation'])
-            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', $v))
+            ->when($request->input('product_id'), fn (Builder $q, $v) => $q->where('product_id', PublicId::resolveOne(Product::class, $v, fn (Builder $product) => $product->withTrashed()) ?? 0))
             ->when($request->input('movement_type'), fn (Builder $q, $v) => $q->where('movement_type', $v))
-            ->when($request->input('location_id'), fn (Builder $q, $v) => $q->where(function (Builder $sq) use ($v): void {
-                $sq->where('from_location_id', $v)->orWhere('to_location_id', $v);
-            }))
+            ->when($request->input('location_id'), function (Builder $q, $v): void {
+                $locationId = PublicId::resolveOne(Location::class, $v, fn (Builder $location) => $location->withTrashed()) ?? 0;
+                $q->where(fn (Builder $sq) => $sq->where('from_location_id', $locationId)->orWhere('to_location_id', $locationId));
+            })
             ->when(trim((string) $request->input('search')) !== '', function (Builder $q) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $q->where(function (Builder $sq) use ($term): void {

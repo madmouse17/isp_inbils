@@ -3,9 +3,9 @@ import { router } from '@inertiajs/react';
 import { SearchSelect } from '@/Components/ui/SearchSelect';
 import type { SearchSelectOption, SearchSelectProps } from '@/Components/ui/SearchSelect';
 
-/** An option as `App\Support\SearchOptions` sends it: the id may be a number. */
+/** An option as `App\Support\SearchOptions` sends it: every id is a ULID string. */
 export interface RemoteOption {
-    value: string | number;
+    value: string;
     label: string;
     description?: string | null;
 }
@@ -28,7 +28,7 @@ export interface RemoteSearchSelectProps extends Omit<
 }
 
 const toOption = (option: RemoteOption): SearchSelectOption => ({
-    value: String(option.value),
+    value: option.value,
     label: option.label,
     description: option.description ?? undefined,
 });

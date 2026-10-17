@@ -85,7 +85,7 @@ class IpamTenantAndPermissionMatrixTest extends TestCase
             'admin.ipam.prefixes.update' => fn () => $this->putJson(route('admin.ipam.prefixes.update', $r['prefix']), ['usage' => 'infrastructure']),
             'admin.ipam.prefixes.destroy' => fn () => $this->deleteJson(route('admin.ipam.prefixes.destroy', $r['prefix'])),
             'admin.ipam.reservations.store' => fn () => $this->postJson(route('admin.ipam.reservations.store', $r['prefix']), ['address' => '10.80.0.77']),
-            'admin.ipam.subscription-addresses.store' => fn () => $this->postJson(route('admin.ipam.subscription-addresses.store', $r['subscription']), ['ip_prefix_id' => $this->pool->id]),
+            'admin.ipam.subscription-addresses.store' => fn () => $this->postJson(route('admin.ipam.subscription-addresses.store', $r['subscription']), ['ip_prefix_id' => $this->pool->public_id]),
             'admin.ipam.addresses.destroy' => fn () => $this->deleteJson(route('admin.ipam.addresses.destroy', $r['address'])),
             'admin.ipam.vlans.index' => fn () => $this->get(route('admin.ipam.vlans.index')),
             'admin.ipam.vlans.store' => fn () => $this->postJson(route('admin.ipam.vlans.store'), ['vid' => 78, 'name' => 'New']),
@@ -156,13 +156,13 @@ class IpamTenantAndPermissionMatrixTest extends TestCase
         $before = $counts();
 
         $cases = [
-            'vlan_id on a new prefix' => [fn () => $this->postJson(route('admin.ipam.prefixes.store'), ['cidr' => '10.84.0.0/24', 'usage' => 'container', 'vlan_id' => $foreign['vlan']->id]), 'vlan_id'],
-            'location_id on a new prefix' => [fn () => $this->postJson(route('admin.ipam.prefixes.store'), ['cidr' => '10.84.0.0/24', 'usage' => 'container', 'location_id' => $foreignPop->id]), 'location_id'],
-            'vlan_id on a prefix update' => [fn () => $this->putJson(route('admin.ipam.prefixes.update', $mine['prefix']), ['usage' => 'infrastructure', 'vlan_id' => $foreign['vlan']->id]), 'vlan_id'],
-            'location_id on a prefix update' => [fn () => $this->putJson(route('admin.ipam.prefixes.update', $mine['prefix']), ['usage' => 'infrastructure', 'location_id' => $foreignPop->id]), 'location_id'],
-            'location_id on a new VLAN' => [fn () => $this->postJson(route('admin.ipam.vlans.store'), ['vid' => 78, 'name' => 'New', 'location_id' => $foreignPop->id]), 'location_id'],
-            'location_id on a VLAN update' => [fn () => $this->putJson(route('admin.ipam.vlans.update', $mine['vlan']), ['vid' => 901, 'name' => 'Renamed', 'location_id' => $foreignPop->id]), 'location_id'],
-            'ip_prefix_id on a static address' => [fn () => $this->postJson(route('admin.ipam.subscription-addresses.store', $mine['subscription']), ['ip_prefix_id' => $foreign['prefix']->id]), 'ip_prefix_id'],
+            'vlan_id on a new prefix' => [fn () => $this->postJson(route('admin.ipam.prefixes.store'), ['cidr' => '10.84.0.0/24', 'usage' => 'container', 'vlan_id' => $foreign['vlan']->public_id]), 'vlan_id'],
+            'location_id on a new prefix' => [fn () => $this->postJson(route('admin.ipam.prefixes.store'), ['cidr' => '10.84.0.0/24', 'usage' => 'container', 'location_id' => $foreignPop->public_id]), 'location_id'],
+            'vlan_id on a prefix update' => [fn () => $this->putJson(route('admin.ipam.prefixes.update', $mine['prefix']), ['usage' => 'infrastructure', 'vlan_id' => $foreign['vlan']->public_id]), 'vlan_id'],
+            'location_id on a prefix update' => [fn () => $this->putJson(route('admin.ipam.prefixes.update', $mine['prefix']), ['usage' => 'infrastructure', 'location_id' => $foreignPop->public_id]), 'location_id'],
+            'location_id on a new VLAN' => [fn () => $this->postJson(route('admin.ipam.vlans.store'), ['vid' => 78, 'name' => 'New', 'location_id' => $foreignPop->public_id]), 'location_id'],
+            'location_id on a VLAN update' => [fn () => $this->putJson(route('admin.ipam.vlans.update', $mine['vlan']), ['vid' => 901, 'name' => 'Renamed', 'location_id' => $foreignPop->public_id]), 'location_id'],
+            'ip_prefix_id on a static address' => [fn () => $this->postJson(route('admin.ipam.subscription-addresses.store', $mine['subscription']), ['ip_prefix_id' => $foreign['prefix']->public_id]), 'ip_prefix_id'],
         ];
 
         foreach ($cases as $label => [$send, $field]) {

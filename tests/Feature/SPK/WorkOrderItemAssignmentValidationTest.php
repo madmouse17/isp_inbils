@@ -111,8 +111,8 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.spk.items.store', $workOrder), [
-                'product_id' => $product->id,
-                'network_asset_id' => $wrongAsset->id,
+                'product_id' => $product->public_id,
+                'network_asset_id' => $wrongAsset->public_id,
                 'quantity_reserved' => 1,
             ])
             ->assertStatus(422)
@@ -190,7 +190,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $nonTechnician->id,
+                'technician_id' => $nonTechnician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -213,7 +213,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $roleOnly->id,
+                'technician_id' => $roleOnly->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -237,7 +237,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $malformed->id,
+                'technician_id' => $malformed->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -262,7 +262,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
             ->assertOk()->viewData('page')['props']['workOrder']['data'];
 
         $this->post(route('admin.spk.assign', $workOrder), [
-            'technician_id' => $technician->id,
+            'technician_id' => $technician->public_id,
             'expected_assigned_to' => $shown['assigned_to'] ?? null,
             'expected_updated_at' => $shown['updated_at'],
         ])
@@ -292,7 +292,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $operator->id,
+                'technician_id' => $operator->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])
@@ -337,7 +337,7 @@ class WorkOrderItemAssignmentValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.spk.assign', $workOrder), [
-                'technician_id' => $technician->id,
+                'technician_id' => $technician->public_id,
                 'expected_assigned_to' => null,
                 'expected_updated_at' => $workOrder->fresh()->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'),
             ])

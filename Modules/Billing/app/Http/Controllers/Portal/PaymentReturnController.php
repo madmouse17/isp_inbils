@@ -24,7 +24,7 @@ class PaymentReturnController extends Controller
         $orderId = $request->query('order_id');
 
         $attempt = PaymentAttempt::query()
-            ->with('invoice:id,number')
+            ->with('invoice:id,public_id,number')
             ->whereIn('invoice_id', Invoice::query()->whereBelongsTo($customer)->select('id'))
             ->when(is_string($orderId), fn ($query) => $query->where('order_id', $orderId))
             ->latest('id')
@@ -35,7 +35,7 @@ class PaymentReturnController extends Controller
                 'status' => $attempt->status,
                 'amount' => $attempt->amount,
                 'settled_at' => $attempt->settled_at?->toIso8601String(),
-                'invoice' => ['id' => $attempt->invoice->id, 'number' => $attempt->invoice->number],
+                'invoice' => ['id' => $attempt->invoice->public_id, 'number' => $attempt->invoice->number],
             ],
         ]);
     }

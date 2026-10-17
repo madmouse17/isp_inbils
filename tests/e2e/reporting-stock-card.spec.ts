@@ -21,7 +21,7 @@ async function expectRowsToContainExactly(page: Page, notes: string[]) {
 
 async function seededProductId(page: Page) {
     const { props } = await inertiaProps(page, '/admin/products?search=E2E-STOCK-PRODUCT');
-    const products = (props?.products?.data ?? []) as { id: number; sku: string }[];
+    const products = (props?.products?.data ?? []) as { id: string; sku: string }[];
     const product = products.find((item) => item.sku === 'E2E-STOCK-PRODUCT');
     expect(product, 'E2E-STOCK-PRODUCT fixture').toBeTruthy();
     return String(product!.id);

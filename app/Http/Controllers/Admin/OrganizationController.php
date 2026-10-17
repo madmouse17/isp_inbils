@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MoveOrganizationRequest;
 use App\Http\Requests\Admin\StoreOrganizationRequest;
 use App\Http\Requests\Admin\UpdateOrganizationRequest;
 use App\Http\Resources\OrganizationResource;
@@ -17,7 +18,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -45,7 +45,7 @@ class OrganizationController extends Controller
             ->withQueryString();
 
         $parentOptions = OrganizationUnit::query()
-            ->select(['id', 'code', 'name', 'type', 'path'])
+            ->select(['id', 'public_id', 'code', 'name', 'type', 'path'])
             ->where('is_active', true)
             ->orderBy('path')
             ->orderBy('code')
@@ -79,12 +79,10 @@ class OrganizationController extends Controller
         return back()->with('success', 'Unit organisasi diperbarui.');
     }
 
-    public function move(Request $request, OrganizationUnit $organization_unit): RedirectResponse
+    public function move(MoveOrganizationRequest $request, OrganizationUnit $organization_unit): RedirectResponse
     {
-        Gate::authorize('update', $organization_unit);
-        $companyId = CompanyService::currentId();
-        $data = $request->validate(['parent_id' => ['nullable', Rule::exists('organization_units', 'id')->where('company_id', $companyId)]]);
-        OrganizationService::move($organization_unit, array_key_exists('parent_id', $data) ? $data['parent_id'] : null);
+        $parentId = $request->validated('parent_id');
+        OrganizationService::move($organization_unit, $parentId === null ? null : (int) $parentId);
 
         return back()->with('success', 'Unit organisasi dipindahkan.');
     }

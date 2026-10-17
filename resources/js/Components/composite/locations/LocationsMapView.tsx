@@ -14,7 +14,7 @@ import { useMapDefault } from '@/hooks/useMapDefault';
 export type LocationType = keyof typeof LOCATION_TYPE;
 
 export interface MapMarker {
-    id: number;
+    id: string;
     code: string;
     name: string;
     type: LocationType;

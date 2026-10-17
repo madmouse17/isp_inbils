@@ -145,12 +145,12 @@ class ReportExportAccessTest extends TestCase
         $this->actingAs($technician)->get(route('admin.reports.technician.export'))->assertOk();
     }
 
-    /** @return array<string, int> */
+    /** @return array<string, string> */
     private function queryFor(string $slug, User $user): array
     {
         return match ($slug) {
-            'stock-card' => ['product_id' => $this->productIn($user)->id],
-            'technician' => ['technician_id' => $this->technicianInCompany((int) $user->company_id)->id],
+            'stock-card' => ['product_id' => $this->productIn($user)->public_id],
+            'technician' => ['technician_id' => $this->technicianInCompany((int) $user->company_id)->public_id],
             default => [],
         };
     }

@@ -5,7 +5,10 @@ namespace Modules\Reporting\Exports;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\AuditProperties;
 use App\Support\ExportQuery;
+use App\Support\RecordNotFound;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Modules\Inventory\Models\StockMovement;
@@ -14,10 +17,12 @@ use Modules\Reporting\Exceptions\ConsolidationRefusedException;
 use Modules\Reporting\Http\Requests\ConsolidatedReportRequest;
 use Modules\Reporting\Http\Requests\ReportDrillExportRequest;
 use Modules\Reporting\Http\Requests\ReportExportRequest;
+use Modules\Reporting\Http\Resources\AuditLogResource;
 use Modules\Reporting\Queries\AuditLogQuery;
 use Modules\Reporting\Queries\ConsolidatedBusinessQuery;
 use Modules\Reporting\Queries\ReportFilters;
 use Modules\Reporting\Queries\StockCardQuery;
+use Modules\Reporting\Queries\StockMovementReferences;
 use Modules\Reporting\Registry\DateBasis;
 use Modules\Reporting\Registry\MetricDefinition;
 use Modules\Reporting\Registry\MetricRegistry;
@@ -88,7 +93,7 @@ final class ReportExporter
         }
 
         $filters = new ReportFilters(companyId: (int) $request->head()->id, dateFrom: $request->dateFrom(), dateTo: $request->dateTo());
-        $names = $companies->pluck('name', 'id');
+        $names = $companies->pluck('name', 'public_id');
 
         $rows = [];
         foreach ($report['rows'] as $row) {
@@ -121,10 +126,12 @@ final class ReportExporter
 
     private static function stockCard(ReportExportRequest $request): StreamedResponse
     {
+        // The product is a record of the company: an unknown or foreign one answers like any record that is not there.
+        $product = $request->record('product_id') ?? RecordNotFound::abort();
         $ledger = StockCardQuery::ledger(
             (int) CompanyService::currentId(),
-            $request->integer('product_id'),
-            $request->integer('location_id') ?: null,
+            $product['id'],
+            $request->record('location_id')['id'] ?? null,
             $request->dateFrom(),
             $request->dateTo(),
             (string) ($request->input('sort_by') ?? $request->input('sort') ?? 'created_at'),
@@ -143,7 +150,7 @@ final class ReportExporter
             'Saldo setelah' => $movement->balance_after,
             'Dari' => $movement->fromLocation?->getAttribute('name'),
             'Ke' => $movement->toLocation?->getAttribute('name'),
-            'Referensi' => $movement->reference_type === null ? null : class_basename($movement->reference_type).' #'.$movement->reference_id,
+            'Referensi' => $movement->reference_type === null ? null : StockMovementReferences::fallbackLabel($movement),
             'Catatan' => $movement->note,
         ];
 
@@ -160,7 +167,7 @@ final class ReportExporter
     private static function auditLog(ReportExportRequest $request): StreamedResponse
     {
         $listing = AuditLogQuery::listing(
-            userId: $request->integer('user_id') ?: null,
+            userId: $request->record('user_id')['id'] ?? null,
             logName: $request->input('log_name'),
             dateFrom: $request->dateFrom(),
             dateTo: $request->dateTo(),
@@ -168,7 +175,7 @@ final class ReportExporter
             event: $request->input('event'),
             sortField: (string) ($request->input('sort_by') ?? $request->input('sort') ?? 'created_at'),
             sortDirection: (string) ($request->input('sort_dir') ?? $request->input('direction') ?? 'desc'),
-        );
+        )->afterQuery(fn (EloquentCollection $activities) => AuditLogResource::loadSubjects($activities));
 
         $columns = [
             'ID' => 'id', 'Waktu' => 'time', 'Modul' => 'module', 'Aksi' => 'event', 'Deskripsi' => 'description',
@@ -184,20 +191,20 @@ final class ReportExporter
             $causer = $activity->causer;
             $platformCauser = $causer instanceof PlatformAdmin;
             $row = [
-                'ID' => $activity->id,
+                'ID' => $activity->public_id,
                 'Waktu' => $activity->created_at?->toDateTimeString(),
                 'Modul' => $activity->log_name,
                 'Aksi' => $activity->event,
                 'Deskripsi' => $activity->description,
-                'Pelaku' => $platformCauser ? 'Tim dukungan Inbils' : ($causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna #'.$activity->causer_id : 'Sistem')),
-                'ID pelaku' => $platformCauser ? null : $activity->causer_id,
+                'Pelaku' => $platformCauser ? 'Tim dukungan Inbils' : ($causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna dihapus' : 'Sistem')),
+                'ID pelaku' => $causer instanceof User ? $causer->public_id : null,
                 'Jenis subjek' => $activity->subject_type,
-                'ID subjek' => $activity->subject_id,
+                'ID subjek' => $activity->relationLoaded('subject') ? $activity->subject?->getAttribute('public_id') : null,
             ];
 
             if ($withProperties) {
-                $properties = $activity->properties;
-                $row['Properti'] = $properties?->isNotEmpty() ? json_encode($properties->toArray(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : '';
+                $properties = AuditProperties::forDisplay($activity->properties?->toArray() ?? []);
+                $row['Properti'] = $properties === [] ? '' : json_encode($properties, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             }
 
             return $row;

@@ -5,6 +5,7 @@ namespace Tests\Feature\NetworkAsset;
 use App\Models\Core\Company;
 use App\Models\Core\Location;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
@@ -67,7 +68,7 @@ class NasDeviceHttpTest extends TestCase
     private function payload(NetworkAsset $asset, array $overrides = []): array
     {
         return $overrides + [
-            'network_asset_id' => $asset->id,
+            'network_asset_id' => $asset->public_id,
             'nasname' => '198.51.100.'.(100 + $asset->id % 100),
             'coa_port' => 1700,
             'radius_secret' => 'fake-radius-secret-1',
@@ -94,7 +95,7 @@ class NasDeviceHttpTest extends TestCase
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
             ->has('nasDevices.data', 1)
-            ->where('nasDevices.data.0.id', $mine->id)
+            ->where('nasDevices.data.0.id', $mine->public_id)
             ->where('nasDevices.data.0.nasname', $mine->nasname)
             ->where('nasDevices.data.0.shortname', $this->realm)
             ->where('nasDevices.data.0.coa_port', 1700)
@@ -115,13 +116,13 @@ class NasDeviceHttpTest extends TestCase
         $second->forceFill(['nasname' => '203.0.113.77'])->save();
 
         $this->get(route('admin.nas-devices.index', ['search' => 'zzz']))
-            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $first->id));
+            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $first->public_id));
         $this->get(route('admin.nas-devices.index', ['search' => 'Edge']))
-            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->id));
+            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->public_id));
         $this->get(route('admin.nas-devices.index', ['search' => '203.0.113']))
-            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->id));
+            ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 1)->where('nasDevices.data.0.id', $second->public_id));
         $this->get(route('admin.nas-devices.index', ['sort_by' => 'code', 'sort_dir' => 'asc']))
-            ->assertInertia(fn (Assert $page) => $page->where('nasDevices.data.0.id', $second->id)->where('nasDevices.data.1.id', $first->id));
+            ->assertInertia(fn (Assert $page) => $page->where('nasDevices.data.0.id', $second->public_id)->where('nasDevices.data.1.id', $first->public_id));
         $this->get(route('admin.nas-devices.index', ['search' => '%']))
             ->assertInertia(fn (Assert $page) => $page->has('nasDevices.data', 0));
     }
@@ -145,7 +146,7 @@ class NasDeviceHttpTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'props.routerAssetOptions')
             ->assertJsonPath('props.routerAssetOptions.0', [
-                'value' => $free->id,
+                'value' => $free->public_id,
                 'label' => "{$free->code} - {$free->name} - POP Dago",
                 'description' => $free->management_ip,
             ]);
@@ -202,7 +203,7 @@ class NasDeviceHttpTest extends TestCase
     {
         $asset = $this->routerAsset();
 
-        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->id, 'radius_secret' => 'fake-radius-secret-2'])->assertRedirect();
+        $this->post(route('admin.nas-devices.store'), ['network_asset_id' => $asset->public_id, 'radius_secret' => 'fake-radius-secret-2'])->assertRedirect();
 
         $nas = NasDevice::query()->firstOrFail();
         $this->assertSame([$asset->management_ip, 1700], [$nas->nasname, $nas->coa_port]);
@@ -255,6 +256,7 @@ class NasDeviceHttpTest extends TestCase
             'no management ip' => [$this->payload($this->routerAsset(attributes: ['management_ip' => null])), 'network_asset_id'],
             'already registered' => [$this->payload($registered->networkAsset), 'network_asset_id'],
             'unknown asset' => [$this->payload($registered->networkAsset, ['network_asset_id' => 999999]), 'network_asset_id'],
+            'unknown asset id in the right format' => [$this->payload($registered->networkAsset, ['network_asset_id' => PublicId::new()]), 'network_asset_id'],
             'address not an IPv4' => [$this->payload($this->routerAsset(), ['nasname' => 'router.example.net']), 'nasname'],
             'address is IPv6' => [$this->payload($this->routerAsset(), ['nasname' => '2001:db8::1']), 'nasname'],
             'address used here' => [$this->payload($this->routerAsset(), ['nasname' => $registered->nasname]), 'nasname'],
@@ -301,7 +303,7 @@ class NasDeviceHttpTest extends TestCase
         $response = $this->get(route('admin.nas-devices.show', $nas));
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('nasDevice.id', $nas->id)
+            ->where('nasDevice.id', $nas->public_id)
             ->has('sessions', 2)
             ->where('isolirUrl', route('isolir.show', $this->company->code))
             ->where('radiusEnabled', true)
@@ -310,7 +312,7 @@ class NasDeviceHttpTest extends TestCase
         $this->assertSame($this->contractKeys(), array_keys($props['nasDevice']));
         $byUser = collect($props['sessions'])->keyBy('username');
         $this->assertSame(['session_id', 'nas_ip', 'nas_label', 'framed_ip', 'started_at', 'updated_at', 'username', 'subscription'], array_keys($byUser["alice@{$this->realm}"]));
-        $this->assertSame(['id' => $subscription->id, 'code' => $subscription->code], $byUser["alice@{$this->realm}"]['subscription']);
+        $this->assertSame(['id' => $subscription->public_id, 'code' => $subscription->code], $byUser["alice@{$this->realm}"]['subscription']);
         $this->assertNull($byUser["ghost@{$this->realm}"]['subscription']);
         $this->assertSame($nas->networkAsset->code.' - '.$nas->networkAsset->name, $byUser["alice@{$this->realm}"]['nas_label']);
         $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($props));
@@ -335,11 +337,11 @@ class NasDeviceHttpTest extends TestCase
         $response = $this->get(route('admin.nas-devices.edit', $nas));
 
         $response->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('nasDevice.id', $nas->id)
+            ->where('nasDevice.id', $nas->public_id)
             ->where('nasDevice.has_radius_secret', true)
             ->where('realm', $this->realm)
             ->has('routerAssets', 1)
-            ->where('routerAssets.0.id', $nas->network_asset_id));
+            ->where('routerAssets.0.id', $nas->networkAsset->public_id));
         $this->assertStringNotContainsString('fake-radius-shared-secret', json_encode($response->inertiaProps()));
     }
 
@@ -424,7 +426,7 @@ class NasDeviceHttpTest extends TestCase
 
         $this->putJson(route('admin.nas-devices.update', $nas), ['coa_port' => 70000, 'radius_secret' => 'short', 'nasname' => $other->nasname])
             ->assertUnprocessable()->assertJsonValidationErrors(['coa_port', 'radius_secret', 'nasname']);
-        $this->put(route('admin.nas-devices.update', $nas), ['network_asset_id' => $asset->id, 'coa_port' => 13799])->assertRedirect();
+        $this->put(route('admin.nas-devices.update', $nas), ['network_asset_id' => $asset->public_id, 'coa_port' => 13799])->assertRedirect();
 
         $this->assertNotSame($asset->id, $nas->fresh()->network_asset_id);
     }
@@ -462,7 +464,7 @@ class NasDeviceHttpTest extends TestCase
     public function test_the_reachability_check_route_is_gone(): void
     {
         $this->assertFalse(Route::has('admin.nas-devices.check'));
-        $this->post('/admin/nas-devices/'.$this->nasDevice()->id.'/check')->assertNotFound();
+        $this->post('/admin/nas-devices/'.$this->nasDevice()->public_id.'/check')->assertNotFound();
     }
 
     public function test_every_route_needs_its_permission(): void

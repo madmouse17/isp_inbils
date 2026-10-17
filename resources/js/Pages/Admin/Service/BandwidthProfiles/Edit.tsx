@@ -16,7 +16,7 @@ import { PageHeader } from '@/Components/composite';
 import { BANDWIDTH_TYPE, optionsOf } from '@/lib/statuses';
 
 interface BwData {
-    id: number;
+    id: string;
     name: string;
     download_mbps: number;
     upload_mbps: number;

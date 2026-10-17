@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Ticketing;
 
 use App\Models\Core\Company;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,7 @@ class ResponseTargetMigrationTest extends TestCase
     private function insertCategory(int $companyId, string $code, int $slaHours): void
     {
         DB::table('ticket_categories')->insert([
+            'public_id' => PublicId::new(),
             'company_id' => $companyId,
             'name' => $code,
             'code' => $code,

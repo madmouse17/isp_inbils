@@ -79,16 +79,16 @@ class StockRbacAuditTest extends TestCase
 
         $this->actingAs($staff)
             ->post(route('admin.stocks.transfer'), [
-                'product_id' => $this->product->id,
-                'from_location_id' => $this->locationA->id,
-                'to_location_id' => $this->locationB->id,
+                'product_id' => $this->product->public_id,
+                'from_location_id' => $this->locationA->public_id,
+                'to_location_id' => $this->locationB->public_id,
                 'quantity' => 1,
             ])
             ->assertRedirect();
 
         $adjustPayload = [
-            'product_id' => $this->product->id,
-            'location_id' => $this->locationA->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $this->locationA->public_id,
             'new_quantity' => 5,
             'note' => 'cycle count',
         ];
@@ -122,20 +122,20 @@ class StockRbacAuditTest extends TestCase
         foreach ([
             route('admin.stocks.receive') => $this->payload(),
             route('admin.stocks.transfer') => [
-                'product_id' => $this->product->id,
-                'from_location_id' => $this->locationA->id,
-                'to_location_id' => $this->locationB->id,
+                'product_id' => $this->product->public_id,
+                'from_location_id' => $this->locationA->public_id,
+                'to_location_id' => $this->locationB->public_id,
                 'quantity' => 1,
             ],
             route('admin.stocks.adjust') => [
-                'product_id' => $this->product->id,
-                'location_id' => $this->locationA->id,
+                'product_id' => $this->product->public_id,
+                'location_id' => $this->locationA->public_id,
                 'new_quantity' => 1,
                 'note' => 'n',
             ],
             route('admin.stocks.adjust.direct') => [
-                'product_id' => $this->product->id,
-                'location_id' => $this->locationA->id,
+                'product_id' => $this->product->public_id,
+                'location_id' => $this->locationA->public_id,
                 'new_quantity' => 1,
                 'note' => 'n',
             ],
@@ -151,8 +151,8 @@ class StockRbacAuditTest extends TestCase
         StockService::receive($this->product->id, $this->locationA->id, 5);
 
         $payload = [
-            'product_id' => $this->product->id,
-            'location_id' => $this->locationA->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $this->locationA->public_id,
             'new_quantity' => 3,
             'note' => 'cycle count',
         ];
@@ -181,20 +181,20 @@ class StockRbacAuditTest extends TestCase
             route('admin.stocks.receive') => $this->payload(),
             route('admin.stocks.issue') => $this->payload(),
             route('admin.stocks.transfer') => [
-                'product_id' => $this->product->id,
-                'from_location_id' => $this->locationA->id,
-                'to_location_id' => $this->locationB->id,
+                'product_id' => $this->product->public_id,
+                'from_location_id' => $this->locationA->public_id,
+                'to_location_id' => $this->locationB->public_id,
                 'quantity' => 1,
             ],
             route('admin.stocks.adjust') => [
-                'product_id' => $this->product->id,
-                'location_id' => $this->locationA->id,
+                'product_id' => $this->product->public_id,
+                'location_id' => $this->locationA->public_id,
                 'new_quantity' => 1,
                 'note' => 'n',
             ],
             route('admin.stocks.adjust.direct') => [
-                'product_id' => $this->product->id,
-                'location_id' => $this->locationA->id,
+                'product_id' => $this->product->public_id,
+                'location_id' => $this->locationA->public_id,
                 'new_quantity' => 1,
                 'note' => 'n',
             ],
@@ -252,9 +252,9 @@ class StockRbacAuditTest extends TestCase
 
         $this->actingAs($staff)
             ->post(route('admin.stocks.transfer'), [
-                'product_id' => $this->product->id,
-                'from_location_id' => $this->locationA->id,
-                'to_location_id' => $this->locationB->id,
+                'product_id' => $this->product->public_id,
+                'from_location_id' => $this->locationA->public_id,
+                'to_location_id' => $this->locationB->public_id,
                 'quantity' => 1,
                 'note' => 'move',
             ])
@@ -278,8 +278,8 @@ class StockRbacAuditTest extends TestCase
         // Staff proposes the adjustment; the manager approves it as a different actor.
         $this->actingAs($staff)
             ->post(route('admin.stocks.adjust'), [
-                'product_id' => $this->product->id,
-                'location_id' => $this->locationA->id,
+                'product_id' => $this->product->public_id,
+                'location_id' => $this->locationA->public_id,
                 'new_quantity' => 3,
                 'note' => 'cycle count',
             ])
@@ -369,8 +369,8 @@ class StockRbacAuditTest extends TestCase
     private function payload(array $overrides = []): array
     {
         return array_merge([
-            'product_id' => $this->product->id,
-            'location_id' => $this->locationA->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $this->locationA->public_id,
             'quantity' => 5,
             'note' => 'test',
         ], $overrides);

@@ -276,7 +276,7 @@ class WhatsAppConsentTest extends TestCase
 
         $response->assertInertia(fn (Assert $page) => $page
             ->has('whatsappMessages', 20)
-            ->where('whatsappMessages.0.id', $skipped->id)
+            ->where('whatsappMessages.0.id', $skipped->public_id)
             ->where('whatsappMessages.0.status', 'skipped')
             ->where('whatsappMessages.0.skip_reason', 'no_consent')
             ->has('whatsappMessages.1', fn (AssertableJson $row) => $row
@@ -284,7 +284,7 @@ class WhatsAppConsentTest extends TestCase
                 ->where('recipient_last4', '7890')));
 
         $rows = collect($response->inertiaProps('whatsappMessages'));
-        $stored = WhatsAppMessage::withoutCompany()->whereKey($rows->pluck('id'))->get();
+        $stored = WhatsAppMessage::withoutCompany()->whereIn('public_id', $rows->pluck('id'))->get();
         $this->assertSame([$this->company->id], $stored->pluck('company_id')->unique()->values()->all());
         $this->assertSame(['customer'], $stored->pluck('recipient_type')->unique()->values()->all());
         $this->assertSame([$customer->id], $stored->pluck('recipient_id')->unique()->values()->all());

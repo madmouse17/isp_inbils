@@ -64,12 +64,12 @@ class WorkOrderTripTest extends TestCase
     public function test_going_en_route_stamps_the_visit_and_moves_the_steps(): void
     {
         $workOrder = $this->visit();
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.current', 'assigned')
             ->assertJsonPath('data.actions.en_route', true);
 
-        $response = $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", token: $this->token)
+        $response = $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.status', 'assigned')
             ->assertJsonPath('data.current', 'en_route')
@@ -91,7 +91,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit();
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", [
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", [
             'check_in' => ['lat' => -6.2, 'lng' => 106.8166667, 'accuracy_m' => 8.5, 'captured_at' => now()->subMinute()->toIso8601String()],
         ], $this->token)->assertOk();
 
@@ -107,7 +107,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit();
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", ['check_in' => ['unavailable_reason' => 'location_disabled']], $this->token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", ['check_in' => ['unavailable_reason' => 'location_disabled']], $this->token)
             ->assertOk();
 
         $properties = json_decode((string) $this->activities($workOrder, 'en_route')->value('properties'), true);
@@ -119,7 +119,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit();
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", [
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", [
             'check_in' => ['lat' => 12, 'lng' => 181, 'captured_at' => now()->addHour()->toIso8601String()],
         ], $this->token)->assertUnprocessable()->assertJsonValidationErrors(['check_in.lng', 'check_in.captured_at']);
 
@@ -130,7 +130,7 @@ class WorkOrderTripTest extends TestCase
     public function test_going_en_route_twice_changes_nothing_and_tells_the_customer_once(): void
     {
         $workOrder = $this->visit();
-        $url = "technician/work-orders/{$workOrder->id}/en-route";
+        $url = "technician/work-orders/{$workOrder->public_id}/en-route";
 
         $this->api('POST', $url, token: $this->token)->assertOk();
         $first = $workOrder->fresh()->en_route_at;
@@ -149,7 +149,7 @@ class WorkOrderTripTest extends TestCase
     {
         $this->freezeTime();
         $workOrder = $this->visit();
-        $url = "technician/work-orders/{$workOrder->id}/en-route";
+        $url = "technician/work-orders/{$workOrder->public_id}/en-route";
         $ids = fn (): array => $this->customer->notifications()->orderBy('created_at')->pluck('id')->all();
 
         $this->api('POST', $url, token: $this->token)->assertOk();
@@ -187,7 +187,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit($status);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", token: $this->token)->assertForbidden();
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", token: $this->token)->assertForbidden();
 
         $this->assertNull($workOrder->fresh()->en_route_at);
         $this->assertSame(0, $this->customer->notifications()->count());
@@ -198,9 +198,9 @@ class WorkOrderTripTest extends TestCase
         $workOrder = $this->visit();
         $peer = $this->issueToken($this->technicianLogin($this->technician->company), 'technician');
         $stranger = $this->issueToken($this->technicianLogin(), 'technician');
-        $url = "technician/work-orders/{$workOrder->id}/en-route";
+        $url = "technician/work-orders/{$workOrder->public_id}/en-route";
 
-        $this->api('POST', $url, token: $peer)->assertForbidden();
+        $this->api('POST', $url, token: $peer)->assertNotFound();
         $this->api('POST', $url, token: $stranger)->assertNotFound();
         $this->api('POST', $url, token: $this->issueToken($this->customerUser, 'customer'))->assertForbidden();
 
@@ -213,7 +213,7 @@ class WorkOrderTripTest extends TestCase
         $workOrder = $this->visit();
         $this->technician->forceFill(['name' => 'Andi Wijaya'])->save();
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/en-route", token: $this->token)->assertOk();
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/en-route", token: $this->token)->assertOk();
 
         $notification = $this->api('GET', 'notifications', token: $this->issueToken($this->customerUser, 'customer'))
             ->assertOk()
@@ -223,7 +223,7 @@ class WorkOrderTripTest extends TestCase
         $this->assertSame('technician_en_route', $notification['type']);
         $this->assertSame('Teknisi dalam perjalanan', $notification['title']);
         $this->assertSame('Teknisi Andi sedang menuju lokasi Anda.', $notification['message']);
-        $this->assertSame(['type' => 'work_order', 'id' => $workOrder->id], $notification['subject']);
+        $this->assertSame(['type' => 'work_order', 'id' => $workOrder->public_id], $notification['subject']);
         $this->assertNull($notification['read_at']);
         $this->assertStringNotContainsString('Wijaya', json_encode($notification, JSON_THROW_ON_ERROR));
     }
@@ -231,12 +231,12 @@ class WorkOrderTripTest extends TestCase
     public function test_an_spk_without_a_subscription_or_a_customer_without_a_login_is_not_notified(): void
     {
         $withoutSubscription = $this->visit(subscribed: false);
-        $this->api('POST', "technician/work-orders/{$withoutSubscription->id}/en-route", token: $this->token)->assertOk();
+        $this->api('POST', "technician/work-orders/{$withoutSubscription->public_id}/en-route", token: $this->token)->assertOk();
         $this->assertSame(0, DB::table('notifications')->count(), 'without a subscription the app shows no visit, so there is nothing to open');
 
         $withoutLogin = $this->visit();
         $this->customer->forceFill(['user_id' => null])->save();
-        $this->api('POST', "technician/work-orders/{$withoutLogin->id}/en-route", token: $this->token)->assertOk();
+        $this->api('POST', "technician/work-orders/{$withoutLogin->public_id}/en-route", token: $this->token)->assertOk();
 
         $this->assertSame(0, DB::table('notifications')->count(), 'nobody can read it in the app');
         $this->assertNotNull($withoutSubscription->fresh()->en_route_at);
@@ -247,7 +247,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit();
 
-        $data = $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)->assertOk()->json('data');
+        $data = $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)->assertOk()->json('data');
 
         $this->assertSame([
             ['key' => 'assigned', 'label' => 'Ditugaskan', 'at' => Carbon::parse(self::ASSIGNED_AT)->jsonSerialize()],
@@ -275,7 +275,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit('assigned', ['type' => $type]);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.type', $type)
             ->assertJsonPath('data.type_label', $label);
@@ -286,7 +286,7 @@ class WorkOrderTripTest extends TestCase
         $this->customer->forceFill(['phone' => '021-5551234'])->save();
         $workOrder = $this->visit();
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.customer.phone', '021-5551234')
             ->assertJsonPath('data.customer.phone_e164', null);
@@ -296,7 +296,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit();
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.site', ['label' => 'Rumah', 'address' => 'Jl. Mawar 1, Jakarta', 'lat' => -6.2, 'lng' => 106.8166667])
             ->assertJsonPath('data.pop', ['label' => 'POP Pusat', 'address' => 'Jl. POP 1', 'lat' => -6.9175, 'lng' => 107.6191]);
@@ -306,7 +306,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit(subscribed: false);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.site', ['label' => 'POP Pusat', 'address' => 'Jl. POP 1', 'lat' => -6.9175, 'lng' => 107.6191])
             ->assertJsonPath('data.pop', null);
@@ -316,7 +316,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit(address: [...self::HOME, 'lat' => null, 'lng' => null]);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.site', ['label' => 'Rumah', 'address' => 'Jl. Mawar 1, Jakarta', 'lat' => null, 'lng' => null])
             ->assertJsonPath('data.pop.label', 'POP Pusat');
@@ -327,10 +327,10 @@ class WorkOrderTripTest extends TestCase
         $atHome = $this->visit();
         $atPop = $this->visit();
 
-        $this->api('POST', "technician/work-orders/{$atHome->id}/start", ['check_in' => ['lat' => -6.2, 'lng' => 106.8166667]], $this->token)
+        $this->api('POST', "technician/work-orders/{$atHome->public_id}/start", ['check_in' => ['lat' => -6.2, 'lng' => 106.8166667]], $this->token)
             ->assertOk()
             ->assertJsonPath('data.check_in.distance_m', 0);
-        $response = $this->api('POST', "technician/work-orders/{$atPop->id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)->assertOk();
+        $response = $this->api('POST', "technician/work-orders/{$atPop->public_id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)->assertOk();
 
         $this->assertGreaterThan(100_000, $response->json('data.check_in.distance_m'), 'standing at the POP is far from the customer');
     }
@@ -339,7 +339,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit(address: [...self::HOME, 'lat' => null, 'lng' => null]);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)
             ->assertOk()
             ->assertJsonPath('data.check_in.status', 'recorded')
             ->assertJsonPath('data.check_in.distance_m', null);
@@ -349,7 +349,7 @@ class WorkOrderTripTest extends TestCase
     {
         $workOrder = $this->visit(subscribed: false);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", ['check_in' => ['lat' => -6.9175, 'lng' => 107.6191]], $this->token)
             ->assertOk()
             ->assertJsonPath('data.check_in.distance_m', 0);
     }
@@ -360,7 +360,7 @@ class WorkOrderTripTest extends TestCase
         $workOrder = $this->visit('in_progress', ['started_at' => now()->subHour()]);
         $this->attachEvidence($workOrder);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $this->token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.current', 'installed')
             ->assertJsonPath('data.steps.3.key', 'installed');
@@ -376,7 +376,7 @@ class WorkOrderTripTest extends TestCase
         $admin->assignRole('admin');
         $workOrder = $this->visit();
         $this->attachEvidence($workOrder);
-        $url = fn (string $action): string => "technician/work-orders/{$workOrder->id}/{$action}";
+        $url = fn (string $action): string => "technician/work-orders/{$workOrder->public_id}/{$action}";
 
         // First run: on the way, started, finished.
         $this->api('POST', $url('en-route'), token: $this->token)->assertOk();
@@ -394,7 +394,7 @@ class WorkOrderTripTest extends TestCase
         $rejected = $workOrder->fresh();
         SpkService::assign($rejected, $this->technician->id, $admin->id, $this->technician->id, $rejected->updated_at->utc()->format('Y-m-d\\TH:i:s.v\\Z'));
 
-        $afterReassign = $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)->assertOk();
+        $afterReassign = $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)->assertOk();
         $this->assertSame(['assigned', 'assigned'], [$afterReassign->json('data.status'), $afterReassign->json('data.current')]);
         $this->assertNull($afterReassign->json('data.started_at'), 'no "Dimulai" of the earlier run above a stepper that begins again');
         $this->assertSame([null, null, null], array_column(array_slice($afterReassign->json('data.steps'), 1), 'at'));
@@ -409,7 +409,7 @@ class WorkOrderTripTest extends TestCase
         $this->travel(2)->hours();
         $this->api('POST', $url('submit'), token: $this->token)->assertOk();
 
-        $detail = $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->token)->assertOk()->json('data');
+        $detail = $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->token)->assertOk()->json('data');
         $steps = collect($detail['steps'])->keyBy('key');
         $at = fn (string $key): ?Carbon => $steps[$key]['at'] === null ? null : Carbon::parse($steps[$key]['at']);
 

@@ -6,7 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from 
 import { PageHeader } from '@/Components/composite';
 
 interface SlaData {
-    id: number;
+    id: string;
     name: string;
     response_time_hours: number;
     resolution_time_hours: number;

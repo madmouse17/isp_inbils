@@ -31,10 +31,10 @@ import {
 } from '@/Components/ui';
 
 interface EmpRow {
-    id: number;
-    user_id: number;
-    organization_id: number | null;
-    vehicle_id: number | null;
+    id: string;
+    user_id: string;
+    organization_id: string | null;
+    vehicle_id: string | null;
     employee_number: string;
     status: string;
     phone?: string | null;
@@ -46,14 +46,14 @@ interface EmpRow {
 }
 
 interface OrgRow {
-    id: number;
+    id: string;
     code: string;
     name: string;
     path?: string | null;
 }
 
 interface VehRow {
-    id: number;
+    id: string;
     plate_number: string;
     type?: string | null;
     brand?: string | null;
@@ -157,9 +157,9 @@ export default function Index({
         (employee: EmpRow) => {
             clearErrors();
             setData({
-                user_id: String(employee.user_id),
-                organization_id: employee.organization_id ? String(employee.organization_id) : '',
-                vehicle_id: employee.vehicle_id ? String(employee.vehicle_id) : '',
+                user_id: employee.user_id,
+                organization_id: employee.organization_id ?? '',
+                vehicle_id: employee.vehicle_id ?? '',
                 employee_number: employee.employee_number,
                 phone: employee.phone ?? '',
                 hire_date: employee.hire_date ?? '',

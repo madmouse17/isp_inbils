@@ -44,7 +44,7 @@ class TenancyMatrixTest extends TestCase
         return match (true) {
             str_ends_with($route->uri(), '/comments') => ['body' => 'Hello'],
             str_ends_with($route->uri(), '/resolve') => ['resolution_note' => 'Fixed on site'],
-            str_ends_with($route->uri(), '/declare') => ['lines' => [['id' => 1, 'actual_used_qty' => 1, 'declared_good_return_qty' => 0, 'declared_discrepancy_qty' => 0]]],
+            str_ends_with($route->uri(), '/declare') => ['lines' => [['id' => $this->ids['material_return_line'], 'actual_used_qty' => 1, 'declared_good_return_qty' => 0, 'declared_discrepancy_qty' => 0]]],
             default => [],
         };
     }
@@ -99,13 +99,7 @@ class TenancyMatrixTest extends TestCase
                 $response = $this->api($this->method($route), $this->urlOf($route, real: true), $this->payloadFor($route), $token);
                 $label = "{$who} on {$this->method($route)} {$route->uri()}";
 
-                // A technician of the same company is told "not yours" (403) on work-order actions, never the data.
-                if ($who === 'peer technician' && $app === 'technician' && $response->status() === 403) {
-                    $response->assertJsonPath('code', 'forbidden');
-
-                    continue;
-                }
-
+                // Another technician's work order is a record the caller cannot see: the same 404 as an unknown one.
                 $this->assertSame(404, $response->status(), "{$label}: ".$response->getContent());
             }
         }

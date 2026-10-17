@@ -49,7 +49,7 @@ class PlatformTenantListQuery
         $metrics = $this->metrics($roots->getCollection());
 
         return $roots->through(fn (Company $root): array => [
-            'id' => $root->id,
+            'id' => $root->public_id,
             'name' => $root->name,
             'code' => $root->code,
             'status' => self::statusOf($root),

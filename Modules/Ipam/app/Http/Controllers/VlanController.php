@@ -22,7 +22,7 @@ class VlanController extends Controller
         Gate::authorize('viewAny', Vlan::class);
 
         $vlans = Vlan::query()
-            ->with('location:id,code')
+            ->with('location:id,public_id,code')
             ->withCount('prefixes')
             ->orderBy('vid')
             ->orderBy('location_id')
@@ -31,7 +31,9 @@ class VlanController extends Controller
 
         return Inertia::render('Admin/Ipam/Vlans/Index', [
             'vlans' => VlanResource::collection($vlans),
-            'locations' => Location::query()->where('type', 'pop')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'locations' => Location::query()->where('type', 'pop')->where('is_active', true)->orderBy('code')->get(['public_id', 'code', 'name'])
+                ->map(fn (Location $location): array => ['id' => $location->public_id, 'code' => $location->code, 'name' => $location->name])
+                ->all(),
             'can' => ['manage' => $request->user()?->can('ipam.manage') ?? false],
         ]);
     }

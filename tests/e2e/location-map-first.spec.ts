@@ -95,7 +95,7 @@ test('@kanban-t_40cf97ea admin location map is first-class with empty markers an
 
 test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ page }) => {
     const expectedAddress = 'Authoritative marker address';
-    let expectedParentId: number | null = null;
+    let expectedParentId: string | null = null;
     let expectedCode = '';
     let expectedName = '';
     let expectedMarkerAriaLabel = '';
@@ -193,7 +193,7 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
     await editDialog.getByLabel('Bujur').fill('106.8765432');
 
     const updateRequest = page.waitForRequest((request) => {
-        if (!request.url().match(/\/admin\/locations\/\d+$/)) return false;
+        if (!request.url().match(/\/admin\/locations\/[0-9A-HJKMNP-TV-Z]{26}$/i)) return false;
         if (request.method() === 'PUT') return true;
 
         const postData = request.postData() ?? '';
@@ -211,8 +211,8 @@ test('@kanban-t_40cf97ea marker edit uses the authoritative tree row', async ({ 
 });
 
 interface LocationRow {
-    id: number;
-    parent_id: number | null;
+    id: string;
+    parent_id: string | null;
     code: string;
     name: string;
     type: 'region' | 'area' | 'pop' | 'rack' | 'site';
@@ -236,7 +236,7 @@ test('@ui-consistency the Tabel tab lists every location and keeps Hapus off whi
     await loginAs(page, 'admin');
     const props = (await inertiaProps(page, '/admin/locations?per_page=50')).props as {
         tree: { data: LocationRow[] };
-        locations: { data: Array<{ id: number; code: string }> };
+        locations: { data: Array<{ id: string; code: string }> };
     };
     const parentIds = new Set(
         flattenRows(props.tree.data).flatMap((row) =>

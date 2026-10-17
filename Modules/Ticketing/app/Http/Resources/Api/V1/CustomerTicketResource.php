@@ -25,13 +25,13 @@ class CustomerTicketResource extends JsonResource
     protected function summary(): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'code' => $this->code,
             'title' => $this->title,
             'status' => $this->status,
             'priority' => $this->priority,
-            'category' => $this->category ? ['id' => $this->category->id, 'name' => $this->category->name] : null,
-            'subscription' => $this->subscription ? ['id' => $this->subscription->id, 'code' => $this->subscription->code] : null,
+            'category' => $this->category ? ['id' => $this->category->public_id, 'name' => $this->category->name] : null,
+            'subscription' => $this->subscription ? ['id' => $this->subscription->public_id, 'code' => $this->subscription->code] : null,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'resolved_at' => $this->resolved_at,

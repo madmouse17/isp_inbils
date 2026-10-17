@@ -48,7 +48,7 @@ class TicketValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.tickets.assign', $ticket), [
-                'handler_id' => $otherCompanyHandler->id,
+                'handler_id' => $otherCompanyHandler->public_id,
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['handler_id']);
@@ -67,7 +67,7 @@ class TicketValidationTest extends TestCase
 
         $this->actingAs($admin)
             ->postJson(route('admin.tickets.assign', $ticket), [
-                'handler_id' => $handler->id,
+                'handler_id' => $handler->public_id,
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['handler_id']);
@@ -189,10 +189,10 @@ class TicketValidationTest extends TestCase
             'title' => 'Wrong parent ticket',
             'description' => 'Subscription belongs to other customer',
             'source' => 'customer',
-            'category_id' => $category->id,
+            'category_id' => $category->public_id,
             'priority' => 'medium',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
         ])->assertSessionHasErrors(['subscription_id']);
 
         $this->assertDatabaseMissing('tickets', ['title' => 'Wrong parent ticket']);
@@ -297,11 +297,11 @@ class TicketValidationTest extends TestCase
             'title' => 'Foreign location ticket',
             'description' => 'Location is another tenant',
             'source' => 'customer',
-            'category_id' => $category->id,
+            'category_id' => $category->public_id,
             'priority' => 'medium',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
-            'location_id' => $foreignLocation->id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
+            'location_id' => $foreignLocation->public_id,
         ])->assertSessionHasErrors(['location_id']);
 
         $this->assertDatabaseMissing('tickets', ['title' => 'Foreign location ticket']);

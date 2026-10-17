@@ -162,11 +162,11 @@ class PrivateMediaAccessTest extends TestCase
         $this->assertSame(base64_decode(self::PNG), $response->streamedContent());
     }
 
-    public function test_customer_gets_403_for_another_customers_attachment(): void
+    public function test_customer_gets_404_for_another_customers_attachment(): void
     {
         $this->actingAs($this->owner)
             ->get(route('admin.media.show', $this->foreignTicketFile))
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     #[DataProvider('staffOnlyTypes')]
@@ -247,21 +247,21 @@ class PrivateMediaAccessTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.tickets.show', $this->ticket))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('ticket.data.attachments.0.url', '/admin/media/'.$this->ticketFile->id)
-                ->where('ticket.data.attachments.0.file_path', '/admin/media/'.$this->ticketFile->id));
+                ->where('ticket.data.attachments.0.url', '/admin/media/'.$this->ticketFile->public_id)
+                ->where('ticket.data.attachments.0.file_path', '/admin/media/'.$this->ticketFile->public_id));
 
         $this->actingAs($this->admin)
             ->get(route('admin.spk.show', $this->workOrder))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('workOrder.data.evidence.0.url', '/admin/media/'.$this->evidenceFile->id)
-                ->where('workOrder.data.evidence.0.file_path', '/admin/media/'.$this->evidenceFile->id));
+                ->where('workOrder.data.evidence.0.url', '/admin/media/'.$this->evidenceFile->public_id)
+                ->where('workOrder.data.evidence.0.file_path', '/admin/media/'.$this->evidenceFile->public_id));
     }
 
     public function test_document_list_links_to_the_authorized_route(): void
     {
         $this->actingAs($this->admin);
 
-        $this->assertSame('/admin/media/'.$this->documentFile->id, DocumentService::list($this->customer)->first()['url']);
+        $this->assertSame('/admin/media/'.$this->documentFile->public_id, DocumentService::list($this->customer)->first()['url']);
     }
 
     private function outsider(): User

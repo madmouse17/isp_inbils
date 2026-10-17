@@ -15,7 +15,7 @@ import type { StaticPool } from '@/types/ipam-odn';
 
 interface AssignIpDialogProps {
     onClose: () => void;
-    subscription: { id: number; code: string };
+    subscription: { id: string; code: string };
     /** Pools the subscription does not already hold an address from. */
     pools: StaticPool[];
 }

@@ -12,6 +12,7 @@ use App\Services\Core\SettingService;
 use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notification;
 use Illuminate\Queue\Middleware\RateLimited;
 use Illuminate\Support\Carbon;
@@ -24,6 +25,11 @@ use Illuminate\Support\Carbon;
  * Every delivery is its own job on the `whatsapp` queue (workers must listen to it), dispatched after the
  * surrounding transaction commits, so a rolled-back change sends nothing. Batch events (invoice issued,
  * reminders) wait out the company's quiet hours; the rest go out at once.
+ *
+ * The subject of a message is a record (an invoice, a ticket). Its integer id stays in `whatsapp_messages.subject_id`;
+ * the bell and the push carry its `public_id`, because an integer id never leaves the server (spec .scratch/opaque-ids).
+ *
+ * @phpstan-type Payload array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, subject_public_id: ?string, dedupe_key: string, batch: bool}
  */
 abstract class WhatsAppNotification extends Notification implements ShouldQueueAfterCommit
 {
@@ -38,7 +44,7 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
      * What to send, or null when there is nothing to send any more (the invoice got paid after the
      * reminder was queued): no row is written then. Build it with payload().
      *
-     * @return array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}|null
+     * @return Payload|null
      */
     abstract public function toWhatsApp(object $notifiable): ?array;
 
@@ -96,22 +102,22 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
     }
 
     /**
-     * What the bell row holds: the event and the id of its subject, nothing else.
+     * What the bell row holds: the event and the public id of its subject, nothing else.
      *
-     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @param  Payload  $payload
      * @return array<string, mixed>
      */
     protected function bell(array $payload): array
     {
         $subjectType = $payload['subject_type'];
-        $subjectId = $payload['subject_id'];
+        $subjectPublicId = $payload['subject_public_id'];
 
         return ['type' => $payload['event']]
-            + ($subjectType !== null && $subjectId !== null ? [$subjectType.'_id' => $subjectId] : []);
+            + ($subjectType !== null && $subjectPublicId !== null ? [$subjectType.'_id' => $subjectPublicId] : []);
     }
 
     /**
-     * @return array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}|null
+     * @return Payload|null
      */
     private function payloadFor(object $notifiable): ?array
     {
@@ -131,9 +137,10 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
 
     /**
      * @param  list<string>  $parameters  in the order of config('whatsapp.events.<event>.parameters')
-     * @return array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}
+     * @param  string|null  $subjectType  the short name `whatsapp_messages.subject_type` stores ('invoice', 'ticket', ...)
+     * @return Payload
      */
-    protected function payload(string $event, array $parameters, ?string $subjectType, ?int $subjectId, string $dedupeKey): array
+    protected function payload(string $event, array $parameters, ?string $subjectType, ?Model $subject, string $dedupeKey): array
     {
         $template = config('whatsapp.events.'.$event);
 
@@ -143,7 +150,8 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
             'language' => $template['language'],
             'parameters' => $parameters,
             'subject_type' => $subjectType,
-            'subject_id' => $subjectId,
+            'subject_id' => $subject === null ? null : (int) $subject->getKey(),
+            'subject_public_id' => $subject?->getAttribute('public_id'),
             'dedupe_key' => $dedupeKey,
             'batch' => (bool) $template['batch'],
         ];

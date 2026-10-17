@@ -106,7 +106,7 @@ class CompanyMembershipService
     /**
      * The companies the user may act in, home company first, as the switcher lists them.
      *
-     * @return Collection<int, array{id: int, name: string, code: string, is_current: bool, is_default: bool}>
+     * @return Collection<int, array{id: string, name: string, code: string, is_current: bool, is_default: bool}>
      */
     public function companiesOf(User $user): Collection
     {
@@ -119,10 +119,10 @@ class CompanyMembershipService
                 ->orWhere(fn ($granted) => $granted
                     ->where('is_active', true)
                     ->whereHas('members', fn ($members) => $members->whereKey($user->getKey()))))
-            ->get(['id', 'name', 'code'])
+            ->get(['id', 'public_id', 'name', 'code'])
             ->sortBy(fn (Company $company): string => ($company->id === $home ? '0' : '1').mb_strtolower($company->name))
             ->map(fn (Company $company): array => [
-                'id' => $company->id,
+                'id' => $company->public_id,
                 'name' => $company->name,
                 'code' => $company->code,
                 'is_current' => $company->id === $current,

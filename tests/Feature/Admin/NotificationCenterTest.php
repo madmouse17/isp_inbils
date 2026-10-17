@@ -4,6 +4,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\PublicId;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
@@ -198,9 +199,9 @@ class NotificationCenterTest extends TestCase
             'request approved' => ['inventory_request_approved', 'Permintaan barang disetujui', 'Permintaan REQ-9 disetujui dan stoknya sudah dicadangkan.', 'Sebuah permintaan barang disetujui dan stoknya sudah dicadangkan.'],
             'request ready' => ['inventory_request_ready', 'Permintaan barang siap diambil', 'Permintaan REQ-9 siap diambil.', 'Sebuah permintaan barang siap diambil.'],
             'request rejected' => ['inventory_request_rejected', 'Permintaan barang ditolak', 'Permintaan REQ-9 ditolak.', 'Sebuah permintaan barang ditolak.'],
-            'return declared' => ['material_return_declared', 'Pengembalian material dideklarasikan', 'Kasus pengembalian #12 sudah dideklarasikan dan menunggu penerimaan gudang.', 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.'],
-            'return exception' => ['material_return_exception', 'Pengembalian material bermasalah', 'Kasus pengembalian #12 memiliki selisih yang perlu diselesaikan.', 'Pengembalian material memiliki selisih yang perlu diselesaikan.'],
-            'return rejected' => ['material_return_rejected', 'Pengembalian material ditolak', 'Serah terima kasus pengembalian #12 ditolak. Periksa kembali deklarasinya.', 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.'],
+            'return declared' => ['material_return_declared', 'Pengembalian material dideklarasikan', 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.', 'Pengembalian material sudah dideklarasikan dan menunggu penerimaan gudang.'],
+            'return exception' => ['material_return_exception', 'Pengembalian material bermasalah', 'Pengembalian material memiliki selisih yang perlu diselesaikan.', 'Pengembalian material memiliki selisih yang perlu diselesaikan.'],
+            'return rejected' => ['material_return_rejected', 'Pengembalian material ditolak', 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.', 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.'],
         ];
     }
 
@@ -215,9 +216,9 @@ class NotificationCenterTest extends TestCase
         $withReference = $this->notification($actor, [
             'type' => $type,
             'company_id' => $actor->company_id,
-            'request_id' => 9,
+            'request_id' => PublicId::new(),
             'request_code' => 'REQ-9',
-            'case_id' => 12,
+            'case_id' => PublicId::new(),
         ], now()->subMinute());
         $withoutReference = $this->notification($actor, ['type' => $type, 'company_id' => $actor->company_id]);
 
@@ -256,37 +257,37 @@ class NotificationCenterTest extends TestCase
         $authorized = $this->notification($actor, [
             'type' => 'ticket_assigned',
             'company_id' => $actor->company_id,
-            'ticket_id' => $authorizedTicket->id,
+            'ticket_id' => $authorizedTicket->public_id,
             'ticket_code' => $authorizedTicket->code,
         ]);
         $nullCompany = $this->notification($actor, [
             'type' => 'ticket_sla_breached',
             'company_id' => null,
-            'ticket_id' => $authorizedTicket->id,
+            'ticket_id' => $authorizedTicket->public_id,
             'ticket_code' => $authorizedTicket->code,
         ]);
         $malformedCompany = $this->notification($actor, [
             'type' => 'ticket_assigned',
             'company_id' => 'not-a-company-id',
-            'ticket_id' => $authorizedTicket->id,
+            'ticket_id' => $authorizedTicket->public_id,
             'ticket_code' => $authorizedTicket->code,
         ]);
         $foreignCompany = $this->notification($actor, [
             'type' => 'ticket_assigned',
             'company_id' => $otherCompany->id,
-            'ticket_id' => $authorizedTicket->id,
+            'ticket_id' => $authorizedTicket->public_id,
             'ticket_code' => $authorizedTicket->code,
         ]);
         $crossCompany = $this->notification($actor, [
             'type' => 'ticket_assigned',
             'company_id' => $actor->company_id,
-            'ticket_id' => $otherTicket->id,
+            'ticket_id' => $otherTicket->public_id,
             'ticket_code' => $otherTicket->code,
         ]);
         $stale = $this->notification($actor, [
             'type' => 'ticket_sla_breached',
             'company_id' => $actor->company_id,
-            'ticket_id' => 999999999,
+            'ticket_id' => PublicId::new(),
             'ticket_code' => 'TKT-STALE',
         ]);
 
@@ -314,7 +315,7 @@ class NotificationCenterTest extends TestCase
         $denied = $this->notification($deniedUser, [
             'type' => 'ticket_assigned',
             'company_id' => $actor->company_id,
-            'ticket_id' => $authorizedTicket->id,
+            'ticket_id' => $authorizedTicket->public_id,
             'ticket_code' => $authorizedTicket->code,
         ]);
 
@@ -361,7 +362,7 @@ class NotificationCenterTest extends TestCase
         $this->assertNotNull($databaseNotification);
         $this->assertSame(TicketAssignedNotification::class, $databaseNotification->type);
         $this->assertSame('ticket_assigned', $databaseNotification->data['type']);
-        $this->assertSame($ticket->id, $databaseNotification->data['ticket_id']);
+        $this->assertSame($ticket->public_id, $databaseNotification->data['ticket_id']);
         $this->assertEqualsCanonicalizing(['mail', 'database'], $channels);
     }
 

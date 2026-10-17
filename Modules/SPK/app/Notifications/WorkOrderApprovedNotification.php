@@ -6,6 +6,7 @@ use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Modules\SPK\Models\WorkOrder;
 
 /**
  * In the technician's bell and on their phone: the reviewer approved the SPK they submitted. The code and the ids only.
@@ -31,7 +32,7 @@ class WorkOrderApprovedNotification extends Notification implements ShouldQueue
     {
         return [
             'type' => 'spk_approved',
-            'work_order_id' => $this->workOrderId,
+            'work_order_id' => WorkOrder::withoutCompany()->whereKey($this->workOrderId)->value('public_id'),
             'work_order_code' => $this->workOrderCode,
             'company_id' => $this->companyId,
         ];

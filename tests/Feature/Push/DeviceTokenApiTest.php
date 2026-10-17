@@ -45,7 +45,7 @@ class DeviceTokenApiTest extends TestCase
         $this->assertStringNotContainsString(self::FCM_TOKEN, $created->getContent());
 
         $row = DeviceToken::query()->sole();
-        $this->assertSame($id, $row->id);
+        $this->assertSame($id, $row->public_id);
         $this->assertSame($technician->id, $row->user_id);
         $this->assertSame('technician', $row->app);
         $this->assertSame('android', $row->platform);
@@ -190,7 +190,7 @@ class DeviceTokenApiTest extends TestCase
         $this->api('POST', 'me/device-token', $this->body(['token' => 'phone-token']), $phone)->assertCreated();
         $this->api('POST', 'me/device-token', $this->body(['token' => 'stolen-token']), $stolen)->assertCreated();
 
-        $this->api('DELETE', 'devices/'.$this->accessTokenIdOf($stolen), token: $phone)->assertNoContent();
+        $this->api('DELETE', 'devices/'.PersonalAccessToken::findToken($stolen)->public_id, token: $phone)->assertNoContent();
         $this->assertSame(['phone-token'], DeviceToken::query()->pluck('token')->all());
 
         $technician->update(['password' => 'Sturdy-New-2026!']);

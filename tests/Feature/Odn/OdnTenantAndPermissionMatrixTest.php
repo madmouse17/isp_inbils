@@ -73,7 +73,7 @@ class OdnTenantAndPermissionMatrixTest extends TestCase
             'admin.odn.splitters.update' => fn () => $this->putJson(route('admin.odn.splitters.update', $r['splitter']), ['label' => 'x']),
             'admin.odn.splitters.destroy' => fn () => $this->deleteJson(route('admin.odn.splitters.destroy', $r['splitter'])),
             'admin.odn.ports.destroy' => fn () => $this->deleteJson(route('admin.odn.ports.destroy', $r['pon'])),
-            'admin.odn.drops.store' => fn () => $this->postJson(route('admin.odn.drops.store', $r['output']), ['subscription_id' => $this->subscription->id]),
+            'admin.odn.drops.store' => fn () => $this->postJson(route('admin.odn.drops.store', $r['output']), ['subscription_id' => $this->subscription->public_id]),
             'admin.odn.drops.destroy' => fn () => $this->deleteJson(route('admin.odn.drops.destroy', $r['output'])),
         ];
     }
@@ -162,9 +162,9 @@ class OdnTenantAndPermissionMatrixTest extends TestCase
         $before = $this->footprint();
 
         $cases = [
-            'input_port_id on a new splitter' => [fn () => $this->postJson(route('admin.odn.splitters.store', $mine['odc']), ['outputs' => 4, 'input_port_id' => $foreign['pon']->id]), 'input_port_id'],
-            'input_port_id on a splitter update' => [fn () => $this->putJson(route('admin.odn.splitters.update', $mine['splitter']), ['input_port_id' => $foreign['pon']->id]), 'input_port_id'],
-            'subscription_id on a drop' => [fn () => $this->postJson(route('admin.odn.drops.store', $mine['output']), ['subscription_id' => $foreignSubscription->id]), 'subscription_id'],
+            'input_port_id on a new splitter' => [fn () => $this->postJson(route('admin.odn.splitters.store', $mine['odc']), ['outputs' => 4, 'input_port_id' => $foreign['pon']->public_id]), 'input_port_id'],
+            'input_port_id on a splitter update' => [fn () => $this->putJson(route('admin.odn.splitters.update', $mine['splitter']), ['input_port_id' => $foreign['pon']->public_id]), 'input_port_id'],
+            'subscription_id on a drop' => [fn () => $this->postJson(route('admin.odn.drops.store', $mine['output']), ['subscription_id' => $foreignSubscription->public_id]), 'subscription_id'],
         ];
 
         foreach ($cases as $label => [$send, $field]) {

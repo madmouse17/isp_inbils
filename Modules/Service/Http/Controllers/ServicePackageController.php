@@ -5,6 +5,7 @@ namespace Modules\Service\Http\Controllers;
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,7 +42,7 @@ class ServicePackageController extends Controller
         return Inertia::render('Admin/Service/Packages/Index', [
             'servicePackages' => ServicePackageResource::collection($packages),
             'slaTiers' => SLATierResource::collection(SLATier::query()->orderBy('name')->get()),
-            'packageCategories' => ServicePackageCategory::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'code', 'name', 'is_active']),
+            'packageCategories' => $this->categoryOptions(ServicePackageCategory::query()),
             'filters' => $request->only(['is_active', 'sla_tier_id', 'service_package_category_id', 'search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => (bool) ($request->user()?->can('service.create') || $request->user()?->can('service.manage')),
@@ -163,12 +164,24 @@ class ServicePackageController extends Controller
             'speedProfiles' => SpeedProfileResource::collection(SpeedProfile::query()->where('is_active', true)->orderBy('name')->get()),
             'slaTiers' => SLATierResource::collection(SLATier::query()->where('is_active', true)->orderBy('name')->get()),
             // An inactive category stays selectable only for the package that already has it.
-            'packageCategories' => ServicePackageCategory::query()
-                ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $package?->service_package_category_id))
-                ->orderBy('sort_order')
-                ->orderBy('id')
-                ->get(['id', 'code', 'name', 'is_active']),
+            'packageCategories' => $this->categoryOptions(ServicePackageCategory::query()
+                ->where(fn (Builder $query) => $query->where('is_active', true)->orWhere('id', $package?->service_package_category_id))),
         ];
+    }
+
+    /**
+     * Picker rows keyed by public id. Not `get(['public_id as id'])`: a model casts `id` to int, which turns a ULID into 1.
+     *
+     * @param  Builder<ServicePackageCategory>  $query
+     * @return list<array{id: string, code: string, name: string, is_active: bool}>
+     */
+    private function categoryOptions(Builder $query): array
+    {
+        $columns = ['code', 'name', 'is_active'];
+
+        return $query->orderBy('sort_order')->orderBy('id')->get(['public_id', ...$columns])
+            ->map(fn (ServicePackageCategory $category): array => ['id' => $category->public_id, ...$category->only($columns)])
+            ->all();
     }
 
     /** @return Builder<ServicePackage> */
@@ -177,8 +190,8 @@ class ServicePackageController extends Controller
         return ServicePackage::query()
             ->with(['bandwidthProfile', 'speedProfile', 'slaTier', 'category'])
             ->when($request->filled('is_active'), fn (Builder $query) => $query->where('is_active', $request->boolean('is_active')))
-            ->when($request->filled('sla_tier_id'), fn (Builder $query) => $query->where('sla_tier_id', $request->integer('sla_tier_id')))
-            ->when($request->filled('service_package_category_id'), fn (Builder $query) => $query->where('service_package_category_id', $request->integer('service_package_category_id')))
+            ->when($request->filled('sla_tier_id'), fn (Builder $query) => $query->where('sla_tier_id', PublicId::resolveOne(SLATier::class, $request->input('sla_tier_id')) ?? 0))
+            ->when($request->filled('service_package_category_id'), fn (Builder $query) => $query->where('service_package_category_id', PublicId::resolveOne(ServicePackageCategory::class, $request->input('service_package_category_id')) ?? 0))
             ->when(trim((string) $request->input('search')) !== '', function (Builder $query) use ($request): void {
                 $term = '%'.trim((string) $request->input('search')).'%';
                 $query->where(function (Builder $sub) use ($term): void {

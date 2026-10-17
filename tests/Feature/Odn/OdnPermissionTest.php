@@ -78,7 +78,7 @@ class OdnPermissionTest extends TestCase
             'splitters.update' => $this->putJson(route('admin.odn.splitters.update', $this->splitter), ['label' => 'Renamed']),
             'splitters.destroy' => $this->deleteJson(route('admin.odn.splitters.destroy', $this->freeSplitter)),
             'ports.destroy' => $this->deleteJson(route('admin.odn.ports.destroy', $this->freePon)),
-            'drops.store' => $this->postJson(route('admin.odn.drops.store', $this->freeOutput), ['subscription_id' => $this->subscription->id]),
+            'drops.store' => $this->postJson(route('admin.odn.drops.store', $this->freeOutput), ['subscription_id' => $this->subscription->public_id]),
             'drops.destroy' => $this->deleteJson(route('admin.odn.drops.destroy', $this->heldOutput)),
         };
     }

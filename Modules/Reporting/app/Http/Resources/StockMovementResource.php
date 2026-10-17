@@ -15,8 +15,8 @@ class StockMovementResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->resource->id,
-            'product_id' => $this->resource->product_id,
+            'id' => $this->resource->public_id,
+            'product_id' => $this->resource->product?->public_id,
             'product' => $this->resource->product?->name,
             'movement_type' => $this->resource->movement_type,
             'quantity' => $this->resource->quantity,
@@ -24,7 +24,7 @@ class StockMovementResource extends JsonResource
             'from_location' => $this->resource->fromLocation?->name,
             'to_location' => $this->resource->toLocation?->name,
             'reference_type' => $this->resource->reference_type,
-            'reference_id' => $this->resource->reference_id,
+            'reference_id' => $this->resource->referencePublicId(),
             'reference' => $this->resource->getAttribute('reference_link'),
             'note' => $this->resource->note,
             'created_at' => $this->resource->created_at?->toISOString(),

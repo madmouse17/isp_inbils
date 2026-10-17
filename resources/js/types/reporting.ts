@@ -108,7 +108,7 @@ export interface SlaCounts {
 }
 
 export interface ConsolidatedCompany {
-    id: number;
+    id: string;
     name: string;
     code: string;
     currency: string;
@@ -125,7 +125,7 @@ export interface ConsolidatedContext {
 }
 
 export interface ConsolidatedRow {
-    company_id: number;
+    company_id: string;
     metrics: BusinessMetrics;
     sla: SlaCounts;
 }

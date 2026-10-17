@@ -5,10 +5,14 @@ namespace App\Queries\Platform;
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\AuditProperties;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Activitylog\Models\Activity;
 
 class PlatformAuditQuery
@@ -27,7 +31,7 @@ class PlatformAuditQuery
             ->all();
         /** @var LengthAwarePaginator<int, Activity> $page */
         $page = Activity::query()
-            ->select(['id', 'company_id', 'log_name', 'description', 'subject_type', 'subject_id', 'causer_type', 'causer_id', 'properties', 'batch_uuid', 'created_at'])
+            ->select(['id', 'public_id', 'company_id', 'log_name', 'description', 'subject_type', 'subject_id', 'causer_type', 'causer_id', 'properties', 'batch_uuid', 'created_at'])
             ->whereIn('log_name', [PlatformAuditService::PLATFORM_LOG, PlatformAuditService::SUPPORT_LOG])
             ->when($companyIds !== null, fn (Builder $query) => $query->whereIn('company_id', $companyIds))
             ->when($filters['platform_admin_id'], fn (Builder $query, int $id) => $query
@@ -45,12 +49,13 @@ class PlatformAuditQuery
         $activities = collect($page->items());
         $companies = Company::query()
             ->whereIn('id', $activities->pluck('company_id')->filter()->unique())
-            ->get(['id', 'name', 'code'])
+            ->get(['id', 'public_id', 'name', 'code'])
             ->keyBy('id');
+        $subjects = $this->subjectPublicIds($activities);
 
         /** @var LengthAwarePaginator<int, array<string, mixed>> $result */
         $result = new LengthAwarePaginator(
-            $activities->map(fn (Activity $activity): array => $this->row($activity, $companies)),
+            $activities->map(fn (Activity $activity): array => $this->row($activity, $companies, $subjects)),
             $page->total(),
             $page->perPage(),
             $page->currentPage(),
@@ -60,26 +65,41 @@ class PlatformAuditQuery
         return $result;
     }
 
-    /** @return list<array{id: int, name: string, code: string}> */
+    /**
+     * The filters as the page shows them: the company and the admin by public id.
+     *
+     * @param  array{company_id: ?int, platform_admin_id: ?int, event: ?string, date_from: ?string, date_to: ?string, search: ?string, page: int, per_page: int}  $filters
+     * @return array<string, mixed>
+     */
+    public function displayFilters(array $filters): array
+    {
+        return [
+            ...$filters,
+            'company_id' => $filters['company_id'] === null ? null : Company::query()->whereKey($filters['company_id'])->value('public_id'),
+            'platform_admin_id' => $filters['platform_admin_id'] === null ? null : PlatformAdmin::query()->whereKey($filters['platform_admin_id'])->value('public_id'),
+        ];
+    }
+
+    /** @return list<array{id: string, name: string, code: string}> */
     public function tenants(): array
     {
         return Company::query()
             ->whereNull('parent_company_id')
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'name', 'code'])
-            ->map(fn (Company $company): array => ['id' => $company->id, 'name' => $company->name, 'code' => $company->code])
+            ->get(['id', 'public_id', 'name', 'code'])
+            ->map(fn (Company $company): array => ['id' => $company->public_id, 'name' => $company->name, 'code' => $company->code])
             ->all();
     }
 
-    /** @return list<array{id: int, name: string}> */
+    /** @return list<array{id: string, name: string}> */
     public function admins(): array
     {
         return PlatformAdmin::query()
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'name'])
-            ->map(fn (PlatformAdmin $admin): array => ['id' => $admin->id, 'name' => $admin->name])
+            ->get(['id', 'public_id', 'name'])
+            ->map(fn (PlatformAdmin $admin): array => ['id' => $admin->public_id, 'name' => $admin->name])
             ->all();
     }
 
@@ -102,32 +122,52 @@ class PlatformAuditQuery
     }
 
     /**
+     * The public id of the record each entry is about, read once per type. A type that is no model, or whose table has
+     * no public id, names nothing.
+     *
+     * @param  Collection<int, Activity>  $activities
+     * @return array<string, string> "type:id" => public id
+     */
+    private function subjectPublicIds(Collection $activities): array
+    {
+        $models = $activities
+            ->pluck('subject_type')
+            ->unique()
+            ->filter(fn (mixed $type): bool => is_string($type) && is_subclass_of($type, Model::class) && Schema::hasColumn((new $type())->getTable(), 'public_id'))
+            ->mapWithKeys(fn (string $type): array => [$type => $type])
+            ->all();
+
+        return PublicId::ofPairs($models, $activities->map(fn (Activity $activity): array => [$activity->subject_type, $activity->subject_id]));
+    }
+
+    /**
      * @param  Collection<int, Company>  $companies
+     * @param  array<string, string>  $subjects
      * @return array<string, mixed>
      */
-    private function row(Activity $activity, Collection $companies): array
+    private function row(Activity $activity, Collection $companies, array $subjects): array
     {
-        $properties = $activity->properties?->all() ?? [];
+        $properties = AuditProperties::forDisplay($activity->properties?->all() ?? []);
         $companyId = $activity->getAttribute('company_id');
         /** @var Company|null $company */
         $company = $companyId === null ? null : $companies->get($companyId);
         $causer = $activity->causer;
 
         return [
-            'id' => $activity->id,
+            'id' => $activity->public_id,
             'log_name' => $activity->log_name,
             'description' => $activity->description,
             'company' => $company === null
                 ? (isset($properties['tenant_code']) ? ['id' => null, 'name' => $properties['tenant_name'] ?? null, 'code' => $properties['tenant_code']] : null)
-                : ['id' => $company->id, 'name' => $company->name, 'code' => $company->code],
+                : ['id' => $company->public_id, 'name' => $company->name, 'code' => $company->code],
             'causer' => $causer === null ? null : [
                 'type' => $causer instanceof PlatformAdmin ? 'platform_admin' : 'user',
-                'id' => (int) $causer->getKey(),
+                'id' => $causer->getAttribute('public_id'),
                 'name' => $causer->getAttribute('name'),
             ],
             'subject' => $activity->subject_type === null ? null : [
                 'type' => class_basename($activity->subject_type),
-                'id' => (int) $activity->subject_id,
+                'id' => $subjects[$activity->subject_type.':'.$activity->subject_id] ?? null,
             ],
             'properties' => $properties,
             'batch_uuid' => $activity->batch_uuid,

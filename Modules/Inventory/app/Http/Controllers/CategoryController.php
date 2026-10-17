@@ -40,7 +40,9 @@ class CategoryController extends Controller
             'categories' => CategoryResource::collection($categories),
             'units' => UnitResource::collection(Unit::query()->orderBy('name')->get()),
             // Every category, for the parent picker: the page holds only one page of the table.
-            'categoryOptions' => Category::query()->orderBy('code')->get(['id', 'code', 'name']),
+            'categoryOptions' => Category::query()->orderBy('code')->get(['public_id', 'code', 'name'])
+                ->map(fn (Category $category): array => ['id' => $category->public_id, 'code' => $category->code, 'name' => $category->name])
+                ->all(),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
                 'create' => $request->user()?->can('inventory.create') ?? false,

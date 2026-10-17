@@ -2,6 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\OrganizationUnit;
+use App\Models\Core\Vehicle;
+use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -9,6 +13,14 @@ use Illuminate\Validation\Rule;
 
 class UpdateEmployeeRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['user_id' => User::class, 'organization_id' => OrganizationUnit::class, 'vehicle_id' => Vehicle::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('employee.manage') ?? false;

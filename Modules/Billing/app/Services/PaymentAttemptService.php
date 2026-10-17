@@ -5,6 +5,7 @@ namespace Modules\Billing\Services;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Support\Money;
+use App\Support\RecordNotFound;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -71,7 +72,7 @@ class PaymentAttemptService
 
         return DB::transaction(function () use ($invoice, $finishUrl): PaymentAttempt {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
-            abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
+            RecordNotFound::abortUnless($invoice->company_id === (int) CompanyService::currentId());
 
             if (($reason = self::unpayableReason($invoice)) !== null) {
                 throw ValidationException::withMessages(['pay' => $reason]);
@@ -164,7 +165,7 @@ class PaymentAttemptService
         $attempt = PaymentAttempt::create([
             'company_id' => $invoice->company_id,
             'invoice_id' => $invoice->id,
-            'order_id' => PaymentAttempt::newOrderId($invoice->company_id, $invoice->id),
+            'order_id' => PaymentAttempt::newOrderId(),
             'amount' => $invoice->sisa,
             'status' => PaymentAttempt::STATUS_PENDING,
             'expires_at' => now()->addHours(PaymentAttempt::TTL_HOURS),

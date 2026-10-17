@@ -51,7 +51,7 @@ async function pickerOptions(
     );
     expect(response.ok(), `${prop} for "${search}"`).toBeTruthy();
     const body = (await response.json()) as {
-        props: Record<string, { value: number; label: string }[]>;
+        props: Record<string, { value: string; label: string }[]>;
     };
 
     return body.props[prop];
@@ -282,7 +282,7 @@ test.describe('@lifecycle inventory', () => {
         await expect(page.getByRole('combobox', { name: 'Tiket' })).toHaveCount(0);
 
         await page.getByRole('button', { name: 'Simpan sebagai Draf' }).click();
-        await expect(page).toHaveURL(/\/admin\/inventory\/requests\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/inventory\/requests\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(page.getByRole('main')).toContainText(formatIsoAs('2030-03-15', format));
     });
 
@@ -290,7 +290,7 @@ test.describe('@lifecycle inventory', () => {
         await loginAs(page, 'admin');
         await page.goto('/admin/stock-movements');
         await selectSearchOption(page, 'Barang', 'E2E-STOCK-PRODUCT');
-        await expect(page).toHaveURL(/product_id=\d+/);
+        await expect(page).toHaveURL(/product_id=[0-9A-HJKMNP-TV-Z]{26}/i);
 
         await page.getByLabel('Cari mutasi').fill('E2E Stock Card Movement 05');
         await expect(

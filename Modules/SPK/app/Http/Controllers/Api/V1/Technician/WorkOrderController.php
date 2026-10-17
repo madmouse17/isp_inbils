@@ -13,10 +13,9 @@ use Modules\SPK\Services\SpkService;
 
 class WorkOrderController extends Controller
 {
-    public function show(Request $request, WorkOrder $wo): TechnicianWorkOrderResource
+    public function show(WorkOrder $wo): TechnicianWorkOrderResource
     {
-        // Same rule as My work: spk.view alone must not expose other technicians' SPKs and customer contacts.
-        abort_unless((int) $wo->assigned_to === (int) $request->user()->id, 404);
+        // The route's `can:assignedTo,wo` already refused another technician's SPK: spk.view alone must not expose it.
         Gate::authorize('view', $wo);
 
         return new TechnicianWorkOrderResource($this->detail($wo));

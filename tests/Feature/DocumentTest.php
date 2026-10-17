@@ -8,6 +8,7 @@ use App\Models\Core\DocumentType;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\DocumentService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -121,7 +122,7 @@ class DocumentTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
             'model_type' => DocumentType::class,
-            'model_id' => $foreignCustomer->id,
+            'model_id' => $foreignCustomer->public_id,
             'file' => $file,
             'collection' => 'documents',
         ]);
@@ -136,7 +137,7 @@ class DocumentTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
             'model_type' => Company::class,
-            'model_id' => $this->admin->company_id,
+            'model_id' => $this->admin->company->public_id,
             'file' => $file,
             'collection' => 'documents',
         ]);
@@ -186,7 +187,7 @@ class DocumentTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
             'model_type' => Customer::class,
-            'model_id' => $customer->id,
+            'model_id' => $customer->public_id,
             'file' => UploadedFile::fake()->create('valid.pdf', 120, 'application/pdf'),
             'document_type_code' => null,
             'collection' => 'documents',
@@ -211,7 +212,7 @@ class DocumentTest extends TestCase
 
         $response = $this->actingAs($noPermUser)->post(route('admin.documents.media.store'), [
             'model_type' => Customer::class,
-            'model_id' => $customer->id,
+            'model_id' => $customer->public_id,
             'file' => UploadedFile::fake()->create('denied.pdf', 120, 'application/pdf'),
             'collection' => 'documents',
         ]);
@@ -227,7 +228,7 @@ class DocumentTest extends TestCase
 
         $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
             'model_type' => Customer::class,
-            'model_id' => $customer->id,
+            'model_id' => $customer->public_id,
             'file' => $file,
             'collection' => 'invoices',
         ]);
@@ -240,7 +241,7 @@ class DocumentTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('admin.documents.media.store'), [
             'model_type' => Customer::class,
-            'model_id' => 999999,
+            'model_id' => PublicId::new(),
             'file' => UploadedFile::fake()->create('missing.pdf', 120, 'application/pdf'),
             'collection' => 'documents',
         ]);
@@ -260,9 +261,10 @@ class DocumentTest extends TestCase
         $response->assertRedirect();
         $this->assertDatabaseHas('document_types', ['code' => 'DEL-TEST']);
 
-        $id = DocumentType::withoutCompany()->where('code', 'DEL-TEST')->first()->id;
+        $documentType = DocumentType::withoutCompany()->where('code', 'DEL-TEST')->firstOrFail();
+        $id = $documentType->id;
 
-        $response = $this->actingAs($this->admin)->delete(route('admin.documents.destroy', $id));
+        $response = $this->actingAs($this->admin)->delete(route('admin.documents.destroy', $documentType));
         $response->assertRedirect();
         $this->assertDatabaseMissing('document_types', ['id' => $id, 'deleted_at' => null]);
     }
@@ -282,7 +284,7 @@ class DocumentTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($otherAdmin)->delete(route('admin.documents.destroy', $dt->id));
+        $response = $this->actingAs($otherAdmin)->delete(route('admin.documents.destroy', $dt->public_id));
         $response->assertNotFound();
         $this->assertDatabaseHas('document_types', ['id' => $dt->id, 'deleted_at' => null]);
     }
@@ -302,7 +304,7 @@ class DocumentTest extends TestCase
             'is_active' => true,
         ]);
 
-        $response = $this->actingAs($noPermUser)->delete(route('admin.documents.destroy', $dt->id));
+        $response = $this->actingAs($noPermUser)->delete(route('admin.documents.destroy', $dt->public_id));
         $response->assertForbidden();
         $this->assertDatabaseHas('document_types', ['id' => $dt->id, 'deleted_at' => null]);
     }
@@ -327,7 +329,7 @@ class DocumentTest extends TestCase
             'code' => 'KTP-OLD',
         ]);
 
-        $this->actingAs($this->admin)->put(route('admin.documents.update', $type->id), [
+        $this->actingAs($this->admin)->put(route('admin.documents.update', $type->public_id), [
             'name' => 'KTP baru',
             'code' => 'KTP-NEW',
             'is_required' => true,

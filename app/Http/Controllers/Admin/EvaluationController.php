@@ -12,6 +12,8 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -37,7 +39,8 @@ class EvaluationController extends Controller
     {
         Gate::authorize('viewAny', EmployeeEvaluation::class);
 
-        $employeeId = $request->integer('employee_id');
+        $employeeId = PublicId::resolveOne(User::class, $request->query('employee_id'));
+        $employeePublicId = $employeeId === null ? null : (string) $request->query('employee_id');
         $employees = $this->filterableEmployees($request);
         $evaluations = $this->filteredQuery($request)
             ->paginate($this->perPage($request))
@@ -46,8 +49,8 @@ class EvaluationController extends Controller
 
         return Inertia::render('Admin/Evaluations/Index', [
             'evaluations' => EmployeeEvaluationResource::collection($evaluations)->additional(['referenceOptions' => $referenceOptions]),
-            'employeeOptions' => $this->employeeOptions($request, $employees, $employeeId ?: null),
-            'selectedEmployee' => $this->employeeOption($employees, $employeeId ?: null),
+            'employeeOptions' => $this->employeeOptions($request, $employees, $employeePublicId),
+            'selectedEmployee' => $this->employeeOption($employees, $employeePublicId),
             'filters' => $request->only([
                 'employee_id', 'reference_type', 'search', 'sort', 'direction', 'per_page',
             ]),
@@ -99,7 +102,7 @@ class EvaluationController extends Controller
     {
         $query = EmployeeEvaluation::query()
             ->with(['employee', 'evaluator'])
-            ->when($request->input('employee_id'), fn ($q, $value) => $q->where('employee_id', $value))
+            ->when($request->input('employee_id'), fn ($q, $value) => $q->where('employee_id', PublicId::resolveOne(User::class, $value) ?? 0))
             ->when($request->input('reference_type'), fn ($q, $value) => $q->where('reference_type', $value))
             ->when($request->input('search'), fn ($q, $value) => $q->whereHas('employee', fn ($employee) => $employee->where('name', 'like', "%{$value}%")));
 
@@ -124,7 +127,7 @@ class EvaluationController extends Controller
                     ->whereIn('status', ['resolved', 'closed']),
                 ['code', 'title'],
                 static fn (Ticket $ticket): array => [
-                    'value' => $ticket->id,
+                    'value' => $ticket->public_id,
                     'label' => $ticket->code,
                     'description' => $ticket->title,
                 ],
@@ -137,7 +140,7 @@ class EvaluationController extends Controller
                     ->where('status', 'completed'),
                 ['code', 'title'],
                 static fn (WorkOrder $workOrder): array => [
-                    'value' => $workOrder->id,
+                    'value' => $workOrder->public_id,
                     'label' => $workOrder->code,
                     'description' => $workOrder->title,
                 ],
@@ -170,7 +173,7 @@ class EvaluationController extends Controller
 
         $evaluation = EmployeeEvaluation::create($data);
 
-        AuditService::log('employee_evaluation', 'created', ['id' => $evaluation->id], $evaluation);
+        AuditService::log('employee_evaluation', 'created', ['id' => $evaluation->public_id], $evaluation);
 
         return redirect()->route('admin.evaluations.index')
             ->with('success', 'Evaluasi berhasil dibuat.');
@@ -184,7 +187,7 @@ class EvaluationController extends Controller
 
         return Inertia::render('Admin/Evaluations/Show', [
             'evaluation' => new EmployeeEvaluationResource($evaluation),
-            'referenceOption' => $this->referenceOptions(collect([$evaluation]))[$evaluation->reference_type.':'.$evaluation->reference_id] ?? null,
+            'referenceOption' => $this->referenceOptions(collect([$evaluation]))[$evaluation->reference_type.':'.$evaluation->referencePublicId()] ?? null,
         ]);
     }
 
@@ -206,7 +209,7 @@ class EvaluationController extends Controller
 
         $evaluation->update($request->validated());
 
-        AuditService::log('employee_evaluation', 'updated', ['id' => $evaluation->id], $evaluation);
+        AuditService::log('employee_evaluation', 'updated', ['id' => $evaluation->public_id], $evaluation);
 
         return redirect()->route('admin.evaluations.index')
             ->with('success', 'Evaluasi berhasil diubah.');
@@ -219,7 +222,7 @@ class EvaluationController extends Controller
 
         $evaluation->delete();
 
-        AuditService::log('employee_evaluation', 'deleted', ['id' => $evaluation->id]);
+        AuditService::log('employee_evaluation', 'deleted', ['id' => $evaluation->public_id]);
 
         return back()->with('success', 'Evaluasi berhasil dihapus.');
     }
@@ -260,7 +263,7 @@ class EvaluationController extends Controller
     }
 
     /** @param  Builder<User>  $employees */
-    private function employeeOptions(Request $request, Builder $employees, ?int $selected = null): OptionalProp
+    private function employeeOptions(Request $request, Builder $employees, ?string $selected = null): OptionalProp
     {
         return SearchOptions::for(
             $request,
@@ -268,7 +271,7 @@ class EvaluationController extends Controller
             $employees,
             ['users.name', 'users.email'],
             static fn (User $user): array => [
-                'value' => $user->id,
+                'value' => $user->public_id,
                 'label' => $user->name,
                 'description' => $user->email,
             ],
@@ -278,44 +281,46 @@ class EvaluationController extends Controller
 
     /**
      * @param  Builder<User>  $employees
-     * @return array{value: int, label: string, description: string}|null
+     * @return array{value: string, label: string, description: string}|null
      */
-    private function employeeOption(Builder $employees, ?int $employeeId): ?array
+    private function employeeOption(Builder $employees, ?string $employeeId): ?array
     {
         if ($employeeId === null) {
             return null;
         }
 
-        $employee = (clone $employees)->find($employeeId);
+        $employee = (clone $employees)->wherePublicId($employeeId)->first();
 
         return $employee === null ? null : [
-            'value' => $employee->id,
+            'value' => $employee->public_id,
             'label' => $employee->name,
             'description' => $employee->email,
         ];
     }
 
     /**
+     * What each evaluation is about, keyed `Type:public_id`: the references load once per type.
+     *
      * @param  Collection<int, EmployeeEvaluation>  $evaluations
      * @return array<string, array{code: string, title: string}>
      */
     private function referenceOptions(Collection $evaluations): array
     {
-        $ticketIds = $evaluations->where('reference_type', 'Ticket')->pluck('reference_id')->unique();
-        $workOrderIds = $evaluations->where('reference_type', 'WorkOrder')->pluck('reference_id')->unique();
+        EmployeeEvaluation::loadReferences($evaluations);
 
-        $tickets = Ticket::query()->withTrashed()->whereKey($ticketIds)->get(['id', 'code', 'title']);
-        $workOrders = WorkOrder::query()->withTrashed()->whereKey($workOrderIds)->get(['id', 'code', 'title']);
-
-        return $tickets->mapWithKeys(fn (Ticket $ticket): array => [
-            'Ticket:'.$ticket->id => ['code' => $ticket->code, 'title' => $ticket->title],
-        ])->merge($workOrders->mapWithKeys(fn (WorkOrder $workOrder): array => [
-            'WorkOrder:'.$workOrder->id => ['code' => $workOrder->code, 'title' => $workOrder->title],
-        ]))->all();
+        return $evaluations
+            ->filter(fn (EmployeeEvaluation $evaluation): bool => $evaluation->getRelation('reference') !== null)
+            ->mapWithKeys(fn (EmployeeEvaluation $evaluation): array => [
+                $evaluation->reference_type.':'.$evaluation->getRelation('reference')->public_id => [
+                    'code' => $evaluation->getRelation('reference')->code,
+                    'title' => $evaluation->getRelation('reference')->title,
+                ],
+            ])
+            ->all();
     }
 
     private function ensureSameCompany(EmployeeEvaluation $evaluation): void
     {
-        abort_unless($evaluation->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($evaluation->company_id === CompanyService::currentId());
     }
 }

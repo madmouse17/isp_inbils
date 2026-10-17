@@ -7,6 +7,7 @@ use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Platform\SupportToolsService;
+use App\Support\RecordNotFound;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,7 @@ class SupportActionsController extends Controller
 
     private function ensureReach(Company $company, User $user, SupportToolsService $support): void
     {
-        abort_unless($support->isHomedIn($company, $user), 404);
+        RecordNotFound::abortUnless($support->isHomedIn($company, $user));
     }
 
     private function admin(Request $request): PlatformAdmin

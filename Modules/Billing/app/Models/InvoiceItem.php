@@ -3,6 +3,7 @@
 namespace Modules\Billing\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ class InvoiceItem extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'company_id', 'invoice_id', 'product_id', 'description', 'quantity', 'unit_price',

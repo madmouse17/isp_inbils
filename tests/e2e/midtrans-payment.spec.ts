@@ -48,7 +48,7 @@ interface MockMidtrans {
 }
 
 interface InvoiceRow {
-    id: number;
+    id: string;
     number: string;
     customer?: { name: string };
 }
@@ -254,7 +254,7 @@ test.describe('@lifecycle midtrans payment (mocked gateway)', () => {
         // The invoice is in the customer's own unpaid list and may be paid.
         const list = await api.get('customer/invoices?status=unpaid');
         expect(list.status()).toBe(200);
-        const listed = ((await list.json()) as { data: { id: number; number: string }[] }).data;
+        const listed = ((await list.json()) as { data: { id: string; number: string }[] }).data;
         expect(listed.map((row) => row.number)).toContain(invoice.number);
         const shown = await api.get(`customer/invoices/${invoice.id}`);
         expect(

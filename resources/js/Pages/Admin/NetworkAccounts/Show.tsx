@@ -152,7 +152,7 @@ function CreateAccountCard({
     realm,
     onSecret,
 }: {
-    subscriptionId: number;
+    subscriptionId: string;
     realm: string | null;
     onSecret: (secret: string) => void;
 }) {

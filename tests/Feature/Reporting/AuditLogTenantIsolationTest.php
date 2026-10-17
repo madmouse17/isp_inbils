@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\PublicId;
 use Database\Seeders\CompanySeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -132,7 +133,7 @@ class AuditLogTenantIsolationTest extends TestCase
         $resultsA = AuditLogQuery::execute();
         $this->assertNotEmpty($resultsA);
         foreach ($resultsA as $row) {
-            $this->assertSame((int) $this->companyA->id, (int) $row['company_id']);
+            $this->assertSame($this->companyA->public_id, $row['company_id']);
             $this->assertNotSame('invoice_generated_b1', $row['description']);
             $this->assertNotSame('invoice_generated_b2', $row['description']);
         }
@@ -153,7 +154,7 @@ class AuditLogTenantIsolationTest extends TestCase
         $resultsB = AuditLogQuery::execute();
         $this->assertNotEmpty($resultsB);
         foreach ($resultsB as $row) {
-            $this->assertSame((int) $this->companyB->id, (int) $row['company_id']);
+            $this->assertSame($this->companyB->public_id, $row['company_id']);
             $this->assertNotSame('invoice_generated_a1', $row['description']);
             $this->assertNotSame('invoice_generated_a2', $row['description']);
         }
@@ -188,7 +189,7 @@ class AuditLogTenantIsolationTest extends TestCase
         CompanyService::useCompanyForTests((int) $this->companyA->id);
         AuditService::log('security', 'company_actor_event');
 
-        $this->get(route('admin.reports.audit-log', ['user_id' => $this->adminB->id]))
+        $this->get(route('admin.reports.audit-log', ['user_id' => $this->adminB->public_id]))
             ->assertSessionHasErrors(['user_id' => 'Pengguna tidak ditemukan.']);
 
         $this->assertSame(0, AuditLogQuery::paginate(userId: (int) $this->adminB->id)->total());
@@ -227,7 +228,7 @@ class AuditLogTenantIsolationTest extends TestCase
         }
 
         // The other company's actor by id is refused before any row is read.
-        foreach ([['user_id' => $this->adminB->id], ['user_id' => $this->adminB->id, 'log_name' => 'billing']] as $filters) {
+        foreach ([['user_id' => $this->adminB->public_id], ['user_id' => $this->adminB->public_id, 'log_name' => 'billing']] as $filters) {
             $this->get(route('admin.reports.audit-log', $filters))->assertSessionHasErrors('user_id');
             $this->get(route('admin.reports.audit-log.export', $filters))->assertSessionHasErrors('user_id');
         }
@@ -290,7 +291,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $results = AuditLogQuery::execute();
         $this->assertNotContains('platform', array_column($results, 'log_name'));
-        $row = collect($results)->firstWhere('id', $support?->id);
+        $row = collect($results)->firstWhere('id', $support?->public_id);
         $this->assertNotNull($row);
         $this->assertNull($row['causer_id']);
         $this->assertSame('Tim dukungan Inbils', $row['causer']['name']);
@@ -304,7 +305,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $page = $this->get(route('admin.reports.audit-log'))->assertOk()->inertiaProps('data.data');
         $this->assertNotContains('platform', array_column($page, 'log_name'));
-        $visibleSupport = collect($page)->firstWhere('id', $support?->id);
+        $visibleSupport = collect($page)->firstWhere('id', $support?->public_id);
         $this->assertSame('Tim dukungan Inbils', $visibleSupport['causer']['name']);
 
         $csv = $this->get(route('admin.reports.audit-log.export', ['format' => 'csv']))->assertOk()->streamedContent();
@@ -374,6 +375,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         // 1. Unambiguous legacy row with proven subject
         $provenId = DB::table('activity_log')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => null,
             'log_name' => 'legacy',
             'description' => 'proven_legacy_event',
@@ -387,6 +389,7 @@ class AuditLogTenantIsolationTest extends TestCase
 
         // 2. Ambiguous legacy row with conflicting hints: subject belongs to Company A, but properties claim Company B
         $ambiguousId = DB::table('activity_log')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => null,
             'log_name' => 'legacy',
             'description' => 'ambiguous_legacy_event',
@@ -513,6 +516,7 @@ class AuditLogTenantIsolationTest extends TestCase
         $batch = [];
         for ($i = 1; $i <= 520; $i++) {
             $batch[] = [
+                'public_id' => PublicId::new(),
                 'company_id' => $this->companyA->id,
                 'log_name' => 'bulk_test',
                 'description' => "bulk_reachability_row_{$i}",
@@ -559,6 +563,7 @@ class AuditLogTenantIsolationTest extends TestCase
         $batch = [];
         for ($i = 1; $i <= 30; $i++) {
             $batch[] = [
+                'public_id' => PublicId::new(),
                 'company_id' => $this->companyA->id,
                 'log_name' => 'tied_time',
                 'description' => "tied_time_row_{$i}",
@@ -744,8 +749,8 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $page1Ids = [];
         foreach ($page1Data['data'] as $row) {
-            $this->assertSame($this->companyA->id, $row['company_id']);
-            $this->assertSame($targetCauserA->id, $row['causer_id']);
+            $this->assertSame($this->companyA->public_id, $row['company_id']);
+            $this->assertSame($targetCauserA->public_id, $row['causer_id']);
             $page1Ids[] = $row['id'];
         }
 
@@ -764,8 +769,8 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $page2Ids = [];
         foreach ($page2Data['data'] as $row) {
-            $this->assertSame($this->companyA->id, $row['company_id']);
-            $this->assertSame($targetCauserA->id, $row['causer_id']);
+            $this->assertSame($this->companyA->public_id, $row['company_id']);
+            $this->assertSame($targetCauserA->public_id, $row['causer_id']);
             $page2Ids[] = $row['id'];
         }
 
@@ -784,8 +789,8 @@ class AuditLogTenantIsolationTest extends TestCase
 
         $page3Ids = [];
         foreach ($page3Data['data'] as $row) {
-            $this->assertSame($this->companyA->id, $row['company_id']);
-            $this->assertSame($targetCauserA->id, $row['causer_id']);
+            $this->assertSame($this->companyA->public_id, $row['company_id']);
+            $this->assertSame($targetCauserA->public_id, $row['causer_id']);
             $page3Ids[] = $row['id'];
         }
 

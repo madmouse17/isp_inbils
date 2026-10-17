@@ -12,9 +12,9 @@ use Modules\Ticketing\Services\TicketService;
 
 class TicketCommentController extends Controller
 {
-    public function __invoke(StoreTicketCommentRequest $request, int $id): JsonResponse
+    public function __invoke(StoreTicketCommentRequest $request, string $id): JsonResponse
     {
-        $ticket = Ticket::query()->findOrFail($id);
+        $ticket = Ticket::query()->wherePublicId($id)->firstOrFail();
         Gate::authorize('view', $ticket);
         Gate::authorize('comment', $ticket);
 

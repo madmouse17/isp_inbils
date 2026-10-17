@@ -107,7 +107,7 @@ class ComponentGalleryAuthorizationTest extends TestCase
             ])
             ->get('/admin/components?demo_search=gudang')
             ->assertOk()
-            ->assertJsonPath('props.demoOptions.0.value', $mine->id)
+            ->assertJsonPath('props.demoOptions.0.value', $mine->public_id)
             ->assertJsonCount(1, 'props.demoOptions');
     }
 

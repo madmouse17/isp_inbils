@@ -62,7 +62,7 @@ class WorkOrderTechniciansPropTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.spk.show', $workOrder))->assertOk();
 
         $this->assertSame(
-            [['id' => $this->technician->id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
+            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
             $response->inertiaProps('technicians'),
         );
 
@@ -103,7 +103,7 @@ class WorkOrderTechniciansPropTest extends TestCase
 
         // The edit page has no screen yet, so its props are read as the Inertia JSON a partial reload gets.
         $this->assertSame(
-            [['id' => $this->technician->id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
+            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
             $this->actingAs($this->admin)
                 ->get(route('admin.spk.edit', $workOrder), $this->partialReload('Admin/SPK/Edit', 'technicians'))
                 ->assertOk()

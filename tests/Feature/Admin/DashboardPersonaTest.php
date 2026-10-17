@@ -428,7 +428,7 @@ class DashboardPersonaTest extends TestCase
         $this->notification($manager, [
             'type' => 'ticket_sla_breached',
             'company_id' => $company->id,
-            'ticket_id' => $ticket->id,
+            'ticket_id' => $ticket->public_id,
             'ticket_code' => $ticket->code,
         ]);
 

@@ -2,12 +2,23 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Models\Category;
+use Modules\Inventory\Models\Unit;
 
 class StoreCategoryRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['parent_id' => Category::class, 'unit_id' => Unit::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('inventory.create') ?? false;

@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Http\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Support\RecordNotFound;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,20 +44,20 @@ class NetworkAccountController extends Controller
 
         $this->unsealSecretFlash($request);
 
-        $subscription->load(['customer:id,name', 'servicePackage.speedProfile', 'servingPop:id,name']);
+        $subscription->load(['customer:id,public_id,name', 'servicePackage.speedProfile', 'servingPop:id,public_id,name']);
         $account = NetworkAccount::query()->where('subscription_id', $subscription->id)->first();
         $speedProfile = $subscription->servicePackage?->speedProfile;
         [$session, $usage] = $account === null ? [null, null] : $this->liveState($radius, $account);
 
         return Inertia::render('Admin/NetworkAccounts/Show', [
             'subscription' => [
-                'id' => $subscription->id,
+                'id' => $subscription->public_id,
                 'code' => $subscription->code,
                 'status' => $subscription->status,
                 'blocked_at' => $subscription->blocked_at?->toIso8601String(),
-                'customer' => $subscription->customer === null ? null : ['id' => $subscription->customer->id, 'name' => $subscription->customer->name],
+                'customer' => $subscription->customer === null ? null : ['id' => $subscription->customer->public_id, 'name' => $subscription->customer->name],
                 'speed_profile' => $speedProfile === null ? null : ['name' => $speedProfile->getAttribute('name'), 'radius_profile_name' => $speedProfile->getAttribute('radius_profile_name')],
-                'serving_pop' => $subscription->servingPop === null ? null : ['id' => $subscription->servingPop->getKey(), 'name' => $subscription->servingPop->getAttribute('name')],
+                'serving_pop' => $subscription->servingPop === null ? null : ['id' => $subscription->servingPop->public_id, 'name' => $subscription->servingPop->getAttribute('name')],
             ],
             'realm' => Realm::fromCode(CompanyService::current()?->code),
             'account' => $account === null ? null : (new NetworkAccountResource($account))->resolve(),
@@ -187,6 +188,6 @@ class NetworkAccountController extends Controller
 
     private function ensureSameCompany(ServiceSubscription $subscription): void
     {
-        abort_unless($subscription->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($subscription->company_id === CompanyService::currentId());
     }
 }

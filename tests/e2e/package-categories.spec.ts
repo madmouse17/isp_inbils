@@ -113,7 +113,7 @@ test.describe('@package-categories', () => {
         await page.goto('/admin/service-packages');
         await main.getByRole('combobox', { name: 'Kategori' }).click();
         await page.getByRole('option', { name: renamedName }).click();
-        await expect(page).toHaveURL(/service_package_category_id=\d+/);
+        await expect(page).toHaveURL(/service_package_category_id=[0-9A-HJKMNP-TV-Z]{26}/i);
         await expect(main.getByRole('row').filter({ hasText: packageName })).toBeVisible();
         await expect(page.locator('tbody tr').filter({ hasNotText: renamedName })).toHaveCount(0);
 
@@ -184,14 +184,14 @@ test.describe('@package-categories', () => {
         await expect(page.getByRole('combobox', { name: 'Kategori paket' })).toBeVisible();
         await selectSearchOption(page, 'Kategori paket', 'Rumahan');
         await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
-        await expect(page).toHaveURL(/service_package_category_id=\d+/);
+        await expect(page).toHaveURL(/service_package_category_id=[0-9A-HJKMNP-TV-Z]{26}/i);
         await expect(page.getByRole('combobox', { name: 'Kategori paket' })).toHaveValue('Rumahan');
 
         await page.goto('/admin/reports/business');
         await expect(page.getByRole('combobox', { name: 'Kategori paket' })).toBeVisible();
         await selectSearchOption(page, 'Kategori paket', 'Bisnis');
         await page.getByRole('button', { name: 'Tampilkan', exact: true }).click();
-        await expect(page).toHaveURL(/service_package_category_id=\d+/);
+        await expect(page).toHaveURL(/service_package_category_id=[0-9A-HJKMNP-TV-Z]{26}/i);
         await expect(page.getByRole('combobox', { name: 'Kategori paket' })).toHaveValue('Bisnis');
         await expect(
             page.getByText('Aset, SLA, dan pelanggan baru tidak terpengaruh.'),

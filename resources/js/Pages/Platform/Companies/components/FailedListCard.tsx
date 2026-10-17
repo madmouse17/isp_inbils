@@ -20,6 +20,7 @@ interface FailedListCardProps<T> {
     fullColumns?: DataTableColumn<T>[];
     /** The support endpoint of the 30-day list (JSON, paginated). */
     url: string;
+    rowKey?: keyof T | ((row: T) => string | number);
 }
 
 type Answer<T> = { key: string; page: PlatformFailedPage<T> | null };
@@ -64,6 +65,7 @@ export function FailedListCard<T>({
     columns,
     fullColumns,
     url,
+    rowKey,
 }: FailedListCardProps<T>) {
     const [full, setFull] = useState(false);
     const [page, setPage] = useState(1);
@@ -103,6 +105,7 @@ export function FailedListCard<T>({
                 {full ? (
                     <DataTable
                         {...empty}
+                        rowKey={rowKey}
                         columns={fullColumns ?? columns}
                         pagination={list ? toPagination(list) : null}
                         onPageChange={setPage}
@@ -119,7 +122,7 @@ export function FailedListCard<T>({
                         onRetry={retry}
                     />
                 ) : (
-                    <DataTable {...empty} columns={columns} rows={recent} />
+                    <DataTable {...empty} rowKey={rowKey} columns={columns} rows={recent} />
                 )}
             </CardContent>
         </Card>

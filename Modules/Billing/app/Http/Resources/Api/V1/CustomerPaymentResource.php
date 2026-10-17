@@ -17,7 +17,7 @@ class CustomerPaymentResource extends JsonResource
         $invoice = $this->invoice;
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'amount' => $this->amount,
             'method' => $this->method,
             'method_label' => $this->methodLabel(),
@@ -25,7 +25,7 @@ class CustomerPaymentResource extends JsonResource
             'reference' => $this->customerReference(),
             'paid_at' => $this->paid_at->toIso8601String(),
             'invoice' => [
-                'id' => $invoice->id,
+                'id' => $invoice->public_id,
                 'number' => $invoice->number,
             ],
         ];

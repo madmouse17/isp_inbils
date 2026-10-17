@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\EmployeeEvaluation;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\Ticketing\Models\Ticket;
@@ -57,9 +58,9 @@ class EvaluationCompanyScopeTest extends TestCase
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
      */
-    private function payload(User $employee, string $type, int $referenceId, array $overrides = []): array
+    private function payload(User $employee, string $type, int|string $referenceId, array $overrides = []): array
     {
-        return ['employee_id' => $employee->id, 'reference_type' => $type, 'reference_id' => $referenceId, 'score' => 4.5, ...$overrides];
+        return ['employee_id' => $employee->public_id, 'reference_type' => $type, 'reference_id' => $referenceId, 'score' => 4.5, ...$overrides];
     }
 
     public function test_the_pages_never_send_an_employee_of_another_company(): void
@@ -114,7 +115,7 @@ class EvaluationCompanyScopeTest extends TestCase
 
         $labels = $this->actingAs($this->admin)
             ->get(
-                route('admin.evaluations.index', ['employee_id' => $selected->id, 'employee_search' => 'Karyawan']),
+                route('admin.evaluations.index', ['employee_id' => $selected->public_id, 'employee_search' => 'Karyawan']),
                 $this->partialReload('Admin/Evaluations/Index', 'employeeOptions'),
             )
             ->assertOk()
@@ -140,10 +141,10 @@ class EvaluationCompanyScopeTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.evaluations.create', ['ticket_search' => 'Gangguan']), $this->partialReload('Admin/Evaluations/Create', 'ticketOptions'))
             ->assertOk()
-            ->assertJsonPath('props.ticketOptions', [['value' => $ticket->id, 'label' => 'TKT-OPS-OWN', 'description' => 'Gangguan Evaluasi']]);
+            ->assertJsonPath('props.ticketOptions', [['value' => $ticket->public_id, 'label' => 'TKT-OPS-OWN', 'description' => 'Gangguan Evaluasi']]);
         $this->get(route('admin.evaluations.create', ['workOrder_search' => 'Gangguan']), $this->partialReload('Admin/Evaluations/Create', 'workOrderOptions'))
             ->assertOk()
-            ->assertJsonPath('props.workOrderOptions', [['value' => $workOrder->id, 'label' => 'SPK-OPS-OWN', 'description' => 'Gangguan Evaluasi']]);
+            ->assertJsonPath('props.workOrderOptions', [['value' => $workOrder->public_id, 'label' => 'SPK-OPS-OWN', 'description' => 'Gangguan Evaluasi']]);
     }
 
     public function test_store_snapshots_the_response_and_resolution_time_and_answers_in_indonesian(): void
@@ -163,10 +164,10 @@ class EvaluationCompanyScopeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)
-            ->post(route('admin.evaluations.store'), $this->payload($employee, 'Ticket', $ticket->id, ['customer_rating' => 4, 'comment' => 'Cepat dan rapi']))
+            ->post(route('admin.evaluations.store'), $this->payload($employee, 'Ticket', $ticket->public_id, ['customer_rating' => 4, 'comment' => 'Cepat dan rapi']))
             ->assertRedirect(route('admin.evaluations.index'))
             ->assertSessionHas('success', 'Evaluasi berhasil dibuat.');
-        $this->post(route('admin.evaluations.store'), $this->payload($employee, 'WorkOrder', $workOrder->id))
+        $this->post(route('admin.evaluations.store'), $this->payload($employee, 'WorkOrder', $workOrder->public_id))
             ->assertRedirect(route('admin.evaluations.index'));
 
         $onTicket = EmployeeEvaluation::query()->where('reference_type', 'Ticket')->sole();
@@ -188,7 +189,7 @@ class EvaluationCompanyScopeTest extends TestCase
 
         $this->actingAs($this->admin)
             ->withSession([CompanyService::SESSION_KEY => $this->subA->id])
-            ->post(route('admin.evaluations.store'), $this->payload($employee, 'Ticket', $ticket->id))
+            ->post(route('admin.evaluations.store'), $this->payload($employee, 'Ticket', $ticket->public_id))
             ->assertRedirect(route('admin.evaluations.index'));
 
         $this->assertSame($this->subA->id, (int) EmployeeEvaluation::withoutCompany()->sole()->company_id);
@@ -209,7 +210,7 @@ class EvaluationCompanyScopeTest extends TestCase
 
         foreach ($cases as [$message, $user]) {
             $this->actingAs($this->admin)
-                ->post(route('admin.evaluations.store'), $this->payload($user, 'Ticket', $ticket->id))
+                ->post(route('admin.evaluations.store'), $this->payload($user, 'Ticket', $ticket->public_id))
                 ->assertSessionHasErrors(['employee_id' => $message]);
             $this->assertCount(1, session('errors')->get('employee_id'), 'one message per rejected employee');
         }
@@ -224,7 +225,7 @@ class EvaluationCompanyScopeTest extends TestCase
         $foreignTicket = $this->finishedTicket($this->outsider, $foreign);
         $foreignWorkOrder = WorkOrderFactory::new()->create(['company_id' => $this->outsider->id, 'status' => 'completed', 'assigned_to' => $foreign->id]);
 
-        foreach ([['Ticket', $foreignTicket->id], ['WorkOrder', $foreignWorkOrder->id], ['Ticket', 999999]] as [$type, $id]) {
+        foreach ([['Ticket', $foreignTicket->public_id], ['WorkOrder', $foreignWorkOrder->public_id], ['Ticket', PublicId::new()], ['Ticket', 999999]] as [$type, $id]) {
             $this->actingAs($this->admin)
                 ->post(route('admin.evaluations.store'), $this->payload($employee, $type, $id))
                 ->assertSessionHasErrors(['reference_id' => 'referensi yang dipilih tidak valid untuk perusahaan ini.']);

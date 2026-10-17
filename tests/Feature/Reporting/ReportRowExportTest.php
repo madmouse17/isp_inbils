@@ -62,8 +62,8 @@ class ReportRowExportTest extends TestCase
         $this->movement($product, 55, now()->startOfDay()->addMinutes(40), $elsewhere);
 
         $filters = [
-            'product_id' => $product->id,
-            'location_id' => $this->location->id,
+            'product_id' => $product->public_id,
+            'location_id' => $this->location->public_id,
             'date_from' => now()->toDateString(),
             'date_to' => now()->toDateString(),
             'sort_by' => 'quantity',
@@ -92,18 +92,22 @@ class ReportRowExportTest extends TestCase
     public function test_stock_card_file_shows_what_a_movement_points_at(): void
     {
         $product = $this->product($this->companyId);
-        $this->movement($product, 5, now(), null, 'Reporting fixture', 'App\\Fixture\\Thing', 42);
+        $this->movement($product, 5, now(), null, 'Reporting fixture', Location::class, $this->location->id);
+        $gone = $this->product($this->companyId);
+        $this->movement($gone, 5, now(), null, 'Reporting fixture', 'App\\Fixture\\Thing', 42);
 
-        $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $product->id])));
+        $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $product->public_id])));
+        $this->assertSame('Location #'.$this->location->public_id, $records[0]['Referensi'], 'a reference shows its public id, never the integer id');
 
-        $this->assertSame('Thing #42', $records[0]['Referensi']);
+        $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $gone->public_id])));
+        $this->assertSame('Thing', $records[0]['Referensi'], 'a reference whose record is gone shows its type alone');
     }
 
     public function test_stock_card_export_of_another_companys_product_is_not_found(): void
     {
         $foreign = $this->product((int) $this->userWithRole('admin')->company_id);
 
-        $this->get(route('admin.reports.stock-card.export', ['product_id' => $foreign->id]))->assertNotFound();
+        $this->get(route('admin.reports.stock-card.export', ['product_id' => $foreign->public_id]))->assertNotFound();
     }
 
     public function test_the_row_cap_leaves_a_marker_row_and_a_truncation_header(): void
@@ -114,7 +118,7 @@ class ReportRowExportTest extends TestCase
             $this->movement($product, $quantity, now()->startOfDay()->addMinutes($quantity));
         }
 
-        $response = $this->get(route('admin.reports.stock-card.export', ['product_id' => $product->id, 'sort_by' => 'quantity', 'sort_dir' => 'asc']));
+        $response = $this->get(route('admin.reports.stock-card.export', ['product_id' => $product->public_id, 'sort_by' => 'quantity', 'sort_dir' => 'asc']));
         $rows = $this->csvRows($response);
 
         $this->assertCount(1 + 5 + 1, $rows, 'header + 5 capped rows + marker');
@@ -126,7 +130,7 @@ class ReportRowExportTest extends TestCase
         foreach (range(1, 5) as $quantity) {
             $this->movement($exact, $quantity, now());
         }
-        $response = $this->get(route('admin.reports.stock-card.export', ['product_id' => $exact->id]));
+        $response = $this->get(route('admin.reports.stock-card.export', ['product_id' => $exact->public_id]));
         $this->assertCount(1 + 5, $this->csvRows($response), 'exactly the cap is not truncated');
         $this->assertSame('0', $response->headers->get('X-Export-Truncated'));
     }
@@ -138,7 +142,7 @@ class ReportRowExportTest extends TestCase
             $this->movement($product, $index + 1, now()->startOfDay()->addMinutes($index), null, $note);
         }
 
-        $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $product->id, 'sort_by' => 'quantity', 'sort_dir' => 'asc'])));
+        $records = $this->csvRecords($this->get(route('admin.reports.stock-card.export', ['product_id' => $product->public_id, 'sort_by' => 'quantity', 'sort_dir' => 'asc'])));
 
         $this->assertSame(
             ["'=HYPERLINK(\"http://evil.test\",\"x\")", "'+cmd|calc", "'@SUM(1+1)", "'-2+3"],
@@ -165,7 +169,7 @@ class ReportRowExportTest extends TestCase
         $this->assertCount(30, $records, 'every matching row, not the 25 of the page');
         $this->assertSame(['stress'], array_values(array_unique(array_column($records, 'Modul'))));
         $this->assertSame($this->admin->name, $records[0]['Pelaku']);
-        $this->assertSame((string) $this->admin->id, $records[0]['ID pelaku']);
+        $this->assertSame($this->admin->public_id, $records[0]['ID pelaku']);
     }
 
     public function test_audit_file_properties_are_exactly_what_the_screen_shows(): void

@@ -5,6 +5,7 @@ namespace Tests\Feature\Platform;
 use App\Models\PlatformAdmin;
 use App\Services\Core\AuditService;
 use App\Services\Platform\PlatformAuditService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -61,10 +62,10 @@ class PlatformAuditTest extends TestCase
                 ->where('activity.data.0.description', 'user.login_unlocked')
                 ->where('activity.data.0.causer', [
                     'type' => 'platform_admin',
-                    'id' => $this->operator->id,
+                    'id' => $this->operator->public_id,
                     'name' => $this->operator->name,
                 ])
-                ->where('activity.data.0.subject', ['type' => 'User', 'id' => $this->alpha['staff']->id])
+                ->where('activity.data.0.subject', ['type' => 'User', 'id' => $this->alpha['staff']->public_id])
                 ->missing('activity.data.0.causer.email')
                 ->where('activity.meta.total', 4));
     }
@@ -84,14 +85,14 @@ class PlatformAuditTest extends TestCase
         $audit->platform('tenant.after', [], $this->alpha['root'], $this->operator);
 
         $this->asOperator(false)->get(route('platform.audit.index', [
-            'company_id' => $this->alpha['root']->id,
-            'platform_admin_id' => $this->operator->id,
+            'company_id' => $this->alpha['root']->public_id,
+            'platform_admin_id' => $this->operator->public_id,
             'event' => 'tenant.target',
             'date_from' => '2026-10-20',
             'date_to' => '2026-10-20',
         ]))->assertInertia(fn (Assert $page) => $page
             ->has('activity.data', 1)
-            ->where('activity.data.0.company.id', $this->alpha['child']->id)
+            ->where('activity.data.0.company.id', $this->alpha['child']->public_id)
             ->where('activity.data.0.description', 'tenant.target'));
     }
 
@@ -100,6 +101,7 @@ class PlatformAuditTest extends TestCase
         $audit = app(PlatformAuditService::class);
         $audit->platform('tenant.lookup', [], $this->alpha['root'], $this->operator);
         DB::table('activity_log')->insert([
+            'public_id' => PublicId::new(),
             'company_id' => null,
             'log_name' => 'platform',
             'description' => 'tenant.purged',
@@ -138,8 +140,9 @@ class PlatformAuditTest extends TestCase
 
         $few = $queries();
 
+        // Subjects are read once per type, not per row: the newest row keeps both types of the first page on the page.
         foreach (range(1, 30) as $n) {
-            $audit->platform("tenant.bulk.{$n}", [], $this->alpha['root'], $this->operator);
+            $audit->platform("tenant.bulk.{$n}", [], $n === 30 ? $this->operator : $this->alpha['root'], $this->operator);
         }
 
         $this->assertSame($few, $queries());
@@ -149,7 +152,7 @@ class PlatformAuditTest extends TestCase
                 ->where('activity.meta.per_page', 25)
                 ->has('activity.data', 8));
 
-        foreach (['company_id' => $this->alpha['child']->id, 'platform_admin_id' => 999999, 'page' => 0, 'per_page' => 1000, 'date_to' => '2026-10-19'] as $key => $value) {
+        foreach (['company_id' => $this->alpha['child']->public_id, 'platform_admin_id' => PublicId::new(), 'page' => 0, 'per_page' => 1000, 'date_to' => '2026-10-19'] as $key => $value) {
             $query = [$key => $value];
 
             if ($key === 'date_to') {

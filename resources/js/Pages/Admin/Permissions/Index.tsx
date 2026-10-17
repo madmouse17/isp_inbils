@@ -8,7 +8,6 @@ import { toPagination } from '@/lib/pagination';
 import type { Paginated } from '@/types';
 
 interface PermissionRow {
-    id: number;
     name: string;
     group: string;
 }
@@ -76,6 +75,7 @@ export default function Index({ permissions, filters }: PermissionsProps) {
                             />
                         </div>
                         <DataTable
+                            rowKey="name"
                             columns={columns}
                             pagination={toPagination(permissions)}
                             sortBy={sortBy}

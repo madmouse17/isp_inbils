@@ -33,11 +33,11 @@ const mainOf = (page: Page) => page.getByRole('main');
 
 async function customerIdOf(page: Page, name: string) {
     const data = await inertiaProps(page, `/admin/customers?search=${encodeURIComponent(name)}`);
-    const rows = data.props?.customers?.data as Array<{ id: number; name: string }> | undefined;
+    const rows = data.props?.customers?.data as Array<{ id: string; name: string }> | undefined;
     const found = rows?.find((row) => row.name === name);
     if (!found) throw new Error(`Customer fixture ${name} not found`);
 
-    return found.id;
+    return String(found.id);
 }
 
 const whatsappCard = (page: Page) =>
@@ -62,7 +62,8 @@ async function setTheme(page: Page, width: number, dark: boolean) {
 async function saveCustomer(page: Page) {
     const request = page.waitForRequest(
         (candidate) =>
-            candidate.method() === 'PUT' && /\/admin\/customers\/\d+$/.test(candidate.url()),
+            candidate.method() === 'PUT' &&
+            /\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i.test(candidate.url()),
     );
     await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
     await expect(page).toHaveURL(/\/admin\/customers\/?$/);
@@ -73,8 +74,8 @@ async function saveCustomer(page: Page) {
 test.describe('@lifecycle whatsapp notifications', () => {
     test.describe.configure({ mode: 'serial' });
 
-    let plainId = 0;
-    let waId = 0;
+    let plainId = '';
+    let waId = '';
 
     test('the customer page shows consent, the last messages with a status word and only the last four digits', async ({
         page,
@@ -169,7 +170,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await loginAs(page, 'admin');
         // Whoever may open the edit page may also update (the server answers 403 to the rest), so the
         // read-only state is shown by serving the same page with `can.update` false.
-        await page.route(/\/admin\/customers\/\d+\/edit$/, async (route) => {
+        await page.route(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}\/edit$/i, async (route) => {
             const response = await route.fetch();
             const body = (await response.text())
                 .replaceAll('&quot;update&quot;:true', '&quot;update&quot;:false')
@@ -187,7 +188,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(mainOf(page).getByText(/Tampilan baca saja/)).toBeVisible();
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeDisabled();
         await expect(page.getByRole('button', { name: 'Simpan pelanggan' })).toHaveCount(0);
-        await page.unroute(/\/admin\/customers\/\d+\/edit$/);
+        await page.unroute(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}\/edit$/i);
     });
 
     test('consent is recorded when a customer is created', async ({ page }) => {
@@ -247,7 +248,7 @@ test.describe('@lifecycle whatsapp notifications', () => {
         await expect(page.getByRole('checkbox', { name: CONSENT })).toBeChecked();
         await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
-        await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(mainOf(page).getByRole('heading', { name })).toBeVisible();
         await expect(whatsappCard(page)).toContainText('Setuju sejak');
     });

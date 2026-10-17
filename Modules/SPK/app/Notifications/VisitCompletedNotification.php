@@ -6,6 +6,7 @@ use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Modules\SPK\Models\WorkOrder;
 
 /**
  * In the customer app and on the customer's phone: the visit to one of their subscriptions is done (the reviewer approved
@@ -31,7 +32,7 @@ class VisitCompletedNotification extends Notification implements ShouldQueue
     {
         return [
             'type' => 'visit_completed',
-            'work_order_id' => $this->workOrderId,
+            'work_order_id' => WorkOrder::withoutCompany()->whereKey($this->workOrderId)->value('public_id'),
             'company_id' => $this->companyId,
         ];
     }

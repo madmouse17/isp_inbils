@@ -15,7 +15,7 @@ Route::middleware(['auth:platform', 'platform.account', 'platform.2fa'])->group(
     Route::post('companies', [CompanyController::class, 'store'])->name('companies.store');
 
     // {company} is a tenant, a top-level company (Company::resolveRouteBinding): the id of a subsidiary is a 404.
-    Route::prefix('companies/{company}')->where(['company' => '[0-9]+'])->group(function () {
+    Route::prefix('companies/{company}')->whereUlid('company')->group(function () {
         Route::get('/', [CompanyController::class, 'show'])->name('companies.show');
         Route::post('subsidiaries', [CompanySubsidiaryController::class, 'store'])->name('companies.subsidiaries.store');
         Route::post('reactivate', [TenantLifecycleController::class, 'reactivate'])->name('companies.reactivate');

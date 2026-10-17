@@ -1,6 +1,6 @@
 export interface OrganizationUnit {
-    id: number;
-    parent_id: number | null;
+    id: string;
+    parent_id: string | null;
     code: string;
     name: string;
     type: string;
@@ -13,23 +13,23 @@ export interface OrganizationUnit {
 }
 
 export interface EmployeeProfile {
-    id: number;
-    user_id: number;
-    organization_id: number | null;
-    vehicle_id: number | null;
+    id: string;
+    user_id: string;
+    organization_id: string | null;
+    vehicle_id: string | null;
     employee_number: string;
     phone?: string | null;
     hire_date?: string | null;
     status: string;
     skills?: string[] | null;
     notes?: string | null;
-    user?: { id: number; name: string; email: string } | null;
-    organization?: { id: number; name: string; code: string } | null;
-    vehicle?: { id: number; plate_number: string } | null;
+    user?: { id: string; name: string; email: string } | null;
+    organization?: { id: string; name: string; code: string } | null;
+    vehicle?: { id: string; plate_number: string } | null;
 }
 
 export interface Vehicle {
-    id: number;
+    id: string;
     plate_number: string;
     type?: string | null;
     brand?: string | null;

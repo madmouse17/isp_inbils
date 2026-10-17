@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Odn;
 
+use App\Support\Database\PublicIdColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -58,6 +59,8 @@ class OdnSchemaTest extends TestCase
             if (! Schema::hasTable('odn_ports')) {
                 $ports->up();
             }
+
+            PublicIdColumn::add(['odn_splitters', 'odn_ports']);
         }
     }
 

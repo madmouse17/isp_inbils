@@ -30,14 +30,14 @@ class AnnouncementController extends Controller
 
         $announcements = $tab === 'announcements'
             ? AnnouncementResource::collection(Announcement::query()
-                ->with(['locations:id,code,name', 'servicePackageCategories:id,code,name'])
+                ->with(['locations:id,public_id,code,name', 'servicePackageCategories:id,public_id,code,name'])
                 ->when($search !== '', fn ($query) => $query->where('title', 'like', '%'.addcslashes($search, '\\%_').'%'))
                 ->when($status !== null, fn ($query) => $query->ofStatus($status))
                 ->latest('id')->paginate(10)->withQueryString())
             : null;
         $banners = $tab === 'banners'
             ? PromoBannerResource::collection(PromoBanner::query()
-                ->with(['locations:id,code,name', 'servicePackageCategories:id,code,name', 'media'])
+                ->with(['locations:id,public_id,code,name', 'servicePackageCategories:id,public_id,code,name', 'media'])
                 ->when($search !== '', fn ($query) => $query->where('title', 'like', '%'.addcslashes($search, '\\%_').'%'))
                 ->when($status !== null, fn ($query) => $query->ofStatus($status))
                 ->orderBy('sort_order')->latest('id')->paginate(10)->withQueryString())
@@ -53,13 +53,15 @@ class AnnouncementController extends Controller
             'kinds' => Announcement::KINDS,
             'audiences' => Announcement::AUDIENCES,
             'appRoutes' => PromoBanner::APP_ROUTES,
-            'packageCategories' => ServicePackageCategory::query()->where('is_active', true)->orderBy('sort_order')->get(['id', 'code', 'name']),
+            'packageCategories' => ServicePackageCategory::query()->where('is_active', true)->orderBy('sort_order')->get(['public_id', 'code', 'name'])
+                ->map(fn (ServicePackageCategory $category): array => ['id' => $category->public_id, ...$category->only(['code', 'name'])])
+                ->all(),
             'locationOptions' => SearchOptions::for(
                 $request,
                 'location',
-                Location::query()->select(['id', 'code', 'name', 'path']),
+                Location::query()->select(['id', 'public_id', 'code', 'name', 'path']),
                 ['name', 'code'],
-                fn (Location $location): array => ['value' => $location->id, 'label' => $location->name, 'description' => $location->path],
+                fn (Location $location): array => ['value' => $location->public_id, 'label' => $location->name, 'description' => $location->path],
             ),
             'preview' => [
                 'banners' => PromoBannerResource::collection(PromoBanner::query()->publishedAndLive()->with('media')->orderBy('sort_order')->latest('id')->limit(5)->get()),

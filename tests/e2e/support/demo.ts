@@ -232,7 +232,7 @@ export async function technicianUserId(page: Page) {
     await row.getByRole('button', { name: 'Aksi lainnya' }).click();
     const href = await page.getByRole('menuitem', { name: 'Lihat detail' }).getAttribute('href');
     await page.keyboard.press('Escape');
-    const id = href?.match(/\/(\d+)$/)?.[1];
+    const id = href?.match(/\/([0-9A-HJKMNP-TV-Z]{26})$/i)?.[1];
     if (!id) {
         throw new Error('Could not resolve Demo Technician user id');
     }

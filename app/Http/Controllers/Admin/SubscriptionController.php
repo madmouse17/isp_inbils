@@ -13,6 +13,8 @@ use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SubscriptionService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -25,6 +27,7 @@ use Modules\Ipam\Queries\IpPrefixUtilisationQuery;
 use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Queries\OdnOccupancyQuery;
 use Modules\NetworkAsset\Services\OdnService;
+use Modules\Service\Models\ServicePackage;
 use Modules\Service\Services\ServicePackageOptions;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -43,7 +46,7 @@ class SubscriptionController extends Controller
         Gate::authorize('customer.subscription.view');
 
         return Inertia::render('Admin/Subscriptions/Index', [
-            'customer' => $customer->only(['id', 'code', 'name']),
+            'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'subscriptions' => SubscriptionResource::collection(
                 $this->filteredQuery($customer, $request)->paginate(10)->withQueryString()
             ),
@@ -73,7 +76,7 @@ class SubscriptionController extends Controller
         $this->ensureSameCompany($subscription);
         Gate::authorize('customer.subscription.view');
 
-        $subscription->load(['servicePackage.category', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,name']);
+        $subscription->load(['servicePackage.category', 'customer', 'installationAddress', 'servingPop', 'blockedBy:id,public_id,name']);
 
         $user = $request->user();
         $canAssignIp = $user?->can('ipam.assign') ?? false;
@@ -83,7 +86,7 @@ class SubscriptionController extends Controller
             'subscription' => new SubscriptionResource($subscription),
             'ipAddresses' => ($user?->can('ipam.view') ?? false)
                 ? IpAssignmentService::forSubscription($subscription)->map(fn ($address): array => [
-                    'id' => $address->id,
+                    'id' => $address->public_id,
                     'family' => $address->family,
                     'address' => $address->address,
                     'prefix_cidr' => $address->prefix?->cidr,
@@ -237,7 +240,7 @@ class SubscriptionController extends Controller
             'expiration_date' => optional($subscription->expiration_date)?->toDateString() ?? '-',
         ];
 
-        $filename = 'subscriptions-'.$customer->id.'-'.now()->format('Ymd-His');
+        $filename = 'subscriptions-'.$customer->public_id.'-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
             ? $export->streamPdf('Langganan', $columns, $map, $filename.'.pdf')
@@ -257,7 +260,7 @@ class SubscriptionController extends Controller
                         ->orWhereHas('servicePackage', fn (Builder $pkg) => $pkg->where('name', 'like', $term)->orWhere('code', 'like', $term));
                 });
             })
-            ->when($request->filled('service_package_id'), fn (Builder $query) => $query->where('service_package_id', $request->integer('service_package_id')))
+            ->when($request->filled('service_package_id'), fn (Builder $query) => $query->where('service_package_id', PublicId::resolveOne(ServicePackage::class, $request->input('service_package_id')) ?? 0))
             ->when($request->filled('status'), fn (Builder $query) => $query->where('status', $request->string('status')->toString()));
 
         return $this->applySort($query, $request, 'created_at', 'desc');
@@ -265,6 +268,6 @@ class SubscriptionController extends Controller
 
     private function ensureSameCompany(Customer|ServiceSubscription $model): void
     {
-        abort_unless($model->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($model->company_id === CompanyService::currentId());
     }
 }

@@ -53,7 +53,7 @@ test.describe('@lifecycle SPK installation', () => {
         const spkLink = spkRow.getByRole('link').first();
         await expect(spkLink).toBeVisible();
         await spkLink.click();
-        await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/spk\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         spkUrl = page.url();
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'draft');
@@ -102,7 +102,7 @@ test.describe('@lifecycle SPK installation', () => {
         request,
     }) => {
         expect(spkUrl).toBeTruthy();
-        const id = spkUrl.match(/\/admin\/spk\/(\d+)/)?.[1];
+        const id = spkUrl.match(/\/admin\/spk\/([0-9A-HJKMNP-TV-Z]{26})/i)?.[1];
         expect(id, 'SPK id in the URL').toBeTruthy();
 
         const api = await apiLogin(request, 'technician');
@@ -138,7 +138,7 @@ test.describe('@lifecycle SPK installation', () => {
         await expect(timeline).not.toContainText('Belum dicapai');
         await expect(page.getByText(`caption-${runId}`)).toBeVisible();
         const preview = page.getByRole('img', { name: `evidence-${runId}` });
-        await expect(preview).toHaveAttribute('src', /^\/admin\/media\/\d+$/);
+        await expect(preview).toHaveAttribute('src', /^\/admin\/media\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect
             .poll(() =>
                 preview.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0),
@@ -187,7 +187,7 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
     const spkLink = spkRow.getByRole('link').first();
     await expect(spkLink).toBeVisible();
     await spkLink.click();
-    await expect(page).toHaveURL(/\/admin\/spk\/\d+$/);
+    await expect(page).toHaveURL(/\/admin\/spk\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
     await expectSpkState(page, 'draft');
     await expectDetail(page, 'Pelanggan', customer);

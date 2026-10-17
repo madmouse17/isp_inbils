@@ -2,6 +2,8 @@
 
 namespace Modules\Ipam\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -9,6 +11,14 @@ use Modules\Ipam\Models\Vlan;
 
 class StoreVlanRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['location_id' => Location::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Vlan::class) ?? false;

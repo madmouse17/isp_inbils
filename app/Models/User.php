@@ -7,6 +7,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Services\Core\ApiTokenService;
+use App\Traits\HasPublicId;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,7 +32,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, HasRoles, LogsActivity, Notifiable;
+    use HasApiTokens, HasFactory, HasPublicId, HasRoles, LogsActivity, Notifiable;
 
     protected static $recordEvents = ['created', 'updated', 'deleted'];
 
@@ -144,6 +145,7 @@ class User extends Authenticatable
             ->useLogName('user')
             ->logAll()
             ->logExcept([
+                'public_id',
                 'password',
                 'remember_token',
                 'email_verified_at',

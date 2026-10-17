@@ -23,13 +23,13 @@ class NasDeviceResource extends JsonResource
         $location = $asset?->relationLoaded('location') ? $asset->location : null;
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'network_asset' => $asset === null ? null : [
-                'id' => $asset->id,
+                'id' => $asset->public_id,
                 'code' => $asset->code,
                 'name' => $asset->name,
                 'management_ip' => $asset->getAttribute('management_ip'),
-                'location' => $location === null ? null : ['id' => $location->getKey(), 'name' => $location->getAttribute('name'), 'type' => $location->getAttribute('type')],
+                'location' => $location === null ? null : ['id' => $location->public_id, 'name' => $location->getAttribute('name'), 'type' => $location->getAttribute('type')],
             ],
             'nasname' => (string) $this->nasname,
             'shortname' => (string) Realm::fromCode(CompanyService::current()?->code),

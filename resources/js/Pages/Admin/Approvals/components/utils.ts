@@ -1,6 +1,6 @@
 /** The id a row has across domains: the server's `composite_id`, or the domain and the record id. */
 export function getItemCompositeId(item: {
-    id: number | string;
+    id: string;
     domain?: string;
     composite_id?: string;
 }): string {

@@ -63,7 +63,7 @@ class WorkOrderScheduledNotification extends WhatsAppNotification
             $workOrder->title,
             $workOrder->scheduled_date === null ? 'belum dijadwalkan' : $this->formatDate($workOrder->scheduled_date),
             route('admin.spk.show', $workOrder),
-        ], 'work_order', $workOrder->id, 'spk_scheduled:'.$workOrder->id.':'.$technicianId);
+        ], 'work_order', $workOrder, 'spk_scheduled:'.$workOrder->id.':'.$technicianId);
     }
 
     /** @return array<string, mixed>|null */
@@ -78,6 +78,6 @@ class WorkOrderScheduledNotification extends WhatsAppNotification
             $workOrder->code,
             $this->formatDate($workOrder->scheduled_date),
             Str::of($workOrder->assignee->name)->trim()->before(' ')->toString(),
-        ], 'work_order', $workOrder->id, 'spk_scheduled_customer:'.$workOrder->id);
+        ], 'work_order', $workOrder, 'spk_scheduled_customer:'.$workOrder->id);
     }
 }

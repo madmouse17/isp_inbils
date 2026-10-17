@@ -5,6 +5,7 @@ namespace Tests\Feature\Reporting;
 use App\Models\Core\Company;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Modules\Reporting\Queries\BusinessMetricsQuery;
@@ -53,7 +54,7 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $data = $this->page(self::JANUARY)->assertOk()->inertiaProps('data');
 
-        $this->assertSame([$this->head->id, $this->subA->id, $this->subB->id], array_column($data['rows'], 'company_id'));
+        $this->assertSame([$this->head->public_id, $this->subA->public_id, $this->subB->public_id], array_column($data['rows'], 'company_id'));
 
         foreach (['mrr', 'revenue_paid', 'recurring_revenue', 'one_time_revenue', 'outstanding'] as $money) {
             $sum = '0';
@@ -92,7 +93,7 @@ class ConsolidatedBusinessReportTest extends TestCase
         $rows = $this->page(self::JANUARY)->assertOk()->inertiaProps('data.rows');
 
         foreach ($rows as $row) {
-            $own = BusinessMetricsQuery::execute('2026-01-01', '2026-01-31', $row['company_id']);
+            $own = BusinessMetricsQuery::execute('2026-01-01', '2026-01-31', PublicId::resolveOne(Company::class, $row['company_id']));
             $this->assertEquals($own, $row['metrics'], 'company '.$row['company_id'].' differs from its own Business report');
         }
     }
@@ -134,8 +135,8 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $props = $this->page(self::JANUARY)->assertOk()->inertiaProps();
 
-        $this->assertNotContains($this->outsider->id, array_column($props['data']['rows'], 'company_id'));
-        $this->assertNotContains($this->outsider->id, array_column($props['context']['companies'], 'id'));
+        $this->assertNotContains($this->outsider->public_id, array_column($props['data']['rows'], 'company_id'));
+        $this->assertNotContains($this->outsider->public_id, array_column($props['context']['companies'], 'id'));
         $this->assertEquals(370000, $props['data']['total']['mrr']);
         $this->assertEquals(165000, $props['data']['total']['revenue_paid']);
     }
@@ -148,11 +149,11 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $this->assertSame('consolidated', $context['mode']);
         $this->assertSame(
-            ['id' => $this->head->id, 'name' => 'Group Head', 'code' => 'HDQ', 'currency' => 'IDR'],
+            ['id' => $this->head->public_id, 'name' => 'Group Head', 'code' => 'HDQ', 'currency' => 'IDR'],
             $context['head'],
         );
         $this->assertSame(
-            [$this->head->id, $this->subA->id, $this->subB->id],
+            [$this->head->public_id, $this->subA->public_id, $this->subB->public_id],
             array_column($context['companies'], 'id'),
         );
         $this->assertSame(['id', 'name', 'code', 'currency', 'timezone'], array_keys($context['companies'][1]));
@@ -165,7 +166,7 @@ class ConsolidatedBusinessReportTest extends TestCase
 
         $props = $this->page(self::JANUARY)->assertOk()->inertiaProps();
 
-        $this->assertSame([$this->head->id, $this->subA->id], array_column($props['data']['rows'], 'company_id'));
+        $this->assertSame([$this->head->public_id, $this->subA->public_id], array_column($props['data']['rows'], 'company_id'));
         $this->assertEquals(300000, $props['data']['total']['mrr']);   // B's 70000 is out
     }
 
@@ -174,10 +175,10 @@ class ConsolidatedBusinessReportTest extends TestCase
         $this->seedGroupWorld();
         $user = $this->groupUser($this->head, 'admin', $this->subA);
 
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
         $this->get(route('admin.reports.consolidated'))->assertForbidden();
 
-        $this->post(route('admin.company.switch'), ['company_id' => $this->head->id]);
+        $this->post(route('admin.company.switch'), ['company_id' => $this->head->public_id]);
         $this->get(route('admin.reports.consolidated', self::JANUARY))->assertOk();
     }
 
@@ -196,7 +197,7 @@ class ConsolidatedBusinessReportTest extends TestCase
         $this->assertSame('currency_mismatch', $props['refusal']['code']);
         $this->assertEqualsCanonicalizing(['IDR', 'USD'], $props['refusal']['currencies']);
         $this->assertStringContainsString('mata uang', strtolower($props['refusal']['message']));
-        $this->assertSame([$this->head->id, $this->subA->id, $this->subB->id], array_column($props['context']['companies'], 'id'));
+        $this->assertSame([$this->head->public_id, $this->subA->public_id, $this->subB->public_id], array_column($props['context']['companies'], 'id'));
     }
 
     public function test_the_file_is_refused_too_when_currencies_differ(): void
@@ -239,11 +240,11 @@ class ConsolidatedBusinessReportTest extends TestCase
         $data = $this->page($oneDay)->assertOk()->inertiaProps('data');
         $byCompany = array_column($data['rows'], 'metrics', 'company_id');
 
-        $this->assertSame(1, $byCompany[$this->head->id]['new_subscriptions']);
-        $this->assertSame(0, $byCompany[$this->subA->id]['new_subscriptions']);
-        $this->assertSame(2, $byCompany[$this->subB->id]['new_subscriptions']);
+        $this->assertSame(1, $byCompany[$this->head->public_id]['new_subscriptions']);
+        $this->assertSame(0, $byCompany[$this->subA->public_id]['new_subscriptions']);
+        $this->assertSame(2, $byCompany[$this->subB->public_id]['new_subscriptions']);
         $this->assertSame(3, $data['total']['new_subscriptions']);
-        $this->assertEquals(500, $byCompany[$this->subB->id]['revenue_paid']);
+        $this->assertEquals(500, $byCompany[$this->subB->public_id]['revenue_paid']);
     }
 
     // ---------------------------------------------------------------------------------------------

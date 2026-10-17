@@ -3,6 +3,7 @@
 namespace Modules\NetworkAsset\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +34,7 @@ class NasDevice extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'network_asset_id',

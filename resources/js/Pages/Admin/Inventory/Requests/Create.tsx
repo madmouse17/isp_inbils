@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Com
 import { INVENTORY_REQUEST_SOURCE, optionsOf } from '@/lib/statuses';
 
 interface WarehouseOption {
-    id: number;
+    id: string;
     name: string;
     code?: string | null;
 }

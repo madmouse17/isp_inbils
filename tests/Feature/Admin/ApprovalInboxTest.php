@@ -57,7 +57,7 @@ class ApprovalInboxTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Approvals/Index')
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $waiting->id)
+                ->where('items.data.0.id', $waiting->public_id)
                 ->where('items.data.0.domain', 'spk')
                 ->where('items.data.0.code', $waiting->code)
                 ->where('items.data.0.actions.approve', true)
@@ -236,11 +236,11 @@ class ApprovalInboxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $eligibleSpk->id)
+                ->where('items.data.0.id', $eligibleSpk->public_id)
                 ->where('summary.waiting_for_me', 1)
                 // Manager must NOT appear in requesters options
                 ->has('requesters', 1)
-                ->where('requesters.0.id', $creator->id)
+                ->where('requesters.0.id', $creator->public_id)
                 // Types must NOT leak installation or repair
                 ->has('types', 1)
                 ->where('types.0', 'maintenance')
@@ -265,20 +265,20 @@ class ApprovalInboxTest extends TestCase
 
         // Leakage test: filtering by creator who also created $assignedSpk only returns eligible SPK
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $creator->id]))
+            ->get(route('admin.approvals.index', ['creator' => $creator->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $eligibleSpk->id)
+                ->where('items.data.0.id', $eligibleSpk->public_id)
             );
 
         // Leakage test: filtering by manager (ineligible creator) is safely ignored and does not leak self-created
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $manager->id]))
+            ->get(route('admin.approvals.index', ['creator' => $manager->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $eligibleSpk->id)
+                ->where('items.data.0.id', $eligibleSpk->public_id)
             );
     }
 
@@ -363,31 +363,31 @@ class ApprovalInboxTest extends TestCase
         $this->waitingSpk($otherCompany, $foreignCreator);
 
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['type' => 'maintenance', 'creator' => $creatorB->id]))
+            ->get(route('admin.approvals.index', ['type' => 'maintenance', 'creator' => $creatorB->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $b->id)
+                ->where('items.data.0.id', $b->public_id)
             );
 
         // Filter creator yang bukan requester company saat ini diabaikan agar
         // tidak menjadi oracle keberadaan lintas tenant.
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $foreignCreator->id]))
+            ->get(route('admin.approvals.index', ['creator' => $foreignCreator->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 2)
-                ->where('items.data.0.id', $a->id)
-                ->where('items.data.1.id', $b->id)
+                ->where('items.data.0.id', $a->public_id)
+                ->where('items.data.1.id', $b->public_id)
             );
 
         $this->actingAs($manager)
-            ->get(route('admin.approvals.index', ['creator' => $nonRequester->id]))
+            ->get(route('admin.approvals.index', ['creator' => $nonRequester->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 2)
-                ->where('items.data.0.id', $a->id)
-                ->where('items.data.1.id', $b->id)
+                ->where('items.data.0.id', $a->public_id)
+                ->where('items.data.1.id', $b->public_id)
             );
 
         $this->actingAs($manager)
@@ -395,8 +395,8 @@ class ApprovalInboxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 2)
-                ->where('items.data.0.id', $a->id)
-                ->where('items.data.1.id', $b->id)
+                ->where('items.data.0.id', $a->public_id)
+                ->where('items.data.1.id', $b->public_id)
             );
     }
 
@@ -419,8 +419,8 @@ class ApprovalInboxTest extends TestCase
                 ->has('items.data', 10)
                 ->where('items.meta.total', 11)
                 ->where('items.meta.per_page', 10)
-                ->where('items.data.0.id', $orders[0]->id)
-                ->where('items.data.9.id', $orders[9]->id)
+                ->where('items.data.0.id', $orders[0]->public_id)
+                ->where('items.data.9.id', $orders[9]->public_id)
             );
 
         // Sort tidak dikenal kembali ke default (created_at desc), sedangkan
@@ -516,7 +516,7 @@ class ApprovalInboxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('requesters', 1)
-                ->where('requesters.0.id', $creator->id)
+                ->where('requesters.0.id', $creator->public_id)
             );
     }
 
@@ -614,7 +614,7 @@ class ApprovalInboxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $spk->id)
+                ->where('items.data.0.id', $spk->public_id)
                 ->where('items.data.0.actions.approve', true)
                 ->where('summary.waiting_for_me', 1)
                 ->where('summary.processed', 0)
@@ -657,7 +657,7 @@ class ApprovalInboxTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('items.data', 1)
-                ->where('items.data.0.id', $spk->id)
+                ->where('items.data.0.id', $spk->public_id)
                 ->where('items.data.0.actions.reject', true)
                 ->where('summary.waiting_for_me', 1)
                 ->where('summary.processed', 0)

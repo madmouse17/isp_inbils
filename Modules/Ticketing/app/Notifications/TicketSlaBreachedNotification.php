@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Ticketing\Models\Ticket;
 
 class TicketSlaBreachedNotification extends Notification implements ShouldQueueAfterCommit
 {
@@ -29,9 +30,7 @@ class TicketSlaBreachedNotification extends Notification implements ShouldQueueA
     {
         return (new MailMessage())
             ->subject('SLA terlampaui: '.$this->ticketCode)
-            ->line('Tiket '.$this->ticketCode.' melewati batas SLA '.$this->breachLabel().'.')
-            ->line('ID tiket: '.$this->ticketId)
-            ->line('ID perusahaan: '.($this->companyId ?? '-'));
+            ->line('Tiket '.$this->ticketCode.' melewati batas SLA '.$this->breachLabel().'.');
     }
 
     private function breachLabel(): string
@@ -48,7 +47,7 @@ class TicketSlaBreachedNotification extends Notification implements ShouldQueueA
     {
         return [
             'type' => 'ticket_sla_breached',
-            'ticket_id' => $this->ticketId,
+            'ticket_id' => Ticket::withoutCompany()->whereKey($this->ticketId)->value('public_id'),
             'ticket_code' => $this->ticketCode,
             'breach_type' => $this->breachType,
             'company_id' => $this->companyId,

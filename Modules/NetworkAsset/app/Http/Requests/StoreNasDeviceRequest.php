@@ -2,6 +2,7 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,6 +13,14 @@ use Modules\NetworkAsset\Services\Radius\Realm;
 /** `nasname` defaults to the management IP of the router asset. */
 class StoreNasDeviceRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['network_asset_id' => NetworkAsset::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('network_asset.nas.manage') ?? false;

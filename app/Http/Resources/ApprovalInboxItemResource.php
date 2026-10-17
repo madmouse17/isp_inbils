@@ -27,18 +27,18 @@ class ApprovalInboxItemResource extends JsonResource
             $canView = (bool) $user?->can('view', $wo);
 
             return [
-                'id' => $wo->id,
+                'id' => $wo->public_id,
                 'domain' => 'spk',
-                'composite_id' => "spk:{$wo->id}",
+                'composite_id' => "spk:{$wo->public_id}",
                 'code' => $wo->code,
                 'type' => $wo->type,
                 'title' => $wo->title,
                 'priority' => $wo->priority,
                 'status' => $wo->status,
                 'requester' => $wo->relationLoaded('creator') && $wo->creator
-                    ? ['id' => $wo->creator->id, 'name' => $wo->creator->name]
+                    ? ['id' => $wo->creator->public_id, 'name' => $wo->creator->name]
                     : null,
-                'assigned_to' => $wo->assigned_to,
+                'assigned_to' => $wo->assignee?->public_id,
                 'submitted_at' => $wo->created_at?->toISOString(),
                 'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,
                 'scheduled_date' => $wo->scheduled_date?->toDateString(),
@@ -63,16 +63,16 @@ class ApprovalInboxItemResource extends JsonResource
             $submittedTime = $ir->submitted_at ?? $createdCarbon;
 
             return [
-                'id' => $ir->id,
+                'id' => $ir->public_id,
                 'domain' => 'inventory_request',
-                'composite_id' => "inventory_request:{$ir->id}",
+                'composite_id' => "inventory_request:{$ir->public_id}",
                 'code' => $ir->code,
                 'type' => ($ir->source_type !== null && $ir->source_type !== '') ? (string) $ir->source_type : 'inventory_request',
                 'title' => ($ir->reason !== null && $ir->reason !== '') ? (string) $ir->reason : 'Permintaan Material #'.$ir->code,
                 'priority' => 'medium',
                 'status' => $ir->status,
                 'requester' => $ir->relationLoaded('requester') && $ir->requester
-                    ? ['id' => $ir->requester->id, 'name' => $ir->requester->name]
+                    ? ['id' => $ir->requester->public_id, 'name' => $ir->requester->name]
                     : null,
                 'assigned_to' => null,
                 'submitted_at' => $submittedTime?->toISOString(),
@@ -115,7 +115,7 @@ class ApprovalInboxItemResource extends JsonResource
             /** @var object|null $product */
             $product = $item->product;
 
-            return (string) ($product->name ?? '#'.$item->product_id);
+            return (string) ($product->name ?? 'Produk tidak tersedia');
         })->values()->all();
 
         $suffix = $items->count() > 2 ? ' (+'.($items->count() - 2).')' : '';
@@ -149,7 +149,7 @@ class ApprovalInboxItemResource extends JsonResource
             /** @var object|null $product */
             $product = $item->product;
 
-            return (string) ($product->name ?? '#'.$item->product_id);
+            return (string) ($product->name ?? 'Produk tidak tersedia');
         })->values()->all();
 
         $suffix = $items->count() > 2 ? ' (+'.($items->count() - 2).')' : '';

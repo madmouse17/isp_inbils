@@ -23,7 +23,7 @@ class DeviceTokenController extends Controller
      * this user and this sign-in (200), a new one is stored (201). Logging out, a revoked sign-in or an expired one
      * ends pushes to the install, so register again after the next login.
      *
-     * @response array{data: array{id: int}}
+     * @response array{data: array{id: string}}
      */
     public function store(StoreDeviceTokenRequest $request, DeviceTokenService $tokens): JsonResponse
     {

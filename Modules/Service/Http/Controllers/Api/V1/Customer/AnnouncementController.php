@@ -11,12 +11,12 @@ use Modules\Service\Resources\Api\V1\CustomerAnnouncementResource;
 
 class AnnouncementController extends Controller
 {
-    public function show(Request $request, int $announcement, CustomerAudienceQuery $audience): CustomerAnnouncementResource
+    public function show(Request $request, string $announcement, CustomerAudienceQuery $audience): CustomerAnnouncementResource
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
         abort_unless($customer instanceof Customer, 403);
 
-        $item = $audience->visibleAnnouncements($customer)->findOrFail($announcement);
+        $item = $audience->visibleAnnouncements($customer)->wherePublicId($announcement)->firstOrFail();
 
         return new CustomerAnnouncementResource($item);
     }

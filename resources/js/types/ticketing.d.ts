@@ -1,54 +1,54 @@
 export interface Ticket {
-    id: number;
+    id: string;
     code: string;
     title: string;
     description?: string | null;
     source: string;
-    category_id: number;
+    category_id: string;
     status: string;
     priority: string;
-    customer_id?: number | null;
-    subscription_id?: number | null;
-    network_asset_id?: number | null;
-    location_id?: number | null;
-    assigned_to?: number | null;
+    customer_id?: string | null;
+    subscription_id?: string | null;
+    network_asset_id?: string | null;
+    location_id?: string | null;
+    assigned_to?: string | null;
     updated_at?: string | null;
     can?: { start: boolean; close: boolean };
-    spawned_spk_id?: number | null;
+    spawned_spk_id?: string | null;
     sla_deadline?: string | null;
     first_response_at?: string | null;
     resolved_at?: string | null;
     closed_at?: string | null;
     resolution_note?: string | null;
     is_sla_breached: boolean;
-    created_by: number;
+    created_by: string;
     created_at?: string;
-    category?: { id: number; name: string; code: string } | null;
-    customer?: { id: number; name: string; code: string } | null;
-    subscription?: { id: number; code: string } | null;
-    network_asset?: { id: number; code: string; name: string } | null;
-    location?: { id: number; name: string; path?: string } | null;
-    assignee?: { id: number; name: string } | null;
+    category?: { id: string; name: string; code: string } | null;
+    customer?: { id: string; name: string; code: string } | null;
+    subscription?: { id: string; code: string } | null;
+    network_asset?: { id: string; code: string; name: string } | null;
+    location?: { id: string; name: string; path?: string } | null;
+    assignee?: { id: string; name: string } | null;
     comments?: TicketCommentEntry[];
     attachments?: TicketAttachmentEntry[];
 }
 
 export interface TicketCommentEntry {
-    id: number;
-    author_id: number;
+    id: string;
+    author_id: string;
     body: string;
     is_internal: boolean;
     created_at: string;
-    author?: { id: number; name: string } | null;
+    author?: { id: string; name: string } | null;
 }
 
 export interface TicketAttachmentEntry {
-    id: number;
+    id: string;
     url: string;
     file_path: string;
     original_name?: string | null;
     mime_type?: string | null;
     size_bytes?: number | null;
-    uploaded_by: number;
+    uploaded_by: string;
     created_at: string;
 }

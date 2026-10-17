@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Ticketing\Http\Controllers\TicketCategoryController;
 use Modules\Ticketing\Http\Controllers\TicketController;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['ticket', 'attachment', 'ticket_category'])->group(function () {
     Route::get('tickets/export', [TicketController::class, 'export'])->name('tickets.export');
     Route::resource('ticket-categories', TicketCategoryController::class)->only(['index', 'update']);
     Route::resource('tickets', TicketController::class);

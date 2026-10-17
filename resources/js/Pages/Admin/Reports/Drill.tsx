@@ -35,7 +35,7 @@ import { ReportExportMenu } from './components/ReportExportMenu';
 
 type Cell = string | number | null;
 
-type DrillRow = { id: number; url: string } & Record<string, Cell>;
+type DrillRow = { id: string; url: string } & Record<string, Cell>;
 
 interface DrillColumn {
     key: string;

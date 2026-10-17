@@ -52,8 +52,9 @@ class TenantDetailTest extends TestCase
 
     public function test_company_binding_by_id_resolves_a_top_level_company_only_and_other_keys_keep_every_company(): void
     {
-        $this->assertTrue($this->alpha['root']->is((new Company())->resolveRouteBinding($this->alpha['root']->id)));
-        $this->assertNull((new Company())->resolveRouteBinding($this->alpha['child']->id), 'a subsidiary is no tenant');
+        $this->assertTrue($this->alpha['root']->is((new Company())->resolveRouteBinding($this->alpha['root']->public_id)));
+        $this->assertNull((new Company())->resolveRouteBinding($this->alpha['child']->public_id), 'a subsidiary is no tenant');
+        $this->assertNull((new Company())->resolveRouteBinding((string) $this->alpha['root']->id), 'an integer id names nothing');
         $this->assertNull((new Company())->resolveRouteBinding('999999'));
         // isolir/{company:code} is a public page of any company, a subsidiary included.
         $this->assertTrue($this->alpha['child']->is((new Company())->resolveRouteBinding('ALP-C', 'code')));
@@ -91,7 +92,7 @@ class TenantDetailTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Platform/Companies/Show')
                 ->where('tenant', [
-                    'id' => $this->alpha['root']->id,
+                    'id' => $this->alpha['root']->public_id,
                     'name' => 'Alpha Net',
                     'code' => 'ALP',
                     'status' => 'active',
@@ -138,10 +139,10 @@ class TenantDetailTest extends TestCase
         $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
             ->has('admins', 2)
             ->where('admins.0', [
-                'id' => $this->alpha['admin']->id,
+                'id' => $this->alpha['admin']->public_id,
                 'name' => 'Admin ALP',
                 'email' => 'admin.alp@example.test',
-                'company' => ['id' => $this->alpha['root']->id, 'name' => 'Alpha Net', 'code' => 'ALP'],
+                'company' => ['id' => $this->alpha['root']->public_id, 'name' => 'Alpha Net', 'code' => 'ALP'],
                 'roles' => ['admin'],
                 'is_active' => true,
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
@@ -163,7 +164,7 @@ class TenantDetailTest extends TestCase
         $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
             ->has('subsidiaries', 2)
             ->where('subsidiaries.0', [
-                'id' => $inactive->id,
+                'id' => $inactive->public_id,
                 'name' => 'Alpha Lama',
                 'code' => 'ALL',
                 'is_active' => false,
@@ -172,7 +173,7 @@ class TenantDetailTest extends TestCase
                 'users_count' => 0,
             ])
             ->where('subsidiaries.1', [
-                'id' => $this->alpha['child']->id,
+                'id' => $this->alpha['child']->public_id,
                 'name' => 'Alpha Net Cabang',
                 'code' => 'ALP-C',
                 'is_active' => true,
@@ -194,10 +195,10 @@ class TenantDetailTest extends TestCase
             ->where('userFilters', ['search' => null, 'status' => null, 'per_page' => 10])
             ->has('users.data', 3)
             ->where('users.data.0', [
-                'id' => $this->alpha['admin']->id,
+                'id' => $this->alpha['admin']->public_id,
                 'name' => 'Admin ALP',
                 'email' => 'admin.alp@example.test',
-                'company' => ['id' => $this->alpha['root']->id, 'name' => 'Alpha Net', 'code' => 'ALP'],
+                'company' => ['id' => $this->alpha['root']->public_id, 'name' => 'Alpha Net', 'code' => 'ALP'],
                 'roles' => ['admin'],
                 'is_active' => true,
                 'last_login_at' => '2026-10-19T08:00:00+00:00',
@@ -307,10 +308,12 @@ class TenantDetailTest extends TestCase
         $this->failedWhatsApp($this->alpha['root']->id, 'failed', now()->subDays(8));
         $this->failedWhatsApp($this->beta['root']->id, 'failed', now()->subDay());
 
+        $uuids = DB::table('failed_jobs')->whereIn('id', [$mine, $child])->pluck('uuid', 'id');
         $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
             ->has('failedJobs', 2)
-            ->where('failedJobs.0.id', $child)
-            ->where('failedJobs.1.id', $mine)
+            ->where('failedJobs.0.uuid', $uuids[$child])
+            ->where('failedJobs.1.uuid', $uuids[$mine])
+            ->missing('failedJobs.0.id')
             ->where('failedJobs.1.queue', 'default')
             ->where('failedJobs.1.job', 'App\\Jobs\\ExampleJob')
             ->where('failedJobs.1.exception', 'RuntimeException: Mail gagal')
@@ -318,12 +321,12 @@ class TenantDetailTest extends TestCase
             ->missing('failedJobs.1.payload')
             ->has('failedWhatsApp', 1)
             ->where('failedWhatsApp.0', [
-                'id' => $failed,
+                'id' => DB::table('whatsapp_messages')->where('id', $failed)->value('public_id'),
                 'event' => 'access_link_notice',
                 'template' => 't',
                 'error_code' => '131026',
                 'recipient_last4' => '7890',
-                'company' => ['id' => $this->alpha['child']->id, 'code' => 'ALP-C'],
+                'company' => ['id' => $this->alpha['child']->public_id, 'code' => 'ALP-C'],
                 'failed_at' => '2026-10-19T12:00:00+00:00',
             ]));
     }
@@ -336,11 +339,11 @@ class TenantDetailTest extends TestCase
 
         $this->show($this->alpha['root'])->assertInertia(fn (Assert $page) => $page
             ->has('exports', 2)
-            ->where('exports.0.id', $failed->id)
+            ->where('exports.0.id', $failed->public_id)
             ->where('exports.0.status', 'failed')
             ->where('exports.0.error_message', 'ExportFailed: boom')
             ->where('exports.1', [
-                'id' => $mine->id,
+                'id' => $mine->public_id,
                 'uuid' => $mine->uuid,
                 'status' => 'ready',
                 'file_size' => 2048,

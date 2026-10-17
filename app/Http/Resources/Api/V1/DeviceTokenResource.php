@@ -18,6 +18,6 @@ class DeviceTokenResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        return ['id' => $this->resource->id];
+        return ['id' => $this->resource->public_id];
     }
 }

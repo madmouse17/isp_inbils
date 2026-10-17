@@ -10,8 +10,8 @@ class OrganizationResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'parent_id' => $this->parent_id,
+            'id' => $this->public_id,
+            'parent_id' => $this->parent?->public_id,
             'code' => $this->code,
             'name' => $this->name,
             'type' => $this->type,

@@ -3,6 +3,8 @@
 namespace Tests\Feature\Service;
 
 use App\Models\Core\Company;
+use App\Support\Database\PublicIdColumn;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -14,6 +16,9 @@ class ServicePackageCategoryMigrationTest extends TestCase
     use RefreshDatabase;
 
     private const MIGRATION = 'Modules/Service/database/migrations/2026_10_14_200000_create_service_package_categories_table.php';
+
+    /** Dropped and recreated by the migrations this test reverses, so they come back without their `public_id`. */
+    private const RECREATED = ['service_package_categories', 'announcements', 'promo_banners'];
 
     /**
      * Every package the seeders create (ServiceCatalogSeeder, CompanySeeder, FoundationDemo) plus the edge cases of the
@@ -134,6 +139,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
                 $migration->up();
             }
             $this->dependents('up');
+            PublicIdColumn::add(self::RECREATED);
         }
 
         $this->assertTrue(Schema::hasColumn('service_packages', 'service_package_category_id'));
@@ -150,20 +156,24 @@ class ServicePackageCategoryMigrationTest extends TestCase
 
         $profiles = [
             'bandwidth_profile_id' => DB::table('bandwidth_profiles')->insertGetId([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id, 'name' => 'BW '.$company->id, 'download_mbps' => 10, 'upload_mbps' => 5, 'type' => 'shared',
                 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
             ]),
             'speed_profile_id' => DB::table('speed_profiles')->insertGetId([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id, 'name' => 'SP '.$company->id, 'download_max_mbps' => 10, 'upload_max_mbps' => 5,
                 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
             ]),
             'sla_tier_id' => DB::table('sla_tiers')->insertGetId([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id, 'name' => 'SLA '.$company->id, 'response_time_hours' => 4, 'resolution_time_hours' => 8,
                 'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
             ]),
         ];
 
         return array_map(fn (array $package, int $index) => DB::table('service_packages')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => $company->id, 'code' => $package[0], 'name' => $package[1], ...$profiles,
             'price_mrc' => 100000, 'is_active' => true,
             'deleted_at' => $deleteSecond && $index === 1 ? now() : null,
@@ -178,6 +188,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
             $migration->up();
         }
         $this->dependents('up');
+        PublicIdColumn::add(self::RECREATED);
 
         DB::table('service_packages')->whereIn('company_id', $companyIds)->delete();
         DB::table('service_package_categories')->whereIn('company_id', $companyIds)->delete();

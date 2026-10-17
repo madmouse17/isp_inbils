@@ -249,7 +249,7 @@ class EvidenceAuthorizationTest extends TestCase
 
     private function remove(User $user, WorkOrder $workOrder, Media $media)
     {
-        return $this->actingAs($user)->delete(route('admin.spk.evidence.destroy', [$workOrder, $media]));
+        return $this->actingAs($user)->delete(route('admin.spk.evidence.destroy', [$workOrder, $media->public_id]));
     }
 
     private function shown(User $user, WorkOrder $workOrder)

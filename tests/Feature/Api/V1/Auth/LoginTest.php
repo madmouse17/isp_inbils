@@ -38,13 +38,13 @@ class LoginTest extends TestCase
 
         $response->assertJsonPath('data.token_type', 'Bearer');
         $this->assertEquals([
-            'id' => $user->id,
+            'id' => $user->public_id,
             'name' => 'Rina',
             'email' => 'rina@example.test',
             'app' => 'customer',
             'two_factor_enabled' => false,
             'company' => [
-                'id' => $user->company_id,
+                'id' => Company::query()->findOrFail($user->company_id)->public_id,
                 'name' => Company::query()->findOrFail($user->company_id)->name,
                 'logo_url' => null,
                 'brand_color' => null,
@@ -54,7 +54,7 @@ class LoginTest extends TestCase
                 'website' => null,
                 'support_hours' => null,
             ],
-            'customer' => ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
+            'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => null,
             'phone' => $customer->phone,
         ], $response->json('data.user'));
@@ -69,7 +69,7 @@ class LoginTest extends TestCase
         $this->assertTrue($token->expires_at->equalTo(now()->addDays(90)));
         $this->assertSame(hash('sha256', explode('|', $response->json('data.token'), 2)[1]), $token->token, 'only the hash is stored');
 
-        $this->api('GET', 'me', token: $response->json('data.token'))->assertOk()->assertJsonPath('data.id', $user->id);
+        $this->api('GET', 'me', token: $response->json('data.token'))->assertOk()->assertJsonPath('data.id', $user->public_id);
         $this->assertGuest('web');
         $response->assertHeaderMissing('Set-Cookie');
     }
@@ -248,7 +248,7 @@ class LoginTest extends TestCase
         $customer = $this->login($user, 'customer', 'Pixel 8')->assertOk();
         $technician = $this->login($user, 'technician', 'Pixel 8')->assertOk();
 
-        $customer->assertJsonPath('data.user.employee', null)->assertJsonPath('data.user.customer.id', $record->id);
+        $customer->assertJsonPath('data.user.employee', null)->assertJsonPath('data.user.customer.id', $record->public_id);
         $technician->assertJsonPath('data.user.customer', null);
         $this->assertSame(2, PersonalAccessToken::query()->count());
     }

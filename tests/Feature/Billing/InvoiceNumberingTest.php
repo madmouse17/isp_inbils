@@ -21,7 +21,7 @@ class InvoiceNumberingTest extends TestCase
         $customer = Customer::factory()->create();
 
         $response = $this->post(route('admin.invoices.store'), [
-            'customer_id' => $customer->id,
+            'customer_id' => $customer->public_id,
         ]);
 
         $response->assertRedirect();

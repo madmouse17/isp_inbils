@@ -6,9 +6,11 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Inventory\Notifications\Concerns\LinksToInventoryRequest;
 
 class InventoryRequestRejectedNotification extends Notification implements ShouldQueue
 {
+    use LinksToInventoryRequest;
     use Queueable;
 
     public function __construct(
@@ -33,7 +35,7 @@ class InventoryRequestRejectedNotification extends Notification implements Shoul
             ->line('Permintaan barang Anda telah ditolak oleh petugas gudang.')
             ->line('Kode Permintaan: '.$this->requestCode)
             ->line('Alasan Penolakan: '.$this->reason)
-            ->action('Lihat Detail', url('/admin/inventory/requests/'.$this->requestId));
+            ->action('Lihat Detail', $this->requestUrl());
     }
 
     /** @return array<string, mixed> */
@@ -41,7 +43,7 @@ class InventoryRequestRejectedNotification extends Notification implements Shoul
     {
         return [
             'type' => 'inventory_request_rejected',
-            'request_id' => $this->requestId,
+            'request_id' => $this->requestPublicId(),
             'request_code' => $this->requestCode,
             'reason' => $this->reason,
             'company_id' => $this->companyId,

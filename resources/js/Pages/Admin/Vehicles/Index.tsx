@@ -26,7 +26,7 @@ import { ACTIVE_STATE } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 
 interface VehRow {
-    id: number;
+    id: string;
     plate_number: string;
     type: string | null;
     brand: string | null;
@@ -64,7 +64,7 @@ const emptyForm: VehicleForm = {
 
 export default function Index({ vehicles, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editId, setEditId] = useState<string | null>(null);
     const { data, setData, post, put, processing, errors, reset, clearErrors } =
         useForm<VehicleForm>(emptyForm);
 

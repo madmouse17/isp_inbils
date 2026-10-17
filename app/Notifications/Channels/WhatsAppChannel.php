@@ -26,6 +26,8 @@ use InvalidArgumentException;
  * send leaves a `skipped` row with its reason. Runs in the notification's company; nothing here reads
  * another company's settings or writes its rows. Everything up to and including the claim of the key runs
  * under the company's row lock, so workers cannot sell the last slot of the monthly cap twice.
+ *
+ * @phpstan-import-type Payload from WhatsAppNotification
  */
 class WhatsAppChannel
 {
@@ -55,7 +57,7 @@ class WhatsAppChannel
      * The decision and the claim are one step per company: the lock is released before Meta is called, and the
      * queued row holds its slot of the cap meanwhile.
      *
-     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @param  Payload  $payload
      */
     private function deliver(object $notifiable, int $companyId, #[\SensitiveParameter] array $payload): void
     {
@@ -71,7 +73,7 @@ class WhatsAppChannel
     /**
      * Runs inside the delivery transaction. The company row is locked first, before anything of the log is read.
      *
-     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @param  Payload  $payload
      * @return array{0: WhatsAppMessage, 1: string}|null the row to send and the number to send it to; null when nothing is to be sent
      */
     private function reserve(object $notifiable, int $companyId, #[\SensitiveParameter] array $payload): ?array

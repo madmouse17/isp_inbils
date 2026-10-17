@@ -33,6 +33,7 @@ use App\Services\Core\CompanyService;
 use App\Services\WhatsApp\WhatsAppCloudClient;
 use App\Support\NumberSequences\NumberSequenceDefinition;
 use App\Support\NumberSequences\NumberSequenceRegistry;
+use App\Support\PublicId;
 use Dedoc\Scramble\Scramble;
 use Dedoc\Scramble\Support\Generator\OpenApi;
 use Dedoc\Scramble\Support\Generator\Operation;
@@ -44,12 +45,14 @@ use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Middleware\Authenticate;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Cache\RateLimiting\Unlimited;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Sanctum\PersonalAccessToken;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Policies\InvoicePolicy;
 use Modules\Inventory\Models\Category;
@@ -95,6 +98,7 @@ use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Policies\TicketCategoryPolicy;
 use Modules\Ticketing\Policies\TicketPolicy;
 use Spatie\Activitylog\Models\Activity;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -112,6 +116,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Resources emit the public id of each record they reference through its relation (`$this->customer?->public_id`);
+        // with autoloading one list loads that relation once for all rows instead of once per row.
+        Model::automaticallyEagerLoadRelationships();
+
         Gate::policy(Company::class, CompanyPolicy::class);
         Gate::policy(Customer::class, CustomerPolicy::class);
         Gate::policy(Location::class, LocationPolicy::class);
@@ -189,6 +197,13 @@ class AppServiceProvider extends ServiceProvider
                 }
             }
         });
+
+        // Package models cannot use HasPublicId; their rows take the same id when they are created.
+        foreach ([Role::class, Media::class, Activity::class, PersonalAccessToken::class] as $packageModel) {
+            $packageModel::creating(static function (Model $row): void {
+                $row->setAttribute('public_id', $row->getAttribute('public_id') ?? PublicId::new());
+            });
+        }
 
         if (! $this->app->environment('e2e')) {
             Vite::prefetch(concurrency: 3);

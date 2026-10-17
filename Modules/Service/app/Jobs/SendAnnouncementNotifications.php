@@ -60,7 +60,7 @@ class SendAnnouncementNotifications implements ShouldBeUnique, ShouldQueue
                 $notified = DB::table('notifications')
                     ->where('notifiable_type', Customer::class)
                     ->where('type', AnnouncementPublishedNotification::class)
-                    ->where('data->announcement_id', $current->id)
+                    ->where('data->announcement_id', $current->public_id)
                     ->whereIn('notifiable_id', $customers->modelKeys())
                     ->pluck('notifiable_id')
                     ->map(fn ($id): int => (int) $id)

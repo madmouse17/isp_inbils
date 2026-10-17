@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\User;
 use App\Services\Core\ApiTokenService;
+use App\Support\RecordNotFound;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
 use Modules\Service\Models\PromoBanner;
@@ -15,18 +16,17 @@ use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class MediaController extends Controller
 {
     public function __invoke(Request $request, Media $media, AdminMediaController $controller): StreamedResponse
     {
         try {
-            throw_unless($this->personaMayFetch($request->user(), $media), NotFoundHttpException::class, 'Not found.');
+            RecordNotFound::abortUnless($this->personaMayFetch($request->user(), $media));
 
             return $controller->show($media);
         } catch (AuthorizationException) {
-            throw new NotFoundHttpException('Not found.');
+            RecordNotFound::abort();
         }
     }
 

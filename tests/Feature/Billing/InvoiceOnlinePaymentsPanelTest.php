@@ -54,19 +54,19 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
             'payment_type' => 'bank_transfer',
         ]);
 
-        $response = $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice->id))
+        $response = $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Billing/Invoices/Show')
                 ->where('onlinePayments.enabled', true)
                 ->has('onlinePayments.attempts.data', 2)
-                ->where('onlinePayments.attempts.data.0.id', $exception->id)
+                ->where('onlinePayments.attempts.data.0.id', $exception->public_id)
                 ->where('onlinePayments.attempts.data.0.status', 'exception')
                 ->where('onlinePayments.attempts.data.0.status_reason', $exception->status_reason)
                 ->where('onlinePayments.attempts.data.0.transaction_id', '513f1f01-c9da-474c-9fc9-d5c64364b709')
                 ->where('onlinePayments.attempts.data.0.payment_type', 'bank_transfer')
                 ->where('onlinePayments.attempts.data.0.amount', '100000.00')
-                ->where('onlinePayments.attempts.data.1.id', $expired->id)
+                ->where('onlinePayments.attempts.data.1.id', $expired->public_id)
                 ->where('onlinePayments.attempts.data.1.status', 'expired'));
 
         $json = json_encode($response->viewData('page')['props']['onlinePayments']);
@@ -80,7 +80,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $invoice = $this->invoice();
         $this->disableMidtrans();
 
-        $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice->id))
+        $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice))
             ->assertInertia(fn (Assert $page) => $page
                 ->where('onlinePayments.enabled', false)
                 ->has('onlinePayments.attempts.data', 0));
@@ -91,7 +91,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $invoice = $this->invoice();
         PaymentAttemptFactory::new()->forInvoice($this->invoice())->create();
 
-        $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice->id))
+        $this->actingAs($this->admin)->get(route('admin.invoices.show', $invoice))
             ->assertInertia(fn (Assert $page) => $page->has('onlinePayments.attempts.data', 0));
     }
 
@@ -100,7 +100,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $foreign = $this->invoice(Company::factory()->create(['is_active' => true]));
         PaymentAttemptFactory::new()->forInvoice($foreign)->create();
 
-        $this->actingAs($this->admin)->get(route('admin.invoices.show', $foreign->id))->assertNotFound();
+        $this->actingAs($this->admin)->get(route('admin.invoices.show', $foreign))->assertNotFound();
     }
 
     public function test_a_user_without_billing_view_cannot_open_the_page_and_sees_no_attempts(): void
@@ -110,7 +110,7 @@ class InvoiceOnlinePaymentsPanelTest extends TestCase
         $technician = User::factory()->create(['company_id' => $this->admin->company_id, 'email_verified_at' => now()]);
         $technician->assignRole('technician');
 
-        $this->actingAs($technician)->get(route('admin.invoices.show', $invoice->id))->assertRedirect(route('app-only'));
+        $this->actingAs($technician)->get(route('admin.invoices.show', $invoice))->assertRedirect(route('app-only'));
     }
 
     public function test_no_staff_route_can_change_an_attempt(): void

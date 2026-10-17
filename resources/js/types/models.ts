@@ -8,7 +8,7 @@ import type {
     WORK_ORDER_STATUS,
 } from '@/lib/statuses';
 
-type Id = number | string;
+type Id = string;
 
 export type CustomerAddress = {
     id: Id;
@@ -54,7 +54,7 @@ export type ServiceSubscription = {
     mrc_amount?: number | string | null;
     otc_installation_fee?: number | string | null;
     contract_months?: number | null;
-    package?: { name?: string | null; category?: { id: number; name: string } | null } | null;
+    package?: { name?: string | null; category?: { id: string; name: string } | null } | null;
     customer?: { id?: Id; name?: string | null } | null;
     installation_address?: { label?: string | null } | null;
     serving_pop?: { name?: string | null } | null;
@@ -66,20 +66,20 @@ export type ServiceSubscription = {
     terminated_reason?: string | null;
     blocked_at?: string | null;
     block_reason?: string | null;
-    blocked_by?: { id: number; name: string } | null;
+    blocked_by?: { id: string; name: string } | null;
     [key: string]: unknown;
 };
 
 /** Employee summary on a customer; `is_active: false` renders an "Inactive" marker. */
 export type CustomerAcquirer = {
-    id: number;
+    id: string;
     name: string;
     is_active: boolean;
 };
 
 /** Eligible (or historical) acquirer offered by the server for select/filter controls. */
 export type AcquirerOption = {
-    id: number;
+    id: string;
     name: string;
     is_active: boolean;
     employee_number?: string | null;
@@ -102,7 +102,7 @@ export type Customer = {
     is_active?: boolean | null;
     customer_status?: string | null;
     /** Present only when the viewer may see attribution. */
-    acquired_by_user_id?: number | null;
+    acquired_by_user_id?: string | null;
     /** Present only when the viewer may see attribution; `null` = Unassigned. */
     acquirer?: CustomerAcquirer | null;
     [key: string]: unknown;

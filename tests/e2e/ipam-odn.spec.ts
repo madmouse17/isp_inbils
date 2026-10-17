@@ -29,13 +29,13 @@ const oltCode = 'E2E-OLT-001';
 async function linkedSubscriptionId(page: Page) {
     const customers = (
         await inertiaProps(page, `/admin/customers?search=${encodeURIComponent(e2eCustomerName)}`)
-    ).props?.customers?.data as Array<{ id: number; name: string }> | undefined;
+    ).props?.customers?.data as Array<{ id: string; name: string }> | undefined;
     const customer = customers?.find((row) => row.name === e2eCustomerName);
     if (!customer) throw new Error('E2E linked customer fixture not found');
 
     const subscriptions = (
         await inertiaProps(page, `/admin/customers/${customer.id}/subscriptions`)
-    ).props?.subscriptions?.data as Array<{ id: number; code: string }> | undefined;
+    ).props?.subscriptions?.data as Array<{ id: string; code: string }> | undefined;
     const subscription = subscriptions?.find((row) => row.code === 'E2E-LINKED-SUB');
     if (!subscription) throw new Error('E2E-LINKED-SUB fixture not found');
 
@@ -45,8 +45,8 @@ async function linkedSubscriptionId(page: Page) {
 /** The id of an ODP (by code) or of the OLT behind a PON port (by code), read from the ODN overview. */
 async function odnAssetId(page: Page, kind: 'odp' | 'olt', code: string) {
     const props = (await inertiaProps(page, '/admin/odn')).props as {
-        odps: { data: Array<{ asset_id: number; code: string }> };
-        ponPorts: { data: Array<{ olt_asset_id: number; olt_code: string }> };
+        odps: { data: Array<{ asset_id: string; code: string }> };
+        ponPorts: { data: Array<{ olt_asset_id: string; olt_code: string }> };
     };
     const id =
         kind === 'odp'
@@ -349,8 +349,8 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
 
         await page.getByRole('tab', { name: 'Data pelanggan' }).click();
         await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
-        await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
-        customerId = page.url().match(/\/admin\/customers\/(\d+)$/)![1];
+        await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
+        customerId = page.url().match(/\/admin\/customers\/([0-9A-HJKMNP-TV-Z]{26})$/i)![1];
     });
 
     await test.step('the ODN overview shows the ODP one port fuller', async () => {
@@ -376,7 +376,7 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
 
         const workOrders = (
             await inertiaProps(page, `/admin/spk?search=${encodeURIComponent(customerName)}`)
-        ).props?.workOrders?.data as Array<{ id: number; type: string }> | undefined;
+        ).props?.workOrders?.data as Array<{ id: string; type: string }> | undefined;
         const spk = workOrders?.find((row) => row.type === 'installation');
         expect(spk, 'installation SPK of the new customer').toBeTruthy();
 
@@ -467,7 +467,7 @@ test('@ipam-odn role matrix: who may read, who may write', async ({ page }) => {
     const subscriptionId = await linkedSubscriptionId(page);
     const odpId = await odnAssetId(page, 'odp', odpCode);
     const odp = (await inertiaProps(page, `/admin/odn/assets/${odpId}`)).props as {
-        splitters: Array<{ ports: Array<{ id: number }> }>;
+        splitters: Array<{ ports: Array<{ id: string }> }>;
     };
     const portId = odp.splitters[0].ports[0].id;
 

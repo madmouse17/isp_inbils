@@ -56,13 +56,13 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             ->get(route('admin.reports.technician'))
             ->assertOk()
             ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('data.technician_id', $technician->id)
-                ->where('selectedTechnician.value', $technician->id)
+                ->where('data.technician_id', $technician->public_id)
+                ->where('selectedTechnician.value', $technician->public_id)
                 ->missing('technicians'));
 
         $ids = $this->technicianOptionIds();
-        $this->assertContains($technician->id, $ids);
-        $this->assertNotContains($otherTechnician->id, $ids);
+        $this->assertContains($technician->public_id, $ids);
+        $this->assertNotContains($otherTechnician->public_id, $ids);
     }
 
     public function test_technician_cannot_view_another_target(): void
@@ -72,7 +72,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
         CompanyService::useCompanyForTests($company->id);
 
         $this->actingAs($technician)
-            ->get(route('admin.reports.technician', ['technician_id' => $otherTechnician->id]))
+            ->get(route('admin.reports.technician', ['technician_id' => $otherTechnician->public_id]))
             ->assertForbidden();
     }
 
@@ -96,12 +96,12 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
         CompanyService::useCompanyForTests($company->id);
 
         $this->actingAs($admin)
-            ->get(route('admin.reports.technician', ['technician_id' => $sameCompanyTechnician->id]))
+            ->get(route('admin.reports.technician', ['technician_id' => $sameCompanyTechnician->public_id]))
             ->assertOk()
             ->assertInertia(fn (AssertableJson $page) => $page
-                ->where('data.technician_id', $sameCompanyTechnician->id));
+                ->where('data.technician_id', $sameCompanyTechnician->public_id));
 
-        $this->get(route('admin.reports.technician', ['technician_id' => $foreignTechnician->id]))
+        $this->get(route('admin.reports.technician', ['technician_id' => $foreignTechnician->public_id]))
             ->assertForbidden();
 
         $this->get(route('admin.reports.technician'))
@@ -110,8 +110,8 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
                 ->where('selectedTechnician', null));
 
         $ids = $this->technicianOptionIds();
-        $this->assertContains($sameCompanyTechnician->id, $ids);
-        $this->assertNotContains($foreignTechnician->id, $ids);
+        $this->assertContains($sameCompanyTechnician->public_id, $ids);
+        $this->assertNotContains($foreignTechnician->public_id, $ids);
     }
 
     public function test_manager_can_select_same_organization_and_descendant_only(): void
@@ -149,9 +149,9 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             ->assertOk();
 
         $ids = $this->technicianOptionIds();
-        $this->assertContains($sameOrg->id, $ids);
-        $this->assertContains($descendant->id, $ids);
-        $this->assertNotContains($other->id, $ids);
+        $this->assertContains($sameOrg->public_id, $ids);
+        $this->assertContains($descendant->public_id, $ids);
+        $this->assertNotContains($other->public_id, $ids);
     }
 
     public function test_manager_unit_code_with_like_metacharacters_keeps_narrow_scope(): void
@@ -201,12 +201,12 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
             ->assertOk();
 
         $ids = $this->technicianOptionIds();
-        $this->assertContains($sameOrg->id, $ids);
-        $this->assertContains($descendant->id, $ids);
-        $this->assertNotContains($lookalike->id, $ids);
+        $this->assertContains($sameOrg->public_id, $ids);
+        $this->assertContains($descendant->public_id, $ids);
+        $this->assertNotContains($lookalike->public_id, $ids);
 
         $this->actingAs($manager)
-            ->get(route('admin.reports.technician', ['technician_id' => $lookalike->id]))
+            ->get(route('admin.reports.technician', ['technician_id' => $lookalike->public_id]))
             ->assertForbidden();
     }
 
@@ -250,13 +250,13 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
         $target->employeeProfile()->update(['status' => 'inactive']);
 
         $this->actingAs($admin)
-            ->get(route('admin.reports.technician', ['technician_id' => $target->id]))
+            ->get(route('admin.reports.technician', ['technician_id' => $target->public_id]))
             ->assertForbidden();
 
         $this->get(route('admin.reports.technician'))
             ->assertOk();
 
-        $this->assertNotContains($target->id, $this->technicianOptionIds());
+        $this->assertNotContains($target->public_id, $this->technicianOptionIds());
     }
 
     public function test_historical_technician_metrics_include_both_date_boundaries_but_not_active_snapshot(): void
@@ -352,7 +352,7 @@ class TechnicianPerformanceAuthorizationTest extends TestCase
     /**
      * Ids the technician picker offers the acting user for a search that matches every fixture name.
      *
-     * @return list<int>
+     * @return list<string>
      */
     private function technicianOptionIds(): array
     {

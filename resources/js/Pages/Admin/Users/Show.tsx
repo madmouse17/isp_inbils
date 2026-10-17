@@ -46,7 +46,7 @@ import {
 } from '@/lib/statuses';
 
 interface UserData {
-    id: number;
+    id: string;
     name: string;
     email: string;
     is_active: boolean;
@@ -58,7 +58,7 @@ interface UserData {
 }
 
 interface InvoiceHistory {
-    id: number;
+    id: string;
     number: string;
     status: string;
     issue_date: string | null;
@@ -68,7 +68,7 @@ interface InvoiceHistory {
 }
 
 interface TicketHistory {
-    id: number;
+    id: string;
     code: string;
     title: string;
     priority: string;
@@ -78,7 +78,7 @@ interface TicketHistory {
 }
 
 interface WorkOrderHistory {
-    id: number;
+    id: string;
     code: string;
     title: string;
     type: string;
@@ -91,7 +91,7 @@ interface WorkOrderHistory {
 interface ShowProps {
     user: { data: UserData };
     history: {
-        linked_customer: { id: number; code: string; name: string } | null;
+        linked_customer: { id: string; code: string; name: string } | null;
         invoices: InvoiceHistory[];
         tickets: TicketHistory[];
         work_orders: WorkOrderHistory[];

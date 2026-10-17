@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
+use Illuminate\Auth\Access\Response;
 
 class UserPolicy
 {
@@ -12,9 +13,17 @@ class UserPolicy
         return $user->can('users.manage');
     }
 
-    public function view(User $user, User $model): bool
+    public function view(User $user, User $model): bool|Response
     {
-        return $user->is($model) || ($user->can('users.manage') && $this->administers($user, $model));
+        if ($user->is($model)) {
+            return true;
+        }
+
+        if (! $user->can('users.manage')) {
+            return false;
+        }
+
+        return $this->administers($user, $model) ?: Response::denyAsNotFound();
     }
 
     public function create(User $user): bool
@@ -27,34 +36,41 @@ class UserPolicy
         return $this->create($user);
     }
 
-    public function update(User $user, User $model): bool
+    public function update(User $user, User $model): bool|Response
     {
-        return $user->can('users.manage') && $this->mayChange($user, $model);
+        return $this->change($user, $model, 'users.manage');
     }
 
-    public function edit(User $user, User $model): bool
+    public function edit(User $user, User $model): bool|Response
     {
         return $this->update($user, $model);
     }
 
-    public function delete(User $user, User $model): bool
+    public function delete(User $user, User $model): bool|Response
     {
-        return $user->can('users.manage') && ! $user->is($model) && $this->mayChange($user, $model);
+        return $user->is($model) ? false : $this->change($user, $model, 'users.manage');
     }
 
     /**
      * Clearing someone's second factor lets whoever can reach their password log in: never your own
      * (turn it off from your profile), and only for a user you may change.
      */
-    public function resetTwoFactor(User $user, User $model): bool
+    public function resetTwoFactor(User $user, User $model): bool|Response
     {
-        return $user->can('users.two_factor.reset') && ! $user->is($model) && $this->mayChange($user, $model);
+        return $user->is($model) ? false : $this->change($user, $model, 'users.two_factor.reset');
     }
 
-    /** Only an administrator may edit or remove an administrator, and only one who answers for the user's companies. */
-    private function mayChange(User $actor, User $model): bool
+    /**
+     * The permission, and only an administrator may change an administrator. A user the actor does not answer for
+     * (see administers) is hidden from them: that denial is a 404, a missing permission or role stays a 403.
+     */
+    private function change(User $actor, User $model, string $permission): bool|Response
     {
-        return (! $model->hasRole('admin') || $actor->hasRole('admin')) && $this->administers($actor, $model);
+        if (! $actor->can($permission) || ($model->hasRole('admin') && ! $actor->hasRole('admin'))) {
+            return false;
+        }
+
+        return $this->administers($actor, $model) ?: Response::denyAsNotFound();
     }
 
     /**

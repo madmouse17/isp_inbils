@@ -56,8 +56,8 @@ class AnnouncementManagementTest extends TestCase
             'body' => "Layanan berhenti sementara.\nMohon menunggu.",
             'kind' => 'maintenance',
             'audience' => 'targeted',
-            'location_ids' => [$location->id],
-            'service_package_category_ids' => [$category->id],
+            'location_ids' => [$location->public_id],
+            'service_package_category_ids' => [$category->public_id],
             'starts_at' => '2026-10-15 08:00',
             'ends_at' => '2026-10-15 09:30',
         ])->assertRedirect();
@@ -66,6 +66,16 @@ class AnnouncementManagementTest extends TestCase
         $this->assertSame('2026-10-15 01:00:00', $announcement->starts_at->format('Y-m-d H:i:s'));
         $this->assertSame([$location->id], $announcement->locations()->pluck('locations.id')->all());
         $this->assertSame([$category->id], $announcement->servicePackageCategories()->pluck('service_package_categories.id')->all());
+    }
+
+    public function test_the_index_offers_the_active_package_categories_by_public_id(): void
+    {
+        $active = ServicePackageCategory::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
+        ServicePackageCategory::factory()->create(['company_id' => $this->company->id, 'is_active' => false]);
+
+        $this->actingAs($this->user('manager'))->get(route('admin.announcements.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->where('packageCategories', fn ($rows) => collect($rows)->pluck('id')->all() === [$active->public_id]));
     }
 
     public function test_banner_validates_type_size_ratio_alt_link_and_stores_private_media(): void
@@ -123,7 +133,7 @@ class AnnouncementManagementTest extends TestCase
             foreach (['announcements' => Announcement::class, 'banners' => PromoBanner::class] as $tab => $model) {
                 $idsByStatus = [];
                 foreach ($fixtures as [$status, $attributes]) {
-                    $idsByStatus[$status][] = $model::factory()->published()->create(['company_id' => $this->company->id, ...$attributes])->id;
+                    $idsByStatus[$status][] = $model::factory()->published()->create(['company_id' => $this->company->id, ...$attributes])->public_id;
                 }
                 $everyId = array_merge(...array_values($idsByStatus));
 
@@ -145,7 +155,7 @@ class AnnouncementManagementTest extends TestCase
 
     /**
      * @param  array<string, string>  $query
-     * @param  list<int>  $ids
+     * @param  list<string>  $ids
      */
     private function assertListedIds(User $user, string $tab, array $query, array $ids): void
     {

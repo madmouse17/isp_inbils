@@ -41,14 +41,14 @@ class MeResource extends JsonResource
             : null;
 
         return [
-            'id' => $user->id,
+            'id' => $user->public_id,
             'name' => $user->name,
             'email' => $user->email,
             'app' => $this->app,
             'two_factor_enabled' => $user->hasTwoFactorEnabled(),
             // The ISP behind the login, as the apps brand themselves with it after sign-in. Every field is null until the ISP fills it in.
             'company' => [
-                'id' => $user->company_id,
+                'id' => $company?->public_id,
                 /** @var string|null */
                 'name' => $company?->getAttribute('name'),
                 /**
@@ -82,7 +82,7 @@ class MeResource extends JsonResource
                  */
                 'support_hours' => $company?->getAttribute('support_hours'),
             ],
-            'customer' => $customer === null ? null : ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
+            'customer' => $customer === null ? null : ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => $profile === null ? null : ['name' => $user->name, 'phone' => $profile->phone],
             'phone' => $customer->phone ?? $profile?->phone,
         ];

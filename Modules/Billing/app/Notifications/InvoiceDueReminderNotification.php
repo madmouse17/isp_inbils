@@ -2,12 +2,15 @@
 
 namespace Modules\Billing\Notifications;
 
+use App\Notifications\WhatsAppNotification;
 use InvalidArgumentException;
 
 /**
  * "Pengingat jatuh tempo": three days before, one day before and one day after the due date, while a balance
  * remains. The stage is part of the dedupe key together with the due date, so a re-run of the command sends
  * nothing twice and a rescheduled due date earns fresh reminders. A batch message.
+ *
+ * @phpstan-import-type Payload from WhatsAppNotification
  */
 class InvoiceDueReminderNotification extends InvoiceWhatsAppNotification
 {
@@ -37,7 +40,7 @@ class InvoiceDueReminderNotification extends InvoiceWhatsAppNotification
             $this->formatMoney($invoice->sisa),
             $this->formatDate($invoice->due_date),
             $this->appUrl(),
-        ], 'invoice', $invoice->id, 'invoice_reminder:'.$invoice->id.':'.$this->stage.':'.$invoice->due_date->toDateString());
+        ], 'invoice', $invoice, 'invoice_reminder:'.$invoice->id.':'.$this->stage.':'.$invoice->due_date->toDateString());
     }
 
     protected function event(): string
@@ -54,7 +57,7 @@ class InvoiceDueReminderNotification extends InvoiceWhatsAppNotification
      * The bell row and the push tell "due soon" (H-3, H-1) from "overdue" (H+1). The WhatsApp event remains
      * `invoice_reminder`, because that is the name of the approved Meta template.
      *
-     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @param  Payload  $payload
      * @return array<string, mixed>
      */
     protected function bell(array $payload): array

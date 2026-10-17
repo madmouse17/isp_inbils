@@ -4,6 +4,7 @@ namespace Modules\NetworkAsset\Models;
 
 use App\Models\Core\ServiceSubscription;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,7 @@ class NetworkAccount extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'subscription_id',

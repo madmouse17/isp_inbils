@@ -15,13 +15,13 @@ import { formatDate, formatMoney } from '@/lib/format';
 import { ACTIVE_STATE } from '@/lib/statuses';
 
 type Row = {
-    id: number;
+    id: string;
     name: string;
     code: string;
     price_mrc: number | string;
     price_otc: number | string;
     is_active?: boolean;
-    category: { id: number; code: string; name: string } | null;
+    category: { id: string; code: string; name: string } | null;
     created_at: string | null;
 };
 
@@ -33,8 +33,8 @@ type Props = {
         per_page: number;
         total: number;
     };
-    slaTiers: { data: { id: number; name: string }[] };
-    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    slaTiers: { data: { id: string; name: string }[] };
+    packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
     filters: {
         search?: string;
         is_active?: string;

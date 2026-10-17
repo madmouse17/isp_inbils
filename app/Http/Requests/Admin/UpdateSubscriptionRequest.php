@@ -2,13 +2,30 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Support\RecordNotFound;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Service\Models\ServicePackage;
 
 class UpdateSubscriptionRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'service_package_id' => ServicePackage::class,
+            'installation_address_id' => CustomerAddress::class,
+            'serving_pop_id' => Location::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         $user = $this->user();
@@ -22,7 +39,7 @@ class UpdateSubscriptionRequest extends FormRequest
 
         if ($subscription instanceof ServiceSubscription
             && (int) $subscription->company_id !== (int) CompanyService::currentId()) {
-            abort(404);
+            RecordNotFound::abort();
         }
 
         if ($subscription && $subscription->exists) {

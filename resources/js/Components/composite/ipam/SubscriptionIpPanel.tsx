@@ -9,7 +9,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/u
 import type { StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
 
 interface SubscriptionIpPanelProps {
-    subscription: { id: number; code: string; terminated: boolean };
+    subscription: { id: string; code: string; terminated: boolean };
     addresses: SubscriptionIpAddress[];
     /** Static pools the subscription can draw from; the server sends them only to holders of ipam.assign. */
     pools: StaticPool[];

@@ -9,9 +9,12 @@ use App\Http\Resources\LocationResource;
 use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
+use App\Models\User;
 use App\Queries\Admin\DispatchQueueQuery;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -31,7 +34,6 @@ use Modules\Ticketing\Http\Resources\TicketResource;
 use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Models\TicketCategory;
 use Modules\Ticketing\Services\TicketService;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -111,8 +113,8 @@ class TicketController extends Controller
             ->when($request->input('priority'), fn (Builder $q, string $v) => $q->where('priority', $v))
             ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
             ->when($request->input('source'), fn (Builder $q, string $v) => $q->where('source', $v))
-            ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', $v))
-            ->when($request->input('assigned_to'), fn (Builder $q, string $v) => $q->where('assigned_to', $v))
+            ->when($request->input('category_id'), fn (Builder $q, string $v) => $q->where('category_id', PublicId::resolveOne(TicketCategory::class, $v) ?? 0))
+            ->when($request->input('assigned_to'), fn (Builder $q, string $v) => $q->where('assigned_to', PublicId::resolveOne(User::class, $v) ?? 0))
             ->when($request->boolean('sla_breached'), fn (Builder $q) => $q->where('sla_deadline', '<', now())->whereNotIn('status', ['resolved', 'closed']))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
@@ -152,8 +154,8 @@ class TicketController extends Controller
 
         $ownCustomerId = $request->user()->hasRole('customer') ? ($request->user()->customer?->id ?? 0) : null;
         // The page sends the customer and subscription it has picked, so what follows is offered only for them.
-        $customerId = $request->integer('customer_id');
-        $subscriptionId = $request->integer('subscription_id');
+        $customerId = PublicId::resolveOne(Customer::class, $request->input('customer_id')) ?? 0;
+        $subscriptionId = PublicId::resolveOne(ServiceSubscription::class, $request->input('subscription_id')) ?? 0;
 
         return Inertia::render('Admin/Tickets/Create', [
             'categories' => TicketCategoryResource::collection(TicketCategory::query()->where('is_active', true)->orderBy('name')->get()),
@@ -162,7 +164,7 @@ class TicketController extends Controller
                 'customer',
                 Customer::query()->where('is_active', true)->when($ownCustomerId !== null, fn (Builder $q) => $q->whereKey($ownCustomerId)),
                 ['name', 'code'],
-                fn (Customer $customer): array => ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code],
+                fn (Customer $customer): array => ['value' => $customer->public_id, 'label' => $customer->name, 'description' => $customer->code],
             ),
             'subscriptionOptions' => SearchOptions::for(
                 $request,
@@ -173,7 +175,7 @@ class TicketController extends Controller
                     ->when($ownCustomerId !== null, fn (Builder $q) => $q->where('customer_id', $ownCustomerId))
                     ->when($customerId > 0, fn (Builder $q) => $q->where('customer_id', $customerId)),
                 ['code'],
-                fn (ServiceSubscription $subscription): array => ['value' => $subscription->id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
+                fn (ServiceSubscription $subscription): array => ['value' => $subscription->public_id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
             ),
             // An asset of nobody (no customer, no subscription) can be reported against anyone, as StoreTicketRequest allows.
             'networkAssetOptions' => SearchOptions::for(
@@ -186,7 +188,7 @@ class TicketController extends Controller
                     ->when($customerId > 0, fn (Builder $q) => $q->where(fn (Builder $w) => $w->whereNull('customer_id')->orWhere('customer_id', $customerId)))
                     ->when($subscriptionId > 0, fn (Builder $q) => $q->where(fn (Builder $w) => $w->whereNull('subscription_id')->orWhere('subscription_id', $subscriptionId))),
                 ['code', 'name'],
-                fn (NetworkAsset $asset): array => ['value' => $asset->id, 'label' => $asset->code.' - '.$asset->name],
+                fn (NetworkAsset $asset): array => ['value' => $asset->public_id, 'label' => $asset->code.' - '.$asset->name],
             ),
             'canChooseLocation' => $ownCustomerId === null,
             'locations' => LocationResource::collection(
@@ -359,6 +361,8 @@ class TicketController extends Controller
     public function addComment(StoreTicketCommentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
+        // A ticket the page hides from this user is as good as unknown to them: 404 before the ability to comment.
+        Gate::authorize('view', $ticket);
         Gate::authorize('comment', $ticket);
 
         TicketService::addComment($ticket, $request->validated(), $request->user()->id);
@@ -369,6 +373,7 @@ class TicketController extends Controller
     public function uploadAttachment(UploadTicketAttachmentRequest $request, Ticket $ticket): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
+        Gate::authorize('view', $ticket);
         Gate::authorize('attach', $ticket);
 
         $file = $request->file('file');
@@ -380,18 +385,18 @@ class TicketController extends Controller
         return back()->with('success', 'Lampiran berhasil diunggah.');
     }
 
-    public function removeAttachment(Request $request, Ticket $ticket, Media $attachment): RedirectResponse
+    public function removeAttachment(Request $request, Ticket $ticket, string $attachment): RedirectResponse
     {
         $this->ensureSameCompany($ticket);
 
         // One rule with the apps: the uploader, while the ticket is still being worked. The permission alone is not enough.
-        TicketService::removeAttachment($ticket, $attachment->id, $request->user());
+        TicketService::removeAttachment($ticket, $attachment, $request->user());
 
         return back()->with('success', 'Lampiran berhasil dihapus.');
     }
 
     private function ensureSameCompany(Ticket $ticket): void
     {
-        abort_unless($ticket->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($ticket->company_id === CompanyService::currentId());
     }
 }

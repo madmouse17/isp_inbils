@@ -313,7 +313,7 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         await select.fill(staff);
         await page.getByRole('option', { name: staff }).click();
         await run.click();
-        await expect.poll(() => query(page, 'acquirer_id')).toMatch(/^\d+$/);
+        await expect.poll(() => query(page, 'acquirer_id')).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
         expect(query(page, 'date_from')).toBe('2025-02-01');
         expect(query(page, 'date_to')).toBe('2025-02-28');
         await expect(page.locator('tbody tr')).toHaveCount(1);
@@ -535,10 +535,13 @@ test.describe('@smoke @kpi-sales sales KPI report', () => {
         const reportUrl = new URL('/admin/reports/sales', page.url()).href;
         // A crafted URL fails validation on `acquirer_id`: the server sends the visitor back where the request
         // came from, with the error, and never renders the report for that id.
-        const refused = await page.request.get('/admin/reports/sales?acquirer_id=999999999', {
-            maxRedirects: 0,
-            headers: { Referer: reportUrl },
-        });
+        const refused = await page.request.get(
+            '/admin/reports/sales?acquirer_id=01arz3ndektsv4rrffq69g5fav',
+            {
+                maxRedirects: 0,
+                headers: { Referer: reportUrl },
+            },
+        );
         expect(refused.status()).toBe(302);
         expect(refused.headers()['location']).toBe(reportUrl);
 

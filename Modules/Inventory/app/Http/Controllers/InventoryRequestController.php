@@ -107,7 +107,9 @@ class InventoryRequestController extends Controller
         Gate::authorize('create', InventoryRequest::class);
 
         return Inertia::render('Admin/Inventory/Requests/Create', [
-            'warehouses' => Location::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'type']),
+            'warehouses' => Location::query()->where('is_active', true)->orderBy('name')->get(['public_id', 'name', 'code', 'type'])
+                ->map(fn (Location $location): array => ['id' => $location->public_id, 'name' => $location->name, 'code' => $location->code, 'type' => $location->type])
+                ->all(),
             'productOptions' => InventoryOptions::products($request, Product::query()->where('is_active', true)->where('type', '!=', 'asset')),
             'workOrderOptions' => InventoryRequestSources::workOrders($request),
             'ticketOptions' => InventoryRequestSources::tickets($request),
@@ -125,7 +127,7 @@ class InventoryRequestController extends Controller
             ], 201);
         }
 
-        return redirect()->route('admin.inventory.requests.show', $created->id)
+        return redirect()->route('admin.inventory.requests.show', $created)
             ->with('success', 'Permintaan barang berhasil dibuat.');
     }
 

@@ -50,7 +50,7 @@ class ImpersonationTest extends TestCase
             'remember_token' => 'target-remember-token',
         ])->save();
 
-        $this->asOperator()->post("/platform/companies/{$this->alpha['root']->id}/users/{$this->alpha['admin']->id}/impersonate", [
+        $this->asOperator()->post("/platform/companies/{$this->alpha['root']->public_id}/users/{$this->alpha['admin']->public_id}/impersonate", [
             'reason' => 'Komplain INV-1042',
         ])->assertRedirect(route('admin.dashboard'))
             ->assertSessionHas(ImpersonationService::MODE, ImpersonationService::READ);
@@ -74,28 +74,25 @@ class ImpersonationTest extends TestCase
 
     public function test_forbidden_targets_are_refused(): void
     {
-        $start = fn (Company $company, int $userId) => $this->asOperator()->post(
-            "/platform/companies/{$company->id}/users/{$userId}/impersonate",
+        $start = fn (Company $company, string $userPublicId) => $this->asOperator()->post(
+            "/platform/companies/{$company->public_id}/users/{$userPublicId}/impersonate",
             ['reason' => 'Komplain INV-1042'],
         );
 
-        $start($this->alpha['root'], $this->beta['admin']->id)->assertNotFound();
+        $start($this->alpha['root'], $this->beta['admin']->public_id)->assertNotFound();
 
         $this->alpha['admin']->forceFill(['is_active' => false])->save();
-        $start($this->alpha['root'], $this->alpha['admin']->id)->assertSessionHasErrors('impersonation');
+        $start($this->alpha['root'], $this->alpha['admin']->public_id)->assertSessionHasErrors('impersonation');
 
         $this->alpha['admin']->forceFill(['is_active' => true])->save();
         $this->alpha['root']->forceFill(['is_active' => false])->save();
-        $start($this->alpha['root'], $this->alpha['admin']->id)->assertSessionHasErrors('impersonation');
+        $start($this->alpha['root'], $this->alpha['admin']->public_id)->assertSessionHasErrors('impersonation');
 
-        do {
-            $platformOnlyId = PlatformAdmin::factory()->create()->id;
-        } while (User::query()->whereKey($platformOnlyId)->exists());
         $this->alpha['root']->forceFill(['is_active' => true])->save();
-        $start($this->alpha['root'], $platformOnlyId)->assertNotFound();
+        $start($this->alpha['root'], PlatformAdmin::factory()->create()->public_id)->assertNotFound();
 
         $withoutCompany = User::factory()->create(['company_id' => null, 'is_active' => true]);
-        $start($this->alpha['root'], $withoutCompany->id)->assertNotFound();
+        $start($this->alpha['root'], $withoutCompany->public_id)->assertNotFound();
         $this->assertGuest('web');
     }
 
@@ -141,10 +138,10 @@ class ImpersonationTest extends TestCase
         app(CompanyMembershipService::class)->grant($this->alpha['admin'], $this->beta['root']);
         $this->startImpersonation();
 
-        $this->asTenantVisitor()->post(route('admin.company.switch'), ['company_id' => $this->alpha['child']->id])
+        $this->asTenantVisitor()->post(route('admin.company.switch'), ['company_id' => $this->alpha['child']->public_id])
             ->assertRedirect(route('admin.dashboard'));
 
-        $this->asTenantVisitor()->postJson(route('admin.company.switch'), ['company_id' => $this->beta['root']->id])
+        $this->asTenantVisitor()->postJson(route('admin.company.switch'), ['company_id' => $this->beta['root']->public_id])
             ->assertForbidden()
             ->assertJsonPath('message', EnforceImpersonation::COMPANY_SWITCH_MESSAGE);
     }

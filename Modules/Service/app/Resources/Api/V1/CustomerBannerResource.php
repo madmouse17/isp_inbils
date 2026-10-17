@@ -15,7 +15,7 @@ class CustomerBannerResource extends JsonResource
         $media = $this->getFirstMedia('promo_banner');
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'title' => $this->title,
             'alt_text' => $this->alt_text,
             'image_url' => $media === null ? null : route('api.v1.media.show', $media),

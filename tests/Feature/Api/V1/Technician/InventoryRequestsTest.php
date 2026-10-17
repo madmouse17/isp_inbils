@@ -17,6 +17,7 @@ use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Notifications\InventoryRequestReadyNotification;
 use Modules\Inventory\Services\InventoryRequestService;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
+use Modules\SPK\Models\WorkOrder;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
 
@@ -36,11 +37,11 @@ class InventoryRequestsTest extends TestCase
         $this->api('GET', 'technician/inventory-requests', token: $this->issueToken($technician, 'technician'))
             ->assertOk()
             ->assertJsonCount(2, 'data')
-            ->assertJsonPath('data.0.id', $newer->id)
+            ->assertJsonPath('data.0.id', $newer->public_id)
             ->assertJsonPath('data.0.status', 'ready_for_pickup')
             ->assertJsonPath('data.0.items.0.product_name', 'Drop Cable')
-            ->assertJsonPath('data.0.work_order.id', $newer->source_id)
-            ->assertJsonPath('data.1.id', $older->id)
+            ->assertJsonPath('data.0.work_order.id', WorkOrder::withoutCompany()->whereKey($newer->source_id)->value('public_id'))
+            ->assertJsonPath('data.1.id', $older->public_id)
             ->assertJsonMissingPath('data.0.requested_by')
             ->assertJsonMissingPath('data.0.approved_by');
     }
@@ -54,7 +55,7 @@ class InventoryRequestsTest extends TestCase
         $this->api('GET', 'technician/inventory-requests?status=ready_for_pickup', token: $this->issueToken($technician, 'technician'))
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $ready->id);
+            ->assertJsonPath('data.0.id', $ready->public_id);
     }
 
     public function test_ready_for_pickup_sends_mail_and_database_notification(): void
@@ -82,7 +83,7 @@ class InventoryRequestsTest extends TestCase
         $row = DB::table('notifications')->where('notifiable_id', $technician->id)->sole();
         $data = json_decode($row->data, true);
         $this->assertSame('inventory_request_ready', $data['type']);
-        $this->assertSame($request->id, $data['request_id']);
+        $this->assertSame($request->public_id, $data['request_id']);
     }
 
     private function inventoryRequestFor(User $technician, string $status): InventoryRequest

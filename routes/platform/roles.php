@@ -5,15 +5,15 @@ use Illuminate\Support\Facades\Route;
 
 // Names carry the platform. prefix of the route shell (routes/platform.php).
 
-Route::middleware(['auth:platform', 'platform.account', 'platform.2fa'])->group(function () {
+Route::middleware(['auth:platform', 'platform.account', 'platform.2fa'])->whereUlid('role')->group(function () {
     Route::get('roles', [RoleController::class, 'index'])->name('roles.index');
     Route::get('roles/create', [RoleController::class, 'create'])->name('roles.create');
-    Route::get('roles/{role}/edit', [RoleController::class, 'edit'])->name('roles.edit');
+    Route::get('roles/{role:public_id}/edit', [RoleController::class, 'edit'])->name('roles.edit');
 
     // Role definitions reach every tenant: each write needs a fresh platform password confirmation.
     Route::middleware('platform.password.confirm')->group(function () {
         Route::post('roles', [RoleController::class, 'store'])->name('roles.store');
-        Route::put('roles/{role}', [RoleController::class, 'update'])->name('roles.update');
-        Route::delete('roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
+        Route::put('roles/{role:public_id}', [RoleController::class, 'update'])->name('roles.update');
+        Route::delete('roles/{role:public_id}', [RoleController::class, 'destroy'])->name('roles.destroy');
     });
 });

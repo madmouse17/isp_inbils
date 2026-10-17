@@ -161,7 +161,7 @@ class NetworkAccessGapTest extends TestCase
         $this->seedRadiusSession(['username' => "carol@{$this->realm}", 'nasipaddress' => $this->nasIp]);
         $nameless = $this->package($this->company, null);
 
-        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $nameless->id])->assertRedirect();
+        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $nameless->public_id])->assertRedirect();
 
         $this->assertSame($nameless->id, $subscription->fresh()->service_package_id, 'business first: the package change itself succeeds');
         $account = $account->fresh();
@@ -172,7 +172,7 @@ class NetworkAccessGapTest extends TestCase
         $this->assertSame('rejected', Activity::query()->where('description', 'provision_failed')->sole()->properties['error_kind']);
 
         $good = $this->package($this->company, 'home-50m');
-        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $good->id])->assertRedirect();
+        $this->put(route('admin.subscriptions.update', $subscription), ['service_package_id' => $good->public_id])->assertRedirect();
 
         $account = $account->fresh();
         $this->assertSame('synced', $account->sync_status);
@@ -238,7 +238,7 @@ class NetworkAccessGapTest extends TestCase
             $this->get(route('admin.nas-devices.edit', $this->nas)),
             $this->get(route('admin.nas-devices.create')),
             $this->get(route('admin.network-assets.show', $this->nas->networkAsset)),
-            $this->get(route('admin.customers.show', $subscription->customer_id)),
+            $this->get(route('admin.customers.show', $subscription->customer)),
         ];
         $export = $this->get(route('admin.network-assets.export', ['format' => 'csv']))->assertOk()->streamedContent();
 

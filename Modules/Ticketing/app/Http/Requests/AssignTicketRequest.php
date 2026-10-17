@@ -2,6 +2,8 @@
 
 namespace Modules\Ticketing\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\User;
 use App\Rules\HasAnyActiveRole;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +12,14 @@ use Modules\Ticketing\Models\Ticket;
 
 class AssignTicketRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['handler_id' => User::class, 'expected_assigned_to' => User::class];
+    }
+
     public function authorize(): bool
     {
         $ticket = $this->route('ticket');

@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\ServiceSubscriptionFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
@@ -21,6 +23,7 @@ class ServiceSubscription extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
     use SoftDeletes;
 
@@ -83,6 +86,12 @@ class ServiceSubscription extends Model
     public function servingPop(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'serving_pop_id');
+    }
+
+    /** @return BelongsTo<NetworkAsset, $this> */
+    public function ontAsset(): BelongsTo
+    {
+        return $this->belongsTo(NetworkAsset::class, 'ont_asset_id');
     }
 
     public function workOrders(): HasMany

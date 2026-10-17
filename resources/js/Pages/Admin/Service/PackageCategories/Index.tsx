@@ -22,7 +22,7 @@ const ACTIVE_OPTIONS = [
 ];
 
 interface CategoryRow {
-    id: number;
+    id: string;
     code: string;
     name: string;
     sort_order: number;

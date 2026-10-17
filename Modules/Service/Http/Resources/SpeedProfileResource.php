@@ -11,7 +11,7 @@ class SpeedProfileResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'name' => $this->name,
             'download_max_mbps' => $this->download_max_mbps,
             'upload_max_mbps' => $this->upload_max_mbps,

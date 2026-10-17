@@ -78,10 +78,10 @@ class InventoryPickersTest extends TestCase
                 ->missing('productOptions')->missing('locationOptions')
                 ->where('selectedProduct', null)->where('selectedLocation', null));
 
-        $this->get(route('admin.stocks.index', ['product_id' => $this->cable->id, 'location_id' => $this->warehouse->id]))->assertOk()
+        $this->get(route('admin.stocks.index', ['product_id' => $this->cable->public_id, 'location_id' => $this->warehouse->public_id]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedProduct', ['value' => $this->cable->id, 'label' => 'KBL-001 - Kabel Dropcore (m)', 'description' => 'Kabel'])
-                ->where('selectedLocation', ['value' => $this->warehouse->id, 'label' => 'WH-PUSAT - Gudang Pusat', 'description' => 'Bandung / Gudang Pusat']));
+                ->where('selectedProduct', ['value' => $this->cable->public_id, 'label' => 'KBL-001 - Kabel Dropcore (m)', 'description' => 'Kabel'])
+                ->where('selectedLocation', ['value' => $this->warehouse->public_id, 'label' => 'WH-PUSAT - Gudang Pusat', 'description' => 'Bandung / Gudang Pusat']));
     }
 
     public function test_a_filter_naming_another_companys_record_gets_no_label(): void
@@ -90,7 +90,7 @@ class InventoryPickersTest extends TestCase
         $foreignLocation = Location::factory()->create(['company_id' => $this->other->id]);
 
         foreach (['admin.stocks.index', 'admin.stock-movements.index'] as $route) {
-            $this->actingAs($this->admin)->get(route($route, ['product_id' => $foreignProduct->id, 'location_id' => $foreignLocation->id]))->assertOk()
+            $this->actingAs($this->admin)->get(route($route, ['product_id' => $foreignProduct->public_id, 'location_id' => $foreignLocation->public_id]))->assertOk()
                 ->assertInertia(fn (Assert $page) => $page->where('selectedProduct', null)->where('selectedLocation', null));
         }
     }
@@ -98,14 +98,14 @@ class InventoryPickersTest extends TestCase
     public function test_the_movements_page_carries_the_same_pickers_and_labels(): void
     {
         $this->actingAs($this->admin)
-            ->get(route('admin.stock-movements.index', ['product_id' => $this->cable->id, 'location_id' => $this->warehouse->id]))->assertOk()
+            ->get(route('admin.stock-movements.index', ['product_id' => $this->cable->public_id, 'location_id' => $this->warehouse->public_id]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->missing('products')->missing('locations')->missing('productOptions')
                 ->where('selectedProduct.label', 'KBL-001 - Kabel Dropcore (m)')
                 ->where('selectedLocation.label', 'WH-PUSAT - Gudang Pusat'));
 
         $options = $this->partial(route('admin.stock-movements.index', ['product_search' => 'kabel']), 'Admin/Inventory/Movements/Index', 'productOptions');
-        $this->assertSame([$this->cable->id], array_column($options->json('props.productOptions'), 'value'));
+        $this->assertSame([$this->cable->public_id], array_column($options->json('props.productOptions'), 'value'));
     }
 
     public function test_the_product_picker_offers_active_products_of_the_company_from_two_characters(): void
@@ -116,12 +116,12 @@ class InventoryPickersTest extends TestCase
 
         $found = $this->partial(route('admin.stocks.index', ['product_search' => 'kabel']), 'Admin/Inventory/Stocks/Index', 'productOptions')->assertOk();
         $this->assertSame(
-            [['value' => $this->cable->id, 'label' => 'KBL-001 - Kabel Dropcore (m)', 'description' => 'Kabel']],
+            [['value' => $this->cable->public_id, 'label' => 'KBL-001 - Kabel Dropcore (m)', 'description' => 'Kabel']],
             $found->json('props.productOptions'),
         );
 
         $bySku = $this->partial(route('admin.stocks.index', ['product_search' => 'KBL-00']), 'Admin/Inventory/Stocks/Index', 'productOptions');
-        $this->assertSame([$this->cable->id], array_column($bySku->json('props.productOptions'), 'value'));
+        $this->assertSame([$this->cable->public_id], array_column($bySku->json('props.productOptions'), 'value'));
 
         $short = $this->partial(route('admin.stocks.index', ['product_search' => 'k']), 'Admin/Inventory/Stocks/Index', 'productOptions');
         $this->assertSame([], $short->json('props.productOptions'));
@@ -136,7 +136,7 @@ class InventoryPickersTest extends TestCase
         $found = $this->partial(route('admin.stocks.index', ['location_search' => 'gudang']), 'Admin/Inventory/Stocks/Index', 'locationOptions')->assertOk();
 
         $this->assertSame(
-            [['value' => $this->warehouse->id, 'label' => 'WH-PUSAT - Gudang Pusat', 'description' => 'Bandung / Gudang Pusat']],
+            [['value' => $this->warehouse->public_id, 'label' => 'WH-PUSAT - Gudang Pusat', 'description' => 'Bandung / Gudang Pusat']],
             $found->json('props.locationOptions'),
         );
     }
@@ -148,10 +148,11 @@ class InventoryPickersTest extends TestCase
         $this->actingAs($this->technician)->get(route('admin.inventory.requests.create'))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('warehouses', 1)
+                ->where('warehouses.0.id', $this->warehouse->public_id)
                 ->missing('products')->missing('productOptions'));
 
         $found = $this->partial(route('admin.inventory.requests.create', ['product_search' => 'kabel']), 'Admin/Inventory/Requests/Create', 'productOptions');
-        $this->assertSame([$this->cable->id], array_column($found->json('props.productOptions'), 'value'));
+        $this->assertSame([$this->cable->public_id], array_column($found->json('props.productOptions'), 'value'));
     }
 
     public function test_the_source_pickers_offer_what_the_person_may_already_open(): void
@@ -169,12 +170,12 @@ class InventoryPickersTest extends TestCase
         );
 
         $this->actingAs($this->technician);
-        $this->assertSame([$mine->id], $asTechnician('workOrder_search', 'workOrderOptions', 'SPK-'));
-        $this->assertSame([$ownTicket->id], $asTechnician('ticket_search', 'ticketOptions', 'TCK-'));
+        $this->assertSame([$mine->public_id], $asTechnician('workOrder_search', 'workOrderOptions', 'SPK-'));
+        $this->assertSame([$ownTicket->public_id], $asTechnician('ticket_search', 'ticketOptions', 'TCK-'));
 
         $this->actingAs($this->admin);
-        $this->assertSame([$theirs->id, $mine->id], $asTechnician('workOrder_search', 'workOrderOptions', 'SPK-'));
-        $this->assertSame([$otherTicket->id, $ownTicket->id], $asTechnician('ticket_search', 'ticketOptions', 'TCK-'));
+        $this->assertSame([$theirs->public_id, $mine->public_id], $asTechnician('workOrder_search', 'workOrderOptions', 'SPK-'));
+        $this->assertSame([$otherTicket->public_id, $ownTicket->public_id], $asTechnician('ticket_search', 'ticketOptions', 'TCK-'));
     }
 
     public function test_a_person_who_cannot_view_spk_or_tickets_is_offered_none(): void
@@ -208,11 +209,11 @@ class InventoryPickersTest extends TestCase
         $foreignTicket = $this->ticket('TCK-FOREIGN-1', null, $this->other);
         $this->actingAs($this->technician);
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $foreignWorkOrder->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $foreignWorkOrder->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'SPK yang dipilih tidak valid untuk perusahaan ini.');
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $foreignTicket->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $foreignTicket->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'Tiket yang dipilih tidak valid untuk perusahaan ini.');
 
@@ -230,26 +231,26 @@ class InventoryPickersTest extends TestCase
 
         $this->actingAs($this->technician);
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $theirs->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $theirs->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'SPK yang dipilih tidak valid untuk perusahaan ini.');
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $otherTicket->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $otherTicket->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'Tiket yang dipilih tidak valid untuk perusahaan ini.');
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $mine->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $mine->public_id]))
             ->assertStatus(201)
-            ->assertJsonPath('data.source_id', $mine->id);
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ownTicket->id]))
+            ->assertJsonPath('data.source_id', $mine->public_id);
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ownTicket->public_id]))
             ->assertStatus(201)
-            ->assertJsonPath('data.source_id', $ownTicket->id);
+            ->assertJsonPath('data.source_id', $ownTicket->public_id);
 
         // Someone who assigns work sees every record of the company, so any of them may be named.
         $this->actingAs($this->admin);
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $mine->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $mine->public_id]))
             ->assertStatus(201);
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ownTicket->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ownTicket->public_id]))
             ->assertStatus(201);
     }
 
@@ -262,24 +263,26 @@ class InventoryPickersTest extends TestCase
 
         $this->actingAs($requester);
 
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $workOrder->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'work_order', 'source_id' => $workOrder->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'SPK yang dipilih tidak valid untuk perusahaan ini.');
-        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ticket->id]))
+        $this->postJson(route('admin.inventory.requests.store'), $this->requestPayload(['source_type' => 'ticket', 'source_id' => $ticket->public_id]))
             ->assertStatus(422)
             ->assertJsonPath('errors.source_id.0', 'Tiket yang dipilih tidak valid untuk perusahaan ini.');
     }
 
     public function test_the_category_page_offers_every_category_as_a_parent(): void
     {
-        Category::factory()->create(['company_id' => $this->company->id, 'code' => 'ODP', 'name' => 'Perangkat ODP']);
+        $odp = Category::factory()->create(['company_id' => $this->company->id, 'code' => 'ODP', 'name' => 'Perangkat ODP']);
         Category::factory()->create(['company_id' => $this->other->id, 'code' => 'ASG', 'name' => 'Asing']);
 
         $this->actingAs($this->admin)->get(route('admin.categories.index', ['per_page' => 10]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('categoryOptions', 2)
                 ->where('categoryOptions.0.code', 'KBL')
-                ->where('categoryOptions.1.code', 'ODP'));
+                ->where('categoryOptions.0.id', $this->cable->category->public_id)
+                ->where('categoryOptions.1.code', 'ODP')
+                ->where('categoryOptions.1.id', $odp->public_id));
     }
 
     public function test_the_product_page_lists_its_recent_movements_newest_first(): void
@@ -351,9 +354,9 @@ class InventoryPickersTest extends TestCase
     private function requestPayload(array $overrides = []): array
     {
         return [
-            'warehouse_location_id' => $this->warehouse->id,
+            'warehouse_location_id' => $this->warehouse->public_id,
             'reason' => 'Kebutuhan penarikan kabel pelanggan baru',
-            'items' => [['product_id' => $this->cable->id, 'quantity_requested' => 5]],
+            'items' => [['product_id' => $this->cable->public_id, 'quantity_requested' => 5]],
             ...$overrides,
         ];
     }

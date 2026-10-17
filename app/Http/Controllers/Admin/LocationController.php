@@ -4,17 +4,16 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\MoveLocationRequest;
 use App\Http\Requests\Admin\StoreLocationRequest;
 use App\Http\Requests\Admin\UpdateLocationRequest;
 use App\Http\Resources\LocationResource;
 use App\Models\Core\Location;
-use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -35,9 +34,9 @@ class LocationController extends Controller
         $markers = (clone $query)
             ->whereNotNull('lat')
             ->whereNotNull('lng')
-            ->get(['id', 'code', 'name', 'type', 'lat', 'lng', 'is_active'])
+            ->get(['id', 'public_id', 'code', 'name', 'type', 'lat', 'lng', 'is_active'])
             ->map(fn (Location $location): array => [
-                'id' => $location->id,
+                'id' => $location->public_id,
                 'code' => $location->code,
                 'name' => $location->name,
                 'type' => $location->type,
@@ -79,15 +78,9 @@ class LocationController extends Controller
         return back()->with('success', 'Lokasi diperbarui.');
     }
 
-    public function move(Request $request, Location $location): RedirectResponse
+    public function move(MoveLocationRequest $request, Location $location): RedirectResponse
     {
-        Gate::authorize('move', $location);
-
-        $data = $request->validate([
-            'new_parent_id' => ['required', 'integer', Rule::exists('locations', 'id')->where('company_id', CompanyService::currentId())->whereNull('deleted_at')],
-        ], [], ['new_parent_id' => 'induk baru']);
-
-        LocationService::move($location, (int) $data['new_parent_id']);
+        LocationService::move($location, (int) $request->validated('new_parent_id'));
 
         return back()->with('success', 'Lokasi dipindahkan.');
     }

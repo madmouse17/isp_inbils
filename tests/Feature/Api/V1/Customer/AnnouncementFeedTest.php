@@ -54,7 +54,7 @@ class AnnouncementFeedTest extends TestCase
         [$user, $customer] = $this->customerLogin();
         [$otherUser] = $this->customerLogin($customer->company);
         $banner = CompanyService::runAs((int) $customer->company_id, fn () => PromoBanner::factory()->published()->create());
-        $url = "customer/promo-banners/{$banner->id}/tap";
+        $url = "customer/promo-banners/{$banner->public_id}/tap";
 
         $this->api('POST', $url, token: $this->issueToken($user, 'customer'))->assertNoContent();
         $this->api('POST', $url, token: $this->issueToken($user, 'customer'))->assertNoContent();
@@ -71,11 +71,11 @@ class AnnouncementFeedTest extends TestCase
         [$user, $customer] = $this->customerLogin();
         $announcement = CompanyService::runAs((int) $customer->company_id, fn () => Announcement::factory()->published()->targeted()->create());
 
-        $this->api('GET', "customer/announcements/{$announcement->id}", token: $this->issueToken($user, 'customer'))->assertNotFound();
+        $this->api('GET', "customer/announcements/{$announcement->public_id}", token: $this->issueToken($user, 'customer'))->assertNotFound();
 
         $announcement->forceFill(['audience' => 'all'])->save();
-        $this->api('GET', "customer/announcements/{$announcement->id}", token: $this->issueToken($user, 'customer'))
+        $this->api('GET', "customer/announcements/{$announcement->public_id}", token: $this->issueToken($user, 'customer'))
             ->assertOk()
-            ->assertJsonPath('data.id', $announcement->id);
+            ->assertJsonPath('data.id', $announcement->public_id);
     }
 }

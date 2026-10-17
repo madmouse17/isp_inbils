@@ -19,7 +19,7 @@ class TechnicianWorkOrderItemResource extends JsonResource
         $item = $this->resource;
 
         return [
-            'id' => $item->id,
+            'id' => $item->public_id,
             /** @var string|null */
             'product_name' => data_get($item, 'product.name'),
             /** @var string|null */

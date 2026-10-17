@@ -16,15 +16,15 @@ class StockAdjustmentRequestResource extends JsonResource
         $user = $request->user();
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'status' => $this->status,
             'old_quantity' => $this->old_quantity,
             'new_quantity' => $this->new_quantity,
             'delta' => $this->delta,
             'reason' => $this->reason,
-            'requested_by' => $this->requested_by,
+            'requested_by' => $this->requester?->public_id,
             'requester' => $this->whenLoaded('requester', fn () => [
-                'id' => $this->requester->id,
+                'id' => $this->requester->public_id,
                 'name' => $this->requester->name,
             ]),
             'created_at' => $this->created_at?->toISOString(),

@@ -33,7 +33,7 @@ class AdminSmokeTest extends TestCase
             '/profile',
             '/admin/dashboard',
             '/admin/customers',
-            "/admin/customers/{$customer->id}",
+            "/admin/customers/{$customer->public_id}",
             '/admin/service-packages',
             '/admin/products',
             '/admin/network-assets',

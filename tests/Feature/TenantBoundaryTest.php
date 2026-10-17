@@ -154,8 +154,8 @@ class TenantBoundaryTest extends TestCase
         $this->actingAs($this->admin)->post(route('admin.products.store'), [
             'sku' => 'XTENANT-PROD',
             'name' => 'Cross tenant product',
-            'category_id' => $category->id,
-            'unit_id' => $unit->id,
+            'category_id' => $category->public_id,
+            'unit_id' => $unit->public_id,
             'type' => 'consumable',
             'track_stock' => true,
             'is_active' => true,
@@ -182,10 +182,10 @@ class TenantBoundaryTest extends TestCase
         $pop = $this->location($this->otherCompany, 'OTHER-SUB-POP');
 
         $this->actingAs($this->admin)->post(route('admin.customers.subscriptions.store', $customer), [
-            'service_package_id' => $package->id,
-            'installation_address_id' => $address->id,
+            'service_package_id' => $package->public_id,
+            'installation_address_id' => $address->public_id,
             'billing_day' => 5,
-            'serving_pop_id' => $pop->id,
+            'serving_pop_id' => $pop->public_id,
         ])->assertSessionHasErrors(['service_package_id', 'installation_address_id', 'serving_pop_id']);
 
         $this->assertDatabaseMissing('service_subscriptions', [
@@ -233,12 +233,12 @@ class TenantBoundaryTest extends TestCase
             'title' => 'Cross tenant ticket',
             'description' => 'Wrong references',
             'source' => 'customer',
-            'category_id' => $category->id,
+            'category_id' => $category->public_id,
             'priority' => 'medium',
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
-            'network_asset_id' => $asset->id,
-            'location_id' => $location->id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
+            'network_asset_id' => $asset->public_id,
+            'location_id' => $location->public_id,
         ])->assertSessionHasErrors(['category_id', 'customer_id', 'subscription_id', 'network_asset_id', 'location_id']);
 
         $this->assertDatabaseMissing('tickets', ['title' => 'Cross tenant ticket']);
@@ -274,8 +274,8 @@ class TenantBoundaryTest extends TestCase
         $location = $this->location($this->otherCompany, 'OTHER-STOCK-LOC');
 
         $this->actingAs($this->admin)->post(route('admin.stocks.receive'), [
-            'product_id' => $product->id,
-            'location_id' => $location->id,
+            'product_id' => $product->public_id,
+            'location_id' => $location->public_id,
             'quantity' => 1,
         ])->assertSessionHasErrors(['product_id', 'location_id']);
 

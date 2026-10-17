@@ -24,7 +24,7 @@ const TITLE_MAX = 80;
 const ALT_MAX = 200;
 const LINK_MAX = 500;
 
-type Slide = PhoneBanner & { id: number | null; sortOrder: number };
+type Slide = PhoneBanner & { id: string | null; sortOrder: number };
 
 interface BannerDialogProps {
     /** The banner being edited. Omit to add a new one. */

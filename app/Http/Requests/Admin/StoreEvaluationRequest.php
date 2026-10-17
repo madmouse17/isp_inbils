@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\EmployeeEvaluation;
+use App\Models\User;
 use App\Rules\HasAnyActiveRole;
 use App\Rules\PolymorphicBelongsToCompany;
 use App\Services\Core\CompanyService;
@@ -16,6 +18,17 @@ use Modules\Ticketing\Models\Ticket;
 
 class StoreEvaluationRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string|\Closure> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'employee_id' => User::class,
+            'reference_id' => fn (array $input): ?string => is_string($type = $input['reference_type'] ?? null) ? (self::referenceMap()[$type] ?? null) : null,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('evaluation.create') ?? false;
@@ -41,6 +54,12 @@ class StoreEvaluationRequest extends FormRequest
             'customer_rating' => ['nullable', 'numeric', 'between:1.0,5.0'],
             'comment' => ['nullable', 'string', 'max:1000'],
         ];
+    }
+
+    /** @return array<string, string> an id that names no record of the company reads as PolymorphicBelongsToCompany worded it */
+    public function messages(): array
+    {
+        return ['reference_id.exists' => ':attribute yang dipilih tidak valid untuk perusahaan ini.'];
     }
 
     /**

@@ -4,6 +4,7 @@ namespace Modules\NetworkAsset\Models;
 
 use App\Models\Core\ServiceSubscription;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,7 @@ class OdnPort extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
 
     public const KIND_PON = 'pon';

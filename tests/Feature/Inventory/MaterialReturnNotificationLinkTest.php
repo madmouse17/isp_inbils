@@ -8,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\Product;
 use Modules\Inventory\Notifications\MaterialReturnDeclaredNotification;
 use Modules\Inventory\Notifications\MaterialReturnExceptionNotification;
@@ -34,12 +35,12 @@ class MaterialReturnNotificationLinkTest extends TestCase
 
     public function test_return_mails_open_the_request_page_that_shows_the_return(): void
     {
-        $requestId = $this->requestId();
+        $request = $this->inventoryRequest();
 
-        foreach ($this->mails($requestId) as $mail) {
+        foreach ($this->mails($request->id) as $mail) {
             $url = $mail->toMail($this->admin)->actionUrl;
 
-            $this->assertSame(route('admin.inventory.requests.show', $requestId), $url, $mail::class);
+            $this->assertSame(route('admin.inventory.requests.show', $request), $url, $mail::class);
             $this->get($url)->assertOk()
                 ->assertInertia(fn (Assert $page) => $page->component('Admin/Inventory/Requests/Show'));
         }
@@ -58,9 +59,11 @@ class MaterialReturnNotificationLinkTest extends TestCase
 
     public function test_the_stored_payload_keeps_the_request_id(): void
     {
-        $payload = (new MaterialReturnDeclaredNotification(7, null, 1, 42))->toArray($this->admin);
+        $request = $this->inventoryRequest();
 
-        $this->assertSame(42, $payload['inventory_request_id']);
+        $payload = (new MaterialReturnDeclaredNotification(7, null, $this->admin->company_id, $request->id))->toArray($this->admin);
+
+        $this->assertSame($request->public_id, $payload['inventory_request_id']);
     }
 
     /** @return list<MaterialReturnDeclaredNotification|MaterialReturnExceptionNotification|MaterialReturnRejectedNotification> */
@@ -73,15 +76,17 @@ class MaterialReturnNotificationLinkTest extends TestCase
         ];
     }
 
-    private function requestId(): int
+    private function inventoryRequest(): InventoryRequest
     {
         $location = Location::factory()->create(['company_id' => $this->admin->company_id]);
         $product = Product::factory()->create(['company_id' => $this->admin->company_id]);
 
-        return $this->postJson(route('admin.inventory.requests.store'), [
-            'warehouse_location_id' => $location->id,
+        $publicId = $this->postJson(route('admin.inventory.requests.store'), [
+            'warehouse_location_id' => $location->public_id,
             'reason' => 'Kebutuhan penarikan kabel pelanggan baru',
-            'items' => [['product_id' => $product->id, 'quantity_requested' => 5]],
+            'items' => [['product_id' => $product->public_id, 'quantity_requested' => 5]],
         ])->assertCreated()->json('data.id');
+
+        return InventoryRequest::wherePublicId($publicId)->firstOrFail();
     }
 }

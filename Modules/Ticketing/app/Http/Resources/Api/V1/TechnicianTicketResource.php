@@ -20,7 +20,7 @@ class TechnicianTicketResource extends CustomerTicketResource
                 'name' => $this->customer->name,
                 'phone' => $this->customer->phone,
             ] : null,
-            'subscription' => $this->subscription ? ['id' => $this->subscription->id, 'code' => $this->subscription->code] : null,
+            'subscription' => $this->subscription ? ['id' => $this->subscription->public_id, 'code' => $this->subscription->code] : null,
             'location' => $this->location ? [
                 'name' => $this->location->name,
                 'address' => $this->location->address,

@@ -2,16 +2,28 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\Customer;
+use App\Models\Core\Location;
+use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdateCustomerRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['area_coverage_id' => Location::class, 'acquired_by_user_id' => User::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('customer.update') ?? false;
@@ -21,7 +33,7 @@ class UpdateCustomerRequest extends FormRequest
     public function rules(): array
     {
         $routeCustomer = $this->route('customer');
-        $customerId = is_object($routeCustomer) ? $routeCustomer->id : $routeCustomer;
+        $customerId = $routeCustomer instanceof Customer ? $routeCustomer->id : PublicId::resolveOne(Customer::class, $routeCustomer);
         $companyId = CompanyService::currentId();
 
         return [
@@ -46,6 +58,12 @@ class UpdateCustomerRequest extends FormRequest
     public function attributes(): array
     {
         return ['type' => 'tipe pelanggan'];
+    }
+
+    /** @return array<string, string> an id that names no record answers as an employee who may not acquire does: nobody learns which */
+    public function messages(): array
+    {
+        return ['acquired_by_user_id.exists' => 'Pilih karyawan aktif yang berhak membuat pelanggan.'];
     }
 
     /**

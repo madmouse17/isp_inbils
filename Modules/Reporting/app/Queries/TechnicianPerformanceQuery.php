@@ -95,7 +95,7 @@ class TechnicianPerformanceQuery
             ->groupBy('ticket_categories.name')->pluck('count', 'name')->toArray();
 
         return [
-            'technician_id' => $technicianId,
+            'technician_id' => $target->public_id,
             'spk_completed' => $spkCount,
             'tickets_resolved' => $ticketCount,
             'avg_spk_minutes' => $avgSpkMinutes ? round($avgSpkMinutes) : null,

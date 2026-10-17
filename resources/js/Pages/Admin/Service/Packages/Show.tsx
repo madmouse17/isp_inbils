@@ -16,7 +16,7 @@ import { formatMoney } from '@/lib/format';
 import { ACTIVE_STATE } from '@/lib/statuses';
 
 interface PkgData {
-    id: number;
+    id: string;
     code: string;
     name: string;
     price_mrc: string;
@@ -24,7 +24,7 @@ interface PkgData {
     contract_min_months: number | null;
     description: string | null;
     is_active: boolean;
-    category: { id: number; code: string; name: string } | null;
+    category: { id: string; code: string; name: string } | null;
     bandwidth_profile: { name: string } | null;
     speed_profile: { name: string } | null;
     sla_tier: { name: string } | null;

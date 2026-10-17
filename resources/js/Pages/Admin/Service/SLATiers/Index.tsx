@@ -11,7 +11,7 @@ import { toPagination } from '@/lib/pagination';
 import { formatDate, formatNumber } from '@/lib/format';
 
 type Row = {
-    id: number;
+    id: string;
     name: string;
     response_time_hours?: number | string | null;
     resolution_time_hours?: number | string | null;

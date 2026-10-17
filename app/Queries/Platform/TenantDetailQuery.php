@@ -30,7 +30,7 @@ class TenantDetailQuery
     /** The admin summary is the first admins by name; the paginated user list holds everyone. */
     private const ADMINS = 25;
 
-    private const USER_COLUMNS = ['id', 'name', 'email', 'company_id', 'is_active', 'last_login_at', 'two_factor_confirmed_at'];
+    private const USER_COLUMNS = ['id', 'public_id', 'name', 'email', 'company_id', 'is_active', 'last_login_at', 'two_factor_confirmed_at'];
 
     public function __construct(
         private readonly PlatformTenantListQuery $tenants,
@@ -57,7 +57,7 @@ class TenantDetailQuery
             'metrics' => $this->tenants->metricsFor($root),
             'admins' => $this->userRows($this->admins($ids), $companies),
             'subsidiaries' => $subsidiaries->map(fn (Company $subsidiary): array => [
-                'id' => $subsidiary->id,
+                'id' => $subsidiary->public_id,
                 'name' => $subsidiary->name,
                 'code' => $subsidiary->code,
                 'is_active' => $subsidiary->is_active,
@@ -79,7 +79,7 @@ class TenantDetailQuery
     private function profile(Company $root): array
     {
         return [
-            'id' => $root->id,
+            'id' => $root->public_id,
             'name' => $root->name,
             'code' => $root->code,
             'status' => PlatformTenantListQuery::statusOf($root),
@@ -161,10 +161,10 @@ class TenantDetailQuery
             $home = $companies[$user->company_id];
 
             return [
-                'id' => $user->id,
+                'id' => $user->public_id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'company' => ['id' => $home->id, 'name' => $home->name, 'code' => $home->code],
+                'company' => ['id' => $home->public_id, 'name' => $home->name, 'code' => $home->code],
                 'roles' => $user->roles->pluck('name')->sort()->values()->all(),
                 'is_active' => $user->is_active,
                 'last_login_at' => Carbon::make($user->last_login_at)?->toIso8601String(),
@@ -193,7 +193,7 @@ class TenantDetailQuery
             ->whereIn('company_id', $ids)
             ->orderByDesc('id')
             ->limit(self::RECENT)
-            ->get(['id', 'log_name', 'description', 'subject_type', 'causer_type', 'causer_id', 'properties', 'created_at']);
+            ->get(['id', 'public_id', 'log_name', 'description', 'subject_type', 'causer_type', 'causer_id', 'properties', 'created_at']);
 
         $names = [];
 
@@ -211,7 +211,7 @@ class TenantDetailQuery
             };
 
             return [
-                'id' => (int) $row->id,
+                'id' => $row->public_id,
                 'log_name' => $row->log_name,
                 'description' => $row->description,
                 'subject_type' => $row->subject_type === null ? null : class_basename($row->subject_type),
@@ -254,9 +254,8 @@ class TenantDetailQuery
             ->whereIn('id', $found)
             ->orderByDesc('failed_at')
             ->orderByDesc('id')
-            ->get(['id', 'uuid', 'queue', 'payload', 'exception', 'failed_at'])
+            ->get(['uuid', 'queue', 'payload', 'exception', 'failed_at'])
             ->map(fn (object $row): array => [
-                'id' => (int) $row->id,
                 'uuid' => $row->uuid,
                 'queue' => $row->queue,
                 'job' => json_decode((string) $row->payload, true)['displayName'] ?? null,
@@ -280,14 +279,14 @@ class TenantDetailQuery
             ->orderByDesc('failed_at')
             ->orderByDesc('id')
             ->limit(self::RECENT)
-            ->get(['id', 'company_id', 'event', 'template', 'error_code', 'recipient_last4', 'failed_at'])
+            ->get(['id', 'public_id', 'company_id', 'event', 'template', 'error_code', 'recipient_last4', 'failed_at'])
             ->map(fn (object $row): array => [
-                'id' => (int) $row->id,
+                'id' => $row->public_id,
                 'event' => $row->event,
                 'template' => $row->template,
                 'error_code' => $row->error_code,
                 'recipient_last4' => $row->recipient_last4,
-                'company' => ['id' => (int) $row->company_id, 'code' => $companies[$row->company_id]->code],
+                'company' => ['id' => $companies[$row->company_id]->public_id, 'code' => $companies[$row->company_id]->code],
                 'failed_at' => Carbon::parse($row->failed_at)->toIso8601String(),
             ])
             ->all();
@@ -308,7 +307,7 @@ class TenantDetailQuery
             ->limit(self::RECENT)
             ->get()
             ->map(fn (TenantExport $export): array => [
-                'id' => $export->id,
+                'id' => $export->public_id,
                 'uuid' => $export->uuid,
                 'status' => $export->status,
                 'file_size' => $export->file_size,

@@ -30,7 +30,7 @@ import type { ReportMeta } from '@/types';
 import { ReportExportMenu } from './components/ReportExportMenu';
 
 interface Movement {
-    id: number;
+    id: string;
     movement_type: string;
     quantity: string;
     balance_after: string;

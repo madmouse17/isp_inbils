@@ -63,7 +63,7 @@ class IpamOdnLifecycleTest extends TestCase
     }
 
     /** @param array<string, mixed> $subscription extra subscription keys */
-    private function onboard(array $subscription = [], ?int $popId = null): TestResponse
+    private function onboard(array $subscription = [], ?string $popId = null): TestResponse
     {
         return $this->postJson(route('admin.customers.store'), $this->payload($subscription, $popId));
     }
@@ -83,7 +83,7 @@ class IpamOdnLifecycleTest extends TestCase
 
     public function test_onboarding_with_a_free_port_under_the_serving_pop_reserves_the_drop(): void
     {
-        $this->onboard(['odn_port_id' => $this->outputs[2]->id])->assertRedirect();
+        $this->onboard(['odn_port_id' => $this->outputs[2]->public_id])->assertRedirect();
 
         $subscription = ServiceSubscription::query()->firstOrFail();
         $this->assertSame($this->net['pop']->id, $subscription->serving_pop_id);
@@ -112,7 +112,7 @@ class IpamOdnLifecycleTest extends TestCase
         OdnService::assignDrop($this->outputs[0], $this->makeSubscription($this->company));
         $before = $this->onboardingFootprint();
 
-        $this->onboard(['odn_port_id' => $this->outputs[0]->id])
+        $this->onboard(['odn_port_id' => $this->outputs[0]->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors('subscription.odn_port_id');
 
@@ -126,7 +126,7 @@ class IpamOdnLifecycleTest extends TestCase
         $before = $this->onboardingFootprint();
 
         foreach ([$this->outputs[1], $pon[0]] as $port) {
-            $this->onboard(['odn_port_id' => $port->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
+            $this->onboard(['odn_port_id' => $port->public_id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
         }
 
         $this->assertSame($before, $this->onboardingFootprint());
@@ -139,7 +139,7 @@ class IpamOdnLifecycleTest extends TestCase
         $foreignOutputs = $this->inCompany($other, fn () => $this->splitter($foreign['odp'], 4)[1]);
         $before = $this->onboardingFootprint();
 
-        $this->onboard(['odn_port_id' => $foreignOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
+        $this->onboard(['odn_port_id' => $foreignOutputs[0]->public_id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
 
         $this->assertSame($before, $this->onboardingFootprint());
         $this->assertNull(OdnPort::withoutCompany()->find($foreignOutputs[0]->id)->subscription_id);
@@ -151,7 +151,7 @@ class IpamOdnLifecycleTest extends TestCase
         [, $otherOutputs] = $this->splitter($other['odp'], 4);
         $before = $this->onboardingFootprint();
 
-        $this->onboard(['odn_port_id' => $otherOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
+        $this->onboard(['odn_port_id' => $otherOutputs[0]->public_id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
 
         $this->assertSame($before, $this->onboardingFootprint());
     }
@@ -164,14 +164,14 @@ class IpamOdnLifecycleTest extends TestCase
         [, $spoofOutputs] = $this->splitter($odp, 4);
         $before = $this->onboardingFootprint();
 
-        $this->onboard(['odn_port_id' => $spoofOutputs[0]->id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
+        $this->onboard(['odn_port_id' => $spoofOutputs[0]->public_id])->assertStatus(422)->assertJsonValidationErrors('subscription.odn_port_id');
         $this->assertSame($before, $this->onboardingFootprint());
 
         $offered = array_column((OdnOccupancyQuery::dropPortOptions(Request::create('/', 'GET', ['dropPort_search' => 'ODP']), $this->net['pop']->id))(), 'label');
         $this->assertSame([], array_filter($offered, fn (string $label): bool => str_starts_with($label, 'ODP-SPOOF')), 'the drop picker must not offer it either');
         $this->assertContains('ODP-A11 · 1:8 · port 1', $offered);
 
-        $listed = collect($this->get(route('admin.odn.index', ['pop_id' => $this->net['pop']->id]))->viewData('page')['props']['odps']['data'])->pluck('code');
+        $listed = collect($this->get(route('admin.odn.index', ['pop_id' => $this->net['pop']->public_id]))->viewData('page')['props']['odps']['data'])->pluck('code');
         $this->assertNotContains('ODP-SPOOF', $listed->all());
     }
 
@@ -181,7 +181,7 @@ class IpamOdnLifecycleTest extends TestCase
         $role->syncPermissions(Permission::query()->whereIn('name', ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view'])->get());
         $this->actingAs($this->makeUser($this->company, 'onboarder'));
 
-        $this->onboard(['odn_port_id' => $this->outputs[0]->id])->assertRedirect();
+        $this->onboard(['odn_port_id' => $this->outputs[0]->public_id])->assertRedirect();
 
         $this->assertNull($this->outputs[0]->fresh()->subscription_id, 'a forged port is ignored, like a forged acquirer');
         $this->assertSame(1, ServiceSubscription::query()->count());
@@ -194,7 +194,7 @@ class IpamOdnLifecycleTest extends TestCase
 
     public function test_the_customer_create_page_loads_drop_options_only_on_a_search(): void
     {
-        $page = route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->id]);
+        $page = route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->public_id]);
 
         $this->get($page)->assertOk()->assertInertia(fn (Assert $inertia) => $inertia
             ->component('Admin/Customers/Create', false)
@@ -204,10 +204,10 @@ class IpamOdnLifecycleTest extends TestCase
         $this->get($page, $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
             ->assertJsonPath('props.dropPortOptions', []);
-        $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->id, 'dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
+        $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->public_id, 'dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
             ->assertJsonCount(8, 'props.dropPortOptions')
-            ->assertJsonPath('props.dropPortOptions.0', ['value' => $this->outputs[0]->id, 'label' => 'ODP-A11 · 1:8 · port 1', 'description' => 'POP-A > RACK-A1 > SITE-A11']);
+            ->assertJsonPath('props.dropPortOptions.0', ['value' => $this->outputs[0]->public_id, 'label' => 'ODP-A11 · 1:8 · port 1', 'description' => 'POP-A > RACK-A1 > SITE-A11']);
         $this->get(route('admin.customers.create', ['dropPort_search' => 'ODP-A11']), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertJsonPath('props.dropPortOptions', []);
     }
@@ -218,7 +218,7 @@ class IpamOdnLifecycleTest extends TestCase
         $role->syncPermissions(Permission::query()->whereIn('name', ['customer.create', 'customer.address.manage', 'customer.subscription.manage', 'spk.create', 'customer.view'])->get());
         $this->actingAs($this->makeUser($this->company, 'onboarder'));
 
-        $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->id]), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
+        $this->get(route('admin.customers.create', ['serving_pop_id' => $this->net['pop']->public_id]), $this->partialReload('Admin/Customers/Create', 'dropPortOptions'))
             ->assertOk()
             ->assertJsonPath('props.dropPortOptions', null);
     }
@@ -340,9 +340,9 @@ class IpamOdnLifecycleTest extends TestCase
                 ->where('staticPools.1.cidr', '10.121.0.0/24')
                 ->where('staticPools.1.free', '254')
                 ->where('dropPort', [
-                    'port_id' => $this->outputs[3]->id,
+                    'port_id' => $this->outputs[3]->public_id,
                     'number' => 4,
-                    'odp_asset_id' => $this->net['odp']->id,
+                    'odp_asset_id' => $this->net['odp']->public_id,
                     'odp_code' => 'ODP-A11',
                     'odp_name' => $this->net['odp']->name,
                     'location_path' => 'POP-A > RACK-A1 > SITE-A11',
@@ -421,7 +421,7 @@ class IpamOdnLifecycleTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/SPK/Show', false)
-                ->where('dropPort.port_id', $this->outputs[1]->id)
+                ->where('dropPort.port_id', $this->outputs[1]->public_id)
                 ->where('dropPort.number', 2)
                 ->where('dropPort.odp_code', 'ODP-A11')
                 ->where('dropPort.location_path', 'POP-A > RACK-A1 > SITE-A11'));
@@ -469,7 +469,7 @@ class IpamOdnLifecycleTest extends TestCase
      * @param  array<string, mixed>  $subscription
      * @return array<string, mixed>
      */
-    private function payload(array $subscription = [], ?int $popId = null): array
+    private function payload(array $subscription = [], ?string $popId = null): array
     {
         return [
             'code' => 'CUS-LIFECYCLE',
@@ -488,8 +488,8 @@ class IpamOdnLifecycleTest extends TestCase
                 'email' => 'lifecycle.contact@example.test', 'is_primary' => true, 'notes' => null,
             ]],
             'subscription' => [
-                'service_package_id' => $this->package->id,
-                'serving_pop_id' => $popId ?? $this->net['pop']->id,
+                'service_package_id' => $this->package->public_id,
+                'serving_pop_id' => $popId ?? $this->net['pop']->public_id,
                 'billing_day' => 5,
                 'mrc_amount' => null,
                 'otc_installation_fee' => null,

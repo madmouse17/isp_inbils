@@ -22,7 +22,7 @@ class CustomerHistoryQuery
                 ->whereNull('deleted_at')
                 ->latest('issue_date')
                 ->limit(self::LIMIT)
-                ->get(['id', 'number', 'status', 'issue_date', 'due_date', 'total', 'paid_amount'])
+                ->get(['public_id as id', 'number', 'status', 'issue_date', 'due_date', 'total', 'paid_amount'])
                 ->map(fn (object $row): array => (array) $row)->all() : [],
             'tickets' => $access['tickets'] ? DB::table('tickets')
                 ->where('company_id', $customer->company_id)
@@ -30,7 +30,7 @@ class CustomerHistoryQuery
                 ->whereNull('deleted_at')
                 ->latest('created_at')
                 ->limit(self::LIMIT)
-                ->get(['id', 'code', 'title', 'priority', 'status', 'created_at'])
+                ->get(['public_id as id', 'code', 'title', 'priority', 'status', 'created_at'])
                 ->map(fn (object $row): array => (array) $row)->all() : [],
             'work_orders' => $access['spk'] ? DB::table('work_orders')
                 ->where('company_id', $customer->company_id)
@@ -38,7 +38,7 @@ class CustomerHistoryQuery
                 ->whereNull('deleted_at')
                 ->latest('created_at')
                 ->limit(self::LIMIT)
-                ->get(['id', 'code', 'title', 'type', 'priority', 'status', 'scheduled_date'])
+                ->get(['public_id as id', 'code', 'title', 'type', 'priority', 'status', 'scheduled_date'])
                 ->map(fn (object $row): array => (array) $row)->all() : [],
         ];
     }

@@ -38,6 +38,12 @@ const copy: Record<number, ErrorCopy> = {
             'Halaman ini sudah terlalu lama terbuka dan kedaluwarsa. Muat ulang halaman, lalu ulangi langkah Anda.',
         retry: true,
     },
+    429: {
+        title: 'Terlalu banyak permintaan',
+        description:
+            'Terlalu banyak permintaan dalam waktu singkat. Tunggu beberapa menit, lalu coba lagi.',
+        retry: true,
+    },
     500: {
         title: 'Terjadi kesalahan di server',
         description:
@@ -52,7 +58,7 @@ const copy: Record<number, ErrorCopy> = {
 };
 
 /**
- * Rendered by the exception handler for 403, 404, 419, 500 and 503. It stands alone: no AdminLayout,
+ * Rendered by the exception handler for 403, 404, 419, 429, 500 and 503. It stands alone: no AdminLayout,
  * and the shared auth props are read defensively, because a failed request may carry none.
  */
 export default function ErrorPage({ status }: { status: number }) {

@@ -26,7 +26,7 @@ import { loginAs } from './support/demo';
  * `expectHttpError` so the failure audit allows the intentional failure evidence.
  */
 
-const DELETE_URL_PATTERN = /\/admin\/users\/\d+$/;
+const DELETE_URL_PATTERN = /\/admin\/users\/[0-9A-HJKMNP-TV-Z]{26}$/i;
 
 async function openUsersIndex(page: import('@playwright/test').Page) {
     await loginAs(page, 'admin');
@@ -86,7 +86,7 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
     // Intercept the destroy request: count DELETE hits, and hold the response
     // open long enough to observe the in-flight disabled state.
     let deleteRequestCount = 0;
-    let releaseDelete: (() => void) | null = null;
+    let releaseDelete = (): void => {};
     const deleteHeld = new Promise<void>((resolve) => {
         releaseDelete = resolve;
     });
@@ -124,7 +124,7 @@ test('@datatable-actions-delete lifecycle: single request, disabled while pendin
     await expect(dialog.getByRole('button', { name: 'Batal' })).toBeDisabled();
 
     // Release the request; the dialog must close on success.
-    releaseDelete?.();
+    releaseDelete();
     await expect(dialog).not.toBeVisible({ timeout: 15_000 });
     await expect(row).not.toBeVisible({ timeout: 15_000 });
     await expect.poll(() => deleteRequestCount, { timeout: 5_000 }).toBe(1);

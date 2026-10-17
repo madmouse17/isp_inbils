@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
@@ -21,6 +22,7 @@ use Illuminate\Support\Carbon;
 class WhatsAppInboundReceipt extends Model
 {
     use BelongsToCompany;
+    use HasPublicId;
     use MassPrunable;
 
     /** Meta redelivers a callback it got no 200 for during seven days; a receipt is of no use after that. */

@@ -6,6 +6,7 @@ use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Notification;
+use Modules\Ticketing\Models\Ticket;
 
 /**
  * In the bell and on the phone of the technician a ticket is assigned to: its first-response target is 30 minutes away or
@@ -34,7 +35,7 @@ class TicketFirstResponseDueNotification extends Notification implements ShouldQ
     {
         return [
             'type' => 'ticket_first_response_due',
-            'ticket_id' => $this->ticketId,
+            'ticket_id' => Ticket::withoutCompany()->whereKey($this->ticketId)->value('public_id'),
             'ticket_code' => $this->ticketCode,
             'state' => $this->breached ? 'breached' : 'due_soon',
             'company_id' => $this->companyId,

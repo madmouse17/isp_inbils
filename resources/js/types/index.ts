@@ -40,13 +40,13 @@ export type * from './reporting';
 export type * from './spk.d';
 
 export interface User {
-    id: number;
+    id: string;
     name: string;
     email: string;
     email_verified_at?: string;
     /** The company the user acts in now, not necessarily where they land at login. */
-    company_id?: number | null;
-    home_company_id?: number | null;
+    company_id?: string | null;
+    home_company_id?: string | null;
     is_active?: boolean;
     roles?: string[];
     permissions?: string[];
@@ -62,7 +62,7 @@ export interface CompanyMap {
 }
 
 export interface Company {
-    id: number;
+    id: string;
     name: string;
     code: string;
     logo?: string | null;
@@ -82,7 +82,7 @@ export interface Company {
 
 /** A company the user may switch into. `is_default` is the one they land in at login, `is_current` the one they act in now. */
 export interface CompanyMembership {
-    id: number;
+    id: string;
     name: string;
     code: string;
     is_current: boolean;
@@ -91,7 +91,7 @@ export interface CompanyMembership {
 
 /** Where the company the user acts in sits in the group, as the server shares it. */
 export interface CompanyHierarchy {
-    parent_company_id: number | null;
+    parent_company_id: string | null;
     /** `report.consolidated.view` and the effective company is a Head with an active subsidiary. */
     can_consolidate: boolean;
 }
@@ -157,11 +157,11 @@ export interface Paginated<T> {
     };
 }
 
-/** Canonical entity id used across list/detail routes. */
-export type Id = number | string;
+/** Canonical entity id used across list/detail routes: the record's public ULID. */
+export type Id = string;
 
 export interface ApprovalInboxItem {
-    id: number;
+    id: string;
     domain: string;
     composite_id?: string;
     code: string;
@@ -169,8 +169,8 @@ export interface ApprovalInboxItem {
     title: string;
     priority: string;
     status: string;
-    requester: { id: number; name: string } | null;
-    assigned_to: number | null;
+    requester: { id: string; name: string } | null;
+    assigned_to: string | null;
     submitted_at: string | null;
     age_seconds: number | null;
     scheduled_date: string | null;
@@ -193,13 +193,13 @@ export interface ApprovalInboxSummary {
 }
 
 export interface DispatchItemRequester {
-    id: number;
+    id: string;
     name: string;
     code?: string;
 }
 
 export interface DispatchItemAssignee {
-    id: number;
+    id: string;
     name: string;
 }
 
@@ -218,7 +218,7 @@ export interface DispatchItemActions {
 }
 
 export interface DispatchItem {
-    id: number;
+    id: string;
     domain: string;
     composite_id: string;
     code: string;
@@ -227,7 +227,7 @@ export interface DispatchItem {
     priority: string;
     status: string;
     requester: DispatchItemRequester | null;
-    assigned_to: number | null;
+    assigned_to: string | null;
     assignee: DispatchItemAssignee | null;
     submitted_at: string | null;
     /** SPK rows only: when the assigned technician set off (ISO-8601); the rows of tickets have no such key. */
@@ -251,7 +251,7 @@ export interface DispatchSummary {
 }
 
 export interface MyWorkItemCustomer {
-    id: number;
+    id: string;
     name: string;
     code?: string;
 }
@@ -274,7 +274,7 @@ export interface MyWorkItemActions {
 }
 
 export interface MyWorkItem {
-    id: number;
+    id: string;
     domain: string;
     composite_id: string;
     code: string;
@@ -283,7 +283,7 @@ export interface MyWorkItem {
     priority: string;
     status: string;
     customer: MyWorkItemCustomer | null;
-    assigned_to: number;
+    assigned_to: string;
     submitted_at: string | null;
     age_seconds: number | null;
     due_at?: string | null;
@@ -308,7 +308,7 @@ export interface QueueDomainOption {
 }
 
 export interface QueueUserOption {
-    id: number;
+    id: string;
     name: string;
     email: string;
 }

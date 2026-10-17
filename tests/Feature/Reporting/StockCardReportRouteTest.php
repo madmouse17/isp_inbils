@@ -45,8 +45,8 @@ class StockCardReportRouteTest extends TestCase
         $this->movement($product, 99, now()->subDays(3));
 
         $filters = [
-            'product_id' => $product->id,
-            'location_id' => $this->location->id,
+            'product_id' => $product->public_id,
+            'location_id' => $this->location->public_id,
             'date_from' => now()->toDateString(),
             'date_to' => now()->toDateString(),
             'sort_by' => 'quantity',
@@ -56,7 +56,7 @@ class StockCardReportRouteTest extends TestCase
         $this->get(route('admin.reports.stock-card', [...$filters, 'sort_dir' => 'asc']))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('filters.product_id', (string) $product->id)
+                ->where('filters.product_id', $product->public_id)
                 ->where('filters.date_from', $filters['date_from'])
                 ->where('movements.meta.total', 27)
                 ->where('movements.meta.per_page', 10)
@@ -74,7 +74,7 @@ class StockCardReportRouteTest extends TestCase
                 ->has('movements.data', 25)
                 ->where('movements.data.0.quantity', '27.00')
                 ->where('movements.data.24.quantity', '3.00')
-                ->where('movements.links.next', fn ($url) => is_string($url) && str_contains($url, 'product_id='.$product->id))
+                ->where('movements.links.next', fn ($url) => is_string($url) && str_contains($url, 'product_id='.$product->public_id))
             );
     }
 
@@ -86,7 +86,7 @@ class StockCardReportRouteTest extends TestCase
         }
 
         $this->get(route('admin.reports.stock-card', [
-            'product_id' => $product->id,
+            'product_id' => $product->public_id,
             'sort' => 'quantity',
             'direction' => 'asc',
             'per_page' => 10,
@@ -99,7 +99,7 @@ class StockCardReportRouteTest extends TestCase
                 ->where('movements.data.2.quantity', '9.00')
             );
 
-        $this->get(route('admin.reports.stock-card', ['product_id' => $product->id, 'sort' => 'event']))
+        $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id, 'sort' => 'event']))
             ->assertSessionHasErrors('sort');
     }
 
@@ -109,7 +109,7 @@ class StockCardReportRouteTest extends TestCase
         $this->movement($product, 7, now());
         $product->delete();
 
-        $this->get(route('admin.reports.stock-card', ['product_id' => $product->id]))
+        $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id]))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('movements.meta.total', 1)
@@ -135,7 +135,7 @@ class StockCardReportRouteTest extends TestCase
         $foreignLocation = Location::factory()->create(['company_id' => $foreignCompany->id]);
         $this->movement($foreignProduct, 45, now(), $foreignLocation);
 
-        $this->get(route('admin.reports.stock-card', ['product_id' => $foreignProduct->id]))
+        $this->get(route('admin.reports.stock-card', ['product_id' => $foreignProduct->public_id]))
             ->assertSessionHasErrors('product_id');
     }
 
@@ -159,7 +159,7 @@ class StockCardReportRouteTest extends TestCase
             'note' => 'Foreign ledger row',
         ]);
         $this->assertDatabaseHas('stock_movements', ['note' => 'Foreign ledger row', 'product_id' => $product->id, 'to_location_id' => $foreignLocation->id]);
-        $filters = ['product_id' => $product->id, 'location_id' => $foreignLocation->id];
+        $filters = ['product_id' => $product->public_id, 'location_id' => $foreignLocation->public_id];
 
         // The foreign location is a validation error on the screen and on the file: no ledger is read at all.
         $this->get(route('admin.reports.stock-card', $filters))->assertSessionHasErrors('location_id');

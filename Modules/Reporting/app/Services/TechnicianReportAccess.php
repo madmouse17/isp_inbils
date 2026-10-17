@@ -60,20 +60,26 @@ final class TechnicianReportAccess
     }
 
     /**
-     * The technician a request targets: the requested one when the actor may select it (403
-     * otherwise), the actor themself for a technician who asked for none, else null.
+     * The technician a request targets, named by public id: the requested one when the actor may select it (403
+     * otherwise, an unknown or foreign id included), the actor themself for a technician who asked for none, else
+     * null.
      */
-    public static function target(User $actor, ?string $requestedId): ?int
+    public static function target(User $actor, ?string $requestedId): ?User
     {
-        $technicianId = $requestedId ?? ($actor->hasRole('technician') ? $actor->id : null);
+        if ($requestedId === null) {
+            $technician = $actor->hasRole('technician') ? $actor : null;
+        } else {
+            $technician = User::query()->wherePublicId($requestedId)->first();
+            abort_if($technician === null, 403);
+        }
 
-        if ($technicianId === null) {
+        if ($technician === null) {
             return null;
         }
 
-        abort_unless(TechnicianPerformanceQuery::canSelect($actor, (int) $technicianId), 403);
+        abort_unless(TechnicianPerformanceQuery::canSelect($actor, $technician->id), 403);
 
-        return (int) $technicianId;
+        return $technician;
     }
 
     /**

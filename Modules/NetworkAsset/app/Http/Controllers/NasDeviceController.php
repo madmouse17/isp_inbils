@@ -103,7 +103,7 @@ class NasDeviceController extends Controller
 
         return Inertia::render('Admin/NasDevices/Edit', [
             'routerAssets' => [[
-                'id' => $asset->id,
+                'id' => $asset->public_id,
                 'code' => $asset->code,
                 'name' => $asset->name,
                 'management_ip' => $asset->getAttribute('management_ip'),
@@ -159,7 +159,7 @@ class NasDeviceController extends Controller
 
         $subscriptions = NetworkAccount::query()
             ->whereIn('username', array_column($sessions, 'username'))
-            ->with('subscription:id,code')
+            ->with('subscription:id,public_id,code')
             ->get()
             ->keyBy('username');
         $label = $nasDevice->networkAsset === null ? null : $nasDevice->networkAsset->code.' - '.$nasDevice->networkAsset->name;
@@ -172,7 +172,7 @@ class NasDeviceController extends Controller
             'started_at' => $session['started_at'],
             'updated_at' => $session['updated_at'],
             'username' => $session['username'],
-            'subscription' => ($subscription = $subscriptions->get($session['username'])?->subscription) === null ? null : ['id' => $subscription->id, 'code' => $subscription->code],
+            'subscription' => ($subscription = $subscriptions->get($session['username'])?->subscription) === null ? null : ['id' => $subscription->public_id, 'code' => $subscription->code],
         ], $sessions);
     }
 
@@ -198,7 +198,7 @@ class NasDeviceController extends Controller
             $this->unregisteredRouters()->with('location:id,name')->orderBy('code'),
             ['code', 'name', 'management_ip'],
             fn (NetworkAsset $asset): array => [
-                'value' => $asset->id,
+                'value' => $asset->public_id,
                 'label' => collect([$asset->code, $asset->name, $asset->location?->getAttribute('name')])->filter()->implode(' - '),
                 'description' => $asset->getAttribute('management_ip'),
             ],

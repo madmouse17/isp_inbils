@@ -76,7 +76,7 @@ class WorkOrdersTest extends TestCase
             ->assertJsonPath('meta.total', 6);
 
         $this->assertSame(
-            collect([$recentlyCancelled, $recentlyDone, $rework, $review, $working, $assigned])->pluck('id')->all(),
+            collect([$recentlyCancelled, $recentlyDone, $rework, $review, $working, $assigned])->pluck('public_id')->all(),
             $response->json('data.*.id'),
             'newest first',
         );
@@ -95,7 +95,7 @@ class WorkOrdersTest extends TestCase
         $this->api('GET', 'customer/work-orders', token: $this->token)
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
-            ->assertJsonPath('data.0.id', $mine->id);
+            ->assertJsonPath('data.0.id', $mine->public_id);
     }
 
     public function test_a_visit_that_is_not_theirs_is_a_404(): void
@@ -108,7 +108,7 @@ class WorkOrdersTest extends TestCase
         $generated = $this->visit('generated');
 
         foreach ([$peers, $strangers, $withoutSubscription, $draft, $generated] as $visit) {
-            $this->api('GET', "customer/work-orders/{$visit->id}", token: $this->token)->assertNotFound();
+            $this->api('GET', "customer/work-orders/{$visit->public_id}", token: $this->token)->assertNotFound();
         }
 
         $this->api('GET', 'customer/work-orders/9999999', token: $this->token)->assertNotFound();
@@ -121,7 +121,7 @@ class WorkOrdersTest extends TestCase
         $keys = ['id', 'code', 'type', 'scheduled_date', 'state', 'steps', 'current', 'technician', 'installation_address'];
 
         $item = $this->api('GET', 'customer/work-orders', token: $this->token)->assertOk()->json('data.0');
-        $detail = $this->api('GET', "customer/work-orders/{$visit->id}", token: $this->token)->assertOk()->json('data');
+        $detail = $this->api('GET', "customer/work-orders/{$visit->public_id}", token: $this->token)->assertOk()->json('data');
 
         $this->assertSame($keys, array_keys($item));
         $this->assertSame($item, $detail);
@@ -140,7 +140,7 @@ class WorkOrdersTest extends TestCase
 
         $private = [self::TECHNICIAN_PHONE, '081355550001', '6281355550001', 'Wijaya', $this->technician->email];
 
-        foreach (['customer/work-orders' => 'data.0.technician.first_name', "customer/work-orders/{$visit->id}" => 'data.technician.first_name'] as $uri => $path) {
+        foreach (['customer/work-orders' => 'data.0.technician.first_name', "customer/work-orders/{$visit->public_id}" => 'data.technician.first_name'] as $uri => $path) {
             $response = $this->api('GET', $uri, token: $this->token)->assertOk();
 
             $this->assertSame('Andi', $response->json($path));
@@ -161,7 +161,7 @@ class WorkOrdersTest extends TestCase
     {
         $visit = $this->visit('assigned');
         $at = fn (string $time): string => Carbon::parse($time)->jsonSerialize();
-        $detail = fn (): array => $this->api('GET', "customer/work-orders/{$visit->id}", token: $this->token)->assertOk()->json('data');
+        $detail = fn (): array => $this->api('GET', "customer/work-orders/{$visit->public_id}", token: $this->token)->assertOk()->json('data');
         $times = fn (array $data): array => array_column($data['steps'], 'at');
 
         $data = $detail();
@@ -199,7 +199,7 @@ class WorkOrdersTest extends TestCase
             'rejection_reason' => 'SECRET-photos-are-blurry',
         ]);
 
-        $response = $this->api('GET', "customer/work-orders/{$visit->id}", token: $this->token)->assertOk();
+        $response = $this->api('GET', "customer/work-orders/{$visit->public_id}", token: $this->token)->assertOk();
 
         $this->assertSame(['open', 'in_progress', null], [$response->json('data.state'), $response->json('data.current'), $response->json('data.steps.3.at')]);
         $this->assertStringNotContainsString('SECRET-photos-are-blurry', $response->getContent());
@@ -209,7 +209,7 @@ class WorkOrdersTest extends TestCase
     {
         $visit = $this->visit('cancelled', ['started_at' => '2026-10-16 02:00:00']);
 
-        $this->api('GET', "customer/work-orders/{$visit->id}", token: $this->token)
+        $this->api('GET', "customer/work-orders/{$visit->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.state', 'cancelled')
             ->assertJsonPath('data.current', null)
@@ -221,7 +221,7 @@ class WorkOrdersTest extends TestCase
         $old = $this->visit('completed', ['updated_at' => now()->subDays(60)]);
 
         $this->api('GET', 'customer/work-orders', token: $this->token)->assertOk()->assertJsonPath('meta.total', 0);
-        $this->api('GET', "customer/work-orders/{$old->id}", token: $this->token)->assertOk()->assertJsonPath('data.id', $old->id);
+        $this->api('GET', "customer/work-orders/{$old->public_id}", token: $this->token)->assertOk()->assertJsonPath('data.id', $old->public_id);
     }
 
     public function test_the_list_is_paginated(): void

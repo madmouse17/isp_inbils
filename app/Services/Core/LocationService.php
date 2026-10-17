@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Models\Core\Location;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -249,11 +250,7 @@ class LocationService
     {
         $companyId = $location->getAttribute('company_id');
 
-        abort_unless(
-            $companyId !== null && (int) $companyId === (int) $expectedCompanyId,
-            404,
-            'Lokasi tidak ditemukan.'
-        );
+        RecordNotFound::abortUnless($companyId !== null && (int) $companyId === (int) $expectedCompanyId);
     }
 
     private static function assertParentValidAndWithinCompany(

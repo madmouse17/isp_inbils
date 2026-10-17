@@ -2,14 +2,25 @@
 
 namespace Modules\Service\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Modules\Service\Models\Announcement;
+use Modules\Service\Models\ServicePackageCategory;
 
 class SaveAnnouncementRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['location_ids.*' => Location::class, 'service_package_category_ids.*' => ServicePackageCategory::class];
+    }
+
     public function authorize(): bool
     {
         return (bool) $this->user()?->can('announcement.manage');

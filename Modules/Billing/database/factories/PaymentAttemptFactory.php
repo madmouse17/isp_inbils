@@ -18,7 +18,7 @@ class PaymentAttemptFactory extends Factory
         return [
             'invoice_id' => InvoiceFactory::new(['status' => 'sent', 'total' => 100000]),
             'company_id' => fn (array $attributes) => Invoice::withoutCompany()->findOrFail($attributes['invoice_id'])->company_id,
-            'order_id' => fn (array $attributes) => PaymentAttempt::newOrderId($attributes['company_id'], $attributes['invoice_id']),
+            'order_id' => PaymentAttempt::newOrderId(),
             'amount' => fn (array $attributes) => Invoice::withoutCompany()->findOrFail($attributes['invoice_id'])->sisa,
             'status' => PaymentAttempt::STATUS_PENDING,
             'snap_token' => fake()->uuid(),

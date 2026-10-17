@@ -12,9 +12,9 @@ class StockResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'product_id' => $this->product_id,
-            'location_id' => $this->location_id,
+            'id' => $this->public_id,
+            'product_id' => $this->product?->public_id,
+            'location_id' => $this->location?->public_id,
             'quantity' => $this->quantity,
             'reserved_quantity' => $this->reserved_quantity,
             'available' => $this->available,

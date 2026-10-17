@@ -27,7 +27,7 @@ Repo `/home/madmouse/Documents/web/inbils-mobile`, both apps + `inbils_core` wid
 ## Acceptance criteria
 
 - [x] `flutter analyze`/`flutter test` green in core + both apps; contrast unchanged (run of 2026-10-17, see Comments).
-- [ ] A 10-second screen recording of Beranda (light) attached under `docs/user-guide/images/customer/redesign/motion.webm` from the AVD. **Open: the closing run was not allowed to touch a device.** Record it on `inbils_pixel7` during the device QA of ticket 07.
+- [x] A 10-second screen recording of Beranda (light) attached under `docs/user-guide/images/customer/redesign/motion.webm` from the AVD. Recorded 2026-10-17 on `inbils_pixel7` (10.2 s, VP9 720×1600, 428 KB: splash, skeleton shimmer, hero entrance with needle sweep and amount count-up, pulse dot, scroll); see push ticket 03 Comments for the run.
 
 ## Comments
 

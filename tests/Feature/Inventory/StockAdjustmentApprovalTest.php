@@ -104,7 +104,7 @@ class StockAdjustmentApprovalTest extends TestCase
         $staff = $this->userWithRole('staff');
 
         $this->actingAs($staff)
-            ->post(route('admin.stocks.adjust'), $this->payload(3, 'found in bin', $empty->id))
+            ->post(route('admin.stocks.adjust'), $this->payload(3, 'found in bin', $empty->public_id))
             ->assertRedirect();
 
         $this->assertSame(0, Stock::query()->where('location_id', $empty->id)->count());
@@ -126,7 +126,7 @@ class StockAdjustmentApprovalTest extends TestCase
             ->post(route('admin.stocks.adjust'), $this->payload(4, ''))
             ->assertSessionHasErrors('note');
         $this->actingAs($staff)
-            ->post(route('admin.stocks.adjust'), $this->payload(4, 'ok', $foreignLocation->id))
+            ->post(route('admin.stocks.adjust'), $this->payload(4, 'ok', $foreignLocation->public_id))
             ->assertSessionHasErrors('location_id');
 
         $this->assertSame(0, StockAdjustmentRequest::query()->count());
@@ -333,7 +333,7 @@ class StockAdjustmentApprovalTest extends TestCase
                 ->where('can.adjust_approve', true)
                 ->where('can.adjust_request', false)
                 ->has('adjustmentRequests.data', 2)
-                ->where('adjustmentRequests.data.0.id', $mine->id)
+                ->where('adjustmentRequests.data.0.id', $mine->public_id)
                 ->where('adjustmentRequests.data.0.can.approve', true)
                 ->where('adjustmentRequests.data.0.can.reject', true)
                 ->where('adjustmentRequests.data.0.requester.name', $staff->name)
@@ -344,7 +344,7 @@ class StockAdjustmentApprovalTest extends TestCase
                 ->where('can.adjust_request', true)
                 ->where('can.adjust_approve', false)
                 ->has('adjustmentRequests.data', 1)
-                ->where('adjustmentRequests.data.0.id', $mine->id)
+                ->where('adjustmentRequests.data.0.id', $mine->public_id)
                 ->where('adjustmentRequests.data.0.can.approve', false)
         );
 
@@ -382,11 +382,11 @@ class StockAdjustmentApprovalTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function payload(float $newQuantity, string $note, ?int $locationId = null): array
+    private function payload(float $newQuantity, string $note, ?string $locationId = null): array
     {
         return [
-            'product_id' => $this->product->id,
-            'location_id' => $locationId ?? $this->location->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $locationId ?? $this->location->public_id,
             'new_quantity' => $newQuantity,
             'note' => $note,
         ];

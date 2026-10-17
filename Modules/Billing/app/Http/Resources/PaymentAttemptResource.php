@@ -18,14 +18,14 @@ class PaymentAttemptResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'order_id' => $this->order_id,
             'status' => $this->status,
             'status_reason' => $this->status_reason,
             'amount' => $this->amount,
             'transaction_id' => $this->transaction_id,
             'payment_type' => $this->payment_type,
-            'payment_id' => $this->payment_id,
+            'payment_id' => $this->payment?->public_id,
             'expires_at' => $this->expires_at->toIso8601String(),
             'settled_at' => $this->settled_at?->toIso8601String(),
             'created_at' => $this->created_at->toIso8601String(),

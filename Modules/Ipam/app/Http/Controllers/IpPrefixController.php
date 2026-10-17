@@ -4,7 +4,6 @@ namespace Modules\Ipam\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Core\Location;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -49,7 +48,7 @@ class IpPrefixController extends Controller
         $addresses = IpAddress::query()
             ->where('family', $prefix->family)
             ->whereBetween('address_cmp', [$prefix->range_from, $prefix->range_to])
-            ->with(['subscription:id,code,customer_id', 'subscription.customer:id,name', 'networkAsset:id,code,name'])
+            ->with(['subscription:id,public_id,code,customer_id', 'subscription.customer:id,name', 'networkAsset:id,public_id,code,name'])
             ->orderBy('address_cmp')
             ->paginate(25)
             ->withQueryString();
@@ -57,7 +56,7 @@ class IpPrefixController extends Controller
         return Inertia::render('Admin/Ipam/Prefixes/Show', [
             'prefix' => [
                 ...IpPrefixUtilisationQuery::row($prefix),
-                'parent' => $prefix->parent === null ? null : ['id' => $prefix->parent->id, 'cidr' => $prefix->parent->cidr],
+                'parent' => $prefix->parent === null ? null : ['id' => $prefix->parent->public_id, 'cidr' => $prefix->parent->cidr],
             ],
             'children' => IpPrefixUtilisationQuery::children($prefix),
             'addresses' => IpAddressResource::collection($addresses),
@@ -72,14 +71,16 @@ class IpPrefixController extends Controller
     /**
      * The POP and VLAN choices of the prefix forms (create on the index, edit on the show page).
      *
-     * @return array{locations: Collection<int, Location>, vlans: list<array{id: int, vid: int, name: string, location_code: string|null}>}
+     * @return array{locations: list<array{id: string, code: string, name: string}>, vlans: list<array{id: string, vid: int, name: string, location_code: string|null}>}
      */
     private function pickLists(): array
     {
         return [
-            'locations' => Location::query()->where('type', 'pop')->where('is_active', true)->orderBy('code')->get(['id', 'code', 'name']),
+            'locations' => Location::query()->where('type', 'pop')->where('is_active', true)->orderBy('code')->get(['public_id', 'code', 'name'])
+                ->map(fn (Location $location): array => ['id' => $location->public_id, 'code' => $location->code, 'name' => $location->name])
+                ->all(),
             'vlans' => Vlan::query()->with('location:id,code')->orderBy('vid')->get()
-                ->map(fn (Vlan $vlan): array => ['id' => $vlan->id, 'vid' => $vlan->vid, 'name' => $vlan->name, 'location_code' => $vlan->location?->code])
+                ->map(fn (Vlan $vlan): array => ['id' => $vlan->public_id, 'vid' => $vlan->vid, 'name' => $vlan->name, 'location_code' => $vlan->location?->code])
                 ->all(),
         ];
     }

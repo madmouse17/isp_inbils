@@ -2,15 +2,32 @@
 
 namespace Modules\Ticketing\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\NetworkAsset\Models\NetworkAsset;
+use Modules\Ticketing\Models\TicketCategory;
 
 class StoreTicketRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'category_id' => TicketCategory::class,
+            'customer_id' => Customer::class,
+            'subscription_id' => ServiceSubscription::class,
+            'network_asset_id' => NetworkAsset::class,
+            'location_id' => Location::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         if ($this->isCustomerUser() && $this->ownCustomerId() === null) {
@@ -29,17 +46,22 @@ class StoreTicketRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'source' => ['required', 'string', 'in:customer,noc,internal'],
+            /** @var string */
             'category_id' => ['required', Rule::exists('ticket_categories', 'id')->where('company_id', $companyId)],
             'priority' => ['nullable', 'string', 'in:low,medium,high,urgent'],
+            /** @var string|null */
             'customer_id' => array_filter([
                 'nullable',
                 Rule::exists('customers', 'id')->where('company_id', $companyId),
                 $this->isCustomerUser() ? Rule::in([$this->ownCustomerId()]) : null,
             ]),
+            /** @var string|null */
             'subscription_id' => ['nullable', Rule::exists('service_subscriptions', 'id')->where('company_id', $companyId)],
+            /** @var string|null */
             'network_asset_id' => ['nullable', Rule::exists('network_assets', 'id')->where('company_id', $companyId)],
             // Portal customers never pick a location (not validated => not in validated()); see ticketAttributes().
             ...($this->isCustomerUser() ? [] : [
+                /** @var string|null */
                 'location_id' => ['nullable', Rule::exists('locations', 'id')->where('company_id', $companyId)],
             ]),
         ];

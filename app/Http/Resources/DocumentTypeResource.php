@@ -10,7 +10,7 @@ class DocumentTypeResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'name' => $this->name,
             'code' => $this->code,
             'applies_to' => $this->applies_to,

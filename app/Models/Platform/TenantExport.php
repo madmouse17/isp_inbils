@@ -4,6 +4,7 @@ namespace App\Models\Platform;
 
 use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
+use App\Traits\HasPublicId;
 use Database\Factories\TenantExportFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -33,6 +34,8 @@ class TenantExport extends Model
 {
     /** @use HasFactory<TenantExportFactory> */
     use HasFactory;
+
+    use HasPublicId;
 
     public const QUEUED = 'queued';
 

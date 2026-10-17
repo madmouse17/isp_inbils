@@ -60,6 +60,6 @@ test('@platform support access shows the banner, enforces read-only, switches to
     await expect(main.getByText('E2E Platform Operator')).toHaveCount(0);
 
     await banner.getByRole('button', { name: 'Keluar' }).click();
-    await expect(page).toHaveURL(/\/platform\/companies\/\d+$/);
+    await expect(page).toHaveURL(/\/platform\/companies\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(page.getByRole('region', { name: 'Akses dukungan' })).toHaveCount(0);
 });

@@ -16,10 +16,10 @@ export interface CustomerWhatsApp {
 
 /** One row of the `whatsappMessages` prop on the customer show page (latest 20, newest first). */
 export interface WhatsAppMessageRow {
-    id: number;
+    id: string;
     event: string;
     subject_type: string | null;
-    subject_id: number | null;
+    subject_id: string | null;
     status: WhatsAppStatus;
     skip_reason: string | null;
     error_code: string | null;

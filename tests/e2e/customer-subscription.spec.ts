@@ -81,14 +81,14 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
     await page.getByRole('tab', { name: 'Data pelanggan' }).click();
     await page.getByRole('button', { name: 'Buat pelanggan dan SPK' }).click();
 
-    await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
+    await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(page.getByRole('main').getByRole('heading', { name: customerName })).toBeVisible();
 
     // The customer show page renders related tables inline (read-only) — the
     // create-address flow now happens on the create form itself (default
     // address seeded there) and subscription creation lives on the dedicated
     // per-customer subscriptions page.
-    const customerId = page.url().match(/\/admin\/customers\/(\d+)$/)?.[1];
+    const customerId = page.url().match(/\/admin\/customers\/([0-9A-HJKMNP-TV-Z]{26})$/i)?.[1];
     if (!customerId) throw new Error('Could not resolve created customer id');
 
     // Onboarding leaves only a pending subscription, so the derived status is Prospective.

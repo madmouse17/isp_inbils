@@ -213,7 +213,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         // The technician sets off in the app: the queue says so next to the assignee.
         const api = await apiLogin(request, 'technician');
         const list = (await (await api.get('technician/my-work?per_page=100')).json()) as {
-            data: { id: number; domain: string; title: string }[];
+            data: { id: string; domain: string; title: string }[];
         };
         const spk = list.data.find(
             (item) => item.domain === 'spk' && item.title === 'E2E Dispatch SPK',
@@ -456,7 +456,7 @@ test.describe('@lifecycle dispatch-my-work', () => {
         const onRequest = (request: Request) => {
             if (
                 request.method() === 'POST' &&
-                /\/admin\/(dispatch\/assign|tickets\/\d+\/start)$/.test(
+                /\/admin\/(dispatch\/assign|tickets\/[0-9A-HJKMNP-TV-Z]{26}\/start)$/i.test(
                     new URL(request.url()).pathname,
                 )
             ) {

@@ -13,7 +13,7 @@ export function SubsidiaryDialog({ tenant, admins, onClose }: SubsidiaryDialogPr
     const form = useForm({
         name: '',
         code: '',
-        member_ids: [] as number[],
+        member_ids: [] as string[],
     });
     const lifecycleError = (form.errors as Record<string, string | undefined>).lifecycle;
     const memberError =

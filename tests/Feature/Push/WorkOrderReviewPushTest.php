@@ -108,17 +108,17 @@ class WorkOrderReviewPushTest extends TestCase
 
         $technicianBell = $this->technician->notifications()->sole();
         $this->assertEqualsCanonicalizing(
-            ['type' => 'spk_approved', 'work_order_id' => $workOrder->id, 'work_order_code' => 'SPK-2026-0042', 'company_id' => $workOrder->company_id],
+            ['type' => 'spk_approved', 'work_order_id' => $workOrder->public_id, 'work_order_code' => 'SPK-2026-0042', 'company_id' => $workOrder->company_id],
             $technicianBell->data,
         );
         $customerBell = $this->customer->notifications()->sole();
-        $this->assertEqualsCanonicalizing(['type' => 'visit_completed', 'work_order_id' => $workOrder->id, 'company_id' => $workOrder->company_id], $customerBell->data);
+        $this->assertEqualsCanonicalizing(['type' => 'visit_completed', 'work_order_id' => $workOrder->public_id, 'company_id' => $workOrder->company_id], $customerBell->data);
 
         $this->assertCount(2, $this->multicasts);
         $this->assertSame([
             'type' => 'spk_approved',
             'subject_type' => 'work_order',
-            'subject_id' => (string) $workOrder->id,
+            'subject_id' => $workOrder->public_id,
             'notification_id' => $technicianBell->id,
             'title' => 'SPK disetujui',
             'body' => 'SPK SPK-2026-0042 sudah disetujui.',
@@ -126,7 +126,7 @@ class WorkOrderReviewPushTest extends TestCase
         $this->assertSame([
             'type' => 'visit_completed',
             'subject_type' => 'work_order',
-            'subject_id' => (string) $workOrder->id,
+            'subject_id' => $workOrder->public_id,
             'notification_id' => $customerBell->id,
             'title' => 'Kunjungan teknisi selesai',
             'body' => 'Kunjungan teknisi untuk layanan Anda sudah selesai.',
@@ -147,7 +147,7 @@ class WorkOrderReviewPushTest extends TestCase
         $bell = $this->technician->notifications()->sole();
         $this->assertEqualsCanonicalizing([
             'type' => 'spk_rejected',
-            'work_order_id' => $workOrder->id,
+            'work_order_id' => $workOrder->public_id,
             'work_order_code' => 'SPK-2026-0042',
             'reason' => 'Foto kabel kurang jelas, ulangi.',
             'company_id' => $workOrder->company_id,

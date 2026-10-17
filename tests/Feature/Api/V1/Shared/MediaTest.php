@@ -31,7 +31,7 @@ class MediaTest extends TestCase
         $ticket = $this->ticketFor($customer);
         $file = $this->store($ticket, 'attachments', 'site-photo.png', base64_decode(self::PNG));
 
-        $response = $this->api('GET', 'media/'.$file->id, token: $this->issueToken($user, 'customer'));
+        $response = $this->api('GET', 'media/'.$file->public_id, token: $this->issueToken($user, 'customer'));
 
         $response->assertOk();
         $this->assertSame(base64_decode(self::PNG), $response->streamedContent());
@@ -49,7 +49,7 @@ class MediaTest extends TestCase
         [, $otherCustomer] = $this->customerLogin(Company::query()->findOrFail($customer->company_id));
         $file = $this->store($this->ticketFor($otherCustomer), 'attachments', 'site-photo.png', base64_decode(self::PNG));
 
-        $this->api('GET', 'media/'.$file->id, token: $this->issueToken($user, 'customer'))
+        $this->api('GET', 'media/'.$file->public_id, token: $this->issueToken($user, 'customer'))
             ->assertNotFound()
             ->assertJsonPath('code', 'not_found');
     }
@@ -61,7 +61,7 @@ class MediaTest extends TestCase
         $workOrder = $this->workOrderFor($technician);
         $file = $this->store($workOrder, 'evidence', 'proof.png', base64_decode(self::PNG));
 
-        $response = $this->api('GET', 'media/'.$file->id, token: $this->issueToken($technician, 'technician'));
+        $response = $this->api('GET', 'media/'.$file->public_id, token: $this->issueToken($technician, 'technician'));
 
         $response->assertOk();
         $this->assertSame(base64_decode(self::PNG), $response->streamedContent());
@@ -78,11 +78,11 @@ class MediaTest extends TestCase
         $mine = $this->store($this->workOrderFor($technician), 'evidence', 'mine.png', base64_decode(self::PNG));
         $theirs = $this->store($this->workOrderFor($other), 'evidence', 'theirs.png', base64_decode(self::PNG));
 
-        $this->api('GET', 'media/'.$mine->id, token: $this->issueToken($technician, 'customer'))->assertNotFound();
+        $this->api('GET', 'media/'.$mine->public_id, token: $this->issueToken($technician, 'customer'))->assertNotFound();
 
         $technicianToken = $this->issueToken($technician, 'technician');
-        $this->api('GET', 'media/'.$mine->id, token: $technicianToken)->assertOk();
-        $this->api('GET', 'media/'.$theirs->id, token: $technicianToken)->assertNotFound();
+        $this->api('GET', 'media/'.$mine->public_id, token: $technicianToken)->assertOk();
+        $this->api('GET', 'media/'.$theirs->public_id, token: $technicianToken)->assertNotFound();
     }
 
     public function test_foreign_company_missing_file_and_disallowed_media_are_not_found(): void
@@ -98,9 +98,9 @@ class MediaTest extends TestCase
 
         $token = $this->issueToken($user, 'customer');
 
-        $this->api('GET', 'media/'.$foreign->id, token: $token)->assertNotFound();
-        $this->api('GET', 'media/'.$missing->id, token: $token)->assertNotFound();
-        $this->api('GET', 'media/'.$spk->id, token: $token)->assertNotFound();
+        $this->api('GET', 'media/'.$foreign->public_id, token: $token)->assertNotFound();
+        $this->api('GET', 'media/'.$missing->public_id, token: $token)->assertNotFound();
+        $this->api('GET', 'media/'.$spk->public_id, token: $token)->assertNotFound();
         $this->api('GET', 'media/99999999', token: $token)->assertNotFound();
     }
 

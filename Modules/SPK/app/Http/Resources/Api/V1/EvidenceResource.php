@@ -49,7 +49,7 @@ class EvidenceResource extends JsonResource
         $uploadedBy = $this->resource->getCustomProperty('uploaded_by');
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             /** @var string|null */
             'type' => $this->getCustomProperty('type'),
             /** @var string|null */
@@ -59,7 +59,7 @@ class EvidenceResource extends JsonResource
             /** @var string|null */
             'captured_at' => $this->getCustomProperty('captured_at'),
             'uploaded_by' => $uploadedBy === null ? null : [
-                'id' => (int) $uploadedBy,
+                'id' => $this->uploader?->public_id,
                 'name' => $this->uploader?->name,
             ],
             'mine' => $viewer !== null && (int) $uploadedBy === (int) $viewer->id,

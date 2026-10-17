@@ -129,7 +129,7 @@ class TicketServerTableExportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('tickets.data', 1)
-                ->where('tickets.data.0.id', $high->id)
+                ->where('tickets.data.0.id', $high->public_id)
                 ->where('filters.priority', 'high')
             );
 
@@ -190,7 +190,7 @@ class TicketServerTableExportTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Tickets/Index')
                 ->has('tickets.data', 1)
-                ->where('tickets.data.0.id', $ownTicket->id)
+                ->where('tickets.data.0.id', $ownTicket->public_id)
                 ->where('tickets.meta.total', 1)
             );
 
@@ -243,10 +243,10 @@ class TicketServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('Inactive Assigned Ticket', $csvContent);
         $this->assertStringNotContainsString('Inactive Unassigned Ticket', $csvContent);
 
-        // 3. Detail show is forbidden consistent with policy
+        // 3. Detail show is hidden, like a ticket that does not exist
         $this->actingAs($inactiveHandler)
             ->get(route('admin.tickets.show', $assignedTicket))
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_close_and_view_actor_without_assign_only_lists_and_exports_own_tickets(): void
@@ -285,7 +285,7 @@ class TicketServerTableExportTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Tickets/Index')
                 ->has('tickets.data', 1)
-                ->where('tickets.data.0.id', $ownTicket->id)
+                ->where('tickets.data.0.id', $ownTicket->public_id)
                 ->where('tickets.meta.total', 1)
             );
 
@@ -299,17 +299,17 @@ class TicketServerTableExportTest extends TestCase
         $this->assertStringNotContainsString('Closer Other Ticket', $csvContent);
         $this->assertStringNotContainsString('Closer Unassigned Ticket', $csvContent);
 
-        // 3. Detail show allows own ticket, forbids other and unassigned
+        // 3. Detail show allows own ticket, hides other and unassigned
         $this->actingAs($closeOnlyHandler)
             ->get(route('admin.tickets.show', $ownTicket))
             ->assertOk();
 
         $this->actingAs($closeOnlyHandler)
             ->get(route('admin.tickets.show', $otherTicket))
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->actingAs($closeOnlyHandler)
             ->get(route('admin.tickets.show', $unassignedTicket))
-            ->assertForbidden();
+            ->assertNotFound();
     }
 }

@@ -179,6 +179,10 @@ Bila Anda membuka halaman yang tidak diizinkan atau tidak ada, atau bila terjadi
 
 Tombol **Ke dasbor** (bila Anda sudah masuk) atau **Masuk** membawa Anda keluar dari halaman galat. Halaman 419, 500, dan 503 juga punya tombol **Muat ulang halaman**. Bila satu halaman gagal tampil karena kesalahan di browser, Inbils menampilkan **Halaman tidak dapat ditampilkan** dengan tombol **Muat ulang halaman**.
 
+### Tautan data memakai kode acak
+
+Alamat satu data (pelanggan, SPK, tagihan, dan seterusnya) kini memuat kode acak 26 karakter, bukan nomor urut. Alamat lama dengan nomor urut menjawab "tidak ditemukan", jadi penanda (bookmark) lama harus dibuka ulang dari daftarnya, lalu disimpan lagi. Kode yang Anda baca dan cari, seperti `CUS-00001` atau `INV-2026-00001`, tidak berubah. Alamat salah, data perusahaan lain, dan data yang tidak boleh Anda lihat memberi jawaban yang sama: "tidak ditemukan". Terlalu banyak alamat salah dalam waktu singkat menampilkan "Terlalu banyak permintaan"; tunggu sekitar 10 menit lalu buka dari daftar.
+
 ## 1.6 Ganti perusahaan
 
 Satu instalasi Inbils dapat memuat lebih dari satu perusahaan, misalnya perusahaan induk (Head) dan anak perusahaannya. Data setiap perusahaan terpisah: pelanggan, tagihan, stok, dan laporan hanya milik perusahaan yang sedang aktif.
@@ -2579,7 +2583,7 @@ Kolom **Jenis** menampilkan salah satu dari tujuh label ini.
 | **Cadangan dilepas** | Cadangan dilepas, jumlah fisik tidak berubah | Minus | Hanya **Ke** terisi |
 | **Pengembalian** | Barang kembali ke lokasi | Plus | Hanya **Ke** terisi |
 
-Satu permintaan barang meninggalkan jejak berurutan: **Dicadangkan** saat disetujui, lalu **Cadangan dilepas** dan **Keluar** saat barang diserahkan. Cadangan juga dilepas saat SPK ditolak. Catatan mutasi memuat kode sumbernya: `Penyerahan Permintaan Barang: <kode>` untuk serah terima, `SPK <kode>` untuk pemakaian pada SPK, dan `Penerimaan Fisik Pengembalian Material: Kasus #<nomor>` untuk retur material yang diterima. Cari kode itu di kolom **Cari mutasi** untuk menelusuri satu permintaan atau SPK.
+Satu permintaan barang meninggalkan jejak berurutan: **Dicadangkan** saat disetujui, lalu **Cadangan dilepas** dan **Keluar** saat barang diserahkan. Cadangan juga dilepas saat SPK ditolak. Catatan mutasi memuat kode sumbernya: `Penyerahan Permintaan Barang: <kode>` untuk serah terima, `SPK <kode>` untuk pemakaian pada SPK, dan `Penerimaan Fisik Pengembalian Material: <kode permintaan>` untuk retur material yang diterima (kode permintaan barang asalnya; tanpa permintaan asal, catatan hanya `Penerimaan Fisik Pengembalian Material`). Cari kode itu di kolom **Cari mutasi** untuk menelusuri satu permintaan atau SPK.
 
 Jenis **Pengembalian** tersedia di filter, tetapi belum ada layar web atau alur yang membuat mutasi ini. Penerimaan fisik retur material tercatat sebagai **Masuk**.
 
@@ -2637,7 +2641,7 @@ Pengembalian tidak punya menu sendiri. Daftarnya adalah satu tab pada halaman Pe
 
 ### Mendeklarasikan pemakaian
 
-Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang dikeluarkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya (rusak, hilang, atau lainnya). Alasan selisih bersifat opsional, maksimal 1000 karakter. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pengguna berizin `inventory.return.receive` menerima email berjudul `Deklarasi Pengembalian Material: Kasus #<nomor>`, dan stok belum berubah.
+Teknisi mengerjakannya di aplikasi teknisi. Untuk setiap barang, jumlah dipakai, sisa baik, dan selisih harus berjumlah sama dengan jumlah yang dikeluarkan. Jika ada selisih, deklarasi wajib menyebut jenis selisihnya (rusak, hilang, atau lainnya). Alasan selisih bersifat opsional, maksimal 1000 karakter. Setelah laporan masuk, status berkas menjadi **Menunggu penerimaan gudang**, pengguna berizin `inventory.return.receive` menerima email berjudul `Deklarasi Pengembalian Material: <kode permintaan>`, dan stok belum berubah.
 
 Di web, tombol **Laporkan Pemakaian & Ajukan Pengembalian** hanya muncul bagi pemilik berkas yang memegang `inventory.return.declare`, misalnya admin yang membuat permintaannya sendiri. Tombol itu muncul saat status berkas **Menunggu deklarasi teknisi** atau **Perlu koreksi**.
 
@@ -2664,7 +2668,7 @@ Izin: `inventory.return.receive`. Berkas harus berstatus **Menunggu penerimaan g
 
 Pada setiap barang yang diproses lewat dialog web, **Dipakai Riil** ditambah **Diterima Baik** ditambah **Rusak** harus sama dengan **Dikeluarkan**. Dialog web tidak menyediakan isian hilang atau lainnya, jadi kasus itu tidak dapat dicatat secara tepat melalui dialog ini. Jangan mencatat barang hilang sebagai rusak hanya agar jumlahnya cocok.
 
-Jumlah **Diterima Baik** langsung menambah stok di **Gudang Tujuan** berkas, dan Mutasi Stok (bagian 6.7) mencatat baris berjenis **Masuk** dengan catatan `Penerimaan Fisik Pengembalian Material: Kasus #<nomor>`. Bila **Rusak** nol di semua barang, status menjadi **Diterima**. Bila ada barang dengan **Rusak** lebih dari nol, status menjadi **Selisih perlu penyelesaian** dan pengguna berizin `inventory.return.resolve` menerima email berjudul `Selisih Material Perlu Diselesaikan: Kasus #<nomor>`. Bila tidak ada pemegang izin itu, email dikirim ke pemegang izin `inventory.request.approve`.
+Jumlah **Diterima Baik** langsung menambah stok di **Gudang Tujuan** berkas, dan Mutasi Stok (bagian 6.7) mencatat baris berjenis **Masuk** dengan catatan `Penerimaan Fisik Pengembalian Material: <kode permintaan>`. Bila **Rusak** nol di semua barang, status menjadi **Diterima**. Bila ada barang dengan **Rusak** lebih dari nol, status menjadi **Selisih perlu penyelesaian** dan pengguna berizin `inventory.return.resolve` menerima email berjudul `Selisih Material Perlu Diselesaikan: <kode permintaan>`. Bila tidak ada pemegang izin itu, email dikirim ke pemegang izin `inventory.request.approve`.
 
 ### Menolak penyerahan fisik
 
@@ -2674,7 +2678,7 @@ Izin dan syarat sama dengan penerimaan. Pakai langkah ini bila barang belum samp
 2. Isi **Alasan Penolakan Fisik** di dialog **Tolak Penyerahan Fisik Barang** (petunjuk `Jelaskan mengapa penyerahan fisik ditolak`). Wajib, 3 sampai 1000 karakter. Tombol **Tolak Penyerahan** baru aktif setelah alasan berisi 3 karakter.
 3. Klik **Tolak Penyerahan**.
 
-Status menjadi **Perlu koreksi**, banner **Penyerahan Fisik Ditolak Gudang** memuat alasannya, dan stok tidak berubah. Teknisi menerima email berjudul `Penyerahan Pengembalian Material Ditolak: Kasus #<nomor>` berisi alasan, lalu melapor ulang. Setelah laporan baru masuk, status kembali ke **Menunggu penerimaan gudang**.
+Status menjadi **Perlu koreksi**, banner **Penyerahan Fisik Ditolak Gudang** memuat alasannya, dan stok tidak berubah. Teknisi menerima email berjudul `Penyerahan Pengembalian Material Ditolak: <kode permintaan>` berisi alasan, lalu melapor ulang. Setelah laporan baru masuk, status kembali ke **Menunggu penerimaan gudang**.
 
 ### Menyelesaikan selisih
 

@@ -7,6 +7,7 @@ use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
+use App\Support\PublicId;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
@@ -85,7 +86,7 @@ class CompanySeeder extends Seeder
         ] as $unit) {
             DB::table('units')->updateOrInsert(
                 ['company_id' => $company->id, 'name' => $unit['name']],
-                ['symbol' => $unit['symbol'], 'updated_at' => now(), 'created_at' => now()],
+                PublicId::onInsert(['symbol' => $unit['symbol'], 'updated_at' => now(), 'created_at' => now()]),
             );
         }
     }
@@ -105,7 +106,7 @@ class CompanySeeder extends Seeder
         ] as $category) {
             DB::table('ticket_categories')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => $category['code']],
-                [...$category, 'company_id' => $company->id, 'is_active' => true, 'updated_at' => now(), 'created_at' => now()],
+                PublicId::onInsert([...$category, 'company_id' => $company->id, 'is_active' => true, 'updated_at' => now(), 'created_at' => now()]),
             );
         }
     }
@@ -123,7 +124,7 @@ class CompanySeeder extends Seeder
         ] as $tier) {
             DB::table('sla_tiers')->updateOrInsert(
                 ['company_id' => $company->id, 'name' => $tier['name']],
-                [...$tier, 'company_id' => $company->id, 'is_active' => true, 'updated_at' => now(), 'created_at' => now()],
+                PublicId::onInsert([...$tier, 'company_id' => $company->id, 'is_active' => true, 'updated_at' => now(), 'created_at' => now()]),
             );
         }
     }
@@ -164,6 +165,7 @@ class CompanySeeder extends Seeder
         foreach ($profiles as $p) {
             DB::table('bandwidth_profiles')->insert([
                 ...$p,
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'is_active' => true,
                 'created_at' => now(),
@@ -193,6 +195,7 @@ class CompanySeeder extends Seeder
         foreach ($profiles as $p) {
             DB::table('speed_profiles')->insert([
                 ...$p,
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'is_active' => true,
                 'created_at' => now(),
@@ -237,6 +240,7 @@ class CompanySeeder extends Seeder
         foreach ($packages as $i => $p) {
             DB::table('service_packages')->insert([
                 ...Arr::except($p, 'category'),
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'bandwidth_profile_id' => $bwIds[$i % count($bwIds)] ?? null,
                 'speed_profile_id' => $spIds[$i % count($spIds)] ?? null,
@@ -287,6 +291,7 @@ class CompanySeeder extends Seeder
             $unitIdx = $categoryUnitMap[$c['code']] ?? 0;
             DB::table('categories')->insert([
                 ...$c,
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'parent_id' => null,
                 'unit_id' => $unitIds[$unitIdx] ?? $unitIds[0],
@@ -323,6 +328,7 @@ class CompanySeeder extends Seeder
         foreach ($products as $p) {
             $categoryId = $catIds[$p['category_idx']] ?? $catIds[0];
             DB::table('products')->insert([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'category_id' => $categoryId,
                 'unit_id' => $categoryUnits[$categoryId] ?? $unitIds[$p['unit_idx']] ?? $unitIds[0],
@@ -378,12 +384,12 @@ class CompanySeeder extends Seeder
                     'product_id' => $product->id,
                     'location_id' => $locationId,
                 ],
-                [
+                PublicId::onInsert([
                     'quantity' => 20 + ($index * 5),
                     'reserved_quantity' => 0,
                     'created_at' => now(),
                     'updated_at' => now(),
-                ],
+                ]),
             );
         }
     }
@@ -416,6 +422,7 @@ class CompanySeeder extends Seeder
         foreach ($assets as $index => $a) {
             DB::table('network_assets')->insert([
                 ...$a,
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'product_id' => null,
                 // Sequential per company: random codes collide inside a single seed

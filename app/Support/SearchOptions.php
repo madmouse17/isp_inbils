@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\OptionalProp;
 
@@ -29,8 +30,8 @@ final class SearchOptions
      *
      * @param  Builder<TModel>  $base  company-scoped query
      * @param  list<string>  $searchColumns  columns matched with LIKE; the first one orders the result unless $base is ordered
-     * @param  Closure(TModel): array{value: int|string, label: string, description?: string|null}  $present
-     * @param  int|string|null  $selected  key of the current value; its option stays in the list while the user types
+     * @param  Closure(TModel): array{value: string, label: string, description?: string|null}  $present  `value` is the public id
+     * @param  string|null  $selected  public id of the current value; its option stays in the list while the user types
      */
     public static function for(
         Request $request,
@@ -38,7 +39,7 @@ final class SearchOptions
         Builder $base,
         array $searchColumns,
         Closure $present,
-        int|string|null $selected = null,
+        ?string $selected = null,
     ): OptionalProp {
         return Inertia::optional(function () use ($request, $field, $base, $searchColumns, $present, $selected): array {
             // The query string is the caller's: `x_search[]=a` arrives as an array, and only a string is a term.
@@ -47,8 +48,8 @@ final class SearchOptions
 
             $models = $base->getModel()->newCollection();
 
-            if ($selected !== null && $selected !== '') {
-                $models = (clone $base)->whereKey($selected)->limit(1)->get();
+            if (is_string($selected) && Str::isUlid($selected)) {
+                $models = (clone $base)->where($base->getModel()->qualifyColumn('public_id'), $selected)->limit(1)->get();
             }
 
             if (mb_strlen($term) >= self::MIN_CHARS) {

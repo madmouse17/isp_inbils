@@ -15,7 +15,7 @@ import {
 } from '@/Components/ui';
 
 interface RoleOption {
-    id: number;
+    id: string;
     name: string;
 }
 interface CreateProps {

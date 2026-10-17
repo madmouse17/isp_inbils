@@ -2,12 +2,14 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Core\Company;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Platform\ActiveImpersonation;
 use App\Services\Platform\ImpersonationService;
 use App\Support\PlatformSession;
+use App\Support\PublicId;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -120,8 +122,8 @@ class EnforceImpersonation
         }
 
         if ($request->routeIs('admin.company.switch')) {
-            $companyId = $request->input('company_id');
-            if (! is_numeric($companyId) || ! in_array((int) $companyId, $companyIds, true)) {
+            $companyId = PublicId::resolveOne(Company::class, $request->input('company_id'));
+            if ($companyId === null || ! in_array($companyId, $companyIds, true)) {
                 return $this->deny($request, self::COMPANY_SWITCH_MESSAGE);
             }
         }

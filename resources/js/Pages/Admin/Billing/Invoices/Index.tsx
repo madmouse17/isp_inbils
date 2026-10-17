@@ -18,7 +18,7 @@ import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { INVOICE_STATUS, optionsOf } from '@/lib/statuses';
 
 type InvoiceRow = {
-    id: number;
+    id: string;
     number: string;
     status: string;
     issue_date: string | null;
@@ -26,7 +26,7 @@ type InvoiceRow = {
     total: string | number;
     paid_amount: string | number;
     sisa: string | number;
-    customer?: { id: number; name: string; code: string } | null;
+    customer?: { id: string; name: string; code: string } | null;
 };
 
 type Props = {

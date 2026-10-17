@@ -6,7 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Switch } from 
 import { PageHeader } from '@/Components/composite';
 
 interface SpData {
-    id: number;
+    id: string;
     name: string;
     download_max_mbps: number;
     upload_max_mbps: number;

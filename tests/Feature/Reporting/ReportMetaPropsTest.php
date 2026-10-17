@@ -119,7 +119,7 @@ class ReportMetaPropsTest extends TestCase
     {
         $product = $this->productForCompany($this->admin->company_id);
 
-        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $product->id]))->assertOk();
+        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id]))->assertOk();
 
         $props = $response->inertiaProps();
         $this->assertSame('stock_card', $props['meta']['report']);
@@ -130,7 +130,7 @@ class ReportMetaPropsTest extends TestCase
         }
         $response->assertInertia(fn (Assert $page) => $page
             ->component('Admin/Reports/StockCard')
-            ->where('filters.product_id', (string) $product->id)
+            ->where('filters.product_id', $product->public_id)
             ->where('filters.per_page', 10)
             ->where('movements.meta.total', 0)
             ->has('movements.data', 0));

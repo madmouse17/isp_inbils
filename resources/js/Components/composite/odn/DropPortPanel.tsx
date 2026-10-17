@@ -9,7 +9,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle } from '@/Components/u
 import type { DropPort, DropPortOption } from '@/types/ipam-odn';
 
 interface DropPortPanelProps {
-    subscription: { id: number; code: string; terminated: boolean; hasServingPop: boolean };
+    subscription: { id: string; code: string; terminated: boolean; hasServingPop: boolean };
     dropPort: DropPort | null;
     canAssign: boolean;
     /** The `dropPortOptions` prop: free ports that match the typed text; the server sends it only on a partial reload that asks for it. */

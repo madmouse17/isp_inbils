@@ -63,7 +63,7 @@ class OdnOccupancyTest extends TestCase
     /** @return array<string, mixed> the ODP row of the occupancy list */
     private function odpRow(NetworkAsset $odp): array
     {
-        $row = collect(OdnOccupancyQuery::odps([])->items())->firstWhere('asset_id', $odp->id);
+        $row = collect(OdnOccupancyQuery::odps([])->items())->firstWhere('asset_id', $odp->public_id);
         $this->assertNotNull($row, "{$odp->code} should be listed");
 
         return $row;
@@ -114,10 +114,10 @@ class OdnOccupancyTest extends TestCase
         $this->get(route('admin.odn.assets.show', $this->net['odc']))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('splitters.0.id', $odcSplitter->id)
-                ->where('splitters.0.ports.0.feeds_splitter_id', $odpSplitter->id)
+                ->where('splitters.0.id', $odcSplitter->public_id)
+                ->where('splitters.0.ports.0.feeds_splitter_id', $odpSplitter->public_id)
                 ->where('splitters.0.ports.1.feeds_splitter_id', null)
-                ->where('splitters.0.input.port_id', $pon[0]->id)
+                ->where('splitters.0.input.port_id', $pon[0]->public_id)
                 ->where('splitters.0.input.label', 'OLT-A1 · PON 1')
                 ->where('splitters.0.ports.2.feeds_splitter_id', null));
         $freeLabels = array_column($this->inputPortOptions('A1'), 'label');
@@ -161,7 +161,7 @@ class OdnOccupancyTest extends TestCase
         $this->assertSame([1, 2, 3], array_column($page, 'number'));
         $this->assertSame([0, 2, 0], array_column($page, 'subscribers'));
         $this->assertSame(['OLT-A1', 'OLT-A1', 'OLT-A1'], array_column($page, 'olt_code'));
-        $this->assertSame($this->net['olt']->id, $page[0]['olt_asset_id']);
+        $this->assertSame($this->net['olt']->public_id, $page[0]['olt_asset_id']);
     }
 
     public function test_the_unmapped_list_shows_active_subscriptions_without_a_drop_and_hides_the_rest(): void
@@ -175,13 +175,13 @@ class OdnOccupancyTest extends TestCase
 
         $items = OdnOccupancyQuery::unmapped([])->items();
 
-        $this->assertSame([$unmapped->id], array_column($items, 'subscription_id'));
+        $this->assertSame([$unmapped->public_id], array_column($items, 'subscription_id'));
         $this->assertSame($unmapped->code, $items[0]['code']);
         $this->assertSame($unmapped->customer->name, $items[0]['customer_name']);
         $this->assertSame('POP-A', $items[0]['serving_pop_code']);
         $this->assertSame('active', $items[0]['status']);
-        $this->assertNotContains($terminated->id, array_column($items, 'subscription_id'));
-        $this->assertNotContains($pending->id, array_column($items, 'subscription_id'));
+        $this->assertNotContains($terminated->public_id, array_column($items, 'subscription_id'));
+        $this->assertNotContains($pending->public_id, array_column($items, 'subscription_id'));
     }
 
     public function test_a_subscription_leaves_the_unmapped_list_when_its_drop_is_recorded_and_returns_when_released(): void
@@ -189,11 +189,11 @@ class OdnOccupancyTest extends TestCase
         [, $outputs] = $this->splitter($this->net['odp'], 4);
         $subscription = $this->makeSubscription($this->company, 'active');
 
-        $this->assertSame([$subscription->id], array_column(OdnOccupancyQuery::unmapped([])->items(), 'subscription_id'));
+        $this->assertSame([$subscription->public_id], array_column(OdnOccupancyQuery::unmapped([])->items(), 'subscription_id'));
         OdnService::assignDrop($outputs[0], $subscription);
         $this->assertSame([], OdnOccupancyQuery::unmapped([])->items());
         OdnService::releaseDrop($outputs[0]);
-        $this->assertSame([$subscription->id], array_column(OdnOccupancyQuery::unmapped([])->items(), 'subscription_id'));
+        $this->assertSame([$subscription->public_id], array_column(OdnOccupancyQuery::unmapped([])->items(), 'subscription_id'));
     }
 
     public function test_drop_port_options_list_only_free_ports_of_odps_under_the_pop(): void
@@ -218,7 +218,7 @@ class OdnOccupancyTest extends TestCase
 
         $this->assertCount(6, $this->dropPortOptions($this->net['pop']->id, 'ODP'));
         $this->assertSame(['ODP-A12 · 1:2 · port 1', 'ODP-A12 · 1:2 · port 2'], array_column($this->dropPortOptions($this->net['pop']->id, 'A12'), 'label'));
-        $this->assertSame(array_column($outputs, 'id'), array_column($this->dropPortOptions($this->net['pop']->id, 'Tray 9'), 'value'), 'the label of the splitter is searched too');
+        $this->assertSame(array_column($outputs, 'public_id'), array_column($this->dropPortOptions($this->net['pop']->id, 'Tray 9'), 'value'), 'the label of the splitter is searched too');
         $this->assertSame([], $this->dropPortOptions($this->net['pop']->id, 'A'), 'one character is not a search');
     }
 
@@ -254,7 +254,7 @@ class OdnOccupancyTest extends TestCase
         $this->inCompany($other, fn () => OdnService::assignDrop($foreignOutputs[0], $this->makeSubscription($other)));
         $this->splitter($this->net['odp'], 4);
 
-        $this->assertSame([$this->net['odp']->id], array_column(OdnOccupancyQuery::odps([])->items(), 'asset_id'));
+        $this->assertSame([$this->net['odp']->public_id], array_column(OdnOccupancyQuery::odps([])->items(), 'asset_id'));
         $this->assertSame([], OdnOccupancyQuery::ponPorts([])->items());
         $this->assertCount(4, $this->dropPortOptions($this->net['pop']->id));
     }
@@ -282,7 +282,7 @@ class OdnOccupancyTest extends TestCase
                 ->where('ponPorts.data.0.subscribers', 4)
                 ->where('ponPorts.data.1.subscribers', 0)
                 ->has('unmapped.data', 1)
-                ->where('unmapped.data.0.subscription_id', $unmapped->id)
+                ->where('unmapped.data.0.subscription_id', $unmapped->public_id)
                 ->where('filters', ['pop_id' => null, 'min_percent' => null, 'search' => null])
                 ->has('pops', 1)
                 ->where('pops.0.code', 'POP-A'));
@@ -300,8 +300,8 @@ class OdnOccupancyTest extends TestCase
         $codes = fn (array $query): array => collect($this->get(route('admin.odn.index', $query))->viewData('page')['props']['odps']['data'] ?? [])->pluck('code')->all();
 
         $this->assertSame(['ODP-A11', 'ODP-A12', 'ODP-B11'], $codes([]));
-        $this->assertSame(['ODP-A11', 'ODP-A12'], $codes(['pop_id' => $this->net['pop']->id]));
-        $this->assertSame(['ODP-B11'], $codes(['pop_id' => $other['pop']->id]));
+        $this->assertSame(['ODP-A11', 'ODP-A12'], $codes(['pop_id' => $this->net['pop']->public_id]));
+        $this->assertSame(['ODP-B11'], $codes(['pop_id' => $other['pop']->public_id]));
         $this->assertSame(['ODP-A11'], $codes(['min_percent' => 100]), 'full ODPs only');
         $this->assertSame(['ODP-A11'], $codes(['min_percent' => 50]));
         $this->assertSame(['ODP-A12'], $codes(['search' => 'A12']));
@@ -331,9 +331,9 @@ class OdnOccupancyTest extends TestCase
                 ->where('asset.asset_type', 'olt')
                 ->where('asset.location_path', 'POP-A')
                 ->has('ponPorts', 2)
-                ->where('ponPorts.0.id', $pon[0]->id)
+                ->where('ponPorts.0.id', $pon[0]->public_id)
                 ->where('ponPorts.0.number', 1)
-                ->where('ponPorts.0.splitter_id', $splitter->id)
+                ->where('ponPorts.0.splitter_id', $splitter->public_id)
                 ->where('ponPorts.0.subscribers', 2)
                 ->where('ponPorts.1.splitter_id', null)
                 ->where('ponPorts.1.subscribers', 0)
@@ -355,13 +355,13 @@ class OdnOccupancyTest extends TestCase
                 ->where('asset.asset_type', 'odp')
                 ->where('ponPorts', [])
                 ->has('splitters', 1)
-                ->where('splitters.0.id', $splitter->id)
+                ->where('splitters.0.id', $splitter->public_id)
                 ->where('splitters.0.label', 'Tray 1')
                 ->where('splitters.0.outputs', 4)
                 ->where('splitters.0.input.label', 'OLT-A1 · PON 1')
                 ->has('splitters.0.ports', 4)
                 ->where('splitters.0.ports.0.number', 1)
-                ->where('splitters.0.ports.0.subscription.id', $holder->id)
+                ->where('splitters.0.ports.0.subscription.id', $holder->public_id)
                 ->where('splitters.0.ports.0.subscription.code', $holder->code)
                 ->where('splitters.0.ports.0.subscription.customer_name', $holder->customer->name)
                 ->where('splitters.0.ports.1.subscription', null)

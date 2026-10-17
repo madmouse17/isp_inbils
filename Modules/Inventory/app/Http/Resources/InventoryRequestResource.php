@@ -13,9 +13,9 @@ class InventoryRequestResource extends JsonResource
         $user = $request->user();
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'code' => $this->code,
-            'company_id' => $this->company_id,
+            'company_id' => $this->company?->public_id,
             'status' => $this->status,
             'needed_at' => $this->needed_at?->toDateString(),
             'reason' => $this->reason,
@@ -23,58 +23,58 @@ class InventoryRequestResource extends JsonResource
             'rejection_reason' => $this->rejection_reason,
             'cancellation_reason' => $this->cancellation_reason,
 
-            'warehouse_location_id' => $this->warehouse_location_id,
+            'warehouse_location_id' => $this->warehouseLocation?->public_id,
             'warehouse_location' => $this->whenLoaded('warehouseLocation', fn () => [
-                'id' => $this->warehouseLocation->id,
+                'id' => $this->warehouseLocation->public_id,
                 'name' => $this->warehouseLocation->name,
                 'code' => $this->warehouseLocation->code,
             ]),
 
-            'requested_by' => $this->requested_by,
+            'requested_by' => $this->requester?->public_id,
             'requester' => $this->whenLoaded('requester', fn () => [
-                'id' => $this->requester->id,
+                'id' => $this->requester->public_id,
                 'name' => $this->requester->name,
                 'email' => $this->requester->email,
             ]),
 
-            'approved_by' => $this->approved_by,
+            'approved_by' => $this->approver?->public_id,
             'approver' => $this->whenLoaded('approver', fn () => [
-                'id' => $this->approver->id,
+                'id' => $this->approver->public_id,
                 'name' => $this->approver->name,
             ]),
 
-            'prepared_by' => $this->prepared_by,
+            'prepared_by' => $this->preparer?->public_id,
             'preparer' => $this->whenLoaded('preparer', fn () => [
-                'id' => $this->preparer->id,
+                'id' => $this->preparer->public_id,
                 'name' => $this->preparer->name,
             ]),
 
-            'ready_by' => $this->ready_by,
+            'ready_by' => $this->readyUser?->public_id,
             'ready_user' => $this->whenLoaded('readyUser', fn () => [
-                'id' => $this->readyUser->id,
+                'id' => $this->readyUser->public_id,
                 'name' => $this->readyUser->name,
             ]),
 
-            'issued_by' => $this->issued_by,
+            'issued_by' => $this->issuer?->public_id,
             'issuer' => $this->whenLoaded('issuer', fn () => [
-                'id' => $this->issuer->id,
+                'id' => $this->issuer->public_id,
                 'name' => $this->issuer->name,
             ]),
 
-            'rejected_by' => $this->rejected_by,
+            'rejected_by' => $this->rejecter?->public_id,
             'rejecter' => $this->whenLoaded('rejecter', fn () => [
-                'id' => $this->rejecter->id,
+                'id' => $this->rejecter->public_id,
                 'name' => $this->rejecter->name,
             ]),
 
-            'cancelled_by' => $this->cancelled_by,
+            'cancelled_by' => $this->canceller?->public_id,
             'canceller' => $this->whenLoaded('canceller', fn () => [
-                'id' => $this->canceller->id,
+                'id' => $this->canceller->public_id,
                 'name' => $this->canceller->name,
             ]),
 
             'source_type' => $this->source_type,
-            'source_id' => $this->source_id,
+            'source_id' => $this->sourcePublicId(),
 
             'submitted_at' => $this->submitted_at?->toISOString(),
             'approved_at' => $this->approved_at?->toISOString(),

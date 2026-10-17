@@ -55,7 +55,7 @@ class WorkOrderIndexTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/SPK/Index')
                 ->has('workOrders.data', 1)
-                ->where('workOrders.data.0.id', $workOrder->id)
+                ->where('workOrders.data.0.id', $workOrder->public_id)
                 ->where('workOrders.data.0.code', 'SPK-2026-0001')
             );
     }
@@ -126,8 +126,8 @@ class WorkOrderIndexTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('workOrders.meta.per_page', 10)
-                ->where('workOrders.data.0.id', $orders[1]->id)
-                ->where('workOrders.data.1.id', $orders[0]->id)
+                ->where('workOrders.data.0.id', $orders[1]->public_id)
+                ->where('workOrders.data.1.id', $orders[0]->public_id)
             );
 
         $content = $this->get(route('admin.spk.export', $params + ['format' => 'csv']))
@@ -149,5 +149,4 @@ class WorkOrderIndexTest extends TestCase
             ->get(route('admin.spk.export', ['format' => 'csv']))
             ->assertForbidden();
     }
-
 }

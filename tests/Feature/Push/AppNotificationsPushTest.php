@@ -5,6 +5,7 @@ namespace Tests\Feature\Push;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\Core\DeviceToken;
+use App\Models\Core\Location;
 use App\Models\User;
 use App\Notifications\Channels\FcmChannel;
 use App\Notifications\Channels\WhatsAppChannel;
@@ -16,12 +17,15 @@ use Modules\Billing\Models\Payment;
 use Modules\Billing\Notifications\InvoiceDueReminderNotification;
 use Modules\Billing\Notifications\InvoiceIssuedNotification;
 use Modules\Billing\Notifications\PaymentReceivedNotification;
+use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Notifications\InventoryRequestReadyNotification;
 use Modules\Service\Models\Announcement;
 use Modules\Service\Notifications\AnnouncementPublishedNotification;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
+use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Notifications\TechnicianEnRouteNotification;
 use Modules\SPK\Notifications\WorkOrderScheduledNotification;
+use Modules\Ticketing\Models\Ticket;
 use Modules\Ticketing\Notifications\TicketAssignedNotification;
 use Modules\Ticketing\Notifications\TicketCustomerUpdateNotification;
 use Modules\Ticketing\Notifications\TicketSlaBreachedNotification;
@@ -60,13 +64,13 @@ class AppNotificationsPushTest extends TestCase
     }
 
     /** @return array<string, string> the data of the only push, whose notification_id is the bell row's */
-    private function assertPushed(string $token, string $title, string $body, string $type, string $subjectType, int $subjectId): array
+    private function assertPushed(string $token, string $title, string $body, string $type, string $subjectType, string $subjectId): array
     {
         $this->assertSame([$token], $this->pushedTokens());
         $push = $this->onlyPush();
         $this->assertSame(['title' => $title, 'body' => $body], $push['notification']);
         $this->assertSame(
-            ['type' => $type, 'subject_type' => $subjectType, 'subject_id' => (string) $subjectId, 'title' => $title, 'body' => $body],
+            ['type' => $type, 'subject_type' => $subjectType, 'subject_id' => $subjectId, 'title' => $title, 'body' => $body],
             array_diff_key($push['data'], ['notification_id' => 1]),
         );
 
@@ -85,37 +89,60 @@ class AppNotificationsPushTest extends TestCase
         ]);
     }
 
+    private function ticket(string $code): Ticket
+    {
+        return Ticket::factory()->create(['company_id' => $this->company->id, 'code' => $code]);
+    }
+
+    private function workOrder(): WorkOrder
+    {
+        return WorkOrderFactory::new()->create([
+            'company_id' => $this->company->id, 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'customer_id' => $this->customer->id,
+            'scheduled_date' => '2026-10-25',
+        ]);
+    }
+
+    private function inventoryRequest(string $code): InventoryRequest
+    {
+        $warehouse = Location::query()->create(['company_id' => $this->company->id, 'code' => 'WH-PUSH', 'name' => 'Gudang', 'type' => 'site', 'path' => 'Gudang', 'is_active' => true]);
+
+        return InventoryRequest::query()->create([
+            'company_id' => $this->company->id, 'code' => $code, 'requested_by' => $this->technician->id, 'warehouse_location_id' => $warehouse->id,
+            'status' => 'ready', 'source_type' => 'installation', 'reason' => 'Instalasi', 'submitted_at' => now(),
+        ]);
+    }
+
     public function test_a_ticket_assignment_reaches_the_technician_phone_next_to_the_mail_and_the_bell(): void
     {
-        Notification::sendNow($this->technician, new TicketAssignedNotification(17, 'TKT-17', $this->company->id));
+        $ticket = $this->ticket('TKT-17');
+        Notification::sendNow($this->technician, new TicketAssignedNotification($ticket->id, 'TKT-17', $this->company->id));
 
-        $data = $this->assertPushed('technician-install', 'Tiket ditugaskan', 'Tiket TKT-17 sudah ditugaskan kepada Anda.', 'ticket_assigned', 'ticket', 17);
+        $data = $this->assertPushed('technician-install', 'Tiket ditugaskan', 'Tiket TKT-17 sudah ditugaskan kepada Anda.', 'ticket_assigned', 'ticket', $ticket->public_id);
         $this->assertSame($this->technician->notifications()->sole()->id, $data['notification_id']);
     }
 
     public function test_an_sla_breach_reaches_the_phone(): void
     {
-        Notification::sendNow($this->technician, new TicketSlaBreachedNotification(18, 'TKT-18', 'resolution', $this->company->id));
+        $ticket = $this->ticket('TKT-18');
+        Notification::sendNow($this->technician, new TicketSlaBreachedNotification($ticket->id, 'TKT-18', 'resolution', $this->company->id));
 
-        $this->assertPushed('technician-install', 'SLA tiket terlampaui', 'Tiket TKT-18 melewati batas SLA.', 'ticket_sla_breached', 'ticket', 18);
+        $this->assertPushed('technician-install', 'SLA tiket terlampaui', 'Tiket TKT-18 melewati batas SLA.', 'ticket_sla_breached', 'ticket', $ticket->public_id);
     }
 
     public function test_a_request_ready_for_pickup_reaches_the_technician_who_asked_for_it(): void
     {
-        Notification::sendNow($this->technician, new InventoryRequestReadyNotification(7, 'REQ-7', $this->company->id));
+        $request = $this->inventoryRequest('REQ-7');
+        Notification::sendNow($this->technician, new InventoryRequestReadyNotification($request->id, 'REQ-7', $this->company->id));
 
-        $this->assertPushed('technician-install', 'Permintaan barang siap diambil', 'Permintaan REQ-7 siap diambil.', 'inventory_request_ready', 'inventory_request', 7);
+        $this->assertPushed('technician-install', 'Permintaan barang siap diambil', 'Permintaan REQ-7 siap diambil.', 'inventory_request_ready', 'inventory_request', $request->public_id);
     }
 
     public function test_an_spk_assignment_reaches_the_technician_but_the_customer_visit_date_stays_in_the_bell(): void
     {
-        $workOrder = WorkOrderFactory::new()->create([
-            'company_id' => $this->company->id, 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'customer_id' => $this->customer->id,
-            'scheduled_date' => '2026-10-25',
-        ]);
+        $workOrder = $this->workOrder();
 
         Notification::sendNow($this->technician, new WorkOrderScheduledNotification($this->company->id, $workOrder->id, 'technician'));
-        $this->assertPushed('technician-install', 'SPK baru ditugaskan', 'SPK baru sudah ditugaskan kepada Anda.', 'spk_scheduled', 'work_order', $workOrder->id);
+        $this->assertPushed('technician-install', 'SPK baru ditugaskan', 'SPK baru sudah ditugaskan kepada Anda.', 'spk_scheduled', 'work_order', $workOrder->public_id);
 
         $this->multicasts = [];
         Notification::sendNow($this->customer, new WorkOrderScheduledNotification($this->company->id, $workOrder->id, 'customer'));
@@ -125,16 +152,17 @@ class AppNotificationsPushTest extends TestCase
 
     public function test_the_trip_of_the_technician_reaches_the_customer_phone(): void
     {
-        Notification::sendNow($this->customer, new TechnicianEnRouteNotification($this->company->id, 55, 'Andi', now()));
+        $workOrder = $this->workOrder();
+        Notification::sendNow($this->customer, new TechnicianEnRouteNotification($this->company->id, $workOrder->id, 'Andi', now()));
 
-        $this->assertPushed('customer-install', 'Teknisi dalam perjalanan', 'Teknisi Andi sedang menuju lokasi Anda.', 'technician_en_route', 'work_order', 55);
+        $this->assertPushed('customer-install', 'Teknisi dalam perjalanan', 'Teknisi Andi sedang menuju lokasi Anda.', 'technician_en_route', 'work_order', $workOrder->public_id);
     }
 
     public function test_an_outage_or_a_maintenance_window_reaches_the_phone_and_an_info_notice_does_not(): void
     {
         $outage = Announcement::factory()->published()->create(['company_id' => $this->company->id, 'kind' => 'outage', 'title' => 'Gangguan jaringan Blok A']);
         Notification::sendNow($this->customer, new AnnouncementPublishedNotification($outage));
-        $this->assertPushed('customer-install', 'Pengumuman baru', 'Gangguan jaringan Blok A', 'announcement_published', 'announcement', $outage->id);
+        $this->assertPushed('customer-install', 'Pengumuman baru', 'Gangguan jaringan Blok A', 'announcement_published', 'announcement', $outage->public_id);
 
         $this->multicasts = [];
         $maintenance = Announcement::factory()->published()->create(['company_id' => $this->company->id, 'kind' => 'maintenance']);
@@ -152,7 +180,7 @@ class AppNotificationsPushTest extends TestCase
     {
         $invoice = $this->invoice();
         Notification::sendNow($this->customer, new InvoiceIssuedNotification($this->company->id, $invoice->id));
-        $this->assertPushed('customer-install', 'Tagihan baru', 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_issued', 'invoice', $invoice->id);
+        $this->assertPushed('customer-install', 'Tagihan baru', 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_issued', 'invoice', $invoice->public_id);
 
         $this->multicasts = [];
         $payment = Payment::create([
@@ -160,7 +188,7 @@ class AppNotificationsPushTest extends TestCase
             'reference' => 'BANK-1', 'paid_at' => now(), 'received_by' => User::factory()->create(['company_id' => $this->company->id])->id,
         ]);
         Notification::sendNow($this->customer, new PaymentReceivedNotification($this->company->id, $payment->id));
-        $this->assertPushed('customer-install', 'Pembayaran diterima', 'Pembayaran Anda sudah kami terima.', 'payment_received', 'invoice', $invoice->id);
+        $this->assertPushed('customer-install', 'Pembayaran diterima', 'Pembayaran Anda sudah kami terima.', 'payment_received', 'invoice', $invoice->public_id);
     }
 
     public function test_the_reminders_tell_due_soon_from_overdue(): void
@@ -168,7 +196,7 @@ class AppNotificationsPushTest extends TestCase
         $invoice = $this->invoice();
 
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H-3'));
-        $this->assertPushed('customer-install', 'Tagihan segera jatuh tempo', 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_due_soon', 'invoice', $invoice->id);
+        $this->assertPushed('customer-install', 'Tagihan segera jatuh tempo', 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.', 'invoice_due_soon', 'invoice', $invoice->public_id);
 
         $this->multicasts = [];
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H-1'));
@@ -177,7 +205,7 @@ class AppNotificationsPushTest extends TestCase
         $this->multicasts = [];
         $invoice->update(['due_date' => now()->subDay()->toDateString()]);
         Notification::sendNow($this->customer, new InvoiceDueReminderNotification($this->company->id, $invoice->id, 'H+1'));
-        $this->assertPushed('customer-install', 'Tagihan sudah jatuh tempo', 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.', 'invoice_overdue', 'invoice', $invoice->id);
+        $this->assertPushed('customer-install', 'Tagihan sudah jatuh tempo', 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.', 'invoice_overdue', 'invoice', $invoice->public_id);
 
         $this->assertEqualsCanonicalizing(['invoice_due_soon', 'invoice_due_soon', 'invoice_overdue'], $this->customer->notifications->pluck('data.type')->all());
     }

@@ -83,7 +83,7 @@ class InventoryRequestController extends Controller
         $workOrders = WorkOrder::withoutCompany()
             ->where('company_id', $companyId)
             ->whereIn('id', $ids)
-            ->get(['id', 'code'])
+            ->get(['id', 'public_id', 'code'])
             ->keyBy('id');
 
         $requests->each(function (InventoryRequest $request) use ($workOrders): void {

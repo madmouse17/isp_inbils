@@ -21,7 +21,7 @@ class CustomerSubscriptionResource extends JsonResource
         $address = $subscription->installationAddress;
 
         return [
-            'id' => $subscription->id,
+            'id' => $subscription->public_id,
             'code' => $subscription->code,
             'status' => $subscription->status,
             /**
@@ -33,10 +33,10 @@ class CustomerSubscriptionResource extends JsonResource
             'suspension_reason' => $subscription->status === 'suspended' ? $subscription->suspension_source : null,
             'suspended_at' => $subscription->suspended_at?->toIso8601String(),
             'package' => $package === null ? null : [
-                'id' => $package->id,
+                'id' => $package->public_id,
                 'name' => $package->name,
                 'category' => [
-                    'id' => $package->category->id,
+                    'id' => $package->category->public_id,
                     'name' => $package->category->name,
                 ],
                 'download_mbps' => $package->bandwidthProfile?->download_mbps,

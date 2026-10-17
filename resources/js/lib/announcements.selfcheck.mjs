@@ -36,19 +36,19 @@ test('a banner is 2:1 within 5 percent, edges included', () => {
 const slot = (id, sortOrder) => ({ id, sortOrder });
 
 test('the carousel lists by sort order, then newest first, with an unsaved draft the newest', () => {
-    const live = [slot(7, 0), slot(5, 0), slot(9, 2)];
+    const live = [slot('7', 0), slot('5', 0), slot('9', 2)];
 
     const first = placeInCarousel(live, slot(null, 0), 5);
     assert.deepEqual(
         first.banners.map((entry) => entry.id),
-        [null, 7, 5, 9],
+        [null, '7', '5', '9'],
     );
     assert.equal(first.index, 0);
 
-    const edited = placeInCarousel(live, slot(6, 0), 5);
+    const edited = placeInCarousel(live, slot('6', 0), 5);
     assert.deepEqual(
         edited.banners.map((entry) => entry.id),
-        [7, 6, 5, 9],
+        ['7', '6', '5', '9'],
     );
     assert.equal(edited.index, 1);
 
@@ -57,28 +57,28 @@ test('the carousel lists by sort order, then newest first, with an unsaved draft
 });
 
 test('a banner past the cut is not in the carousel and has no slide', () => {
-    const live = [slot(1, 0), slot(2, 1), slot(3, 2), slot(4, 3), slot(5, 4)];
+    const live = [slot('1', 0), slot('2', 1), slot('3', 2), slot('4', 3), slot('5', 4)];
     const result = placeInCarousel(live, slot(null, 9), 5);
 
     assert.deepEqual(
         result.banners.map((entry) => entry.id),
-        [1, 2, 3, 4, 5],
+        ['1', '2', '3', '4', '5'],
     );
     assert.equal(result.index, null);
 
     const inside = placeInCarousel(live, slot(null, 0), 5);
     assert.deepEqual(
         inside.banners.map((entry) => entry.id),
-        [null, 1, 2, 3, 4],
+        [null, '1', '2', '3', '4'],
     );
     assert.equal(inside.index, 0);
 });
 
 test('placing a draft leaves the live list alone', () => {
-    const live = [slot(2, 1), slot(1, 0)];
+    const live = [slot('2', 1), slot('1', 0)];
     placeInCarousel(live, slot(null, 0), 5);
 
-    assert.deepEqual(live, [slot(2, 1), slot(1, 0)]);
+    assert.deepEqual(live, [slot('2', 1), slot('1', 0)]);
 });
 
 test('the company clock is the wall time of its zone, to the minute', () => {

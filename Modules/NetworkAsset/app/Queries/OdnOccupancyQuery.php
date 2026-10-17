@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Queries;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use App\Support\SearchOptions;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -38,7 +39,7 @@ final class OdnOccupancyQuery
             ->where('a.company_id', self::companyId())
             ->whereNull('a.deleted_at')
             ->where('a.asset_type', 'odp')
-            ->select(['a.id as asset_id', 'a.code', 'a.name', 'l.path as location_path'])
+            ->select(['a.public_id as asset_id', 'a.code', 'a.name', 'l.path as location_path'])
             ->selectSub(self::outputCount(false), 'capacity')
             ->selectSub(self::outputCount(true), 'used');
 
@@ -60,7 +61,7 @@ final class OdnOccupancyQuery
             $used = (int) $row->used;
 
             return [
-                'asset_id' => (int) $row->asset_id,
+                'asset_id' => (string) $row->asset_id,
                 'code' => (string) $row->code,
                 'name' => (string) $row->name,
                 'location_path' => $row->location_path === null ? null : (string) $row->location_path,
@@ -85,7 +86,7 @@ final class OdnOccupancyQuery
             ->where('p.company_id', self::companyId())
             ->where('p.kind', OdnPort::KIND_PON)
             ->whereNull('a.deleted_at')
-            ->select(['p.id as port_id', 'a.id as olt_asset_id', 'a.code as olt_code', 'p.number', 'p.label'])
+            ->select(['p.id as port_id', 'p.public_id as port_public_id', 'a.public_id as olt_asset_id', 'a.code as olt_code', 'p.number', 'p.label'])
             ->orderBy('a.code')
             ->orderBy('p.number');
 
@@ -96,8 +97,8 @@ final class OdnOccupancyQuery
         $subscribers = self::subscribersBehind($page->getCollection()->map(fn (object $row): int => (int) $row->port_id)->all());
 
         return $page->through(fn (object $row): array => [
-            'port_id' => (int) $row->port_id,
-            'olt_asset_id' => (int) $row->olt_asset_id,
+            'port_id' => (string) $row->port_public_id,
+            'olt_asset_id' => (string) $row->olt_asset_id,
             'olt_code' => (string) $row->olt_code,
             'number' => (int) $row->number,
             'label' => $row->label === null ? null : (string) $row->label,
@@ -117,7 +118,7 @@ final class OdnOccupancyQuery
         return ServiceSubscription::query()
             ->where('status', 'active')
             ->whereNotExists(fn (Builder $query) => $query->selectRaw('1')->from('odn_ports')->whereColumn('odn_ports.subscription_id', 'service_subscriptions.id'))
-            ->when(is_numeric($filters['pop_id'] ?? null), fn (EloquentBuilder $query) => $query->where('serving_pop_id', (int) $filters['pop_id']))
+            ->when(filled($filters['pop_id'] ?? null), fn (EloquentBuilder $query) => $query->where('serving_pop_id', PublicId::resolveOne(Location::class, $filters['pop_id']) ?? 0))
             ->when($search !== '', fn (EloquentBuilder $query) => $query->where(fn (EloquentBuilder $match) => $match
                 ->where('code', 'like', '%'.$search.'%')
                 ->orWhereHas('customer', fn (EloquentBuilder $customer) => $customer->where('name', 'like', '%'.$search.'%'))))
@@ -126,7 +127,7 @@ final class OdnOccupancyQuery
             ->paginate($perPage, ['*'], 'unmapped_page')
             ->withQueryString()
             ->through(fn (ServiceSubscription $subscription): array => [
-                'subscription_id' => $subscription->id,
+                'subscription_id' => $subscription->public_id,
                 'code' => $subscription->code,
                 'customer_name' => $subscription->customer?->name,
                 'serving_pop_code' => $subscription->servingPop?->getAttribute('code'),
@@ -203,46 +204,46 @@ final class OdnOccupancyQuery
             $base,
             ['a.code', 's.label'],
             fn (OdnPort $port): array => [
-                'value' => $port->id,
+                'value' => $port->public_id,
                 'label' => "{$port->asset?->code} · ".self::ratio($port->splitter?->outputs, $port->splitter?->label)." · port {$port->number}",
                 'description' => $port->asset?->location?->getAttribute('path'),
             ],
         );
     }
 
-    /** @return list<array{id: int, code: string, name: string}> POPs, for the filter */
+    /** @return list<array{id: string, code: string, name: string}> POPs, for the filter */
     public static function pops(): array
     {
         return Location::query()
             ->where('type', 'pop')
             ->where('is_active', true)
             ->orderBy('code')
-            ->get(['id', 'code', 'name'])
-            ->map(fn (Location $pop): array => ['id' => $pop->id, 'code' => $pop->code, 'name' => $pop->name])
+            ->get(['public_id', 'code', 'name'])
+            ->map(fn (Location $pop): array => ['id' => $pop->public_id, 'code' => $pop->code, 'name' => $pop->name])
             ->all();
     }
 
     /**
      * PON ports of an OLT for its page.
      *
-     * @return list<array{id: int, number: int, label: string|null, splitter_id: int|null, subscribers: int}>
+     * @return list<array{id: string, number: int, label: string|null, splitter_id: string|null, subscribers: int}>
      */
     public static function ponPortRows(NetworkAsset $olt): array
     {
         $ports = OdnPort::query()
             ->where('network_asset_id', $olt->id)
             ->where('kind', OdnPort::KIND_PON)
-            ->with('feedsSplitter:id,input_port_id')
+            ->with('feedsSplitter:id,public_id,input_port_id')
             ->orderBy('number')
             ->get();
 
         $subscribers = self::subscribersBehind(array_map('intval', $ports->modelKeys()));
 
         return $ports->map(fn (OdnPort $port): array => [
-            'id' => $port->id,
+            'id' => $port->public_id,
             'number' => $port->number,
             'label' => $port->label,
-            'splitter_id' => $port->feedsSplitter?->id,
+            'splitter_id' => $port->feedsSplitter?->public_id,
             'subscribers' => $subscribers[$port->id] ?? 0,
         ])->all();
     }
@@ -260,18 +261,18 @@ final class OdnOccupancyQuery
                 'inputPort.asset:id,code',
                 'inputPort.splitter:id,outputs,label',
                 'ports' => fn ($ports) => $ports->orderBy('number'),
-                'ports.subscription:id,code,customer_id',
+                'ports.subscription:id,public_id,code,customer_id',
                 'ports.subscription.customer:id,name',
-                'ports.feedsSplitter:id,input_port_id',
+                'ports.feedsSplitter:id,public_id,input_port_id',
             ])
             ->orderBy('id')
             ->get()
             ->map(fn (OdnSplitter $splitter): array => [
-                'id' => $splitter->id,
+                'id' => $splitter->public_id,
                 'label' => $splitter->label,
                 'outputs' => $splitter->outputs,
                 'input' => $splitter->inputPort === null ? null : [
-                    'port_id' => $splitter->inputPort->id,
+                    'port_id' => $splitter->inputPort->public_id,
                     'label' => self::label(
                         $splitter->inputPort->kind,
                         (string) $splitter->inputPort->asset?->code,
@@ -281,15 +282,15 @@ final class OdnOccupancyQuery
                     ),
                 ],
                 'ports' => $splitter->ports->map(fn (OdnPort $port): array => [
-                    'id' => $port->id,
+                    'id' => $port->public_id,
                     'number' => $port->number,
                     'label' => $port->label,
                     'subscription' => $port->subscription === null ? null : [
-                        'id' => $port->subscription->id,
+                        'id' => $port->subscription->public_id,
                         'code' => $port->subscription->code,
                         'customer_name' => $port->subscription->customer?->name,
                     ],
-                    'feeds_splitter_id' => $port->feedsSplitter?->id,
+                    'feeds_splitter_id' => $port->feedsSplitter?->public_id,
                 ])->all(),
             ])
             ->all();
@@ -320,7 +321,7 @@ final class OdnOccupancyQuery
             $base,
             ['a.code', 's.label', 'odn_ports.label'],
             fn (OdnPort $port): array => [
-                'value' => $port->id,
+                'value' => $port->public_id,
                 'label' => self::label($port->kind, (string) $port->asset?->code, $port->number, $port->splitter?->outputs, $port->splitter?->label),
             ],
         );
@@ -357,11 +358,11 @@ final class OdnOccupancyQuery
     /** Keeps rows whose location lies strictly under the POP; an unknown POP keeps nothing. */
     private static function underPop(Builder $query, mixed $popId, string $locationColumn): void
     {
-        if (! is_numeric($popId)) {
+        if (blank($popId)) {
             return;
         }
 
-        $query->whereIn($locationColumn, self::locationIdsUnder((int) $popId) ?? []);
+        $query->whereIn($locationColumn, self::locationIdsUnder(PublicId::resolveOne(Location::class, $popId) ?? 0) ?? []);
     }
 
     /**

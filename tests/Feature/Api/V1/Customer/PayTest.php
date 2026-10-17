@@ -83,9 +83,9 @@ class PayTest extends TestCase
     }
 
     /** @param  array<string, string|null>  $headers */
-    private function pay(Invoice|int $invoice, ?string $token = null, array $headers = []): TestResponse
+    private function pay(Invoice|string $invoice, ?string $token = null, array $headers = []): TestResponse
     {
-        return $this->api('POST', 'customer/invoices/'.($invoice instanceof Invoice ? $invoice->id : $invoice).'/pay', token: $token ?? $this->token, headers: $headers);
+        return $this->api('POST', 'customer/invoices/'.($invoice instanceof Invoice ? $invoice->public_id : $invoice).'/pay', token: $token ?? $this->token, headers: $headers);
     }
 
     private function snapCalls(): int
@@ -211,9 +211,9 @@ class PayTest extends TestCase
         [, $neighbour] = $this->customerLogin($this->customerUser->company);
         [, $stranger] = $this->customerLogin(Company::factory()->create(['is_active' => true]));
         $ids = [
-            $this->invoiceOf($neighbour)->id,
-            $this->invoiceOf($stranger)->id,
-            $this->invoiceOf($this->customer, ['status' => 'draft'])->id,
+            $this->invoiceOf($neighbour)->public_id,
+            $this->invoiceOf($stranger)->public_id,
+            $this->invoiceOf($this->customer, ['status' => 'draft'])->public_id,
             999999,
         ];
 
@@ -245,7 +245,7 @@ class PayTest extends TestCase
         $this->revokeCustomerPermission('portal.invoice.pay');
 
         $this->pay($invoice)->assertForbidden()->assertJsonPath('code', 'forbidden');
-        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $this->api('GET', "customer/invoices/{$invoice->public_id}", token: $this->token)->assertOk();
 
         $this->assertSame(0, PaymentAttempt::withoutCompany()->count());
         Http::assertNothingSent();
@@ -257,7 +257,7 @@ class PayTest extends TestCase
         $technician = $this->issueToken($this->technicianLogin(), 'technician');
 
         $this->pay($invoice, $technician)->assertForbidden()->assertJsonPath('code', 'forbidden');
-        $this->api('POST', "customer/invoices/{$invoice->id}/pay")->assertUnauthorized();
+        $this->api('POST', "customer/invoices/{$invoice->public_id}/pay")->assertUnauthorized();
 
         $this->assertSame(0, PaymentAttempt::withoutCompany()->count());
         Http::assertNothingSent();

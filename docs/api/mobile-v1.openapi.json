@@ -2,8 +2,8 @@
     "openapi": "3.1.0",
     "info": {
         "title": "Inbils Mobile API",
-        "version": "1.0.0",
-        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress` |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts, 30 uploads and 30 promo banner taps a minute per user."
+        "version": "1.1.0",
+        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress` |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Identifiers\n\nEvery `id` and every field that names another record (`customer_id`, `subscription_id`, ...) is an opaque string: a\n26-character lowercase ULID such as `01m5441c2q1sqrw67nr4dwyakz`. Keep it as a string, never parse or order it as a\nnumber, and send it back unchanged in paths and bodies. Version 1.1 replaced the integer ids of 1.0. An integer or\nunknown id in a path answers 404 `not_found`; in a body it is 422 `validation_failed`. A notification's `id` is a UUID.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts, 30 uploads and 30 promo banner taps a minute per user."
     },
     "servers": [
         {
@@ -28,7 +28,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -72,9 +72,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
                     }
                 }
             }
@@ -393,7 +390,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -434,7 +431,7 @@
                                             "type": "object",
                                             "properties": {
                                                 "id": {
-                                                    "type": "integer"
+                                                    "type": "string"
                                                 }
                                             },
                                             "required": [
@@ -798,9 +795,9 @@
                         "name": "inventoryRequest",
                         "in": "path",
                         "required": true,
-                        "description": "The inventory request ID",
+                        "description": "The inventory request public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1053,7 +1050,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1069,14 +1066,14 @@
                                             "type": "object",
                                             "properties": {
                                                 "id": {
-                                                    "type": "integer"
+                                                    "type": "string"
                                                 },
                                                 "number": {
                                                     "type": "string"
                                                 },
                                                 "subscription_id": {
                                                     "type": [
-                                                        "integer",
+                                                        "string",
                                                         "null"
                                                     ]
                                                 },
@@ -1131,7 +1128,7 @@
                                                         "type": "object",
                                                         "properties": {
                                                             "id": {
-                                                                "type": "integer"
+                                                                "type": "string"
                                                             },
                                                             "description": {
                                                                 "type": "string"
@@ -1169,7 +1166,7 @@
                                                         "type": "object",
                                                         "properties": {
                                                             "id": {
-                                                                "type": "integer"
+                                                                "type": "string"
                                                             },
                                                             "amount": {
                                                                 "type": "string"
@@ -1300,7 +1297,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1382,7 +1379,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1415,10 +1412,9 @@
                         "in": "query",
                         "schema": {
                             "type": [
-                                "integer",
+                                "string",
                                 "null"
-                            ],
-                            "minimum": 1
+                            ]
                         }
                     },
                     {
@@ -1615,9 +1611,9 @@
                         "name": "materialReturn",
                         "in": "path",
                         "required": true,
-                        "description": "The material return ID",
+                        "description": "The material return public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1660,9 +1656,9 @@
                         "name": "materialReturn",
                         "in": "path",
                         "required": true,
-                        "description": "The material return ID",
+                        "description": "The material return public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -1811,9 +1807,9 @@
                         "name": "media",
                         "in": "path",
                         "required": true,
-                        "description": "The media ID",
+                        "description": "The media public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -2769,7 +2765,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -2798,9 +2794,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
                     }
                 }
             }
@@ -3010,7 +3003,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3072,7 +3065,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3412,7 +3405,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3466,7 +3459,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3518,7 +3511,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3582,7 +3575,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3682,9 +3675,6 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -3701,7 +3691,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     },
                     {
@@ -3709,7 +3699,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3767,9 +3757,6 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
-                    },
-                    "403": {
-                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -3786,7 +3773,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     },
                     {
@@ -3794,7 +3781,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3851,7 +3838,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3905,7 +3892,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -3940,9 +3927,6 @@
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
@@ -4171,7 +4155,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4193,9 +4177,6 @@
                                 }
                             }
                         }
-                    },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
                     }
                 }
             }
@@ -4211,9 +4192,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4236,11 +4217,11 @@
                             }
                         }
                     },
-                    "404": {
-                        "$ref": "#/components/responses/ModelNotFoundException"
-                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
                     }
                 }
             }
@@ -4256,9 +4237,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4357,9 +4338,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4394,11 +4375,11 @@
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -4414,9 +4395,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4459,9 +4440,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4497,11 +4478,11 @@
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -4517,9 +4498,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     },
                     {
@@ -4527,7 +4508,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4537,6 +4518,9 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -4552,9 +4536,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4590,11 +4574,11 @@
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
                     },
-                    "422": {
-                        "$ref": "#/components/responses/ValidationException"
-                    },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
                     }
                 }
             }
@@ -4612,9 +4596,9 @@
                         "name": "wo",
                         "in": "path",
                         "required": true,
-                        "description": "The wo ID",
+                        "description": "The wo public id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     },
                     {
@@ -4622,7 +4606,7 @@
                         "in": "path",
                         "required": true,
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         }
                     }
                 ],
@@ -4632,6 +4616,9 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -4649,8 +4636,7 @@
                 "type": "object",
                 "properties": {
                     "product_id": {
-                        "type": "integer",
-                        "description": "A serialized asset needs a chosen unit, which the app cannot pick: the web adds those."
+                        "type": "string"
                     },
                     "quantity": {
                         "type": "number",
@@ -4703,7 +4689,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "title": {
                         "type": "string"
@@ -4748,7 +4734,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "title": {
                         "type": "string"
@@ -4799,7 +4785,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "amount": {
                         "type": "string"
@@ -4824,7 +4810,7 @@
                         "type": "object",
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "number": {
                                 "type": "string"
@@ -4886,7 +4872,7 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "address": {
                                     "type": "string"
@@ -4936,7 +4922,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -4969,7 +4955,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "name": {
                                 "type": "string"
@@ -4978,7 +4964,7 @@
                                 "type": "object",
                                 "properties": {
                                     "id": {
-                                        "type": "integer"
+                                        "type": "string"
                                     },
                                     "name": {
                                         "type": "string"
@@ -5132,7 +5118,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "body": {
                         "type": "string"
@@ -5171,7 +5157,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -5192,7 +5178,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "name": {
                                 "type": "string"
@@ -5210,7 +5196,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -5317,7 +5303,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -5483,7 +5469,7 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "actual_used_qty": {
                                     "type": "number",
@@ -5536,7 +5522,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -5633,7 +5619,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "type": {
                         "type": [
@@ -5669,7 +5655,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "name": {
                                 "type": "string"
@@ -5774,7 +5760,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -5794,7 +5780,7 @@
                         "properties": {
                             "id": {
                                 "type": [
-                                    "integer",
+                                    "string",
                                     "null"
                                 ]
                             },
@@ -5870,7 +5856,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -5932,7 +5918,7 @@
                         "type": "object",
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "domain": {
                                 "type": "string",
@@ -5960,7 +5946,7 @@
                                 ],
                                 "properties": {
                                     "id": {
-                                        "type": "integer"
+                                        "type": "string"
                                     },
                                     "name": {
                                         "type": "string"
@@ -5977,7 +5963,7 @@
                             },
                             "assigned_to": {
                                 "type": [
-                                    "integer",
+                                    "string",
                                     "null"
                                 ]
                             },
@@ -6094,7 +6080,7 @@
                         "type": "object",
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "domain": {
                                 "type": "string",
@@ -6125,7 +6111,7 @@
                                 ],
                                 "properties": {
                                     "id": {
-                                        "type": "integer"
+                                        "type": "string"
                                     },
                                     "name": {
                                         "type": "string"
@@ -6142,7 +6128,7 @@
                             },
                             "assigned_to": {
                                 "type": [
-                                    "integer",
+                                    "string",
                                     "null"
                                 ]
                             },
@@ -6336,7 +6322,7 @@
                                 "type": "string"
                             },
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             }
                         },
                         "required": [
@@ -6380,14 +6366,14 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "number": {
                         "type": "string"
                     },
                     "subscription_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ],
                         "description": "The subscription this invoice bills; null when it belongs to no single subscription."
@@ -6444,7 +6430,7 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "description": {
                                     "type": "string"
@@ -6482,7 +6468,7 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "amount": {
                                     "type": "string"
@@ -6613,7 +6599,7 @@
                         ]
                     },
                     "category_id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "priority": {
                         "type": [
@@ -6630,25 +6616,25 @@
                     },
                     "customer_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ]
                     },
                     "subscription_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ]
                     },
                     "network_asset_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ]
                     },
                     "location_id": {
                         "type": [
-                            "integer",
+                            "string",
                             "null"
                         ]
                     }
@@ -6700,7 +6686,7 @@
                 "type": "object",
                 "properties": {
                     "warehouse_location_id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "reason": {
                         "type": [
@@ -6716,7 +6702,7 @@
                             "type": "object",
                             "properties": {
                                 "product_id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "quantity_requested": {
                                     "type": "number",
@@ -6816,7 +6802,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -6904,7 +6890,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "status": {
                         "type": "string"
@@ -6916,7 +6902,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -6938,7 +6924,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -6956,7 +6942,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "name": {
                                 "type": "string"
@@ -6999,13 +6985,13 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "product": {
                                     "type": "object",
                                     "properties": {
                                         "id": {
-                                            "type": "integer"
+                                            "type": "string"
                                         },
                                         "name": {
                                             "type": "string"
@@ -7111,7 +7097,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "sku": {
                         "type": "string"
@@ -7138,7 +7124,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "body": {
                         "type": "string"
@@ -7181,7 +7167,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -7202,7 +7188,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "name": {
                                 "type": "string"
@@ -7220,7 +7206,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -7437,7 +7423,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"
@@ -7457,7 +7443,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "product_name": {
                         "type": [
@@ -7498,7 +7484,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "code": {
                         "type": "string"
@@ -7646,7 +7632,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -7664,7 +7650,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -7701,7 +7687,7 @@
                         ],
                         "properties": {
                             "id": {
-                                "type": "integer"
+                                "type": "string"
                             },
                             "code": {
                                 "type": "string"
@@ -7807,7 +7793,7 @@
                             "type": "object",
                             "properties": {
                                 "id": {
-                                    "type": "integer"
+                                    "type": "string"
                                 },
                                 "status": {
                                     "type": "string"
@@ -7880,7 +7866,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "file_name": {
                         "type": "string"
@@ -7922,7 +7908,7 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
                     },
                     "name": {
                         "type": "string"

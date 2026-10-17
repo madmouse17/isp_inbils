@@ -24,11 +24,11 @@ class AnnouncementPublishedNotification extends Notification
     {
         return [
             'type' => 'announcement_published',
-            'announcement_id' => $this->announcement->id,
+            'announcement_id' => $this->announcement->public_id,
             'company_id' => $this->announcement->company_id,
             'kind' => $this->announcement->kind,
             'title' => $this->announcement->title,
-            'subject' => ['type' => 'announcement', 'id' => $this->announcement->id],
+            'subject' => ['type' => 'announcement', 'id' => $this->announcement->public_id],
         ];
     }
 }

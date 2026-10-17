@@ -48,8 +48,8 @@ class OdnMessagesTest extends TestCase
         $subscription = $this->makeSubscription($this->company, 'active', $this->net['pop']);
         $other = $this->makeSubscription($this->company, 'active', $this->net['pop']);
 
-        $this->post(route('admin.odn.drops.store', $outputs[0]), ['subscription_id' => $subscription->id])->assertSessionHas('success', 'Port drop dicatat.');
-        $this->postJson(route('admin.odn.drops.store', $outputs[0]), ['subscription_id' => $other->id])
+        $this->post(route('admin.odn.drops.store', $outputs[0]), ['subscription_id' => $subscription->public_id])->assertSessionHas('success', 'Port drop dicatat.');
+        $this->postJson(route('admin.odn.drops.store', $outputs[0]), ['subscription_id' => $other->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['port' => 'Port ini sudah dipakai.']);
         $this->postJson(route('admin.odn.drops.store', $outputs[1]), [])
@@ -81,7 +81,7 @@ class OdnMessagesTest extends TestCase
         $this->deleteJson(route('admin.odn.ports.destroy', $pon[0]))
             ->assertStatus(422)
             ->assertJsonValidationErrors(['port' => 'Sebuah splitter terhubung ke port PON ini. Putuskan lebih dulu.']);
-        $this->putJson(route('admin.odn.splitters.update', $splitter), ['input_port_id' => $splitter->ports()->firstOrFail()->id])
+        $this->putJson(route('admin.odn.splitters.update', $splitter), ['input_port_id' => $splitter->ports()->firstOrFail()->public_id])
             ->assertStatus(422)
             ->assertJsonValidationErrors(['input_port_id' => 'Splitter tidak dapat dihubungkan ke keluarannya sendiri atau ke apa pun di hilirnya.']);
     }

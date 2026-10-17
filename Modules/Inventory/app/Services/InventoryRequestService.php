@@ -2,10 +2,12 @@
 
 namespace Modules\Inventory\Services;
 
+use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
+use App\Support\PublicId;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -54,11 +56,11 @@ class InventoryRequestService
         }
 
         if (! empty($filters['requester_id'])) {
-            $query->where('requested_by', $filters['requester_id']);
+            $query->where('requested_by', PublicId::resolveOne(User::class, $filters['requester_id']) ?? 0);
         }
 
         if (! empty($filters['warehouse_location_id'])) {
-            $query->where('warehouse_location_id', $filters['warehouse_location_id']);
+            $query->where('warehouse_location_id', PublicId::resolveOne(Location::class, $filters['warehouse_location_id']) ?? 0);
         }
 
         if (! empty($filters['needed_from'])) {
@@ -90,7 +92,10 @@ class InventoryRequestService
 
         $perPage = min(max((int) ($filters['per_page'] ?? 15), 5), 100);
 
-        return $query->paginate($perPage);
+        $paginator = $query->paginate($perPage);
+        InventoryRequest::loadSources(new Collection($paginator->items()));
+
+        return $paginator;
     }
 
     /**
@@ -138,9 +143,10 @@ class InventoryRequestService
             $reason = trim((string) ($data['reason'] ?? ''));
             if ($reason === '') {
                 $sourceType = $data['source_type'] ?? null;
-                $sourceId = $data['source_id'] ?? null;
-                $reason = $sourceType && $sourceId
-                    ? 'Permintaan material untuk '.($sourceType === 'ticket' ? 'tiket' : 'SPK')." #{$sourceId}"
+                $sourceModel = InventoryRequest::sourceModels()[$sourceType] ?? null;
+                $sourceCode = $sourceModel !== null && ! empty($data['source_id']) ? $sourceModel::query()->whereKey($data['source_id'])->value('code') : null;
+                $reason = $sourceCode !== null
+                    ? 'Permintaan material untuk '.($sourceType === 'ticket' ? 'tiket' : 'SPK').' '.$sourceCode
                     : 'Permintaan material inventaris';
             }
 
@@ -291,11 +297,11 @@ class InventoryRequestService
                     ->first();
 
                 $available = $stock ? ((float) $stock->quantity - (float) $stock->reserved_quantity) : 0;
-                abort_if(
-                    $available < $approvedQty,
-                    422,
-                    "Stok tidak mencukupi untuk produk ID {$item->product_id} di lokasi ID {$sourceLocationId}. Tersedia: {$available}, Diminta: {$approvedQty}."
-                );
+                if ($available < $approvedQty) {
+                    $product = Product::withoutCompany()->find($item->product_id);
+                    $location = Location::withoutCompany()->find($sourceLocationId);
+                    abort(422, "Stok tidak mencukupi untuk {$product?->sku} di {$location?->code}. Tersedia: {$available}, Diminta: {$approvedQty}.");
+                }
 
                 // Reserve using StockService
                 StockService::reserve(
@@ -428,10 +434,10 @@ class InventoryRequestService
 
             foreach ($items as $item) {
                 $qtyToIssue = (float) $item->quantity_approved;
-                abort_if($qtyToIssue <= 0, 422, "Jumlah disetujui tidak valid untuk item ID {$item->id}.");
+                abort_if($qtyToIssue <= 0, 422, "Jumlah disetujui tidak valid untuk item {$item->public_id}.");
 
                 $locationId = $item->source_location_id ?? $req->warehouse_location_id;
-                abort_unless(! empty($locationId), 422, "Lokasi gudang tidak ditemukan untuk item ID {$item->id}.");
+                abort_unless(! empty($locationId), 422, "Lokasi gudang tidak ditemukan untuk item {$item->public_id}.");
 
                 // Atomically release reservation first
                 StockService::release(

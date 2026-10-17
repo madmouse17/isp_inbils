@@ -7,7 +7,7 @@ import type { DropPortOption } from '@/types/ipam-odn';
 
 interface AssignDropDialogProps {
     onClose: () => void;
-    subscription: { id: number; code: string };
+    subscription: { id: string; code: string };
     /** True when a drop already exists: the port then moves instead of being set. */
     moving: boolean;
     options: DropPortOption[] | undefined;
@@ -27,7 +27,7 @@ export function AssignDropDialog({
 
     const submit = (event: FormEvent) => {
         event.preventDefault();
-        post(route('admin.odn.drops.store', Number(portId)), {
+        post(route('admin.odn.drops.store', portId), {
             preserveScroll: true,
             onSuccess: onClose,
         });

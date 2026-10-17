@@ -13,13 +13,13 @@ class InvoiceResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'number' => $this->number,
             'type' => $this->type,
             'source' => $this->source,
-            'customer_id' => $this->customer_id,
-            'subscription_id' => $this->subscription_id,
-            'work_order_id' => $this->work_order_id,
+            'customer_id' => $this->customer?->public_id,
+            'subscription_id' => $this->subscription?->public_id,
+            'work_order_id' => $this->workOrder?->public_id,
             'issue_date' => $this->issue_date,
             'due_date' => $this->due_date,
             'billing_period_start' => $this->billing_period_start,
@@ -35,7 +35,7 @@ class InvoiceResource extends JsonResource
             'sent_at' => $this->sent_at,
             'cancelled_at' => $this->cancelled_at,
             'cancel_reason' => $this->cancel_reason,
-            'cancelled_by' => $this->cancelled_by,
+            'cancelled_by' => $this->canceller?->public_id,
             'created_at' => $this->created_at,
             'customer' => new CustomerResource($this->whenLoaded('customer')),
             'subscription' => new SubscriptionResource($this->whenLoaded('subscription')),

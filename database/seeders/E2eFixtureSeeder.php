@@ -16,6 +16,7 @@ use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\LocationService;
 use App\Services\WhatsApp\PhoneNumber;
+use App\Support\PublicId;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -112,7 +113,7 @@ class E2eFixtureSeeder extends Seeder
         if ($admin) {
             DB::table('invoices')->updateOrInsert(
                 ['company_id' => $subsidiary->id, 'number' => 'E2E-SUB-INV'],
-                [
+                PublicId::onInsert([
                     'type' => 'one_time',
                     'source' => 'manual',
                     'customer_id' => $customer->id,
@@ -136,7 +137,7 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ],
+                ]),
             );
         }
 
@@ -186,7 +187,7 @@ class E2eFixtureSeeder extends Seeder
 
         DB::table('units')->updateOrInsert(
             ['company_id' => $company->id, 'name' => 'E2E Unit'],
-            ['symbol' => 'e2e', 'deleted_at' => null, 'created_at' => $now, 'updated_at' => $now],
+            PublicId::onInsert(['symbol' => 'e2e', 'deleted_at' => null, 'created_at' => $now, 'updated_at' => $now]),
         );
         $unitId = DB::table('units')
             ->where('company_id', $company->id)
@@ -197,6 +198,7 @@ class E2eFixtureSeeder extends Seeder
 
         if (! $categoryId) {
             $categoryId = DB::table('categories')->insertGetId([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id,
                 'parent_id' => null,
                 'unit_id' => $unitId,
@@ -218,7 +220,7 @@ class E2eFixtureSeeder extends Seeder
             $categoryUnitId = DB::table('categories')->where('id', $categoryId)->value('unit_id') ?: $unitId;
             DB::table('products')->updateOrInsert(
                 ['company_id' => $company->id, 'sku' => 'E2E-STOCK-PRODUCT'],
-                [
+                PublicId::onInsert([
                     'category_id' => $categoryId,
                     'unit_id' => $categoryUnitId,
                     'name' => 'E2E Stock Product',
@@ -231,12 +233,12 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ],
+                ]),
             );
 
             $serializedProductId = DB::table('products')->updateOrInsert(
                 ['company_id' => $company->id, 'sku' => 'E2E-SERIALIZED-PRODUCT'],
-                [
+                PublicId::onInsert([
                     'category_id' => $categoryId,
                     'unit_id' => $categoryUnitId,
                     'name' => 'E2E Serialized ONT Product',
@@ -249,7 +251,7 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ],
+                ]),
             );
             $serializedProductId = DB::table('products')
                 ->where('company_id', $company->id)
@@ -428,7 +430,7 @@ class E2eFixtureSeeder extends Seeder
 
             DB::table('invoices')->updateOrInsert(
                 ['company_id' => $company->id, 'number' => 'E2E-REC-'.str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT)],
-                [
+                PublicId::onInsert([
                     'type' => 'one_time',
                     'source' => 'manual',
                     'customer_id' => $customerId,
@@ -452,7 +454,7 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ],
+                ]),
             );
         }
 
@@ -464,7 +466,7 @@ class E2eFixtureSeeder extends Seeder
         if ($linkedCustomerId) {
             DB::table('invoices')->updateOrInsert(
                 ['company_id' => $company->id, 'number' => 'E2E-REC-LINKED'],
-                [
+                PublicId::onInsert([
                     'type' => 'one_time',
                     'source' => 'manual',
                     'customer_id' => $linkedCustomerId,
@@ -488,7 +490,7 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => null,
                     'created_at' => $now,
                     'updated_at' => $now,
-                ],
+                ]),
             );
         }
     }
@@ -516,26 +518,26 @@ class E2eFixtureSeeder extends Seeder
                 $timestamps = ['created_at' => $createdAt, 'updated_at' => $createdAt];
                 DB::table('units')->updateOrInsert(
                     ['company_id' => $company->id, 'name' => 'DTC Unit '.$suffix],
-                    ['symbol' => 'DTC-U'.$suffix, 'deleted_at' => null] + $timestamps,
+                    PublicId::onInsert(['symbol' => 'DTC-U'.$suffix, 'deleted_at' => null] + $timestamps),
                 );
                 $rowUnitId = DB::table('units')->where('company_id', $company->id)
                     ->where('name', 'DTC Unit '.$suffix)->value('id');
                 DB::table('categories')->updateOrInsert(
                     ['company_id' => $company->id, 'code' => 'DTC-CAT-'.$suffix],
-                    ['name' => 'DTC Category '.$suffix, 'unit_id' => $rowUnitId, 'is_active' => true, 'deleted_at' => null] + $timestamps,
+                    PublicId::onInsert(['name' => 'DTC Category '.$suffix, 'unit_id' => $rowUnitId, 'is_active' => true, 'deleted_at' => null] + $timestamps),
                 );
                 $categoryId ??= DB::table('categories')->where('company_id', $company->id)
                     ->where('code', 'DTC-CAT-'.$suffix)->value('id');
                 $unitId ??= $rowUnitId;
                 DB::table('products')->updateOrInsert(
                     ['company_id' => $company->id, 'sku' => 'DTC-P'.$suffix],
-                    [
+                    PublicId::onInsert([
                         'category_id' => $categoryId, 'unit_id' => $unitId,
                         'name' => 'DTC Product '.$suffix, 'type' => 'consumable',
                         'track_stock' => true, 'sell_price' => $number * 100,
                         'cost_price' => $number * 50, 'min_stock' => 20,
                         'is_active' => true, 'deleted_at' => null,
-                    ] + $timestamps,
+                    ] + $timestamps),
                 );
                 $productId = DB::table('products')->where('company_id', $company->id)
                     ->where('sku', 'DTC-P'.$suffix)->value('id');
@@ -546,17 +548,20 @@ class E2eFixtureSeeder extends Seeder
                 }
 
                 $draftId = DB::table('inventory_requests')->insertGetId([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'code' => 'DTC-REQ-'.$suffix,
                     'requested_by' => $actorId, 'warehouse_location_id' => $warehouse->id,
                     'status' => 'draft', 'needed_at' => $createdAt->copy()->addMonth(),
                     'reason' => 'DTC request '.$suffix,
                 ] + $timestamps);
                 DB::table('inventory_request_items')->insert([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'inventory_request_id' => $draftId,
                     'product_id' => $productId, 'source_location_id' => $warehouse->id,
                     'quantity_requested' => $number, 'quantity_approved' => 0, 'quantity_issued' => 0,
                 ] + $timestamps);
                 $issuedId = DB::table('inventory_requests')->insertGetId([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'code' => 'DTC-RET-'.$suffix,
                     'requested_by' => $actorId, 'warehouse_location_id' => $warehouse->id,
                     'status' => 'issued', 'reason' => 'DTC return source '.$suffix,
@@ -566,11 +571,13 @@ class E2eFixtureSeeder extends Seeder
                     'prepared_at' => $createdAt, 'ready_at' => $createdAt, 'issued_at' => $createdAt,
                 ] + $timestamps);
                 $issuedItemId = DB::table('inventory_request_items')->insertGetId([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'inventory_request_id' => $issuedId,
                     'product_id' => $productId, 'source_location_id' => $warehouse->id,
                     'quantity_requested' => 1, 'quantity_approved' => 1, 'quantity_issued' => 1,
                 ] + $timestamps);
                 DB::table('stocks')->insert([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'product_id' => $productId,
                     'location_id' => $warehouse->id, 'quantity' => $number, 'reserved_quantity' => 0,
                 ] + $timestamps);
@@ -580,6 +587,7 @@ class E2eFixtureSeeder extends Seeder
                     ['receive', $number, $number, 'DTC Movement '.$suffix],
                 ] as $offset => [$type, $quantity, $balance, $note]) {
                     DB::table('stock_movements')->insert([
+                        'public_id' => PublicId::new(),
                         'company_id' => $company->id, 'product_id' => $productId,
                         'from_location_id' => $type === 'issue' ? $warehouse->id : null,
                         'to_location_id' => $type === 'receive' ? $warehouse->id : null,
@@ -593,12 +601,14 @@ class E2eFixtureSeeder extends Seeder
                     ]);
                 }
                 $caseId = DB::table('material_return_cases')->insertGetId([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'inventory_request_id' => $issuedId,
                     'warehouse_location_id' => $warehouse->id, 'technician_id' => $actorId,
                     'status' => 'awaiting_receipt', 'declaration_version' => 1,
                     'declared_by' => $actorId, 'declared_at' => $createdAt->copy()->addMinute(),
                 ] + $timestamps);
                 DB::table('material_return_lines')->insert([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'material_return_case_id' => $caseId,
                     'inventory_request_item_id' => $issuedItemId, 'product_id' => $productId,
                     'issued_qty' => 1, 'actual_used_qty' => 0, 'declared_good_return_qty' => 1,
@@ -610,6 +620,7 @@ class E2eFixtureSeeder extends Seeder
                     ['awaiting_declaration', 'awaiting_receipt', 'declared'],
                 ] as $offset => [$from, $to, $action]) {
                     DB::table('material_return_events')->insert([
+                        'public_id' => PublicId::new(),
                         'company_id' => $company->id, 'material_return_case_id' => $caseId,
                         'from_status' => $from, 'to_status' => $to, 'action' => $action,
                         'actor_id' => $actorId, 'reason' => 'DTC return '.$suffix,
@@ -643,6 +654,7 @@ class E2eFixtureSeeder extends Seeder
 
             $createdAt = Carbon::parse('2026-08-01 09:00:00')->addDays($number - 1);
             DB::table('stock_movements')->insert([
+                'public_id' => PublicId::new(),
                 'company_id' => $company->id, 'product_id' => $productId,
                 'from_location_id' => null, 'to_location_id' => $location->id,
                 'movement_type' => 'receive', 'quantity' => $number,
@@ -664,11 +676,11 @@ class E2eFixtureSeeder extends Seeder
             $createdAt = Carbon::parse('2026-01-01 09:00:00');
             DB::table('ticket_categories')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => 'DTD-CATEGORY'],
-                [
+                PublicId::onInsert([
                     'name' => 'DTD Category', 'default_sla_hours' => 24,
                     'default_priority' => 'high', 'is_active' => true, 'deleted_at' => null,
                     'created_at' => $createdAt, 'updated_at' => $createdAt,
-                ],
+                ]),
             );
             $categoryId = DB::table('ticket_categories')->where('company_id', $company->id)
                 ->where('code', 'DTD-CATEGORY')->value('id');
@@ -950,7 +962,7 @@ class E2eFixtureSeeder extends Seeder
         foreach ($customers as $index => [$code, $name, $acquirer, $createdAt, $deletedAt]) {
             DB::table('customers')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => $code],
-                [
+                PublicId::onInsert([
                     'name' => $name,
                     'type' => 'Individual',
                     'email' => strtolower($code).'@example.test',
@@ -960,7 +972,7 @@ class E2eFixtureSeeder extends Seeder
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                     'deleted_at' => $deletedAt,
-                ],
+                ]),
             );
             $customerIds[substr($code, 8)] = DB::table('customers')
                 ->where('company_id', $company->id)
@@ -982,7 +994,7 @@ class E2eFixtureSeeder extends Seeder
         foreach ($subscriptions as [$suffix, $customerKey, $status, $activation, $terminatedAt, $mrc, $deletedAt]) {
             DB::table('service_subscriptions')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => 'E2E-KPI-SUB-'.$suffix],
-                [
+                PublicId::onInsert([
                     'customer_id' => $customerIds[$customerKey],
                     'service_package_id' => $packageId,
                     'installation_address_id' => $addressId,
@@ -999,7 +1011,7 @@ class E2eFixtureSeeder extends Seeder
                     'created_at' => $activation.' 08:00:00',
                     'updated_at' => $terminatedAt,
                     'deleted_at' => $deletedAt,
-                ],
+                ]),
             );
         }
 
@@ -1029,7 +1041,7 @@ class E2eFixtureSeeder extends Seeder
 
             DB::table('invoices')->updateOrInsert(
                 ['company_id' => $company->id, 'number' => $number],
-                [
+                PublicId::onInsert([
                     'type' => 'one_time',
                     'source' => 'manual',
                     'customer_id' => $customerIds[$customerKey],
@@ -1054,7 +1066,7 @@ class E2eFixtureSeeder extends Seeder
                     'deleted_at' => $deletedAt,
                     'created_at' => $issuedAt,
                     'updated_at' => $issuedAt,
-                ],
+                ]),
             );
             $invoiceId = DB::table('invoices')
                 ->where('company_id', $company->id)
@@ -1064,7 +1076,7 @@ class E2eFixtureSeeder extends Seeder
             foreach ($payments as $position => [$amount, $paidAt, $reversedAt]) {
                 DB::table('payments')->updateOrInsert(
                     ['company_id' => $company->id, 'reference' => $number.'-P'.($position + 1)],
-                    [
+                    PublicId::onInsert([
                         'invoice_id' => $invoiceId,
                         'amount' => $amount,
                         'method' => 'transfer',
@@ -1076,7 +1088,7 @@ class E2eFixtureSeeder extends Seeder
                         'cancelled_by' => $reversedAt === null ? null : $actorId,
                         'created_at' => $paidAt,
                         'updated_at' => $reversedAt ?? $paidAt,
-                    ],
+                    ]),
                 );
             }
         }

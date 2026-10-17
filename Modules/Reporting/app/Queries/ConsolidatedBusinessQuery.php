@@ -30,7 +30,7 @@ final class ConsolidatedBusinessQuery
      * @param  Collection<int, Company>  $companies  the consolidation set; the caller owns who may see it
      * @return array{
      *     currency: string,
-     *     rows: list<array{company_id: int, metrics: array<string, mixed>, sla: array{resolved: int, on_time: int}}>,
+     *     rows: list<array{company_id: string, metrics: array<string, mixed>, sla: array{resolved: int, on_time: int}}>,
      *     total: array<string, mixed>,
      *     sla: array{resolved: int, on_time: int}
      * }
@@ -48,7 +48,7 @@ final class ConsolidatedBusinessQuery
         $rows = [];
         foreach ($companies as $company) {
             $rows[] = [
-                'company_id' => (int) $company->id,
+                'company_id' => $company->public_id,
                 'metrics' => BusinessMetricsQuery::execute($dateFrom, $dateTo, (int) $company->id, $company->timezone),
                 'sla' => [
                     'resolved' => SlaSources::resolved((int) $company->id)->count(),

@@ -61,8 +61,8 @@ test.describe('@private-media ticket attachment', () => {
         ownMediaUrl = await uploadAttachment(page, ownTicketId, ownTitle, png);
         otherMediaUrl = await uploadAttachment(page, otherTicketId, otherTitle, png);
 
-        expect(ownMediaUrl).toMatch(/^\/admin\/media\/\d+$/);
-        expect(otherMediaUrl).toMatch(/^\/admin\/media\/\d+$/);
+        expect(ownMediaUrl).toMatch(/^\/admin\/media\/[0-9A-HJKMNP-TV-Z]{26}$/i);
+        expect(otherMediaUrl).toMatch(/^\/admin\/media\/[0-9A-HJKMNP-TV-Z]{26}$/i);
 
         await settleAppChunks(page);
         await page.goto(`/admin/tickets/${ownTicketId}`);
@@ -119,7 +119,7 @@ test.describe('@private-media ticket attachment', () => {
     }) => {
         // Customers use the app, so the media is fetched through the mobile API (a token of the customer app).
         const api = await apiLogin(request, 'customer');
-        const mediaId = (url: string) => url.match(/\/(\d+)$/)?.[1] ?? '';
+        const mediaId = (url: string) => url.match(/\/([0-9A-HJKMNP-TV-Z]{26})$/i)?.[1] ?? '';
 
         const own = await api.get(`media/${mediaId(ownMediaUrl)}`);
         expect(own.status()).toBe(200);

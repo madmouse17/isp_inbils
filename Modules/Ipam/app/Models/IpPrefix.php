@@ -4,6 +4,7 @@ namespace Modules\Ipam\Models;
 
 use App\Models\Core\Location;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,7 @@ class IpPrefix extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use LogsActivity;
 
     public const USAGES = ['container', 'customer_static', 'customer_dynamic', 'infrastructure'];

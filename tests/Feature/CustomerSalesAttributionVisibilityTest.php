@@ -81,7 +81,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->assertTrue($edit['can']['viewAcquirer']);
         $this->assertFalse($edit['can']['assignAcquirer']);
         $this->assertTrue($edit['can']['correctAcquirer']);
-        $this->assertSame($this->staff->id, $edit['customer']['data']['acquirer']['id']);
+        $this->assertSame($this->staff->public_id, $edit['customer']['data']['acquirer']['id']);
     }
 
     public function test_attribution_is_hidden_from_viewers_without_a_sales_capability_and_the_filter_cannot_probe_it(): void
@@ -114,9 +114,9 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
 
         $rows = collect($this->props($this->manager, 'admin.customers.index')['customers']['data'])->keyBy('code');
 
-        $this->assertSame($this->staff->id, $rows['CUS-A']['acquired_by_user_id']);
+        $this->assertSame($this->staff->public_id, $rows['CUS-A']['acquired_by_user_id']);
         $this->assertSame(
-            ['id' => $this->staff->id, 'name' => $this->staff->name, 'is_active' => true],
+            ['id' => $this->staff->public_id, 'name' => $this->staff->name, 'is_active' => true],
             $rows['CUS-A']['acquirer'],
         );
         $this->assertArrayHasKey('acquirer', $rows['CUS-B']);
@@ -124,7 +124,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->assertNull($rows['CUS-B']['acquired_by_user_id']);
 
         $show = $this->props($this->manager, 'admin.customers.show', ['customer' => $acquired])['customer']['data'];
-        $this->assertSame($this->staff->id, $show['acquirer']['id']);
+        $this->assertSame($this->staff->public_id, $show['acquirer']['id']);
     }
 
     public function test_an_inactive_historical_acquirer_shows_by_name_but_is_never_offered_as_a_choice(): void
@@ -133,14 +133,14 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $customer = $this->customerAcquiredBy($former);
 
         $edit = $this->props($this->manager, 'admin.customers.edit', ['customer' => $customer]);
-        $this->assertSame(['id' => $former->id, 'name' => 'Former Seller', 'is_active' => false], $edit['customer']['data']['acquirer']);
-        $this->assertSame($former->id, $edit['customer']['data']['acquired_by_user_id']);
-        $this->assertNotContains($former->id, array_column($edit['acquirerOptions'], 'id'));
+        $this->assertSame(['id' => $former->public_id, 'name' => 'Former Seller', 'is_active' => false], $edit['customer']['data']['acquirer']);
+        $this->assertSame($former->public_id, $edit['customer']['data']['acquired_by_user_id']);
+        $this->assertNotContains($former->public_id, array_column($edit['acquirerOptions'], 'id'));
 
-        $this->assertNotContains($former->id, array_column($this->props($this->manager, 'admin.customers.create')['acquirerOptions'], 'id'));
+        $this->assertNotContains($former->public_id, array_column($this->props($this->manager, 'admin.customers.create')['acquirerOptions'], 'id'));
 
         $filterOptions = collect($this->props($this->manager, 'admin.customers.index')['acquirerOptions'])->keyBy('id');
-        $this->assertFalse($filterOptions[$former->id]['is_active'], 'The index filter still finds former acquirers.');
+        $this->assertFalse($filterOptions[$former->public_id]['is_active'], 'The index filter still finds former acquirers.');
     }
 
     public function test_an_acquirer_reference_to_another_company_renders_as_unassigned(): void
@@ -160,7 +160,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         );
 
         $filterIds = array_column($this->props($this->manager, 'admin.customers.index')['acquirerOptions'], 'id');
-        $this->assertNotContains($foreign->id, $filterIds);
+        $this->assertNotContains($foreign->public_id, $filterIds);
     }
 
     public function test_create_and_edit_offer_only_eligible_employees_and_default_to_the_creator(): void
@@ -169,11 +169,11 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->employee('manager', $this->otherCompany);
         $this->employee('customer');
         $customer = $this->customerAcquiredBy(null);
-        $eligible = [$this->manager->id, $this->staff->id];
+        $eligible = [$this->manager->public_id, $this->staff->public_id];
 
         $create = $this->props($this->manager, 'admin.customers.create');
         $this->assertEqualsCanonicalizing($eligible, array_column($create['acquirerOptions'], 'id'));
-        $this->assertSame($this->manager->id, $create['acquirerDefaultId']);
+        $this->assertSame($this->manager->public_id, $create['acquirerDefaultId']);
 
         $createAsAdmin = $this->props($this->adminWithoutProfile, 'admin.customers.create');
         $this->assertEqualsCanonicalizing($eligible, array_column($createAsAdmin['acquirerOptions'], 'id'));
@@ -211,9 +211,9 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
 
         $codes = fn (array $query): array => collect($this->props($this->manager, 'admin.customers.index', $query)['customers']['data'])->pluck('code')->all();
 
-        $this->assertSame(['CUS-A'], $codes(['acquired_by' => $this->staff->id]));
+        $this->assertSame(['CUS-A'], $codes(['acquired_by' => $this->staff->public_id]));
         $this->assertSame(['CUS-C'], $codes(['acquired_by' => 'unassigned']));
-        $this->assertSame([], $codes(['acquired_by' => $foreign->id]));
+        $this->assertSame([], $codes(['acquired_by' => $foreign->public_id]));
         $this->assertSame(['CUS-A', 'CUS-B', 'CUS-C'], $codes(['acquired_by' => 'not-an-id']));
         $this->assertSame(['CUS-A', 'CUS-B', 'CUS-C'], $codes(['acquired_by' => ['x']]));
         $this->assertSame(
@@ -239,7 +239,7 @@ class CustomerSalesAttributionVisibilityTest extends TestCase
         $this->assertStringContainsString('CUS-B', $unassigned);
         $this->assertStringNotContainsString('CUS-A', $unassigned);
 
-        $byId = $this->exportCsv($this->manager, ['acquired_by' => $this->staff->id]);
+        $byId = $this->exportCsv($this->manager, ['acquired_by' => $this->staff->public_id]);
         $this->assertStringContainsString('CUS-A', $byId);
         $this->assertStringNotContainsString('CUS-B', $byId);
 

@@ -157,9 +157,9 @@ test.describe('@lifecycle number sequences', () => {
         const createdBody = (await created).postDataJSON() as Record<string, unknown>;
         expect(createdBody).not.toHaveProperty('code');
 
-        await expect(page).toHaveURL(/\/admin\/customers\/(\d+)$/);
+        await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(page.getByRole('main').getByText('E2E-000123').first()).toBeVisible();
-        const customerId = page.url().match(/\/admin\/customers\/(\d+)$/)![1];
+        const customerId = page.url().match(/\/admin\/customers\/([0-9A-HJKMNP-TV-Z]{26})$/i)![1];
 
         // Edit keeps the stored code, shows it read-only and never submits it.
         await page.goto(`/admin/customers/${customerId}/edit`);
@@ -172,7 +172,7 @@ test.describe('@lifecycle number sequences', () => {
         );
         await page.getByRole('button', { name: 'Simpan pelanggan' }).click();
         expect(((await updated).postDataJSON() as Record<string, unknown>).code).toBeUndefined();
-        await expect(page).toHaveURL(/\/admin\/customers(\/\d+)?$/);
+        await expect(page).toHaveURL(/\/admin\/customers(?:\/[0-9A-HJKMNP-TV-Z]{26})?$/i);
         await expect(page.getByRole('main').getByText('E2E-000123').first()).toBeVisible();
 
         // Restore the original numbering for every later spec.

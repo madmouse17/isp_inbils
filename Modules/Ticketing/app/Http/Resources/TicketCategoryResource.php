@@ -11,7 +11,7 @@ class TicketCategoryResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'name' => $this->name,
             'code' => $this->code,
             'default_sla_hours' => $this->default_sla_hours,

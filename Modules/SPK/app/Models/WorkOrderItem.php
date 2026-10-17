@@ -3,6 +3,7 @@
 namespace Modules\SPK\Models;
 
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,7 @@ class WorkOrderItem extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $fillable = [
         'company_id', 'work_order_id', 'product_id', 'network_asset_id', 'quantity_reserved', 'quantity_used', 'note',

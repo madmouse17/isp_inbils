@@ -22,7 +22,7 @@ import { NETWORK_ASSET_STATUS, NETWORK_ASSET_TYPE } from '@/lib/statuses';
 import type { NetworkAssetStatus, NetworkAssetType } from '@/types/network-asset';
 
 interface TraceResult {
-    id: number;
+    id: string;
     code: string;
     name: string;
     asset_type: NetworkAssetType;

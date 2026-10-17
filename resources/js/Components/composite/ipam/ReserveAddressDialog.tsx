@@ -4,7 +4,7 @@ import { Button, Input, Modal } from '@/Components/ui';
 
 interface ReserveAddressDialogProps {
     onClose: () => void;
-    prefix: { id: number; cidr: string };
+    prefix: { id: string; cidr: string };
 }
 
 /** Mount it only while open, so each opening starts empty with no stale errors. */

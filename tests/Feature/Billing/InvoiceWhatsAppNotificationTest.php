@@ -166,7 +166,7 @@ class InvoiceWhatsAppNotificationTest extends TestCase
 
     public function test_creating_a_draft_sends_nothing_and_sending_it_sends_once(): void
     {
-        $this->actingAs($this->admin)->post(route('admin.invoices.store'), ['customer_id' => $this->customer->id, 'due_date' => '2026-06-20'])->assertRedirect();
+        $this->actingAs($this->admin)->post(route('admin.invoices.store'), ['customer_id' => $this->customer->public_id, 'due_date' => '2026-06-20'])->assertRedirect();
         $draft = Invoice::query()->sole();
         $draft->forceFill(['total' => 100000, 'status' => 'draft'])->save();
 

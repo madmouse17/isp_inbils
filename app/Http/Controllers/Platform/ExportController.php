@@ -9,6 +9,7 @@ use App\Models\Core\Company;
 use App\Models\Platform\TenantExport;
 use App\Models\PlatformAdmin;
 use App\Services\Platform\TenantExportService;
+use App\Support\RecordNotFound;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,20 +37,20 @@ class ExportController extends Controller
 
         return Inertia::render('Platform/Exports/Index', [
             'exports' => JsonResource::collection($exports->paginate($filters)),
-            'filters' => $filters,
+            'filters' => [...$filters, 'company_id' => $filters['company_id'] === null ? null : Company::query()->whereKey($filters['company_id'])->value('public_id')],
         ]);
     }
 
     public function download(Request $request, TenantExport $tenantExport, TenantExportService $exports): StreamedResponse
     {
-        abort_unless($exports->isDownloadable($tenantExport), 404);
+        RecordNotFound::abortUnless($exports->isDownloadable($tenantExport));
 
         /** @var PlatformAdmin $actor */
         $actor = $request->user('platform');
 
         if (! $exports->fileExists($tenantExport)) {
             $exports->expire($tenantExport, 'file_missing', $actor);
-            abort(404);
+            RecordNotFound::abort();
         }
 
         $exports->recordDownload($tenantExport, $actor);

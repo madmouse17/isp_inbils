@@ -11,6 +11,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerContact;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,7 +34,7 @@ class CustomerContactController extends Controller
         Gate::authorize('customer.address.manage');
 
         return Inertia::render('Admin/CustomerContacts/Index', [
-            'customer' => $customer->only(['id', 'code', 'name']),
+            'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'contacts' => CustomerContactResource::collection($this->filteredQuery($customer, $request)->paginate(10)->withQueryString()),
             'filters' => $request->only(['search', 'sort', 'direction']),
             'can' => ['export' => (bool) ($request->user()?->can('customer.contact.export'))],
@@ -71,7 +72,7 @@ class CustomerContactController extends Controller
     public function update(UpdateCustomerContactRequest $request, Customer $customer, CustomerContact $contact): RedirectResponse
     {
         $this->ensureSameCompany($customer);
-        abort_unless($contact->customer_id === $customer->id, 404);
+        RecordNotFound::abortUnless($contact->customer_id === $customer->id);
         Gate::authorize('customer.address.manage');
 
         $data = $request->validated();
@@ -106,7 +107,7 @@ class CustomerContactController extends Controller
     public function destroy(Customer $customer, CustomerContact $contact): RedirectResponse
     {
         $this->ensureSameCompany($customer);
-        abort_unless($contact->customer_id === $customer->id, 404);
+        RecordNotFound::abortUnless($contact->customer_id === $customer->id);
         Gate::authorize('customer.address.manage');
 
         DB::transaction(function () use ($customer, $contact) {
@@ -152,7 +153,7 @@ class CustomerContactController extends Controller
             'is_primary' => $contact->is_primary ? 'Ya' : 'Tidak',
         ];
 
-        $filename = 'customer-contacts-'.$customer->id.'-'.now()->format('Ymd-His');
+        $filename = 'customer-contacts-'.$customer->public_id.'-'.now()->format('Ymd-His');
 
         return strtolower((string) $request->input('format', 'csv')) === 'pdf'
             ? $export->streamPdf('Kontak Pelanggan', $columns, $map, $filename.'.pdf')
@@ -178,6 +179,6 @@ class CustomerContactController extends Controller
 
     private function ensureSameCompany(Customer $customer): void
     {
-        abort_unless($customer->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($customer->company_id === CompanyService::currentId());
     }
 }

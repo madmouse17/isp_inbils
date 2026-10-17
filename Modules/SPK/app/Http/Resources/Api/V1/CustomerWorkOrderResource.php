@@ -25,7 +25,7 @@ class CustomerWorkOrderResource extends JsonResource
         $firstName = $wo->technicianFirstName();
 
         return [
-            'id' => $wo->id,
+            'id' => $wo->public_id,
             'code' => $wo->code,
             'type' => ['key' => $wo->type, 'label' => $wo->typeLabel()],
             'scheduled_date' => $wo->scheduled_date?->toDateString(),

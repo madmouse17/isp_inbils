@@ -12,7 +12,7 @@ import { Badge, Button, Card, CardContent, CardHeader, CardTitle } from '@/Compo
 import { formatNumber } from '@/lib/format';
 
 interface RoleData {
-    id: number;
+    id: string;
     name: string;
     permissions: string[];
     users_count?: number;
@@ -106,7 +106,7 @@ export default function Show({ role, permissions }: ShowProps) {
                                         </h3>
                                         <ul className="space-y-1 text-sm">
                                             {items.map((item) => (
-                                                <li key={item.id} title={item.name}>
+                                                <li key={item.name} title={item.name}>
                                                     {formatPermission(item.name)}
                                                 </li>
                                             ))}

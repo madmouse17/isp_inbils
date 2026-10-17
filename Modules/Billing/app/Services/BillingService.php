@@ -10,6 +10,7 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
 use App\Support\Money;
+use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -89,7 +90,7 @@ class BillingService
             $tax = Money::round(Money::div(Money::mul($amount, $taxRate), '100'));
 
             $rows[] = [
-                'subscription_id' => $sub->id,
+                'subscription_id' => $sub->public_id,
                 'subscription_code' => $sub->code,
                 'customer' => $sub->customer?->name ?? '-',
                 'package' => $sub->servicePackage?->name ?? '-',
@@ -208,12 +209,12 @@ class BillingService
 
     public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
     {
-        abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($invoice->company_id === (int) CompanyService::currentId());
         abort_if(Money::compare($amount, '0') <= 0, 422, 'Jumlah pembayaran harus lebih dari nol.');
 
         return DB::transaction(function () use ($invoice, $amount, $method, $reference, $notes) {
             $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
-            abort_unless($invoice->company_id === (int) CompanyService::currentId(), 404);
+            RecordNotFound::abortUnless($invoice->company_id === (int) CompanyService::currentId());
             abort_unless(in_array($invoice->status, ['sent', 'partial', 'overdue'], true), 422, 'Tagihan tidak menerima pembayaran pada statusnya saat ini.');
             abort_if(Money::gt($amount, $invoice->sisa), 422, 'Jumlah pembayaran melebihi sisa tagihan.');
             abort_if(
@@ -285,13 +286,13 @@ class BillingService
      */
     public static function reversePayment(Payment $payment, string $reason): Payment
     {
-        abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($payment->company_id === (int) CompanyService::currentId());
         abort_if($payment->cancelled_at !== null, 422, 'Pembayaran sudah dibatalkan.');
         abort_if(Auth::id() === $payment->received_by, 422, 'Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan.');
 
         return DB::transaction(function () use ($payment, $reason) {
             $payment = Payment::withoutCompany()->whereKey($payment->id)->lockForUpdate()->firstOrFail();
-            abort_unless($payment->company_id === (int) CompanyService::currentId(), 404);
+            RecordNotFound::abortUnless($payment->company_id === (int) CompanyService::currentId());
             abort_if($payment->cancelled_at !== null, 422, 'Pembayaran sudah dibatalkan.');
             abort_if(Auth::id() === $payment->received_by, 422, 'Pembayaran yang Anda catat sendiri tidak bisa Anda batalkan.');
 
@@ -373,7 +374,7 @@ class BillingService
                 ->lockForUpdate()
                 ->first();
 
-            abort_unless($item, 404);
+            RecordNotFound::abortUnless($item);
 
             $item->delete();
             self::recalculate($invoice);
@@ -430,7 +431,7 @@ class BillingService
         abort_if($companyId === null, 403, 'Konteks perusahaan wajib ada.');
 
         $invoices = Invoice::withoutCompany()
-            ->with('customer:id,name')
+            ->with('customer:id,public_id,name')
             ->where('company_id', $companyId)
             ->whereIn('status', ['sent', 'partial', 'overdue'])
             ->whereColumn('paid_amount', '<', 'total')
@@ -441,7 +442,7 @@ class BillingService
             // Suspended subscriptions only while blocked, so staff can unblock them here.
             ->where(fn ($query) => $query->where('status', 'active')
                 ->orWhere(fn ($blocked) => $blocked->where('status', 'suspended')->whereNotNull('blocked_at')))
-            ->get(['id', 'code', 'status', 'customer_id', 'blocked_at'])
+            ->get(['id', 'public_id', 'code', 'status', 'customer_id', 'blocked_at'])
             ->groupBy('customer_id');
 
         return $invoices
@@ -468,13 +469,13 @@ class BillingService
                 $total = array_reduce($buckets, fn (string $carry, string $value) => Money::add($carry, $value), '0.00');
 
                 return [
-                    'customer_id' => $first->customer_id,
+                    'customer_id' => $first->customer?->public_id,
                     'customer' => $first->customer?->name ?? '-',
                     ...$buckets,
                     'total' => Money::round($total),
                     'invoice_count' => $group->count(),
                     'subscriptions' => ($subsByCustomer[$first->customer_id] ?? collect())
-                        ->map(fn ($s) => ['id' => $s->id, 'code' => $s->code, 'status' => $s->status, 'blocked_at' => $s->blocked_at])
+                        ->map(fn ($s) => ['id' => $s->public_id, 'code' => $s->code, 'status' => $s->status, 'blocked_at' => $s->blocked_at])
                         ->values()->all(),
                 ];
             })
@@ -490,7 +491,7 @@ class BillingService
         // explicit company id passed by the command/job. In web context the
         // id must match the authenticated user's company.
         if ($currentId !== null) {
-            abort_unless($companyId === (int) $currentId, 404);
+            RecordNotFound::abortUnless($companyId === (int) $currentId);
         }
     }
 }

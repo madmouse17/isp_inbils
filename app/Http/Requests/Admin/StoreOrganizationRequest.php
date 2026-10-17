@@ -2,12 +2,22 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\OrganizationUnit;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StoreOrganizationRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['parent_id' => OrganizationUnit::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('organization.manage') ?? false;

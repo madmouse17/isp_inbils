@@ -11,7 +11,7 @@ class ServicePackageCategoryResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'code' => $this->code,
             'name' => $this->name,
             'sort_order' => $this->sort_order,

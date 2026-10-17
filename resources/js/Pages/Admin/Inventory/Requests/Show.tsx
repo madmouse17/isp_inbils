@@ -69,7 +69,7 @@ export default function InventoryRequestsShow({ request }: Props) {
     // Form for Return Declaration (Technician)
     const [declareLines, setDeclareLines] = useState<
         Array<{
-            id: number;
+            id: string;
             product_name?: string;
             issued_qty: number;
             actual_used_qty: number;
@@ -83,7 +83,7 @@ export default function InventoryRequestsShow({ request }: Props) {
     // Form for Warehouse Physical Acceptance
     const [acceptLines, setAcceptLines] = useState<
         Array<{
-            id: number;
+            id: string;
             product_name?: string;
             declared_good_return_qty: number;
             accepted_good_return_qty: number;
@@ -187,9 +187,7 @@ export default function InventoryRequestsShow({ request }: Props) {
             : Boolean(
                   can('inventory.return.declare') &&
                   ['awaiting_declaration', 'correction_required'].includes(returnCase.status) &&
-                  (currentUserId
-                      ? Number(returnCase.technician_id) === Number(currentUserId)
-                      : true),
+                  (currentUserId ? returnCase.technician_id === currentUserId : true),
               )
         : false;
 
@@ -199,9 +197,7 @@ export default function InventoryRequestsShow({ request }: Props) {
             : Boolean(
                   can('inventory.return.receive') &&
                   returnCase.status === 'awaiting_receipt' &&
-                  (currentUserId
-                      ? Number(returnCase.technician_id) !== Number(currentUserId)
-                      : true),
+                  (currentUserId ? returnCase.technician_id !== currentUserId : true),
               )
         : false;
 
@@ -212,8 +208,8 @@ export default function InventoryRequestsShow({ request }: Props) {
                   can('inventory.return.resolve') &&
                   returnCase.status === 'exception_open' &&
                   (currentUserId
-                      ? Number(returnCase.technician_id) !== Number(currentUserId) &&
-                        Number(returnCase.received_by) !== Number(currentUserId)
+                      ? returnCase.technician_id !== currentUserId &&
+                        returnCase.received_by !== currentUserId
                       : true),
               )
         : false;
@@ -240,8 +236,8 @@ export default function InventoryRequestsShow({ request }: Props) {
 
     // Form for Approve
     const [approveNote, setApproveNote] = useState('');
-    const [approvedQtys, setApprovedQtys] = useState<Record<number, number>>(() => {
-        const init: Record<number, number> = {};
+    const [approvedQtys, setApprovedQtys] = useState<Record<string, number>>(() => {
+        const init: Record<string, number> = {};
         items.forEach((item) => {
             init[item.id] = item.quantity_requested;
         });

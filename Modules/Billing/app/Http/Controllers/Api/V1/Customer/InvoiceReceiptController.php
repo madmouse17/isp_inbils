@@ -19,7 +19,7 @@ class InvoiceReceiptController extends Controller
      *
      * @response string
      */
-    public function __invoke(Request $request, int $id): Response
+    public function __invoke(Request $request, string $id): Response
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
         abort_unless($customer instanceof Customer, 403);
@@ -28,7 +28,8 @@ class InvoiceReceiptController extends Controller
             ->whereBelongsTo($customer)
             ->where('status', 'paid')
             ->with(['customer', 'subscription.servicePackage', 'items'])
-            ->findOrFail($id);
+            ->wherePublicId($id)
+            ->firstOrFail();
         $company = CompanyService::current();
 
         return Pdf::loadView('pdf.invoice', [

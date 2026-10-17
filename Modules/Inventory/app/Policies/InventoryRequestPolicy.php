@@ -5,6 +5,7 @@ namespace Modules\Inventory\Policies;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use Illuminate\Auth\Access\Response;
 use Modules\Inventory\Models\InventoryRequest;
 
 class InventoryRequestPolicy
@@ -17,10 +18,10 @@ class InventoryRequestPolicy
             || $user->hasPermissionTo('inventory.request.view.all');
     }
 
-    public function view(User $user, InventoryRequest $request): bool
+    public function view(User $user, InventoryRequest $request): bool|Response
     {
         if ($request->company_id !== CompanyService::idFor($user)) {
-            return false;
+            return $this->denyAsNotFound();
         }
 
         if ($user->hasPermissionTo('inventory.request.view.all')) {
@@ -28,7 +29,7 @@ class InventoryRequestPolicy
         }
 
         if ($user->hasPermissionTo('inventory.request.view.own')) {
-            return (int) $request->requested_by === (int) $user->id;
+            return (int) $request->requested_by === (int) $user->id ? true : $this->denyAsNotFound();
         }
 
         return false;
@@ -67,7 +68,19 @@ class InventoryRequestPolicy
             && $user->hasPermissionTo('inventory.request.create');
     }
 
-    public function cancel(User $user, InventoryRequest $request): bool
+    public function cancel(User $user, InventoryRequest $request): bool|Response
+    {
+        if ($this->mayCancel($user, $request)) {
+            return true;
+        }
+
+        // A refusal for a request the person cannot see is the 404 of `view`: a 403 would tell them it exists.
+        $seen = $this->view($user, $request);
+
+        return $seen instanceof Response ? $seen : false;
+    }
+
+    private function mayCancel(User $user, InventoryRequest $request): bool
     {
         if ($request->company_id !== CompanyService::idFor($user)) {
             return false;

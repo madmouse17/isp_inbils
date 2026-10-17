@@ -13,15 +13,15 @@ import { toPagination, type PaginationLike } from '@/lib/pagination';
 import { optionsOf, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 
 type Row = {
-    id: number;
+    id: string;
     code: string;
     title: string;
     type: string;
     status: string;
     scheduled_date?: string | null;
     created_at: string | null;
-    customer?: { id: number; name: string } | null;
-    assignee?: { id: number; name: string } | null;
+    customer?: { id: string; name: string } | null;
+    assignee?: { id: string; name: string } | null;
 };
 
 type Props = {

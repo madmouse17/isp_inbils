@@ -16,7 +16,7 @@ interface StockResult {
 }
 
 interface FindResult {
-    id: number;
+    id: string;
     sku: string;
     name: string;
     stocks: StockResult[];

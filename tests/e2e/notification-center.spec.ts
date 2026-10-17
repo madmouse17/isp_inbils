@@ -3,11 +3,11 @@ import { expect, test } from './support/fixtures';
 import { csrfToken, inertiaProps, loginAs, logout, unique } from './support/demo';
 
 type Ticket = {
-    id: number;
+    id: string;
     code: string;
     title: string;
     status: string;
-    assigned_to: number | null;
+    assigned_to: string | null;
     updated_at: string;
 };
 
@@ -58,7 +58,7 @@ async function dispatchTicket(page: Page, title: string): Promise<Ticket> {
     return matches[0];
 }
 
-async function assign(page: Page, ticket: Ticket, handlerId: number) {
+async function assign(page: Page, ticket: Ticket, handlerId: string) {
     const current = await dispatchTicket(page, ticket.title);
     const response = await page.request.post('/admin/dispatch/assign', {
         headers: { 'X-XSRF-TOKEN': await csrfToken(page) },
@@ -135,8 +135,8 @@ test('@notification-center owned assignments persist reads and reassignment noti
     page,
 }, testInfo) => {
     const owned: Ticket[] = [];
-    let adminId = 0;
-    let technicianId = 0;
+    let adminId = '';
+    let technicianId = '';
     const notificationIds: string[] = [];
 
     await loginAs(page, 'admin');

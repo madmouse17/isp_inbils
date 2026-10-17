@@ -172,7 +172,7 @@ class NetworkAssetLifecycleRouteTest extends TestCase
         $this->location->delete();
 
         $this->post(route('admin.network-assets.install', $asset), [
-            'location_id' => $this->location->id,
+            'location_id' => $this->location->public_id,
         ])->assertSessionHasErrors('location_id');
 
         $this->assertSame('available', $asset->fresh()->status);
@@ -186,8 +186,8 @@ class NetworkAssetLifecycleRouteTest extends TestCase
         $customer->delete();
 
         $this->post(route('admin.network-assets.install', $asset), [
-            'location_id' => $this->location->id,
-            'customer_id' => $customer->id,
+            'location_id' => $this->location->public_id,
+            'customer_id' => $customer->public_id,
         ])->assertSessionHasErrors('customer_id');
 
         $this->assertSame('available', $asset->fresh()->status);
@@ -205,9 +205,9 @@ class NetworkAssetLifecycleRouteTest extends TestCase
         $subscription->delete();
 
         $this->post(route('admin.network-assets.install', $asset), [
-            'location_id' => $this->location->id,
-            'customer_id' => $customer->id,
-            'subscription_id' => $subscription->id,
+            'location_id' => $this->location->public_id,
+            'customer_id' => $customer->public_id,
+            'subscription_id' => $subscription->public_id,
         ])->assertSessionHasErrors('subscription_id');
 
         $this->assertSame('available', $asset->fresh()->status);
@@ -227,9 +227,9 @@ class NetworkAssetLifecycleRouteTest extends TestCase
         $workOrder->delete();
 
         $this->post(route('admin.network-assets.install', $asset), [
-            'location_id' => $this->location->id,
-            'customer_id' => $customer->id,
-            'spk_id' => $workOrder->id,
+            'location_id' => $this->location->public_id,
+            'customer_id' => $customer->public_id,
+            'spk_id' => $workOrder->public_id,
         ])->assertSessionHasErrors('spk_id');
 
         $this->assertSame('available', $asset->fresh()->status);

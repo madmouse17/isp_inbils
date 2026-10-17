@@ -1,6 +1,6 @@
 # Customer and technician app redesign: ISP-branded, informative, not flat
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `mobile-redesign`
 Source: owner 2026-10-14 (grilling): "gunakan skill ui ux promax maupun design taste … untuk ui ux flutter biar tidak terlihat flat monoton hanya putih, dan cari referensi buat biar lebih bagus dan informatif terutama di pelanggan". Owner approved M1–M4 (M4 point 4 became lane `announcements-promo`); round 2 V1–V10 answered with "lanjutkan task semuanya sampai selesai", read as accepting every recommendation, V3 in its revised form (a).
 Research: agent IspUiResearch (Oxygen.id Selfcare, MyICON+, MyBiznet seen as pixels; myIndiHome, MyRep, My FirstMedia, myXL, Starlink, Xfinity, Verizon, Spectrum, Virgin Media, Optus from text). Facts: agent FlutterUiFacts.

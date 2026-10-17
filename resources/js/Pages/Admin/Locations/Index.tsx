@@ -53,8 +53,8 @@ import {
 /* ---------- Page props ---------- */
 
 interface LocationRow {
-    id: number;
-    parent_id: number | null;
+    id: string;
+    parent_id: string | null;
     code: string;
     name: string;
     type: LocationType;
@@ -185,7 +185,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
             code: row.code,
             name: row.name,
             type: row.type,
-            parent_id: row.parent_id ? String(row.parent_id) : '',
+            parent_id: row.parent_id ?? '',
             address: row.address ?? '',
             lat: row.lat != null ? String(row.lat) : '',
             lng: row.lng != null ? String(row.lng) : '',

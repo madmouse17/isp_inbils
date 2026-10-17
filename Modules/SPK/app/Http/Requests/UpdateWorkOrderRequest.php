@@ -2,6 +2,9 @@
 
 namespace Modules\SPK\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Customer;
+use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,6 +13,14 @@ use Illuminate\Validation\Validator;
 
 class UpdateWorkOrderRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['customer_id' => Customer::class, 'subscription_id' => ServiceSubscription::class, 'location_id' => Location::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('spk.update') ?? false;

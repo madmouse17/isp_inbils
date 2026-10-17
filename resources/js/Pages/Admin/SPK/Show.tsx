@@ -41,7 +41,7 @@ import type { DropPort } from '@/types/ipam-odn';
 import { checkInText, type CheckInRecord } from '../Tickets/components/checkIn';
 
 interface WoData {
-    id: number;
+    id: string;
     code: string;
     type: string;
     title: string;
@@ -57,12 +57,12 @@ interface WoData {
     customer?: { name: string; code: string } | null;
     subscription?: { code: string } | null;
     location?: { name: string; path?: string } | null;
-    assigned_to?: number | null;
+    assigned_to?: string | null;
     updated_at?: string | null;
     assignee?: { name: string } | null;
     items?: {
-        id: number;
-        product_id: number;
+        id: string;
+        product_id: string;
         quantity_reserved: string;
         quantity_used: string;
         note?: string | null;
@@ -71,17 +71,17 @@ interface WoData {
             name: string;
             unit?: { name: string; symbol: string } | null;
         } | null;
-        network_asset_id?: number | null;
+        network_asset_id?: string | null;
         network_asset?: { code: string; name: string } | null;
     }[];
     assignments?: {
-        id: number;
+        id: string;
         assigned_at: string;
         unassigned_at?: string | null;
         technician?: { name: string } | null;
     }[];
     evidence?: {
-        id: number;
+        id: string;
         type: string;
         url: string;
         file_path: string;
@@ -94,7 +94,7 @@ interface WoData {
 
 /** One person the assign dialog offers: `id` is the user the SPK is assigned to. */
 interface TechRow {
-    id: number;
+    id: string;
     name: string;
     employee_number: string;
     organization?: string | null;
@@ -108,7 +108,7 @@ interface ShowProps extends Record<string, unknown> {
     /** Sent only after a search (`product_search`) and after a product is picked (`product_id`). */
     productOptions?: RemoteOption[];
     selectedProduct?: {
-        id: number;
+        id: string;
         type: string;
         unit?: { name: string; symbol: string } | null;
     } | null;

@@ -84,7 +84,7 @@ class CustomerAcquirerQuery
     public static function options(int $companyId): array
     {
         return self::eligible($companyId)
-            ->select(['users.id', 'users.name'])
+            ->select(['users.id', 'users.public_id', 'users.name'])
             ->addSelect(['employee_number' => EmployeeProfile::query()
                 ->select('employee_profiles.employee_number')
                 ->whereColumn('employee_profiles.user_id', 'users.id')
@@ -95,7 +95,7 @@ class CustomerAcquirerQuery
             ->orderBy('users.id')
             ->get()
             ->map(fn (User $user): array => [
-                'id' => $user->id,
+                'id' => $user->public_id,
                 'name' => $user->name,
                 'is_active' => true,
                 'employee_number' => $user->getAttribute('employee_number'),
@@ -118,9 +118,9 @@ class CustomerAcquirerQuery
                 ->orWhereIn('users.id', self::creditedIds($companyId)))
             ->orderBy('users.name')
             ->orderBy('users.id')
-            ->get(['users.id', 'users.name', 'users.is_active'])
+            ->get(['users.id', 'users.public_id', 'users.name', 'users.is_active'])
             ->map(fn (User $user): array => [
-                'id' => $user->id,
+                'id' => $user->public_id,
                 'name' => $user->name,
                 'is_active' => (bool) $user->is_active,
             ])

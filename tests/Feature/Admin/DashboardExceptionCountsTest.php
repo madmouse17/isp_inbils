@@ -194,7 +194,7 @@ class DashboardExceptionCountsTest extends TestCase
         $this->assertSame('operations', $section['group']);
         $this->assertSame(route('admin.tickets.index', ['sla_breached' => 1]), $section['href']);
         $this->assertSame(
-            [$threeHours->id, $twoHours->id, $oneHour->id, $justBreached->id],
+            [$threeHours->public_id, $twoHours->public_id, $oneHour->public_id, $justBreached->public_id],
             array_column($section['items'], 'id'),
             'oldest deadline first',
         );
@@ -215,7 +215,7 @@ class DashboardExceptionCountsTest extends TestCase
 
         $ids = [];
         foreach (range(7, 1) as $hoursAgo) {
-            $ids[$hoursAgo] = $this->ticket($company, ['sla_deadline' => now()->subHours($hoursAgo)])->id;
+            $ids[$hoursAgo] = $this->ticket($company, ['sla_deadline' => now()->subHours($hoursAgo)])->public_id;
         }
 
         $section = $this->section($manager, 'sla_breached');
@@ -240,7 +240,7 @@ class DashboardExceptionCountsTest extends TestCase
         $section = $this->section($technician, 'sla_breached');
 
         $this->assertSame(2, $section['count']);
-        $this->assertSame($mine->id, $section['items'][0]['id']);
+        $this->assertSame($mine->public_id, $section['items'][0]['id']);
         $this->assertSame(
             2,
             $this->actingAs($technician)->get($section['href'])->inertiaProps('tickets.meta.total'),

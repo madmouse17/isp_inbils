@@ -81,7 +81,7 @@ class IpamPermissionTest extends TestCase
             'vlans.update' => $this->putJson(route('admin.ipam.vlans.update', $this->vlan), ['vid' => 77, 'name' => 'Renamed']),
             'vlans.destroy' => $this->deleteJson(route('admin.ipam.vlans.destroy', $this->vlan)),
             'addresses.destroy.reservation' => $this->deleteJson(route('admin.ipam.addresses.destroy', $this->reservation)),
-            'subscription-addresses.store' => $this->postJson(route('admin.ipam.subscription-addresses.store', $this->subscription), ['ip_prefix_id' => $this->pool->id]),
+            'subscription-addresses.store' => $this->postJson(route('admin.ipam.subscription-addresses.store', $this->subscription), ['ip_prefix_id' => $this->pool->public_id]),
             'addresses.destroy.subscription' => $this->deleteJson(route('admin.ipam.addresses.destroy', $this->held)),
         };
     }

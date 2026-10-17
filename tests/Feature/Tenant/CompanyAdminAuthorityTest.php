@@ -62,8 +62,8 @@ class CompanyAdminAuthorityTest extends TestCase
 
         $this->actingAs($this->groupUser($this->head));
         $this->post('/admin/roles', ['name' => 'rogue', 'permissions' => ['customer.view']])->assertStatus(405);
-        $this->put("/admin/roles/{$custom->id}", ['name' => 'support-lead', 'permissions' => ['customer.view', 'billing.view']])->assertStatus(405);
-        $this->delete("/admin/roles/{$custom->id}")->assertStatus(405);
+        $this->put("/admin/roles/{$custom->public_id}", ['name' => 'support-lead', 'permissions' => ['customer.view', 'billing.view']])->assertStatus(405);
+        $this->delete("/admin/roles/{$custom->public_id}")->assertStatus(405);
 
         $this->assertFalse(Role::query()->where('name', 'rogue')->exists());
         $this->assertSame(['customer.view'], $custom->fresh()->permissions->pluck('name')->all());
@@ -109,10 +109,10 @@ class CompanyAdminAuthorityTest extends TestCase
             'email' => 'takeover@group.test',
             'password' => 'new-password-123',
             'roles' => ['admin'],
-        ])->assertForbidden();
-        $this->get(route('admin.users.edit', $shared))->assertForbidden();
-        $this->get(route('admin.users.show', $shared))->assertForbidden();
-        $this->delete(route('admin.users.destroy', $shared))->assertForbidden();
+        ])->assertNotFound();
+        $this->get(route('admin.users.edit', $shared))->assertNotFound();
+        $this->get(route('admin.users.show', $shared))->assertNotFound();
+        $this->delete(route('admin.users.destroy', $shared))->assertNotFound();
 
         $shared->refresh();
         $this->assertSame($passwordHash, $shared->password);
@@ -133,8 +133,8 @@ class CompanyAdminAuthorityTest extends TestCase
             'email' => 'takeover@group.test',
             'password' => 'new-password-123',
             'roles' => ['admin'],
-        ])->assertForbidden();
-        $this->delete(route('admin.users.destroy', $shared))->assertForbidden();
+        ])->assertNotFound();
+        $this->delete(route('admin.users.destroy', $shared))->assertNotFound();
 
         $shared->refresh();
         $this->assertSame($passwordHash, $shared->password);

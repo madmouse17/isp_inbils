@@ -21,7 +21,7 @@ class TicketController extends Controller
     public function index(ListCustomerTicketsRequest $request): AnonymousResourceCollection
     {
         $query = $this->ticketsFor($request)
-            ->with(['category:id,name', 'subscription:id,code', 'assignee:id,name'])
+            ->with(['category:id,public_id,name', 'subscription:id,public_id,code', 'assignee:id,name'])
             ->latest('created_at')
             ->latest('id');
 
@@ -39,23 +39,24 @@ class TicketController extends Controller
         Gate::authorize('store', Ticket::class);
 
         $ticket = TicketService::create($request->ticketAttributes(), $request->user()->id)
-            ->load(['category:id,name', 'subscription:id,code', 'assignee:id,name', 'comments.author:id,name', 'media']);
+            ->load(['category:id,public_id,name', 'subscription:id,public_id,code', 'assignee:id,name', 'comments.author:id,name', 'media']);
 
         return (new CustomerTicketResource($ticket))->response()->setStatusCode(201);
     }
 
-    public function show(Request $request, int $id): CustomerTicketResource
+    public function show(Request $request, string $id): CustomerTicketResource
     {
         $ticket = $this->ticketsFor($request)
             ->with([
-                'category:id,name',
-                'subscription:id,code',
+                'category:id,public_id,name',
+                'subscription:id,public_id,code',
                 'assignee:id,name',
                 'comments' => fn ($query) => $query->where('is_internal', false)->orderBy('created_at')->orderBy('id'),
                 'comments.author:id,name',
                 'media',
             ])
-            ->findOrFail($id);
+            ->wherePublicId($id)
+            ->firstOrFail();
 
         Gate::authorize('view', $ticket);
 

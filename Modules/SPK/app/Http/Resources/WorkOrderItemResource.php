@@ -13,10 +13,10 @@ class WorkOrderItemResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'work_order_id' => $this->work_order_id,
-            'product_id' => $this->product_id,
-            'network_asset_id' => $this->network_asset_id,
+            'id' => $this->public_id,
+            'work_order_id' => $this->workOrder?->public_id,
+            'product_id' => $this->product?->public_id,
+            'network_asset_id' => $this->networkAsset?->public_id,
             'quantity_reserved' => $this->quantity_reserved,
             'quantity_used' => $this->quantity_used,
             'note' => $this->note,

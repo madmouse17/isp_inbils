@@ -138,7 +138,7 @@ class MaterialReturnCapabilityTest extends TestCase
     {
         $case = $this->createReturnCase('awaiting_declaration');
 
-        $request = Request::create('/admin/inventory/returns/'.$case->id, 'GET');
+        $request = Request::create('/admin/inventory/returns/'.$case->public_id, 'GET');
         $resource = (new MaterialReturnCaseResource($case))->toArray($request);
 
         $this->assertArrayHasKey('can', $resource);
@@ -154,7 +154,7 @@ class MaterialReturnCapabilityTest extends TestCase
         $caseAwaiting = $this->createReturnCase('awaiting_declaration');
 
         // Direct resource check with technician actor
-        $request = Request::create('/admin/inventory/returns/'.$caseAwaiting->id, 'GET');
+        $request = Request::create('/admin/inventory/returns/'.$caseAwaiting->public_id, 'GET');
         $request->setUserResolver(fn () => $this->technician);
         $resource = (new MaterialReturnCaseResource($caseAwaiting))->toArray($request);
 
@@ -243,7 +243,7 @@ class MaterialReturnCapabilityTest extends TestCase
         $case = $this->createReturnCase('awaiting_declaration');
 
         // User without return permissions
-        $request = Request::create('/admin/inventory/returns/'.$case->id, 'GET');
+        $request = Request::create('/admin/inventory/returns/'.$case->public_id, 'GET');
         $request->setUserResolver(fn () => $this->unauthorizedUser);
         $resource = (new MaterialReturnCaseResource($case))->toArray($request);
 
@@ -267,7 +267,7 @@ class MaterialReturnCapabilityTest extends TestCase
         ]);
 
         // Technician cannot declare when already resolved
-        $reqTech = Request::create('/admin/inventory/returns/'.$resolvedCase->id, 'GET');
+        $reqTech = Request::create('/admin/inventory/returns/'.$resolvedCase->public_id, 'GET');
         $reqTech->setUserResolver(fn () => $this->technician);
         $resTech = (new MaterialReturnCaseResource($resolvedCase))->toArray($reqTech);
         $this->assertFalse($resTech['can']['declare']);
@@ -275,13 +275,13 @@ class MaterialReturnCapabilityTest extends TestCase
         $this->assertFalse($resTech['can']['resolve']);
 
         // Receiver cannot receive when already resolved
-        $reqReceiver = Request::create('/admin/inventory/returns/'.$resolvedCase->id, 'GET');
+        $reqReceiver = Request::create('/admin/inventory/returns/'.$resolvedCase->public_id, 'GET');
         $reqReceiver->setUserResolver(fn () => $this->receiver);
         $resReceiver = (new MaterialReturnCaseResource($resolvedCase))->toArray($reqReceiver);
         $this->assertFalse($resReceiver['can']['receive']);
 
         // Resolver cannot resolve when already resolved
-        $reqResolver = Request::create('/admin/inventory/returns/'.$resolvedCase->id, 'GET');
+        $reqResolver = Request::create('/admin/inventory/returns/'.$resolvedCase->public_id, 'GET');
         $reqResolver->setUserResolver(fn () => $this->resolver);
         $resResolver = (new MaterialReturnCaseResource($resolvedCase))->toArray($reqResolver);
         $this->assertFalse($resResolver['can']['resolve']);
@@ -303,7 +303,7 @@ class MaterialReturnCapabilityTest extends TestCase
         $techB = User::factory()->create(['company_id' => $companyB->id]);
         $techB->givePermissionTo(['inventory.return.view.own', 'inventory.return.declare']);
 
-        $requestB = Request::create('/admin/inventory/returns/'.$caseCompanyA->id, 'GET');
+        $requestB = Request::create('/admin/inventory/returns/'.$caseCompanyA->public_id, 'GET');
         $requestB->setUserResolver(fn () => $techB);
         $resource = (new MaterialReturnCaseResource($caseCompanyA))->toArray($requestB);
 

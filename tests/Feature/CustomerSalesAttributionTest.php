@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\CustomerService;
+use App\Support\PublicId;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -89,7 +90,7 @@ class CustomerSalesAttributionTest extends TestCase
     public function test_create_honors_an_explicit_eligible_acquirer_from_an_assign_holder(): void
     {
         $this->actingAs($this->manager)
-            ->post(route('admin.customers.store'), $this->payload(['acquired_by_user_id' => $this->staff->id]))
+            ->post(route('admin.customers.store'), $this->payload(['acquired_by_user_id' => $this->staff->public_id]))
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -113,11 +114,12 @@ class CustomerSalesAttributionTest extends TestCase
         $inactive = $this->employee('manager', attributes: ['is_active' => false]);
         $foreign = $this->employee('manager', $this->otherCompany);
         $ineligible = [
-            'technician' => $this->employee('technician')->id,
-            'inactive' => $inactive->id,
-            'without employee profile' => $this->adminWithoutProfile->id,
-            'foreign company' => $foreign->id,
-            'unknown' => 987654,
+            'technician' => $this->employee('technician')->public_id,
+            'inactive' => $inactive->public_id,
+            'without employee profile' => $this->adminWithoutProfile->public_id,
+            'foreign company' => $foreign->public_id,
+            'unknown' => PublicId::new(),
+            'an integer id' => 987654,
         ];
 
         foreach ($ineligible as $userId) {
@@ -133,7 +135,7 @@ class CustomerSalesAttributionTest extends TestCase
     {
         $creator = $this->employeeWithPermissions(self::ONBOARDING_PERMISSIONS);
 
-        foreach ([$this->staff->id, 987654] as $index => $forged) {
+        foreach ([$this->staff->public_id, PublicId::new(), 987654] as $index => $forged) {
             $this->actingAs($creator)
                 ->post(route('admin.customers.store'), $this->payload([
                     'code' => 'CUS-FORGED-'.$index,
@@ -173,7 +175,7 @@ class CustomerSalesAttributionTest extends TestCase
         $customer = $this->customerAcquiredBy(null);
 
         $this->actingAs($this->staff)
-            ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['acquired_by_user_id' => $this->manager->id]))
+            ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['acquired_by_user_id' => $this->manager->public_id]))
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
@@ -187,7 +189,8 @@ class CustomerSalesAttributionTest extends TestCase
         $foreign = $this->employee('manager', $this->otherCompany);
 
         $messages = [];
-        foreach ([$foreign->id, 987654, $this->employee('technician')->id, $this->adminWithoutProfile->id] as $userId) {
+        $unknown = PublicId::new();
+        foreach ([$foreign->public_id, $unknown, $this->employee('technician')->public_id, $this->adminWithoutProfile->public_id] as $userId) {
             $response = $this->actingAs($this->manager)
                 ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['acquired_by_user_id' => $userId]))
                 ->assertInvalid(['acquired_by_user_id']);
@@ -195,7 +198,7 @@ class CustomerSalesAttributionTest extends TestCase
             $this->assertNotNull($response);
         }
 
-        $this->assertSame($messages[$foreign->id], $messages[987654]);
+        $this->assertSame($messages[$foreign->public_id], $messages[$unknown]);
         $this->assertNull($customer->fresh()->acquired_by_user_id);
         $this->assertSame(0, $this->acquirerAuditCount());
     }
@@ -248,14 +251,14 @@ class CustomerSalesAttributionTest extends TestCase
         $newAcquirer = $this->employee('manager');
 
         $this->actingAs($this->manager)
-            ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['acquired_by_user_id' => $newAcquirer->id]))
+            ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, ['acquired_by_user_id' => $newAcquirer->public_id]))
             ->assertInvalid(['acquirer_correction_reason']);
         $this->assertSame($this->staff->id, $customer->fresh()->acquired_by_user_id);
         $this->assertSame(0, $this->acquirerAuditCount());
 
         $this->actingAs($this->manager)
             ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
-                'acquired_by_user_id' => $newAcquirer->id,
+                'acquired_by_user_id' => $newAcquirer->public_id,
                 'acquirer_correction_reason' => 'Handed over after the original salesperson left the team.',
             ]))
             ->assertRedirect()
@@ -299,7 +302,7 @@ class CustomerSalesAttributionTest extends TestCase
 
         $this->actingAs($this->manager)
             ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
-                'acquired_by_user_id' => $this->manager->id,
+                'acquired_by_user_id' => $this->manager->public_id,
                 'acquirer_correction_reason' => str_repeat('x', 501),
             ]))
             ->assertInvalid(['acquirer_correction_reason']);
@@ -313,7 +316,7 @@ class CustomerSalesAttributionTest extends TestCase
 
         $this->actingAs($this->manager)
             ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
-                'acquired_by_user_id' => $this->employee('technician')->id,
+                'acquired_by_user_id' => $this->employee('technician')->public_id,
                 'acquirer_correction_reason' => 'Technician took the order.',
             ]))
             ->assertInvalid(['acquired_by_user_id']);
@@ -329,7 +332,7 @@ class CustomerSalesAttributionTest extends TestCase
         $this->actingAs($this->manager)
             ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
                 'name' => 'Renamed While Keeping History',
-                'acquired_by_user_id' => $former->id,
+                'acquired_by_user_id' => $former->public_id,
             ]))
             ->assertRedirect()
             ->assertSessionHasNoErrors();
@@ -358,7 +361,7 @@ class CustomerSalesAttributionTest extends TestCase
     {
         $customer = $this->customerAcquiredBy($this->manager, ['name' => 'Untouched Customer']);
 
-        foreach ([$this->staff->id, null] as $attempt) {
+        foreach ([$this->staff->public_id, null] as $attempt) {
             $this->actingAs($this->staff)
                 ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
                     'name' => 'Hijacked Customer',
@@ -381,13 +384,13 @@ class CustomerSalesAttributionTest extends TestCase
         $unassigned = $this->customerAcquiredBy(null);
 
         $this->actingAs($corrector)
-            ->put(route('admin.customers.update', $unassigned), $this->updatePayload($unassigned, ['acquired_by_user_id' => $this->manager->id]))
+            ->put(route('admin.customers.update', $unassigned), $this->updatePayload($unassigned, ['acquired_by_user_id' => $this->manager->public_id]))
             ->assertForbidden();
         $this->assertNull($unassigned->fresh()->acquired_by_user_id);
 
         $this->actingAs($corrector)
             ->put(route('admin.customers.update', $acquired), $this->updatePayload($acquired, [
-                'acquired_by_user_id' => $this->manager->id,
+                'acquired_by_user_id' => $this->manager->public_id,
                 'acquirer_correction_reason' => 'Account transferred.',
             ]))
             ->assertRedirect()
@@ -401,7 +404,7 @@ class CustomerSalesAttributionTest extends TestCase
         $acquired = $this->customerAcquiredBy($this->staff);
         $unassigned = $this->customerAcquiredBy(null);
 
-        foreach ([[$acquired, $this->manager->id], [$unassigned, $this->manager->id], [$unassigned, 987654], [$acquired, null]] as [$customer, $forged]) {
+        foreach ([[$acquired, $this->manager->public_id], [$unassigned, $this->manager->public_id], [$unassigned, PublicId::new()], [$unassigned, 987654], [$acquired, null]] as [$customer, $forged]) {
             $this->actingAs($editor)
                 ->put(route('admin.customers.update', $customer), $this->updatePayload($customer, [
                     'name' => 'Edited By Editor',
@@ -423,7 +426,7 @@ class CustomerSalesAttributionTest extends TestCase
         $foreignCustomer = $this->customerAcquiredBy(null, company: $this->otherCompany);
 
         $this->actingAs($this->manager)
-            ->put(route('admin.customers.update', $foreignCustomer), $this->updatePayload($foreignCustomer, ['acquired_by_user_id' => $this->staff->id]))
+            ->put(route('admin.customers.update', $foreignCustomer), $this->updatePayload($foreignCustomer, ['acquired_by_user_id' => $this->staff->public_id]))
             ->assertNotFound();
 
         $this->assertNull(Customer::withoutCompany()->find($foreignCustomer->id)->acquired_by_user_id);
@@ -562,8 +565,8 @@ class CustomerSalesAttributionTest extends TestCase
                 'notes' => null,
             ]],
             'subscription' => [
-                'service_package_id' => $this->package->id,
-                'serving_pop_id' => $this->location->id,
+                'service_package_id' => $this->package->public_id,
+                'serving_pop_id' => $this->location->public_id,
                 'billing_day' => 5,
                 'mrc_amount' => null,
                 'otc_installation_fee' => null,

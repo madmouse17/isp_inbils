@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\WhatsApp;
 
+use App\Support\Database\PublicIdColumn;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -56,6 +57,7 @@ class WhatsAppMigrationsTest extends TestCase
             if (! Schema::hasIndex('whatsapp_messages', self::QUOTA_INDEX)) {
                 $quota->up();
             }
+            PublicIdColumn::add(['whatsapp_messages', 'whatsapp_inbound_receipts']);
         }
 
         $this->assertTrue(Schema::hasTable('whatsapp_messages'));

@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -64,7 +65,7 @@ class EmployeeController extends Controller
                     ->where('users.is_active', true)
                     ->whereDoesntHave('employeeProfile'),
                 ['users.name', 'users.email'],
-                fn (User $user): array => ['value' => $user->id, 'label' => $user->name, 'description' => $user->email],
+                fn (User $user): array => ['value' => $user->public_id, 'label' => $user->name, 'description' => $user->email],
             ),
             'filters' => $request->only(['search', 'organization_id', 'status', 'sort', 'direction', 'per_page']),
             'can' => [
@@ -166,7 +167,7 @@ class EmployeeController extends Controller
                         });
                 });
             })
-            ->when($request->input('organization_id'), fn (Builder $q, $organizationId) => $q->where('organization_id', $organizationId))
+            ->when($request->input('organization_id'), fn (Builder $q, $organizationId) => $q->where('organization_id', PublicId::resolveOne(OrganizationUnit::class, $organizationId) ?? 0))
             ->when($request->input('status'), function (Builder $q, string $status): void {
                 if (in_array($status, ['active', 'inactive', 'terminated'], true)) {
                     $q->where('status', $status);

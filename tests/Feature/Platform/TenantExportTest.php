@@ -8,6 +8,7 @@ use App\Models\Platform\TenantExport;
 use App\Models\User;
 use App\Services\Platform\PlatformAuditService;
 use App\Support\Platform\TenantTableRegistry;
+use App\Support\PublicId;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
@@ -92,7 +93,7 @@ class TenantExportTest extends PurgeTestCase
 
     private function link(TenantExport $export, mixed $expiration = null): string
     {
-        return URL::temporarySignedRoute('platform.exports.download', $expiration ?? $export->expires_at ?? now()->addHour(), ['tenantExport' => $export->id]);
+        return URL::temporarySignedRoute('platform.exports.download', $expiration ?? $export->expires_at ?? now()->addHour(), ['tenantExport' => $export->public_id]);
     }
 
     /** @return array<string, string> entry name => contents */
@@ -365,6 +366,7 @@ class TenantExportTest extends PurgeTestCase
         $alpha = $this->buildTenant('ALP', 'Alpha Net');
         $beta = $this->buildTenant('BET', 'Beta Link');
         $alphaAnnouncement = DB::table('announcements')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => $alpha['root']->id,
             'title' => 'Alpha',
             'body' => 'b',
@@ -374,6 +376,7 @@ class TenantExportTest extends PurgeTestCase
             'updated_at' => now(),
         ]);
         $betaLocation = DB::table('locations')->insertGetId([
+            'public_id' => PublicId::new(),
             'company_id' => $beta['root']->id,
             'code' => 'BET-ONLY',
             'name' => 'Beta only',
@@ -490,8 +493,8 @@ class TenantExportTest extends PurgeTestCase
     {
         $location = DB::table('locations')->where('company_id', $company->id)->orderBy('id')->value('id');
         $category = DB::table('service_package_categories')->where('company_id', $company->id)->orderBy('id')->value('id');
-        $announcement = DB::table('announcements')->insertGetId(['company_id' => $company->id, 'title' => 'Info', 'body' => 'b', 'kind' => 'info', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
-        $banner = DB::table('promo_banners')->insertGetId(['company_id' => $company->id, 'title' => 'Promo', 'alt_text' => 'a', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $announcement = DB::table('announcements')->insertGetId(['public_id' => PublicId::new(), 'company_id' => $company->id, 'title' => 'Info', 'body' => 'b', 'kind' => 'info', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $banner = DB::table('promo_banners')->insertGetId(['public_id' => PublicId::new(), 'company_id' => $company->id, 'title' => 'Promo', 'alt_text' => 'a', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
         DB::table('announcement_location')->insert(['announcement_id' => $announcement, 'location_id' => $location]);
         DB::table('announcement_service_package_category')->insert(['announcement_id' => $announcement, 'service_package_category_id' => $category]);
         DB::table('location_promo_banner')->insert(['location_id' => $location, 'promo_banner_id' => $banner]);
@@ -596,7 +599,7 @@ class TenantExportTest extends PurgeTestCase
         $rows = [];
 
         for ($n = 1; $n <= 2150; $n++) {
-            $rows[] = ['log_name' => 'user', 'description' => "bulk {$n}", 'company_id' => $root->id, 'created_at' => now(), 'updated_at' => now()];
+            $rows[] = ['public_id' => PublicId::new(), 'log_name' => 'user', 'description' => "bulk {$n}", 'company_id' => $root->id, 'created_at' => now(), 'updated_at' => now()];
         }
 
         foreach (array_chunk($rows, 500) as $batch) {
@@ -655,6 +658,7 @@ class TenantExportTest extends PurgeTestCase
 
         foreach (['archive', 'cloud'] as $disk) {
             DB::table('media')->insert([
+                'public_id' => PublicId::new(),
                 'model_type' => Company::class,
                 'model_id' => $root->id,
                 'uuid' => (string) Str::uuid(),
@@ -745,6 +749,7 @@ class TenantExportTest extends PurgeTestCase
         $broken->shouldReceive('allFiles')->andThrow(new RuntimeException('S3 is down: '.str_repeat('x', 400)));
         Storage::set('broken', $broken);
         DB::table('media')->insert([
+            'public_id' => PublicId::new(),
             'model_type' => Company::class, 'model_id' => $root->id, 'uuid' => (string) Str::uuid(), 'collection_name' => 'documents', 'name' => 'f', 'file_name' => 'f.pdf',
             'mime_type' => 'application/pdf', 'disk' => 'broken', 'conversions_disk' => 'broken', 'size' => 5, 'manipulations' => '[]',
             'custom_properties' => json_encode(['company_id' => $root->id]), 'generated_conversions' => '[]', 'responsive_images' => '[]', 'created_at' => now(), 'updated_at' => now(),
@@ -831,7 +836,7 @@ class TenantExportTest extends PurgeTestCase
 
         $this->asOperator(false)->get(route('platform.exports.download', $export))->assertForbidden();
         $this->asOperator(false)->get(preg_replace('/signature=[0-9a-f]+/', 'signature='.str_repeat('0', 64), $url))->assertForbidden();
-        $this->asOperator(false)->get(str_replace("/exports/{$export->id}/", "/exports/{$other->id}/", $url))->assertForbidden();
+        $this->asOperator(false)->get(str_replace("/exports/{$export->public_id}/", "/exports/{$other->public_id}/", $url))->assertForbidden();
         $this->asOperator(false)->get(preg_replace('/expires=\d+/', 'expires='.(now()->getTimestamp() + 999999), $url))->assertForbidden();
 
         $this->travel(24)->hours();
@@ -891,14 +896,14 @@ class TenantExportTest extends PurgeTestCase
                 ->has('exports.data', 5)
                 ->where('exports.meta.total', 5)
                 ->where('filters', ['company_id' => null, 'status' => null, 'page' => 1, 'per_page' => 10])
-                ->where('exports.data.0.id', $late->id)
+                ->where('exports.data.0.id', $late->public_id)
                 ->where('exports.data.0.download_url', null)
-                ->where('exports.data.1.id', $running->id)
+                ->where('exports.data.1.id', $running->public_id)
                 ->where('exports.data.1.status', 'running')
                 ->where('exports.data.1.download_url', null)
-                ->where('exports.data.4', fn ($row): bool => $row['id'] === $ready->id
+                ->where('exports.data.4', fn ($row): bool => $row['id'] === $ready->public_id
                     && $row['uuid'] === $ready->uuid
-                    && $row['tenant'] === ['id' => $alpha->id, 'name' => 'Alpha Net', 'code' => 'ALP']
+                    && $row['tenant'] === ['id' => $alpha->public_id, 'name' => 'Alpha Net', 'code' => 'ALP']
                     && $row['status'] === 'ready'
                     && $row['file_size'] === 2048
                     && $row['row_counts'] === ['users' => 2, 'customers' => 3]
@@ -908,7 +913,7 @@ class TenantExportTest extends PurgeTestCase
                     && $row['completed_at'] === '2026-10-20T12:00:00+00:00'
                     && $row['expires_at'] === '2026-10-21T12:00:00+00:00'
                     && is_string($row['download_url'])
-                    && str_contains($row['download_url'], "/platform/exports/{$ready->id}/download?")
+                    && str_contains($row['download_url'], "/platform/exports/{$ready->public_id}/download?")
                     && str_contains($row['download_url'], 'signature=')));
 
         $url = $this->asOperator(false)->get(route('platform.exports.index'))->inertiaProps('exports.data.4.download_url');
@@ -925,12 +930,12 @@ class TenantExportTest extends PurgeTestCase
 
         $page = fn (array $query) => $this->asOperator(false)->get(route('platform.exports.index', $query));
 
-        $page(['company_id' => $alpha['root']->id])->assertInertia(fn (Assert $p) => $p->has('exports.data', 2)->where('filters.company_id', $alpha['root']->id));
+        $page(['company_id' => $alpha['root']->public_id])->assertInertia(fn (Assert $p) => $p->has('exports.data', 2)->where('filters.company_id', $alpha['root']->public_id));
         $page(['status' => 'failed'])->assertInertia(fn (Assert $p) => $p->has('exports.data', 2)->where('filters.status', 'failed'));
-        $page(['company_id' => $alpha['root']->id, 'status' => 'failed'])->assertInertia(fn (Assert $p) => $p->has('exports.data', 1));
+        $page(['company_id' => $alpha['root']->public_id, 'status' => 'failed'])->assertInertia(fn (Assert $p) => $p->has('exports.data', 1));
         $page(['per_page' => 25])->assertInertia(fn (Assert $p) => $p->where('exports.meta.per_page', 25)->where('filters.per_page', 25));
 
-        foreach (['status' => 'gone', 'company_id' => $alpha['child']->id, 'per_page' => 1000, 'page' => 0] as $key => $value) {
+        foreach (['status' => 'gone', 'company_id' => $alpha['child']->public_id, 'per_page' => 1000, 'page' => 0] as $key => $value) {
             $page([$key => $value])->assertSessionHasErrors($key);
         }
     }

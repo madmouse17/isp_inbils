@@ -73,7 +73,7 @@ class NumberSequenceEditorTest extends TestCase
     {
         return $this->actingAs($as ?? $this->admin)
             ->from(route('admin.number-sequences.index'))
-            ->put(route('admin.number-sequences.update', $sequence->id), $this->payload($overrides));
+            ->put(route('admin.number-sequences.update', $sequence->public_id), $this->payload($overrides));
     }
 
     public function test_index_lists_every_registered_entity_sorted_by_label_with_a_preview(): void
@@ -110,7 +110,7 @@ class NumberSequenceEditorTest extends TestCase
                 ->where('tokens.0.token', '{PREFIX}')
                 ->where('tokens.6.token', '{SEQ:5}')
                 ->has('tokens.0.description')
-                ->whereType('sequences.4.id', 'integer')
+                ->whereType('sequences.4.id', 'string')
                 ->whereType('sequences.4.updated_at', 'string')
             );
 

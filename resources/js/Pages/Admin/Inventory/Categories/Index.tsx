@@ -28,7 +28,7 @@ import type { Category, Unit } from '@/types/inventory';
 
 /** A category as the parent picker needs it: every category, not only the page of the table. */
 interface CategoryOption {
-    id: number;
+    id: string;
     code: string;
     name: string;
 }

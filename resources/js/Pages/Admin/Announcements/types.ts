@@ -4,10 +4,10 @@ import type { Paginated } from '@/types';
 export type AnnouncementTab = 'announcements' | 'banners';
 
 /** A location or a package category a row is aimed at. The server sends `code`; a location just picked has its path as `description`. */
-export type Target = { id: number; name: string; code?: string; description?: string };
+export type Target = { id: string; name: string; code?: string; description?: string };
 
 type ContentRow = {
-    id: number;
+    id: string;
     title: string;
     /** `all` or `targeted`. */
     audience: string;

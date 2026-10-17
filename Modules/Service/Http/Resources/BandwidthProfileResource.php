@@ -11,7 +11,7 @@ class BandwidthProfileResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'name' => $this->name,
             'download_mbps' => $this->download_mbps,
             'upload_mbps' => $this->upload_mbps,

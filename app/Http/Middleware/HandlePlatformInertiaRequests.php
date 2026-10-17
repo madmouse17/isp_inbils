@@ -28,7 +28,7 @@ class HandlePlatformInertiaRequests extends Middleware
             ...parent::share($request),
             'platform' => [
                 'admin' => $admin === null ? null : [
-                    'id' => $admin->getKey(),
+                    'id' => $admin->public_id,
                     'name' => $admin->name,
                     'email' => $admin->email,
                     'two_factor_enabled' => $admin->hasTwoFactorEnabled(),

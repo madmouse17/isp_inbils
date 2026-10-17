@@ -17,10 +17,10 @@ class VlanResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'vid' => $this->vid,
             'name' => $this->name,
-            'location' => $this->location === null ? null : ['id' => $this->location->id, 'code' => $this->location->code],
+            'location' => $this->location === null ? null : ['id' => $this->location->public_id, 'code' => $this->location->code],
             'description' => $this->description,
             'prefixes_count' => (int) $this->getAttribute('prefixes_count'),
         ];

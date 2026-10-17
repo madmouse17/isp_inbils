@@ -5,6 +5,7 @@ namespace Tests\Feature\Api\V1\Technician;
 use App\Models\Core\Location;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
@@ -40,11 +41,11 @@ class InventoryRequestWritesTest extends TestCase
         $odp = $this->product($technician, 'ODP Box', 'pcs');
 
         $response = $this->api('POST', 'technician/inventory-requests', [
-            'warehouse_location_id' => $warehouse->id,
+            'warehouse_location_id' => $warehouse->public_id,
             'reason' => 'Pasang baru Blok C',
             'items' => [
-                ['product_id' => $cable->id, 'quantity_requested' => '150.5', 'note' => 'Drop core'],
-                ['product_id' => $odp->id, 'quantity_requested' => 2],
+                ['product_id' => $cable->public_id, 'quantity_requested' => '150.5', 'note' => 'Drop core'],
+                ['product_id' => $odp->public_id, 'quantity_requested' => 2],
             ],
         ], $this->issueToken($technician, 'technician'))
             ->assertCreated()
@@ -61,7 +62,7 @@ class InventoryRequestWritesTest extends TestCase
         $this->assertMatchesRegularExpression('/\S+/', $response->json('data.code'));
 
         $request = InventoryRequest::withoutCompany()->sole();
-        $this->assertSame($request->id, $response->json('data.id'));
+        $this->assertSame($request->public_id, $response->json('data.id'));
         $this->assertSame($technician->id, $request->requested_by);
         $this->assertSame($technician->company_id, $request->company_id);
         $this->assertSame($warehouse->id, $request->warehouse_location_id);
@@ -74,7 +75,7 @@ class InventoryRequestWritesTest extends TestCase
 
         $this->api('GET', 'technician/inventory-requests', token: $this->issueToken($technician, 'technician'))
             ->assertOk()
-            ->assertJsonPath('data.0.id', $request->id)
+            ->assertJsonPath('data.0.id', $request->public_id)
             ->assertJsonPath('data.0.status', 'submitted')
             ->assertJsonPath('data.0.actions.cancel', true);
     }
@@ -85,8 +86,8 @@ class InventoryRequestWritesTest extends TestCase
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
 
         $this->api('POST', 'technician/inventory-requests', [
-            'warehouse_location_id' => $this->location($technician)->id,
-            'items' => [['product_id' => $cable->id, 'quantity_requested' => 1]],
+            'warehouse_location_id' => $this->location($technician)->public_id,
+            'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 1]],
         ], $this->issueToken($technician, 'technician'))->assertCreated();
 
         $this->assertSame('Permintaan material inventaris', InventoryRequest::withoutCompany()->sole()->reason);
@@ -99,36 +100,38 @@ class InventoryRequestWritesTest extends TestCase
         $warehouse = $this->location($technician);
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
         $token = $this->issueToken($technician, 'technician');
-        $item = ['product_id' => $cable->id, 'quantity_requested' => 1];
-        $ok = ['warehouse_location_id' => $warehouse->id, 'items' => [$item]];
+        $item = ['product_id' => $cable->public_id, 'quantity_requested' => 1];
+        $ok = ['warehouse_location_id' => $warehouse->public_id, 'items' => [$item]];
 
         $cases = [
             'warehouse_location_id' => [
                 [...$ok, 'warehouse_location_id' => null],
                 [...$ok, 'warehouse_location_id' => 9999999],
-                [...$ok, 'warehouse_location_id' => $this->location($foreigner)->id],
-                [...$ok, 'warehouse_location_id' => $this->location($technician, ['is_active' => false])->id],
+                [...$ok, 'warehouse_location_id' => PublicId::new()],
+                [...$ok, 'warehouse_location_id' => $this->location($foreigner)->public_id],
+                [...$ok, 'warehouse_location_id' => $this->location($technician, ['is_active' => false])->public_id],
                 [...$ok, 'warehouse_location_id' => 'x'],
             ],
             'reason' => [[...$ok, 'reason' => str_repeat('a', 2001)]],
             'items' => [
                 [...$ok, 'items' => []],
-                ['warehouse_location_id' => $warehouse->id],
+                ['warehouse_location_id' => $warehouse->public_id],
                 [...$ok, 'items' => 'x'],
             ],
             'items.0.product_id' => [
                 [...$ok, 'items' => [['quantity_requested' => 1]]],
                 [...$ok, 'items' => [['product_id' => 9999999, 'quantity_requested' => 1]]],
-                [...$ok, 'items' => [['product_id' => $this->product($foreigner, 'Foreign', 'mtr')->id, 'quantity_requested' => 1]]],
-                [...$ok, 'items' => [['product_id' => $this->product($technician, 'Old', 'mtr', ['is_active' => false])->id, 'quantity_requested' => 1]]],
-                [...$ok, 'items' => [['product_id' => $this->product($technician, 'ONT', 'pcs', ['type' => 'asset'])->id, 'quantity_requested' => 1]]],
+                [...$ok, 'items' => [['product_id' => PublicId::new(), 'quantity_requested' => 1]]],
+                [...$ok, 'items' => [['product_id' => $this->product($foreigner, 'Foreign', 'mtr')->public_id, 'quantity_requested' => 1]]],
+                [...$ok, 'items' => [['product_id' => $this->product($technician, 'Old', 'mtr', ['is_active' => false])->public_id, 'quantity_requested' => 1]]],
+                [...$ok, 'items' => [['product_id' => $this->product($technician, 'ONT', 'pcs', ['type' => 'asset'])->public_id, 'quantity_requested' => 1]]],
             ],
             'items.0.quantity_requested' => [
-                [...$ok, 'items' => [['product_id' => $cable->id]]],
-                [...$ok, 'items' => [['product_id' => $cable->id, 'quantity_requested' => 0]]],
-                [...$ok, 'items' => [['product_id' => $cable->id, 'quantity_requested' => -2]]],
-                [...$ok, 'items' => [['product_id' => $cable->id, 'quantity_requested' => '1.234']]],
-                [...$ok, 'items' => [['product_id' => $cable->id, 'quantity_requested' => 'many']]],
+                [...$ok, 'items' => [['product_id' => $cable->public_id]]],
+                [...$ok, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 0]]],
+                [...$ok, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => -2]]],
+                [...$ok, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => '1.234']]],
+                [...$ok, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 'many']]],
             ],
             'items.0.note' => [[...$ok, 'items' => [[...$item, 'note' => str_repeat('n', 256)]]]],
             'items.1.product_id' => [[...$ok, 'items' => [$item, $item]]],
@@ -156,8 +159,8 @@ class InventoryRequestWritesTest extends TestCase
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $this->api('POST', 'technician/inventory-requests', [
-            'warehouse_location_id' => $this->location($technician)->id,
-            'items' => [['product_id' => $cable->id, 'quantity_requested' => 1]],
+            'warehouse_location_id' => $this->location($technician)->public_id,
+            'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 1]],
         ], $token)->assertForbidden()->assertJsonPath('code', 'forbidden');
 
         $this->assertSame(0, InventoryRequest::withoutCompany()->count());
@@ -171,9 +174,9 @@ class InventoryRequestWritesTest extends TestCase
         foreach (['draft', 'submitted'] as $status) {
             $request = $this->request($technician, $status);
 
-            $this->api('POST', "technician/inventory-requests/{$request->id}/cancel", ['cancellation_reason' => 'Sudah ada stok di mobil'], $token)
+            $this->api('POST', "technician/inventory-requests/{$request->public_id}/cancel", ['cancellation_reason' => 'Sudah ada stok di mobil'], $token)
                 ->assertOk()
-                ->assertJsonPath('data.id', $request->id)
+                ->assertJsonPath('data.id', $request->public_id)
                 ->assertJsonPath('data.status', 'cancelled')
                 ->assertJsonPath('data.actions.cancel', false)
                 ->assertJsonPath('data.items.0.product_name', 'Drop Cable')
@@ -195,12 +198,12 @@ class InventoryRequestWritesTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         $request = $this->request($technician, 'submitted');
 
-        $this->api('POST', "technician/inventory-requests/{$request->id}/cancel", ['cancellation_reason' => str_repeat('a', 1001)], $token)
+        $this->api('POST', "technician/inventory-requests/{$request->public_id}/cancel", ['cancellation_reason' => str_repeat('a', 1001)], $token)
             ->assertStatus(422)
             ->assertJsonValidationErrors(['cancellation_reason'], 'errors');
         $this->assertSame('submitted', $request->fresh()->status);
 
-        $this->api('POST', "technician/inventory-requests/{$request->id}/cancel", token: $token)->assertOk()->assertJsonPath('data.status', 'cancelled');
+        $this->api('POST', "technician/inventory-requests/{$request->public_id}/cancel", token: $token)->assertOk()->assertJsonPath('data.status', 'cancelled');
         $this->assertNull($request->fresh()->cancellation_reason);
     }
 
@@ -212,10 +215,10 @@ class InventoryRequestWritesTest extends TestCase
 
         foreach (['draft' => true, 'submitted' => true, 'approved_reserved' => false, 'preparing' => false, 'ready_for_pickup' => false, 'issued' => false, 'rejected' => false, 'cancelled' => false] as $status => $cancellable) {
             $request = $this->request($technician, $status);
-            $flags[$request->id] = $cancellable;
+            $flags[$request->public_id] = $cancellable;
 
             if (! $cancellable) {
-                $this->api('POST', "technician/inventory-requests/{$request->id}/cancel", token: $token)
+                $this->api('POST', "technician/inventory-requests/{$request->public_id}/cancel", token: $token)
                     ->assertForbidden()
                     ->assertJsonPath('code', 'forbidden');
                 $this->assertSame($status, $request->fresh()->status);
@@ -224,22 +227,45 @@ class InventoryRequestWritesTest extends TestCase
 
         $listed = collect($this->api('GET', 'technician/inventory-requests?per_page=50', token: $token)->assertOk()->json('data'))
             ->mapWithKeys(fn (array $row): array => [$row['id'] => $row['actions']['cancel']])->all();
+        ksort($flags);
         ksort($listed);
         $this->assertSame($flags, $listed);
     }
 
-    public function test_only_the_requester_may_cancel_and_another_company_is_404(): void
+    public function test_a_colleague_and_another_company_get_the_404_of_an_unknown_id_on_a_request_that_is_not_theirs(): void
     {
         $technician = $this->technicianLogin();
         $colleague = $this->technicianLogin($technician->company);
         $stranger = $this->technicianLogin();
         $request = $this->request($technician, 'submitted');
-        $uri = "technician/inventory-requests/{$request->id}/cancel";
+        $uri = "technician/inventory-requests/{$request->public_id}/cancel";
+        $unknown = $this->api('POST', 'technician/inventory-requests/'.PublicId::new().'/cancel', token: $this->issueToken($technician, 'technician'))->assertNotFound()->assertJsonPath('code', 'not_found');
 
-        $this->api('POST', $uri, token: $this->issueToken($colleague, 'technician'))->assertForbidden()->assertJsonPath('code', 'forbidden');
-        $this->api('POST', $uri, ['cancellation_reason' => str_repeat('a', 1001)], $this->issueToken($colleague, 'technician'))->assertForbidden();
-        $this->api('POST', $uri, token: $this->issueToken($stranger, 'technician'))->assertNotFound();
+        // The answer is the unknown id's, byte for byte, and it comes before the body is read (a 1001-character reason would be a 422).
+        foreach ([[], ['cancellation_reason' => str_repeat('a', 1001)]] as $body) {
+            $this->assertSame($unknown->getContent(), $this->api('POST', $uri, $body, $this->issueToken($colleague, 'technician'))->assertNotFound()->getContent());
+            $this->assertSame($unknown->getContent(), $this->api('POST', $uri, $body, $this->issueToken($stranger, 'technician'))->assertNotFound()->getContent());
+        }
+
+        // Whatever the status says: a request the warehouse has taken up must not show a colleague that it exists either.
+        foreach (['approved_reserved', 'issued', 'cancelled'] as $status) {
+            $this->api('POST', 'technician/inventory-requests/'.$this->request($technician, $status)->public_id.'/cancel', token: $this->issueToken($colleague, 'technician'))->assertNotFound();
+        }
+
         $this->api('POST', 'technician/inventory-requests/9999999/cancel', token: $this->issueToken($technician, 'technician'))->assertNotFound();
+        $this->assertSame('submitted', $request->fresh()->status);
+    }
+
+    public function test_a_colleague_who_may_see_every_request_is_refused_with_403_not_hidden(): void
+    {
+        $technician = $this->technicianLogin();
+        $colleague = $this->technicianLogin($technician->company);
+        $colleague->givePermissionTo('inventory.request.view.all');
+        $request = $this->request($technician, 'submitted');
+
+        $this->api('POST', "technician/inventory-requests/{$request->public_id}/cancel", token: $this->issueToken($colleague, 'technician'))
+            ->assertForbidden()
+            ->assertJsonPath('code', 'forbidden');
 
         $this->assertSame('submitted', $request->fresh()->status);
     }
@@ -249,7 +275,7 @@ class InventoryRequestWritesTest extends TestCase
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
         $cable = $this->product($technician, 'Drop Cable', 'mtr');
-        $body = ['warehouse_location_id' => $this->location($technician)->id, 'items' => [['product_id' => $cable->id, 'quantity_requested' => 3]]];
+        $body = ['warehouse_location_id' => $this->location($technician)->public_id, 'items' => [['product_id' => $cable->public_id, 'quantity_requested' => 3]]];
         $key = (string) Str::uuid();
 
         $first = $this->api('POST', 'technician/inventory-requests', $body, $token, ['Idempotency-Key' => $key])->assertCreated();

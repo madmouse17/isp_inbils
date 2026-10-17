@@ -29,6 +29,19 @@
 - Decimal: `decimal(15,2)` for money/qty.
 - Enum: MySQL enum + CHECK constraint (MySQL 8 supports CHECK).
 - Index: composite always starts with `company_id` (tenant scope).
+- Opaque ids (`public_id`): every table whose rows a URL, an API path or a
+  payload names has `public_id char(26) UNIQUE NOT NULL`, a lowercase ULID.
+  The integer `id` stays the primary key and every foreign key; only
+  `public_id` leaves the server. Models use the trait `HasPublicId` (route key
+  = `public_id`, filled on create; a route value that is not a ULID is a 404
+  before any query). Package models (`roles`, `media`, `activity_log`,
+  `personal_access_tokens`) get the same id from the creating hooks in
+  `AppServiceProvider`. Raw writes (seeders, bulk inserts) take
+  `App\Support\PublicId::new()`. New tables put `$table->ulid('public_id')
+  ->unique()` in their `create` migration; existing ones were converted by
+  `PublicIdColumn::add()` (nullable column, chunked backfill, NOT NULL +
+  unique). The list of tables is pinned by `PublicIdInventoryTest`, which also
+  fails for a new `BelongsToCompany` model that lacks the trait.
 
 ## Tables by Module
 

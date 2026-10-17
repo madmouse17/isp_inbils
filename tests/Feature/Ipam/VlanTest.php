@@ -44,9 +44,9 @@ class VlanTest extends TestCase
     public function test_a_duplicate_vid_in_the_same_pop_is_422(): void
     {
         $pop = $this->makeLocation($this->company, 'POP-A', 'pop');
-        $this->register(200, ['location_id' => $pop->id])->assertRedirect();
+        $this->register(200, ['location_id' => $pop->public_id])->assertRedirect();
 
-        $this->register(200, ['location_id' => $pop->id])->assertStatus(422)->assertJsonValidationErrors('vid');
+        $this->register(200, ['location_id' => $pop->public_id])->assertStatus(422)->assertJsonValidationErrors('vid');
 
         $this->assertSame(1, Vlan::query()->where('vid', 200)->count());
     }
@@ -56,8 +56,8 @@ class VlanTest extends TestCase
         $a = $this->makeLocation($this->company, 'POP-A', 'pop');
         $b = $this->makeLocation($this->company, 'POP-B', 'pop');
 
-        $this->register(200, ['location_id' => $a->id])->assertRedirect();
-        $this->register(200, ['location_id' => $b->id])->assertRedirect();
+        $this->register(200, ['location_id' => $a->public_id])->assertRedirect();
+        $this->register(200, ['location_id' => $b->public_id])->assertRedirect();
 
         $this->assertSame(2, Vlan::query()->where('vid', 200)->count());
     }
@@ -76,7 +76,7 @@ class VlanTest extends TestCase
         $pop = $this->makeLocation($this->company, 'POP-A', 'pop');
 
         $this->register(400)->assertRedirect();
-        $this->register(400, ['location_id' => $pop->id])->assertRedirect();
+        $this->register(400, ['location_id' => $pop->public_id])->assertRedirect();
 
         $this->assertSame(2, Vlan::query()->where('vid', 400)->count());
     }
@@ -116,7 +116,7 @@ class VlanTest extends TestCase
     {
         $foreignPop = $this->makeLocation($this->otherCompany(), 'POP-X', 'pop');
 
-        $this->register(600, ['location_id' => $foreignPop->id])->assertStatus(422)->assertJsonValidationErrors('location_id');
+        $this->register(600, ['location_id' => $foreignPop->public_id])->assertStatus(422)->assertJsonValidationErrors('location_id');
     }
 
     public function test_update_changes_the_vlan_and_rechecks_uniqueness_ignoring_itself(): void
@@ -167,7 +167,7 @@ class VlanTest extends TestCase
         $pop = $this->makeLocation($this->company, 'POP-A', 'pop');
         $other = $this->otherCompany();
         $this->inCompany($other, fn () => Vlan::factory()->create(['company_id' => $other->id, 'vid' => 4000]));
-        $this->register(10, ['location_id' => $pop->id, 'description' => 'Voice']);
+        $this->register(10, ['location_id' => $pop->public_id, 'description' => 'Voice']);
         $this->register(20);
         $used = Vlan::query()->where('vid', 20)->firstOrFail();
         IpPrefix::factory()->cidr('10.20.0.0/24')->create(['vlan_id' => $used->id]);
@@ -187,6 +187,7 @@ class VlanTest extends TestCase
                 ->where('vlans.data.1.prefixes_count', 2)
                 ->where('vlans.meta.per_page', 25)
                 ->has('locations', 1)
+                ->where('locations.0.id', $pop->public_id)
                 ->where('can.manage', true));
     }
 }

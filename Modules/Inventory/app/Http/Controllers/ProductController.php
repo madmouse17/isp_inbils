@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -166,7 +167,7 @@ class ProductController extends Controller
     {
         $query = Product::query()
             ->with(['category', 'unit'])
-            ->when($request->input('category_id'), fn (Builder $q, $v) => $q->where('category_id', $v))
+            ->when($request->input('category_id'), fn (Builder $q, $v) => $q->where('category_id', PublicId::resolveOne(Category::class, $v) ?? 0))
             ->when($request->filled('is_active'), fn (Builder $q) => $q->where('is_active', $request->boolean('is_active')))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);

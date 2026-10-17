@@ -13,6 +13,7 @@ use App\Queries\Admin\UserHistoryQuery;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
+use App\Support\RecordNotFound;
 use App\Support\UserDeletionGuard;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -167,7 +168,7 @@ class UserController extends Controller
 
     private function ensureSameCompany(User $user): void
     {
-        abort_unless($user->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($user->company_id === CompanyService::currentId());
     }
 
     /**

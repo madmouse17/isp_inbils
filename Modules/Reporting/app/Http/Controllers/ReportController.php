@@ -9,7 +9,6 @@ use App\Services\Core\CompanyService;
 use App\Support\SearchOptions;
 use Closure;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -46,10 +45,12 @@ class ReportController extends Controller
         ]);
     }
 
-    /** @return Collection<int, ServicePackageCategory> */
-    private function packageCategories(): Collection
+    /** @return list<array{id: string, code: string, name: string, is_active: bool}> */
+    private function packageCategories(): array
     {
-        return ServicePackageCategory::query()->orderBy('sort_order')->orderBy('id')->get(['id', 'code', 'name', 'is_active']);
+        return ServicePackageCategory::query()->orderBy('sort_order')->orderBy('id')->get(['public_id', 'code', 'name', 'is_active'])
+            ->map(fn (ServicePackageCategory $category): array => ['id' => $category->public_id, ...$category->only(['code', 'name', 'is_active'])])
+            ->all();
     }
 
     public function business(ReportFilterRequest $request): InertiaResponse
@@ -76,7 +77,7 @@ class ReportController extends Controller
         $perPage = in_array($request->integer('per_page', 10), [10, 25, 50], true) ? $request->integer('per_page', 10) : 10;
         $page = max(1, $request->integer('page', 1));
         $companyId = (int) CompanyService::currentId();
-        $acquirerId = $request->filled('acquirer_id') ? $request->integer('acquirer_id') : null;
+        $acquirerId = $request->record('acquirer_id')['id'] ?? null;
 
         $report = SalesKpiQuery::execute(
             $companyId,
@@ -85,7 +86,7 @@ class ReportController extends Controller
             $acquirerId,
             $sortBy,
             $sortDir,
-            $request->integer('service_package_category_id') ?: null,
+            $request->record('service_package_category_id')['id'] ?? null,
         );
 
         return Inertia::render('Admin/Reports/Sales', [
@@ -120,9 +121,9 @@ class ReportController extends Controller
     {
         $actor = $request->user();
         TechnicianReportAccess::companyId($actor);
-        $technicianId = TechnicianReportAccess::target($actor, $request->input('technician_id'));
-        $filters = ReportFilters::fromRequest($request, $technicianId);
-        $data = $technicianId ? $filters->payload(ReportType::Technician) : null;
+        $technician = TechnicianReportAccess::target($actor, $request->input('technician_id'));
+        $filters = ReportFilters::fromRequest($request, $technician);
+        $data = $technician ? $filters->payload(ReportType::Technician) : null;
         $eligible = TechnicianPerformanceQuery::eligibleTechnicians($actor);
 
         return Inertia::render('Admin/Reports/Technician', [
@@ -134,9 +135,9 @@ class ReportController extends Controller
                 clone $eligible,
                 ['users.name', 'users.email'],
                 $this->presentUser(...),
-                $technicianId,
+                $technician?->public_id,
             ),
-            'selectedTechnician' => $this->selectedOption($eligible, $technicianId, $this->presentUser(...)),
+            'selectedTechnician' => $this->selectedOption($eligible, $technician?->public_id, $this->presentUser(...)),
             'hasTechnicians' => (clone $eligible)->exists(),
             'filters' => $request->only(['technician_id', 'date_from', 'date_to']),
             'meta' => MetricRegistry::meta(ReportType::Technician),
@@ -173,18 +174,18 @@ class ReportController extends Controller
     public function stockCard(ReportFilterRequest $request): InertiaResponse
     {
         $actor = $request->user();
-        $productId = $request->integer('product_id') ?: null;
-        $locationId = $request->integer('location_id') ?: null;
+        $product = $request->record('product_id');
+        $location = $request->record('location_id');
         $movements = null;
         // The ledger keeps the rows of a deleted product, so the picker must still find it.
         $products = Product::query()->withTrashed();
         $locations = Location::query();
 
-        if ($productId) {
+        if ($product !== null) {
             $paginator = StockCardQuery::execute(
                 (int) CompanyService::currentId(),
-                $productId,
-                $locationId,
+                $product['id'],
+                $location['id'] ?? null,
                 $request->dateFrom(),
                 $request->dateTo(),
                 (string) ($request->input('sort_by') ?? $request->input('sort') ?? 'created_at'),
@@ -201,10 +202,10 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/StockCard', [
             'movements' => $movements,
-            'productOptions' => SearchOptions::for($request, 'product', clone $products, ['name', 'sku'], $this->presentProduct(...), $productId),
-            'selectedProduct' => $this->selectedOption($products, $productId, $this->presentProduct(...)),
-            'locationOptions' => SearchOptions::for($request, 'location', clone $locations, ['name', 'code'], $this->presentLocation(...), $locationId),
-            'selectedLocation' => $this->selectedOption($locations, $locationId, $this->presentLocation(...)),
+            'productOptions' => SearchOptions::for($request, 'product', clone $products, ['name', 'sku'], $this->presentProduct(...), $product['public_id'] ?? null),
+            'selectedProduct' => $this->selectedOption($products, $product['public_id'] ?? null, $this->presentProduct(...)),
+            'locationOptions' => SearchOptions::for($request, 'location', clone $locations, ['name', 'code'], $this->presentLocation(...), $location['public_id'] ?? null),
+            'selectedLocation' => $this->selectedOption($locations, $location['public_id'] ?? null, $this->presentLocation(...)),
             'filters' => [
                 'product_id' => $request->input('product_id'),
                 'location_id' => $request->input('location_id'),
@@ -216,9 +217,9 @@ class ReportController extends Controller
             ],
             'meta' => MetricRegistry::meta(ReportType::StockCard),
             'can' => ['export' => $actor->can('report.export')],
-            'links' => $productId ? [
-                'stocks' => $this->inventoryLink($request, 'admin.stocks.index', $productId, $locationId),
-                'movements' => $this->inventoryLink($request, 'admin.stock-movements.index', $productId, $locationId),
+            'links' => $product !== null ? [
+                'stocks' => $this->inventoryLink($request, 'admin.stocks.index', $product['public_id'], $location['public_id'] ?? null),
+                'movements' => $this->inventoryLink($request, 'admin.stock-movements.index', $product['public_id'], $location['public_id'] ?? null),
             ] : null,
         ]);
     }
@@ -230,7 +231,7 @@ class ReportController extends Controller
         $sortBy = $request->input('sort_by') ?? $request->input('sort') ?? 'created_at';
         $sortDir = $request->input('sort_dir') ?? $request->input('direction') ?? 'desc';
         $perPage = $request->integer('per_page') ?: 25;
-        $userId = $request->integer('user_id') ?: null;
+        $user = $request->record('user_id');
         // User is not company scoped: members come from company_user.
         $members = User::query()->whereIn(
             'users.id',
@@ -238,7 +239,7 @@ class ReportController extends Controller
         );
 
         $paginator = AuditLogQuery::paginate(
-            userId: $userId,
+            userId: $user['id'] ?? null,
             logName: $request->input('log_name'),
             dateFrom: $request->dateFrom(),
             dateTo: $request->dateTo(),
@@ -251,8 +252,8 @@ class ReportController extends Controller
 
         return Inertia::render('Admin/Reports/AuditLog', [
             'data' => AuditLogResource::collection($paginator),
-            'userOptions' => SearchOptions::for($request, 'user', clone $members, ['users.name', 'users.email'], $this->presentUser(...), $userId),
-            'selectedUser' => $this->selectedOption($members, $userId, $this->presentUser(...)),
+            'userOptions' => SearchOptions::for($request, 'user', clone $members, ['users.name', 'users.email'], $this->presentUser(...), $user['public_id'] ?? null),
+            'selectedUser' => $this->selectedOption($members, $user['public_id'] ?? null, $this->presentUser(...)),
             'filters' => [
                 'user_id' => $request->input('user_id'),
                 'log_name' => $request->input('log_name'),
@@ -277,32 +278,32 @@ class ReportController extends Controller
      * a foreign id finds nothing, so its name is never sent.
      *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $base
-     * @param  Closure(Model): array{value: int, label: string, description: ?string}  $present
-     * @return array{value: int, label: string, description: ?string}|null
+     * @param  Closure(Model): array{value: string, label: string, description: ?string}  $present
+     * @return array{value: string, label: string, description: ?string}|null
      */
-    private function selectedOption(Builder $base, ?int $id, Closure $present): ?array
+    private function selectedOption(Builder $base, ?string $publicId, Closure $present): ?array
     {
-        $model = $id === null ? null : (clone $base)->whereKey($id)->first();
+        $model = $publicId === null ? null : (clone $base)->wherePublicId($publicId)->first();
 
         return $model === null ? null : $present($model);
     }
 
-    /** @return array{value: int, label: string, description: ?string} */
+    /** @return array{value: string, label: string, description: ?string} */
     private function presentUser(User $user): array
     {
-        return ['value' => $user->id, 'label' => $user->name, 'description' => $user->email];
+        return ['value' => $user->public_id, 'label' => $user->name, 'description' => $user->email];
     }
 
-    /** @return array{value: int, label: string, description: ?string} */
+    /** @return array{value: string, label: string, description: ?string} */
     private function presentProduct(Product $product): array
     {
-        return ['value' => $product->id, 'label' => $product->name, 'description' => $product->sku];
+        return ['value' => $product->public_id, 'label' => $product->name, 'description' => $product->sku];
     }
 
-    /** @return array{value: int, label: string, description: ?string} */
+    /** @return array{value: string, label: string, description: ?string} */
     private function presentLocation(Location $location): array
     {
-        return ['value' => $location->id, 'label' => $location->name, 'description' => $location->code];
+        return ['value' => $location->public_id, 'label' => $location->name, 'description' => $location->code];
     }
 
     /**
@@ -324,10 +325,10 @@ class ReportController extends Controller
         ];
     }
 
-    private function inventoryLink(ReportFilterRequest $request, string $route, int $productId, ?int $locationId): ?string
+    private function inventoryLink(ReportFilterRequest $request, string $route, string $productPublicId, ?string $locationPublicId): ?string
     {
         return $request->user()->can('inventory.view')
-            ? route($route, array_filter(['product_id' => $productId, 'location_id' => $locationId]), false)
+            ? route($route, array_filter(['product_id' => $productPublicId, 'location_id' => $locationPublicId]), false)
             : null;
     }
 }

@@ -8,19 +8,19 @@ export interface PortalPaymentAttempt {
     status: PaymentAttemptStatus;
     amount: string;
     settled_at: string | null;
-    invoice: { id: number; number: string };
+    invoice: { id: string; number: string };
 }
 
 /** The staff view of an attempt on the invoice page. */
 export interface PaymentAttemptEntry {
-    id: number;
+    id: string;
     order_id: string;
     status: PaymentAttemptStatus;
     status_reason: string | null;
     amount: string;
     transaction_id: string | null;
     payment_type: string | null;
-    payment_id: number | null;
+    payment_id: string | null;
     expires_at: string | null;
     settled_at: string | null;
     created_at: string | null;

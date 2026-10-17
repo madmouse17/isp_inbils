@@ -7,7 +7,6 @@ use App\Http\Resources\NotificationResource;
 use App\Models\User;
 use App\Queries\Admin\DashboardAdminStatsQuery;
 use App\Queries\Admin\DashboardQuery;
-use App\Services\Core\CompanyService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
@@ -25,7 +24,6 @@ class DashboardController extends Controller
         $notifications = DashboardQuery::notifications($user);
 
         $props = [
-            'company' => CompanyService::current(),
             'sections' => DashboardQuery::sections($request),
             'notifications' => NotificationResource::collection($notifications['latest'])
                 ->additional(['unreadCount' => $notifications['unreadCount']]),

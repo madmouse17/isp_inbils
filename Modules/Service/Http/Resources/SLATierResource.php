@@ -11,7 +11,7 @@ class SLATierResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'name' => $this->name,
             'response_time_hours' => $this->response_time_hours,
             'resolution_time_hours' => $this->resolution_time_hours,

@@ -65,7 +65,7 @@ class TicketCustomerScopeTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('tickets.data', 1)
-                ->where('tickets.data.0.id', $this->ticketA->id));
+                ->where('tickets.data.0.id', $this->ticketA->public_id));
     }
 
     public function test_customer_can_view_own_ticket(): void
@@ -79,7 +79,7 @@ class TicketCustomerScopeTest extends TestCase
     {
         $this->actingAs($this->customerA)
             ->get(route('admin.tickets.show', $this->ticketB))
-            ->assertForbidden();
+            ->assertNotFound();
     }
 
     public function test_customer_can_comment_on_own_ticket(): void
@@ -95,7 +95,7 @@ class TicketCustomerScopeTest extends TestCase
     {
         $this->actingAs($this->customerA)
             ->post(route('admin.tickets.comments.store', $this->ticketB), ['body' => 'Intruder'])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertSame(0, $this->ticketB->comments()->count());
     }
@@ -111,7 +111,7 @@ class TicketCustomerScopeTest extends TestCase
             ->post(route('admin.tickets.attachments.store', $this->ticketB), [
                 'file' => UploadedFile::fake()->create('proof.pdf', 10, 'application/pdf'),
             ])
-            ->assertForbidden();
+            ->assertNotFound();
 
         $this->assertCount(0, $this->ticketB->getMedia('attachments'));
     }
@@ -157,7 +157,7 @@ class TicketCustomerScopeTest extends TestCase
     public function test_customer_cannot_create_ticket_for_another_customer(): void
     {
         $this->actingAs($this->customerA)
-            ->post(route('admin.tickets.store'), $this->payload(['customer_id' => $this->ticketB->customer_id]))
+            ->post(route('admin.tickets.store'), $this->payload(['customer_id' => $this->customerPublicId($this->ticketB->customer_id)]))
             ->assertSessionHasErrors('customer_id');
 
         $this->assertSame(0, Ticket::query()->where('title', 'Portal ticket')->count());
@@ -179,7 +179,7 @@ class TicketCustomerScopeTest extends TestCase
         ]);
 
         $this->actingAs($this->customerA)
-            ->post(route('admin.tickets.store'), $this->payload(['subscription_id' => $foreignSubscription->id]))
+            ->post(route('admin.tickets.store'), $this->payload(['subscription_id' => $foreignSubscription->public_id]))
             ->assertSessionHasErrors('subscription_id');
 
         $foreignAsset = NetworkAssetFactory::new()->create([
@@ -193,7 +193,7 @@ class TicketCustomerScopeTest extends TestCase
 
         foreach ([$foreignAsset, $sharedAsset] as $asset) {
             $this->actingAs($this->customerA)
-                ->post(route('admin.tickets.store'), $this->payload(['network_asset_id' => $asset->id]))
+                ->post(route('admin.tickets.store'), $this->payload(['network_asset_id' => $asset->public_id]))
                 ->assertSessionHasErrors('network_asset_id');
         }
 
@@ -210,7 +210,7 @@ class TicketCustomerScopeTest extends TestCase
             ->get(route('admin.tickets.create', ['customer_search' => $own->name]), $this->partialReload('Admin/Tickets/Create', 'customerOptions'))
             ->assertOk()
             ->assertJsonCount(1, 'props.customerOptions')
-            ->assertJsonPath('props.customerOptions.0.value', $own->id);
+            ->assertJsonPath('props.customerOptions.0.value', $own->public_id);
     }
 
     public function test_customer_create_form_offers_no_locations(): void
@@ -236,7 +236,7 @@ class TicketCustomerScopeTest extends TestCase
         $location = $this->makeLocation('LOC-PICK');
 
         $this->actingAs($this->customerA)
-            ->post(route('admin.tickets.store'), $this->payload(['location_id' => $location->id]))
+            ->post(route('admin.tickets.store'), $this->payload(['location_id' => $location->public_id]))
             ->assertRedirect();
 
         $this->assertNull(Ticket::query()->where('title', 'Portal ticket')->firstOrFail()->location_id);
@@ -262,8 +262,8 @@ class TicketCustomerScopeTest extends TestCase
 
         $this->actingAs($this->customerA)
             ->post(route('admin.tickets.store'), $this->payload([
-                'subscription_id' => $subscription->id,
-                'location_id' => $other->id,
+                'subscription_id' => $subscription->public_id,
+                'location_id' => $other->public_id,
             ]))
             ->assertRedirect();
 
@@ -276,8 +276,8 @@ class TicketCustomerScopeTest extends TestCase
 
         $this->actingAs($this->admin)
             ->post(route('admin.tickets.store'), $this->payload([
-                'customer_id' => $this->ticketB->customer_id,
-                'location_id' => $location->id,
+                'customer_id' => $this->customerPublicId($this->ticketB->customer_id),
+                'location_id' => $location->public_id,
             ]))
             ->assertRedirect();
 
@@ -320,10 +320,15 @@ class TicketCustomerScopeTest extends TestCase
             'title' => 'Portal ticket',
             'description' => 'From portal',
             'source' => 'customer',
-            'category_id' => $this->ticketA->category_id,
+            'category_id' => TicketCategory::withoutCompany()->findOrFail($this->ticketA->category_id)->public_id,
             'priority' => 'medium',
-            'customer_id' => $this->customerA->customer->id,
+            'customer_id' => $this->customerA->customer->public_id,
         ], $overrides);
+    }
+
+    private function customerPublicId(int $customerId): string
+    {
+        return Customer::withoutCompany()->findOrFail($customerId)->public_id;
     }
 
     /** @return array{0: User, 1: int} */

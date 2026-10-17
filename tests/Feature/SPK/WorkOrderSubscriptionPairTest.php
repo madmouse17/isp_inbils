@@ -3,8 +3,10 @@
 namespace Tests\Feature\SPK;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrder;
@@ -52,7 +54,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $subscription = $this->subscriptionIn($this->user->company);
 
         $this->actingAs($this->user)
-            ->post(route('admin.spk.store'), $this->payload($type, $subscription->customer_id, $subscription->id))
+            ->post(route('admin.spk.store'), $this->payload($type, $subscription->customer, $subscription))
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
 
@@ -66,7 +68,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $theirs = $this->subscriptionIn($this->user->company);
 
         $this->actingAs($this->user)
-            ->postJson(route('admin.spk.store'), $this->payload($type, $mine->customer_id, $theirs->id))
+            ->postJson(route('admin.spk.store'), $this->payload($type, $mine->customer, $theirs))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -79,7 +81,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $subscription->delete();
 
         $this->actingAs($this->user)
-            ->postJson(route('admin.spk.store'), $this->payload('maintenance', $subscription->customer_id, $subscription->id))
+            ->postJson(route('admin.spk.store'), $this->payload('maintenance', $subscription->customer, $subscription))
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
     }
@@ -89,10 +91,10 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $subscription = $this->subscriptionIn($this->user->company);
 
         $this->actingAs($this->user)
-            ->post(route('admin.spk.store'), $this->payload('maintenance', $subscription->customer_id, null))
+            ->post(route('admin.spk.store'), $this->payload('maintenance', $subscription->customer, null))
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
-        $this->post(route('admin.spk.store'), $this->payload('maintenance', null, $subscription->id))
+        $this->post(route('admin.spk.store'), $this->payload('maintenance', null, $subscription))
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
     }
@@ -104,7 +106,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $workOrder = $this->workOrder($mine);
 
         $this->actingAs($this->user)
-            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer_id, 'subscription_id' => $theirs->id])
+            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $theirs->public_id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -118,11 +120,11 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $workOrder = $this->workOrder($mine);
 
         $this->actingAs($this->user)
-            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'subscription_id' => $theirs->id])
+            ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'subscription_id' => $theirs->public_id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
-        $this->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $theirs->customer_id])
+        $this->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $theirs->customer->public_id])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('subscription_id');
 
@@ -141,7 +143,7 @@ class WorkOrderSubscriptionPairTest extends TestCase
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
 
-        $this->put(route('admin.spk.update', $workOrder), ['title' => 'Judul baru', 'customer_id' => $next->customer_id, 'subscription_id' => $next->id])
+        $this->put(route('admin.spk.update', $workOrder), ['title' => 'Judul baru', 'customer_id' => $next->customer->public_id, 'subscription_id' => $next->public_id])
             ->assertRedirect(route('admin.spk.index'))
             ->assertSessionHasNoErrors();
 
@@ -155,19 +157,23 @@ class WorkOrderSubscriptionPairTest extends TestCase
         $foreign = $this->subscriptionIn($this->other);
         $workOrder = $this->workOrder($mine);
 
-        foreach ([$foreign->id, $foreign->id + 10_000] as $subscriptionId) {
+        $answers = [];
+        foreach (['foreign' => $foreign->public_id, 'unknown' => PublicId::new()] as $case => $subscriptionId) {
             $response = $this->actingAs($this->user)
-                ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer_id, 'subscription_id' => $subscriptionId])
+                ->putJson(route('admin.spk.update', $workOrder), ['title' => 'Ganti', 'customer_id' => $mine->customer->public_id, 'subscription_id' => $subscriptionId])
                 ->assertUnprocessable();
 
             $this->assertCount(1, $response->json('errors.subscription_id'));
+            $answers[$case] = $response->json('errors');
         }
+
+        $this->assertSame($answers['unknown'], $answers['foreign']);
     }
 
     /** @return array<string, mixed> */
-    private function payload(string $type, ?int $customerId, ?int $subscriptionId): array
+    private function payload(string $type, ?Customer $customer, ?ServiceSubscription $subscription): array
     {
-        return ['type' => $type, 'title' => 'Pekerjaan '.$type, 'customer_id' => $customerId, 'subscription_id' => $subscriptionId];
+        return ['type' => $type, 'title' => 'Pekerjaan '.$type, 'customer_id' => $customer?->public_id, 'subscription_id' => $subscription?->public_id];
     }
 
     private function workOrder(ServiceSubscription $subscription): WorkOrder

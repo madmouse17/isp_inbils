@@ -23,7 +23,7 @@ class WarehouseController extends Controller
             ->whereIn('id', Stock::query()->select('location_id'))
             ->orderBy('name')
             ->orderBy('id')
-            ->get(['id', 'name', 'code']);
+            ->get(['id', 'public_id', 'name', 'code']);
 
         return TechnicianWarehouseResource::collection($warehouses);
     }

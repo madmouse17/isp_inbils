@@ -1,6 +1,6 @@
 # QA: device journeys, review, release
 
-Status: ready-for-agent
+Status: done
 Role: qa/reviewer
 Blocked by: 01–06
 Spec: `../spec.md`
@@ -11,7 +11,7 @@ Web gates for 01/02 (PHPUnit, build, E2E), mobile `flutter analyze`/`flutter tes
 
 ## Acceptance criteria
 
-- [ ] All gates green with evidence and screenshots; pushed.
+- [x] All gates green with evidence and screenshots; pushed.
 
 ## Comments
 
@@ -56,3 +56,5 @@ No mobile production defect was found, so no mobile source or test file changed.
 - Device smoke: both apps logged in through Sail API on the rebooted emulator; customer Midtrans redirect reached `app.sandbox.midtrans.com`; theme selectors reported the selected mode through Android semantics.
 
 Not part of this device slice: core package test/analyze, web PHPUnit/E2E, CHANGELOG, commit, or push. Status remains for orchestrator.
+
+2026-10-17, orchestrator: device QA of the redesign (30 screenshots), the field-trip journeys (15), push (11) and the motion recording are all in `docs/user-guide/images/*/redesign/`; mobile `main` = fba0cc0.

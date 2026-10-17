@@ -19,7 +19,7 @@ class TechnicianProductResource extends JsonResource
         $product = $this->resource;
 
         return [
-            'id' => $product->id,
+            'id' => $product->public_id,
             'sku' => $product->sku,
             'name' => $product->name,
             /** @var string|null */

@@ -25,7 +25,7 @@ import { ACTIVE_STATE, TWO_FACTOR_STATE, labelOf } from '@/lib/statuses';
 import type { PageProps, Paginated } from '@/types';
 
 interface UserRow {
-    id: number;
+    id: string;
     name: string;
     email: string;
     roles: string[];

@@ -185,7 +185,7 @@ class ReportDrillTest extends TestCase
             $this->assertTrue($response->inertiaProps('tie_out.matches'), "{$metric} ties out to the figure");
             $this->assertSame($rows, $response->inertiaProps('rows.total'));
             $this->assertEqualsCanonicalizing(
-                array_map(fn (string $name): int => $this->w[$name]->id, $ids),
+                array_map(fn (string $name): string => $this->w[$name]->public_id, $ids),
                 array_column($response->inertiaProps('rows.data'), 'id'),
                 "{$metric} rows",
             );
@@ -245,7 +245,7 @@ class ReportDrillTest extends TestCase
         $lastDay = $this->drill('business', 'revenue_paid', ['date_from' => '2026-01-31', 'date_to' => '2026-01-31']);
 
         $this->assertSame(1, $lastDay->inertiaProps('tie_out.rows'));
-        $this->assertSame((int) $this->w['i_last_day']->id, $lastDay->inertiaProps('rows.data.0.id'));
+        $this->assertSame($this->w['i_last_day']->public_id, $lastDay->inertiaProps('rows.data.0.id'));
         $this->assertTrue($lastDay->inertiaProps('tie_out.matches'));
     }
 
@@ -312,7 +312,7 @@ class ReportDrillTest extends TestCase
 
             $this->assertSame($rows, $response->inertiaProps('tie_out.rows'), $metric);
             $this->assertEqualsCanonicalizing(
-                array_map(fn (string $name): int => $this->w[$name]->id, $ids),
+                array_map(fn (string $name): string => $this->w[$name]->public_id, $ids),
                 array_column($response->inertiaProps('rows.data'), 'id'),
                 $metric,
             );
@@ -328,7 +328,7 @@ class ReportDrillTest extends TestCase
         $this->assertTrue($rate->inertiaProps('tie_out.matches'));
 
         // v1: by_category ignores the period and the category filter of the report.
-        $filtered = [...self::JANUARY, 'category_id' => $this->w['support']->id];
+        $filtered = [...self::JANUARY, 'category_id' => $this->w['support']->public_id];
         foreach (['Support' => 3, 'Outage' => 2] as $category => $count) {
             $response = $this->drill('sla', 'by_category', [...$filtered, 'group' => $category]);
 
@@ -349,13 +349,13 @@ class ReportDrillTest extends TestCase
 
         $rows = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id');
 
-        $this->assertSame('Tepat waktu', $rows[$this->w['t_ontime']->id]['sla']);
-        $this->assertSame('Tepat waktu', $rows[$this->w['t_equal']->id]['sla']);
-        $this->assertSame('Terlambat', $rows[$this->w['t_breach']->id]['sla']);
-        $this->assertSame('Tanpa batas', $rows[$this->w['t_nodeadline']->id]['sla']);
-        $this->assertSame(60, $rows[$this->w['t_ontime']->id]['resolution_minutes']);
-        $this->assertSame(240, $rows[$this->w['t_breach']->id]['resolution_minutes']);
-        $this->assertSame(10, $rows[$this->w['t_ontime']->id]['first_response_minutes']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['t_ontime']->public_id]['sla']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['t_equal']->public_id]['sla']);
+        $this->assertSame('Terlambat', $rows[$this->w['t_breach']->public_id]['sla']);
+        $this->assertSame('Tanpa batas', $rows[$this->w['t_nodeadline']->public_id]['sla']);
+        $this->assertSame(60, $rows[$this->w['t_ontime']->public_id]['resolution_minutes']);
+        $this->assertSame(240, $rows[$this->w['t_breach']->public_id]['resolution_minutes']);
+        $this->assertSame(10, $rows[$this->w['t_ontime']->public_id]['first_response_minutes']);
     }
 
     public function test_sla_response_lists_tie_out_and_rows_show_the_response_outcome(): void
@@ -385,7 +385,7 @@ class ReportDrillTest extends TestCase
 
             $this->assertSame($rows, $response->inertiaProps('tie_out.rows'), $metric);
             $this->assertEqualsCanonicalizing(
-                array_map(fn (string $name): int => $this->w[$name]->id, $ids),
+                array_map(fn (string $name): string => $this->w[$name]->public_id, $ids),
                 array_column($response->inertiaProps('rows.data'), 'id'),
                 $metric,
             );
@@ -400,12 +400,12 @@ class ReportDrillTest extends TestCase
         $this->assertTrue($rate->inertiaProps('tie_out.matches'));
 
         $rows = collect($this->drill('sla', 'total_resolved', self::JANUARY)->inertiaProps('rows.data'))->keyBy('id');
-        $this->assertSame('Tepat waktu', $rows[$this->w['r_early']->id]['response']);
-        $this->assertSame('Tepat waktu', $rows[$this->w['r_equal']->id]['response']);
-        $this->assertSame('Terlambat', $rows[$this->w['r_late']->id]['response']);
-        $this->assertSame('Tanpa target', $rows[$this->w['r_old']->id]['response']);
-        $this->assertSame('Belum ada respons', $rows[$this->w['r_silent']->id]['response']);
-        $this->assertSame('2026-01-12 09:00:00', $rows[$this->w['r_late']->id]['response_deadline']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['r_early']->public_id]['response']);
+        $this->assertSame('Tepat waktu', $rows[$this->w['r_equal']->public_id]['response']);
+        $this->assertSame('Terlambat', $rows[$this->w['r_late']->public_id]['response']);
+        $this->assertSame('Tanpa target', $rows[$this->w['r_old']->public_id]['response']);
+        $this->assertSame('Belum ada respons', $rows[$this->w['r_silent']->public_id]['response']);
+        $this->assertSame('2026-01-12 09:00:00', $rows[$this->w['r_late']->public_id]['response_deadline']);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -450,8 +450,8 @@ class ReportDrillTest extends TestCase
 
         $this->assertSame(1, $response->inertiaProps('tie_out.rows'));
         $this->assertTrue($response->inertiaProps('tie_out.matches'));
-        $this->assertSame((int) $this->w['n_inside']->id, $response->inertiaProps('rows.data.0.id'));
-        $this->assertSame('/admin/network-assets/'.$this->w['n_inside']->network_asset_id, $response->inertiaProps('rows.data.0.url'));
+        $this->assertSame($this->w['n_inside']->public_id, $response->inertiaProps('rows.data.0.id'));
+        $this->assertSame('/admin/network-assets/'.$this->w['n_inside']->asset->public_id, $response->inertiaProps('rows.data.0.url'));
     }
 
     // ---------------------------------------------------------------------------------------------

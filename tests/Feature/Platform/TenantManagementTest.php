@@ -7,6 +7,7 @@ use App\Models\Core\Customer;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -50,7 +51,7 @@ class TenantManagementTest extends TestCase
                 ->where('filters', ['search' => null, 'status' => null, 'sort' => 'name', 'direction' => 'asc', 'per_page' => 10])
                 ->where('summary', ['active' => 1, 'suspended' => 1, 'deletion_requested' => 0, 'unattributed_failed_jobs_7d' => 1])
                 ->has('tenants.data', 2, fn (Assert $row) => $row
-                    ->where('id', $alpha->id)
+                    ->where('id', $alpha->public_id)
                     ->where('name', 'Alpha Net')
                     ->where('code', 'ALP')
                     ->where('status', 'active')
@@ -62,7 +63,7 @@ class TenantManagementTest extends TestCase
                     ->where('failed_jobs_7d', 2)
                     ->where('failed_whatsapp_7d', 1))
                 ->has('tenants.data.1', fn (Assert $row) => $row
-                    ->where('id', $beta->id)
+                    ->where('id', $beta->public_id)
                     ->where('name', 'Beta Link')
                     ->where('code', 'BET')
                     ->where('status', 'suspended')
@@ -184,6 +185,7 @@ class TenantManagementTest extends TestCase
     private function media(?int $companyId, int $size): void
     {
         DB::table('media')->insert([
+            'public_id' => PublicId::new(),
             'model_type' => Company::class,
             'model_id' => $companyId ?? 0,
             'uuid' => (string) fake()->uuid(),
@@ -220,6 +222,7 @@ class TenantManagementTest extends TestCase
     private function failedWhatsApp(int $companyId, string $status, mixed $failedAt): void
     {
         DB::table('whatsapp_messages')->insert([
+            'public_id' => PublicId::new(),
             'company_id' => $companyId,
             'recipient_type' => 'user',
             'recipient_id' => 1,

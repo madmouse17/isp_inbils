@@ -5,7 +5,7 @@ import { Alert, AlertDescription, Button, Input, Modal } from '@/Components/ui';
 interface PonPortsDialogProps {
     onClose: () => void;
     /** The OLT that gets the ports. */
-    olt: { id: number; code: string };
+    olt: { id: string; code: string };
 }
 
 /** Mount it only while open, so each opening starts with the default count and no stale errors. */

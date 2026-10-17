@@ -99,7 +99,7 @@ class DateRangeFiltersTest extends TestCase
                 'customer_id' => $customer->id,
                 'issue_date' => $issueDate,
                 'due_date' => '2026-04-30',
-            ])->id;
+            ])->public_id;
         }
 
         $this->assertInvoiceIds([$ids['2026-03-20'], $ids['2026-03-30']], ['date_from' => '2026-03-20']);
@@ -126,7 +126,7 @@ class DateRangeFiltersTest extends TestCase
     }
 
     /**
-     * @param  list<int>  $expected
+     * @param  list<string>  $expected  public ids
      * @param  array<string, string>  $query
      */
     private function assertInvoiceIds(array $expected, array $query): void
@@ -136,11 +136,11 @@ class DateRangeFiltersTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Billing/Invoices/Index')
-                ->where('invoices.data', fn ($rows) => $this->sortedIds($rows) === $expected));
+                ->where('invoices.data', fn ($rows) => $this->sortedIds($rows) === $this->sorted($expected)));
     }
 
     /**
-     * @param  list<int>  $expected
+     * @param  list<string>  $expected  public ids
      * @param  array<string, string>  $query
      */
     private function assertItemIds(string $route, array $expected, array $query): void
@@ -149,20 +149,29 @@ class DateRangeFiltersTest extends TestCase
             ->get(route($route, $query))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('items.data', fn ($rows) => $this->sortedIds($rows) === $expected));
+                ->where('items.data', fn ($rows) => $this->sortedIds($rows) === $this->sorted($expected)));
     }
 
-    /** @return list<int> */
+    /** @return list<string> */
     private function sortedIds(mixed $rows): array
     {
-        return collect($rows)->pluck('id')->map(fn ($id): int => (int) $id)->sort()->values()->all();
+        return $this->sorted(collect($rows)->pluck('id')->all());
+    }
+
+    /**
+     * @param  list<string>  $ids
+     * @return list<string>
+     */
+    private function sorted(array $ids): array
+    {
+        return collect($ids)->sort()->values()->all();
     }
 
     /**
      * Open tickets created on the given days, oldest first; assigned to the user when $assign is set.
      *
      * @param  list<string>  $days
-     * @return list<int>
+     * @return list<string> public ids
      */
     private function ticketsCreatedOn(array $days, bool $assign): array
     {
@@ -190,7 +199,7 @@ class DateRangeFiltersTest extends TestCase
                 Ticket::query()->whereKey($ticket->id)->update(['assigned_to' => $this->user->id, 'status' => 'assigned']);
             }
             DB::table('tickets')->where('id', $ticket->id)->update(['created_at' => "{$day} 12:00:00"]);
-            $ids[] = (int) $ticket->id;
+            $ids[] = $ticket->public_id;
         }
 
         return $ids;

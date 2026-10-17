@@ -5,6 +5,7 @@ namespace Modules\SPK\Notifications;
 use App\Notifications\Channels\FcmChannel;
 use Carbon\CarbonInterface;
 use Illuminate\Notifications\Notification;
+use Modules\SPK\Models\WorkOrder;
 use Ramsey\Uuid\Uuid;
 
 /**
@@ -43,7 +44,7 @@ class TechnicianEnRouteNotification extends Notification
     {
         return [
             'type' => 'technician_en_route',
-            'work_order_id' => $this->workOrderId,
+            'work_order_id' => WorkOrder::withoutCompany()->whereKey($this->workOrderId)->value('public_id'),
             'company_id' => $this->companyId,
             'technician_first_name' => $this->technicianFirstName,
         ];

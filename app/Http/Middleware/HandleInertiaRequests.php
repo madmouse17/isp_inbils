@@ -49,12 +49,12 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $user ? [
-                    'id' => $user->id,
+                    'id' => $user->public_id,
                     'name' => $user->name,
                     'email' => $user->email,
                     // The company the user acts in now; home_company_id is where they land at login.
-                    'company_id' => CompanyService::idFor($user),
-                    'home_company_id' => $user->company_id,
+                    'company_id' => $company?->public_id,
+                    'home_company_id' => $company !== null && (int) $company->id === (int) $user->company_id ? $company->public_id : $user->company?->public_id,
                     'is_active' => $user->is_active ?? true,
                     'roles' => $user->roles->pluck('name'),
                     'permissions' => $user->getAllPermissions()->pluck('name'),
@@ -65,7 +65,7 @@ class HandleInertiaRequests extends Middleware
             // Technician/customer-only logins use the apps; the few web pages they still reach drop the admin chrome.
             'appOnly' => $user !== null && RedirectAppOnlyRoles::isAppOnly($user),
             'company' => $company ? [
-                'id' => $company->id,
+                'id' => $company->public_id,
                 'name' => $company->name,
                 'code' => $company->code,
                 'logo' => ($logo = $company->getFirstMedia('logo'))
@@ -76,10 +76,10 @@ class HandleInertiaRequests extends Middleware
                 'settings' => $company->settings,
                 'map' => CompanyService::mapDefault($company),
             ] : null,
-            // Hierarchy of the effective company. Separate from `company`: pages such as the dashboard replace that prop.
+            // Hierarchy of the effective company, kept apart from `company` so a page may replace one without the other.
             // can_consolidate costs a query, so only users who may open the consolidated report pay for it.
             'companyHierarchy' => $company ? [
-                'parent_company_id' => $company->parent_company_id,
+                'parent_company_id' => $company->parent?->public_id,
                 'can_consolidate' => $user->can('report.consolidated.view') && $company->isHead(),
             ] : null,
             // The switcher: only offered to a user who may switch and has somewhere to switch to.

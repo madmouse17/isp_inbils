@@ -22,7 +22,7 @@ class TechnicianInventoryRequestResource extends JsonResource
         $source = $inventoryRequest->relationLoaded('source') ? $inventoryRequest->getRelation('source') : null;
 
         return [
-            'id' => $inventoryRequest->id,
+            'id' => $inventoryRequest->public_id,
             'code' => $inventoryRequest->code,
             'status' => $inventoryRequest->status,
             'items' => $inventoryRequest->items->map(fn (InventoryRequestItem $item): array => [
@@ -32,7 +32,7 @@ class TechnicianInventoryRequestResource extends JsonResource
                 'unit' => data_get($item, 'product.unit.symbol') ?? data_get($item, 'product.unit.name'),
                 'quantity' => (float) $item->quantity_requested,
             ])->values()->all(),
-            'work_order' => $source instanceof WorkOrder ? ['id' => $source->id, 'code' => $source->code] : null,
+            'work_order' => $source instanceof WorkOrder ? ['id' => $source->public_id, 'code' => $source->code] : null,
             /** @var string|null */
             'updated_at' => $inventoryRequest->getAttribute('updated_at'),
             'actions' => [

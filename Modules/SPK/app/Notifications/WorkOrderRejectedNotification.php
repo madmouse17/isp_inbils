@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Str;
+use Modules\SPK\Models\WorkOrder;
 
 /**
  * In the technician's bell and on their phone: the reviewer sent the SPK back, with the reason they typed. That reason is
@@ -40,7 +41,7 @@ class WorkOrderRejectedNotification extends Notification implements ShouldQueue
     {
         return [
             'type' => 'spk_rejected',
-            'work_order_id' => $this->workOrderId,
+            'work_order_id' => WorkOrder::withoutCompany()->whereKey($this->workOrderId)->value('public_id'),
             'work_order_code' => $this->workOrderCode,
             'reason' => $this->reason,
             'company_id' => $this->companyId,

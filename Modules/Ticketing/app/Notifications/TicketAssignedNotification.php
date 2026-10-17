@@ -7,6 +7,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Ticketing\Models\Ticket;
 
 class TicketAssignedNotification extends Notification implements ShouldQueueAfterCommit
 {
@@ -28,8 +29,7 @@ class TicketAssignedNotification extends Notification implements ShouldQueueAfte
     {
         return (new MailMessage())
             ->subject('Tiket ditugaskan: '.$this->ticketCode)
-            ->line('Tiket '.$this->ticketCode.' ditugaskan kepada Anda.')
-            ->line('ID tiket: '.$this->ticketId);
+            ->line('Tiket '.$this->ticketCode.' ditugaskan kepada Anda.');
     }
 
     /** @return array<string, mixed> */
@@ -37,7 +37,7 @@ class TicketAssignedNotification extends Notification implements ShouldQueueAfte
     {
         return [
             'type' => 'ticket_assigned',
-            'ticket_id' => $this->ticketId,
+            'ticket_id' => Ticket::withoutCompany()->whereKey($this->ticketId)->value('public_id'),
             'ticket_code' => $this->ticketCode,
             'company_id' => $this->companyId,
         ];

@@ -429,7 +429,7 @@ class WhatsAppPrivacyAndTenantTest extends TestCase
             $this->actingAs($mine['admin']);
             $ids = collect($this->get(route('admin.customers.show', $mine['customer']))->assertOk()->inertiaProps('whatsappMessages'))->pluck('id')->sort()->values()->all();
             $this->assertSame(
-                $this->whatsAppRows($mine['company']->id)->where('recipient_type', 'customer')->pluck('id')->sort()->values()->all(),
+                $this->whatsAppRows($mine['company']->id)->where('recipient_type', 'customer')->pluck('public_id')->sort()->values()->all(),
                 $ids,
                 'the customer page lists the own rows and none of the other company',
             );

@@ -20,8 +20,8 @@ class SubscriptionController extends Controller
 
         $subscriptions = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
-                'servicePackage.category:id,name',
+                'servicePackage:id,public_id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
+                'servicePackage.category:id,public_id,name',
                 'servicePackage.bandwidthProfile:id,download_mbps,upload_mbps',
                 'servicePackage.speedProfile:id,download_max_mbps',
                 'servicePackage.slaTier:id,name,response_time_hours,resolution_time_hours',
@@ -35,7 +35,7 @@ class SubscriptionController extends Controller
         return CustomerSubscriptionResource::collection($subscriptions);
     }
 
-    public function show(Request $request, int $id): CustomerSubscriptionResource
+    public function show(Request $request, string $id): CustomerSubscriptionResource
     {
         $customer = $request->attributes->get(EnsureCustomerAccess::CUSTOMER_ATTRIBUTE);
 
@@ -43,15 +43,16 @@ class SubscriptionController extends Controller
 
         $subscription = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
-                'servicePackage.category:id,name',
+                'servicePackage:id,public_id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
+                'servicePackage.category:id,public_id,name',
                 'servicePackage.bandwidthProfile:id,download_mbps,upload_mbps',
                 'servicePackage.speedProfile:id,download_max_mbps',
                 'servicePackage.slaTier:id,name,response_time_hours,resolution_time_hours',
                 'pppoeAccount:id,subscription_id,service_type,username',
                 'installationAddress:id,address,city,label,lat,lng',
             ])
-            ->findOrFail($id);
+            ->wherePublicId($id)
+            ->firstOrFail();
 
         return new CustomerSubscriptionResource($subscription);
     }

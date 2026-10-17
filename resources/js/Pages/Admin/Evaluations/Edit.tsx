@@ -6,7 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Input, Textarea } fro
 import { PageHeader } from '@/Components/composite';
 
 interface EvalData {
-    id: number;
+    id: string;
     score: string;
     customer_rating?: string | null;
     comment?: string | null;

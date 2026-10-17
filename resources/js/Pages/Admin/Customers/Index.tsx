@@ -40,7 +40,7 @@ import type { Paginated } from '@/types';
 import type { AcquirerOption, CustomerAcquirer } from '@/types/models';
 
 interface CustomerRow {
-    id: number;
+    id: string;
     code: string;
     name: string;
     type: string;
@@ -49,7 +49,7 @@ interface CustomerRow {
     customer_status: string;
     addresses_count?: number;
     subscriptions_count?: number;
-    acquired_by_user_id?: number | null;
+    acquired_by_user_id?: string | null;
     acquirer?: CustomerAcquirer | null;
 }
 

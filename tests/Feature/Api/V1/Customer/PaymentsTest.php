@@ -107,7 +107,7 @@ class PaymentsTest extends TestCase
         return $this->api('GET', 'customer/payments'.$query, token: $this->token);
     }
 
-    /** @return list<int> */
+    /** @return list<string> */
     private function ids(TestResponse $response): array
     {
         return array_column($response->json('data'), 'id');
@@ -133,7 +133,7 @@ class PaymentsTest extends TestCase
 
         $response = $this->history()->assertOk();
 
-        $this->assertSame([$newest->id, $tied->id, $sameMoment->id, $oldest->id], $this->ids($response));
+        $this->assertSame([$newest->public_id, $tied->public_id, $sameMoment->public_id, $oldest->public_id], $this->ids($response));
         $live = DB::table('payments')->whereIn('invoice_id', [$january->id, $february->id, $cancelled->id])->whereNull('cancelled_at')->count();
         $this->assertSame(4, $live);
         $response->assertJsonPath('meta.total', $live);
@@ -151,11 +151,11 @@ class PaymentsTest extends TestCase
         $this->assertSame('Pembayaran online', $item['method_label']);
         $this->assertSame('7-42-abcdef123456', $item['reference']);
         $this->assertEqualsCanonicalizing(['id', 'number'], array_keys($item['invoice']));
-        $this->assertSame($payment->id, $item['id']);
+        $this->assertSame($payment->public_id, $item['id']);
         $this->assertSame('54600.00', $item['amount']);
         $this->assertSame('midtrans', $item['method']);
         $this->assertSame(Carbon::parse('2026-03-05 10:30:00')->toIso8601String(), $item['paid_at']);
-        $this->assertSame(['id' => $invoice->id, 'number' => 'INV-ONE'], $item['invoice']);
+        $this->assertSame(['id' => $invoice->public_id, 'number' => 'INV-ONE'], $item['invoice']);
         $this->assertNoInternalFields($response);
     }
 

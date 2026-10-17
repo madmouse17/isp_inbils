@@ -2,6 +2,7 @@
 
 namespace Modules\SPK\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\ServiceSubscription;
 use App\Rules\MatchesParentAttribute;
 use App\Services\Core\CompanyService;
@@ -14,6 +15,14 @@ use Modules\NetworkAsset\Models\NetworkAssetInstallation;
 
 class StoreWorkOrderItemRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['product_id' => Product::class, 'network_asset_id' => NetworkAsset::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('spk.update') ?? false;

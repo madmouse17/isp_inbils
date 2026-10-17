@@ -6,6 +6,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\Vehicle;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -39,10 +40,10 @@ class CompanySwitchTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
                 ->where('customers.data.0.name', 'Head Customer')
-                ->where('company.id', $this->head->id));
+                ->where('company.id', $this->head->public_id));
         $this->get(route('admin.customers.show', $subCustomer))->assertNotFound();
 
-        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertRedirect(route('admin.dashboard'));
 
         $this->get(route('admin.customers.index'))
@@ -50,25 +51,25 @@ class CompanySwitchTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->has('customers.data', 1)
                 ->where('customers.data.0.name', 'Sub A Customer')
-                ->where('company.id', $this->subA->id));
+                ->where('company.id', $this->subA->public_id));
         $this->get(route('admin.customers.show', $subCustomer))->assertOk();
         $this->get(route('admin.customers.show', $headCustomer))->assertNotFound();
 
-        $this->post(route('admin.company.switch'), ['company_id' => $this->head->id])
+        $this->post(route('admin.company.switch'), ['company_id' => $this->head->public_id])
             ->assertRedirect(route('admin.dashboard'));
 
         $this->get(route('admin.customers.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('customers.data.0.name', 'Head Customer')
-                ->where('company.id', $this->head->id));
+                ->where('company.id', $this->head->public_id));
     }
 
     public function test_rows_written_after_switching_belong_to_the_switched_company(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
 
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
         $this->post(route('admin.vehicles.store'), ['plate_number' => 'B 9999 SUB'])->assertRedirect();
 
         $this->assertSame(
@@ -87,13 +88,13 @@ class CompanySwitchTest extends TestCase
         Customer::factory()->create(['company_id' => $this->subB->id, 'name' => 'Sub B Customer']);
 
         $this->actingAs($user)
-            ->post(route('admin.company.switch'), ['company_id' => $this->subB->id])
+            ->post(route('admin.company.switch'), ['company_id' => $this->subB->public_id])
             ->assertForbidden();
 
         $this->assertNull(session(CompanyService::SESSION_KEY));
         $this->get(route('admin.customers.index'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->has('customers.data', 0)->where('company.id', $this->head->id));
+            ->assertInertia(fn (Assert $page) => $page->has('customers.data', 0)->where('company.id', $this->head->public_id));
         $this->assertSame(0, Activity::query()->where('description', 'company_switched')->count());
     }
 
@@ -102,17 +103,17 @@ class CompanySwitchTest extends TestCase
         $headAdmin = $this->groupUser($this->head);
 
         $this->actingAs($headAdmin)
-            ->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+            ->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertForbidden();
     }
 
     public function test_a_forged_or_unknown_company_id_is_forbidden_without_telling_them_apart(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
-        $unknown = (int) $this->outsider->id + 1000;
+        $unknown = PublicId::new();
 
         $this->actingAs($user);
-        foreach ([$unknown, $this->outsider->id, 0, 'abc'] as $forged) {
+        foreach ([$unknown, $this->outsider->public_id, $this->subA->id, $this->outsider->id, 0, 'abc'] as $forged) {
             $this->post(route('admin.company.switch'), ['company_id' => $forged])->assertForbidden();
         }
         $this->post(route('admin.company.switch'), [])->assertForbidden();
@@ -124,13 +125,13 @@ class CompanySwitchTest extends TestCase
         $staff = $this->groupUser($this->head, 'staff', $this->subA);
 
         $this->actingAs($staff)
-            ->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+            ->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertForbidden();
 
         $manager = $this->groupUser($this->head, 'manager', $this->subA);
 
         $this->actingAs($manager)
-            ->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+            ->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertRedirect(route('admin.dashboard'));
     }
 
@@ -140,13 +141,13 @@ class CompanySwitchTest extends TestCase
         $this->subA->forceFill(['is_active' => false])->save();
 
         $this->actingAs($user)
-            ->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+            ->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertForbidden();
     }
 
     public function test_a_guest_cannot_switch(): void
     {
-        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->id])
+        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id])
             ->assertRedirect(route('login'));
     }
 
@@ -154,7 +155,7 @@ class CompanySwitchTest extends TestCase
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
 
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
 
         $entry = Activity::query()->where('log_name', 'company')->where('description', 'company_switched')->sole();
         $this->assertSame($user->id, $entry->causer_id);
@@ -170,27 +171,27 @@ class CompanySwitchTest extends TestCase
     public function test_a_membership_revoked_mid_session_falls_back_to_the_home_company(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
         $this->assertSame($this->subA->id, session(CompanyService::SESSION_KEY));
 
         app(CompanyMembershipService::class)->revoke($user, $this->subA);
 
         $this->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->head->id));
+            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->head->public_id));
         $this->assertNull(session(CompanyService::SESSION_KEY));
     }
 
     public function test_a_company_deactivated_mid_session_falls_back_to_the_home_company(): void
     {
         $user = $this->groupUser($this->head, 'admin', $this->subA);
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
 
         $this->subA->forceFill(['is_active' => false])->save();
 
         $this->get(route('admin.dashboard'))
             ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->head->id));
+            ->assertInertia(fn (Assert $page) => $page->where('company.id', $this->head->public_id));
     }
 
     public function test_logging_in_starts_in_the_default_company_not_in_a_stale_active_company(): void
@@ -215,26 +216,26 @@ class CompanySwitchTest extends TestCase
         $this->actingAs($user)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('auth.user.company_id', $this->head->id)
-                ->where('auth.user.home_company_id', $this->head->id)
-                ->where('company.id', $this->head->id)
+                ->where('auth.user.company_id', $this->head->public_id)
+                ->where('auth.user.home_company_id', $this->head->public_id)
+                ->where('company.id', $this->head->public_id)
                 ->where('companyHierarchy.can_consolidate', true)
                 ->where('companyHierarchy.parent_company_id', null)
                 ->where('canSwitch', true)
                 ->where('companies', [
-                    ['id' => $this->head->id, 'name' => 'Group Head', 'code' => 'HDQ', 'is_current' => true, 'is_default' => true],
-                    ['id' => $this->subA->id, 'name' => 'Sub A', 'code' => 'SBA', 'is_current' => false, 'is_default' => false],
+                    ['id' => $this->head->public_id, 'name' => 'Group Head', 'code' => 'HDQ', 'is_current' => true, 'is_default' => true],
+                    ['id' => $this->subA->public_id, 'name' => 'Sub A', 'code' => 'SBA', 'is_current' => false, 'is_default' => false],
                 ]));
 
-        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
+        $this->post(route('admin.company.switch'), ['company_id' => $this->subA->public_id]);
 
         $this->get(route('admin.dashboard'))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('auth.user.company_id', $this->subA->id)
-                ->where('auth.user.home_company_id', $this->head->id)
-                ->where('company.id', $this->subA->id)
+                ->where('auth.user.company_id', $this->subA->public_id)
+                ->where('auth.user.home_company_id', $this->head->public_id)
+                ->where('company.id', $this->subA->public_id)
                 ->where('companyHierarchy.can_consolidate', false)
-                ->where('companyHierarchy.parent_company_id', $this->head->id)
+                ->where('companyHierarchy.parent_company_id', $this->head->public_id)
                 ->where('companies.0.is_current', false)
                 ->where('companies.1.is_current', true));
     }
@@ -246,7 +247,7 @@ class CompanySwitchTest extends TestCase
         $this->actingAs($user)->get(route('admin.dashboard'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('company.id', $this->outsider->id)
+                ->where('company.id', $this->outsider->public_id)
                 ->where('companyHierarchy.can_consolidate', false)
                 ->where('canSwitch', false)
                 ->where('companies', []));

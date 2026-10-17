@@ -39,8 +39,10 @@ final class SalesKpiQuery
     private const CHUNK = 1000;
 
     /**
+     * Row and acquirer ids are the acquirers' public ids; the queries behind them stay on integer user ids.
+     *
      * @return array{
-     *     acquirers: list<array{id: int, name: string, is_active: bool}>,
+     *     acquirers: list<array{id: string, name: string, is_active: bool}>,
      *     rows: list<array<string, mixed>>,
      *     unassigned: array<string, mixed>|null,
      *     totals: array<string, mixed>
@@ -138,9 +140,9 @@ final class SalesKpiQuery
 
     /**
      * Eligible acquirers of the company plus every user credited on a customer of the company, soft-deleted
-     * customers included (their cash still counts), by name. Keyed by user id.
+     * customers included (their cash still counts), by name. Keyed by user id; the row's own id is the public id.
      *
-     * @return array<int, array{id: int, name: string, is_active: bool}>
+     * @return array<int, array{id: string, name: string, is_active: bool}>
      */
     private static function acquirers(int $companyId): array
     {
@@ -157,9 +159,9 @@ final class SalesKpiQuery
                 ->orWhereIn('users.id', $credited))
             ->orderBy('users.name')
             ->orderBy('users.id')
-            ->get(['users.id', 'users.name', 'users.is_active'])
+            ->get(['users.id', 'users.public_id', 'users.name', 'users.is_active'])
             ->mapWithKeys(fn (User $user): array => [
-                $user->id => ['id' => $user->id, 'name' => $user->name, 'is_active' => (bool) $user->is_active],
+                $user->id => ['id' => $user->public_id, 'name' => $user->name, 'is_active' => (bool) $user->is_active],
             ])
             ->all();
     }

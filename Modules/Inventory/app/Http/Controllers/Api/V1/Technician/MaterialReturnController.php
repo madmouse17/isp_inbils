@@ -5,6 +5,8 @@ namespace Modules\Inventory\Http\Controllers\Api\V1\Technician;
 use App\Http\Controllers\Controller;
 use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -12,6 +14,7 @@ use Modules\Inventory\Http\Requests\DeclareMaterialReturnRequest;
 use Modules\Inventory\Http\Resources\Api\V1\TechnicianMaterialReturnResource;
 use Modules\Inventory\Models\MaterialReturnCase;
 use Modules\Inventory\Services\MaterialReturnService;
+use Modules\SPK\Models\WorkOrder;
 
 class MaterialReturnController extends Controller
 {
@@ -21,7 +24,7 @@ class MaterialReturnController extends Controller
     {
         Gate::authorize('viewAny', MaterialReturnCase::class);
         $validated = $request->validate([
-            'work_order_id' => ['nullable', 'integer', 'min:1'],
+            'work_order_id' => ['nullable', 'ulid'],
             'status' => ['nullable', 'string', Rule::in(self::STATUSES)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
             'page' => ['nullable', 'integer', 'min:1'],
@@ -29,10 +32,10 @@ class MaterialReturnController extends Controller
 
         $query = $this->baseQuery($request)
             ->when($validated['status'] ?? null, fn ($query, string $status) => $query->where('status', $status))
-            ->when($validated['work_order_id'] ?? null, function ($query, int $workOrderId): void {
+            ->when($validated['work_order_id'] ?? null, function ($query, string $workOrderId): void {
                 $query->whereHas('inventoryRequest', fn ($request) => $request
                     ->where('source_type', 'work_order')
-                    ->where('source_id', $workOrderId));
+                    ->where('source_id', PublicId::resolveOne(WorkOrder::class, $workOrderId) ?? 0));
             })
             ->latest('id');
 
@@ -72,8 +75,8 @@ class MaterialReturnController extends Controller
 
     private function ownCase(Request $request, MaterialReturnCase $case): MaterialReturnCase
     {
-        abort_unless((int) $case->company_id === CompanyService::idFor($request->user()), 404);
-        abort_unless((int) $case->technician_id === (int) $request->user()->id, 404);
+        RecordNotFound::abortUnless((int) $case->company_id === CompanyService::idFor($request->user()));
+        RecordNotFound::abortUnless((int) $case->technician_id === (int) $request->user()->id);
 
         return $case;
     }

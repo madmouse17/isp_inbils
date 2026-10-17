@@ -87,7 +87,7 @@ test.describe('@smoke @reporting-export report export', () => {
             '/admin/reports/business/export',
             '/admin/reports/sla/export',
             '/admin/reports/asset/export',
-            '/admin/reports/stock-card/export?product_id=1',
+            '/admin/reports/stock-card/export?product_id=01arz3ndektsv4rrffq69g5fav',
         ]) {
             expect((await download(page, url)).status, url).toBe(403);
         }
@@ -108,7 +108,7 @@ test.describe('@smoke @reporting-export report export', () => {
     }) => {
         await loginAs(page, 'admin');
         const { props } = await inertiaProps(page, '/admin/products?search=E2E-STOCK-PRODUCT');
-        const product = ((props?.products?.data ?? []) as { id: number; sku: string }[]).find(
+        const product = ((props?.products?.data ?? []) as { id: string; sku: string }[]).find(
             (item) => item.sku === 'E2E-STOCK-PRODUCT',
         );
         expect(product, 'E2E-STOCK-PRODUCT fixture').toBeTruthy();

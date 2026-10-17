@@ -4,7 +4,7 @@ export type PlatformTenantStatus = 'active' | 'suspended' | 'deletion_requested'
 export type TenantExportStatus = 'queued' | 'running' | 'ready' | 'failed' | 'expired';
 
 export type PlatformAdminSummary = {
-    id: number;
+    id: string;
     name: string;
     email: string;
     two_factor_enabled: boolean;
@@ -27,7 +27,7 @@ export type PlatformTenantMetrics = {
 };
 
 export type PlatformTenantRow = PlatformTenantMetrics & {
-    id: number;
+    id: string;
     name: string;
     code: string;
     status: PlatformTenantStatus;
@@ -49,7 +49,7 @@ export type PlatformTenantFilters = {
 };
 
 export type PlatformTenantProfile = {
-    id: number;
+    id: string;
     name: string;
     code: string;
     status: PlatformTenantStatus;
@@ -65,10 +65,10 @@ export type PlatformTenantProfile = {
 };
 
 export type PlatformCompanyUser = {
-    id: number;
+    id: string;
     name: string;
     email: string;
-    company: { id: number; name: string; code: string };
+    company: { id: string; name: string; code: string };
     roles: string[];
     is_active: boolean;
     last_login_at: string | null;
@@ -78,7 +78,7 @@ export type PlatformCompanyUser = {
 };
 
 export type PlatformSubsidiary = {
-    id: number;
+    id: string;
     name: string;
     code: string;
     is_active: boolean;
@@ -88,7 +88,7 @@ export type PlatformSubsidiary = {
 };
 
 export type PlatformAuditRow = {
-    id: number;
+    id: string;
     log_name: string;
     description: string;
     subject_type: string | null;
@@ -98,28 +98,27 @@ export type PlatformAuditRow = {
 };
 
 export type PlatformFailedJob = {
-    id: number;
     uuid: string;
     queue: string;
     job: string | null;
     exception: string;
     failed_at: string;
     /** Only the 30-day support list names the company of each job; the 7-day rows of the detail page do not. */
-    company?: { id: number; code: string };
+    company?: { id: string; code: string };
 };
 
 export type PlatformFailedWhatsApp = {
-    id: number;
+    id: string;
     event: string;
     template: string | null;
     error_code: string | null;
     recipient_last4: string | null;
-    company: { id: number; code: string };
+    company: { id: string; code: string };
     failed_at: string;
 };
 
 export type PlatformTenantExport = {
-    id: number;
+    id: string;
     uuid: string;
     status: TenantExportStatus;
     file_size: number | null;
@@ -132,7 +131,7 @@ export type PlatformTenantExport = {
 };
 
 /** A tenant as a filter lists it and an export row names it. */
-export type PlatformTenantOption = { id: number; name: string; code: string };
+export type PlatformTenantOption = { id: string; name: string; code: string };
 
 /** A row of `Platform/Exports/Index`: the detail row plus its tenant and the signed link (null once it cannot be used). */
 export type PlatformExportRow = PlatformTenantExport & {
@@ -141,27 +140,27 @@ export type PlatformExportRow = PlatformTenantExport & {
 };
 
 export type PlatformExportFilters = {
-    company_id: number | null;
+    company_id: string | null;
     status: TenantExportStatus | null;
     page: number;
     per_page: number;
 };
 
 export type PlatformAuditEntry = {
-    id: number;
+    id: string;
     log_name: string;
     description: string;
-    company: { id: number | null; name: string | null; code: string } | null;
-    causer: { type: 'platform_admin' | 'user'; id: number; name: string | null } | null;
-    subject: { type: string; id: number } | null;
+    company: { id: string | null; name: string | null; code: string } | null;
+    causer: { type: 'platform_admin' | 'user'; id: string; name: string | null } | null;
+    subject: { type: string; id: string } | null;
     properties: Record<string, unknown>;
     batch_uuid: string | null;
     created_at: string;
 };
 
 export type PlatformAuditFilters = {
-    company_id: number | null;
-    platform_admin_id: number | null;
+    company_id: string | null;
+    platform_admin_id: string | null;
     event: string | null;
     date_from: string | null;
     date_to: string | null;
@@ -170,7 +169,7 @@ export type PlatformAuditFilters = {
     per_page: number;
 };
 
-export type PlatformAdminOption = { id: number; name: string };
+export type PlatformAdminOption = { id: string; name: string };
 
 /** One page of a failed-jobs or failed-notifications list, as the support endpoints answer in JSON. */
 export type PlatformFailedPage<T> = {
@@ -207,7 +206,7 @@ export type PlatformCompanyShowProps = {
 };
 
 export type PlatformRole = {
-    id: number;
+    id: string;
     name: string;
     permissions: string[];
     users_count?: number;

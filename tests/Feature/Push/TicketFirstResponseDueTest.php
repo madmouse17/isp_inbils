@@ -85,7 +85,7 @@ class TicketFirstResponseDueTest extends TestCase
         $bell = $this->technician->notifications()->sole();
         $this->assertEqualsCanonicalizing([
             'type' => 'ticket_first_response_due',
-            'ticket_id' => $ticket->id,
+            'ticket_id' => $ticket->public_id,
             'ticket_code' => 'TKT-2026-00042',
             'state' => 'due_soon',
             'company_id' => $ticket->company_id,
@@ -93,7 +93,7 @@ class TicketFirstResponseDueTest extends TestCase
         $this->assertSame([
             'type' => 'ticket_first_response_due',
             'subject_type' => 'ticket',
-            'subject_id' => (string) $ticket->id,
+            'subject_id' => $ticket->public_id,
             'notification_id' => $bell->id,
             'title' => 'Respons pertama segera jatuh tempo',
             'body' => 'Tiket TKT-2026-00042 perlu direspons dalam 30 menit.',

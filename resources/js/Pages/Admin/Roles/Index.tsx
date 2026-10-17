@@ -14,7 +14,7 @@ import { toPagination } from '@/lib/pagination';
 import type { Paginated } from '@/types';
 
 interface RoleRow {
-    id: number;
+    id: string;
     name: string;
     permissions: string[];
     users_count?: number;

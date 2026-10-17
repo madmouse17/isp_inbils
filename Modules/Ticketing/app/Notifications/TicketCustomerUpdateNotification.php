@@ -41,7 +41,7 @@ class TicketCustomerUpdateNotification extends WhatsAppNotification
             default => [...$parameters, $this->formatDate(($ticket->resolved_at ?? now())->copy()->setTimezone($this->companyTimezone()))],
         };
 
-        return $this->payload($this->event(), $parameters, 'ticket', $ticket->id, $this->event().':'.$ticket->id);
+        return $this->payload($this->event(), $parameters, 'ticket', $ticket, $this->event().':'.$ticket->id);
     }
 
     protected function event(): string

@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\StoreCustomerRequest;
 use App\Http\Requests\Admin\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Core\Customer;
+use App\Models\Core\Location;
 use App\Models\Core\WhatsAppMessage;
 use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
@@ -20,8 +21,8 @@ use App\Services\Core\IndonesiaRegionService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\OpenStreetMapGeocoder;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -83,14 +84,14 @@ class CustomerController extends Controller
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->orderBy('name')
-                ->get(['id', 'code', 'name', 'price_mrc', 'price_otc', 'contract_min_months']),
+                ->get(['public_id as id', 'code', 'name', 'price_mrc', 'price_otc', 'contract_min_months']),
             'packageGroups' => ServicePackageOptions::grouped($request->string('customer_type')->toString()),
             'locations' => DB::table('locations')
                 ->where('company_id', CompanyService::currentId())
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->orderBy('name')
-                ->get(['id', 'code', 'name', 'type']),
+                ->get(['public_id as id', 'code', 'name', 'type']),
             'regions' => fn () => IndonesiaRegionService::options(
                 $request->input('region_provinces', []),
                 $request->input('region_cities', []),
@@ -101,9 +102,9 @@ class CustomerController extends Controller
             ),
             'geocodeIndex' => Inertia::optional(fn () => $request->integer('geocode_index')),
             'acquirerOptions' => $canAssignAcquirer ? CustomerAcquirerQuery::options((int) CompanyService::currentId()) : [],
-            'acquirerDefaultId' => $canAssignAcquirer ? CustomerAcquirerQuery::defaultId($request->user()) : null,
+            'acquirerDefaultId' => $canAssignAcquirer && CustomerAcquirerQuery::defaultId($request->user()) !== null ? $request->user()->public_id : null,
             // Free ODP ports under the chosen serving POP; evaluated only on a partial reload that asks for it (query serving_pop_id).
-            ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, $request->integer('serving_pop_id') ?: null)] : []),
+            ...($canAssignDrop ? ['dropPortOptions' => OdnOccupancyQuery::dropPortOptions($request, PublicId::resolveOne(Location::class, $request->query('serving_pop_id')))] : []),
             'can' => ['assignAcquirer' => $canAssignAcquirer, 'assignDrop' => $canAssignDrop],
             'codeSequence' => self::codeSequence(),
         ]);
@@ -228,17 +229,24 @@ class CustomerController extends Controller
      * The customer's latest WhatsApp rows for the customer page: status and reason, never more of the number
      * than its last four digits. Scoped to the current company by the model.
      *
-     * @return Collection<int, WhatsAppMessage>
+     * @return list<array<string, mixed>>
      */
-    private function whatsAppMessages(Customer $customer): Collection
+    private function whatsAppMessages(Customer $customer): array
     {
-        return WhatsAppMessage::query()
+        $messages = WhatsAppMessage::query()
             ->where('recipient_type', 'customer')
             ->where('recipient_id', $customer->id)
             ->latest()
             ->latest('id')
             ->limit(20)
-            ->get(['id', 'event', 'subject_type', 'subject_id', 'status', 'skip_reason', 'error_code', 'recipient_last4', 'created_at', 'delivered_at', 'read_at', 'failed_at']);
+            ->get(['id', 'public_id', 'event', 'subject_type', 'subject_id', 'status', 'skip_reason', 'error_code', 'recipient_last4', 'created_at', 'delivered_at', 'read_at', 'failed_at']);
+        $subjects = PublicId::ofPairs(WhatsAppMessage::subjectModels(), $messages->map(fn (WhatsAppMessage $message): array => [$message->subject_type, $message->subject_id]));
+
+        return $messages->map(fn (WhatsAppMessage $message): array => [
+            'id' => $message->public_id,
+            ...$message->only(['event', 'subject_type', 'status', 'skip_reason', 'error_code', 'recipient_last4', 'created_at', 'delivered_at', 'read_at', 'failed_at']),
+            'subject_id' => $subjects[$message->subject_type.':'.$message->subject_id] ?? null,
+        ])->all();
     }
 
     public function destroy(Request $request, int|string $customer): RedirectResponse
@@ -356,7 +364,8 @@ class CustomerController extends Controller
     private function findForCompany(Request $request, int|string $customer): Customer
     {
         return Customer::forCompany(CompanyService::currentId())
-            ->findOrFail($customer);
+            ->wherePublicId($customer)
+            ->firstOrFail();
     }
 
     private function canOnboard(Request $request): bool
@@ -381,8 +390,8 @@ class CustomerController extends Controller
     {
         if ($acquiredBy === 'unassigned') {
             $query->whereNull('acquired_by_user_id');
-        } elseif (is_string($acquiredBy) && ctype_digit($acquiredBy)) {
-            $query->where('acquired_by_user_id', (int) $acquiredBy);
+        } elseif (is_string($acquiredBy) && ($acquirerId = PublicId::resolveOne(User::class, $acquiredBy)) !== null) {
+            $query->where('acquired_by_user_id', $acquirerId);
         }
     }
 

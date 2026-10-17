@@ -45,7 +45,7 @@ class ProductCodeSequenceTest extends TestCase
     /** @param array<string, mixed> $overrides */
     private function payload(array $overrides = []): array
     {
-        return ['name' => 'Kabel FO', 'category_id' => $this->category->id, ...$overrides];
+        return ['name' => 'Kabel FO', 'category_id' => $this->category->public_id, ...$overrides];
     }
 
     public function test_a_typed_sku_is_kept_by_default(): void

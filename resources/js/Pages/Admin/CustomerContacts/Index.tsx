@@ -20,7 +20,7 @@ import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 
 interface ContactRow {
-    id: number;
+    id: string;
     name: string;
     position?: string | null;
     phone?: string | null;
@@ -30,7 +30,7 @@ interface ContactRow {
 }
 
 interface IndexProps extends Record<string, unknown> {
-    customer: { id: number; code: string; name: string };
+    customer: { id: string; code: string; name: string };
     contacts: {
         data: ContactRow[];
         current_page: number;
@@ -53,7 +53,7 @@ const formDefaults = {
 
 export default function Index({ customer, contacts, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editingId, setEditingId] = useState<number | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const { data, setData, post, put, processing, errors, reset } = useForm(formDefaults);
 
     const {

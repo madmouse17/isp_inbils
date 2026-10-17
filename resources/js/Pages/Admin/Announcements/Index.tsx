@@ -36,7 +36,7 @@ const STATUS_OPTIONS = [{ value: '', label: 'Semua status' }, ...optionsOf(ANNOU
 function confirmations(
     resource: 'announcements' | 'promo-banners',
     noun: string,
-    row: { id: number; title: string },
+    row: { id: string; title: string },
     publishNote: string,
 ): Confirmations {
     return {

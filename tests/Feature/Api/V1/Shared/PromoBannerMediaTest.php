@@ -31,12 +31,12 @@ class PromoBannerMediaTest extends TestCase
         $media = $banner->addMediaFromString(base64_decode(self::PNG))->usingFileName('banner.png')
             ->withCustomProperties(['company_id' => $customer->company_id])->toMediaCollection('promo_banner');
 
-        $this->api('GET', "media/{$media->id}", token: $this->issueToken($user, 'customer'))
+        $this->api('GET', "media/{$media->public_id}", token: $this->issueToken($user, 'customer'))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png');
-        $this->api('GET', "media/{$media->id}", token: $this->issueToken($foreignUser, 'customer'))->assertNotFound();
+        $this->api('GET', "media/{$media->public_id}", token: $this->issueToken($foreignUser, 'customer'))->assertNotFound();
 
         $banner->forceFill(['is_active' => false])->save();
-        $this->api('GET', "media/{$media->id}", token: $this->issueToken($user, 'customer'))->assertNotFound();
+        $this->api('GET', "media/{$media->public_id}", token: $this->issueToken($user, 'customer'))->assertNotFound();
     }
 }

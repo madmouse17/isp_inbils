@@ -4,8 +4,10 @@ namespace Modules\NetworkAsset\Http\Controllers;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
+use App\Models\Core\Customer;
 use App\Models\Core\Location;
 use App\Support\ExportQuery;
+use App\Support\PublicId;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -136,7 +138,7 @@ class NetworkAssetController extends Controller
             ->with(['location', 'customer', 'subscription'])
             ->when($request->input('asset_type'), fn (Builder $q, string $v) => $q->where('asset_type', $v))
             ->when($request->input('status'), fn (Builder $q, string $v) => $q->where('status', $v))
-            ->when($request->input('location_id'), fn (Builder $q, string $v) => $q->where('location_id', $v))
+            ->when($request->input('location_id'), fn (Builder $q, string $v) => $q->where('location_id', PublicId::resolveOne(Location::class, $v, fn (Builder $location) => $location->withTrashed()) ?? 0))
             ->when($request->input('search'), function (Builder $q, string $v): void {
                 $term = trim($v);
 
@@ -200,8 +202,8 @@ class NetworkAssetController extends Controller
 
         return Inertia::render('Admin/NetworkAssets/Edit', [
             'asset' => new NetworkAssetResource($asset),
-            'productOptions' => $this->productOptions($request, $asset->product_id),
-            'locationOptions' => $this->locationOptions($request, $asset->location_id),
+            'productOptions' => $this->productOptions($request, $asset->product?->public_id),
+            'locationOptions' => $this->locationOptions($request, $asset->location?->public_id),
         ]);
     }
 
@@ -333,7 +335,7 @@ class NetworkAssetController extends Controller
         if ($request->filled('customer_id')) {
             $results = NetworkAsset::query()
                 ->with(['location', 'customer', 'subscription'])
-                ->where('customer_id', $request->integer('customer_id'))
+                ->where('customer_id', PublicId::resolveOne(Customer::class, $request->input('customer_id')) ?? 0)
                 ->get();
         }
 
@@ -345,7 +347,7 @@ class NetworkAssetController extends Controller
     }
 
     /** Active products, found by SKU or name; the current one stays in the list on an edit form. */
-    private function productOptions(Request $request, ?int $selected = null): OptionalProp
+    private function productOptions(Request $request, ?string $selected = null): OptionalProp
     {
         return SearchOptions::for(
             $request,
@@ -353,7 +355,7 @@ class NetworkAssetController extends Controller
             Product::query()->where('is_active', true)->with('category:id,name'),
             ['name', 'sku'],
             fn (Product $product): array => [
-                'value' => $product->id,
+                'value' => $product->public_id,
                 'label' => "{$product->sku} - {$product->name}",
                 'description' => $product->category?->name,
             ],
@@ -362,7 +364,7 @@ class NetworkAssetController extends Controller
     }
 
     /** Active locations, found by code, name or path; the current one stays in the list on an edit form. */
-    private function locationOptions(Request $request, ?int $selected = null): OptionalProp
+    private function locationOptions(Request $request, ?string $selected = null): OptionalProp
     {
         return SearchOptions::for(
             $request,
@@ -370,7 +372,7 @@ class NetworkAssetController extends Controller
             Location::query()->where('is_active', true),
             ['code', 'name', 'path'],
             fn (Location $location): array => [
-                'value' => $location->id,
+                'value' => $location->public_id,
                 'label' => "{$location->code} - {$location->name}",
                 'description' => $location->path,
             ],

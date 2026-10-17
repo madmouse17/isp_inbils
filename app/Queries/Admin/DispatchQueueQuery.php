@@ -78,9 +78,9 @@ class DispatchQueueQuery
 
         if ($withRelations) {
             $query->with([
-                'customer:id,code,name',
-                'assignee:id,name',
-                'category:id,name',
+                'customer:id,public_id,code,name',
+                'assignee:id,public_id,name',
+                'category:id,public_id,name',
             ]);
         }
 
@@ -110,10 +110,10 @@ class DispatchQueueQuery
 
         if ($withRelations) {
             $query->with([
-                'customer:id,code,name',
-                'assignee:id,name',
-                'creator:id,name',
-                'items.product:id,name',
+                'customer:id,public_id,code,name',
+                'assignee:id,public_id,name',
+                'creator:id,public_id,name',
+                'items.product:id,public_id,name',
             ]);
         }
 
@@ -302,7 +302,7 @@ class DispatchQueueQuery
     }
 
     /**
-     * @return array<int, array{id: int, name: string, email: string}>
+     * @return array<int, array{id: string, name: string, email: string}>
      */
     public static function eligibleHandlers(Request $request): array
     {
@@ -321,12 +321,13 @@ class DispatchQueueQuery
                     ->orWhereHas('roles.permissions', fn (Builder $pq) => $pq->whereIn('name', ['ticket.start', 'ticket.resolve', 'ticket.close']));
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->toArray();
+            ->get(['id', 'public_id', 'name', 'email'])
+            ->map(fn (User $user): array => ['id' => (string) $user->public_id, 'name' => $user->name, 'email' => $user->email])
+            ->all();
     }
 
     /**
-     * @return array<int, array{id: int, name: string, email: string}>
+     * @return array<int, array{id: string, name: string, email: string}>
      */
     public static function eligibleTechnicians(Request $request): array
     {
@@ -348,8 +349,9 @@ class DispatchQueueQuery
                     ->orWhereHas('roles.permissions', fn (Builder $pq) => $pq->whereIn('name', ['spk.start', 'spk.submit']));
             })
             ->orderBy('name')
-            ->get(['id', 'name', 'email'])
-            ->toArray();
+            ->get(['id', 'public_id', 'name', 'email'])
+            ->map(fn (User $user): array => ['id' => (string) $user->public_id, 'name' => $user->name, 'email' => $user->email])
+            ->all();
     }
 
     private static function applyCommonFilters(Builder $query, Request $request): void

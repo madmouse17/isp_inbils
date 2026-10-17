@@ -12,9 +12,9 @@ class WorkOrderAssignmentResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'technician_id' => $this->technician_id,
-            'assigned_by' => $this->assigned_by,
+            'id' => $this->public_id,
+            'technician_id' => $this->technician?->public_id,
+            'assigned_by' => $this->assigner?->public_id,
             'assigned_at' => $this->assigned_at,
             'unassigned_at' => $this->unassigned_at,
             'reason' => $this->reason,

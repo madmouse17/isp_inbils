@@ -9,6 +9,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\FieldCheckIn;
+use App\Support\RecordNotFound;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Notifications\DatabaseNotification;
@@ -320,18 +321,18 @@ class SpkService
         });
     }
 
-    public static function removeEvidence(WorkOrder $wo, int $mediaId, User $actor): void
+    public static function removeEvidence(WorkOrder $wo, string $mediaPublicId, User $actor): void
     {
-        DB::transaction(function () use ($wo, $mediaId, $actor): void {
+        DB::transaction(function () use ($wo, $mediaPublicId, $actor): void {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
-            $media = $wo->getMedia('evidence')->first(fn (Media $item): bool => (int) $item->id === $mediaId);
-            abort_unless($media instanceof Media, 404);
+            $media = $wo->getMedia('evidence')->first(fn (Media $item): bool => $item->public_id === strtolower($mediaPublicId));
+            RecordNotFound::abortUnless($media instanceof Media);
             Gate::forUser($actor)->authorize('removeEvidence', [$wo, $media]);
 
             $media->delete();
 
-            AuditService::log('work_order', 'evidence_removed', ['media_id' => $mediaId, 'removed_by' => $actor->id], $wo);
+            AuditService::log('work_order', 'evidence_removed', ['media_id' => $media->id, 'removed_by' => $actor->id], $wo);
         });
     }
 
@@ -365,14 +366,14 @@ class SpkService
      * the line is deleted only when nothing else is on it. A reservation or a note keeps it; a serialized asset line
      * is not the app's to touch (it cannot add one either). Withdrawing twice changes nothing.
      */
-    public static function removeMaterial(WorkOrder $wo, int $itemId, User $actor): void
+    public static function removeMaterial(WorkOrder $wo, string $itemPublicId, User $actor): void
     {
-        DB::transaction(function () use ($wo, $itemId, $actor): void {
+        DB::transaction(function () use ($wo, $itemPublicId, $actor): void {
             $wo = self::lockedWorkOrder($wo->id);
             self::assertCompany($wo);
             Gate::forUser($actor)->authorize('submit', $wo);
-            $item = $wo->items()->find($itemId);
-            abort_unless($item instanceof WorkOrderItem, 404);
+            $item = $wo->items()->wherePublicId($itemPublicId)->first();
+            RecordNotFound::abortUnless($item instanceof WorkOrderItem);
             abort_if($item->network_asset_id !== null, 422, 'Baris aset berserial dikelola oleh kantor.');
 
             if ((float) $item->quantity_reserved > 0 || filled($item->note)) {
@@ -649,7 +650,7 @@ class SpkService
 
     private static function assertCompany(WorkOrder $wo): void
     {
-        abort_unless($wo->company_id === self::companyId(), 404);
+        RecordNotFound::abortUnless($wo->company_id === self::companyId());
     }
 
     private static function assertCanonicalExpectedUpdatedAt(mixed $expectedUpdatedAt): void
@@ -692,13 +693,15 @@ class SpkService
     {
         self::assertCapability($ability);
         $actor = Auth::user();
-        abort_unless(
-            $actor !== null
-            && $actor->is_active
-            && CompanyService::idFor($actor) === (int) $wo->company_id
+        abort_unless($actor !== null && $actor->is_active, 403);
+        // Another technician's SPK, or another company's, is a record the caller cannot see, not a refused permission.
+        RecordNotFound::abortUnless(
+            CompanyService::idFor($actor) === (int) $wo->company_id
             && $wo->assigned_to !== null
             && (int) $wo->assigned_to === (int) $actor->id
-            && EmployeeProfile::query()
+        );
+        abort_unless(
+            EmployeeProfile::query()
                 ->where('company_id', $wo->company_id)
                 ->where('user_id', $actor->id)
                 ->where('status', 'active')

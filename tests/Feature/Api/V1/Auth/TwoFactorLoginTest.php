@@ -59,7 +59,7 @@ class TwoFactorLoginTest extends TestCase
         $response = $this->submit($challenge, $this->totp($this->secret))->assertOk();
 
         $response->assertJsonPath('data.token_type', 'Bearer')
-            ->assertJsonPath('data.user.id', $this->user->id)
+            ->assertJsonPath('data.user.id', $this->user->public_id)
             ->assertJsonPath('data.user.app', 'customer')
             ->assertJsonPath('data.user.two_factor_enabled', true);
         $this->assertTrue(Carbon::parse($response->json('data.expires_at'))->equalTo(now()->addDays(90)));

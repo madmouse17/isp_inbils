@@ -41,13 +41,13 @@ class TokenLifecycleTest extends TestCase
         $response = $this->api('GET', 'me', token: $this->issueToken($user, 'customer'))->assertOk();
 
         $this->assertEquals(['data' => [
-            'id' => $user->id,
+            'id' => $user->public_id,
             'name' => 'Rina',
             'email' => 'rina@example.test',
             'app' => 'customer',
             'two_factor_enabled' => true,
             'company' => [
-                'id' => $user->company_id,
+                'id' => $user->company->public_id,
                 'name' => $user->company->name,
                 'logo_url' => null,
                 'brand_color' => null,
@@ -57,7 +57,7 @@ class TokenLifecycleTest extends TestCase
                 'website' => null,
                 'support_hours' => null,
             ],
-            'customer' => ['id' => $customer->id, 'code' => $customer->code, 'name' => $customer->name],
+            'customer' => ['id' => $customer->public_id, 'code' => $customer->code, 'name' => $customer->name],
             'employee' => null,
             'phone' => $customer->phone,
         ]], $response->json());
@@ -240,7 +240,7 @@ class TokenLifecycleTest extends TestCase
         [$user] = $this->customerLogin();
         $phone = $this->issueToken($user, 'customer', 'Pixel 8');
         $lost = $this->issueToken($user, 'customer', 'Lost tablet');
-        $lostId = PersonalAccessToken::findToken($lost)->id;
+        $lostId = PersonalAccessToken::findToken($lost)->public_id;
 
         $this->api('DELETE', "devices/{$lostId}", token: $phone)->assertNoContent();
 
@@ -255,7 +255,7 @@ class TokenLifecycleTest extends TestCase
         [$user] = $this->customerLogin();
         $phone = $this->issueToken($user, 'customer');
 
-        $this->api('DELETE', 'devices/'.PersonalAccessToken::findToken($phone)->id, token: $phone)->assertNoContent();
+        $this->api('DELETE', 'devices/'.PersonalAccessToken::findToken($phone)->public_id, token: $phone)->assertNoContent();
 
         $this->api('GET', 'me', token: $phone)->assertUnauthorized();
     }
@@ -266,7 +266,7 @@ class TokenLifecycleTest extends TestCase
         [$other] = $this->customerLogin();
         $mine = $this->issueToken($user, 'customer');
         $theirs = $this->issueToken($other, 'customer');
-        $theirsId = PersonalAccessToken::findToken($theirs)->id;
+        $theirsId = PersonalAccessToken::findToken($theirs)->public_id;
 
         $this->api('DELETE', "devices/{$theirsId}", token: $mine)->assertNotFound()->assertJsonPath('code', 'not_found');
         $this->api('DELETE', 'devices/99999999', token: $mine)->assertNotFound();
@@ -280,7 +280,7 @@ class TokenLifecycleTest extends TestCase
     {
         [$user] = $this->customerLogin();
         $phone = $this->issueToken($user, 'customer');
-        $lostId = PersonalAccessToken::findToken($this->issueToken($user, 'customer', 'Lost'))->id;
+        $lostId = PersonalAccessToken::findToken($this->issueToken($user, 'customer', 'Lost'))->public_id;
 
         $this->api('DELETE', "devices/{$lostId}", token: $phone, headers: ['Idempotency-Key' => null])->assertStatus(428);
 

@@ -2,14 +2,29 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\InventoryRequest;
 use Modules\Inventory\Models\InventoryRequestItem;
 
 class ApproveInventoryRequestRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'warehouse_location_id' => Location::class,
+            'items.*.id' => InventoryRequestItem::class,
+            'items.*.source_location_id' => Location::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         $request = $this->route('inventory_request');
@@ -20,7 +35,7 @@ class ApproveInventoryRequestRequest extends FormRequest
     protected function failedAuthorization(): void
     {
         if ($this->header('X-Inertia')) {
-            throw new \Illuminate\Http\Exceptions\HttpResponseException(
+            throw new HttpResponseException(
                 back()->withErrors(['error' => 'Permintaan barang tidak dapat disetujui karena status telah berubah atau Anda tidak berwenang.'])
             );
         }

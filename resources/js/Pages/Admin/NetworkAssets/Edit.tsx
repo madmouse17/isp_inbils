@@ -17,15 +17,15 @@ import { PageHeader, RemoteSearchSelect, type RemoteOption } from '@/Components/
 import { NETWORK_ASSET_OWNERSHIP, NETWORK_ASSET_TYPE, optionsOf } from '@/lib/statuses';
 
 interface AssetData {
-    id: number;
+    id: string;
     name: string;
-    product_id?: number | null;
+    product_id?: string | null;
     asset_type: string;
     serial_number?: string | null;
     mac_address?: string | null;
     ip_address?: string | null;
     management_ip?: string | null;
-    location_id?: number | null;
+    location_id?: string | null;
     ownership: string;
     vendor?: string | null;
     model?: string | null;
@@ -33,8 +33,8 @@ interface AssetData {
     purchase_price?: string | null;
     warranty_expiry?: string | null;
     notes?: string | null;
-    product?: { id: number; sku: string; name: string } | null;
-    location?: { id: number; code: string; name: string; path?: string | null } | null;
+    product?: { id: string; sku: string; name: string } | null;
+    location?: { id: string; code: string; name: string; path?: string | null } | null;
 }
 
 interface EditProps extends Record<string, unknown> {

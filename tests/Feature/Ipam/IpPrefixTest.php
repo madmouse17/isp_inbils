@@ -43,7 +43,7 @@ class IpPrefixTest extends TestCase
         $pop = $this->makeLocation($this->company, 'POP-A', 'pop');
         $vlan = Vlan::factory()->create(['vid' => 120]);
 
-        $this->register('10.20.0.5/24', 'customer_static', ['location_id' => $pop->id, 'vlan_id' => $vlan->id, 'description' => 'Customers POP A'])
+        $this->register('10.20.0.5/24', 'customer_static', ['location_id' => $pop->public_id, 'vlan_id' => $vlan->public_id, 'description' => 'Customers POP A'])
             ->assertRedirect(route('admin.ipam.prefixes.index'));
 
         $prefix = $this->prefix('10.20.0.0/24');
@@ -181,8 +181,8 @@ class IpPrefixTest extends TestCase
         $this->putJson(route('admin.ipam.prefixes.update', $prefix), [
             'cidr' => '172.16.0.0/12',
             'usage' => 'customer_dynamic',
-            'location_id' => $pop->id,
-            'vlan_id' => $vlan->id,
+            'location_id' => $pop->public_id,
+            'vlan_id' => $vlan->public_id,
             'description' => 'Dynamic pool',
         ])->assertRedirect();
 
@@ -200,9 +200,9 @@ class IpPrefixTest extends TestCase
         $foreignPop = $this->makeLocation($other, 'POP-X', 'pop');
         $foreignVlan = $this->inCompany($other, fn () => Vlan::factory()->create(['company_id' => $other->id]));
 
-        $this->register('10.20.0.0/24', 'customer_static', ['location_id' => $foreignPop->id])
+        $this->register('10.20.0.0/24', 'customer_static', ['location_id' => $foreignPop->public_id])
             ->assertStatus(422)->assertJsonValidationErrors('location_id');
-        $this->register('10.20.0.0/24', 'customer_static', ['vlan_id' => $foreignVlan->id])
+        $this->register('10.20.0.0/24', 'customer_static', ['vlan_id' => $foreignVlan->public_id])
             ->assertStatus(422)->assertJsonValidationErrors('vlan_id');
 
         $this->assertDatabaseCount('ip_prefixes', 0);
@@ -270,7 +270,7 @@ class IpPrefixTest extends TestCase
     {
         $pop = $this->makeLocation($this->company, 'POP-A', 'pop');
         $this->register('10.20.0.0/16', 'container');
-        $this->register('10.20.0.0/22', 'customer_static', ['location_id' => $pop->id]);
+        $this->register('10.20.0.0/22', 'customer_static', ['location_id' => $pop->public_id]);
         $this->register('10.20.4.0/24', 'customer_dynamic');
         $this->register('2001:db8::/48', 'container');
 
@@ -290,13 +290,14 @@ class IpPrefixTest extends TestCase
                 ->where('prefixes.3.family', 6)
                 ->where('can.manage', true)
                 ->has('locations', 1)
+                ->where('locations.0.id', $pop->public_id)
                 ->has('vlans', 0));
 
         $this->get(route('admin.ipam.prefixes.index', ['family' => 6]))
             ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1)->where('filters.family', '6'));
         $this->get(route('admin.ipam.prefixes.index', ['usage' => 'customer_dynamic']))
             ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1)->where('prefixes.0.cidr', '10.20.4.0/24'));
-        $this->get(route('admin.ipam.prefixes.index', ['location_id' => $pop->id]))
+        $this->get(route('admin.ipam.prefixes.index', ['location_id' => $pop->public_id]))
             ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1)->where('prefixes.0.cidr', '10.20.0.0/22'));
         $this->get(route('admin.ipam.prefixes.index', ['search' => '2001']))
             ->assertInertia(fn (Assert $page) => $page->has('prefixes', 1)->where('prefixes.0.cidr', '2001:db8::/48'));
@@ -342,7 +343,7 @@ class IpPrefixTest extends TestCase
                 ->has('addresses.data', 2)
                 ->where('addresses.data.0.address', '10.20.0.1')
                 ->where('addresses.data.0.holder.type', 'asset')
-                ->where('addresses.data.0.holder.id', $router->id)
+                ->where('addresses.data.0.holder.id', $router->public_id)
                 ->where('addresses.data.0.holder.href', route('admin.network-assets.show', $router, false))
                 ->where('addresses.data.1.address', '10.20.9.9')
                 ->where('addresses.data.1.holder', null)
@@ -370,9 +371,9 @@ class IpPrefixTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->has('locations', 1)
-                ->where('locations.0', ['id' => $pop->id, 'code' => 'POP-A', 'name' => 'POP-A'])
+                ->where('locations.0', ['id' => $pop->public_id, 'code' => 'POP-A', 'name' => 'POP-A'])
                 ->has('vlans', 2)
-                ->where('vlans.0', ['id' => Vlan::query()->where('vid', 110)->value('id'), 'vid' => 110, 'name' => 'Mgmt', 'location_code' => null])
-                ->where('vlans.1', ['id' => $vlan->id, 'vid' => 120, 'name' => 'Customers', 'location_code' => 'POP-A']));
+                ->where('vlans.0', ['id' => Vlan::query()->where('vid', 110)->value('public_id'), 'vid' => 110, 'name' => 'Mgmt', 'location_code' => null])
+                ->where('vlans.1', ['id' => $vlan->public_id, 'vid' => 120, 'name' => 'Customers', 'location_code' => 'POP-A']));
     }
 }

@@ -56,7 +56,7 @@ class TicketAttachmentRemovalTest extends TestCase
             $file = $this->file($ticket, $this->uploader);
 
             $this->actingAs($this->uploader)
-                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file]))
+                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file->public_id]))
                 ->assertRedirect()
                 ->assertSessionHas('success', 'Lampiran berhasil dihapus.');
 
@@ -72,7 +72,7 @@ class TicketAttachmentRemovalTest extends TestCase
         $file = $this->file($ticket, $this->uploader);
 
         $this->actingAs($this->colleague)
-            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file]))
+            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file->public_id]))
             ->assertForbidden();
 
         $this->assertNotNull(Media::query()->find($file->id));
@@ -86,12 +86,12 @@ class TicketAttachmentRemovalTest extends TestCase
         $mine = $this->file($ticket, $this->both);
 
         $this->actingAs($this->both)
-            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $theirs]))
+            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $theirs->public_id]))
             ->assertForbidden();
         $this->assertNotNull(Media::query()->find($theirs->id));
 
         $this->actingAs($this->both)
-            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $mine]))
+            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $mine->public_id]))
             ->assertRedirect();
         $this->assertNull(Media::query()->find($mine->id));
     }
@@ -104,7 +104,7 @@ class TicketAttachmentRemovalTest extends TestCase
 
         foreach ([$theirs, $legacy] as $file) {
             $this->actingAs($this->admin)
-                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file]))
+                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file->public_id]))
                 ->assertForbidden();
             $this->assertNotNull(Media::query()->find($file->id));
         }
@@ -117,7 +117,7 @@ class TicketAttachmentRemovalTest extends TestCase
             $file = $this->file($ticket, $this->uploader);
 
             $this->actingAs($this->uploader)
-                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file]))
+                ->delete(route('admin.tickets.attachments.destroy', [$ticket, $file->public_id]))
                 ->assertForbidden();
 
             $this->assertNotNull(Media::query()->find($file->id), $status);
@@ -132,10 +132,10 @@ class TicketAttachmentRemovalTest extends TestCase
         $foreignFile = $this->file($foreign, $this->uploader);
 
         $this->actingAs($this->uploader)
-            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $elsewhere]))
+            ->delete(route('admin.tickets.attachments.destroy', [$ticket, $elsewhere->public_id]))
             ->assertNotFound();
         $this->actingAs($this->uploader)
-            ->delete(route('admin.tickets.attachments.destroy', [$foreign, $foreignFile]))
+            ->delete(route('admin.tickets.attachments.destroy', [$foreign, $foreignFile->public_id]))
             ->assertNotFound();
 
         $this->assertNotNull(Media::query()->find($elsewhere->id));

@@ -49,10 +49,10 @@ class PortalPaymentReturnTest extends TestCase
     {
         $invoice = $this->invoiceOf($this->customer);
 
-        foreach (['/portal/invoices', "/portal/invoices/{$invoice->id}", '/portal/password'] as $url) {
+        foreach (['/portal/invoices', "/portal/invoices/{$invoice->public_id}", '/portal/password'] as $url) {
             $this->actingAs($this->customerUser)->get($url)->assertNotFound();
         }
-        $this->actingAs($this->customerUser)->post("/portal/invoices/{$invoice->id}/pay")->assertNotFound();
+        $this->actingAs($this->customerUser)->post("/portal/invoices/{$invoice->public_id}/pay")->assertNotFound();
     }
 
     public function test_the_return_page_shows_the_server_state_of_the_customers_own_attempt(): void

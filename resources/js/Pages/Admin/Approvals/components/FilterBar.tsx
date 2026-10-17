@@ -12,7 +12,7 @@ interface FilterBarProps {
     set: (key: string, value: ServerTableFilterValue) => void;
     setMany: (patch: Record<string, ServerTableFilterValue>) => void;
     types: string[];
-    requesters: { id: number; name: string }[];
+    requesters: { id: string; name: string }[];
     onSubmitSearch: (event: FormEvent) => void;
     disabled?: boolean;
 }

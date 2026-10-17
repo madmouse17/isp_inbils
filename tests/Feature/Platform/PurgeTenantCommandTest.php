@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Platform\PlatformAuditService;
 use App\Support\Platform\TenantTableRegistry;
+use App\Support\PublicId;
 use Database\Seeders\DemoDataSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -271,8 +272,8 @@ class PurgeTenantCommandTest extends PurgeTestCase
 
         $location = DB::table('locations')->where('company_id', $company->id)->orderBy('id')->value('id');
         $category = DB::table('service_package_categories')->where('company_id', $company->id)->orderBy('id')->value('id');
-        $announcement = DB::table('announcements')->insertGetId(['company_id' => $company->id, 'title' => 'Info', 'body' => 'b', 'kind' => 'info', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
-        $banner = DB::table('promo_banners')->insertGetId(['company_id' => $company->id, 'title' => 'Promo', 'alt_text' => 'a', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $announcement = DB::table('announcements')->insertGetId(['public_id' => PublicId::new(), 'company_id' => $company->id, 'title' => 'Info', 'body' => 'b', 'kind' => 'info', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
+        $banner = DB::table('promo_banners')->insertGetId(['public_id' => PublicId::new(), 'company_id' => $company->id, 'title' => 'Promo', 'alt_text' => 'a', 'starts_at' => now(), 'created_at' => now(), 'updated_at' => now()]);
         DB::table('announcement_location')->insert(['announcement_id' => $announcement, 'location_id' => $location]);
         DB::table('announcement_service_package_category')->insert(['announcement_id' => $announcement, 'service_package_category_id' => $category]);
         DB::table('location_promo_banner')->insert(['location_id' => $location, 'promo_banner_id' => $banner]);
@@ -296,6 +297,7 @@ class PurgeTenantCommandTest extends PurgeTestCase
     {
         Storage::disk($disk)->put($path, 'bytes');
         DB::table('media')->insert([
+            'public_id' => PublicId::new(),
             'model_type' => $modelType,
             'model_id' => $modelId,
             'uuid' => (string) Str::uuid(),

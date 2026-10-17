@@ -2,14 +2,24 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Models\OdnSplitter;
 
 /** Both keys are optional; a key that is present (even null) is applied, so null disconnects the input. */
 class UpdateSplitterRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['input_port_id' => OdnPort::class];
+    }
+
     public function authorize(): bool
     {
         $splitter = $this->route('splitter');

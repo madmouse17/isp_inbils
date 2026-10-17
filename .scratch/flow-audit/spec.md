@@ -9,8 +9,20 @@ Source: owner 2026-10-16: "setelah task ini semua, lakukan pengujian e2e satu pe
 - Runs AFTER every open lane is merged (platform-superadmin, push-notifications, mobile-redesign 08/09, opaque-ids).
 - **Database: the dev database `inbils` (Sail, http://localhost), never `inbils_test`** (owner 2026-10-16: "lakukan pengujiannya jangan di inbils test tapi langsung di inbils db saja biar saya nanti juga bisa lihat manual sendiri"). FORBIDDEN on `inbils`: `migrate:fresh`, `migrate:refresh`, `db:wipe`, `db:seed` of demo/reset seeders, `RefreshDatabase`/`DatabaseTruncation` traits, `scripts/e2e-setup.mjs`, `tests/e2e/setup.php`, any `TRUNCATE`/`DELETE` cleanup; only `migrate` (additive) is allowed. Nothing is reset or truncated; every flow leaves its records in place, named with the prefix `AUDIT-` or the date so the owner can find them (customer names, SPK titles, ticket titles, announcement titles). The report lists the record codes per flow. Automated suites (PHPUnit/E2E) keep using `inbils_test` and are not part of the audit.
 - Each flow is executed by hand (browser via Playwright scripts or the `browser` helper, apps on the AVD), from the first action to the last side effect (notification, audit row, invoice, stock movement), by the persona who does it in a real ISP. Existing E2E specs are not the audit; they are run once as a regression gate.
+- **UX lens (owner 2026-10-17: "rekomendasi untuk ux experience lebih baik dan tepat … supaya ui dan ux experience lebih bagus dan tepat serta cepat").** Every flow step is also judged on these questions, and each answer that is "no" becomes a UX finding with a concrete recommendation:
+  1. Typing what should be picked: any reference typed by hand (ids, codes, names) instead of chosen from its table with search.
+  2. Long selects: any select with > 7 options that is not searchable; any list the user scrolls instead of filtering.
+  3. Clicks to the goal: count the clicks and screens from the trigger to the done state; flag anything that takes more than the obvious minimum (e.g. create customer → SPK → assign needs 3 screens today).
+  4. Defaults and prefill: fields the system already knows (company default POP, today's date, the only package category, the technician's own employee) but still asks for.
+  5. Feedback: after every action, is the result visible where the user looks (toast + updated row) without reload; are errors next to the field in Indonesian; are destructive actions confirmed once, not twice.
+  6. Speed: pages > 1 s to interact, tables without server search, filters without debounce, forms losing state on validation error, missing loading/skeleton states.
+  7. Consistency: same action named the same everywhere (R6 glossary), same picker component everywhere, same status colours.
+  8. Mobile first-run: can a technician or customer finish the core job (SPK visit / pay a bill / report a problem) in under a minute without help.
+  9. Keyboard and accessibility: can an operator complete the top 5 web flows by keyboard; focus order; 44 px targets on phones.
+  10. Role fit: does the persona see only what they need (no admin noise for staff/technician), and nothing missing for their job.
+  Each UX finding records: flow, step, what it is now, what it should be, benefit (clicks/seconds saved, errors avoided), effort (S/M/L), and a mockup note when the change is visual.
 - Findings are RECORDED, not fixed, except crashes that block the flow (fixed with a test, listed). Each finding: flow, step, what happened, what an ISP would expect, severity (blocker / friction / polish), suggested fix, owner decision needed (yes/no).
-- Output: `docs/plans/FLOW_AUDIT_<date>.md` (Indonesian, for the owner) with one section per flow, screenshots under `docs/plans/flow-audit/`, a summary table at the top, and a proposed order of fixes. Presented to the owner as a grilling round (recommendation per finding).
+- Output: `docs/plans/FLOW_AUDIT_<date>.md` (Indonesian, for the owner) with one section per flow (defects + UX findings), screenshots under `docs/plans/flow-audit/`, a summary table at the top (defects by severity; UX findings ranked by benefit/effort), and a proposed order of fixes. Presented to the owner as a grilling round (recommendation per finding).
 
 ## Flows (in business order)
 

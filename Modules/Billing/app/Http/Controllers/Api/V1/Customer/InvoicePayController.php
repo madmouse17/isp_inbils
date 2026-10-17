@@ -14,7 +14,7 @@ use Modules\Billing\Services\PaymentAttemptService;
 
 class InvoicePayController extends Controller
 {
-    public function __invoke(Request $request, int $id, MidtransGateway $gateway, PaymentAttemptService $attempts): JsonResponse
+    public function __invoke(Request $request, string $id, MidtransGateway $gateway, PaymentAttemptService $attempts): JsonResponse
     {
         $invoice = $this->ownInvoice($request, $id);
 
@@ -34,12 +34,13 @@ class InvoicePayController extends Controller
         ]]);
     }
 
-    private function ownInvoice(Request $request, int $id): Invoice
+    private function ownInvoice(Request $request, string $id): Invoice
     {
         return Invoice::query()
             ->whereBelongsTo($this->customer($request))
             ->whereIn('status', Invoice::CUSTOMER_VISIBLE_STATUSES)
-            ->findOrFail($id);
+            ->wherePublicId($id)
+            ->firstOrFail();
     }
 
     private function customer(Request $request): Customer

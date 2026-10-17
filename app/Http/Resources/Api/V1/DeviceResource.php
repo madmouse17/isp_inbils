@@ -19,7 +19,7 @@ class DeviceResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->resource->id,
+            'id' => $this->resource->public_id,
             'name' => $this->resource->name,
             'app' => $this->resource->abilities[0] ?? null,
             'last_used_at' => $this->resource->last_used_at,

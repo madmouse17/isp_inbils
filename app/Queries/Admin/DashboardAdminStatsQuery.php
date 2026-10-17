@@ -48,7 +48,7 @@ final class DashboardAdminStatsQuery
      *     activeUserCount: int,
      *     roleCount: int,
      *     permissionCount: int,
-     *     recentActivity: list<array{id: int, log_name: string|null, description: string, created_at: string|null}>,
+     *     recentActivity: list<array{id: string, log_name: string|null, description: string, created_at: string|null}>,
      *     modules: list<array{name: string, href: string, count: int}>
      * }
      */
@@ -69,7 +69,7 @@ final class DashboardAdminStatsQuery
                 ->limit(self::RECENT_ACTIVITY_LIMIT)
                 ->get()
                 ->map(fn (Activity $activity): array => [
-                    'id' => $activity->id,
+                    'id' => $activity->public_id,
                     'log_name' => $activity->log_name,
                     'description' => $activity->description,
                     'created_at' => $activity->created_at?->toISOString(),

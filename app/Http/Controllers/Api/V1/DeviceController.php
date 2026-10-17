@@ -25,11 +25,11 @@ class DeviceController extends Controller
     }
 
     /** Only the user's own tokens are looked up: anyone else's id is a plain 404. */
-    public function destroy(Request $request, int $id, ApiTokenService $tokens): Response
+    public function destroy(Request $request, string $id, ApiTokenService $tokens): Response
     {
         $user = $request->user();
 
-        $tokens->revokeToken($user, $user->tokens()->findOrFail($id), 'device_revoked');
+        $tokens->revokeToken($user, $user->tokens()->where('public_id', $id)->firstOrFail(), 'device_revoked');
 
         return response()->noContent();
     }

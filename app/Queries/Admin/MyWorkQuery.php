@@ -60,8 +60,9 @@ class MyWorkQuery
 
         if ($withRelations) {
             $query->with([
-                'customer:id,code,name',
-                'category:id,name',
+                'customer:id,public_id,code,name',
+                'assignee:id,public_id,name',
+                'category:id,public_id,name',
             ]);
         }
 
@@ -91,9 +92,10 @@ class MyWorkQuery
 
         if ($withRelations) {
             $query->with([
-                'customer:id,code,name',
-                'creator:id,name',
-                'items.product:id,name',
+                'customer:id,public_id,code,name',
+                'assignee:id,public_id,name',
+                'creator:id,public_id,name',
+                'items.product:id,public_id,name',
             ]);
         }
 

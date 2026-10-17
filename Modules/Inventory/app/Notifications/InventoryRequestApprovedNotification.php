@@ -6,9 +6,11 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Modules\Inventory\Notifications\Concerns\LinksToInventoryRequest;
 
 class InventoryRequestApprovedNotification extends Notification implements ShouldQueue
 {
+    use LinksToInventoryRequest;
     use Queueable;
 
     public function __construct(
@@ -31,7 +33,7 @@ class InventoryRequestApprovedNotification extends Notification implements Shoul
             ->subject('Permintaan Barang Disetujui: '.$this->requestCode)
             ->line('Permintaan barang Anda telah disetujui dan stok telah direservasi.')
             ->line('Kode Permintaan: '.$this->requestCode)
-            ->action('Lihat Detail', url('/admin/inventory/requests/'.$this->requestId));
+            ->action('Lihat Detail', $this->requestUrl());
     }
 
     /** @return array<string, mixed> */
@@ -39,7 +41,7 @@ class InventoryRequestApprovedNotification extends Notification implements Shoul
     {
         return [
             'type' => 'inventory_request_approved',
-            'request_id' => $this->requestId,
+            'request_id' => $this->requestPublicId(),
             'request_code' => $this->requestCode,
             'company_id' => $this->companyId,
         ];

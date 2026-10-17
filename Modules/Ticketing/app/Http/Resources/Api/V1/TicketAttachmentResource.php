@@ -30,7 +30,7 @@ class TicketAttachmentResource extends JsonResource
         $ticket = $this->resource->model;
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'file_name' => $this->file_name,
             'mime_type' => $this->mime_type,
             'size' => $this->size,

@@ -2,13 +2,23 @@
 
 namespace Modules\SPK\Http\Requests\Api\V1;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Inventory\Models\Product;
 use Modules\SPK\Models\WorkOrder;
 
 class AddWorkOrderItemRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['product_id' => Product::class];
+    }
+
     /**
      * The technician who may submit this SPK, so only the assigned one while it is in progress. Asked before the
      * body is validated: a colleague gets 403, never a 422 about the product.
@@ -25,6 +35,7 @@ class AddWorkOrderItemRequest extends FormRequest
     {
         return [
             // A serialized asset needs a chosen unit, which the app cannot pick: the web adds those.
+            /** @var string */
             'product_id' => ['required', 'integer', Rule::exists('products', 'id')
                 ->where('company_id', CompanyService::currentId())
                 ->where('is_active', true)

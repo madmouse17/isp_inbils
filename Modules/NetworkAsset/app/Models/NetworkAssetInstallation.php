@@ -7,11 +7,13 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use LogicException;
+use Modules\SPK\Models\WorkOrder;
 
 /**
  * @property int $id
@@ -31,6 +33,7 @@ class NetworkAssetInstallation extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
 
     protected $table = 'network_asset_installations';
 
@@ -104,5 +107,10 @@ class NetworkAssetInstallation extends Model
     public function installer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'installed_by');
+    }
+
+    public function workOrder(): BelongsTo
+    {
+        return $this->belongsTo(WorkOrder::class, 'spk_id');
     }
 }

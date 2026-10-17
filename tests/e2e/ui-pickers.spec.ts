@@ -483,7 +483,7 @@ test.describe('@ui-pickers RemoteSearchSelect', () => {
 
         await field.fill('default');
         await page.getByRole('option', { name: /Default POP/ }).click();
-        await expect(status).toHaveText(/^Nilai terkirim: \d+$/);
+        await expect(status).toHaveText(/^Nilai terkirim: [0-9A-HJKMNP-TV-Z]{26}$/i);
         const chosen = await status.textContent();
         await expect(field).toHaveValue('Default POP');
 

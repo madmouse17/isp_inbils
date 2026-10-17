@@ -250,8 +250,8 @@ class StockPermissionTest extends TestCase
     private function adjustPayload(int $quantity = 1): array
     {
         return [
-            'product_id' => $this->product->id,
-            'location_id' => $this->locationA->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $this->locationA->public_id,
             'new_quantity' => $quantity,
             'note' => 'permission check',
         ];
@@ -263,9 +263,9 @@ class StockPermissionTest extends TestCase
     private function transferPayload(): array
     {
         return [
-            'product_id' => $this->product->id,
-            'from_location_id' => $this->locationA->id,
-            'to_location_id' => $this->locationB->id,
+            'product_id' => $this->product->public_id,
+            'from_location_id' => $this->locationA->public_id,
+            'to_location_id' => $this->locationB->public_id,
             'quantity' => 1,
         ];
     }
@@ -276,8 +276,8 @@ class StockPermissionTest extends TestCase
     private function receivePayload(): array
     {
         return [
-            'product_id' => $this->product->id,
-            'location_id' => $this->locationA->id,
+            'product_id' => $this->product->public_id,
+            'location_id' => $this->locationA->public_id,
             'quantity' => 3,
             'note' => 'PO-PERM-001',
         ];

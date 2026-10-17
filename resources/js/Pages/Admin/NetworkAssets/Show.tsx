@@ -36,7 +36,7 @@ import type {
 } from '@/types/network-asset';
 
 interface InstallRow {
-    id: number;
+    id: string;
     installed_at: string;
     removed_at?: string | null;
     removal_reason?: string | null;
@@ -44,8 +44,8 @@ interface InstallRow {
 }
 
 interface AssetData {
-    id: number;
-    product_id?: number | null;
+    id: string;
+    product_id?: string | null;
     code: string;
     name: string;
     asset_type: NetworkAssetType;
@@ -62,8 +62,8 @@ interface AssetData {
     retired_at?: string | null;
     location?: { name: string; path?: string } | null;
     product?: { sku: string; name: string } | null;
-    customer?: { id: number; name: string; code: string } | null;
-    subscription?: { id: number; code: string } | null;
+    customer?: { id: string; name: string; code: string } | null;
+    subscription?: { id: string; code: string } | null;
     installations?: InstallRow[];
 }
 

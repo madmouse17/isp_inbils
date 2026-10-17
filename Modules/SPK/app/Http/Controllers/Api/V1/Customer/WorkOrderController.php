@@ -40,9 +40,9 @@ class WorkOrderController extends Controller
      *
      * A closed visit opens whatever its age, so an old notification still lands on it. Another customer's visit is 404.
      */
-    public function show(Request $request, int $wo): CustomerWorkOrderResource
+    public function show(Request $request, string $wo): CustomerWorkOrderResource
     {
-        return new CustomerWorkOrderResource($this->visitsOf($request)->findOrFail($wo));
+        return new CustomerWorkOrderResource($this->visitsOf($request)->wherePublicId($wo)->firstOrFail());
     }
 
     /** @return Builder<WorkOrder> */

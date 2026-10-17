@@ -55,7 +55,7 @@ class AnnouncementNotificationTest extends TestCase
 
         $this->assertSame(1, $customer->notifications()->count());
         $this->assertSame(1, $second->notifications()->count());
-        $this->assertEqualsCanonicalizing(['type' => 'announcement', 'id' => $announcement->id], $customer->notifications()->firstOrFail()->data['subject']);
+        $this->assertEqualsCanonicalizing(['type' => 'announcement', 'id' => $announcement->public_id], $customer->notifications()->firstOrFail()->data['subject']);
         $this->assertNotNull($announcement->fresh()->notified_at);
     }
 

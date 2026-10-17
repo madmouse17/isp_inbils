@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -85,7 +86,7 @@ class PaymentGatewaySchemaTest extends TestCase
     {
         $invoice = $this->invoice();
 
-        $this->actingAs($this->admin)->postJson(route('admin.invoices.payments.store', $invoice->id), ['amount' => 1000, 'method' => 'midtrans'])
+        $this->actingAs($this->admin)->postJson(route('admin.invoices.payments.store', $invoice), ['amount' => 1000, 'method' => 'midtrans'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('method');
 
@@ -129,13 +130,13 @@ class PaymentGatewaySchemaTest extends TestCase
         $copy = (array) $row;
         unset($copy['id']);
 
-        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert($copy), 'a duplicate order_id');
-        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert([...$copy, 'order_id' => 'other-order', 'status' => 'bogus']), 'an unknown status');
+        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert([...$copy, 'public_id' => PublicId::new()]), 'a duplicate order_id');
+        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert([...$copy, 'public_id' => PublicId::new(), 'order_id' => 'other-order', 'status' => 'bogus']), 'an unknown status');
 
         $payment = Payment::create(['company_id' => $this->admin->company_id, 'invoice_id' => $attempt->invoice_id, 'amount' => '1.00', 'method' => 'midtrans', 'reference' => 'LINK', 'paid_at' => now()]);
         DB::table('payment_attempts')->where('id', $attempt->id)->update(['payment_id' => $payment->id]);
 
-        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert([...$copy, 'order_id' => 'another-order', 'payment_id' => $payment->id]), 'two attempts closed by one payment');
+        $this->assertThrowsQuery(fn () => DB::table('payment_attempts')->insert([...$copy, 'public_id' => PublicId::new(), 'order_id' => 'another-order', 'payment_id' => $payment->id]), 'two attempts closed by one payment');
     }
 
     private function assertThrowsQuery(callable $statement, string $what): void

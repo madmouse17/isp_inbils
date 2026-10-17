@@ -30,7 +30,9 @@ class FcmChannelTest extends TestCase
     use InteractsWithMobileApi;
     use RefreshDatabase;
 
-    private const TICKET = ['type' => 'ticket_assigned', 'ticket_id' => 17, 'ticket_code' => 'TKT-17'];
+    private const TICKET_ID = '01jabcdefghjkmnpqrstvwxyz0';
+
+    private const TICKET = ['type' => 'ticket_assigned', 'ticket_id' => self::TICKET_ID, 'ticket_code' => 'TKT-17'];
 
     protected function setUp(): void
     {
@@ -59,7 +61,7 @@ class FcmChannelTest extends TestCase
         $this->assertSame([
             'type' => 'ticket_assigned',
             'subject_type' => 'ticket',
-            'subject_id' => '17',
+            'subject_id' => self::TICKET_ID,
             'notification_id' => $bell->id,
             'title' => 'Tiket ditugaskan',
             'body' => 'Tiket TKT-17 sudah ditugaskan kepada Anda.',

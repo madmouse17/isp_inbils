@@ -125,7 +125,8 @@ class UserTwoFactorResetTest extends TestCase
         $shared = $this->groupUser($this->head, 'staff', $this->subA);
         $this->enrollTwoFactor($shared);
 
-        $this->actingAs($headAdmin)->post(route('admin.users.two-factor.reset', $shared))->assertForbidden();
+        // A user the actor does not administer is a record the actor cannot see: the same 404 as an unknown id.
+        $this->actingAs($headAdmin)->post(route('admin.users.two-factor.reset', $shared))->assertNotFound();
 
         $this->assertTrue($shared->fresh()->hasTwoFactorEnabled());
     }

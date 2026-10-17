@@ -17,7 +17,7 @@ class IpAddressResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'address' => $this->address,
             'status' => $this->status,
             'holder' => $this->holder(),
@@ -26,24 +26,24 @@ class IpAddressResource extends JsonResource
         ];
     }
 
-    /** @return array{type: string, id: int, label: string, href: string}|null */
+    /** @return array{type: string, id: string|null, label: string, href: string}|null */
     private function holder(): ?array
     {
         if ($this->subscription_id !== null) {
             return [
                 'type' => 'subscription',
-                'id' => $this->subscription_id,
+                'id' => $this->subscription?->public_id,
                 'label' => trim(($this->subscription->code ?? '').' '.($this->subscription->customer->name ?? '')),
-                'href' => route('admin.subscriptions.show', $this->subscription_id, false),
+                'href' => route('admin.subscriptions.show', $this->subscription, false),
             ];
         }
 
         if ($this->network_asset_id !== null) {
             return [
                 'type' => 'asset',
-                'id' => $this->network_asset_id,
+                'id' => $this->networkAsset?->public_id,
                 'label' => trim(($this->networkAsset->code ?? '').' '.($this->networkAsset->name ?? '')),
-                'href' => route('admin.network-assets.show', $this->network_asset_id, false),
+                'href' => route('admin.network-assets.show', $this->networkAsset, false),
             ];
         }
 

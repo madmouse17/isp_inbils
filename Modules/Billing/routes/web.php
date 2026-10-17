@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Route;
 use Modules\Billing\Http\Controllers\InvoiceController;
 use Modules\Billing\Http\Controllers\Portal\PaymentReturnController;
 
-Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company'])->prefix('admin')->name('admin.')->whereUlid(['invoice', 'payment', 'item'])->group(function () {
     Route::get('invoices/export', [InvoiceController::class, 'export'])->name('invoices.export');
     Route::get('billing/receivables', [InvoiceController::class, 'receivables'])->name('billing.receivables');
     Route::post('invoices/create-from-spk', [InvoiceController::class, 'createFromSpk'])->name('invoices.create-from-spk');

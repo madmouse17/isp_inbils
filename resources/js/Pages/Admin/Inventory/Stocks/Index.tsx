@@ -18,26 +18,26 @@ import { useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState, type FormEvent } from 'react';
 
 type StockRow = {
-    id: number;
-    product_id?: number | null;
-    product?: { id: number; name: string; sku?: string | null } | null;
-    location_id?: number | null;
+    id: string;
+    product_id?: string | null;
+    product?: { id: string; name: string; sku?: string | null } | null;
+    location_id?: string | null;
     quantity: number | string;
     reserved_quantity?: number | string | null;
     available?: number | string | null;
-    location?: { id: number; name: string; code?: string | null } | null;
+    location?: { id: string; name: string; code?: string | null } | null;
 };
 
 type AdjustmentRequestRow = {
-    id: number;
+    id: string;
     status: string;
     old_quantity: number | string;
     new_quantity: number | string;
     delta: number | string;
     reason: string;
-    product?: { id: number; name: string } | null;
-    location?: { id: number; name: string; code?: string | null } | null;
-    requester?: { id: number; name: string } | null;
+    product?: { id: string; name: string } | null;
+    location?: { id: string; name: string; code?: string | null } | null;
+    requester?: { id: string; name: string } | null;
     can: { approve: boolean; reject: boolean };
 };
 
@@ -56,8 +56,8 @@ type Props = {
     adjustmentRequests: MaybeWrapped<AdjustmentRequestRow>;
     filters: {
         search?: string;
-        location_id?: string | number;
-        product_id?: string | number;
+        location_id?: string;
+        product_id?: string;
         low_stock?: string | number | boolean;
         sort_by?: string;
         sort_dir?: string;
@@ -75,15 +75,15 @@ type Props = {
 };
 
 type ReceiveFormData = {
-    product_id: number;
-    location_id: number;
+    product_id: string;
+    location_id: string;
     quantity: string;
     note: string;
 };
 
 type AdjustFormData = {
-    product_id: number;
-    location_id: number;
+    product_id: string;
+    location_id: string;
     new_quantity: string;
     note: string;
 };
@@ -135,8 +135,8 @@ export default function StockIndex({
     const [formError, setFormError] = useState<string | null>(null);
 
     const form = useForm<ReceiveFormData>({
-        product_id: 0,
-        location_id: 0,
+        product_id: '',
+        location_id: '',
         quantity: '1',
         note: '',
     });
@@ -158,7 +158,7 @@ export default function StockIndex({
     const submit = (e: FormEvent) => {
         e.preventDefault();
         const quantity = Number(form.data.quantity);
-        if (form.data.product_id <= 0 || form.data.location_id <= 0 || !(quantity > 0)) {
+        if (!form.data.product_id || !form.data.location_id || !(quantity > 0)) {
             setFormError('Barang, lokasi, dan jumlah (lebih dari 0) wajib diisi.');
             return;
         }
@@ -178,8 +178,8 @@ export default function StockIndex({
     const canAdjustRequest = can.adjust_request ?? false;
     const [adjustOpen, setAdjustOpen] = useState(false);
     const adjustForm = useForm<AdjustFormData>({
-        product_id: 0,
-        location_id: 0,
+        product_id: '',
+        location_id: '',
         new_quantity: '',
         note: '',
     });
@@ -491,8 +491,8 @@ export default function StockIndex({
                         placeholder="Cari nama atau SKU"
                         required
                         options={productOptions}
-                        value={form.data.product_id > 0 ? String(form.data.product_id) : ''}
-                        onChange={(value) => form.setData('product_id', Number(value) || 0)}
+                        value={form.data.product_id}
+                        onChange={(value) => form.setData('product_id', value)}
                         error={receiveErrors.product_id}
                     />
                     <RemoteSearchSelect
@@ -502,8 +502,8 @@ export default function StockIndex({
                         placeholder="Cari kode atau nama lokasi"
                         required
                         options={locationOptions}
-                        value={form.data.location_id > 0 ? String(form.data.location_id) : ''}
-                        onChange={(value) => form.setData('location_id', Number(value) || 0)}
+                        value={form.data.location_id}
+                        onChange={(value) => form.setData('location_id', value)}
                         error={receiveErrors.location_id}
                     />
                     <Input
@@ -559,10 +559,8 @@ export default function StockIndex({
                         placeholder="Cari nama atau SKU"
                         required
                         options={productOptions}
-                        value={
-                            adjustForm.data.product_id > 0 ? String(adjustForm.data.product_id) : ''
-                        }
-                        onChange={(value) => adjustForm.setData('product_id', Number(value) || 0)}
+                        value={adjustForm.data.product_id}
+                        onChange={(value) => adjustForm.setData('product_id', value)}
                         error={adjustForm.errors.product_id}
                     />
                     <RemoteSearchSelect
@@ -572,12 +570,8 @@ export default function StockIndex({
                         placeholder="Cari kode atau nama lokasi"
                         required
                         options={locationOptions}
-                        value={
-                            adjustForm.data.location_id > 0
-                                ? String(adjustForm.data.location_id)
-                                : ''
-                        }
-                        onChange={(value) => adjustForm.setData('location_id', Number(value) || 0)}
+                        value={adjustForm.data.location_id}
+                        onChange={(value) => adjustForm.setData('location_id', value)}
                         error={adjustForm.errors.location_id}
                     />
                     <Input

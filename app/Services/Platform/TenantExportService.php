@@ -165,7 +165,7 @@ class TenantExportService
     public function paginate(array $filters): LengthAwarePaginator
     {
         return TenantExport::query()
-            ->with(['company:id,name,code', 'requestedBy:id,name'])
+            ->with(['company:id,public_id,name,code', 'requestedBy:id,name'])
             ->when($filters['company_id'], fn (Builder $query, int $id) => $query->where('company_id', $id))
             ->when($filters['status'], fn (Builder $query, string $status) => $query->where('status', $status))
             ->orderByDesc('id')
@@ -200,10 +200,10 @@ class TenantExportService
     private function row(TenantExport $export): array
     {
         return [
-            'id' => $export->id,
+            'id' => $export->public_id,
             'uuid' => $export->uuid,
             'tenant' => [
-                'id' => $export->company->id,
+                'id' => $export->company->public_id,
                 'name' => $export->company->name,
                 'code' => $export->company->code,
             ],
@@ -216,7 +216,7 @@ class TenantExportService
             'completed_at' => $export->completed_at?->toIso8601String(),
             'expires_at' => $export->expires_at?->toIso8601String(),
             'download_url' => $this->isDownloadable($export)
-                ? URL::temporarySignedRoute('platform.exports.download', $export->expires_at, ['tenantExport' => $export->id])
+                ? URL::temporarySignedRoute('platform.exports.download', $export->expires_at, ['tenantExport' => $export])
                 : null,
         ];
     }

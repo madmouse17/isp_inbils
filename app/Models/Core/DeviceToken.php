@@ -3,6 +3,7 @@
 namespace App\Models\Core;
 
 use App\Models\User;
+use App\Traits\HasPublicId;
 use Database\Factories\DeviceTokenFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -32,6 +33,8 @@ class DeviceToken extends Model
 {
     /** @use HasFactory<DeviceTokenFactory> */
     use HasFactory;
+
+    use HasPublicId;
 
     public const PLATFORMS = ['android'];
 

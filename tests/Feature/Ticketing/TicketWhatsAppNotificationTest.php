@@ -243,9 +243,9 @@ class TicketWhatsAppNotificationTest extends TestCase
             'title' => 'Router restart sendiri',
             'description' => 'Sering mati',
             'source' => 'customer',
-            'category_id' => $this->category->id,
+            'category_id' => $this->category->public_id,
             'priority' => 'medium',
-            'customer_id' => $this->customer->id,
+            'customer_id' => $this->customer->public_id,
         ])->assertSessionHasNoErrors();
 
         $this->assertSame(['tiket_dibuat'], $this->templates());

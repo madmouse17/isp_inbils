@@ -17,7 +17,7 @@ class ServicePackageOptions
     /**
      * Active packages of active categories, one group per category with packages.
      *
-     * @return list<array{category: array{id: int, code: string, name: string}, packages: list<array{value: string, label: string, description: string}>}>
+     * @return list<array{category: array{id: string, code: string, name: string}, packages: list<array{value: string, label: string, description: string}>}>
      */
     public static function grouped(?string $customerType): array
     {
@@ -26,7 +26,7 @@ class ServicePackageOptions
             ->where('is_active', true)
             ->whereHas('category', fn ($query) => $query->where('is_active', true))
             ->orderBy('name')
-            ->get(['id', 'code', 'name', 'price_mrc', 'service_package_category_id'])
+            ->get(['id', 'public_id', 'code', 'name', 'price_mrc', 'service_package_category_id'])
             ->groupBy('service_package_category_id');
 
         return ServicePackageCategory::query()
@@ -41,9 +41,9 @@ class ServicePackageOptions
             })
             ->values()
             ->map(fn (ServicePackageCategory $category): array => [
-                'category' => ['id' => $category->id, 'code' => $category->code, 'name' => $category->name],
+                'category' => ['id' => $category->public_id, 'code' => $category->code, 'name' => $category->name],
                 'packages' => $packages[$category->id]->map(fn (ServicePackage $package): array => [
-                    'value' => (string) $package->id,
+                    'value' => $package->public_id,
                     'label' => $package->name,
                     'description' => $package->code.' · Rp '.number_format((float) $package->price_mrc, 0, ',', '.').'/bln',
                 ])->all(),

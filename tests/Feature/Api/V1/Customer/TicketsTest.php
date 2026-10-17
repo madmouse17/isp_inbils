@@ -54,18 +54,19 @@ class TicketsTest extends TestCase
         $ownClosed = $this->ticket('Done', $this->customer->id, ['status' => 'resolved', 'created_at' => now()->subDay()]);
 
         $created = $this->api('POST', 'customer/tickets', [
-            'category_id' => $this->category->id,
+            'category_id' => $this->category->public_id,
             'title' => 'Internet down',
             'source' => 'internal',
         ], $this->token)->assertCreated();
 
-        $this->assertSame('customer', Ticket::query()->findOrFail($created->json('data.id'))->source);
-        $this->assertSame($this->customer->id, Ticket::query()->findOrFail($created->json('data.id'))->customer_id);
-        $this->assertSame('high', Ticket::query()->findOrFail($created->json('data.id'))->priority);
+        $createdTicket = Ticket::query()->wherePublicId($created->json('data.id'))->firstOrFail();
+        $this->assertSame('customer', $createdTicket->source);
+        $this->assertSame($this->customer->id, $createdTicket->customer_id);
+        $this->assertSame('high', $createdTicket->priority);
 
         $this->api('GET', 'customer/ticket-categories', token: $this->token)
             ->assertOk()
-            ->assertJsonPath('data.0.id', $this->category->id)
+            ->assertJsonPath('data.0.id', $this->category->public_id)
             ->assertJsonMissingPath('data.0.code');
 
         $this->api('GET', 'customer/tickets?status=active', token: $this->token)
@@ -77,9 +78,9 @@ class TicketsTest extends TestCase
         $this->api('GET', 'customer/tickets?status=closed', token: $this->token)
             ->assertOk()
             ->assertJsonCount(1, 'data')
-            ->assertJsonPath('data.0.id', $ownClosed->id);
+            ->assertJsonPath('data.0.id', $ownClosed->public_id);
 
-        $this->api('GET', "customer/tickets/{$foreignTicket->id}", token: $this->token)->assertNotFound();
+        $this->api('GET', "customer/tickets/{$foreignTicket->public_id}", token: $this->token)->assertNotFound();
     }
 
     public function test_ticket_categories_carry_the_customer_hint_the_isp_wrote_and_null_otherwise(): void
@@ -106,7 +107,7 @@ class TicketsTest extends TestCase
         });
         $ticket->addMedia(UploadedFile::fake()->create('note.pdf', 10, 'application/pdf'))->toMediaCollection('attachments');
 
-        $response = $this->api('GET', "customer/tickets/{$ticket->id}", token: $this->token)
+        $response = $this->api('GET', "customer/tickets/{$ticket->public_id}", token: $this->token)
             ->assertOk()
             ->assertJsonPath('data.description', 'Need help')
             ->assertJsonCount(1, 'data.comments')
@@ -124,18 +125,18 @@ class TicketsTest extends TestCase
         $foreign = $this->ticket('Foreign', Customer::factory()->create(['company_id' => $this->user->company_id])->id);
         $key = (string) Str::uuid();
 
-        $first = $this->api('POST', "customer/tickets/{$ticket->id}/comments", ['body' => 'Reply', 'is_internal' => true], $this->token, ['Idempotency-Key' => $key])
+        $first = $this->api('POST', "customer/tickets/{$ticket->public_id}/comments", ['body' => 'Reply', 'is_internal' => true], $this->token, ['Idempotency-Key' => $key])
             ->assertCreated()
             ->assertJsonPath('data.body', 'Reply')
             ->assertJsonPath('data.mine', true);
-        $this->api('POST', "customer/tickets/{$ticket->id}/comments", ['body' => 'Reply', 'is_internal' => true], $this->token, ['Idempotency-Key' => $key])
+        $this->api('POST', "customer/tickets/{$ticket->public_id}/comments", ['body' => 'Reply', 'is_internal' => true], $this->token, ['Idempotency-Key' => $key])
             ->assertCreated()
             ->assertHeader('Idempotent-Replayed', 'true')
             ->assertContent($first->content());
 
         $this->assertSame(1, $ticket->comments()->count());
         $this->assertFalse((bool) $ticket->comments()->firstOrFail()->is_internal);
-        $this->api('POST', "customer/tickets/{$foreign->id}/comments", ['body' => 'Nope'], $this->token)->assertNotFound();
+        $this->api('POST', "customer/tickets/{$foreign->public_id}/comments", ['body' => 'Nope'], $this->token)->assertNotFound();
     }
 
     public function test_customer_create_rejects_foreign_subscription_or_network_asset(): void
@@ -145,15 +146,15 @@ class TicketsTest extends TestCase
         $foreignAsset = NetworkAssetFactory::new()->create(['company_id' => $this->user->company_id, 'customer_id' => $other->id]);
 
         $this->api('POST', 'customer/tickets', [
-            'category_id' => $this->category->id,
+            'category_id' => $this->category->public_id,
             'title' => 'Bad sub',
-            'subscription_id' => $foreignSubscription->id,
+            'subscription_id' => $foreignSubscription->public_id,
         ], $this->token)->assertUnprocessable()->assertJsonValidationErrors(['subscription_id']);
 
         $this->api('POST', 'customer/tickets', [
-            'category_id' => $this->category->id,
+            'category_id' => $this->category->public_id,
             'title' => 'Bad asset',
-            'network_asset_id' => $foreignAsset->id,
+            'network_asset_id' => $foreignAsset->public_id,
         ], $this->token)->assertUnprocessable()->assertJsonValidationErrors(['network_asset_id']);
     }
 
@@ -171,9 +172,9 @@ class TicketsTest extends TestCase
         $unassigned = $this->ticket('Unassigned', $this->customer->id, ['response_deadline' => null, 'sla_deadline' => null]);
 
         $list = collect($this->api('GET', 'customer/tickets', token: $this->token)->assertOk()->json('data'))->keyBy('id');
-        $detail = $this->api('GET', "customer/tickets/{$assigned->id}", token: $this->token)->assertOk();
+        $detail = $this->api('GET', "customer/tickets/{$assigned->public_id}", token: $this->token)->assertOk();
 
-        foreach ([$list[$assigned->id], $detail->json('data')] as $row) {
+        foreach ([$list[$assigned->public_id], $detail->json('data')] as $row) {
             $this->assertSame('Siti', $row['handler_first_name']);
             $this->assertSame(Carbon::parse('2026-10-16 10:00:00')->toJSON(), $row['response_deadline']);
             $this->assertSame(Carbon::parse('2026-10-17 10:00:00')->toJSON(), $row['sla_deadline']);
@@ -181,9 +182,9 @@ class TicketsTest extends TestCase
             $this->assertSame(Carbon::parse('2026-10-16 12:00:00')->toJSON(), $row['resolved_at']);
             $this->assertContains('priority', array_keys($row));
         }
-        $this->assertNull($list[$unassigned->id]['handler_first_name']);
-        $this->assertNull($list[$unassigned->id]['response_deadline']);
-        $this->assertNull($list[$unassigned->id]['first_response_at']);
+        $this->assertNull($list[$unassigned->public_id]['handler_first_name']);
+        $this->assertNull($list[$unassigned->public_id]['response_deadline']);
+        $this->assertNull($list[$unassigned->public_id]['first_response_at']);
         $this->assertStringNotContainsString('Rahayu', $detail->getContent());
         $this->assertStringNotContainsString($this->staff->email, $detail->getContent());
         $this->assertForbiddenKeysAbsent($detail->json('data'), ['assigned_to', 'phone', 'email', 'assignee']);

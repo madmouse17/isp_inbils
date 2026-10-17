@@ -4,6 +4,7 @@ namespace App\Queries\Admin;
 
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -42,7 +43,7 @@ class ApprovalInboxQuery
             ->where('status', 'waiting_review');
 
         if ($withRelations) {
-            $query->with(['creator:id,name', 'items.product:id,name']);
+            $query->with(['creator:id,public_id,name', 'assignee:id,public_id,name', 'items.product:id,public_id,name']);
         }
 
         return self::applyMakerCheckerEligibility($query, $user);
@@ -79,16 +80,8 @@ class ApprovalInboxQuery
             $q->where('type', $v);
         });
 
-        $creator = $request->input('creator');
-        if (is_int($creator)) {
-            $creator = (string) $creator;
-        }
-
-        if (is_string($creator) && ctype_digit($creator)) {
-            $creatorId = (int) $creator;
-            if (self::isEligibleRequester($request, $creatorId)) {
-                $query->where('created_by', $creatorId);
-            }
+        if (($creatorId = self::requesterFilter($request)) !== null) {
+            $query->where('created_by', $creatorId);
         }
 
         $query->when($request->input('status'), function (Builder $q, string $v): void {
@@ -253,6 +246,17 @@ class ApprovalInboxQuery
     }
 
     /**
+     * The user the `creator` filter names (a public id), when that user is an eligible requester for the actor; any
+     * other value (an integer, another company's user, a user with nothing waiting) filters nothing.
+     */
+    public static function requesterFilter(Request $request): ?int
+    {
+        $userId = PublicId::resolveOne(User::class, $request->input('creator'));
+
+        return $userId !== null && self::isEligibleRequester($request, $userId) ? $userId : null;
+    }
+
+    /**
      * Determine if a user ID is an eligible requester in SPK or Inventory Request for current actor.
      */
     public static function isEligibleRequester(Request $request, int $userId): bool
@@ -404,7 +408,7 @@ class ApprovalInboxQuery
     /**
      * Requesters derived strictly from eligible waiting items for the actor.
      *
-     * @return Collection<int, array{id: int, name: string}>
+     * @return Collection<int, array{id: string, name: string}>
      */
     public static function requesterOptions(Request $request): Collection
     {
@@ -438,9 +442,9 @@ class ApprovalInboxQuery
                 }
             })
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'public_id', 'name'])
             ->map(fn (User $u): array => [
-                'id' => (int) $u->id,
+                'id' => (string) $u->public_id,
                 'name' => (string) $u->name,
             ])
             ->values();

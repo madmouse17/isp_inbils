@@ -2,13 +2,18 @@
 
 namespace App\Models\Core;
 
+use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Database\Factories\WhatsAppMessageFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Modules\Billing\Models\Invoice;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 
 /**
  * One WhatsApp template message, or the reason one was not sent. Written by WhatsAppChannel and the
@@ -44,6 +49,7 @@ class WhatsAppMessage extends Model
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use MassPrunable;
 
     public const STATUSES = ['queued', 'sent', 'delivered', 'read', 'failed', 'skipped'];
@@ -94,5 +100,21 @@ class WhatsAppMessage extends Model
     public function prunable(): Builder
     {
         return static::withoutCompany()->where('created_at', '<=', now()->subMonths(self::RETENTION_MONTHS));
+    }
+
+    /**
+     * What a message can be about: the short name in `subject_type` => its model (the integer `subject_id` names a
+     * record of that model; PublicId::ofPairs turns it into a public id for a page).
+     *
+     * @return array<string, class-string<Model>>
+     */
+    public static function subjectModels(): array
+    {
+        return [
+            'user' => User::class,
+            'invoice' => Invoice::class,
+            'ticket' => Ticket::class,
+            'work_order' => WorkOrder::class,
+        ];
     }
 }

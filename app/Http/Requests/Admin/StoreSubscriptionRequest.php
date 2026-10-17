@@ -2,13 +2,30 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\Customer;
+use App\Models\Core\CustomerAddress;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\Service\Models\ServicePackage;
 
 class StoreSubscriptionRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'customer_id' => Customer::class,
+            'service_package_id' => ServicePackage::class,
+            'installation_address_id' => CustomerAddress::class,
+            'serving_pop_id' => Location::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('customer.subscription.manage') ?? false;

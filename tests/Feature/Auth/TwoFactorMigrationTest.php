@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Support\PublicId;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -28,6 +29,7 @@ class TwoFactorMigrationTest extends TestCase
     public function test_the_migration_rolls_back_and_forward_without_touching_users(): void
     {
         $id = DB::table('users')->insertGetId([
+            'public_id' => PublicId::new(),
             'name' => 'Kept Through The Migration',
             'email' => 'kept-through-2fa-migration@example.test',
             'password' => 'not-a-real-hash',

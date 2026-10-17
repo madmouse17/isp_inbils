@@ -32,7 +32,7 @@ export function BlockedBadge() {
 }
 
 export interface BlockTarget {
-    id: number;
+    id: string;
     code: string;
     status: string;
     blocked_at: string | null;

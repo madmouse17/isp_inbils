@@ -292,7 +292,7 @@ class SalesKpiFormulaV1Test extends TestCase
 
         $this->assertSame(2, $report['unassigned']['customers_acquired'], 'C8 and C9');
         $this->assertSame('150000.00', $report['unassigned']['invoiced'], 'I12 100000 + I13 50000');
-        $this->assertNotContains($this->bayu->id, array_column($report['rows'], 'id'));
+        $this->assertNotContains($this->bayu->public_id, array_column($report['rows'], 'id'));
         $this->assertNotContains('Bayu Other Company', array_column($report['acquirers'], 'name'));
     }
 
@@ -305,10 +305,10 @@ class SalesKpiFormulaV1Test extends TestCase
         $this->seedWorld();
 
         $this->assertSame([
-            ['id' => $this->ayu->id, 'name' => 'Ayu Active', 'is_active' => true],
-            ['id' => $this->budi->id, 'name' => 'Budi Both', 'is_active' => true],
-            ['id' => $this->citra->id, 'name' => 'Citra Former', 'is_active' => false],
-            ['id' => $this->dewi->id, 'name' => 'Dewi Idle', 'is_active' => true],
+            ['id' => $this->ayu->public_id, 'name' => 'Ayu Active', 'is_active' => true],
+            ['id' => $this->budi->public_id, 'name' => 'Budi Both', 'is_active' => true],
+            ['id' => $this->citra->public_id, 'name' => 'Citra Former', 'is_active' => false],
+            ['id' => $this->dewi->public_id, 'name' => 'Dewi Idle', 'is_active' => true],
         ], $this->report()['acquirers'], 'Eko (no customer.create), the admin (no profile) and Bayu (company B) are not acquirers');
     }
 
@@ -323,7 +323,7 @@ class SalesKpiFormulaV1Test extends TestCase
         $customer->delete();
 
         $report = $this->report('2026-05-01', '2026-05-31');
-        $fionaRow = collect($report['rows'])->firstWhere('id', $fiona->id);
+        $fionaRow = collect($report['rows'])->firstWhere('id', $fiona->public_id);
 
         $this->assertNotNull($fionaRow, 'Fiona is listed');
         $this->assertFalse($fionaRow['is_active']);
@@ -388,7 +388,7 @@ class SalesKpiFormulaV1Test extends TestCase
         $this->actingAs($this->admin);
         $report = SalesKpiQuery::execute((int) $this->companyB->id);
 
-        $this->assertSame([$this->bayu->id], array_column($report['rows'], 'id'));
+        $this->assertSame([$this->bayu->public_id], array_column($report['rows'], 'id'));
         $this->assertSame('5000000.00', $report['totals']['invoiced']);
     }
 
@@ -695,7 +695,7 @@ class SalesKpiFormulaV1Test extends TestCase
     private function row(User $acquirer, bool $active, int $customers, int $subscriptions, string $mrr, string $invoiced, string $collected, string $outstanding, ?string $rate): array
     {
         return [
-            'id' => $acquirer->id,
+            'id' => $acquirer->public_id,
             'name' => $acquirer->name,
             'is_active' => $active,
             ...$this->figures($customers, $subscriptions, $mrr, $invoiced, $collected, $outstanding, $rate),

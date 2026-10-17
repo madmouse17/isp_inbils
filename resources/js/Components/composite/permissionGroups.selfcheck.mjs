@@ -24,9 +24,9 @@ const {
 const { PERMISSION_GROUP_LABELS, PERMISSION_LABELS } = await import('./permissionLabels.ts');
 
 const permissions = [
-    { id: 1, name: 'billing.view', group: 'billing' },
-    { id: 2, name: 'spk.view', group: 'spk' },
-    { id: 3, name: 'spk.create', group: 'spk' },
+    { name: 'billing.view', group: 'billing' },
+    { name: 'spk.view', group: 'spk' },
+    { name: 'spk.create', group: 'spk' },
 ];
 
 assert.deepEqual(Object.keys(groupPermissions(permissions)), ['spk', 'billing']);
@@ -58,7 +58,7 @@ const everyGroup = [
     'organization',
     'company',
     'alpha',
-].map((group, id) => ({ id, name: `${group}.view`, group }));
+].map((group) => ({ name: `${group}.view`, group }));
 
 // Sidebar order, then unknown groups alphabetically (`portal` has no sidebar entry since technician and
 // customer logins went app-only, so it sorts with the unknown ones).
@@ -143,10 +143,10 @@ assert.deepEqual(setPermission(['spk.view'], 'spk.view', false), []);
 
 // Search: name or label, case-insensitive, trimmed; blank keeps everything.
 const searchable = [
-    { id: 1, name: 'billing.invoice.export', group: 'billing' },
-    { id: 2, name: 'billing.view', group: 'billing' },
-    { id: 3, name: 'system.document.export', group: 'system' },
-    { id: 4, name: 'users.two_factor.reset', group: 'users' },
+    { name: 'billing.invoice.export', group: 'billing' },
+    { name: 'billing.view', group: 'billing' },
+    { name: 'system.document.export', group: 'system' },
+    { name: 'users.two_factor.reset', group: 'users' },
 ];
 const names = (query) => filterPermissions(searchable, query).map(({ name }) => name);
 

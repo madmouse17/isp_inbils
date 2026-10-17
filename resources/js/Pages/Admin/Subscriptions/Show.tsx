@@ -86,7 +86,7 @@ export default function Show({
                             <Link
                                 href={route(
                                     'admin.customers.subscriptions.index',
-                                    Number(s.customer_id ?? 0),
+                                    s.customer_id ?? '',
                                 )}
                             >
                                 Kembali
@@ -183,7 +183,7 @@ export default function Show({
 
                 <SubscriptionNetworkPanels
                     subscription={{
-                        id: Number(s.id),
+                        id: s.id,
                         code: s.code ?? '',
                         status: s.status ?? '',
                         hasServingPop: s.serving_pop_id != null,
@@ -268,7 +268,7 @@ export default function Show({
                     target={
                         blockOpen
                             ? {
-                                  id: Number(s.id),
+                                  id: s.id,
                                   code: s.code ?? '',
                                   status: s.status ?? '',
                                   blocked_at: s.blocked_at ?? null,

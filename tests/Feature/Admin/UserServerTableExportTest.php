@@ -98,8 +98,8 @@ class UserServerTableExportTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('Admin/Users/Index')
-                ->where('users.data', fn ($users) => collect($users)->firstWhere('id', $this->admin->id)['can']['delete'] === false
-                    && collect($users)->firstWhere('id', $otherUser->id)['can']['delete'] === true
+                ->where('users.data', fn ($users) => collect($users)->firstWhere('id', $this->admin->public_id)['can']['delete'] === false
+                    && collect($users)->firstWhere('id', $otherUser->public_id)['can']['delete'] === true
                 )
             );
     }
@@ -207,7 +207,7 @@ class UserServerTableExportTest extends TestCase
             ->get(route('admin.users.show', $user))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('history.linked_customer.id', $customer->id)
+                ->where('history.linked_customer.id', $customer->public_id)
                 ->where('history.invoices.0.number', 'INV-USER-HISTORY')
                 ->where('history.tickets.0.code', 'TKT-USER-HISTORY')
                 ->where('history.work_orders.0.code', 'SPK-USER-HISTORY')

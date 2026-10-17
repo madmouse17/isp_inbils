@@ -141,7 +141,7 @@ export function PermissionGroupSelector({
                         <div className="grid max-h-96 gap-3 overflow-y-auto pr-2 sm:grid-cols-2 xl:grid-cols-3">
                             {currentPermissions.map((permission) => (
                                 <Checkbox
-                                    key={permission.id}
+                                    key={permission.name}
                                     label={formatPermission(permission.name)}
                                     title={permission.name}
                                     checked={value.includes(permission.name)}

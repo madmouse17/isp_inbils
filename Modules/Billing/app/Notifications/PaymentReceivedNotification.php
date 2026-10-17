@@ -33,7 +33,7 @@ class PaymentReceivedNotification extends WhatsAppNotification
             $this->formatMoney($payment->amount),
             $this->formatMoney($invoice->sisa),
             $this->formatDate($payment->paid_at->copy()->setTimezone($this->companyTimezone())),
-        ], 'invoice', $invoice->id, 'payment_received:'.$payment->id);
+        ], 'invoice', $invoice, 'payment_received:'.$payment->id);
     }
 
     protected function event(): string

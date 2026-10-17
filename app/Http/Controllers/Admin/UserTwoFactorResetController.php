@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\TwoFactorService;
+use App\Support\RecordNotFound;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -18,7 +19,7 @@ class UserTwoFactorResetController extends Controller
     public function __invoke(Request $request, User $user, TwoFactorService $twoFactor): RedirectResponse
     {
         // The same reach as the other user pages: users homed in the company the actor works in.
-        abort_unless($user->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($user->company_id === CompanyService::currentId());
         Gate::authorize('resetTwoFactor', $user);
 
         $twoFactor->adminReset($request->user(), $user);

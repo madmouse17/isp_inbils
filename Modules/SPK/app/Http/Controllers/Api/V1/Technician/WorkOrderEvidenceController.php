@@ -27,7 +27,7 @@ class WorkOrderEvidenceController extends Controller
             ->setStatusCode(201);
     }
 
-    public function destroy(Request $request, WorkOrder $wo, int $mediaId): JsonResponse
+    public function destroy(Request $request, WorkOrder $wo, string $mediaId): JsonResponse
     {
         SpkService::removeEvidence($wo, $mediaId, $request->user());
 

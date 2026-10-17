@@ -11,10 +11,13 @@ use App\Models\Core\Customer;
 use App\Models\Core\EmployeeProfile;
 use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
+use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
 use App\Support\FieldCheckIn;
+use App\Support\PublicId;
+use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -38,7 +41,6 @@ use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
 use Modules\SPK\Support\TripSteps;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -107,7 +109,7 @@ class WorkOrderController extends Controller
             ->with(['customer', 'subscription', 'location', 'assignee'])
             ->when($request->input('type'), fn ($q, $v) => $q->where('type', $v))
             ->when($request->input('status'), fn ($q, $v) => $q->where('status', $v))
-            ->when($request->input('assigned_to'), fn ($q, $v) => $q->where('assigned_to', $v))
+            ->when($request->input('assigned_to'), fn ($q, $v) => $q->where('assigned_to', PublicId::resolveOne(User::class, $v) ?? 0))
             ->when($request->input('search'), fn ($q, $v) => $q->where(fn ($sq) => $sq
                 ->where('code', 'like', "%{$v}%")
                 ->orWhere('title', 'like', "%{$v}%")));
@@ -152,7 +154,7 @@ class WorkOrderController extends Controller
 
         $wo->load(['customer', 'subscription', 'location', 'assignee', 'items.product.unit', 'items.networkAsset.product.unit', 'assignments.technician', 'media']);
         $checkIn = FieldCheckIn::recordFor($wo, 'work_order');
-        $productId = $request->integer('product_id');
+        $productId = PublicId::resolveOne(Product::class, $request->query('product_id')) ?? 0;
 
         return Inertia::render('Admin/SPK/Show', [
             'workOrder' => new WorkOrderResource($wo),
@@ -162,14 +164,14 @@ class WorkOrderController extends Controller
                 'product',
                 Product::query()->with('category:id,name')->where('is_active', true),
                 ['name', 'sku'],
-                fn (Product $product): array => ['value' => $product->id, 'label' => $product->sku.' - '.$product->name, 'description' => $product->category?->name],
+                fn (Product $product): array => ['value' => $product->public_id, 'label' => $product->sku.' - '.$product->name, 'description' => $product->category?->name],
             ),
             // The product the page just picked: its kind decides whether an asset is asked for, its unit labels the quantities.
             'selectedProduct' => Inertia::optional(function () use ($productId): ?array {
                 $product = Product::query()->with('unit:id,name,symbol')->where('is_active', true)->find($productId);
 
                 return $product === null ? null : [
-                    'id' => $product->id,
+                    'id' => $product->public_id,
                     'type' => $product->type,
                     'unit' => $product->unit?->only(['name', 'symbol']),
                 ];
@@ -180,7 +182,7 @@ class WorkOrderController extends Controller
                 'networkAsset',
                 NetworkAsset::query()->where('status', 'available')->where('product_id', $productId),
                 ['code', 'name'],
-                fn (NetworkAsset $asset): array => ['value' => $asset->id, 'label' => $asset->code.' - '.$asset->name],
+                fn (NetworkAsset $asset): array => ['value' => $asset->public_id, 'label' => $asset->code.' - '.$asset->name],
             ),
             'can' => [
                 'uploadEvidence' => $request->user()?->can('uploadEvidence', $wo) ?? false,
@@ -363,7 +365,7 @@ class WorkOrderController extends Controller
     public function removeItem(WorkOrder $wo, WorkOrderItem $item): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        abort_unless($item->work_order_id === $wo->id, 404);
+        RecordNotFound::abortUnless($item->work_order_id === $wo->id);
         Gate::authorize('spk.update');
 
         $item->delete();
@@ -379,24 +381,24 @@ class WorkOrderController extends Controller
         return back()->with('success', 'Bukti berhasil diunggah.');
     }
 
-    public function removeEvidence(Request $request, WorkOrder $wo, Media $evidence): RedirectResponse
+    public function removeEvidence(Request $request, WorkOrder $wo, string $evidence): RedirectResponse
     {
         $this->ensureSameCompany($wo);
-        SpkService::removeEvidence($wo, $evidence->id, $request->user());
+        SpkService::removeEvidence($wo, $evidence, $request->user());
 
         return back()->with('success', 'Bukti berhasil dihapus.');
     }
 
     private function ensureSameCompany(WorkOrder $wo): void
     {
-        abort_unless($wo->company_id === CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless($wo->company_id === CompanyService::currentId());
     }
 
     /**
      * The people the assign dialog offers, and only to someone who may assign this SPK. A dispatcher needs the user to
      * assign, the name, the employee number, the unit and the phone to choose: no email, role, HR note or vehicle goes out.
      *
-     * @return list<array{id: int, name: string, employee_number: string, organization: string|null, phone: string|null}>
+     * @return list<array{id: string, name: string, employee_number: string, organization: string|null, phone: string|null}>
      */
     private function assignableTechnicians(WorkOrder $wo): array
     {
@@ -405,7 +407,7 @@ class WorkOrderController extends Controller
         }
 
         return EmployeeProfile::query()
-            ->with(['user:id,name', 'organization:id,name'])
+            ->with(['user:id,public_id,name', 'organization:id,name'])
             ->where('company_id', CompanyService::currentId())
             ->where('status', 'active')
             ->whereHas('user', function ($query) {
@@ -419,7 +421,7 @@ class WorkOrderController extends Controller
             ->orderBy('employee_number')
             ->get()
             ->map(fn (EmployeeProfile $profile): array => [
-                'id' => $profile->user_id,
+                'id' => $profile->user->public_id,
                 'name' => $profile->user->getAttribute('name'),
                 'employee_number' => $profile->employee_number,
                 'organization' => $profile->organization?->name,
@@ -436,7 +438,7 @@ class WorkOrderController extends Controller
      */
     private function createOptions(Request $request): array
     {
-        $customerId = $request->integer('customer_id');
+        $customerId = PublicId::resolveOne(Customer::class, $request->query('customer_id')) ?? 0;
 
         return [
             'customerOptions' => SearchOptions::for(
@@ -444,7 +446,7 @@ class WorkOrderController extends Controller
                 'customer',
                 Customer::query()->where('is_active', true),
                 ['name', 'code'],
-                fn (Customer $customer): array => ['value' => $customer->id, 'label' => $customer->name, 'description' => $customer->code],
+                fn (Customer $customer): array => ['value' => $customer->public_id, 'label' => $customer->name, 'description' => $customer->code],
             ),
             'subscriptionOptions' => SearchOptions::for(
                 $request,
@@ -454,14 +456,14 @@ class WorkOrderController extends Controller
                     ->whereIn('status', ['pending', 'active'])
                     ->when($customerId > 0, fn (Builder $query) => $query->where('customer_id', $customerId)),
                 ['code'],
-                fn (ServiceSubscription $subscription): array => ['value' => $subscription->id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
+                fn (ServiceSubscription $subscription): array => ['value' => $subscription->public_id, 'label' => $subscription->code, 'description' => $subscription->customer?->name],
             ),
             'locationOptions' => SearchOptions::for(
                 $request,
                 'location',
                 Location::query()->where('is_active', true),
                 ['code', 'name'],
-                fn (Location $location): array => ['value' => $location->id, 'label' => $location->code.' - '.$location->name],
+                fn (Location $location): array => ['value' => $location->public_id, 'label' => $location->code.' - '.$location->name],
             ),
         ];
     }

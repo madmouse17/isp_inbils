@@ -16,7 +16,7 @@ import { ACTIVE_STATE } from '@/lib/statuses';
 import type { Paginated } from '@/types';
 
 interface DtRow {
-    id: number;
+    id: string;
     name: string;
     code: string;
     applies_to: string | null;
@@ -51,7 +51,7 @@ const emptyForm: DocumentTypeForm = {
 
 export default function Index({ documentTypes, filters, can }: IndexProps) {
     const [modalOpen, setModalOpen] = useState(false);
-    const [editId, setEditId] = useState<number | null>(null);
+    const [editId, setEditId] = useState<string | null>(null);
     const { data, setData, post, put, transform, processing, errors, reset, clearErrors } =
         useForm<DocumentTypeForm>(emptyForm);
 

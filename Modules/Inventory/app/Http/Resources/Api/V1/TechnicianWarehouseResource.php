@@ -17,7 +17,7 @@ class TechnicianWarehouseResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->resource->id,
+            'id' => $this->resource->public_id,
             'name' => $this->resource->name,
             'code' => $this->resource->code,
         ];

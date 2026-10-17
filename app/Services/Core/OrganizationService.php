@@ -3,6 +3,7 @@
 namespace App\Services\Core;
 
 use App\Models\Core\OrganizationUnit;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -144,11 +145,11 @@ class OrganizationService
             ->lockForUpdate()
             ->find($parentId);
 
-        abort_unless($parent !== null && (int) $parent->company_id === (int) $unit->company_id, 404);
+        RecordNotFound::abortUnless($parent !== null && (int) $parent->company_id === (int) $unit->company_id);
     }
 
     private static function assertCompany(OrganizationUnit $unit): void
     {
-        abort_unless(CompanyService::currentId() !== null && (int) $unit->company_id === (int) CompanyService::currentId(), 404);
+        RecordNotFound::abortUnless(CompanyService::currentId() !== null && (int) $unit->company_id === (int) CompanyService::currentId());
     }
 }

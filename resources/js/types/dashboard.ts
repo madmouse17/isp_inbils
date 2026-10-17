@@ -21,7 +21,7 @@ interface CountSection<K extends string, G extends DashboardGroup> extends Secti
 }
 
 export interface SlaTicketItem {
-    id: number;
+    id: string;
     code: string;
     title: string;
     priority: 'low' | 'medium' | 'high' | 'urgent';
@@ -61,7 +61,7 @@ export interface DashboardNotification {
 }
 
 export interface DashboardActivityItem {
-    id: number;
+    id: string;
     log_name: string | null;
     description: string;
     created_at: string | null;

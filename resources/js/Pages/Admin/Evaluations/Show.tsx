@@ -17,9 +17,9 @@ import { formatDateTime, formatNumber } from '@/lib/format';
 import { EVALUATION_REFERENCE_TYPE, labelOf } from '@/lib/statuses';
 
 interface EvalData {
-    id: number;
+    id: string;
     reference_type: string;
-    reference_id: number;
+    reference_id: string;
     score: string;
     customer_rating?: string | null;
     first_response_minutes?: number | null;

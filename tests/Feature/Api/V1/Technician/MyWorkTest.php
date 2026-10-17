@@ -40,7 +40,7 @@ class MyWorkTest extends TestCase
             collect($web->inertiaProps('items.data'))->pluck('composite_id')->all(),
             collect($api->json('data'))->pluck('composite_id')->all(),
         );
-        $this->assertSame('ticket:'.$ticket->id, $api->json('data.0.composite_id'));
+        $this->assertSame('ticket:'.$ticket->public_id, $api->json('data.0.composite_id'));
     }
 
     public function test_filters_are_passed_through_to_the_existing_query(): void
@@ -54,7 +54,7 @@ class MyWorkTest extends TestCase
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.domain', 'ticket')
-            ->assertJsonPath('data.0.id', $ticket->id);
+            ->assertJsonPath('data.0.id', $ticket->public_id);
     }
 
     public function test_customer_token_and_ineligible_technician_are_rejected(): void

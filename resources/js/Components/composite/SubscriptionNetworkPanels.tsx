@@ -4,7 +4,7 @@ import { usePermission } from '@/hooks/usePermission';
 import type { DropPort, DropPortOption, StaticPool, SubscriptionIpAddress } from '@/types/ipam-odn';
 
 interface SubscriptionNetworkPanelsProps {
-    subscription: { id: number; code: string; status: string; hasServingPop: boolean };
+    subscription: { id: string; code: string; status: string; hasServingPop: boolean };
     ipAddresses: SubscriptionIpAddress[];
     /** Present only for holders of ipam.assign. */
     staticPools: StaticPool[] | undefined;

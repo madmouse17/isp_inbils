@@ -256,7 +256,7 @@ const cases: TableCase[] = [
             await page.getByRole('button', { name: 'Filter', exact: true }).click();
             await expect
                 .poll(() => new URL(page.url()).searchParams.get('category_id'))
-                .toMatch(/^\d+$/);
+                .toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
             await selectFilter(page, 'Status', 'Aktif', 'is_active', 'Filter');
         },
     },
@@ -302,9 +302,9 @@ const cases: TableCase[] = [
         setup: async (page) => {
             const param = (key: string) => new URL(page.url()).searchParams.get(key) ?? '';
             await selectSearchOption(page, 'Lokasi', 'DTC Warehouse');
-            await expect.poll(() => param('location_id')).toMatch(/^\d+$/);
+            await expect.poll(() => param('location_id')).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
             await selectSearchOption(page, 'Barang', 'DTC-P01');
-            await expect.poll(() => param('product_id')).toMatch(/^\d+$/);
+            await expect.poll(() => param('product_id')).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
             await expect(page.locator('tbody tr')).toHaveCount(1);
             await expect(page.locator('tbody tr').first()).toContainText('DTC Product 01');
             await page.getByRole('button', { name: 'Hapus pilihan: Barang', exact: true }).click();

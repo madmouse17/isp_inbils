@@ -32,13 +32,13 @@ export function CompanySwitcher({ onSwitched }: CompanySwitcherProps) {
     }
 
     const switchTo = (companyId: string) => {
-        if (switching || Number(companyId) === current.id) {
+        if (switching || companyId === current.id) {
             return;
         }
 
         router.post(
             route('admin.company.switch'),
-            { company_id: Number(companyId) },
+            { company_id: companyId },
             {
                 onStart: () => setSwitching(true),
                 onFinish: () => setSwitching(false),

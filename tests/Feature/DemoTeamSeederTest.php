@@ -81,7 +81,7 @@ class DemoTeamSeederTest extends TestCase
         $this->assertNotNull($user->email_verified_at);
         $this->assertSame('INB-0301', $profile->employee_number);
         $this->assertSame('INB-HQ', OrganizationUnit::withoutGlobalScopes()->findOrFail($profile->organization_id)->code);
-        $this->assertTrue(app(CompanyMembershipService::class)->companiesOf($user)->contains(fn ($c) => (int) $c['id'] === (int) $company->id));
+        $this->assertTrue(app(CompanyMembershipService::class)->companiesOf($user)->contains(fn ($c) => $c['id'] === $company->public_id));
 
         $numbers = EmployeeProfile::withoutGlobalScopes()->pluck('employee_number');
         $this->assertSame($numbers->count(), $numbers->unique()->count());

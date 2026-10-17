@@ -39,9 +39,9 @@ class InvoiceController extends Controller
     /**
      * The spread of the resource hides its shape from the generator, so the body is spelled out.
      *
-     * @response array{data: array{id: int, number: string, subscription_id: int|null, issue_date: string, due_date: string, billing_period: array{start: string, end: string}|null, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: int, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: int, amount: string, method: string, method_label: string, reference: string|null, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}, payment_attempt: array{status: 'pending'|'settlement'|'expire'|'failed', expires_at: string, redirect_url: string|null}|null}}
+     * @response array{data: array{id: string, number: string, subscription_id: string|null, issue_date: string, due_date: string, billing_period: array{start: string, end: string}|null, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: string, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: string, amount: string, method: string, method_label: string, reference: string|null, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}, payment_attempt: array{status: 'pending'|'settlement'|'expire'|'failed', expires_at: string, redirect_url: string|null}|null}}
      */
-    public function show(Request $request, int $id, MidtransGateway $gateway): JsonResponse
+    public function show(Request $request, string $id, MidtransGateway $gateway): JsonResponse
     {
         $invoice = $this->ownInvoice($request, $id)->load([
             'items',
@@ -88,12 +88,13 @@ class InvoiceController extends Controller
         ];
     }
 
-    private function ownInvoice(Request $request, int $id): Invoice
+    private function ownInvoice(Request $request, string $id): Invoice
     {
         return Invoice::query()
             ->whereBelongsTo($this->customer($request))
             ->whereIn('status', Invoice::CUSTOMER_VISIBLE_STATUSES)
-            ->findOrFail($id);
+            ->wherePublicId($id)
+            ->firstOrFail();
     }
 
     private function customer(Request $request): Customer

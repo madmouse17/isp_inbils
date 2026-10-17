@@ -116,7 +116,7 @@ class DocumentController extends Controller
     {
         $request->validate([
             'model_type' => ['required', 'string'],
-            'model_id' => ['required', 'integer'],
+            'model_id' => ['required', 'ulid'],
             'file' => ['required', 'file', 'max:10240'],
             'document_type_code' => ['nullable', 'string'],
             'collection' => ['nullable', 'string'],
@@ -124,7 +124,7 @@ class DocumentController extends Controller
 
         $model = DocumentService::resolveUploadTarget(
             (string) $request->input('model_type'),
-            $request->integer('model_id'),
+            (string) $request->input('model_id'),
         );
 
         DocumentService::upload(

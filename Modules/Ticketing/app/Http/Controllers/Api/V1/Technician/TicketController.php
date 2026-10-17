@@ -15,7 +15,7 @@ use Modules\Ticketing\Services\TicketService;
 
 class TicketController extends Controller
 {
-    public function show(int $id): TechnicianTicketResource
+    public function show(string $id): TechnicianTicketResource
     {
         $ticket = $this->ticket($id);
         Gate::authorize('view', $ticket);
@@ -23,7 +23,7 @@ class TicketController extends Controller
         return new TechnicianTicketResource($this->detail($ticket));
     }
 
-    public function start(StartTicketRequest $request, int $id): TechnicianTicketResource
+    public function start(StartTicketRequest $request, string $id): TechnicianTicketResource
     {
         $ticket = $this->ticket($id);
         $ticket->status === 'assigned' ? Gate::authorize('start', $ticket) : Gate::authorize('view', $ticket);
@@ -46,7 +46,7 @@ class TicketController extends Controller
         return new TechnicianTicketResource($this->detail($started));
     }
 
-    public function resolve(ResolveTicketRequest $request, int $id): TechnicianTicketResource
+    public function resolve(ResolveTicketRequest $request, string $id): TechnicianTicketResource
     {
         $ticket = $this->ticket($id);
         $ticket->status === 'on_progress' ? Gate::authorize('resolve', $ticket) : Gate::authorize('view', $ticket);
@@ -56,17 +56,17 @@ class TicketController extends Controller
         return new TechnicianTicketResource($this->detail($resolved));
     }
 
-    private function ticket(int $id): Ticket
+    private function ticket(string $id): Ticket
     {
-        return Ticket::query()->findOrFail($id);
+        return Ticket::query()->wherePublicId($id)->firstOrFail();
     }
 
     private function detail(Ticket $ticket): Ticket
     {
         return $ticket->fresh()->load([
-            'category:id,name',
+            'category:id,public_id,name',
             'customer:id,name,phone',
-            'subscription:id,code,installation_address_id',
+            'subscription:id,public_id,code,installation_address_id',
             'subscription.installationAddress:id,address,lat,lng',
             'location:id,name,address,lat,lng',
             'comments' => fn ($query) => $query->orderBy('created_at')->orderBy('id'),

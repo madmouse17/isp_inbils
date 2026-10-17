@@ -269,7 +269,7 @@ test.describe('@datatable-ab replacement matrix', () => {
         await loginAs(page, 'admin');
         const prefix = unique('DTAB').toUpperCase();
         const codes = [`${prefix}-A`, `${prefix}-B`];
-        const created: number[] = [];
+        const created: string[] = [];
         try {
             for (const code of codes) {
                 const response = await page.request.post('/admin/organizations', {
@@ -334,7 +334,7 @@ test.describe('@datatable-ab replacement matrix', () => {
         const range = `date_from=2031-01-01&date_to=2031-01-31&customer_id=${customer.id}`;
         const ownedInvoices = async () => {
             const { props } = await inertiaProps(page, `/admin/invoices?${range}&per_page=50`);
-            return (props?.invoices?.data ?? []) as Array<{ id: number; number: string }>;
+            return (props?.invoices?.data ?? []) as Array<{ id: string; number: string }>;
         };
         expect(await ownedInvoices(), 'Owned invoice window starts empty').toHaveLength(0);
 

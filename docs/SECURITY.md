@@ -294,3 +294,29 @@ masih menyinkronkan permission kelima role tersebut.
   tanpa company id tampil sebagai unattributed.
 - Meter storage memakai metadata media `company_id`; file legacy tanpa metadata
   dapat membuat angka list lebih rendah. Ekspor/purge tetap memakai folder nyata.
+
+## 6. Public ids, uniform 404 and enumeration limiter
+
+Authorization (`BelongsToCompany`, policies, `can:` middleware) is the control. The rules below are a second layer against guessing ids and against reading record volume from a URL. Design: `.scratch/opaque-ids/spec.md`.
+
+### 6.1 Public ids
+- Every record that a URL, an API path, an Inertia prop or an API payload names has `public_id`, a 26-character lowercase ULID (`App\Support\PublicId::new()`, trait `App\Traits\HasPublicId`). Models bind routes by it; routes constrain the parameter with `whereUlid`; a value that is not a ULID is a 404 before any query.
+- The integer `id` is the primary key and every foreign key and never leaves the server: resources and props emit `public_id` as `id` and as every `*_id` reference. Requests accept public ids and map them to integer keys (company-scoped) before the service layer; a value that names no record, an integer, or a list sent where one id belongs (`customer_id[]=5`) is refused (`ResolvesPublicIds`, `PublicIdExists`).
+- `PublicId::new()` takes a fresh random part per id (not `Str::ulid()`, which counts up inside one millisecond): ids made together by a backfill, a seeder or a batch are not neighbours, so one leaked id names no sibling.
+- Midtrans `order_id` of a new attempt is `INB-{ULID}`; it names no company or invoice.
+- A public id is not a secret and not an authorization token. Never skip a policy because the caller "could not have guessed" the id.
+- Human codes (`CUS-00001`, `INV-2026-00001`) stay visible to the owning company. A running counter in a template still shows volume; change it in Penomoran.
+- Known open item: public company logo files live under `/storage/companies/<company_id>/...` and carry integer ids.
+
+### 6.2 Uniform record-level 404 (K3)
+- A record that does not exist, belongs to another company, or is hidden from the user by its policy answers the same 404 (same body). Policies return `Response::denyAsNotFound()` for scope denials; hand-written checks use `App\Support\RecordNotFound`. A comment or a file on a ticket the user's role hides (a technician who is not its handler) answers 404 as well: `TicketController` authorizes `view` before `comment` and `attach`.
+- Stays 403: page-level `can:` denials, and a missing permission on a record the user may see.
+- API: another technician's work order and another company's records answer 404.
+- A client that asks the web for JSON (`Accept: application/json`) gets `{"message":"Not Found"}` for every 404 outside `api/*`, whatever the cause (no model class, no route in the body). The API keeps its own `{message, code}` envelope.
+
+### 6.3 Enumeration limiter (K4)
+- `App\Http\Middleware\DetectRecordEnumeration` runs on the web, platform and API groups, after the guards and before route binding. It counts record-level 404s (`ModelNotFoundException`, `RecordNotFound`, a policy denial that answers 404) per signed-in user, in a rolling window.
+- Past `security.enumeration.threshold` (default 30) within `security.enumeration.window` minutes (5), it writes one `security.enumeration_suspected` audit entry (route name, ids tried, count, window, address) and answers 429 for `security.enumeration.cooldown` minutes (10). The API answers JSON with `Retry-After`.
+- Nobody who is signed out is counted. Every record route sits behind the login, the isolir page (`isolir/{company:code}`) has its own limiter (20 unknown codes a minute per address), and an address is not a person: counting by it would let anyone lock `/login` and `api/v1/auth/*` out for everybody behind the same NAT or proxy.
+- Behind a reverse proxy or load balancer set `TRUSTED_PROXIES` (comma-separated addresses, CIDR ranges allowed, `*` only when the proxy is the single way in). `App\Http\Middleware\TrustConfiguredProxies` reads it on every request, so the audit address, the per-address throttles and generated URLs use the real client. Default: nobody is trusted, and a forged `X-Forwarded-For` is ignored.
+- 403s are never counted. Env: `SECURITY_ENUMERATION_ENABLED` (default on; off in `testing` and `e2e`), `SECURITY_ENUMERATION_THRESHOLD`, `SECURITY_ENUMERATION_WINDOW`, `SECURITY_ENUMERATION_COOLDOWN`.

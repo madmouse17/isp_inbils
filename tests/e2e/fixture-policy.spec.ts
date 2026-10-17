@@ -41,7 +41,7 @@ test('@kanban-t_1d1f1f13 app-origin buffer exhaustion always fails', () => {
         error: 'net::ERR_NO_BUFFER_SPACE',
         navigationMovedAway: true,
         abortCorrelation: {
-            type: 'inertia:finish',
+            type: 'inertia:finish' as const,
             pageUrl: `${appOrigin}/admin/dashboard`,
             sequence: 1,
             visitCancelled: true,
@@ -76,7 +76,7 @@ test('@kanban-t_1d1f1f13 inertia cancellation evidence allows app-origin abort',
         error: 'net::ERR_ABORTED',
         navigationMovedAway: false,
         abortCorrelation: {
-            type: 'inertia:finish',
+            type: 'inertia:finish' as const,
             pageUrl: `${appOrigin}/admin/dashboard`,
             sequence: 1,
             visitCancelled: false,
@@ -322,7 +322,7 @@ guarded(
             error: failedRequest.failure()?.errorText ?? 'unknown',
             navigationMovedAway: true,
             abortCorrelation: {
-                type: 'framenavigated',
+                type: 'framenavigated' as const,
                 pageUrl: navigation!.pageUrl,
                 sequence: 1,
             },
@@ -1240,11 +1240,15 @@ test('@kanban-t_ced3c267 guarded session fails closed on stateful match-all rege
     });
 
     expect(thrownErrorGlobal).not.toBeNull();
-    expect(thrownErrorGlobal?.message).toMatch(/url RegExp cannot be empty or match-all wildcard/);
+    expect((thrownErrorGlobal as Error | null)?.message).toMatch(
+        /url RegExp cannot be empty or match-all wildcard/,
+    );
     expect(statefulGlobal.lastIndex).toBe(5);
 
     expect(thrownErrorSticky).not.toBeNull();
-    expect(thrownErrorSticky?.message).toMatch(/url RegExp cannot be empty or match-all wildcard/);
+    expect((thrownErrorSticky as Error | null)?.message).toMatch(
+        /url RegExp cannot be empty or match-all wildcard/,
+    );
     expect(statefulSticky.lastIndex).toBe(3);
 
     expect(result.failingEvidence).toEqual([]);

@@ -27,7 +27,7 @@ import {
 import type { CustomerAddress, CustomerContact, ServiceSubscription } from '@/types/models';
 
 interface InvoiceHistory {
-    id: number;
+    id: string;
     number: string;
     status: string;
     issue_date: string;
@@ -37,7 +37,7 @@ interface InvoiceHistory {
 }
 
 interface TicketHistory {
-    id: number;
+    id: string;
     code: string;
     title: string;
     priority: string;
@@ -46,7 +46,7 @@ interface TicketHistory {
 }
 
 interface WorkOrderHistory {
-    id: number;
+    id: string;
     code: string;
     title: string;
     type: string;

@@ -4,6 +4,7 @@ namespace Modules\Service\Models;
 
 use App\Models\Core\Location;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -34,6 +35,7 @@ class PromoBanner extends Model implements HasMedia
     use BelongsToCompany;
     use HasFactory;
     use HasPublicationStatus;
+    use HasPublicId;
     use InteractsWithMedia;
 
     public const APP_ROUTES = ['invoices', 'subscriptions', 'ticket_create', 'visits'];

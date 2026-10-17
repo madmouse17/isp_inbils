@@ -12,10 +12,12 @@ use Modules\Billing\Services\BillingService;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\BuildsSubscriptionBilling;
 use Tests\Traits\CreatesCompanyUser;
 
 class ReceivablesTest extends TestCase
 {
+    use BuildsSubscriptionBilling;
     use CreatesCompanyUser;
     use RefreshDatabase;
 
@@ -42,6 +44,19 @@ class ReceivablesTest extends TestCase
         $this->assertEquals(50000.0, $row['b90_plus']);
         $this->assertEquals(500000.0, $row['total']);
         $this->assertSame(4, $row['invoice_count']);
+    }
+
+    public function test_rows_name_the_customer_and_its_subscriptions_by_public_id(): void
+    {
+        $user = $this->createCompanyUser();
+        $this->actingAs($user);
+        $subscription = $this->subscriptionIn($user->company);
+        $this->invoiceFor($subscription, 5);
+
+        $row = BillingService::receivables()[0];
+
+        $this->assertSame($subscription->customer->public_id, $row['customer_id']);
+        $this->assertSame([$subscription->public_id], array_column($row['subscriptions'], 'id'));
     }
 
     public function test_page_renders(): void

@@ -145,7 +145,7 @@ trait InteractsWithWhatsApp
             'contacts' => [
                 ['name' => 'Kontak Utama', 'position' => 'Owner', 'phone' => '0812-3456-7890', 'email' => 'kontak.utama@example.test', 'is_primary' => true, 'notes' => null],
             ],
-            'subscription' => ['service_package_id' => $package->id, 'serving_pop_id' => $location->id, 'billing_day' => 5, 'mrc_amount' => null, 'otc_installation_fee' => null, 'contract_months' => null, 'notes' => null],
+            'subscription' => ['service_package_id' => $package->public_id, 'serving_pop_id' => $location->public_id, 'billing_day' => 5, 'mrc_amount' => null, 'otc_installation_fee' => null, 'contract_months' => null, 'notes' => null],
             ...$overrides,
         ];
     }

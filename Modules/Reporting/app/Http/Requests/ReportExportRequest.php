@@ -42,7 +42,8 @@ class ReportExportRequest extends ReportScopedRequest
             'format' => ['nullable', 'string', 'in:csv,pdf'],
             'sort' => $sortColumns,
             'sort_by' => $sortColumns,
-            'product_id' => [$report === ReportType::StockCard ? 'required' : 'nullable', 'integer'],
+            // The stock card names its product by public id; an unknown or foreign one is a 404 of the ledger, not a form error.
+            'product_id' => [$report === ReportType::StockCard ? 'required' : 'nullable', 'ulid'],
         ];
     }
 

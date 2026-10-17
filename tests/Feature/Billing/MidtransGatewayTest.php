@@ -357,6 +357,6 @@ class MidtransGatewayTest extends TestCase
         $this->assertSame($invoice->company_id, $attempt->company_id);
         $this->assertSame('250000.00', $attempt->amount);
         $this->assertSame(250000, $attempt->grossAmount());
-        $this->assertMatchesRegularExpression('/^'.$invoice->company_id.'-'.$invoice->id.'-[a-z0-9]{12}$/', $attempt->order_id);
+        $this->assertMatchesRegularExpression('/^INB-[0-9A-Z]{26}$/', $attempt->order_id);
     }
 }

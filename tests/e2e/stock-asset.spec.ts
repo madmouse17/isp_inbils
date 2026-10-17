@@ -77,14 +77,14 @@ test.describe('@kanban-t_f519540a stock and asset UI wiring', () => {
             page.getByRole('main').getByRole('heading', { name: 'E2E Linked ONT' }),
         ).toBeVisible();
         await page.getByRole('link', { name: 'E2E Linked Customer' }).click();
-        await expect(page).toHaveURL(/\/admin\/customers\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/customers\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(
             page.getByRole('main').getByRole('heading', { name: 'E2E Linked Customer' }),
         ).toBeVisible();
 
         await openLinkedAsset(page);
         await page.getByRole('link', { name: 'E2E-LINKED-SUB' }).click();
-        await expect(page).toHaveURL(/\/admin\/subscriptions\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/subscriptions\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expect(
             page.getByRole('main').getByRole('heading', { name: 'Langganan E2E-LINKED-SUB' }),
         ).toBeVisible();

@@ -32,9 +32,9 @@ class WorkOrdersTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         [$workOrder] = $this->workOrderFor($technician, 'assigned', withLocation: false);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)
             ->assertOk()
-            ->assertJsonPath('data.id', $workOrder->id)
+            ->assertJsonPath('data.id', $workOrder->public_id)
             ->assertJsonPath('data.customer.name', $workOrder->customer->name)
             ->assertJsonPath('data.subscription.package_name', $workOrder->subscription->servicePackage->name)
             ->assertJsonPath('data.site.label', 'Install')
@@ -51,7 +51,7 @@ class WorkOrdersTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         [$workOrder] = $this->workOrderFor($technician, 'assigned', lat: -6.2000000, lng: 106.8166667);
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", [
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", [
             'check_in' => [
                 'lat' => -6.2000000,
                 'lng' => 106.8166667,
@@ -81,7 +81,7 @@ class WorkOrdersTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         [$workOrder] = $this->workOrderFor($technician, 'assigned');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", [
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", [
             'check_in' => ['unavailable_reason' => 'permission_denied'],
         ], $token)->assertOk()
             ->assertJsonPath('data.check_in.status', 'unavailable')
@@ -104,12 +104,12 @@ class WorkOrdersTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         [$workOrder] = $this->workOrderFor($technician, 'assigned');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", [
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", [
             'check_in' => ['lat' => 12, 'lng' => 181, 'captured_at' => now()->addHour()->toIso8601String()],
         ], $token)->assertUnprocessable()
             ->assertJsonValidationErrors(['check_in.lng', 'check_in.captured_at']);
 
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $token)
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $token)
             ->assertJsonPath('data.status', 'assigned')
             ->assertJsonPath('data.check_in.status', 'none');
     }
@@ -120,7 +120,7 @@ class WorkOrdersTest extends TestCase
         $token = $this->issueToken($technician, 'technician');
         [$workOrder] = $this->workOrderFor($technician, 'in_progress');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $token)
             ->assertStatus(422)
             ->assertJsonPath('code', 'unprocessable');
 
@@ -129,7 +129,7 @@ class WorkOrdersTest extends TestCase
             ->withCustomProperties(['company_id' => $workOrder->company_id, 'type' => 'photo', 'uploaded_by' => $technician->id])
             ->toMediaCollection('evidence');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/submit", token: $token)
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/submit", token: $token)
             ->assertOk()
             ->assertJsonPath('data.status', 'waiting_review');
     }
@@ -140,13 +140,13 @@ class WorkOrdersTest extends TestCase
         $other = $this->technicianLogin($technician->company);
         [$workOrder] = $this->workOrderFor($technician, 'assigned');
 
-        $this->api('POST', "technician/work-orders/{$workOrder->id}/start", token: $this->issueToken($other, 'technician'))
-            ->assertForbidden();
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->issueToken($other, 'technician'))
+        $this->api('POST', "technician/work-orders/{$workOrder->public_id}/start", token: $this->issueToken($other, 'technician'))
+            ->assertNotFound();
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->issueToken($other, 'technician'))
             ->assertNotFound();
 
         $stranger = $this->technicianLogin();
-        $this->api('GET', "technician/work-orders/{$workOrder->id}", token: $this->issueToken($stranger, 'technician'))
+        $this->api('GET', "technician/work-orders/{$workOrder->public_id}", token: $this->issueToken($stranger, 'technician'))
             ->assertNotFound();
     }
 

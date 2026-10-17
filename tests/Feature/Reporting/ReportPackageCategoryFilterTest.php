@@ -6,6 +6,7 @@ use App\Models\Core\Customer;
 use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
+use App\Support\PublicId;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -116,11 +117,11 @@ class ReportPackageCategoryFilterTest extends TestCase
         $this->assertSame($all, $this->salesTotals([]));
         $this->assertSame(
             ['customers_acquired' => 1, 'subscriptions_activated' => 1, 'active_mrr' => '100000.00', 'invoiced' => '100000.00', 'collected' => '100000.00', 'outstanding' => '0.00'],
-            $this->salesTotals(['service_package_category_id' => $this->rumahan->id]),
+            $this->salesTotals(['service_package_category_id' => $this->rumahan->public_id]),
         );
         $this->assertSame(
             ['customers_acquired' => 1, 'subscriptions_activated' => 1, 'active_mrr' => '500000.00', 'invoiced' => '500000.00', 'collected' => '0.00', 'outstanding' => '500000.00'],
-            $this->salesTotals(['service_package_category_id' => $this->bisnis->id]),
+            $this->salesTotals(['service_package_category_id' => $this->bisnis->public_id]),
         );
     }
 
@@ -128,15 +129,15 @@ class ReportPackageCategoryFilterTest extends TestCase
     {
         $foreign = $this->category('ASING', 1, (int) $this->userWithRole('admin')->company_id);
 
-        $this->actingAs($this->admin)->get(route('admin.reports.sales', ['service_package_category_id' => $this->bisnis->id]))->assertOk()
+        $this->actingAs($this->admin)->get(route('admin.reports.sales', ['service_package_category_id' => $this->bisnis->public_id]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('packageCategories', [
-                    ['id' => $this->rumahan->id, 'code' => 'RUMAHAN', 'name' => 'Rumahan', 'is_active' => true],
-                    ['id' => $this->bisnis->id, 'code' => 'BISNIS', 'name' => 'Bisnis', 'is_active' => true],
+                    ['id' => $this->rumahan->public_id, 'code' => 'RUMAHAN', 'name' => 'Rumahan', 'is_active' => true],
+                    ['id' => $this->bisnis->public_id, 'code' => 'BISNIS', 'name' => 'Bisnis', 'is_active' => true],
                 ])
-                ->where('filters.service_package_category_id', (string) $this->bisnis->id));
+                ->where('filters.service_package_category_id', $this->bisnis->public_id));
 
-        $this->assertNotContains($foreign->id, collect($this->actingAs($this->admin)->get(route('admin.reports.sales'))->inertiaProps('packageCategories'))->pluck('id')->all());
+        $this->assertNotContains($foreign->public_id, collect($this->actingAs($this->admin)->get(route('admin.reports.sales'))->inertiaProps('packageCategories'))->pluck('id')->all());
     }
 
     public function test_business_report_limits_subscription_and_invoice_figures_to_the_chosen_category(): void
@@ -151,28 +152,28 @@ class ReportPackageCategoryFilterTest extends TestCase
         );
         $this->assertSame(
             ['mrr' => 100000.0, 'active_subscriptions' => 1.0, 'new_subscriptions' => 1.0, 'revenue_paid' => 100000.0, 'recurring_revenue' => 100000.0, 'one_time_revenue' => 0.0, 'outstanding' => 0.0],
-            $figures(['service_package_category_id' => $this->rumahan->id]),
+            $figures(['service_package_category_id' => $this->rumahan->public_id]),
         );
         $this->assertSame(
             ['mrr' => 500000.0, 'active_subscriptions' => 1.0, 'new_subscriptions' => 1.0, 'revenue_paid' => 0.0, 'recurring_revenue' => 0.0, 'one_time_revenue' => 0.0, 'outstanding' => 500000.0],
-            $figures(['service_package_category_id' => $this->bisnis->id]),
+            $figures(['service_package_category_id' => $this->bisnis->public_id]),
         );
     }
 
     public function test_business_page_props_hold_the_options_the_filter_and_drill_links_that_keep_it(): void
     {
-        $this->actingAs($this->admin)->get(route('admin.reports.business', [...self::PERIOD, 'service_package_category_id' => $this->bisnis->id]))->assertOk()
+        $this->actingAs($this->admin)->get(route('admin.reports.business', [...self::PERIOD, 'service_package_category_id' => $this->bisnis->public_id]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('packageCategories.0.code', 'RUMAHAN')
                 ->where('packageCategories.1.code', 'BISNIS')
-                ->where('filters.service_package_category_id', (string) $this->bisnis->id)
-                ->where('drill.mrr', fn (string $url) => str_contains($url, 'service_package_category_id='.$this->bisnis->id)));
+                ->where('filters.service_package_category_id', $this->bisnis->public_id)
+                ->where('drill.mrr', fn (string $url) => str_contains($url, 'service_package_category_id='.$this->bisnis->public_id)));
     }
 
     public function test_drill_lists_and_their_tie_out_follow_the_filter(): void
     {
         $this->actingAs($this->admin);
-        $query = [...self::PERIOD, 'service_package_category_id' => $this->bisnis->id];
+        $query = [...self::PERIOD, 'service_package_category_id' => $this->bisnis->public_id];
 
         $mrr = $this->get(route('admin.reports.business.drill', ['metric' => 'mrr', ...$query]))->assertOk();
         $this->assertSame(1, $mrr->inertiaProps('rows.total'));
@@ -189,10 +190,10 @@ class ReportPackageCategoryFilterTest extends TestCase
 
     public function test_export_states_the_filter_and_which_figures_it_does_not_limit(): void
     {
-        $rows = $this->csvRecords($this->actingAs($this->admin)->get(route('admin.reports.business.export', [...self::PERIOD, 'service_package_category_id' => $this->rumahan->id])));
+        $rows = $this->csvRecords($this->actingAs($this->admin)->get(route('admin.reports.business.export', [...self::PERIOD, 'service_package_category_id' => $this->rumahan->public_id])));
         $byMetric = collect($rows)->keyBy('Metrik');
 
-        $this->assertStringContainsString('service_package_category_id='.$this->rumahan->id, $byMetric['MRR']['Filter']);
+        $this->assertStringContainsString('service_package_category_id='.$this->rumahan->public_id, $byMetric['MRR']['Filter']);
         $this->assertStringNotContainsString('kategori paket', $byMetric['MRR']['Cakupan']);
         $this->assertStringContainsString('Filter kategori paket tidak berlaku', $byMetric['Kepatuhan SLA']['Cakupan']);
     }
@@ -202,10 +203,10 @@ class ReportPackageCategoryFilterTest extends TestCase
         $foreign = $this->category('ASING', 1, (int) $this->userWithRole('admin')->company_id);
 
         foreach (['admin.reports.sales', 'admin.reports.business'] as $route) {
-            $this->actingAs($this->admin)->getJson(route($route, ['service_package_category_id' => $foreign->id]))
-                ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
-            $this->actingAs($this->admin)->getJson(route($route, ['service_package_category_id' => 999999]))
-                ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
+            foreach ([$foreign->public_id, PublicId::new(), (string) $this->bisnis->id, '999999'] as $categoryId) {
+                $this->actingAs($this->admin)->getJson(route($route, ['service_package_category_id' => $categoryId]))
+                    ->assertUnprocessable()->assertJsonValidationErrors('service_package_category_id');
+            }
         }
     }
 }

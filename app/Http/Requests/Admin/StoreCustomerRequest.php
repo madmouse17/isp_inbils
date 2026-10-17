@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Models\Core\Customer;
+use App\Models\Core\Location;
+use App\Models\User;
 use App\Queries\Admin\CustomerAcquirerQuery;
 use App\Rules\IsEligibleCustomerAcquirer;
 use App\Services\Core\CompanyService;
@@ -16,9 +19,25 @@ use Laravolt\Indonesia\Models\City;
 use Laravolt\Indonesia\Models\District;
 use Laravolt\Indonesia\Models\Province;
 use Laravolt\Indonesia\Models\Village;
+use Modules\NetworkAsset\Models\OdnPort;
+use Modules\Service\Models\ServicePackage;
 
 class StoreCustomerRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'area_coverage_id' => Location::class,
+            'subscription.service_package_id' => ServicePackage::class,
+            'subscription.serving_pop_id' => Location::class,
+            'subscription.odn_port_id' => OdnPort::class,
+            'acquired_by_user_id' => User::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('customer.create') ?? false;
@@ -93,6 +112,12 @@ class StoreCustomerRequest extends FormRequest
     public function attributes(): array
     {
         return ['type' => 'tipe pelanggan'];
+    }
+
+    /** @return array<string, string> an id that names no record answers as an employee who may not acquire does: nobody learns which */
+    public function messages(): array
+    {
+        return ['acquired_by_user_id.exists' => 'Pilih karyawan aktif yang berhak membuat pelanggan.'];
     }
 
     /**

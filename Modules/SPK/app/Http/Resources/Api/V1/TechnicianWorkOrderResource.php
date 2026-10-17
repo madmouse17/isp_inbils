@@ -29,7 +29,7 @@ class TechnicianWorkOrderResource extends JsonResource
         $phone = PhoneNumber::normalizeIndonesianMobile($wo->customer?->phone);
 
         return [
-            'id' => $wo->id,
+            'id' => $wo->public_id,
             'code' => $wo->code,
             'type' => $wo->type,
             /** The type in Indonesian, as the app shows it: never show `type` itself. */
@@ -53,7 +53,7 @@ class TechnicianWorkOrderResource extends JsonResource
             'check_in' => FieldCheckIn::apiSummary($wo, 'work_order'),
             'ticket' => $this->ticketBlock(),
             'customer' => $wo->customer === null ? null : [
-                'id' => $wo->customer->id,
+                'id' => $wo->customer->public_id,
                 'code' => $wo->customer->code,
                 'name' => $wo->customer->name,
                 'phone' => $wo->customer->phone,
@@ -61,7 +61,7 @@ class TechnicianWorkOrderResource extends JsonResource
                 'phone_e164' => $phone === null ? null : '+'.$phone,
             ],
             'subscription' => $wo->subscription === null ? null : [
-                'id' => $wo->subscription->id,
+                'id' => $wo->subscription->public_id,
                 'code' => $wo->subscription->code,
                 'package_name' => $wo->subscription->servicePackage?->name,
             ],
@@ -88,7 +88,7 @@ class TechnicianWorkOrderResource extends JsonResource
         ];
     }
 
-    /** @return array{id: int, code: string|null}|null */
+    /** @return array{id: string, code: string|null}|null */
     private function ticketBlock(): ?array
     {
         if ($this->resource->ticket_id === null) {
@@ -99,12 +99,12 @@ class TechnicianWorkOrderResource extends JsonResource
             ->where('company_id', $this->resource->company_id)
             ->where('id', $this->resource->ticket_id)
             ->whereNull('deleted_at')
-            ->first(['id', 'code']);
+            ->first(['public_id', 'code']);
 
-        return $ticket === null ? null : ['id' => (int) $ticket->id, 'code' => $ticket->code];
+        return $ticket === null ? null : ['id' => $ticket->public_id, 'code' => $ticket->code];
     }
 
-    /** @return list<array{id: int, status: string}> */
+    /** @return list<array{id: string, status: string}> */
     private function materialReturns(): array
     {
         return MaterialReturnCase::withoutCompany()
@@ -113,8 +113,8 @@ class TechnicianWorkOrderResource extends JsonResource
                 $query->where('source_type', 'work_order')->where('source_id', $this->resource->id);
             })
             ->orderBy('id')
-            ->get(['id', 'status'])
-            ->map(fn (MaterialReturnCase $case): array => ['id' => $case->id, 'status' => $case->status])
+            ->get(['id', 'public_id', 'status'])
+            ->map(fn (MaterialReturnCase $case): array => ['id' => $case->public_id, 'status' => $case->status])
             ->values()
             ->all();
     }

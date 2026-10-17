@@ -6,6 +6,7 @@ use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
 use App\Notifications\CustomerAccountCreated;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Notification;
@@ -26,15 +27,16 @@ class NotificationsTest extends TestCase
         $other = $this->technicianLogin(Company::query()->findOrFail($technician->company_id));
         $token = $this->issueToken($technician, 'technician');
 
-        $owned = $this->notification($technician, ['type' => 'ticket_assigned', 'ticket_id' => 101, 'ticket_code' => 'TKT-101']);
-        $otherNotification = $this->notification($other, ['type' => 'ticket_assigned', 'ticket_id' => 202, 'ticket_code' => 'TKT-202']);
-        $alreadyRead = $this->notification($technician, ['type' => 'invoice_issued', 'invoice_id' => 303], readAt: now());
+        $ticketId = PublicId::new();
+        $owned = $this->notification($technician, ['type' => 'ticket_assigned', 'ticket_id' => $ticketId, 'ticket_code' => 'TKT-101']);
+        $otherNotification = $this->notification($other, ['type' => 'ticket_assigned', 'ticket_id' => PublicId::new(), 'ticket_code' => 'TKT-202']);
+        $alreadyRead = $this->notification($technician, ['type' => 'invoice_issued', 'invoice_id' => PublicId::new()], readAt: now());
 
         $response = $this->api('GET', 'notifications?unread_only=1&per_page=10', token: $token)
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', (string) $owned->id)
-            ->assertJsonPath('data.0.subject', ['type' => 'ticket', 'id' => 101]);
+            ->assertJsonPath('data.0.subject', ['type' => 'ticket', 'id' => $ticketId]);
 
         $this->assertSame(['id', 'type', 'title', 'message', 'subject', 'created_at', 'read_at'], array_keys($response->json('data.0')));
 
@@ -52,15 +54,16 @@ class NotificationsTest extends TestCase
     {
         [$user, $customer] = $this->customerLogin();
         $token = $this->issueToken($user, 'customer');
-        $customerNotification = $this->notification($customer, ['type' => 'invoice_issued', 'invoice_id' => 77]);
-        $this->notification($user, ['type' => 'ticket_assigned', 'ticket_id' => 88]);
+        $invoiceId = PublicId::new();
+        $customerNotification = $this->notification($customer, ['type' => 'invoice_issued', 'invoice_id' => $invoiceId]);
+        $this->notification($user, ['type' => 'ticket_assigned', 'ticket_id' => PublicId::new()]);
 
         $this->api('GET', 'notifications', token: $token)
             ->assertOk()
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.id', (string) $customerNotification->id)
             ->assertJsonPath('data.0.title', 'Tagihan baru')
-            ->assertJsonPath('data.0.subject', ['type' => 'invoice', 'id' => 77]);
+            ->assertJsonPath('data.0.subject', ['type' => 'invoice', 'id' => $invoiceId]);
     }
 
     public function test_whatsapp_customer_events_write_ids_only_database_rows_for_linked_customers(): void
@@ -79,7 +82,7 @@ class NotificationsTest extends TestCase
         Notification::sendNow($customer, new InvoiceIssuedNotification((int) $customer->company_id, $invoice->id));
 
         $row = $customer->notifications()->sole();
-        $this->assertSame(['type' => 'invoice_issued', 'invoice_id' => $invoice->id], $row->data);
+        $this->assertSame(['type' => 'invoice_issued', 'invoice_id' => $invoice->public_id], $row->data);
         foreach ([$customer->phone, $customer->name, $invoice->number, (string) $invoice->total] as $private) {
             $this->assertStringNotContainsString((string) $private, json_encode($row->data, JSON_THROW_ON_ERROR));
         }
@@ -96,12 +99,14 @@ class NotificationsTest extends TestCase
     {
         $technician = $this->technicianLogin();
         $token = $this->issueToken($technician, 'technician');
+        [$workOrder, $invoice, $request, $returnCase] = [PublicId::new(), PublicId::new(), PublicId::new(), PublicId::new()];
         foreach ([
-            ['work_order_id' => 2, 'subject' => ['type' => 'work_order', 'id' => 2]],
-            ['invoice_id' => '3', 'subject' => ['type' => 'invoice', 'id' => 3]],
-            ['request_id' => 4, 'subject' => ['type' => 'inventory_request', 'id' => 4]],
-            ['case_id' => 5, 'subject' => ['type' => 'material_return', 'id' => 5]],
+            ['work_order_id' => $workOrder, 'subject' => ['type' => 'work_order', 'id' => $workOrder]],
+            ['invoice_id' => $invoice, 'subject' => ['type' => 'invoice', 'id' => $invoice]],
+            ['request_id' => $request, 'subject' => ['type' => 'inventory_request', 'id' => $request]],
+            ['case_id' => $returnCase, 'subject' => ['type' => 'material_return', 'id' => $returnCase]],
             ['unknown_id' => 6, 'subject' => null],
+            ['ticket_id' => 7, 'subject' => null],
         ] as $case) {
             $data = $case;
             unset($data['subject']);
@@ -113,10 +118,10 @@ class NotificationsTest extends TestCase
             ->values();
 
         foreach ([
-            ['type' => 'work_order', 'id' => 2],
-            ['type' => 'invoice', 'id' => 3],
-            ['type' => 'inventory_request', 'id' => 4],
-            ['type' => 'material_return', 'id' => 5],
+            ['type' => 'work_order', 'id' => $workOrder],
+            ['type' => 'invoice', 'id' => $invoice],
+            ['type' => 'inventory_request', 'id' => $request],
+            ['type' => 'material_return', 'id' => $returnCase],
             null,
         ] as $subject) {
             $this->assertTrue($subjects->contains($subject), 'Missing subject '.json_encode($subject));

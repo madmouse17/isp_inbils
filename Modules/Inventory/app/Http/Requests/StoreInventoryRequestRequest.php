@@ -2,14 +2,32 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
+use App\Models\Core\Location;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Modules\Inventory\Models\InventoryRequest;
+use Modules\Inventory\Models\Product;
 use Modules\Inventory\Support\InventoryRequestSources;
+use Modules\SPK\Models\WorkOrder;
+use Modules\Ticketing\Models\Ticket;
 
 class StoreInventoryRequestRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string|\Closure> */
+    protected function publicIdFields(): array
+    {
+        return [
+            'warehouse_location_id' => Location::class,
+            'source_id' => fn (array $input): ?string => is_string($type = $input['source_type'] ?? null) ? (['work_order' => WorkOrder::class, 'ticket' => Ticket::class][$type] ?? null) : null,
+            'items.*.product_id' => Product::class,
+            'items.*.source_location_id' => Location::class,
+        ];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', InventoryRequest::class) ?? false;
@@ -76,6 +94,10 @@ class StoreInventoryRequestRequest extends FormRequest
     {
         return [
             'needed_at.date_format' => 'Tanggal dibutuhkan harus berupa tanggal yang valid.',
+            // A source id that names no record the company can see is refused with the text of the closure rule in rules().
+            'source_id.exists' => $this->input('source_type') === 'ticket'
+                ? 'Tiket yang dipilih tidak valid untuk perusahaan ini.'
+                : 'SPK yang dipilih tidak valid untuk perusahaan ini.',
         ];
     }
 }

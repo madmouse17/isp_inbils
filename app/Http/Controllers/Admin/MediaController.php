@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\Core\CompanyService;
+use App\Support\RecordNotFound;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
@@ -24,10 +25,7 @@ class MediaController extends Controller
         $owner = $media->model;
 
         // Missing, trashed or foreign owners look the same as a media id that does not exist.
-        abort_unless(
-            $owner instanceof Model && (int) $owner->getAttribute('company_id') === CompanyService::currentId(),
-            404,
-        );
+        RecordNotFound::abortUnless($owner instanceof Model && (int) $owner->getAttribute('company_id') === CompanyService::currentId());
         Gate::authorize('view', $owner);
 
         $disk = Storage::disk($media->disk);

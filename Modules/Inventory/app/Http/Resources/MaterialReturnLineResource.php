@@ -22,13 +22,13 @@ class MaterialReturnLineResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'company_id' => $this->company_id,
-            'material_return_case_id' => $this->material_return_case_id,
-            'inventory_request_item_id' => $this->inventory_request_item_id,
-            'product_id' => $this->product_id,
+            'id' => $this->public_id,
+            'company_id' => $this->company?->public_id,
+            'material_return_case_id' => $this->case?->public_id,
+            'inventory_request_item_id' => $this->inventoryRequestItem?->public_id,
+            'product_id' => $this->product?->public_id,
             'product' => $this->whenLoaded('product', fn () => [
-                'id' => $this->product->id,
+                'id' => $this->product->public_id,
                 'name' => $this->product->name,
                 'code' => $this->product->sku,
                 'sku' => $this->product->sku,

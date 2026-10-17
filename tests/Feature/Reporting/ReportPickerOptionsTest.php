@@ -92,7 +92,7 @@ class ReportPickerOptionsTest extends TestCase
         $response = $this->partial('Admin/Reports/Technician', 'technicianOptions', route('admin.reports.technician', ['technician_search' => 'Rani']))->assertOk();
 
         $this->assertSame(
-            [['value' => $eligible->id, 'label' => 'Rani Teknisi', 'description' => 'rani@example.test']],
+            [['value' => $eligible->public_id, 'label' => 'Rani Teknisi', 'description' => 'rani@example.test']],
             $response->json('props.technicianOptions'),
         );
     }
@@ -101,10 +101,10 @@ class ReportPickerOptionsTest extends TestCase
     {
         $eligible = $this->technician('Rani Teknisi', 'rani@example.test');
 
-        $this->get(route('admin.reports.technician', ['technician_id' => $eligible->id]))
+        $this->get(route('admin.reports.technician', ['technician_id' => $eligible->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedTechnician', ['value' => $eligible->id, 'label' => 'Rani Teknisi', 'description' => 'rani@example.test'])
+                ->where('selectedTechnician', ['value' => $eligible->public_id, 'label' => 'Rani Teknisi', 'description' => 'rani@example.test'])
                 ->missing('technicianOptions'));
     }
 
@@ -112,7 +112,7 @@ class ReportPickerOptionsTest extends TestCase
     {
         $foreign = $this->technician('Rani Asing', 'rani.asing@example.test', companyId: $this->other->id);
 
-        $this->get(route('admin.reports.technician', ['technician_id' => $foreign->id]))->assertForbidden();
+        $this->get(route('admin.reports.technician', ['technician_id' => $foreign->public_id]))->assertForbidden();
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -144,12 +144,12 @@ class ReportPickerOptionsTest extends TestCase
 
         $this->assertSame(
             [
-                ['value' => $mine->id, 'label' => 'Kabel Fiber', 'description' => 'SKU-A-1'],
-                ['value' => $deleted->id, 'label' => 'Kabel Lama', 'description' => 'SKU-A-2'],
+                ['value' => $mine->public_id, 'label' => 'Kabel Fiber', 'description' => 'SKU-A-1'],
+                ['value' => $deleted->public_id, 'label' => 'Kabel Lama', 'description' => 'SKU-A-2'],
             ],
             $options,
         );
-        $this->assertSame([$mine->id], array_column(
+        $this->assertSame([$mine->public_id], array_column(
             $this->partial('Admin/Reports/StockCard', 'productOptions', route('admin.reports.stock-card', ['product_search' => 'SKU-A-1']))->json('props.productOptions'),
             'value',
         ));
@@ -160,17 +160,17 @@ class ReportPickerOptionsTest extends TestCase
         $product = $this->product($this->admin->company_id, 'Kabel Lama', 'SKU-B-1');
         $product->delete();
 
-        $this->get(route('admin.reports.stock-card', ['product_id' => $product->id]))
+        $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedProduct', ['value' => $product->id, 'label' => 'Kabel Lama', 'description' => 'SKU-B-1']));
+                ->where('selectedProduct', ['value' => $product->public_id, 'label' => 'Kabel Lama', 'description' => 'SKU-B-1']));
     }
 
     public function test_a_foreign_product_id_gets_a_validation_error_not_a_page(): void
     {
         $foreign = $this->product($this->other->id, 'Kabel Asing', 'SKU-C-1');
 
-        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $foreign->id]));
+        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $foreign->public_id]));
 
         $response->assertSessionHasErrors('product_id');
         $this->assertStringNotContainsString('Kabel Asing', $response->getContent());
@@ -190,7 +190,7 @@ class ReportPickerOptionsTest extends TestCase
 
         $this->assertSame([], $this->partial('Admin/Reports/StockCard', 'locationOptions', route('admin.reports.stock-card', ['location_search' => 'g']))->json('props.locationOptions'));
         $this->assertSame(
-            [['value' => $mine->id, 'label' => 'Gudang Pusat', 'description' => 'GDG-01']],
+            [['value' => $mine->public_id, 'label' => 'Gudang Pusat', 'description' => 'GDG-01']],
             $this->partial('Admin/Reports/StockCard', 'locationOptions', route('admin.reports.stock-card', ['location_search' => 'Gudang']))->json('props.locationOptions'),
         );
     }
@@ -201,12 +201,12 @@ class ReportPickerOptionsTest extends TestCase
         $foreign = Location::factory()->create(['company_id' => $this->other->id, 'name' => 'Gudang Asing', 'code' => 'GDG-99']);
         $product = $this->product($this->admin->company_id, 'Kabel Fiber', 'SKU-D-1');
 
-        $this->get(route('admin.reports.stock-card', ['product_id' => $product->id, 'location_id' => $mine->id]))
+        $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id, 'location_id' => $mine->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedLocation', ['value' => $mine->id, 'label' => 'Gudang Pusat', 'description' => 'GDG-01']));
+                ->where('selectedLocation', ['value' => $mine->public_id, 'label' => 'Gudang Pusat', 'description' => 'GDG-01']));
 
-        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $product->id, 'location_id' => $foreign->id]));
+        $response = $this->get(route('admin.reports.stock-card', ['product_id' => $product->public_id, 'location_id' => $foreign->public_id]));
 
         $response->assertSessionHasErrors('location_id');
         $this->assertStringNotContainsString('Gudang Asing', $response->getContent());
@@ -230,7 +230,7 @@ class ReportPickerOptionsTest extends TestCase
 
         $this->assertSame([], $this->partial('Admin/Reports/AuditLog', 'userOptions', route('admin.reports.audit-log', ['user_search' => 'r']))->json('props.userOptions'));
         $this->assertSame(
-            [['value' => $mine->id, 'label' => 'Rina Anggota', 'description' => 'rina@example.test']],
+            [['value' => $mine->public_id, 'label' => 'Rina Anggota', 'description' => 'rina@example.test']],
             $this->partial('Admin/Reports/AuditLog', 'userOptions', route('admin.reports.audit-log', ['user_search' => 'Rina']))->json('props.userOptions'),
         );
     }
@@ -240,11 +240,11 @@ class ReportPickerOptionsTest extends TestCase
         $mine = $this->member('Rina Anggota', 'rina@example.test', $this->admin->company_id);
         $foreign = $this->member('Rina Asing', 'rina.asing@example.test', $this->other->id);
 
-        $this->get(route('admin.reports.audit-log', ['user_id' => $mine->id]))
+        $this->get(route('admin.reports.audit-log', ['user_id' => $mine->public_id]))
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedUser', ['value' => $mine->id, 'label' => 'Rina Anggota', 'description' => 'rina@example.test']));
+                ->where('selectedUser', ['value' => $mine->public_id, 'label' => 'Rina Anggota', 'description' => 'rina@example.test']));
 
-        $response = $this->get(route('admin.reports.audit-log', ['user_id' => $foreign->id]));
+        $response = $this->get(route('admin.reports.audit-log', ['user_id' => $foreign->public_id]));
 
         $response->assertSessionHasErrors('user_id');
         $this->assertStringNotContainsString('Rina Asing', $response->getContent());

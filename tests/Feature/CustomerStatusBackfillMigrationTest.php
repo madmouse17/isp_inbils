@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Core\Company;
 use App\Models\Core\CustomerAddress;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -44,6 +45,7 @@ class CustomerStatusBackfillMigrationTest extends TestCase
 
             foreach ($cases as $key => [$statuses, $status]) {
                 $customerIds[] = $customerId = DB::table('customers')->insertGetId([
+                    'public_id' => PublicId::new(),
                     'company_id' => $company->id, 'code' => 'BF-'.$key, 'name' => $key, 'type' => 'Individual',
                     'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
                 ]);
@@ -52,6 +54,7 @@ class CustomerStatusBackfillMigrationTest extends TestCase
                 foreach ($statuses as $spec) {
                     [$subStatus, $deleted] = array_pad(explode(':', $spec), 2, null);
                     $subscriptionIds[] = DB::table('service_subscriptions')->insertGetId([
+                        'public_id' => PublicId::new(),
                         'company_id' => $company->id, 'customer_id' => $customerId, 'service_package_id' => $package->id,
                         'installation_address_id' => $address->id,
                         'code' => 'BFS-'.++$n, 'status' => $subStatus, 'billing_day' => 1, 'mrc_amount' => 1, 'otc_installation_fee' => 0,

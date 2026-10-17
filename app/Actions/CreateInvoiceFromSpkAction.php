@@ -6,6 +6,7 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\Money;
+use App\Support\RecordNotFound;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
@@ -27,7 +28,7 @@ class CreateInvoiceFromSpkAction
     {
         return DB::transaction(function () use ($workOrderId) {
             $wo = WorkOrder::withoutCompany()->whereKey($workOrderId)->lockForUpdate()->firstOrFail();
-            abort_unless($wo->company_id === CompanyService::currentId(), 404);
+            RecordNotFound::abortUnless($wo->company_id === CompanyService::currentId());
             abort_if($wo->status !== 'completed', 422, 'SPK must be completed to create invoice.');
 
             $existing = Invoice::withoutCompany()->where('work_order_id', $workOrderId)->lockForUpdate()->first();

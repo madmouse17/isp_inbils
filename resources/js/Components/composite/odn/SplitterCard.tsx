@@ -29,7 +29,7 @@ export function SplitterCard({ splitter, inputPortOptions, can }: SplitterCardPr
     const reconnect = (event: FormEvent) => {
         event.preventDefault();
         form.transform((values) => ({
-            input_port_id: values.input_port_id === '' ? null : Number(values.input_port_id),
+            input_port_id: values.input_port_id === '' ? null : values.input_port_id,
         }));
         form.put(route('admin.odn.splitters.update', splitter.id), { preserveScroll: true });
     };

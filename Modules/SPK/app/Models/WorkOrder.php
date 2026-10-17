@@ -9,6 +9,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Traits\BelongsToCompany;
+use App\Traits\HasPublicId;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -17,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
+use Modules\Ticketing\Models\Ticket;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -65,6 +67,7 @@ class WorkOrder extends Model implements HasMedia
 {
     use BelongsToCompany;
     use HasFactory;
+    use HasPublicId;
     use InteractsWithMedia;
     use LogsActivity;
     use SoftDeletes;
@@ -106,6 +109,11 @@ class WorkOrder extends Model implements HasMedia
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function ticket(): BelongsTo
+    {
+        return $this->belongsTo(Ticket::class, 'ticket_id');
     }
 
     public function assignee(): BelongsTo

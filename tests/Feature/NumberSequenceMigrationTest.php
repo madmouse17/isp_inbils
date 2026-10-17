@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Support\NumberSequences\NumberTemplate;
+use App\Support\PublicId;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,7 @@ class NumberSequenceMigrationTest extends TestCase
     private function company(string $code): int
     {
         return DB::table('companies')->insertGetId([
+            'public_id' => PublicId::new(),
             'name' => 'Number sequence migration '.$code,
             'code' => $code,
             'timezone' => 'Asia/Jakarta',
@@ -65,6 +67,7 @@ class NumberSequenceMigrationTest extends TestCase
             ];
             foreach ($legacy as [$companyId, $entityType, $prefix, $next, $padding, $yearSuffix]) {
                 DB::table('number_sequences')->insert([
+                    'public_id' => PublicId::new(),
                     'company_id' => $companyId, 'entity_type' => $entityType, 'prefix' => $prefix, 'next_number' => $next,
                     'padding' => $padding, 'year_suffix' => $yearSuffix, 'created_at' => now(), 'updated_at' => now(),
                 ]);

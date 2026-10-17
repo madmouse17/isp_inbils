@@ -41,13 +41,13 @@ class StockServerTableExportTest extends TestCase
         $ids = [];
         for ($quantity = 1; $quantity <= 51; $quantity++) {
             $stock = $this->stock($quantity, 100, 'Table stock '.$quantity);
-            $ids[] = $stock->id;
+            $ids[] = $stock->public_id;
         }
 
         foreach ([10, 25, 50] as $size) {
             foreach (['asc', 'desc'] as $direction) {
                 $expected = $direction === 'asc' ? $ids : array_reverse($ids);
-                $query = ['search' => 'Table stock', 'location_id' => $this->location->id, 'sort_by' => 'quantity', 'sort_dir' => $direction, 'per_page' => $size];
+                $query = ['search' => 'Table stock', 'location_id' => $this->location->public_id, 'sort_by' => 'quantity', 'sort_dir' => $direction, 'per_page' => $size];
                 $this->get(route('admin.stocks.index', $query))->assertOk()
                     ->assertInertia(fn (Assert $page) => $page
                         ->has('stocks.data', $size)
@@ -81,14 +81,14 @@ class StockServerTableExportTest extends TestCase
         $query = ['search' => 'Boundary', 'low_stock' => 1, 'sort_by' => 'quantity', 'sort_dir' => 'asc'];
         $this->get(route('admin.stocks.index', $query))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('stocks.meta.total', 3)
-            ->where('stocks.data.0.id', $zero->id)
-            ->where('stocks.data.1.id', $below->id)
-            ->where('stocks.data.2.id', $equal->id)
+            ->where('stocks.data.0.id', $zero->public_id)
+            ->where('stocks.data.1.id', $below->public_id)
+            ->where('stocks.data.2.id', $equal->public_id)
             ->where('stocks.data.2.product.name', 'Boundary equal')
         );
         $rows = $this->csvRows($this->get(route('admin.stocks.export', $query))->assertOk()->streamedContent());
         $this->assertSame(['Boundary zero', 'Boundary below', 'Boundary equal'], array_column($rows, 0));
-        $this->get(route('admin.stocks.index', ['product_id' => $foreignProduct->id, 'low_stock' => 1]))->assertOk()
+        $this->get(route('admin.stocks.index', ['product_id' => $foreignProduct->public_id, 'low_stock' => 1]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('stocks.meta.total', 0));
     }
 
@@ -96,11 +96,11 @@ class StockServerTableExportTest extends TestCase
     {
         $stock = $this->stock(0, 5, 'Deleted product');
         $stock->product->delete();
-        $query = ['low_stock' => 1, 'product_id' => $stock->product_id];
+        $query = ['low_stock' => 1, 'product_id' => $stock->product->public_id];
 
         $this->get(route('admin.stocks.index', $query))->assertOk()->assertInertia(fn (Assert $page) => $page
             ->where('stocks.meta.total', 1)
-            ->where('stocks.data.0.id', $stock->id)
+            ->where('stocks.data.0.id', $stock->public_id)
             ->where('stocks.data.0.product', null)
         );
         $rows = $this->csvRows($this->get(route('admin.stocks.export', $query))->assertOk()->streamedContent());
@@ -123,12 +123,12 @@ class StockServerTableExportTest extends TestCase
                 'note' => 'Movement table '.$quantity,
                 'created_by' => $this->admin->id,
             ]);
-            $ids[] = $movement->id;
+            $ids[] = $movement->public_id;
         }
         foreach ([10, 25, 50] as $size) {
             foreach (['asc', 'desc'] as $direction) {
                 $expected = $direction === 'asc' ? $ids : array_reverse($ids);
-                $query = ['product_id' => $product->id, 'location_id' => $this->location->id, 'movement_type' => 'receive', 'search' => 'Movement table', 'sort_by' => 'quantity', 'sort_dir' => $direction, 'per_page' => $size];
+                $query = ['product_id' => $product->public_id, 'location_id' => $this->location->public_id, 'movement_type' => 'receive', 'search' => 'Movement table', 'sort_by' => 'quantity', 'sort_dir' => $direction, 'per_page' => $size];
                 $this->get(route('admin.stock-movements.index', $query))->assertOk()->assertInertia(fn (Assert $page) => $page
                     ->has('movements.data', $size)
                     ->where('movements.meta.per_page', $size)
@@ -149,11 +149,11 @@ class StockServerTableExportTest extends TestCase
         $older->forceFill(['created_at' => now()->subDay()])->save();
         $newer = $this->stock(2, 5, 'Newer');
         $this->get(route('admin.stocks.index', ['sort_by' => 'movement_type', 'per_page' => 999]))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('stocks.data.0.id', $newer->id)->where('stocks.meta.per_page', 10));
+            ->assertInertia(fn (Assert $page) => $page->where('stocks.data.0.id', $newer->public_id)->where('stocks.meta.per_page', 10));
         $this->movement($older->product_id, 1, 'Older movement', now()->subDay());
         $latest = $this->movement($newer->product_id, 2, 'Latest movement', now());
         $this->get(route('admin.stock-movements.index', ['sort_by' => 'reserved_quantity', 'per_page' => 999]))->assertOk()
-            ->assertInertia(fn (Assert $page) => $page->where('movements.meta.per_page', 10)->where('movements.data.0.id', $latest->id));
+            ->assertInertia(fn (Assert $page) => $page->where('movements.meta.per_page', 10)->where('movements.data.0.id', $latest->public_id));
     }
 
     public function test_movement_exports_match_filtered_tenant_rows_in_csv_and_pdf(): void
@@ -166,7 +166,7 @@ class StockServerTableExportTest extends TestCase
         $this->actingAs($other);
         $foreignProduct = Product::factory()->create(['company_id' => $other->company_id]);
         $foreignLocation = Location::factory()->create(['company_id' => $other->company_id]);
-        $foreign = StockMovement::query()->create([
+        StockMovement::query()->create([
             'product_id' => $foreignProduct->id,
             'to_location_id' => $foreignLocation->id,
             'movement_type' => 'receive',
@@ -177,9 +177,9 @@ class StockServerTableExportTest extends TestCase
             'created_by' => $other->id,
         ]);
         $this->actingAs($this->admin);
-        $query = ['search' => 'Scoped', 'product_id' => $stock->product_id, 'location_id' => $this->location->id, 'movement_type' => 'receive', 'sort_by' => 'quantity', 'sort_dir' => 'asc', 'per_page' => 10];
+        $query = ['search' => 'Scoped', 'product_id' => $stock->product->public_id, 'location_id' => $this->location->public_id, 'movement_type' => 'receive', 'sort_by' => 'quantity', 'sort_dir' => 'asc', 'per_page' => 10];
         $this->get(route('admin.stock-movements.index', $query))->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->where('movements.meta.total', 2)->where('movements.data.0.id', $first->id));
+            ->where('movements.meta.total', 2)->where('movements.data.0.id', $first->public_id));
         $csv = $this->get(route('admin.stock-movements.export', [...$query, 'format' => 'csv', 'page' => 2]))->assertOk()->streamedContent();
         $this->assertStringContainsString('Scoped first', $csv);
         $this->assertStringContainsString('Scoped second', $csv);
@@ -189,9 +189,9 @@ class StockServerTableExportTest extends TestCase
 
         $pdf = $this->get(route('admin.stock-movements.export', [...$query, 'format' => 'pdf', 'page' => 2]))->assertOk();
         $this->assertStringStartsWith('%PDF-', $pdf->streamedContent());
-        $this->get(route('admin.stock-movements.index', ['product_id' => $foreign->product_id]))->assertOk()
+        $this->get(route('admin.stock-movements.index', ['product_id' => $foreignProduct->public_id]))->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('movements.meta.total', 0));
-        $pdf = $this->get(route('admin.stocks.export', ['format' => 'pdf', 'product_id' => $stock->product_id]))->assertOk();
+        $pdf = $this->get(route('admin.stocks.export', ['format' => 'pdf', 'product_id' => $stock->product->public_id]))->assertOk();
         $this->assertStringStartsWith('%PDF-', $pdf->streamedContent());
     }
 
@@ -217,9 +217,9 @@ class StockServerTableExportTest extends TestCase
         $this->assertDatabaseHas('stock_movements', ['note' => 'Foreign ledger row', 'to_location_id' => $foreignLocation->id]);
 
         foreach ([
-            ['location_id' => $foreignLocation->id],
-            ['product_id' => $foreignProduct->id],
-            ['product_id' => $foreignProduct->id, 'location_id' => $foreignLocation->id],
+            ['location_id' => $foreignLocation->public_id],
+            ['product_id' => $foreignProduct->public_id],
+            ['product_id' => $foreignProduct->public_id, 'location_id' => $foreignLocation->public_id],
         ] as $filters) {
             $this->get(route('admin.stock-movements.index', $filters))->assertOk()
                 ->assertInertia(fn (Assert $page) => $page->where('movements.meta.total', 0)->has('movements.data', 0));

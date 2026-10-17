@@ -44,41 +44,39 @@ final class InventoryOptions
         );
     }
 
-    /** @return array{value: int, label: string, description: string|null}|null */
+    /** @return array{value: string, label: string, description: string|null}|null */
     public static function selectedProduct(mixed $key): ?array
     {
-        $id = filter_var($key, FILTER_VALIDATE_INT);
-        $product = $id === false ? null : Product::query()->withTrashed()->with(self::PRODUCT_RELATIONS)->find($id);
+        $product = Product::query()->withTrashed()->with(self::PRODUCT_RELATIONS)->wherePublicId($key)->first();
 
         return $product ? self::product($product) : null;
     }
 
-    /** @return array{value: int, label: string, description: string|null}|null */
+    /** @return array{value: string, label: string, description: string|null}|null */
     public static function selectedLocation(mixed $key): ?array
     {
-        $id = filter_var($key, FILTER_VALIDATE_INT);
-        $location = $id === false ? null : Location::query()->withTrashed()->find($id);
+        $location = Location::query()->withTrashed()->wherePublicId($key)->first();
 
         return $location ? self::location($location) : null;
     }
 
-    /** @return array{value: int, label: string, description: string|null} */
+    /** @return array{value: string, label: string, description: string|null} */
     public static function product(Product $product): array
     {
         $unit = $product->unit?->symbol;
 
         return [
-            'value' => $product->id,
+            'value' => $product->public_id,
             'label' => $product->sku.' - '.$product->name.($unit ? " ({$unit})" : ''),
             'description' => $product->category?->name,
         ];
     }
 
-    /** @return array{value: int, label: string, description: string|null} */
+    /** @return array{value: string, label: string, description: string|null} */
     public static function location(Location $location): array
     {
         return [
-            'value' => $location->id,
+            'value' => $location->public_id,
             'label' => $location->code.' - '.$location->name,
             'description' => $location->path,
         ];

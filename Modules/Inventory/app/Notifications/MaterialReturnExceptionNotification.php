@@ -30,27 +30,17 @@ class MaterialReturnExceptionNotification extends Notification implements Should
 
     public function toMail(object $notifiable): MailMessage
     {
+        $records = $this->returnRecords();
         $mail = (new MailMessage())
-            ->subject('Selisih Material Perlu Diselesaikan: Kasus #'.$this->caseId)
-            ->line('Gudang menemukan selisih (rusak, hilang, atau lainnya) saat memeriksa pengembalian material. Atasan yang berwenang perlu memutuskan penyelesaiannya.')
-            ->line('Nomor Kasus Pengembalian: #'.$this->caseId);
+            ->subject($this->returnSubject('Selisih Material Perlu Diselesaikan', $records))
+            ->line('Gudang menemukan selisih (rusak, hilang, atau lainnya) saat memeriksa pengembalian material. Atasan yang berwenang perlu memutuskan penyelesaiannya.');
 
-        if ($this->workOrderId) {
-            $mail->line('Terkait SPK #'.$this->workOrderId);
-        }
-
-        return $mail->action('Selesaikan Selisih', $this->returnPageUrl());
+        return $this->returnReference($mail, $records)->action('Selesaikan Selisih', $this->returnPageUrl($records));
     }
 
     /** @return array<string, mixed> */
     public function toArray(object $notifiable): array
     {
-        return [
-            'type' => 'material_return_exception',
-            'case_id' => $this->caseId,
-            'work_order_id' => $this->workOrderId,
-            'company_id' => $this->companyId,
-            'inventory_request_id' => $this->inventoryRequestId,
-        ];
+        return $this->returnData('material_return_exception', $this->returnRecords());
     }
 }

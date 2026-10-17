@@ -461,8 +461,8 @@ class CustomerAccountCreationTest extends TestCase
                 ],
             ],
             'subscription' => [
-                'service_package_id' => $this->package->id,
-                'serving_pop_id' => $this->location->id,
+                'service_package_id' => $this->package->public_id,
+                'serving_pop_id' => $this->location->public_id,
                 'billing_day' => 5,
                 'mrc_amount' => null,
                 'otc_installation_fee' => null,

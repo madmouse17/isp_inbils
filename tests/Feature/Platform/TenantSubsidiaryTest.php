@@ -4,6 +4,7 @@ namespace Tests\Feature\Platform;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use App\Support\PublicId;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Spatie\Activitylog\Models\Activity;
@@ -76,7 +77,7 @@ class TenantSubsidiaryTest extends TestCase
         $tenant = $this->buildTenant('ALP', 'Alpha Net');
 
         $this->asOperator(false)->post(route('platform.companies.subsidiaries.store', $tenant['root']), $this->payload([
-            'member_ids' => [$tenant['staff']->id, $tenant['branch']->id],
+            'member_ids' => [$tenant['staff']->public_id, $tenant['branch']->public_id],
         ]))->assertRedirect();
 
         $sub = Company::query()->where('code', 'ALS')->firstOrFail();
@@ -92,15 +93,16 @@ class TenantSubsidiaryTest extends TestCase
         $tenant = $this->buildTenant('ALP', 'Alpha Net');
         $other = $this->buildTenant('BET', 'Beta Link');
         $homeless = User::factory()->create(['company_id' => null]);
-        $staff = $tenant['staff']->id;
+        $staff = $tenant['staff']->public_id;
 
         $cases = [
-            'a user of another tenant' => [[$other['admin']->id], 'member_ids.0'],
-            'a user with no home company' => [[$homeless->id], 'member_ids.0'],
-            'an id that does not exist' => [[999999], 'member_ids.0'],
+            'a user of another tenant' => [[$other['admin']->public_id], 'member_ids.0'],
+            'a user with no home company' => [[$homeless->public_id], 'member_ids.0'],
+            'an id that does not exist' => [[PublicId::new()], 'member_ids.0'],
+            'an integer id of a member' => [[$tenant['staff']->id], 'member_ids.0'],
             'something that is no id' => [['abc'], 'member_ids.0'],
             'the same member twice' => [[$staff, $staff], 'member_ids.0'],
-            'one stranger among members' => [[$staff, $other['staff']->id], 'member_ids.1'],
+            'one stranger among members' => [[$staff, $other['staff']->public_id], 'member_ids.1'],
             'a value that is no list' => ['not-a-list', 'member_ids'],
         ];
 
@@ -153,7 +155,7 @@ class TenantSubsidiaryTest extends TestCase
     {
         $tenant = $this->buildTenant('ALP', 'Alpha Net');
 
-        $this->asOperator(false)->post(route('platform.companies.subsidiaries.store', $tenant['root']), $this->payload(['member_ids' => [$tenant['staff']->id]]))->assertRedirect();
+        $this->asOperator(false)->post(route('platform.companies.subsidiaries.store', $tenant['root']), $this->payload(['member_ids' => [$tenant['staff']->public_id]]))->assertRedirect();
 
         $sub = Company::query()->where('code', 'ALS')->firstOrFail();
         $row = Activity::query()->where('log_name', 'platform')->where('description', 'tenant.subsidiary_created')->sole();

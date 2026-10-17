@@ -44,21 +44,21 @@ class EvaluationTechnicianScopeTest extends TestCase
     public function test_the_selected_employee_of_a_technician_is_never_a_colleague(): void
     {
         $this->actingAs($this->technician)
-            ->get(route('admin.evaluations.index', ['employee_id' => $this->colleague->id]))
+            ->get(route('admin.evaluations.index', ['employee_id' => $this->colleague->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page->where('selectedEmployee', null));
 
-        $this->get(route('admin.evaluations.index', ['employee_id' => $this->technician->id]))
+        $this->get(route('admin.evaluations.index', ['employee_id' => $this->technician->public_id]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('selectedEmployee.value', $this->technician->id)
+                ->where('selectedEmployee.value', $this->technician->public_id)
                 ->where('selectedEmployee.label', 'Teknisi Saya'));
     }
 
     public function test_no_colleague_name_or_email_is_in_the_page_of_a_technician(): void
     {
         $props = json_encode(
-            $this->actingAs($this->technician)->get(route('admin.evaluations.index', ['employee_id' => $this->colleague->id]))->assertOk()->inertiaProps(),
+            $this->actingAs($this->technician)->get(route('admin.evaluations.index', ['employee_id' => $this->colleague->public_id]))->assertOk()->inertiaProps(),
             JSON_THROW_ON_ERROR,
         );
 

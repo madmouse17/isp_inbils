@@ -9,6 +9,7 @@ use App\Models\Core\Location;
 use App\Models\Core\ServiceSubscription;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Support\PublicId;
 use Illuminate\Routing\Route as LaravelRoute;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
@@ -80,8 +81,11 @@ trait BuildsMatrixWorld
 
     protected string $technicianToken;
 
-    /** @var array<string, int|string> */
+    /** @var array<string, string> public ids of the seeded rows (a notification's own id is its UUID) */
     protected array $ids = [];
+
+    /** The customer's subscription: its integer id is the foreign key of the visits and the banner targets below. */
+    protected ServiceSubscription $subscription;
 
     protected function buildWorld(): void
     {
@@ -106,8 +110,8 @@ trait BuildsMatrixWorld
 
         $this->customerToken = $this->issueToken($this->customerUser, 'customer', 'Owner phone');
         $this->technicianToken = $this->issueToken($this->technician, 'technician', 'Owner van');
-        $this->ids['customer_device'] = $this->customerUser->tokens()->firstOrFail()->id;
-        $this->ids['technician_device'] = $this->technician->tokens()->firstOrFail()->id;
+        $this->ids['customer_device'] = $this->customerUser->tokens()->firstOrFail()->public_id;
+        $this->ids['technician_device'] = $this->technician->tokens()->firstOrFail()->public_id;
 
         CompanyService::useCompanyForTests((int) $this->companyA->id);
         $this->buildBilling();
@@ -128,7 +132,8 @@ trait BuildsMatrixWorld
             'status' => 'active',
         ]);
         NetworkAccount::factory()->create(['company_id' => $companyId, 'subscription_id' => $subscription->id, 'password' => self::SECRET_PPPOE]);
-        $this->ids['subscription'] = $subscription->id;
+        $this->subscription = $subscription;
+        $this->ids['subscription'] = $subscription->public_id;
 
         $invoice = InvoiceFactory::new()->create(['company_id' => $companyId, 'customer_id' => $this->customer->id, 'status' => 'sent', 'total' => 154600]);
         PaymentAttemptFactory::new()->forInvoice($invoice)->create(['snap_token' => self::SECRET_SNAP, 'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v4/redirection/public-page']);
@@ -142,8 +147,8 @@ trait BuildsMatrixWorld
             'received_by' => User::factory()->create(['company_id' => $companyId])->id,
             'notes' => self::SECRET_NOTE,
         ]);
-        $this->ids['invoice'] = $invoice->id;
-        $this->ids['paid_invoice'] = InvoiceFactory::new()->create(['company_id' => $companyId, 'customer_id' => $this->customer->id, 'status' => 'paid', 'total' => 154600, 'paid_amount' => 154600])->id;
+        $this->ids['invoice'] = $invoice->public_id;
+        $this->ids['paid_invoice'] = InvoiceFactory::new()->create(['company_id' => $companyId, 'customer_id' => $this->customer->id, 'status' => 'paid', 'total' => 154600, 'paid_amount' => 154600])->public_id;
     }
 
     private function buildTicketing(): void
@@ -154,7 +159,7 @@ trait BuildsMatrixWorld
             'company_id' => $companyId, 'name' => 'Support', 'code' => 'SUP-'.Str::random(6),
             'default_sla_hours' => 24, 'default_priority' => 'medium', 'is_active' => true,
         ]);
-        $this->ids['category'] = $category->id;
+        $this->ids['category'] = $category->public_id;
         $make = fn (array $overrides): Ticket => Ticket::query()->create([
             'company_id' => $companyId, 'code' => 'TKT-'.Str::random(10), 'title' => 'Internet down', 'description' => 'Offline',
             'source' => 'customer', 'category_id' => $category->id, 'status' => 'open', 'priority' => 'medium',
@@ -164,19 +169,19 @@ trait BuildsMatrixWorld
         $customerTicket = $make(['customer_id' => $this->customer->id]);
         TicketComment::query()->create(['ticket_id' => $customerTicket->id, 'author_id' => $staff->id, 'body' => self::SECRET_INTERNAL_COMMENT, 'is_internal' => true]);
         TicketComment::query()->create(['ticket_id' => $customerTicket->id, 'author_id' => $staff->id, 'body' => 'Public reply', 'is_internal' => false]);
-        $this->ids['customer_ticket'] = $customerTicket->id;
+        $this->ids['customer_ticket'] = $customerTicket->public_id;
         $this->ids['ticket_attachment'] = $customerTicket->addMediaFromString('png')->usingFileName('photo.png')
-            ->withCustomProperties(['company_id' => $companyId])->toMediaCollection('attachments')->id;
+            ->withCustomProperties(['company_id' => $companyId])->toMediaCollection('attachments')->public_id;
         $this->ids['customer_attachment'] = $customerTicket->addMediaFromString('png')->usingFileName('mine.png')
-            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->customerUser->id])->toMediaCollection('attachments')->id;
+            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->customerUser->id])->toMediaCollection('attachments')->public_id;
 
         $technicianTicket = $make([
             'source' => 'internal', 'status' => 'assigned', 'assigned_to' => $this->technician->id,
             'customer_id' => Customer::factory()->create(['company_id' => $companyId])->id,
         ]);
-        $this->ids['technician_ticket'] = $technicianTicket->id;
+        $this->ids['technician_ticket'] = $technicianTicket->public_id;
         $this->ids['technician_attachment'] = $technicianTicket->addMediaFromString('png')->usingFileName('site.png')
-            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->technician->id])->toMediaCollection('attachments')->id;
+            ->withCustomProperties(['company_id' => $companyId, 'uploaded_by' => $this->technician->id])->toMediaCollection('attachments')->public_id;
     }
 
     private function buildFieldWork(): void
@@ -185,16 +190,16 @@ trait BuildsMatrixWorld
         $workOrder = WorkOrderFactory::new()->create([
             'company_id' => $companyId, 'status' => 'in_progress', 'assigned_to' => $this->technician->id, 'created_by' => $this->technician->id,
         ]);
-        $this->ids['work_order'] = $workOrder->id;
+        $this->ids['work_order'] = $workOrder->public_id;
         $this->ids['evidence'] = $workOrder->addMediaFromString('proof')->usingFileName('proof.jpg')
             ->withCustomProperties(['company_id' => $companyId, 'type' => 'photo', 'uploaded_by' => $this->technician->id])
-            ->toMediaCollection('evidence')->id;
+            ->toMediaCollection('evidence')->public_id;
 
         // A visit for the customer's subscription: the customer reads it, nobody else may.
         $this->ids['customer_work_order'] = WorkOrderFactory::new()->create([
             'company_id' => $companyId, 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'created_by' => $this->technician->id,
-            'customer_id' => $this->customer->id, 'subscription_id' => $this->ids['subscription'],
-        ])->id;
+            'customer_id' => $this->customer->id, 'subscription_id' => $this->subscription->id,
+        ])->public_id;
 
         $location = Location::factory()->create(['company_id' => $companyId]);
         $unit = Unit::factory()->create(['company_id' => $companyId, 'symbol' => 'm'.Str::random(4)]);
@@ -210,15 +215,18 @@ trait BuildsMatrixWorld
             'company_id' => $companyId, 'inventory_request_id' => $request->id, 'product_id' => $product->id,
             'source_location_id' => $location->id, 'quantity_requested' => 10, 'quantity_approved' => 10, 'quantity_issued' => 10,
         ]);
-        $this->ids['material_return'] = MaterialReturnService::createForIssuedRequest($request)->id;
+        $return = MaterialReturnService::createForIssuedRequest($request);
+        $this->ids['material_return'] = $return->public_id;
+        // The declare call names its lines: a body that passes validation leaves the tenancy check as the only 404.
+        $this->ids['material_return_line'] = $return->lines()->firstOrFail()->public_id;
 
         $this->ids['work_order_item'] = WorkOrderItem::query()->create([
             'company_id' => $companyId, 'work_order_id' => $workOrder->id, 'product_id' => $product->id, 'quantity_used' => 2,
-        ])->id;
+        ])->public_id;
         $this->ids['inventory_request'] = InventoryRequest::query()->create([
             'company_id' => $companyId, 'code' => 'REQ-'.Str::upper(Str::random(6)), 'requested_by' => $this->technician->id,
             'warehouse_location_id' => $location->id, 'status' => 'submitted', 'reason' => 'Need cable', 'submitted_at' => now(),
-        ])->id;
+        ])->public_id;
     }
 
     private function buildNotifications(): void
@@ -281,23 +289,24 @@ trait BuildsMatrixWorld
     {
         $announcement = Announcement::factory()->published()->targeted()->create(['company_id' => $this->companyA->id]);
         $banner = PromoBanner::factory()->published()->create(['company_id' => $this->companyA->id, 'audience' => 'targeted']);
-        $categoryId = (int) ServiceSubscription::query()->findOrFail($this->ids['subscription'])->servicePackage()->value('service_package_category_id');
+        $categoryId = (int) $this->subscription->servicePackage()->value('service_package_category_id');
         $announcement->servicePackageCategories()->sync([$categoryId]);
         $banner->servicePackageCategories()->sync([$categoryId]);
-        $this->ids['announcement'] = $announcement->id;
-        $this->ids['promo_banner'] = $banner->id;
+        $this->ids['announcement'] = $announcement->public_id;
+        $this->ids['promo_banner'] = $banner->public_id;
     }
 
     protected function urlOf(LaravelRoute $route, bool $real): string
     {
         $values = $real ? $this->realIds($this->shortName($route)) : [];
-        $nothing = $this->shortName($route) === 'notifications.read' ? (string) Str::uuid() : 9999999;
+        // A well-formed id that names nothing: an integer would 404 at the route constraint, whatever the controller does.
+        $nothing = $this->shortName($route) === 'notifications.read' ? (string) Str::uuid() : PublicId::new();
         $position = 0;
 
         return (string) preg_replace_callback('/\{\w+\}/', fn (): string => (string) ($values[$position++] ?? $nothing), Str::after($route->uri(), 'api/v1/'));
     }
 
-    /** @return list<int|string> the seeded ids for a route's placeholders, in uri order */
+    /** @return list<string> the seeded ids for a route's placeholders, in uri order */
     protected function realIds(string $name): array
     {
         return match ($name) {

@@ -57,7 +57,7 @@ class CustomerContactServerTableExportTest extends TestCase
 
         $this->actingAs($this->admin)
             ->get(route('admin.customers.contacts.index', [
-                'customer' => $this->customer->id,
+                'customer' => $this->customer->public_id,
                 'search' => 'John',
             ]))
             ->assertOk()
@@ -84,7 +84,7 @@ class CustomerContactServerTableExportTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.customers.contacts.export', [
-                'customer' => $this->customer->id,
+                'customer' => $this->customer->public_id,
                 'format' => 'csv',
                 'search' => 'Export',
             ]));
@@ -106,7 +106,7 @@ class CustomerContactServerTableExportTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.customers.contacts.export', [
-                'customer' => $this->customer->id,
+                'customer' => $this->customer->public_id,
                 'format' => 'pdf',
             ]));
 
@@ -128,7 +128,7 @@ class CustomerContactServerTableExportTest extends TestCase
 
         $this->actingAs($user)
             ->get(route('admin.customers.contacts.export', [
-                'customer' => $this->customer->id,
+                'customer' => $this->customer->public_id,
                 'format' => 'csv',
             ]))
             ->assertForbidden();

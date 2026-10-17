@@ -3,6 +3,7 @@
 namespace Modules\NetworkAsset\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Support\RecordNotFound;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Gate;
@@ -34,13 +35,13 @@ class OdnController extends Controller
     public function show(Request $request, NetworkAsset $asset): InertiaResponse
     {
         Gate::authorize('viewAny', OdnPort::class);
-        abort_unless(in_array($asset->asset_type, ['olt', 'odc', 'odp'], true), 404);
+        RecordNotFound::abortUnless(in_array($asset->asset_type, ['olt', 'odc', 'odp'], true));
 
         $isOlt = $asset->asset_type === 'olt';
 
         return Inertia::render('Admin/Odn/Asset', [
             'asset' => [
-                'id' => $asset->id,
+                'id' => $asset->public_id,
                 'code' => $asset->code,
                 'name' => $asset->name,
                 'asset_type' => $asset->asset_type,

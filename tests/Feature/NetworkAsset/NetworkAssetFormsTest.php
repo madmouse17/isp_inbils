@@ -87,7 +87,7 @@ class NetworkAssetFormsTest extends TestCase
         $search = fn (string $term) => $this->get(route('admin.network-assets.create', ['product_search' => $term]), $this->partialReload('Admin/NetworkAssets/Create', 'productOptions'))->assertOk();
 
         $search('ONU')->assertJsonCount(1, 'props.productOptions')->assertJsonPath('props.productOptions.0', [
-            'value' => $onu->id,
+            'value' => $onu->public_id,
             'label' => 'PRD-ONU-1 - ONU Huawei',
             'description' => $onu->category->name,
         ]);
@@ -105,7 +105,7 @@ class NetworkAssetFormsTest extends TestCase
             $this->get(route('admin.network-assets.create', ['location_search' => $term]), $this->partialReload('Admin/NetworkAssets/Create', 'locationOptions'))
                 ->assertOk()
                 ->assertJsonCount(1, 'props.locationOptions')
-                ->assertJsonPath('props.locationOptions.0', ['value' => $pop->id, 'label' => 'POP-DAGO - POP Dago', 'description' => 'AREA-BDG > POP-DAGO']);
+                ->assertJsonPath('props.locationOptions.0', ['value' => $pop->public_id, 'label' => 'POP-DAGO - POP Dago', 'description' => 'AREA-BDG > POP-DAGO']);
         }
     }
 
@@ -130,8 +130,8 @@ class NetworkAssetFormsTest extends TestCase
 
         $this->get(route('admin.network-assets.edit', $asset), $this->partialReload('Admin/NetworkAssets/Edit', 'productOptions,locationOptions'))
             ->assertOk()
-            ->assertJsonPath('props.productOptions.0.value', $product->id)
-            ->assertJsonPath('props.locationOptions.0.value', $location->id);
+            ->assertJsonPath('props.productOptions.0.value', $product->public_id)
+            ->assertJsonPath('props.locationOptions.0.value', $location->public_id);
     }
 
     public function test_the_show_page_sends_location_options_for_the_install_dialog_on_a_search_only(): void
@@ -141,7 +141,7 @@ class NetworkAssetFormsTest extends TestCase
 
         $this->get(route('admin.network-assets.show', $asset))->assertInertia(fn (Assert $page) => $page->missing('locationOptions'));
         $this->get(route('admin.network-assets.show', [$asset, 'location_search' => 'Dago']), $this->partialReload('Admin/NetworkAssets/Show', 'locationOptions'))
-            ->assertJsonPath('props.locationOptions.0.value', $location->id);
+            ->assertJsonPath('props.locationOptions.0.value', $location->public_id);
     }
 
     public function test_a_date_that_is_not_a_plain_day_is_refused_with_an_indonesian_message(): void

@@ -45,7 +45,7 @@ class TicketAttachmentsTest extends TestCase
         $ticket = $this->ticket($user->company_id, ['customer_id' => $customer->id]);
         $token = $this->issueToken($user, 'customer');
 
-        $response = $this->multipart("customer/tickets/{$ticket->id}/attachments", [
+        $response = $this->multipart("customer/tickets/{$ticket->public_id}/attachments", [
             'file' => UploadedFile::fake()->image('modem.jpg')->size(3072),
             'caption' => 'Lampu LOS merah',
         ], $token)->assertCreated()
@@ -58,18 +58,18 @@ class TicketAttachmentsTest extends TestCase
         $this->assertSame(['data'], array_keys($response->json()));
 
         $media = $ticket->fresh()->getMedia('attachments')->sole();
-        $this->assertSame($media->id, $response->json('data.id'));
+        $this->assertSame($media->public_id, $response->json('data.id'));
         $this->assertSame($user->id, $media->getCustomProperty('uploaded_by'));
         $this->assertSame($user->company_id, $media->getCustomProperty('company_id'));
         Storage::disk('local')->assertExists($media->getPathRelativeToRoot());
 
-        $this->api('GET', "customer/tickets/{$ticket->id}", token: $token)
+        $this->api('GET', "customer/tickets/{$ticket->public_id}", token: $token)
             ->assertOk()
-            ->assertJsonPath('data.attachments.0.id', $media->id)
+            ->assertJsonPath('data.attachments.0.id', $media->public_id)
             ->assertJsonPath('data.attachments.0.mine', true)
             ->assertJsonPath('data.attachments.0.can_delete', true)
             ->assertJsonPath('data.attachments.0.caption', 'Lampu LOS merah');
-        $this->api('GET', "media/{$media->id}", token: $token)->assertOk();
+        $this->api('GET', "media/{$media->public_id}", token: $token)->assertOk();
 
         $this->assertTrue(Activity::query()->where('log_name', 'ticket')->where('description', 'attachment_uploaded')->exists());
     }
@@ -79,7 +79,7 @@ class TicketAttachmentsTest extends TestCase
         [$user, $customer] = $this->customerLogin();
         $ticket = $this->ticket($user->company_id, ['customer_id' => $customer->id]);
 
-        $this->multipart("customer/tickets/{$ticket->id}/attachments", [
+        $this->multipart("customer/tickets/{$ticket->public_id}/attachments", [
             'file' => UploadedFile::fake()->createWithContent('bill.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n"),
         ], $this->issueToken($user, 'customer'))->assertCreated()
             ->assertJsonPath('data.mime_type', 'application/pdf')
@@ -92,7 +92,7 @@ class TicketAttachmentsTest extends TestCase
         $ticket = $this->ticket($technician->company_id, ['status' => 'on_progress', 'assigned_to' => $technician->id]);
         $token = $this->issueToken($technician, 'technician');
 
-        $this->multipart("technician/tickets/{$ticket->id}/attachments", [
+        $this->multipart("technician/tickets/{$ticket->public_id}/attachments", [
             'file' => UploadedFile::fake()->image('odp.png'),
             'caption' => 'ODP tertutup',
         ], $token)->assertCreated()
@@ -100,7 +100,7 @@ class TicketAttachmentsTest extends TestCase
             ->assertJsonPath('data.mine', true)
             ->assertJsonPath('data.can_delete', true);
 
-        $this->api('GET', "technician/tickets/{$ticket->id}", token: $token)
+        $this->api('GET', "technician/tickets/{$ticket->public_id}", token: $token)
             ->assertOk()
             ->assertJsonCount(1, 'data.attachments')
             ->assertJsonPath('data.attachments.0.caption', 'ODP tertutup')
@@ -124,15 +124,15 @@ class TicketAttachmentsTest extends TestCase
             'word' => UploadedFile::fake()->create('notes.docx', 10, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
             'text' => UploadedFile::fake()->createWithContent('notes.txt', 'plain text'),
         ] as $case => $file) {
-            $this->multipart("customer/tickets/{$ticket->id}/attachments", ['file' => $file], $token)
+            $this->multipart("customer/tickets/{$ticket->public_id}/attachments", ['file' => $file], $token)
                 ->assertStatus(422)
                 ->assertJsonPath('code', 'validation_failed')
                 ->assertJsonValidationErrors(['file'], 'errors');
             $this->assertSame(0, $ticket->fresh()->getMedia('attachments')->count(), $case);
         }
 
-        $this->multipart("customer/tickets/{$ticket->id}/attachments", [], $token)->assertStatus(422)->assertJsonValidationErrors(['file'], 'errors');
-        $this->multipart("customer/tickets/{$ticket->id}/attachments", [
+        $this->multipart("customer/tickets/{$ticket->public_id}/attachments", [], $token)->assertStatus(422)->assertJsonValidationErrors(['file'], 'errors');
+        $this->multipart("customer/tickets/{$ticket->public_id}/attachments", [
             'file' => UploadedFile::fake()->image('ok.jpg'),
             'caption' => str_repeat('a', 256),
         ], $token)->assertStatus(422)->assertJsonValidationErrors(['caption'], 'errors');
@@ -150,19 +150,19 @@ class TicketAttachmentsTest extends TestCase
         $token = $this->issueToken($user, 'customer');
         $file = fn (): UploadedFile => UploadedFile::fake()->image('x.jpg');
 
-        $this->multipart("customer/tickets/{$peers->id}/attachments", ['file' => $file()], $token)->assertNotFound();
-        $this->multipart("customer/tickets/{$foreign->id}/attachments", ['file' => $file()], $token)->assertNotFound();
+        $this->multipart("customer/tickets/{$peers->public_id}/attachments", ['file' => $file()], $token)->assertNotFound();
+        $this->multipart("customer/tickets/{$foreign->public_id}/attachments", ['file' => $file()], $token)->assertNotFound();
         $this->multipart('customer/tickets/9999999/attachments', ['file' => $file()], $token)->assertNotFound();
         // The lookup comes before the file is looked at: a stranger's id is a 404 even with nothing attached.
-        $this->multipart("customer/tickets/{$peers->id}/attachments", [], $token)->assertNotFound();
-        $this->api('DELETE', "customer/tickets/{$peers->id}/attachments/1", token: $token)->assertNotFound();
-        $this->api('DELETE', "customer/tickets/{$foreign->id}/attachments/1", token: $token)->assertNotFound();
+        $this->multipart("customer/tickets/{$peers->public_id}/attachments", [], $token)->assertNotFound();
+        $this->api('DELETE', "customer/tickets/{$peers->public_id}/attachments/1", token: $token)->assertNotFound();
+        $this->api('DELETE', "customer/tickets/{$foreign->public_id}/attachments/1", token: $token)->assertNotFound();
 
         $this->assertSame(0, Media::query()->where('collection_name', 'attachments')->count());
         $this->assertSame(0, $own->fresh()->getMedia('attachments')->count());
     }
 
-    public function test_a_technician_who_is_not_the_assignee_is_refused_and_another_company_is_404(): void
+    public function test_a_technician_who_is_not_the_assignee_and_another_company_both_get_404(): void
     {
         $technician = $this->technicianLogin();
         $colleague = $this->technicianLogin($technician->company);
@@ -170,11 +170,12 @@ class TicketAttachmentsTest extends TestCase
         $ticket = $this->ticket($technician->company_id, ['status' => 'assigned', 'assigned_to' => $technician->id]);
         $file = fn (): UploadedFile => UploadedFile::fake()->image('x.jpg');
 
-        $this->multipart("technician/tickets/{$ticket->id}/attachments", ['file' => $file()], $this->issueToken($colleague, 'technician'))
-            ->assertForbidden()
-            ->assertJsonPath('code', 'forbidden');
-        $this->multipart("technician/tickets/{$ticket->id}/attachments", [], $this->issueToken($colleague, 'technician'))->assertForbidden();
-        $this->multipart("technician/tickets/{$ticket->id}/attachments", ['file' => $file()], $this->issueToken($stranger, 'technician'))->assertNotFound();
+        // A ticket that is not theirs is a record the technician cannot see: the same 404 as another company's.
+        $this->multipart("technician/tickets/{$ticket->public_id}/attachments", ['file' => $file()], $this->issueToken($colleague, 'technician'))
+            ->assertNotFound()
+            ->assertJsonPath('code', 'not_found');
+        $this->multipart("technician/tickets/{$ticket->public_id}/attachments", [], $this->issueToken($colleague, 'technician'))->assertNotFound();
+        $this->multipart("technician/tickets/{$ticket->public_id}/attachments", ['file' => $file()], $this->issueToken($stranger, 'technician'))->assertNotFound();
 
         $this->assertSame(0, $ticket->fresh()->getMedia('attachments')->count());
     }
@@ -191,15 +192,15 @@ class TicketAttachmentsTest extends TestCase
         $this->revokeFromRole('technician', 'ticket.attachment.upload');
         $file = fn (): UploadedFile => UploadedFile::fake()->image('x.jpg');
 
-        $this->multipart("customer/tickets/{$customerTicket->id}/attachments", ['file' => $file()], $this->issueToken($user, 'customer'))
+        $this->multipart("customer/tickets/{$customerTicket->public_id}/attachments", ['file' => $file()], $this->issueToken($user, 'customer'))
             ->assertForbidden();
-        $this->multipart("technician/tickets/{$technicianTicket->id}/attachments", ['file' => $file()], $this->issueToken($technician, 'technician'))
+        $this->multipart("technician/tickets/{$technicianTicket->public_id}/attachments", ['file' => $file()], $this->issueToken($technician, 'technician'))
             ->assertForbidden();
-        $this->api('DELETE', "customer/tickets/{$customerTicket->id}/attachments/{$own->id}", token: $this->issueToken($user, 'customer'))
+        $this->api('DELETE', "customer/tickets/{$customerTicket->public_id}/attachments/{$own->public_id}", token: $this->issueToken($user, 'customer'))
             ->assertForbidden();
 
         $this->assertSame(1, Media::query()->where('collection_name', 'attachments')->count());
-        $this->assertSame(false, $this->api('GET', "customer/tickets/{$customerTicket->id}", token: $this->issueToken($user, 'customer'))->json('data.attachments.0.can_delete'));
+        $this->assertSame(false, $this->api('GET', "customer/tickets/{$customerTicket->public_id}", token: $this->issueToken($user, 'customer'))->json('data.attachments.0.can_delete'));
     }
 
     public function test_the_uploader_removes_their_own_file_and_nobody_elses(): void
@@ -219,21 +220,21 @@ class TicketAttachmentsTest extends TestCase
         $customerToken = $this->issueToken($user, 'customer');
         $technicianToken = $this->issueToken($technician, 'technician');
 
-        $flags = collect($this->api('GET', "customer/tickets/{$ticket->id}", token: $customerToken)->json('data.attachments'))
+        $flags = collect($this->api('GET', "customer/tickets/{$ticket->public_id}", token: $customerToken)->json('data.attachments'))
             ->mapWithKeys(fn (array $file): array => [$file['file_name'] => [$file['mine'], $file['can_delete']]])->all();
         $this->assertSame(['mine.png' => [true, true], 'tech.png' => [false, false], 'staff.png' => [false, false], 'legacy.png' => [false, false]], $flags);
 
         foreach ([$theirs, $staffs, $legacy] as $notMine) {
-            $this->api('DELETE', "customer/tickets/{$ticket->id}/attachments/{$notMine->id}", token: $customerToken)->assertForbidden();
+            $this->api('DELETE', "customer/tickets/{$ticket->public_id}/attachments/{$notMine->public_id}", token: $customerToken)->assertForbidden();
         }
-        $this->api('DELETE', "technician/tickets/{$ticket->id}/attachments/{$mine->id}", token: $technicianToken)->assertForbidden();
+        $this->api('DELETE', "technician/tickets/{$ticket->public_id}/attachments/{$mine->public_id}", token: $technicianToken)->assertForbidden();
         // A file of another ticket is not on this one, whoever uploaded it.
-        $this->api('DELETE', "customer/tickets/{$ticket->id}/attachments/{$elsewhere->id}", token: $customerToken)->assertNotFound();
-        $this->api('DELETE', "customer/tickets/{$ticket->id}/attachments/9999999", token: $customerToken)->assertNotFound();
+        $this->api('DELETE', "customer/tickets/{$ticket->public_id}/attachments/{$elsewhere->public_id}", token: $customerToken)->assertNotFound();
+        $this->api('DELETE', "customer/tickets/{$ticket->public_id}/attachments/9999999", token: $customerToken)->assertNotFound();
         $this->assertSame(4, $ticket->fresh()->getMedia('attachments')->count());
 
-        $this->api('DELETE', "customer/tickets/{$ticket->id}/attachments/{$mine->id}", token: $customerToken)->assertNoContent();
-        $this->api('DELETE', "technician/tickets/{$ticket->id}/attachments/{$theirs->id}", token: $technicianToken)->assertNoContent();
+        $this->api('DELETE', "customer/tickets/{$ticket->public_id}/attachments/{$mine->public_id}", token: $customerToken)->assertNoContent();
+        $this->api('DELETE', "technician/tickets/{$ticket->public_id}/attachments/{$theirs->public_id}", token: $technicianToken)->assertNoContent();
 
         $this->assertSame(['staff.png', 'legacy.png'], $ticket->fresh()->getMedia('attachments')->pluck('file_name')->all());
         $this->assertNull(Media::query()->find($mine->id));
@@ -251,10 +252,10 @@ class TicketAttachmentsTest extends TestCase
             $media = $ticket->addMediaFromString('png')->usingFileName('late.png')
                 ->withCustomProperties(['company_id' => $user->company_id, 'uploaded_by' => $user->id])->toMediaCollection('attachments');
 
-            $this->api('GET', "customer/tickets/{$ticket->id}", token: $token)
+            $this->api('GET', "customer/tickets/{$ticket->public_id}", token: $token)
                 ->assertJsonPath('data.attachments.0.mine', true)
                 ->assertJsonPath('data.attachments.0.can_delete', false);
-            $this->api('DELETE', "customer/tickets/{$ticket->id}/attachments/{$media->id}", token: $token)->assertForbidden();
+            $this->api('DELETE', "customer/tickets/{$ticket->public_id}/attachments/{$media->public_id}", token: $token)->assertForbidden();
             $this->assertNotNull(Media::query()->find($media->id), $status);
         }
     }
@@ -273,7 +274,7 @@ class TicketAttachmentsTest extends TestCase
         $queries = function () use ($ticket, $token): int {
             DB::flushQueryLog();
             DB::enableQueryLog();
-            $this->api('GET', "customer/tickets/{$ticket->id}", token: $token)->assertOk();
+            $this->api('GET', "customer/tickets/{$ticket->public_id}", token: $token)->assertOk();
 
             return count(DB::getQueryLog());
         };
@@ -293,7 +294,7 @@ class TicketAttachmentsTest extends TestCase
         $ticket = $this->ticket($user->company_id, ['customer_id' => $customer->id]);
         $token = $this->issueToken($user, 'customer');
         $key = (string) Str::uuid();
-        $uri = "customer/tickets/{$ticket->id}/attachments";
+        $uri = "customer/tickets/{$ticket->public_id}/attachments";
 
         $first = $this->multipart($uri, ['file' => UploadedFile::fake()->image('a.jpg')], $token, $key)->assertCreated();
         $replay = $this->multipart($uri, ['file' => UploadedFile::fake()->image('a.jpg')], $token, $key);
@@ -315,7 +316,7 @@ class TicketAttachmentsTest extends TestCase
         $user->assignRole('technician');
         $assigned = $this->ticket($user->company_id, ['status' => 'assigned', 'assigned_to' => $user->id, 'customer_id' => Customer::factory()->create(['company_id' => $user->company_id])->id]);
 
-        $this->multipart("customer/tickets/{$assigned->id}/attachments", ['file' => UploadedFile::fake()->image('x.jpg')], $this->issueToken($user, 'customer'))
+        $this->multipart("customer/tickets/{$assigned->public_id}/attachments", ['file' => UploadedFile::fake()->image('x.jpg')], $this->issueToken($user, 'customer'))
             ->assertNotFound();
         $this->assertSame(0, $assigned->fresh()->getMedia('attachments')->count());
     }

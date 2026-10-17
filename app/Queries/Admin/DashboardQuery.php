@@ -119,9 +119,9 @@ final class DashboardQuery
         $items = $count === 0
             ? []
             : $breached->orderBy('sla_deadline')->orderBy('id')->limit(self::SLA_ITEM_LIMIT)
-                ->get(['id', 'code', 'title', 'priority', 'status', 'sla_deadline'])
+                ->get(['id', 'public_id', 'code', 'title', 'priority', 'status', 'sla_deadline'])
                 ->map(fn (Ticket $ticket): array => [
-                    'id' => $ticket->id,
+                    'id' => $ticket->public_id,
                     'code' => $ticket->code,
                     'title' => $ticket->title,
                     'priority' => $ticket->priority,

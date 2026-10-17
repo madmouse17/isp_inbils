@@ -44,8 +44,8 @@ class EmployeeTest extends TestCase
         $org = OrganizationUnit::factory()->create(['company_id' => $this->admin->company_id]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user->id,
-            'organization_id' => $org->id,
+            'user_id' => $user->public_id,
+            'organization_id' => $org->public_id,
             'phone' => '08123456789',
             'status' => 'active',
         ])->assertRedirect()->assertSessionHasNoErrors();
@@ -58,7 +58,7 @@ class EmployeeTest extends TestCase
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user->id,
+            'user_id' => $user->public_id,
             'employee_number' => 'EMP-TYPED',
             'status' => 'active',
         ])->assertSessionHasErrors(['employee_number']);
@@ -72,7 +72,7 @@ class EmployeeTest extends TestCase
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user->id,
+            'user_id' => $user->public_id,
             'employee_number' => 'EMP-TYPED',
             'status' => 'active',
         ])->assertRedirect()->assertSessionHasNoErrors();
@@ -128,7 +128,7 @@ class EmployeeTest extends TestCase
 
         $user2 = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true]);
         $response = $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user2->id,
+            'user_id' => $user2->public_id,
             'employee_number' => 'EMP-DUP',
             'status' => 'active',
         ]);
@@ -172,7 +172,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
-            'organization_id' => $org->id,
+            'organization_id' => $org->public_id,
             'vehicle_id' => null,
             'phone' => '0812000111',
             'hire_date' => '2026-03-05',
@@ -205,7 +205,7 @@ class EmployeeTest extends TestCase
         $user = User::factory()->create(['company_id' => $this->admin->company_id, 'is_active' => true]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user->id,
+            'user_id' => $user->public_id,
             'hire_date' => '05/03/2026',
         ])->assertSessionHasErrors(['hire_date' => 'tanggal masuk harus sesuai format Y-m-d.']);
 
@@ -218,7 +218,7 @@ class EmployeeTest extends TestCase
         EmployeeProfile::factory()->create(['company_id' => $this->admin->company_id, 'user_id' => $user->id]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $user->id,
+            'user_id' => $user->public_id,
         ])->assertSessionHasErrors(['user_id' => 'Pengguna ini sudah punya profil karyawan.']);
     }
 
@@ -231,7 +231,7 @@ class EmployeeTest extends TestCase
         EmployeeProfile::factory()->create(['company_id' => $foreign->company_id, 'user_id' => $foreign->id]);
 
         $response = $this->actingAs($this->admin)
-            ->postJson(route('admin.employees.store'), ['user_id' => $foreign->id])
+            ->postJson(route('admin.employees.store'), ['user_id' => $foreign->public_id])
             ->assertUnprocessable();
 
         $this->assertCount(1, $response->json('errors.user_id'));
@@ -249,7 +249,7 @@ class EmployeeTest extends TestCase
         $before = $profile->user_id;
 
         $this->actingAs($this->admin)->putJson(route('admin.employees.update', $profile), [
-            'user_id' => $owner->id,
+            'user_id' => $owner->public_id,
             'status' => 'active',
         ])->assertUnprocessable()->assertJsonPath('errors.user_id.0', 'Pengguna ini sudah punya profil karyawan.');
 
@@ -262,7 +262,7 @@ class EmployeeTest extends TestCase
         $profile = EmployeeProfile::factory()->create(['company_id' => $this->admin->company_id, 'user_id' => $user->id]);
 
         $this->actingAs($this->admin)->put(route('admin.employees.update', $profile), [
-            'user_id' => $user->id,
+            'user_id' => $user->public_id,
             'phone' => '0812999000',
             'status' => 'active',
         ])->assertRedirect()->assertSessionHasNoErrors();
@@ -285,7 +285,7 @@ class EmployeeTest extends TestCase
         ]);
 
         $this->actingAs($this->admin)->post(route('admin.employees.store'), [
-            'user_id' => $member->id,
+            'user_id' => $member->public_id,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('employee_profiles', ['user_id' => $member->id, 'company_id' => $this->admin->company_id]);
@@ -312,7 +312,7 @@ class EmployeeTest extends TestCase
             ->get(route('admin.employees.index', ['user_search' => 'qwerty']))
             ->assertOk()
             ->assertJsonCount(1, 'props.userOptions')
-            ->assertJsonPath('props.userOptions.0.value', $mine->id)
+            ->assertJsonPath('props.userOptions.0.value', $mine->public_id)
             ->assertJsonPath('props.userOptions.0.label', 'Qwerty Teknisi');
     }
 }

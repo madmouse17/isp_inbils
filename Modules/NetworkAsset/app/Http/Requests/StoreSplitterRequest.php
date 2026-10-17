@@ -2,13 +2,23 @@
 
 namespace Modules\NetworkAsset\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Modules\NetworkAsset\Models\OdnPort;
 use Modules\NetworkAsset\Models\OdnSplitter;
 
 class StoreSplitterRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['input_port_id' => OdnPort::class];
+    }
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', OdnSplitter::class) ?? false;

@@ -12,12 +12,12 @@ class NetworkAssetInstallationResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'location_id' => $this->location_id,
-            'customer_id' => $this->customer_id,
-            'subscription_id' => $this->subscription_id,
-            'spk_id' => $this->spk_id,
-            'installed_by' => $this->installed_by,
+            'id' => $this->public_id,
+            'location_id' => $this->location?->public_id,
+            'customer_id' => $this->customer?->public_id,
+            'subscription_id' => $this->subscription?->public_id,
+            'spk_id' => $this->workOrder?->public_id,
+            'installed_by' => $this->installer?->public_id,
             'installed_at' => $this->installed_at,
             'removed_at' => $this->removed_at,
             'removal_reason' => $this->removal_reason,

@@ -2,10 +2,20 @@
 
 namespace Modules\Inventory\Http\Requests;
 
+use App\Http\Requests\Concerns\ResolvesPublicIds;
 use Illuminate\Foundation\Http\FormRequest;
+use Modules\Inventory\Models\MaterialReturnLine;
 
 class ReceiveAcceptMaterialReturnRequest extends FormRequest
 {
+    use ResolvesPublicIds;
+
+    /** @return array<string, class-string> */
+    protected function publicIdFields(): array
+    {
+        return ['lines.*.id' => MaterialReturnLine::class];
+    }
+
     public function authorize(): bool
     {
         return true;

@@ -9,7 +9,7 @@ const RATIOS = [2, 4, 8, 16, 32, 64] as const;
 interface SplitterDialogProps {
     onClose: () => void;
     /** The ODC or ODP that gets the splitter. */
-    host: { id: number; code: string };
+    host: { id: string; code: string };
     /** The `inputPortOptions` prop: free upstream ports that match the typed text. `undefined` until a search has run. */
     inputPortOptions: PortOption[] | undefined;
 }

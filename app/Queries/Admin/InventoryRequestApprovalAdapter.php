@@ -70,8 +70,8 @@ class InventoryRequestApprovalAdapter
 
         if ($withRelations) {
             $query->with([
-                'requester:id,name',
-                'items.product:id,name',
+                'requester:id,public_id,name',
+                'items.product:id,public_id,name',
             ]);
         }
 
@@ -106,16 +106,8 @@ class InventoryRequestApprovalAdapter
             }
         });
 
-        $creator = $request->input('creator');
-        if (is_int($creator)) {
-            $creator = (string) $creator;
-        }
-
-        if (is_string($creator) && ctype_digit($creator)) {
-            $creatorId = (int) $creator;
-            if (ApprovalInboxQuery::isEligibleRequester($request, $creatorId)) {
-                $query->where('requested_by', $creatorId);
-            }
+        if (($creatorId = ApprovalInboxQuery::requesterFilter($request)) !== null) {
+            $query->where('requested_by', $creatorId);
         }
 
         $query->when($request->input('status'), function (Builder $q, string $v): void {
@@ -220,7 +212,7 @@ class InventoryRequestApprovalAdapter
     /**
      * Daftar pemohon yang berasal dari baris Inventory Request eligible.
      *
-     * @return Collection<int, array{id: int, name: string}>
+     * @return Collection<int, array{id: string, name: string}>
      */
     public static function requesterOptions(Request $request): Collection
     {
@@ -237,9 +229,9 @@ class InventoryRequestApprovalAdapter
         return User::query()
             ->whereIn('id', $creatorIds)
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'public_id', 'name'])
             ->map(fn (User $u): array => [
-                'id' => (int) $u->id,
+                'id' => (string) $u->public_id,
                 'name' => (string) $u->name,
             ])
             ->values();

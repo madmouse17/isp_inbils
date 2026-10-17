@@ -17,7 +17,7 @@ import {
 import { PageHeader } from '@/Components/composite';
 
 interface OptRow {
-    id: number;
+    id: string;
     name: string;
 }
 
@@ -25,7 +25,7 @@ interface CreateProps extends Record<string, unknown> {
     bandwidthProfiles: { data: OptRow[] };
     speedProfiles: { data: OptRow[] };
     slaTiers: { data: OptRow[] };
-    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
 }
 
 const toOptions = (rows: OptRow[]) =>

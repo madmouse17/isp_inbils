@@ -207,7 +207,7 @@ test('tenant roles are read-only: list opens the role, no create, edit or delete
     await expect(main.getByRole('button', { name: 'Aksi lainnya' })).toHaveCount(0);
 
     await main.getByRole('link', { name: 'admin', exact: true }).click();
-    await expect(page).toHaveURL(/\/admin\/roles\/\d+$/);
+    await expect(page).toHaveURL(/\/admin\/roles\/[0-9A-HJKMNP-TV-Z]{26}$/i);
     await expect(main.getByRole('heading', { name: 'Peran admin' })).toBeVisible();
     await expect(main.getByRole('heading', { name: 'Hak akses peran' })).toBeVisible();
     await expect(main.getByRole('link', { name: 'Ubah' })).toHaveCount(0);

@@ -54,7 +54,7 @@ test.describe('@lifecycle billing', () => {
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/invoices$/);
         await openDraftInvoice(page, customerName);
-        await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/invoices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         await expectDetail(page, 'Status', 'Draf');
         await page.getByRole('button', { name: 'Tambah item' }).click();
         const itemDialog = page.getByRole('dialog', { name: 'Tambah item' });
@@ -105,7 +105,7 @@ test.describe('@lifecycle billing', () => {
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page).toHaveURL(/\/admin\/invoices$/);
         await openDraftInvoice(page, customerName);
-        await expect(page).toHaveURL(/\/admin\/invoices\/\d+$/);
+        await expect(page).toHaveURL(/\/admin\/invoices\/[0-9A-HJKMNP-TV-Z]{26}$/i);
         const siblingPath = new URL(page.url()).pathname;
 
         // Separation of duties (role-persona-sod): the creator cannot cancel the
@@ -170,7 +170,7 @@ test.describe('@lifecycle billing', () => {
         await selectSearchOption(page, 'Pelanggan', e2eCustomerName);
         await expect
             .poll(() => new URL(page.url()).searchParams.get('customer_id'))
-            .toMatch(/^\d+$/);
+            .toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/i);
 
         await page.reload();
         await expect(page.getByRole('combobox', { name: 'Pelanggan' })).toHaveValue(
@@ -211,7 +211,7 @@ async function createdInvoiceNumber(page: Page, customerName: string) {
     // not include them.
     const { props } = await inertiaProps(page, '/admin/invoices?per_page=50');
     const invoices = props?.['invoices'] as
-        { data?: Array<{ id: number; number: string; customer?: { name: string } }> } | undefined;
+        { data?: Array<{ id: string; number: string; customer?: { name: string } }> } | undefined;
     const matches = invoices?.data?.filter((entry) => entry.customer?.name === customerName) ?? [];
     const newest = matches
         .map((entry) => entry.number)

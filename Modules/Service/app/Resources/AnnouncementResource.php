@@ -16,7 +16,7 @@ class AnnouncementResource extends JsonResource
         $timezone = CompanyService::current()?->timezone ?: (string) config('app.timezone');
 
         return [
-            'id' => $this->id,
+            'id' => $this->public_id,
             'title' => $this->title,
             'body' => $this->body,
             'kind' => $this->kind,
@@ -25,8 +25,8 @@ class AnnouncementResource extends JsonResource
             'starts_at' => $this->starts_at->setTimezone($timezone)->format('Y-m-d H:i'),
             'ends_at' => $this->ends_at?->setTimezone($timezone)->format('Y-m-d H:i'),
             'published_at' => $this->published_at,
-            'location_targets' => $this->whenLoaded('locations', fn () => $this->locations->map->only(['id', 'code', 'name'])->values()),
-            'package_category_targets' => $this->whenLoaded('servicePackageCategories', fn () => $this->servicePackageCategories->map->only(['id', 'code', 'name'])->values()),
+            'location_targets' => $this->whenLoaded('locations', fn () => $this->locations->map(fn ($location): array => ['id' => $location->public_id, 'code' => $location->code, 'name' => $location->name])->values()),
+            'package_category_targets' => $this->whenLoaded('servicePackageCategories', fn () => $this->servicePackageCategories->map(fn ($category): array => ['id' => $category->public_id, 'code' => $category->code, 'name' => $category->name])->values()),
         ];
     }
 }

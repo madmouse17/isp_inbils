@@ -22,19 +22,19 @@ class DispatchItemResource extends JsonResource
             $canView = (bool) $user?->can('view', $ticket);
 
             return [
-                'id' => $ticket->id,
+                'id' => $ticket->public_id,
                 'domain' => 'ticket',
-                'composite_id' => "ticket:{$ticket->id}",
+                'composite_id' => "ticket:{$ticket->public_id}",
                 'code' => $ticket->code,
                 'title' => $ticket->title,
                 'priority' => $ticket->priority,
                 'status' => $ticket->status,
                 'requester' => $ticket->relationLoaded('customer') && $ticket->customer
-                    ? ['id' => $ticket->customer->id, 'name' => $ticket->customer->name, 'code' => $ticket->customer->code]
+                    ? ['id' => $ticket->customer->public_id, 'name' => $ticket->customer->name, 'code' => $ticket->customer->code]
                     : null,
-                'assigned_to' => $ticket->assigned_to,
+                'assigned_to' => $ticket->assignee?->public_id,
                 'assignee' => $ticket->relationLoaded('assignee') && $ticket->assignee
-                    ? ['id' => $ticket->assignee->id, 'name' => $ticket->assignee->name]
+                    ? ['id' => $ticket->assignee->public_id, 'name' => $ticket->assignee->name]
                     : null,
                 'submitted_at' => $ticket->created_at?->toISOString(),
                 'age_seconds' => $ticket->created_at ? max(0, (int) $ticket->created_at->diffInSeconds(now())) : null,
@@ -62,20 +62,20 @@ class DispatchItemResource extends JsonResource
             $canView = (bool) $user?->can('view', $wo);
 
             return [
-                'id' => $wo->id,
+                'id' => $wo->public_id,
                 'domain' => 'spk',
-                'composite_id' => "spk:{$wo->id}",
+                'composite_id' => "spk:{$wo->public_id}",
                 'code' => $wo->code,
                 'type' => $wo->type,
                 'title' => $wo->title,
                 'priority' => $wo->priority,
                 'status' => $wo->status,
                 'requester' => $wo->relationLoaded('customer') && $wo->customer
-                    ? ['id' => $wo->customer->id, 'name' => $wo->customer->name, 'code' => $wo->customer->code]
-                    : ($wo->relationLoaded('creator') && $wo->creator ? ['id' => $wo->creator->id, 'name' => $wo->creator->name] : null),
-                'assigned_to' => $wo->assigned_to,
+                    ? ['id' => $wo->customer->public_id, 'name' => $wo->customer->name, 'code' => $wo->customer->code]
+                    : ($wo->relationLoaded('creator') && $wo->creator ? ['id' => $wo->creator->public_id, 'name' => $wo->creator->name] : null),
+                'assigned_to' => $wo->assignee?->public_id,
                 'assignee' => $wo->relationLoaded('assignee') && $wo->assignee
-                    ? ['id' => $wo->assignee->id, 'name' => $wo->assignee->name]
+                    ? ['id' => $wo->assignee->public_id, 'name' => $wo->assignee->name]
                     : null,
                 'submitted_at' => $wo->created_at?->toISOString(),
                 'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,

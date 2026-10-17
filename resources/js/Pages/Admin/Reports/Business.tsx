@@ -63,7 +63,7 @@ interface BusinessData extends Record<string, unknown> {
 interface Props extends Record<string, unknown> {
     data?: BusinessData;
     charts: BusinessChartData;
-    packageCategories: { id: number; code: string; name: string; is_active: boolean }[];
+    packageCategories: { id: string; code: string; name: string; is_active: boolean }[];
     filters: { date_from?: string; date_to?: string; service_package_category_id?: string | null };
     meta: ReportMeta<BusinessMetricKey>;
     can: { export: boolean };

@@ -1,7 +1,7 @@
 import type { ResetPeriod } from '@/lib/numberTemplate';
 
 export interface NumberSequence {
-    id: number;
+    id: string;
     entity_type: string;
     label: string;
     prefix: string;
