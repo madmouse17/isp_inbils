@@ -32,6 +32,11 @@ Schedule::command('ops:scheduler-heartbeat')->everyFiveMinutes();
 // Jakarta, before the default quiet window (21:00-07:00) can matter; "today" is computed per company timezone.
 Schedule::command('billing:whatsapp-reminders')->dailyAt('01:00')->withoutOverlapping();
 
+Schedule::command('announcements:publish-scheduled')->everyMinute()->withoutOverlapping();
+Schedule::command('promo-banners:cleanup-images')->daily()->withoutOverlapping();
+
+Schedule::command('inbils:platform:exports:prune')->hourly()->withoutOverlapping();
+
 // The WhatsApp message log keeps 12 months (WhatsAppMessage::prunable()), the STOP receipts 30 days (WhatsAppInboundReceipt::prunable()).
 Schedule::command('model:prune', ['--model' => [WhatsAppMessage::class, WhatsAppInboundReceipt::class]])->daily();
 

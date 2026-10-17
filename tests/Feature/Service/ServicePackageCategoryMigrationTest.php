@@ -124,6 +124,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
                 ['service_packages', 'service_package_categories'],
             ))->pluck('DELETE_RULE')->all());
 
+            $this->dependents('down');
             $migration->down();
             $this->assertFalse(Schema::hasTable('service_package_categories'));
             $this->assertFalse(Schema::hasColumn('service_packages', 'service_package_category_id'));
@@ -132,6 +133,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
             if (! Schema::hasTable('service_package_categories')) {
                 $migration->up();
             }
+            $this->dependents('up');
         }
 
         $this->assertTrue(Schema::hasColumn('service_packages', 'service_package_category_id'));
@@ -143,6 +145,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
      */
     private function dropSchemaAndInsert(object $migration, Company $company, array $packages, bool $deleteSecond = false): array
     {
+        $this->dependents('down');
         $migration->down();
 
         $profiles = [
@@ -174,6 +177,7 @@ class ServicePackageCategoryMigrationTest extends TestCase
         if (! Schema::hasTable('service_package_categories')) {
             $migration->up();
         }
+        $this->dependents('up');
 
         DB::table('service_packages')->whereIn('company_id', $companyIds)->delete();
         DB::table('service_package_categories')->whereIn('company_id', $companyIds)->delete();
@@ -181,5 +185,26 @@ class ServicePackageCategoryMigrationTest extends TestCase
         DB::table('speed_profiles')->whereIn('company_id', $companyIds)->delete();
         DB::table('sla_tiers')->whereIn('company_id', $companyIds)->delete();
         DB::table('companies')->whereIn('id', $companyIds)->delete();
+    }
+
+    /**
+     * Later migrations reference `service_package_categories` (announcement and banner targeting pivots), so the
+     * category migration can only be reversed once those are gone, and they come back after it.
+     */
+    private function dependents(string $direction): void
+    {
+        $files = [
+            'announcements' => 'Modules/Service/database/migrations/2026_10_15_200000_create_announcements_table.php',
+            'promo_banners' => 'Modules/Service/database/migrations/2026_10_15_200100_create_promo_banners_table.php',
+        ];
+
+        foreach ($direction === 'down' ? array_reverse($files, true) : $files as $table => $file) {
+            $dependent = require base_path($file);
+            if ($direction === 'down' && Schema::hasTable($table)) {
+                $dependent->down();
+            } elseif ($direction === 'up' && ! Schema::hasTable($table)) {
+                $dependent->up();
+            }
+        }
     }
 }

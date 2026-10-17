@@ -12,15 +12,6 @@ class CompanyLogoService
     {
         $company->clearMediaCollection('logo');
 
-        if ($logo->extension() === 'svg') {
-            $company->addMedia($logo)
-                ->withCustomProperties(['company_id' => $company->id])
-                ->usingFileName('logo.svg')
-                ->toMediaCollection('logo', 'public');
-
-            return;
-        }
-
         $company->addMediaFromString(self::webpContents($logo))
             ->withCustomProperties(['company_id' => $company->id])
             ->usingFileName('logo.webp')

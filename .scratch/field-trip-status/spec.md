@@ -1,6 +1,6 @@
 # Field trip status, customer contact and navigation on SPK
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `field-trip-status`
 Source: owner request 2026-10-14 (verbatim): "pada pelanggan ada step dalam perjalanan atau menuju lokasi, selesai, dan di teknisi juga ada untuk mengeset jika dia dalam perjalanan atau pemasangan spk sudah selesai dipasang, kasih no hp pelanggan dibuat step list pelanggan ada no telp dan lat lng atau maps menuju kerumah pelanggan di teknisi". The owner accepted the assistant's recommendations for every open lane ("ya saya ikut saran anda … jadikan tickets dan specs semuanya baik yang ini maupun sebelumnya"); decisions F1–F9 below are those recommendations, corrected by the facts.
 

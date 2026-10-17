@@ -4,6 +4,7 @@
  * `permissionGroups.selfcheck.mjs` fails when a seeded group or permission has no entry here.
  */
 export const PERMISSION_GROUP_LABELS: Readonly<Record<string, string>> = {
+    announcement: 'Pengumuman dan promo',
     billing: 'Tagihan',
     company: 'Perusahaan',
     customer: 'Pelanggan',
@@ -29,6 +30,8 @@ export const PERMISSION_GROUP_LABELS: Readonly<Record<string, string>> = {
 };
 
 export const PERMISSION_LABELS: Readonly<Record<string, string>> = {
+    'announcement.manage': 'Kelola pengumuman dan banner promo',
+
     'billing.view': 'Lihat tagihan',
     'billing.create': 'Buat tagihan',
     'billing.update': 'Ubah tagihan',

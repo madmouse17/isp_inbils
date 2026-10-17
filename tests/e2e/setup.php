@@ -71,6 +71,13 @@ try {
         ]);
     }
 
+    if ($exitCode === 0) {
+        $exitCode = $kernel->call('db:seed', [
+            '--class' => 'Database\Seeders\E2ePlatformSeeder',
+            '--force' => true,
+        ]);
+    }
+
     exit($exitCode);
 } catch (Throwable $e) {
     fwrite(STDERR, "E2E setup failed with unhandled exception: {$e->getMessage()}\n{$e->getTraceAsString()}\n");

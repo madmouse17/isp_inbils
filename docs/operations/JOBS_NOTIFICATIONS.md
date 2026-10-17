@@ -12,6 +12,9 @@ Canonical detail: `docs/operations/RELIABLE_JOBS.md`.
 | `billing:generate` | daily @ 02:00 | `withoutOverlapping()` | Recurring postpaid invoices (idempotent) |
 | `billing:check-overdue` | daily @ 03:00 | `withoutOverlapping()` | Mark past-due invoices overdue (idempotent) |
 | `tickets:sla` | every 15 minutes | `withoutOverlapping()` | Notify once per SLA-breached ticket |
+| `announcements:publish-scheduled` | every minute | `withoutOverlapping()` | Dispatch due outage and maintenance notifications |
+| `promo-banners:cleanup-images` | daily | `withoutOverlapping()` | Delete banner images 180 days after end |
+| `inbils:platform:exports:prune` | hourly | `withoutOverlapping()` | Delete expired tenant export archives and fail stale builds |
 
 Defined in `routes/console.php`. Run scheduler:
 
@@ -28,6 +31,7 @@ php artisan schedule:work
 | Ticket assigned | `TicketAssignedNotification` | mail + database |
 | Ticket SLA breach | `TicketSlaBreachedNotification` | mail + database |
 | Queue job terminal fail | `ReportFailedQueueJob` listener | log only (ExceptionReporter + warning) |
+| Announcement published or scheduled start reached | `AnnouncementPublishedNotification` | database |
 
 No SMS / WhatsApp / external pager. Bodies include safe IDs only (command name, company_id, ticket_id/code, job uuid). No stack traces in notification body.
 
@@ -45,12 +49,15 @@ No SMS / WhatsApp / external pager. Bodies include safe IDs only (command name, 
 - Overdue mark: pure status update on past-due rows; re-run safe.
 - SLA breach: `tickets.sla_breached_notified_at` set under `lockForUpdate` after notify; re-run skips.
 - Ticket assign notify: only when `assigned_to` changes.
+- Announcement fan-out: `announcements.notified_at` is claimed under `lockForUpdate`; reruns skip the announcement.
 
 ## Jobs
 
 | Job | Tries | Backoff | Timeout |
 |---|---|---|---|
 | `CheckTicketSlaBreachesJob` | 3 | 30/120/300s | 120s |
+| `SendAnnouncementNotifications` | 3 | 30/120/300s | 120s |
+| `BuildTenantExportJob` (`platform` queue) | 1 | none | 3600s |
 
 Dispatched by `tickets:sla` (optional `--company=`).
 

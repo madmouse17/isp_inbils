@@ -39,6 +39,7 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property ?int $spawned_spk_id
  * @property ?Carbon $sla_deadline
  * @property ?Carbon $response_deadline
+ * @property ?Carbon $response_due_notified_at
  * @property ?Carbon $sla_breached_notified_at
  * @property ?Carbon $first_response_at
  * @property ?Carbon $resolved_at

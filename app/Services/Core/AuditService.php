@@ -9,11 +9,12 @@ use Spatie\Activitylog\Contracts\Activity as ActivityContract;
 class AuditService
 {
     /**
-     * Log an action with automatic tenant/company capture.
+     * Log an action with automatic tenant/company capture. The causer is the authenticated user of the default
+     * guard, unless $causer names one: a platform login flow logs before its session exists.
      *
      * @param  array<string, mixed>  $properties
      */
-    public static function log(string $module, string $action, array $properties = [], ?Model $subject = null, ?int $companyId = null): ?ActivityContract
+    public static function log(string $module, string $action, array $properties = [], ?Model $subject = null, ?int $companyId = null, ?Model $causer = null): ?ActivityContract
     {
         $resolvedCompanyId = self::resolveCompanyId($subject, $properties, $companyId);
 
@@ -27,6 +28,10 @@ class AuditService
 
         if ($subject) {
             $activity->performedOn($subject);
+        }
+
+        if ($causer !== null) {
+            $activity->causedBy($causer);
         }
 
         if ($resolvedCompanyId !== null) {

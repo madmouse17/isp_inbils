@@ -34,3 +34,5 @@ export { ErrorState, ForbiddenState, LoadingState, ResourceState } from './Resou
 export { NotificationBell } from './NotificationBell';
 export { SequenceCodeField } from './SequenceCodeField';
 export type { CodeSequence } from './SequenceCodeField';
+export { WorkOrderTimeline } from './WorkOrderTimeline';
+export type { WorkOrderStep, WorkOrderStepKey, WorkOrderTimelineProps } from './WorkOrderTimeline';

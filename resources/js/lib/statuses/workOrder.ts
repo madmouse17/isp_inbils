@@ -18,3 +18,12 @@ export const WORK_ORDER_TYPE = {
     upgrade_service: { label: 'Peningkatan layanan', tone: 'neutral' },
     relocation: { label: 'Pindah lokasi', tone: 'neutral' },
 } satisfies StatusMap;
+
+/**
+ * Marks on an SPK that are not a status of their own, so they stay out of `WORK_ORDER_STATUS` (a filter lists
+ * its keys): the assigned technician has set off, and rejected work waits for a second visit.
+ */
+export const WORK_ORDER_TRIP = {
+    en_route: { label: 'Dalam perjalanan', tone: 'info' },
+    rework: { label: 'Perlu perbaikan', tone: 'danger' },
+} satisfies StatusMap;

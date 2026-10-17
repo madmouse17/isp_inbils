@@ -107,7 +107,7 @@ at most 50. One record is `{data}`.
 ## Rate limits
 
 120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment
-starts and 30 uploads a minute per user.
+starts, 30 uploads and 30 promo banner taps a minute per user.
 MD,
     ],
 

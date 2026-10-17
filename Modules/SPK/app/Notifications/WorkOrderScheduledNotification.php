@@ -44,6 +44,12 @@ class WorkOrderScheduledNotification extends WhatsAppNotification
         return $this->audience === 'technician' ? 'spk_scheduled' : 'spk_scheduled_customer';
     }
 
+    /** The technician's phone hears of an assignment; the customer's visit date stays WhatsApp and the bell. */
+    protected function pushesToApp(): bool
+    {
+        return $this->audience === 'technician';
+    }
+
     /** @return array<string, mixed>|null */
     private function forTechnician(WorkOrder $workOrder, int $technicianId): ?array
     {

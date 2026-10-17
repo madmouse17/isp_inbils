@@ -60,7 +60,7 @@ class UserTwoFactorResetTest extends TestCase
         $this->assertSame($admin->id, $audit->causer_id);
         $this->assertSame($colleague->id, $audit->subject_id);
         $this->assertEqualsCanonicalizing(
-            ['user_id' => $colleague->id, 'actor_id' => $admin->id, 'company_id' => $this->head->id],
+            ['user_id' => $colleague->id, 'actor_id' => $admin->id, 'actor_type' => 'user', 'company_id' => $this->head->id],
             $audit->properties->all(),
         );
         foreach ([$secret, ...$codes] as $material) {

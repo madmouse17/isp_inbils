@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\MediaLibrary\HasMedia;
@@ -38,6 +39,8 @@ use Spatie\MediaLibrary\InteractsWithMedia;
  * @property string $priority
  * @property ?Carbon $scheduled_date
  * @property ?Carbon $started_at
+ * @property ?Carbon $en_route_at
+ * @property ?Carbon $submitted_at
  * @property ?Carbon $completed_at
  * @property ?string $result
  * @property ?string $rejection_reason
@@ -66,17 +69,27 @@ class WorkOrder extends Model implements HasMedia
     use LogsActivity;
     use SoftDeletes;
 
+    /** The ISP's words for each type, the same in the technician and the customer app. */
+    public const TYPE_LABELS = [
+        'installation' => 'Instalasi',
+        'maintenance' => 'Perawatan',
+        'upgrade_service' => 'Peningkatan layanan',
+        'relocation' => 'Pindah lokasi',
+    ];
+
     protected $fillable = [
         'code', 'type', 'title', 'description', 'status',
         'customer_id', 'subscription_id', 'location_id', 'assigned_to',
         'ticket_id', 'source', 'priority', 'scheduled_date',
-        'started_at', 'completed_at', 'result', 'rejection_reason', 'created_by',
+        'started_at', 'en_route_at', 'submitted_at', 'completed_at', 'result', 'rejection_reason', 'created_by',
         'approved_by', 'approved_at', 'rejected_by', 'rejected_at',
     ];
 
     protected $casts = [
         'scheduled_date' => 'date',
         'started_at' => 'datetime',
+        'en_route_at' => 'datetime',
+        'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
     ];
 
@@ -123,6 +136,18 @@ class WorkOrder extends Model implements HasMedia
     public function assignments(): HasMany
     {
         return $this->hasMany(WorkOrderAssignment::class, 'work_order_id');
+    }
+
+    /** All a customer is told of the technician: the first name, never the surname or the phone. */
+    public function technicianFirstName(): ?string
+    {
+        return $this->assignee === null ? null : Str::of($this->assignee->name)->trim()->before(' ')->toString();
+    }
+
+    /** The type in Indonesian; a type nobody named keeps its key rather than showing nothing. */
+    public function typeLabel(): string
+    {
+        return self::TYPE_LABELS[$this->type] ?? $this->type;
     }
 
     public function getActivitylogOptions(): LogOptions

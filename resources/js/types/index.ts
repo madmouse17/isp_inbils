@@ -70,6 +70,9 @@ export interface Company {
     phone?: string | null;
     email?: string | null;
     website?: string | null;
+    whatsapp?: string | null;
+    support_hours?: string | null;
+    brand_color?: string | null;
     currency: string;
     timezone: string;
     settings?: Record<string, unknown>;
@@ -227,6 +230,8 @@ export interface DispatchItem {
     assigned_to: number | null;
     assignee: DispatchItemAssignee | null;
     submitted_at: string | null;
+    /** SPK rows only: when the assigned technician set off (ISO-8601); the rows of tickets have no such key. */
+    en_route_at?: string | null;
     age_seconds: number | null;
     due_at?: string | null;
     sla_breached?: boolean;

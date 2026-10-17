@@ -38,4 +38,4 @@ Both apps reuse the web shadcn slate theme (`packages/inbils_core/lib/src/theme/
 
 ## Tickets
 
-01-backend-branding-connection-hint-api · 02-ui-web-branding-and-hint-fields · 03-mobile-design-system · 04-mobile-customer-home-and-screens · 05-mobile-bantuan-flow · 06-mobile-technician-app · 07-qa-device-review-release
+01-backend-branding-connection-hint-api · 02-ui-web-branding-and-hint-fields · 03-mobile-design-system · 04-mobile-customer-home-and-screens · 05-mobile-bantuan-flow · 06-mobile-technician-app · 07-qa-device-review-release · 08-mobile-motion-and-network-icons · 09-backend-package-speed-fields

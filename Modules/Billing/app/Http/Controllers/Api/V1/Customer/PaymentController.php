@@ -22,7 +22,7 @@ class PaymentController extends Controller
             ->select('id');
 
         $payments = Payment::query()
-            ->select('id', 'invoice_id', 'amount', 'method', 'paid_at')
+            ->select('id', 'invoice_id', 'amount', 'method', 'reference', 'paid_at')
             ->whereIn('invoice_id', $invoices)
             ->whereNull('cancelled_at')
             ->with('invoice:id,number')

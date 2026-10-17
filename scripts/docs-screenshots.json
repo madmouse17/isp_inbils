@@ -20,6 +20,16 @@
             ]
         },
         {
+            "slug": "platform-login",
+            "url": "/platform/login",
+            "auth": false,
+            "actions": [
+                {
+                    "waitFor": "role=button[name=\"Masuk\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
             "slug": "dashboard",
             "url": "/admin/dashboard"
         },
@@ -206,6 +216,36 @@
         {
             "slug": "sla-tiers",
             "url": "/admin/sla-tiers"
+        },
+        {
+            "slug": "announcements",
+            "url": "/admin/announcements",
+            "actions": [
+                {
+                    "waitFor": "role=button[name=\"Buat Pengumuman\"] >> visible=true >> nth=0"
+                }
+            ]
+        },
+        {
+            "slug": "announcements-create",
+            "url": "/admin/announcements",
+            "actions": [
+                {
+                    "click": "role=button[name=\"Buat Pengumuman\"] >> visible=true >> nth=0"
+                },
+                {
+                    "waitFor": "role=dialog[name=\"Buat Pengumuman\"] >> visible=true >> nth=0"
+                },
+                {
+                    "fill": ["#announcement-title", "Tagihan bulan ini sudah terbit"]
+                },
+                {
+                    "fill": [
+                        "#announcement-body",
+                        "Buka menu Tagihan di aplikasi untuk melihat rinciannya."
+                    ]
+                }
+            ]
         },
         {
             "slug": "locations",
@@ -551,14 +591,14 @@
             "url": "/admin/roles"
         },
         {
-            "slug": "roles-edit",
+            "slug": "roles-show",
             "url": "/admin/roles",
             "actions": [
                 {
                     "click": "main table tbody tr a >> nth=0"
                 },
                 {
-                    "waitFor": "text=Cari hak akses >> visible=true >> nth=0"
+                    "waitFor": "text=Hak akses peran >> visible=true >> nth=0"
                 }
             ]
         },

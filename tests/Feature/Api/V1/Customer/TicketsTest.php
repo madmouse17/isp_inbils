@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -154,6 +155,38 @@ class TicketsTest extends TestCase
             'title' => 'Bad asset',
             'network_asset_id' => $foreignAsset->id,
         ], $this->token)->assertUnprocessable()->assertJsonValidationErrors(['network_asset_id']);
+    }
+
+    public function test_tickets_carry_sla_deadlines_and_only_the_first_name_of_the_handler(): void
+    {
+        $this->staff->forceFill(['name' => 'Siti Rahayu'])->save();
+        $assigned = $this->ticket('Assigned', $this->customer->id, [
+            'assigned_to' => $this->staff->id,
+            'response_deadline' => '2026-10-16 10:00:00',
+            'sla_deadline' => '2026-10-17 10:00:00',
+            'first_response_at' => '2026-10-16 09:00:00',
+            'status' => 'resolved',
+            'resolved_at' => '2026-10-16 12:00:00',
+        ]);
+        $unassigned = $this->ticket('Unassigned', $this->customer->id, ['response_deadline' => null, 'sla_deadline' => null]);
+
+        $list = collect($this->api('GET', 'customer/tickets', token: $this->token)->assertOk()->json('data'))->keyBy('id');
+        $detail = $this->api('GET', "customer/tickets/{$assigned->id}", token: $this->token)->assertOk();
+
+        foreach ([$list[$assigned->id], $detail->json('data')] as $row) {
+            $this->assertSame('Siti', $row['handler_first_name']);
+            $this->assertSame(Carbon::parse('2026-10-16 10:00:00')->toJSON(), $row['response_deadline']);
+            $this->assertSame(Carbon::parse('2026-10-17 10:00:00')->toJSON(), $row['sla_deadline']);
+            $this->assertSame(Carbon::parse('2026-10-16 09:00:00')->toJSON(), $row['first_response_at']);
+            $this->assertSame(Carbon::parse('2026-10-16 12:00:00')->toJSON(), $row['resolved_at']);
+            $this->assertContains('priority', array_keys($row));
+        }
+        $this->assertNull($list[$unassigned->id]['handler_first_name']);
+        $this->assertNull($list[$unassigned->id]['response_deadline']);
+        $this->assertNull($list[$unassigned->id]['first_response_at']);
+        $this->assertStringNotContainsString('Rahayu', $detail->getContent());
+        $this->assertStringNotContainsString($this->staff->email, $detail->getContent());
+        $this->assertForbiddenKeysAbsent($detail->json('data'), ['assigned_to', 'phone', 'email', 'assignee']);
     }
 
     private function category(string $name, string $priority = 'medium'): TicketCategory

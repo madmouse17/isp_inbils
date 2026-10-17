@@ -6,5 +6,5 @@ bootstrap/cache/
 *.md
 *.php
 *.blade.php
- artisan
+artisan
 composer.*

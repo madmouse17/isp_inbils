@@ -1,6 +1,6 @@
 # ISP announcements and promo banners (web management, customer app feed)
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `announcements-promo`
 Source: owner 2026-10-14 (grill-me, customer app redesign M4 point 4): "yang di m4 yang ke 4 juga tolong dikasih buat di webnya sesuaikan juga, dan kasih semacam slider atau banner yang bisa lebih dari 1 untuk kebutuhan promosi juga dari isp ke pelanggan". Owner approved B1–B8 as recommended ("ya buatkan tiket specs"). R1–R6 are the assistant's.
 

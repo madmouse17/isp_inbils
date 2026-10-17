@@ -14,6 +14,20 @@ redirect_stderr=true
 stdout_logfile=/var/log/inbils-queue.log
 stopwaitsecs=3600
 
+; Platform panel jobs (sample data, tenant exports): own connection, one try, one hour. Stop it only with time to finish.
+[program:inbils-platform-queue]
+process_name=%(program_name)s_%(process_num)02d
+command=php /var/www/inbils/artisan queue:work platform --queue=platform --sleep=3 --tries=1 --timeout=3600
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+user=www-data
+numprocs=1
+redirect_stderr=true
+stdout_logfile=/var/log/inbils-platform-queue.log
+stopwaitsecs=3700
+
 [program:inbils-scheduler]
 command=php /var/www/inbils/artisan schedule:work
 autostart=true

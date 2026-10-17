@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\TwoFactorService;
 use Illuminate\Auth\Events\Lockout;
@@ -10,17 +11,21 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * The login challenge of both planes. A platform admin's limiter keys carry their own prefix, so a platform admin
+ * and a tenant user who happen to share a number never share a budget (the ids belong to different tables).
+ */
 class TwoFactorChallengeRequest extends FormRequest
 {
-    /** Per user and address, as the password step is per email and address. */
+    /** Per account and address, as the password step is per email and address. */
     private const ATTEMPTS_PER_ADDRESS = 5;
 
     private const ADDRESS_WINDOW_SECONDS = 60;
 
-    /** Per user across every address: six digits are guessable by someone who holds the password and rotates addresses. */
-    private const ATTEMPTS_PER_USER = 10;
+    /** Per account across every address: six digits are guessable by someone who holds the password and rotates addresses. */
+    private const ATTEMPTS_PER_ACCOUNT = 10;
 
-    private const USER_WINDOW_SECONDS = 900;
+    private const ACCOUNT_WINDOW_SECONDS = 900;
 
     public function authorize(): bool
     {
@@ -40,24 +45,24 @@ class TwoFactorChallengeRequest extends FormRequest
     }
 
     /**
-     * Check the submitted code for $user. Every attempt is counted before it is checked and a throttled
+     * Check the submitted code for $account. Every attempt is counted before it is checked and a throttled
      * attempt is never checked, so even the right code is refused until the window passes. A passing
      * code gives the budget back.
      *
      * @throws ValidationException
      */
-    public function verify(User $user, TwoFactorService $twoFactor): void
+    public function verify(User|PlatformAdmin $account, TwoFactorService $twoFactor): void
     {
-        $this->claimAttempt($user);
+        $this->claimAttempt($account);
 
-        if (! $twoFactor->verifyChallenge($user, $this->string('code')->toString())) {
+        if (! $twoFactor->verifyChallenge($account, $this->string('code')->toString())) {
             throw ValidationException::withMessages([
                 'code' => __('The provided two-factor code was invalid.'),
             ]);
         }
 
-        RateLimiter::clear($this->addressKey($user));
-        RateLimiter::clear($this->userKey($user));
+        RateLimiter::clear($this->addressKey($account));
+        RateLimiter::clear($this->accountKey($account));
     }
 
     /**
@@ -68,11 +73,11 @@ class TwoFactorChallengeRequest extends FormRequest
      *
      * @throws ValidationException
      */
-    private function claimAttempt(User $user): void
+    private function claimAttempt(User|PlatformAdmin $account): void
     {
         $limits = [
-            [$this->addressKey($user), self::ATTEMPTS_PER_ADDRESS, self::ADDRESS_WINDOW_SECONDS],
-            [$this->userKey($user), self::ATTEMPTS_PER_USER, self::USER_WINDOW_SECONDS],
+            [$this->addressKey($account), self::ATTEMPTS_PER_ADDRESS, self::ADDRESS_WINDOW_SECONDS],
+            [$this->accountKey($account), self::ATTEMPTS_PER_ACCOUNT, self::ACCOUNT_WINDOW_SECONDS],
         ];
 
         foreach ($limits as [$key, $maxAttempts, $windowSeconds]) {
@@ -93,13 +98,13 @@ class TwoFactorChallengeRequest extends FormRequest
         }
     }
 
-    private function addressKey(User $user): string
+    private function addressKey(User|PlatformAdmin $account): string
     {
-        return 'two-factor|'.$user->getKey().'|'.$this->ip();
+        return ($account instanceof PlatformAdmin ? 'platform-two-factor' : 'two-factor').'|'.$account->getKey().'|'.$this->ip();
     }
 
-    private function userKey(User $user): string
+    private function accountKey(User|PlatformAdmin $account): string
     {
-        return 'two-factor-user|'.$user->getKey();
+        return ($account instanceof PlatformAdmin ? 'platform-two-factor-admin' : 'two-factor-user').'|'.$account->getKey();
     }
 }

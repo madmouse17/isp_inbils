@@ -61,7 +61,15 @@ export default function ErrorPage({ status }: { status: number }) {
         description: 'Terjadi kesalahan saat memproses permintaan Anda.',
         retry: true,
     };
-    const signedIn = Boolean(usePage<PageProps>().props.auth?.user);
+    const pageProps = usePage<PageProps>().props;
+    const platformShell = route().has('platform.login');
+    const platformSignedIn = Boolean(
+        (pageProps as PageProps & { platform?: { admin?: unknown } }).platform?.admin,
+    );
+    const signedIn = platformShell ? platformSignedIn : Boolean(pageProps.auth?.user);
+    const homeHref = platformShell
+        ? route(signedIn ? 'platform.dashboard' : 'platform.login')
+        : route(signedIn ? 'admin.dashboard' : 'login');
     const Icon = status === 403 ? ShieldAlert : AlertCircle;
 
     return (
@@ -86,11 +94,7 @@ export default function ErrorPage({ status }: { status: number }) {
                         </Button>
                     ) : null}
                     <Button asChild variant={retry ? 'outline' : 'default'}>
-                        {signedIn ? (
-                            <Link href={route('admin.dashboard')}>Ke dasbor</Link>
-                        ) : (
-                            <Link href={route('login')}>Masuk</Link>
-                        )}
+                        <Link href={homeHref}>{signedIn ? 'Ke dasbor' : 'Masuk'}</Link>
                     </Button>
                 </EmptyContent>
             </Empty>

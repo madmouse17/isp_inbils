@@ -91,6 +91,10 @@ test.describe('@lifecycle SPK installation', () => {
 
         await expectSpkState(page, 'assigned');
         await expectDetail(page, 'Teknisi', 'Demo Technician');
+
+        const timeline = page.getByRole('list', { name: 'Tahap kunjungan' });
+        await expect(timeline.getByRole('listitem')).toHaveCount(4);
+        await expect(timeline.locator('[aria-current="step"]')).toContainText('Ditugaskan');
     });
 
     test('technician starts, uploads evidence, submits for review through the app API', async ({
@@ -105,6 +109,9 @@ test.describe('@lifecycle SPK installation', () => {
         const woPath = `technician/work-orders/${id}`;
         const status = async () =>
             ((await (await api.get(woPath)).json()) as { data: { status: string } }).data.status;
+        expect(await status()).toBe('assigned');
+
+        expect((await api.post(`${woPath}/en-route`, {})).status()).toBe(200);
         expect(await status()).toBe('assigned');
 
         expect((await api.post(`${woPath}/start`, {})).status()).toBe(200);
@@ -125,6 +132,10 @@ test.describe('@lifecycle SPK installation', () => {
         await page.goto(spkUrl);
         await expect(page.getByRole('main').getByRole('heading', { name: title })).toBeVisible();
         await expectSpkState(page, 'waiting_review');
+        const timeline = page.getByRole('list', { name: 'Tahap kunjungan' });
+        await expect(timeline.getByRole('listitem')).toHaveCount(4);
+        await expect(timeline.locator('[aria-current="step"]')).toHaveCount(0);
+        await expect(timeline).not.toContainText('Belum dicapai');
         await expect(page.getByText(`caption-${runId}`)).toBeVisible();
         const preview = page.getByRole('img', { name: `evidence-${runId}` });
         await expect(preview).toHaveAttribute('src', /^\/admin\/media\/\d+$/);

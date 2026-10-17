@@ -28,8 +28,13 @@ import {
     TR,
     useToast,
 } from '@/Components/ui';
-import { MediaPreview, PageHeader, RemoteSearchSelect } from '@/Components/composite';
-import type { RemoteOption } from '@/Components/composite';
+import {
+    MediaPreview,
+    PageHeader,
+    RemoteSearchSelect,
+    WorkOrderTimeline,
+} from '@/Components/composite';
+import type { RemoteOption, WorkOrderStep, WorkOrderStepKey } from '@/Components/composite';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type { DropPort } from '@/types/ipam-odn';
@@ -112,6 +117,9 @@ interface ShowProps extends Record<string, unknown> {
     dropPort?: DropPort | null;
     can: { uploadEvidence: boolean };
     checkIn?: CheckInRecord | null;
+    /** The four steps of the visit; `[]` for a cancelled SPK. */
+    steps: WorkOrderStep[];
+    currentStep: WorkOrderStepKey | null;
 }
 
 type ActionModal =
@@ -165,6 +173,8 @@ export default function Show({
     dropPort,
     can: permissions,
     checkIn,
+    steps,
+    currentStep,
 }: ShowProps) {
     const w = workOrder.data;
     const company = useCompany();
@@ -385,63 +395,90 @@ export default function Show({
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Tindakan</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-wrap gap-2">
-                                {w.status === 'draft' && (
-                                    <Button
-                                        type="button"
-                                        onClick={() => setActionModal('generate')}
-                                    >
-                                        Terbitkan
-                                    </Button>
-                                )}
-                                {(w.status === 'draft' ||
-                                    w.status === 'generated' ||
-                                    w.status === 'rejected') && (
-                                    <Button type="button" onClick={() => setActionModal('assign')}>
-                                        Tugaskan
-                                    </Button>
-                                )}
-                                {w.status === 'assigned' && (
-                                    <Button type="button" onClick={() => setActionModal('start')}>
-                                        Mulai
-                                    </Button>
-                                )}
-                                {w.status === 'in_progress' && (
-                                    <Button type="button" onClick={() => setActionModal('submit')}>
-                                        Ajukan review
-                                    </Button>
-                                )}
-                                {w.status === 'waiting_review' && can('spk.approve') && (
-                                    <Button type="button" onClick={() => setActionModal('approve')}>
-                                        Setujui
-                                    </Button>
-                                )}
-                                {w.status === 'waiting_review' && can('spk.reject') && (
-                                    <Button
-                                        type="button"
-                                        variant="danger"
-                                        onClick={() => setActionModal('reject')}
-                                    >
-                                        Tolak
-                                    </Button>
-                                )}
-                                {canChange && (
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => setActionModal('cancel')}
-                                    >
-                                        Batalkan
-                                    </Button>
-                                )}
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Tindakan</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="flex flex-wrap gap-2">
+                                    {w.status === 'draft' && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setActionModal('generate')}
+                                        >
+                                            Terbitkan
+                                        </Button>
+                                    )}
+                                    {(w.status === 'draft' ||
+                                        w.status === 'generated' ||
+                                        w.status === 'rejected') && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setActionModal('assign')}
+                                        >
+                                            Tugaskan
+                                        </Button>
+                                    )}
+                                    {w.status === 'assigned' && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setActionModal('start')}
+                                        >
+                                            Mulai
+                                        </Button>
+                                    )}
+                                    {w.status === 'in_progress' && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setActionModal('submit')}
+                                        >
+                                            Ajukan review
+                                        </Button>
+                                    )}
+                                    {w.status === 'waiting_review' && can('spk.approve') && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setActionModal('approve')}
+                                        >
+                                            Setujui
+                                        </Button>
+                                    )}
+                                    {w.status === 'waiting_review' && can('spk.reject') && (
+                                        <Button
+                                            type="button"
+                                            variant="danger"
+                                            onClick={() => setActionModal('reject')}
+                                        >
+                                            Tolak
+                                        </Button>
+                                    )}
+                                    {canChange && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => setActionModal('cancel')}
+                                        >
+                                            Batalkan
+                                        </Button>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Tahap kunjungan</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <WorkOrderTimeline
+                                    steps={steps}
+                                    currentStep={currentStep}
+                                    status={w.status}
+                                />
+                            </CardContent>
+                        </Card>
+                    </div>
                 </div>
 
                 <Card>

@@ -68,19 +68,31 @@ Pengaturan ulang selalu selesai di halaman web lewat tautan email, bukan di apli
 
 # 2. Beranda
 
-Beranda adalah tab pertama. Navigasi bawah punya empat tab: **Beranda**, **Tagihan**, **Tiket**, dan **Akun**.
+Beranda adalah tab pertama. Navigasi bawah punya empat tab: **Beranda**, **Tagihan**, **Bantuan**, dan **Akun**.
 
-![Beranda](images/customer/beranda.png)
+![Beranda](images/customer/redesign/beranda-blue-light.png)
 
-Isi layar dari atas ke bawah:
+Warna aplikasi mengikuti warna merek ISP Anda, dan logo ISP tampil di kiri atas bila ISP sudah mengunggahnya (tanpa logo, tampil inisial nama ISP). Isi layar dari atas ke bawah:
 
-1. **Sapaan** "Halo, nama Anda".
-2. **Ikon lonceng** di pojok kanan atas. Angka merah menunjukkan notifikasi yang belum dibaca. Lihat bab 7.
-3. Kartu **Layanan**: setiap langganan Anda dengan nama paket dan statusnya. Ketuk satu baris untuk membuka rincian langganan (bab 5). Bila belum ada, tertulis "Tidak ada layanan".
-4. Kartu **Tagihan**: jumlah tagihan yang belum dibayar, lalu tagihan yang paling awal dengan nomor, jatuh tempo, dan sisa yang harus dibayar. Tombol **Bayar** membuka tagihan itu; bila pembayaran online tidak tersedia, tombolnya **Buka**. Bila tidak ada, tertulis "Tidak ada tagihan".
-5. Kartu **Tiket aktif**: jumlah tiket yang masih berjalan dan tombol **Buat tiket**.
+1. **Kepala**: logo dan nama ISP di kiri, **ikon lonceng** di kanan. Angka merah di lonceng menunjukkan notifikasi yang belum dibaca. Lihat bab 7.
+2. **Sapaan** "Halo, nama Anda".
+3. **Kartu layanan**: satu kartu per langganan Anda. Bila Anda punya lebih dari satu langganan yang berjalan, geser kartu ke samping. Titik di bawahnya menunjukkan posisi kartu. Kartu memuat:
+   - **Status** layanan: **Aktif**, **Diisolir**, **Ditangguhkan**, atau **Menunggu**. Ketuk nama paket untuk membuka rincian langganan (bab 5).
+   - Satu baris koneksi, **Online sejak 08.12** atau **Offline, terakhir online 07.55**, pada layanan Aktif, Diisolir, dan Ditangguhkan. Baris ini hanya tampil bila server bisa membaca status koneksi layanan itu.
+   - **Tagihan**: "Sisa yang harus dibayar" dengan jumlahnya, tanggal jatuh tempo, dan nomor tagihan. Bila tidak ada tagihan terbuka, kartu menulis "Semua tagihan lunas" dan "Tagihan berikutnya {tanggal}". Warna kartu mengikuti keadaan: warna merek ISP bila aman, warna peringatan bila jatuh tempo dalam 1 sampai 7 hari ("Jatuh tempo 7 hari lagi") atau hari ini ("Jatuh tempo hari ini"), dan merah bila terlambat ("Lewat 3 hari") atau layanan diisolir. Teks dan ikon di dalam kartu menyampaikan hal yang sama, jadi warna bukan satu-satunya petunjuk. Aplikasi menampilkan tagihan terbuka yang paling awal pada semua kartu layanan, lengkap dengan nomornya.
+   - Tombol besar **Bayar** membuka tagihan itu (tombolnya **Lihat tagihan** bila tagihan tidak bisa dibayar online). Di bawahnya tertulis QRIS, VA bank, e-wallet, dan minimarket sebagai metode yang bisa muncul di halaman pembayaran. Metode yang benar-benar tersedia ditentukan oleh Midtrans dan ISP.
+   - Layanan **Diisolir** menulis penyebabnya ("Layanan dinonaktifkan karena tagihan {nomor} yang jatuh tempo {tanggal} belum dibayar.") dan "Layanan aktif kembali otomatis setelah pembayaran diterima." Layanan **Ditangguhkan** menulis "Layanan Anda sedang ditangguhkan. Hubungi {nama ISP} untuk informasi lebih lanjut." dengan tombol **Hubungi ISP**. Layanan **Menunggu** menulis "Layanan Anda belum aktif."
+4. **Aksi cepat**: **Bayar**, **Laporkan gangguan**, **Riwayat pembayaran**, dan **Hubungi ISP**. **Bayar** membuka tagihan paling awal yang belum dibayar, atau tab **Tagihan** bila tidak ada. **Laporkan gangguan** membuka formulir tiket baru (bab 6). **Hubungi ISP** membuka lembar kontak dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP. Ketuk satu baris untuk membukanya. Bila ISP belum mengisi kontak, lembar itu mengarahkan Anda ke tab **Bantuan**.
+5. **Sedang berjalan**: kunjungan teknisi yang berikutnya, lalu sampai tiga tiket aktif Anda. Kartu kunjungan memuat nomor SPK, jenis kunjungan (misalnya **Instalasi** atau **Perawatan**), tahap sekarang (**Ditugaskan**, **Dalam perjalanan**, atau **Sedang dikerjakan**), dan tanggal jadwal bila ada. Ketuk kartu itu untuk membuka detail kunjungan (bagian **Kunjungan teknisi** di bab 5). Kartu tiket menampilkan statusnya; ketuk satu tiket untuk membukanya, atau **Lihat semua** untuk ke tab **Bantuan**. Bila tidak ada kunjungan dan tidak ada tiket, tertulis "Tidak ada tiket aktif".
 
-Tarik layar ke bawah untuk memuat ulang. Bila satu kartu gagal dimuat, kartu itu menampilkan "Data tidak dapat dimuat." dan tombol **Coba lagi**; kartu lain tetap tampil.
+   ![Beranda dengan kartu kunjungan SPK pada bagian Sedang berjalan, tahap Dalam perjalanan](images/customer/redesign/kunjungan-beranda-dalam-perjalanan.png)
+
+Tarik layar ke bawah untuk memuat ulang. Kartu kunjungan baru berubah setelah Anda memuat ulang, sedangkan angka di lonceng berubah sendiri saat Anda kembali ke aplikasi. Bila satu bagian gagal dimuat, bagian itu menampilkan "Data tidak dapat dimuat." dan tombol **Coba lagi**; bagian lain tetap tampil.
+
+Beranda juga memuat informasi dari ISP:
+
+- **Pengumuman gangguan atau pemeliharaan** tampil sebagai kartu bernada peringatan di atas kartu layanan, selama masa tayangnya. Ketuk kartu untuk membaca isi lengkapnya. Anda juga menerima notifikasi di lonceng (lihat bab 7).
+- **Pengumuman informasi** dan **banner promo** tampil di bawah bagian Sedang berjalan. Banner bergeser otomatis setiap 5 detik, berhenti saat disentuh, dan punya titik penanda halaman. Ketuk banner untuk membuka tautannya; promo tidak pernah dikirim sebagai notifikasi.
 
 # 3. Tagihan
 
@@ -123,6 +135,8 @@ Layar detail memuat, dari atas ke bawah:
 - **Pembayaran**: pembayaran yang sudah tercatat pada tagihan ini, dan tautan **Lihat riwayat pembayaran**.
 
 Tarik layar ke bawah untuk memuat ulang.
+
+Tersedia pada versi berikutnya: periode tagihan, referensi dan metode pada tiap pembayaran, status percobaan pembayaran terakhir, dan **struk PDF** untuk tagihan yang sudah lunas. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
 
 ## Bayar lewat Midtrans
 
@@ -169,7 +183,7 @@ Pembayaran yang dibatalkan petugas dikoreksi oleh ISP; bila ada selisih yang tid
 
 # 5. Langganan
 
-Langganan adalah layanan internet yang Anda pakai. Buka dari tab **Akun** → **Langganan**, atau ketuk nama paket di kartu **Layanan** pada Beranda.
+Langganan adalah layanan internet yang Anda pakai. Buka dari tab **Akun** → **Langganan**, atau ketuk nama paket di kartu layanan pada Beranda.
 
 ## Daftar langganan
 
@@ -195,6 +209,8 @@ Setiap baris memuat nama paket, biaya bulanan, dan status. Ketuk satu baris untu
 | Alamat pemasangan | Lokasi layanan. |
 
 Data yang belum ada tertulis "Tidak tersedia". Data langganan hanya bisa dibaca; perubahan paket atau alamat dilakukan lewat ISP.
+
+Tersedia pada versi berikutnya: kecepatan paket (misalnya **Hingga 50 Mbps**), tingkat SLA beserta target respons dan penyelesaiannya, nama pengguna PPPoE, peta alamat pemasangan, dan waktu penangguhan. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
 
 ## Status langganan
 
@@ -222,17 +238,53 @@ Cara memulihkan layanan:
 
 Pemulihan otomatis hanya untuk isolir karena tagihan. Langganan yang diisolir **manual** oleh petugas tidak dibuka otomatis; hubungi ISP. Bila Anda sudah membayar tetapi layanan belum aktif setelah beberapa waktu, hubungi ISP dengan nomor tagihan. Jangan membayar lagi.
 
-# 6. Tiket
+## Kunjungan teknisi
 
-Tiket dipakai untuk melaporkan gangguan atau meminta bantuan ISP. Buka tab **Tiket**.
+Kunjungan teknisi adalah SPK instalasi atau perawatan yang dikerjakan di alamat Anda. Aplikasi menunjukkan sampai mana kunjungan itu. Buka dari tab **Akun** → **Kunjungan teknisi**, dari kartu kunjungan di **Beranda**, atau dari notifikasi "Teknisi dalam perjalanan". Hanya kunjungan untuk langganan Anda yang tampil.
+
+![Tab Akun: baris Kunjungan teknisi di antara Riwayat pembayaran dan Ubah profil](images/customer/redesign/kunjungan-akun-menu.png)
+
+### Daftar kunjungan
+
+![Daftar Kunjungan teknisi: satu kunjungan Dalam perjalanan dan satu Selesai dipasang](images/customer/redesign/kunjungan-daftar.png)
+
+Daftar memuat kunjungan yang masih berjalan, dan kunjungan yang selesai atau dibatalkan dalam 30 hari terakhir, dengan yang terbaru di atas. Tiap kartu menulis nomor SPK, jenis kunjungan, tahap sekarang, dan tanggal jadwal bila ada. Tarik layar ke bawah untuk memuat ulang.
+
+### Detail kunjungan
+
+Ketuk satu kartu.
+
+![Detail kunjungan pada tahap Dalam perjalanan](images/customer/redesign/kunjungan-detail-dalam-perjalanan.png)
+
+- Bagian atas memuat tahap sekarang, jenis kunjungan, dan nomor SPK.
+- **Tahapan** menunjukkan empat langkah: **Ditugaskan**, **Dalam perjalanan**, **Sedang dikerjakan**, dan **Selesai dipasang**. Tanda centang berarti langkah sudah dilalui, dengan waktunya di bawah nama langkah. Lingkaran bertitik dengan nama tebal adalah langkah sekarang. Lingkaran kosong adalah langkah berikutnya.
+- **Rincian** memuat **Jadwal** ("Belum ditentukan" bila ISP belum mengisi tanggal), **Teknisi** (nama depan saja), dan **Alamat pemasangan**.
+- Tarik layar ke bawah untuk memuat tahap terbaru.
+
+![Detail kunjungan pada tahap Sedang dikerjakan](images/customer/redesign/kunjungan-detail-dikerjakan.png)
+
+Tahap **Selesai dipasang** muncul begitu teknisi mengirim hasil kerjanya, walau kantor ISP belum memeriksanya.
+
+![Detail kunjungan yang selesai dipasang: keempat langkah tercentang](images/customer/redesign/kunjungan-detail-selesai.png)
+
+Kunjungan yang dibatalkan menulis **Dibatalkan** tanpa langkah. Aplikasi tidak menampilkan nomor telepon teknisi. Untuk bertanya, pakai **Hubungi ISP** di Beranda.
+
+# 6. Bantuan dan tiket
+
+Tab **Bantuan** dipakai untuk melaporkan gangguan atau meminta bantuan ISP. Isinya jalan pintas **Ada masalah?**, daftar tiket Anda, dan kontak ISP. Setiap tiket tercatat dengan nomor dan bisa dibalas petugas.
 
 ## Daftar tiket
 
-![Daftar tiket](images/customer/tiket.png)
+![Tab Bantuan: kartu Ada masalah?, filter Aktif dan Selesai, dan kartu tiket dengan tahap progres](images/customer/redesign/bantuan-teal-dark.png)
 
-1. Pilih filter **Aktif** (tiket Terbuka, Ditugaskan, dan Diproses) atau **Selesai** (tiket Selesai dan Ditutup).
-2. Setiap baris memuat kode tiket, judul, status, dan tanggal pembaruan terakhir.
-3. Ketuk baris untuk membuka detail.
+Layar menampilkan, dari atas ke bawah:
+
+1. Kartu **Ada masalah?** ("Coba langkah cepat dulu sebelum membuat tiket."). Ketuk untuk membuka langkah cepat (bagian berikut).
+2. **Tiket Anda** dengan filter **Aktif** (tiket Terbuka, Ditugaskan, dan Diproses) atau **Selesai** (tiket Selesai dan Ditutup).
+3. Kartu tiket. Setiap kartu memuat kode tiket, judul, status, tanggal "Diperbarui", dan tiga tahap progres: **Dibuka**, **Ditangani**, dan **Selesai**. Tahap **Ditangani** menyala saat tiket Ditugaskan atau Diproses, dan tahap **Selesai** saat tiket Selesai atau Ditutup. Pembaca layar mendengar "Tahap 2 dari 3: Ditangani". Ikon salin di kanan atas kartu menyalin kode tiket ("Nomor tiket disalin."). Berikan kode itu bila menghubungi ISP lewat telepon atau WhatsApp. Ketuk kartu untuk membuka detail.
+4. Gulir ke bawah untuk memuat tiket berikutnya, lalu kartu **Hubungi {nama ISP}** dengan WhatsApp, telepon, email, situs web, dan jam layanan yang diisi ISP (bagian ini sama dengan kartu di tab **Akun**, bab 8).
+
+Tombol **Buat tiket** melayang di pojok kanan bawah.
 
 Kosong: "Tidak ada tiket aktif." atau "Belum ada tiket selesai."
 
@@ -246,12 +298,31 @@ Status tiket:
 | Selesai | Petugas menyatakan masalah sudah selesai. |
 | Ditutup | Tiket ditutup; tidak bisa diubah lagi. |
 
+## Ada masalah? Coba langkah cepat dulu
+
+Sebelum membuat tiket, aplikasi menawarkan langkah yang bisa Anda coba sendiri. Banyak gangguan koneksi selesai dengan langkah ini.
+
+![Ada masalah?: pilih jenis masalah](images/customer/redesign/ada-masalah-kategori-teal-dark.png)
+
+1. Di tab **Bantuan**, ketuk kartu **Ada masalah?**. Layar menulis "Pilih jenis masalah yang Anda alami."
+2. Ketuk kategori, misalnya **No Internet** atau **Slow Connection**. Daftar kategori mengikuti yang diatur ISP.
+3. Baca kartu **Coba dulu**. Bila ISP menulis **Saran untuk pelanggan** untuk kategori itu, kartu menampilkan teks ISP apa adanya, termasuk baris barunya. Bila ISP belum menulis, kartu menampilkan tiga langkah umum:
+   - Cek lampu modem. Catat lampu yang mati atau berwarna merah.
+   - Cabut kabel listrik modem, tunggu 30 detik, lalu pasang lagi.
+   - Cek kabel di modem. Pastikan tidak longgar, tertekuk, atau putus.
+4. Bila Anda punya lebih dari satu layanan yang bisa dilaporkan, pilih **Layanan yang bermasalah** (atau biarkan "Tidak terkait layanan"). Bila hanya satu, aplikasi memilihnya sendiri.
+5. Bila masalah belum hilang, ketuk **Masih bermasalah? Buat tiket**. Formulir tiket terbuka dengan kategori dan layanan yang sudah terisi.
+
+![Ada masalah?: langkah umum di kartu Coba dulu dan tombol Masih bermasalah? Buat tiket](images/customer/redesign/ada-masalah-hint-teal-dark.png)
+
+Layar ini hanya memberi saran. Tidak ada yang terkirim ke ISP sampai Anda mengetuk **Kirim tiket**. Bila daftar kategori kosong, layar menulis "Belum ada kategori masalah." dan Anda tetap bisa membuat tiket dari tombol **Buat tiket** di tab **Bantuan**.
+
 ## Buat tiket
 
-![Tiket baru](images/customer/tiket-baru.png)
+![Tiket baru dengan Kategori dan Layanan yang sudah terisi dari Ada masalah?](images/customer/redesign/tiket-baru-prefilled-teal-dark.png)
 
-1. Ketuk **Buat tiket** (tombol di tab Tiket atau di kartu Tiket aktif pada Beranda).
-2. Pilih **Kategori**. Wajib.
+1. Ketuk **Masih bermasalah? Buat tiket** (dari **Ada masalah?**), **Buat tiket** (tombol di tab Bantuan), atau **Laporkan gangguan** (di Beranda). Dari **Laporkan gangguan** dan **Buat tiket**, formulir terbuka tanpa isian awal.
+2. Pilih **Kategori**. Wajib. Dari **Ada masalah?** isian ini sudah terisi.
 3. Pilih **Layanan (opsional)** bila masalahnya terkait satu langganan. Pilihan hanya memuat layanan yang aktif atau ditangguhkan. Biarkan "Tidak terkait layanan" bila tidak ada.
 4. Isi **Judul**, wajib, paling banyak 255 karakter.
 5. Isi **Deskripsi (opsional)**: apa yang terjadi, sejak kapan, lampu apa yang menyala di perangkat.
@@ -268,7 +339,9 @@ Bila ISP mengaktifkan WhatsApp untuk Anda, pesan "tiket dibuat" dikirim setelah 
 
 ![Detail tiket](images/customer/detail-tiket.png)
 
-Layar memuat judul, status, kategori, layanan terkait, **Deskripsi**, **Catatan penyelesaian** (bila petugas mengisi), **Lampiran**, dan **Balasan**. Tarik ke bawah untuk memuat ulang.
+Layar memuat kartu judul dengan status, tahap progres (**Dibuka**, **Ditangani**, **Selesai**), kategori, dan layanan terkait, lalu **Deskripsi**, **Catatan penyelesaian** (bila petugas mengisi), **Lampiran**, dan **Balasan**. Ikon salin di bilah atas menyalin kode tiket. Tarik ke bawah untuk memuat ulang.
+
+Tersedia pada versi berikutnya: **Prioritas**, tenggat respons dan penyelesaian, waktu respons pertama, serta nama depan petugas yang menangani tiket Anda. Datanya sudah dikirim server, tetapi aplikasi belum menampilkannya.
 
 ## Komentar (balasan)
 
@@ -301,21 +374,45 @@ Ketuk ikon **lonceng** di pojok kanan atas Beranda. Angka merah di ikon adalah j
 ![Notifikasi](images/customer/notifikasi.png)
 
 1. Notifikasi yang belum dibaca tampil dengan huruf tebal.
-2. Ketuk satu notifikasi untuk menandainya sudah dibaca. Bila terkait tagihan atau tiket, aplikasi langsung membuka tagihan atau tiket itu.
+2. Ketuk satu notifikasi untuk menandainya sudah dibaca. Bila terkait tagihan, tiket, atau kunjungan teknisi, aplikasi langsung membuka tagihan, tiket, atau kunjungan itu.
 3. Ketuk **Tandai semua dibaca** untuk menandai semuanya sekaligus.
 4. Tarik layar ke bawah untuk memuat ulang; gulir untuk memuat yang lebih lama. Kosong: "Belum ada notifikasi".
 
+   ![Dua notifikasi Teknisi dalam perjalanan yang belum dibaca](images/customer/redesign/kunjungan-notifikasi.png)
+
 Jenis notifikasi untuk pelanggan:
 
-| Judul | Muncul saat |
-| --- | --- |
-| Tagihan baru | Tagihan terbit. |
-| Pengingat jatuh tempo | Tagihan akan atau baru jatuh tempo. |
-| Pembayaran diterima | Pembayaran tercatat. |
-| Tiket dibuat | Tiket Anda tercatat. |
-| Tiket mulai ditangani | Tiket diserahkan ke petugas. |
-| Tiket selesai | Petugas menyelesaikan tiket. |
-| Jadwal kunjungan teknisi | Kunjungan teknisi dijadwalkan. |
+| Judul | Muncul saat | Push |
+| --- | --- | --- |
+| Tagihan baru | Tagihan terbit. | Ya |
+| Tagihan segera jatuh tempo | Tagihan jatuh tempo besok atau dalam 3 hari. | Ya |
+| Tagihan sudah jatuh tempo | Tagihan lewat jatuh tempo. | Ya |
+| Pengingat jatuh tempo | Hanya pada notifikasi lama, sebelum pengingat dipisah menjadi dua judul di atas. | Tidak |
+| Pembayaran diterima | Pembayaran tercatat. | Ya |
+| Tiket dibuat | Tiket Anda tercatat. | Tidak |
+| Tiket mulai ditangani | Tiket diserahkan ke petugas. | Tidak |
+| Tiket selesai | Petugas menyelesaikan tiket. | Tidak |
+| Jadwal kunjungan teknisi | Kunjungan teknisi dijadwalkan. | Tidak |
+| Teknisi dalam perjalanan | Teknisi menekan **Saya berangkat** di aplikasinya. Isinya "Teknisi {nama depan} sedang menuju lokasi Anda." Ketuk untuk membuka detail kunjungannya. Pesan ini hanya muncul di aplikasi, tidak di WhatsApp. | Ya |
+| Kunjungan teknisi selesai | Teknisi selesai mengerjakan kunjungan di alamat Anda. Isinya "Kunjungan teknisi untuk layanan Anda sudah selesai." Ketuk untuk membuka detail kunjungannya. | Ya |
+| Pengumuman baru | ISP menerbitkan pengumuman Gangguan atau Pemeliharaan untuk area atau paket Anda. Isi notifikasi adalah judul pengumuman. Ketuk untuk membuka pengumumannya. | Ya |
+
+Kolom **Push** menunjukkan notifikasi yang juga masuk ke layar ponsel (bagian berikut). Semua notifikasi, termasuk yang tidak dikirim sebagai push, tetap ada di daftar lonceng.
+
+## Notifikasi di layar ponsel (push)
+
+Aplikasi bisa memunculkan notifikasi di layar ponsel Android Anda, juga saat aplikasi tertutup. Isinya sama dengan yang ada di daftar lonceng.
+
+1. Setelah Anda masuk, aplikasi dapat meminta izin notifikasi lewat kotak dialog sistem Android. Pertanyaan ini hanya muncul di Android 13 ke atas dan hanya sekali, selama Anda belum memutuskannya.
+2. Pilih izinkan. Aplikasi lalu mendaftarkan ponsel ini ke Inbils, dan notifikasi di kolom **Push** pada tabel di atas masuk ke ponsel.
+3. Ketuk notifikasi di layar ponsel. Aplikasi terbuka langsung di tagihan, kunjungan, atau pengumuman terkait. Untuk pesan yang tidak punya layar tujuan, aplikasi membuka daftar notifikasi. Notifikasi itu ditandai sudah dibaca.
+4. Saat aplikasi sedang terbuka, notifikasi tampil sebagai banner singkat di atas layar.
+
+Bila Anda menolak izinnya, aplikasi tetap berfungsi dan lonceng tetap menerima semua notifikasi. Untuk mengaktifkan push kemudian, nyalakan notifikasi aplikasi Inbils di pengaturan Android (**Pengaturan > Aplikasi**), lalu buka aplikasi lagi. Aplikasi memeriksa izinnya setiap kali dibuka dan mendaftarkan ponsel saat izin sudah menyala.
+
+Saat **Keluar**, aplikasi menghapus pendaftaran ponsel ini, sehingga tidak ada push lagi sampai Anda masuk kembali. Ponsel yang dikeluarkan dari daftar **Perangkat** (bab 8), kata sandi yang diganti, atau akun yang dinonaktifkan juga berhenti menerima push. Push tidak bergantung pada WhatsApp dan tidak membutuhkan persetujuan WhatsApp.
+
+Bila push tidak muncul, pastikan izin notifikasi menyala, ponsel punya internet dan Anda masih masuk di aplikasi ini. ISP juga harus sudah mengaktifkan push di servernya. Bila ISP belum mengaktifkannya, notifikasi tetap muncul di lonceng.
 
 ## Notifikasi WhatsApp
 
@@ -333,13 +430,20 @@ Nomor yang dipakai adalah nomor telepon di profil Anda. Anda bisa mengubahnya di
 
 # 8. Akun
 
-Tab **Akun** menampilkan profil pelanggan, lalu menu pengelolaan akun.
+Tab **Akun** menampilkan siapa Anda, tampilan aplikasi, cara menghubungi ISP, profil pelanggan, lalu menu pengelolaan akun.
 
-![Akun](images/customer/akun.png)
+![Akun](images/customer/redesign/akun-teal-light.png)
 
-Profil pelanggan (hanya dibaca): email untuk masuk, kode pelanggan, nama, status pelanggan (Aktif, Ditangguhkan, dan seterusnya), email, telepon, narahubung, dan **Alamat** dengan penanda "Utama" dan "Titik pemasangan". Tertulis "Hubungi CS untuk mengubah data." Nama tagihan, alamat, dan email hanya bisa diubah oleh ISP.
+Isi layar dari atas ke bawah:
 
-Di bawah profil ada baris menu: **Langganan**, **Riwayat pembayaran**, **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Tentang aplikasi**, dan **Keluar**.
+1. **Kepala profil**: inisial, nama, kode pelanggan, dan status pelanggan (Aktif, Ditangguhkan, dan seterusnya).
+2. **Tampilan**: pilih **Sistem** (mengikuti pengaturan ponsel), **Terang**, atau **Gelap**. Pilihan tersimpan di ponsel ini dan berlaku seketika.
+3. Kartu **Hubungi {nama ISP}**: kontak ISP yang diisi di profil perusahaan. Baris yang mungkin ada: **WhatsApp**, **Telepon**, **Email**, **Situs web**, dan **Jam layanan**. Ketuk **WhatsApp** untuk membuka percakapan di WhatsApp, **Telepon** untuk membuka pemanggil, **Email** untuk menulis email, dan **Situs web** untuk membuka peramban. **Jam layanan** hanya teks, misalnya "Senin sampai Sabtu 08.00 sampai 20.00". Bagian yang belum diisi ISP tidak tampil, dan kartunya hilang bila ISP belum mengisi satu pun. Bila ponsel tidak punya aplikasi untuk tautan itu, muncul "Tidak bisa membuka WhatsApp." (atau nama kanal lain).
+4. **Profil pelanggan** (hanya dibaca): email untuk masuk, email, telepon, dan narahubung. Data yang kosong tertulis "Belum diisi". Tertulis "Hubungi CS untuk mengubah data."
+5. **Alamat** dengan penanda "Utama" dan "Titik pemasangan". Nama tagihan, alamat, dan email hanya bisa diubah oleh ISP.
+6. Baris menu: **Langganan**, **Riwayat pembayaran**, **Kunjungan teknisi**, lalu **Ubah profil**, **Ganti kata sandi**, **Perangkat**, **Tentang aplikasi**, dan **Keluar**.
+
+Warna aplikasi mengikuti warna merek ISP, jadi tiap ISP bisa tampak berbeda. Warna itu dikirim dari server saat aplikasi memuat data akun.
 
 ## Ubah profil
 

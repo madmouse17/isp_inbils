@@ -19,7 +19,8 @@
         </script>
 
         <!-- Scripts -->
-        @routes
+        {{-- The platform panel and the tenant app are separate shells: each gets only its own named routes. --}}
+        @routes(request()->is('platform', 'platform/*') ? 'platform' : 'tenant')
         @viteReactRefresh
         @vite(['resources/js/app.tsx', "resources/js/Pages/{$page['component']}.tsx"])
         @inertiaHead

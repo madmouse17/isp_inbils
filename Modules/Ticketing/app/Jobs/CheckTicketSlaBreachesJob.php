@@ -10,10 +10,12 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Modules\Ticketing\Models\Ticket;
+use Modules\Ticketing\Notifications\TicketFirstResponseDueNotification;
 use Modules\Ticketing\Notifications\TicketSlaBreachedNotification;
 
 class CheckTicketSlaBreachesJob implements ShouldBeUnique, ShouldQueue
@@ -23,6 +25,9 @@ class CheckTicketSlaBreachesJob implements ShouldBeUnique, ShouldQueue
     public int $tries = 3;
 
     public int $timeout = 60;
+
+    /** A ticket still waiting for its first response is announced to its handler this long before the target, or after it. */
+    private const RESPONSE_DUE_WINDOW_MINUTES = 30;
 
     public int $uniqueFor = 300;
 
@@ -73,6 +78,45 @@ class CheckTicketSlaBreachesJob implements ShouldBeUnique, ShouldQueue
                         new TicketSlaBreachedNotification($claimed->id, $claimed->code, 'resolution', $claimed->company_id)
                     );
                 }
+            });
+        }
+
+        $this->notifyResponseDue($companyIds);
+    }
+
+    /**
+     * The handler of an assigned ticket nobody has started hears once that the first-response target is near or missed.
+     * The same claim as the breach above: the marker is set under the row lock, so a rerun or a retry sends nothing.
+     *
+     * @param  Collection<int, int>  $companyIds
+     */
+    private function notifyResponseDue(Collection $companyIds): void
+    {
+        $tickets = Ticket::withoutCompany()
+            ->whereIn('company_id', $companyIds)
+            ->where('status', 'assigned')
+            ->whereNull('first_response_at')
+            ->whereNull('response_due_notified_at')
+            ->where('response_deadline', '<=', now()->addMinutes(self::RESPONSE_DUE_WINDOW_MINUTES))
+            ->whereHas('assignee', fn ($handler) => $handler->where('is_active', true))
+            ->get();
+
+        foreach ($tickets as $ticket) {
+            DB::transaction(function () use ($ticket) {
+                $claimed = Ticket::withoutCompany()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+
+                // Started, resolved or already announced since the selection above.
+                if ($claimed->response_due_notified_at !== null || $claimed->first_response_at !== null || $claimed->status !== 'assigned') {
+                    return;
+                }
+
+                $claimed->response_due_notified_at = now();
+                $claimed->save();
+
+                Notification::send(
+                    $claimed->assignee,
+                    new TicketFirstResponseDueNotification($claimed->id, $claimed->code, $claimed->response_deadline->isPast(), $claimed->company_id)
+                );
             });
         }
     }

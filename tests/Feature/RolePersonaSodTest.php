@@ -304,82 +304,6 @@ class RolePersonaSodTest extends TestCase
         $this->assertFalse(User::query()->where('email', 'sneaky-admin@example.test')->exists());
     }
 
-    public function test_non_admin_cannot_save_a_role_that_combines_conflicting_duties(): void
-    {
-        $actor = $this->roleManager();
-
-        $this->actingAs($actor)
-            ->post(route('admin.roles.store'), [
-                'name' => 'warehouse_super',
-                'permissions' => ['inventory.request.approve', 'inventory.request.prepare'],
-            ])
-            ->assertSessionHasErrors(['permissions' => 'Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): inventory.request.approve tidak boleh digabung dengan inventory.request.prepare.']);
-        $this->actingAs($actor)
-            ->post(route('admin.roles.store'), [
-                'name' => 'break_glass_clone',
-                'permissions' => ['inventory.stock.adjust'],
-            ])
-            ->assertSessionHasErrors(['permissions' => 'Hanya administrator yang boleh memberikan hak akses darurat inventory.stock.adjust.']);
-        $this->assertSame(0, Role::query()->whereIn('name', ['warehouse_super', 'break_glass_clone'])->count());
-
-        $this->actingAs($actor)
-            ->post(route('admin.roles.store'), [
-                'name' => 'warehouse_ops',
-                'permissions' => ['inventory.request.prepare', 'inventory.request.issue'],
-            ])
-            ->assertRedirect(route('admin.roles.index'));
-        $this->assertTrue(Role::query()->where('name', 'warehouse_ops')->exists());
-    }
-
-    public function test_non_admin_cannot_add_a_conflict_to_an_existing_custom_role(): void
-    {
-        $actor = $this->roleManager();
-        $custom = Role::create(['name' => 'warehouse_ops', 'guard_name' => 'web']);
-        $custom->givePermissionTo('inventory.request.prepare');
-
-        $this->actingAs($actor)
-            ->put(route('admin.roles.update', $custom), [
-                'name' => 'warehouse_ops',
-                'permissions' => ['inventory.request.prepare', 'inventory.request.approve'],
-            ])
-            ->assertSessionHasErrors('permissions');
-
-        $this->assertEqualsCanonicalizing(
-            ['inventory.request.prepare'],
-            Role::findByName('warehouse_ops')->permissions()->pluck('name')->all(),
-        );
-    }
-
-    public function test_malformed_permission_list_is_a_validation_error_not_a_crash(): void
-    {
-        $actor = $this->roleManager();
-
-        $this->actingAs($actor)
-            ->post(route('admin.roles.store'), [
-                'name' => 'malformed_role',
-                'permissions' => [['inventory.request.approve'], 'inventory.request.prepare'],
-            ])
-            ->assertSessionHasErrors('permissions.0');
-
-        $this->assertFalse(Role::query()->where('name', 'malformed_role')->exists());
-    }
-
-    public function test_admin_may_save_a_conflicting_role_as_break_glass(): void
-    {
-        $company = Company::factory()->create();
-        $admin = User::factory()->create(['company_id' => $company->id]);
-        $admin->assignRole('admin');
-
-        $this->actingAs($admin)
-            ->post(route('admin.roles.store'), [
-                'name' => 'break_glass_role',
-                'permissions' => ['inventory.request.approve', 'inventory.request.prepare', 'inventory.stock.adjust'],
-            ])
-            ->assertRedirect(route('admin.roles.index'));
-
-        $this->assertTrue(Role::findByName('break_glass_role')->hasPermissionTo('inventory.stock.adjust'));
-    }
-
     public function test_adjustment_actor_foreign_keys_restrict_user_deletion_to_keep_evidence(): void
     {
         $rules = [];
@@ -520,15 +444,6 @@ class RolePersonaSodTest extends TestCase
             ->assertRedirect(route('admin.users.index'));
 
         $this->assertEqualsCanonicalizing(['manager', 'staff'], $target->fresh()->getRoleNames()->all());
-    }
-
-    private function roleManager(): User
-    {
-        $company = Company::factory()->create();
-        $actor = User::factory()->create(['company_id' => $company->id]);
-        $actor->givePermissionTo('roles.manage');
-
-        return $actor;
     }
 
     private function adjustmentRequest(Company $company, User $requester, ?User $approver = null): StockAdjustmentRequest

@@ -3,7 +3,7 @@
     "info": {
         "title": "Inbils Mobile API",
         "version": "1.0.0",
-        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress` |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts and 30 uploads a minute per user."
+        "description": "Contract of the Inbils customer and technician mobile apps. The apps hand-write their models from this document.\nRegenerate it with `php artisan scramble:export` after any change to an `api/v1` route, request or resource.\n\n## Authentication\n\nEvery endpoint except `POST auth/login`, `POST auth/two-factor` and `POST auth/forgot-password` needs\n`Authorization: Bearer <token>`. A token belongs to one app install and carries one ability, `customer` or\n`technician`, picked by the `app` field at login. A token expires 90 days (customer) or 30 days (technician) after it\nis issued. `POST auth/token/refresh` swaps it for a new one; refresh when fewer than 7 days remain. Any 401 means\n\"sign in again\". Logout, a password change, deactivation, a 2FA change and `DELETE devices/{id}` revoke tokens.\n\nA user with confirmed two-factor authentication gets `202` from `POST auth/login` with a `challenge_id` (valid 300 s,\n5 attempts) and no token. `POST auth/two-factor` with a TOTP or recovery code then issues the token.\n\n## Errors\n\nEvery error under `api/v1` is JSON: `{\"message\": string, \"code\": string, \"errors\"?: {field: [string]}}`.\n`message` is for developers and may be English or Indonesian; show your own text per `code`. `errors` appears only\nwith `validation_failed`. A 429 carries `Retry-After` (seconds).\n\n| Status | `code` |\n|---|---|\n| 400 | `bad_request` |\n| 401 | `unauthenticated` (missing, expired or revoked token), `account_inactive` (the token is deleted) |\n| 403 | `forbidden` (wrong app ability or no permission), `app_not_allowed` (the account may not use this app), `password_reset_required` |\n| 404 | `not_found` (also another customer's or company's record), `payment_unavailable` (online payment is off) |\n| 405 | `method_not_allowed` |\n| 408 | `request_timeout` |\n| 409 | `conflict`, `idempotency_in_progress` |\n| 413 | `payload_too_large` |\n| 415 | `unsupported_media_type` |\n| 422 | `validation_failed`, `unprocessable` (a well-formed request the business rules refuse), `idempotency_conflict`, `invoice_not_payable`, `challenge_expired` |\n| 428 | `precondition_required`, `idempotency_key_required` |\n| 429 | `too_many_requests` |\n| 500 | `server_error` |\n| other 4xx | `client_error` |\n\n## Idempotency\n\nEvery `POST`, `PUT`, `PATCH` and `DELETE` except the three public auth endpoints needs `Idempotency-Key: <UUID>`\n(missing: 428 `idempotency_key_required`; not a UUID: 422 `validation_failed`). Generate one key per user action and\nreuse it for every retry of that action. For 24 hours the server stores the response per user and key:\n\n- a retry with the same request gets the stored status and body again, with the header `Idempotent-Replayed: true`;\n- the same key with a different request is 422 `idempotency_conflict`;\n- the same key while the first request still runs is 409 `idempotency_in_progress`;\n- 5xx and 429 responses are not stored, so retry them with the same key.\n\n## Pagination\n\nList endpoints answer `{data, links, meta}` (Laravel paginator). `?page=` starts at 1. `?per_page=` defaults to 20,\nat most 50. One record is `{data}`.\n\n## Rate limits\n\n120 requests a minute per token, 20 sign-ins a minute per IP, 6 password-reset requests a minute per IP, 6 payment\nstarts, 30 uploads and 30 promo banner taps a minute per user."
     },
     "servers": [
         {
@@ -16,6 +16,69 @@
         }
     ],
     "paths": {
+        "/customer/announcements/{announcement}": {
+            "get": {
+                "operationId": "v1.customer.announcements.show",
+                "tags": [
+                    "Announcement"
+                ],
+                "parameters": [
+                    {
+                        "name": "announcement",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CustomerAnnouncementResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerAnnouncementResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
         "/auth/login": {
             "post": {
                 "operationId": "v1.auth.login",
@@ -337,6 +400,156 @@
                 "responses": {
                     "204": {
                         "description": "No content"
+                    }
+                }
+            }
+        },
+        "/me/device-token": {
+            "post": {
+                "operationId": "v1.me.device-token.store",
+                "description": "Send it after sign-in and whenever Firebase hands the app a new one. A token the server already knows is moved to\nthis user and this sign-in (200), a new one is stored (201). Logging out, a revoked sign-in or an expired one\nends pushes to the install, so register again after the next login.",
+                "summary": "Register this install's push token",
+                "tags": [
+                    "DeviceToken"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StoreDeviceTokenRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "object",
+                                            "properties": {
+                                                "id": {
+                                                    "type": "integer"
+                                                }
+                                            },
+                                            "required": [
+                                                "id"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "v1.me.device-token.destroy",
+                "description": "Always 204: a token that is unknown, or that belongs to another user, is left alone and not revealed.",
+                "summary": "Forget this install's push token (sign-out)",
+                "tags": [
+                    "DeviceToken"
+                ],
+                "parameters": [
+                    {
+                        "name": "token",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 4096
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/customer/home-feed": {
+            "get": {
+                "operationId": "v1.customer.home-feed",
+                "tags": [
+                    "HomeFeed"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`HomeFeedResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/HomeFeedResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -873,6 +1086,24 @@
                                                 "due_date": {
                                                     "type": "string"
                                                 },
+                                                "billing_period": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "start": {
+                                                            "type": "string"
+                                                        },
+                                                        "end": {
+                                                            "type": "string"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "start",
+                                                        "end"
+                                                    ]
+                                                },
                                                 "status": {
                                                     "type": "string"
                                                 },
@@ -946,6 +1177,15 @@
                                                             "method": {
                                                                 "type": "string"
                                                             },
+                                                            "method_label": {
+                                                                "type": "string"
+                                                            },
+                                                            "reference": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
                                                             "paid_at": {
                                                                 "type": "string"
                                                             }
@@ -954,6 +1194,8 @@
                                                             "id",
                                                             "amount",
                                                             "method",
+                                                            "method_label",
+                                                            "reference",
                                                             "paid_at"
                                                         ]
                                                     }
@@ -979,6 +1221,37 @@
                                                         "can_pay",
                                                         "blocked_reason"
                                                     ]
+                                                },
+                                                "payment_attempt": {
+                                                    "type": [
+                                                        "object",
+                                                        "null"
+                                                    ],
+                                                    "properties": {
+                                                        "status": {
+                                                            "type": "string",
+                                                            "enum": [
+                                                                "pending",
+                                                                "settlement",
+                                                                "expire",
+                                                                "failed"
+                                                            ]
+                                                        },
+                                                        "expires_at": {
+                                                            "type": "string"
+                                                        },
+                                                        "redirect_url": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "status",
+                                                        "expires_at",
+                                                        "redirect_url"
+                                                    ]
                                                 }
                                             },
                                             "required": [
@@ -987,6 +1260,7 @@
                                                 "subscription_id",
                                                 "issue_date",
                                                 "due_date",
+                                                "billing_period",
                                                 "status",
                                                 "subtotal",
                                                 "tax_amount",
@@ -996,7 +1270,8 @@
                                                 "sisa",
                                                 "items",
                                                 "payments",
-                                                "payment"
+                                                "payment",
+                                                "payment_attempt"
                                             ]
                                         }
                                     },
@@ -1087,6 +1362,40 @@
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
+                    }
+                }
+            }
+        },
+        "/customer/invoices/{id}/receipt": {
+            "get": {
+                "operationId": "v1.customer.invoices.receipt",
+                "summary": "The invoice as a PDF receipt (`application/pdf`). Only a paid invoice of the token's customer has one; any other id is a 404",
+                "tags": [
+                    "InvoiceReceipt"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            }
+                        }
                     },
                     "403": {
                         "$ref": "#/components/responses/AuthorizationException"
@@ -2448,6 +2757,54 @@
                 }
             }
         },
+        "/customer/promo-banners/{banner}/tap": {
+            "post": {
+                "operationId": "v1.customer.promo-banners.tap",
+                "tags": [
+                    "PromoBannerTap"
+                ],
+                "parameters": [
+                    {
+                        "name": "banner",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No content"
+                    },
+                    "403": {
+                        "description": "An error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "description": "Error overview.",
+                                            "examples": [
+                                                ""
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "message"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
         "/customer/subscriptions": {
             "get": {
                 "operationId": "v1.customer.subscriptions.index",
@@ -3627,6 +3984,222 @@
                 }
             }
         },
+        "/customer/work-orders": {
+            "get": {
+                "operationId": "v1.customer.work-orders.index",
+                "description": "The visits still under way and the closed ones of the last 30 days, newest first. Only SPKs of the customer's own subscriptions.",
+                "summary": "The technician visits of the customer's subscriptions",
+                "tags": [
+                    "WorkOrder"
+                ],
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    },
+                    {
+                        "name": "per_page",
+                        "in": "query",
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated set of `CustomerWorkOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/CustomerWorkOrderResource"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object",
+                                            "properties": {
+                                                "first": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "last": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "prev": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                },
+                                                "next": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ]
+                                                }
+                                            },
+                                            "required": [
+                                                "first",
+                                                "last",
+                                                "prev",
+                                                "next"
+                                            ]
+                                        },
+                                        "meta": {
+                                            "type": "object",
+                                            "properties": {
+                                                "current_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "from": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "minimum": 1
+                                                },
+                                                "last_page": {
+                                                    "type": "integer",
+                                                    "minimum": 1
+                                                },
+                                                "links": {
+                                                    "type": "array",
+                                                    "description": "Generated paginator links.",
+                                                    "items": {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "url": {
+                                                                "type": [
+                                                                    "string",
+                                                                    "null"
+                                                                ]
+                                                            },
+                                                            "label": {
+                                                                "type": "string"
+                                                            },
+                                                            "active": {
+                                                                "type": "boolean"
+                                                            }
+                                                        },
+                                                        "required": [
+                                                            "url",
+                                                            "label",
+                                                            "active"
+                                                        ]
+                                                    }
+                                                },
+                                                "path": {
+                                                    "type": [
+                                                        "string",
+                                                        "null"
+                                                    ],
+                                                    "description": "Base path for paginator generated URLs."
+                                                },
+                                                "per_page": {
+                                                    "type": "integer",
+                                                    "description": "Number of items shown per page.",
+                                                    "minimum": 0
+                                                },
+                                                "to": {
+                                                    "type": [
+                                                        "integer",
+                                                        "null"
+                                                    ],
+                                                    "description": "Number of the last item in the slice.",
+                                                    "minimum": 1
+                                                },
+                                                "total": {
+                                                    "type": "integer",
+                                                    "description": "Total number of items being paginated.",
+                                                    "minimum": 0
+                                                }
+                                            },
+                                            "required": [
+                                                "current_page",
+                                                "from",
+                                                "last_page",
+                                                "links",
+                                                "path",
+                                                "per_page",
+                                                "to",
+                                                "total"
+                                            ]
+                                        }
+                                    },
+                                    "required": [
+                                        "data",
+                                        "links",
+                                        "meta"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    }
+                }
+            }
+        },
+        "/customer/work-orders/{wo}": {
+            "get": {
+                "operationId": "v1.customer.work-orders.show",
+                "description": "A closed visit opens whatever its age, so an old notification still lands on it. Another customer's visit is 404.",
+                "summary": "One technician visit",
+                "tags": [
+                    "WorkOrder"
+                ],
+                "parameters": [
+                    {
+                        "name": "wo",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "`CustomerWorkOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/CustomerWorkOrderResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
         "/technician/work-orders/{wo}": {
             "get": {
                 "operationId": "v1.technician.work-orders.show",
@@ -3767,6 +4340,65 @@
                     },
                     "404": {
                         "$ref": "#/components/responses/ModelNotFoundException"
+                    }
+                }
+            }
+        },
+        "/technician/work-orders/{wo}/en-route": {
+            "post": {
+                "operationId": "v1.technician.work-orders.en-route",
+                "description": "Only while the SPK is assigned, and only once: asking again changes nothing and returns the SPK as it is. The status stays `assigned`; the SPK moves to the `en_route` step and the customer's app is told. The location fix is optional and kept apart from the check-in of the start.",
+                "summary": "Tell the customer the technician has left for the visit",
+                "tags": [
+                    "WorkOrder"
+                ],
+                "parameters": [
+                    {
+                        "name": "wo",
+                        "in": "path",
+                        "required": true,
+                        "description": "The wo ID",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EnRouteWorkOrderRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "`TechnicianWorkOrderResource`",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/components/schemas/TechnicianWorkOrderResource"
+                                        }
+                                    },
+                                    "required": [
+                                        "data"
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/ModelNotFoundException"
+                    },
+                    "422": {
+                        "$ref": "#/components/responses/ValidationException"
+                    },
+                    "403": {
+                        "$ref": "#/components/responses/AuthorizationException"
                     }
                 }
             }
@@ -4067,6 +4699,102 @@
                 ],
                 "title": "ChangePasswordRequest"
             },
+            "CustomerAnnouncementResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "body": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ends_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "published_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "id",
+                    "title",
+                    "body",
+                    "kind",
+                    "starts_at",
+                    "ends_at",
+                    "published_at"
+                ],
+                "title": "CustomerAnnouncementResource"
+            },
+            "CustomerBannerResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "alt_text": {
+                        "type": "string"
+                    },
+                    "image_url": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "link_kind": {
+                        "type": "string"
+                    },
+                    "link_target": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ends_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "id",
+                    "title",
+                    "alt_text",
+                    "image_url",
+                    "link_kind",
+                    "link_target",
+                    "starts_at",
+                    "ends_at"
+                ],
+                "title": "CustomerBannerResource"
+            },
             "CustomerPaymentResource": {
                 "type": "object",
                 "properties": {
@@ -4078,6 +4806,16 @@
                     },
                     "method": {
                         "type": "string"
+                    },
+                    "method_label": {
+                        "type": "string"
+                    },
+                    "reference": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The gateway order id for an online payment; null for a manual one, whose staff-typed reference stays internal."
                     },
                     "paid_at": {
                         "type": "string"
@@ -4102,6 +4840,8 @@
                     "id",
                     "amount",
                     "method",
+                    "method_label",
+                    "reference",
                     "paid_at",
                     "invoice"
                 ],
@@ -4216,6 +4956,12 @@
                             null
                         ]
                     },
+                    "suspended_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
                     "package": {
                         "type": [
                             "object",
@@ -4242,13 +4988,56 @@
                                     "id",
                                     "name"
                                 ]
+                            },
+                            "download_mbps": {
+                                "type": "integer"
+                            },
+                            "upload_mbps": {
+                                "type": "integer"
+                            },
+                            "speed_label": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "Marketing speed, e.g. \"Hingga 50 Mbps\": speed profile max download, else bandwidth download; null when neither profile exists."
                             }
                         },
                         "required": [
                             "id",
                             "name",
-                            "category"
+                            "category",
+                            "download_mbps",
+                            "upload_mbps",
+                            "speed_label"
                         ]
+                    },
+                    "sla_tier": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The package's service level; null when the package has none.",
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "response_time_hours": {
+                                "type": "integer"
+                            },
+                            "resolution_time_hours": {
+                                "type": "integer"
+                            }
+                        },
+                        "required": [
+                            "name",
+                            "response_time_hours",
+                            "resolution_time_hours"
+                        ]
+                    },
+                    "pppoe_username": {
+                        "type": "string",
+                        "description": "The PPPoE login the customer types into the router. Never the password."
                     },
                     "mrc_amount": {
                         "type": "string"
@@ -4267,11 +5056,29 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "label": {
+                                "type": "string"
+                            },
+                            "lat": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lng": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
                             }
                         },
                         "required": [
                             "address",
-                            "city"
+                            "city",
+                            "label",
+                            "lat",
+                            "lng"
                         ]
                     },
                     "activation_date": {
@@ -4307,7 +5114,10 @@
                     "code",
                     "status",
                     "suspension_reason",
+                    "suspended_at",
                     "package",
+                    "sla_tier",
+                    "pppoe_username",
                     "mrc_amount",
                     "installation_address",
                     "activation_date",
@@ -4432,6 +5242,34 @@
                         ],
                         "format": "date-time"
                     },
+                    "first_response_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "response_deadline": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "sla_deadline": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "handler_first_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal."
+                    },
                     "description": {
                         "type": [
                             "string",
@@ -4467,9 +5305,160 @@
                     "subscription",
                     "created_at",
                     "updated_at",
-                    "resolved_at"
+                    "resolved_at",
+                    "first_response_at",
+                    "response_deadline",
+                    "sla_deadline",
+                    "handler_first_name"
                 ],
                 "title": "CustomerTicketResource"
+            },
+            "CustomerWorkOrderResource": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "object",
+                        "properties": {
+                            "key": {
+                                "type": "string"
+                            },
+                            "label": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "key",
+                            "label"
+                        ]
+                    },
+                    "scheduled_date": {
+                        "type": [
+                            "string",
+                            "null"
+                        ]
+                    },
+                    "state": {
+                        "type": "string",
+                        "description": "`open` while the visit is under way (also while the office sends work back), `done` once the technician has\nfinished (the office's review is not the customer's concern), `cancelled`.",
+                        "enum": [
+                            "cancelled",
+                            "done",
+                            "open"
+                        ]
+                    },
+                    "steps": {
+                        "type": "array",
+                        "description": "The four steps of the visit. `current` is the last one reached: it and the steps before it are reached and only\nthose carry a time, which is null for a step that was skipped. Empty for a cancelled visit.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "key": {
+                                    "type": "string",
+                                    "enum": [
+                                        "assigned",
+                                        "en_route",
+                                        "in_progress",
+                                        "installed"
+                                    ]
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "key",
+                                "label",
+                                "at"
+                            ]
+                        }
+                    },
+                    "current": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The last step reached; null when none has (and for a cancelled visit).",
+                        "enum": [
+                            "assigned",
+                            "en_route",
+                            "in_progress",
+                            "installed",
+                            null
+                        ]
+                    },
+                    "technician": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "first_name": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "first_name"
+                        ]
+                    },
+                    "installation_address": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "properties": {
+                            "label": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "address": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "city": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "address",
+                            "city"
+                        ]
+                    }
+                },
+                "required": [
+                    "id",
+                    "code",
+                    "type",
+                    "scheduled_date",
+                    "state",
+                    "steps",
+                    "current",
+                    "technician",
+                    "installation_address"
+                ],
+                "title": "CustomerWorkOrderResource"
             },
             "DeclareMaterialReturnRequest": {
                 "type": "object",
@@ -4594,6 +5583,52 @@
                 ],
                 "title": "DeviceResource"
             },
+            "EnRouteWorkOrderRequest": {
+                "type": "object",
+                "properties": {
+                    "check_in": {
+                        "type": "object",
+                        "properties": {
+                            "lat": {
+                                "type": "number",
+                                "minimum": -90,
+                                "maximum": 90
+                            },
+                            "lng": {
+                                "type": "number",
+                                "minimum": -180,
+                                "maximum": 180
+                            },
+                            "accuracy_m": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ],
+                                "minimum": 0,
+                                "maximum": 100000
+                            },
+                            "captured_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "unavailable_reason": {
+                                "type": "string",
+                                "enum": [
+                                    "permission_denied",
+                                    "permission_denied_forever",
+                                    "location_disabled",
+                                    "no_fix",
+                                    "timeout"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "title": "EnRouteWorkOrderRequest"
+            },
             "EvidenceResource": {
                 "type": "object",
                 "properties": {
@@ -4681,6 +5716,28 @@
                     "email"
                 ],
                 "title": "ForgotPasswordRequest"
+            },
+            "HomeFeedResource": {
+                "type": "object",
+                "properties": {
+                    "announcements": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomerAnnouncementResource"
+                        }
+                    },
+                    "banners": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/CustomerBannerResource"
+                        }
+                    }
+                },
+                "required": [
+                    "announcements",
+                    "banners"
+                ],
+                "title": "HomeFeedResource"
             },
             "LoginRequest": {
                 "type": "object",
@@ -5202,16 +6259,35 @@
                         "type": "string"
                     },
                     "type": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "type": "string",
-                                "enum": [
-                                    "unknown"
-                                ]
-                            }
+                        "type": "string",
+                        "description": "What happened. The apps pick an icon and wording from it and open `subject`; an unrecognised value is shown\nwith `title` and `message` as they are. `invoice_reminder` is only on rows written before `invoice_due_soon`\nand `invoice_overdue` replaced it.",
+                        "enum": [
+                            "invoice_issued",
+                            "invoice_reminder",
+                            "invoice_due_soon",
+                            "invoice_overdue",
+                            "payment_received",
+                            "ticket_created",
+                            "ticket_assigned",
+                            "ticket_resolved",
+                            "ticket_sla_breached",
+                            "ticket_first_response_due",
+                            "spk_scheduled",
+                            "spk_scheduled_customer",
+                            "spk_approved",
+                            "spk_rejected",
+                            "technician_en_route",
+                            "visit_completed",
+                            "billing_schedule_failed",
+                            "inventory_request_submitted",
+                            "inventory_request_approved",
+                            "inventory_request_ready",
+                            "inventory_request_rejected",
+                            "material_return_declared",
+                            "material_return_exception",
+                            "material_return_rejected",
+                            "announcement_published",
+                            "unknown"
                         ]
                     },
                     "title": {
@@ -5219,14 +6295,22 @@
                         "enum": [
                             "Tagihan baru",
                             "Pengingat jatuh tempo",
+                            "Tagihan segera jatuh tempo",
+                            "Tagihan sudah jatuh tempo",
                             "Pembayaran diterima",
                             "Tiket dibuat",
                             "Tiket mulai ditangani",
                             "Tiket ditugaskan",
                             "Tiket selesai",
                             "SLA tiket terlampaui",
+                            "Batas respons pertama terlewat",
+                            "Respons pertama segera jatuh tempo",
                             "SPK baru ditugaskan",
                             "Jadwal kunjungan teknisi",
+                            "SPK disetujui",
+                            "SPK ditolak",
+                            "Teknisi dalam perjalanan",
+                            "Kunjungan teknisi selesai",
                             "Jadwal penagihan gagal",
                             "Permintaan barang diajukan",
                             "Permintaan barang disetujui",
@@ -5235,6 +6319,7 @@
                             "Pengembalian material dideklarasikan",
                             "Pengembalian material bermasalah",
                             "Pengembalian material ditolak",
+                            "Pengumuman baru",
                             "Notifikasi baru"
                         ]
                     },
@@ -5313,6 +6398,25 @@
                     "due_date": {
                         "type": "string"
                     },
+                    "billing_period": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The service period the invoice bills; null for an invoice without one.",
+                        "properties": {
+                            "start": {
+                                "type": "string"
+                            },
+                            "end": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "start",
+                            "end"
+                        ]
+                    },
                     "status": {
                         "type": "string"
                     },
@@ -5386,6 +6490,16 @@
                                 "method": {
                                     "type": "string"
                                 },
+                                "method_label": {
+                                    "type": "string"
+                                },
+                                "reference": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ],
+                                    "description": "The gateway order id for an online payment; null for a manual one, whose staff-typed reference stays internal."
+                                },
                                 "paid_at": {
                                     "type": "string"
                                 }
@@ -5394,6 +6508,8 @@
                                 "id",
                                 "amount",
                                 "method",
+                                "method_label",
+                                "reference",
                                 "paid_at"
                             ]
                         }
@@ -5405,6 +6521,7 @@
                     "subscription_id",
                     "issue_date",
                     "due_date",
+                    "billing_period",
                     "status",
                     "subtotal",
                     "tax_amount",
@@ -5542,6 +6659,42 @@
                     "category_id"
                 ],
                 "title": "StoreCustomerTicketRequest"
+            },
+            "StoreDeviceTokenRequest": {
+                "type": "object",
+                "description": "An app install registers the FCM token it just got (or refreshed) for the signed-in user. The app named in the body\nmust be the one this bearer token was issued for: a customer token cannot register a technician install.",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "maxLength": 4096
+                    },
+                    "app": {
+                        "type": "string",
+                        "enum": [
+                            "customer",
+                            "technician"
+                        ]
+                    },
+                    "platform": {
+                        "type": "string",
+                        "enum": [
+                            "android"
+                        ]
+                    },
+                    "device_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "token",
+                    "app",
+                    "platform"
+                ],
+                "title": "StoreDeviceTokenRequest"
             },
             "StoreTechnicianInventoryRequestRequest": {
                 "type": "object",
@@ -6099,6 +7252,34 @@
                         ],
                         "format": "date-time"
                     },
+                    "first_response_at": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "response_deadline": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "sla_deadline": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "format": "date-time"
+                    },
+                    "handler_first_name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal."
+                    },
                     "check_in": {
                         "type": "object",
                         "properties": {
@@ -6240,6 +7421,10 @@
                     "created_at",
                     "updated_at",
                     "resolved_at",
+                    "first_response_at",
+                    "response_deadline",
+                    "sla_deadline",
+                    "handler_first_name",
                     "check_in",
                     "description",
                     "resolution_note",
@@ -6321,6 +7506,10 @@
                     "type": {
                         "type": "string"
                     },
+                    "type_label": {
+                        "type": "string",
+                        "description": "The type in Indonesian, as the app shows it: never show `type` itself."
+                    },
                     "title": {
                         "type": "string"
                     },
@@ -6340,6 +7529,52 @@
                         "type": [
                             "string",
                             "null"
+                        ]
+                    },
+                    "steps": {
+                        "type": "array",
+                        "description": "The four steps of the visit. `current` is the last one reached: it and the steps before it are reached and only\nthose carry a time, which is null for a step that was skipped. Empty for a cancelled SPK.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "key": {
+                                    "type": "string",
+                                    "enum": [
+                                        "assigned",
+                                        "en_route",
+                                        "in_progress",
+                                        "installed"
+                                    ]
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "at": {
+                                    "type": [
+                                        "string",
+                                        "null"
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "key",
+                                "label",
+                                "at"
+                            ]
+                        }
+                    },
+                    "current": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "The last step reached; null when none has (a draft, a waiting SPK, a cancelled one).",
+                        "enum": [
+                            "assigned",
+                            "en_route",
+                            "in_progress",
+                            "installed",
+                            null
                         ]
                     },
                     "started_at": {
@@ -6442,13 +7677,21 @@
                                     "string",
                                     "null"
                                 ]
+                            },
+                            "phone_e164": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "description": "The phone as `+62\u2026` for a WhatsApp link (`https://wa.me/` without the plus); null when it is not an Indonesian mobile number."
                             }
                         },
                         "required": [
                             "id",
                             "code",
                             "name",
-                            "phone"
+                            "phone",
+                            "phone_e164"
                         ]
                     },
                     "subscription": {
@@ -6474,77 +7717,75 @@
                         ]
                     },
                     "site": {
-                        "anyOf": [
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "label": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ]
-                                    },
-                                    "address": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ]
-                                    },
-                                    "lat": {
-                                        "type": [
-                                            "number",
-                                            "null"
-                                        ]
-                                    },
-                                    "lng": {
-                                        "type": [
-                                            "number",
-                                            "null"
-                                        ]
-                                    }
-                                },
-                                "required": [
-                                    "label",
-                                    "address",
-                                    "lat",
-                                    "lng"
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "Where to go: the customer's installation address for a subscription SPK, else the SPK's location.",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "address": {
+                                "type": [
+                                    "string",
+                                    "null"
                                 ]
                             },
-                            {
-                                "type": "null"
+                            "lat": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
                             },
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "label": {
-                                        "type": "string"
-                                    },
-                                    "address": {
-                                        "type": [
-                                            "string",
-                                            "null"
-                                        ]
-                                    },
-                                    "lat": {
-                                        "type": [
-                                            "number",
-                                            "null"
-                                        ]
-                                    },
-                                    "lng": {
-                                        "type": [
-                                            "number",
-                                            "null"
-                                        ]
-                                    }
-                                },
-                                "required": [
-                                    "label",
-                                    "address",
-                                    "lat",
-                                    "lng"
+                            "lng": {
+                                "type": [
+                                    "number",
+                                    "null"
                                 ]
                             }
+                        },
+                        "required": [
+                            "label",
+                            "address",
+                            "lat",
+                            "lng"
+                        ]
+                    },
+                    "pop": {
+                        "type": [
+                            "object",
+                            "null"
+                        ],
+                        "description": "The POP the SPK is stocked from, apart from the site; null when the site is the location itself.",
+                        "properties": {
+                            "label": {
+                                "type": "string"
+                            },
+                            "address": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            },
+                            "lat": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            },
+                            "lng": {
+                                "type": [
+                                    "number",
+                                    "null"
+                                ]
+                            }
+                        },
+                        "required": [
+                            "label",
+                            "address",
+                            "lat",
+                            "lng"
                         ]
                     },
                     "items": {
@@ -6584,6 +7825,10 @@
                             "start": {
                                 "type": "boolean"
                             },
+                            "en_route": {
+                                "type": "boolean",
+                                "description": "\"Berangkat\" is offered once: after it the next action is the start."
+                            },
                             "upload_evidence": {
                                 "type": "boolean"
                             },
@@ -6597,6 +7842,7 @@
                         },
                         "required": [
                             "start",
+                            "en_route",
                             "upload_evidence",
                             "submit",
                             "edit_items"
@@ -6607,11 +7853,14 @@
                     "id",
                     "code",
                     "type",
+                    "type_label",
                     "title",
                     "description",
                     "status",
                     "priority",
                     "scheduled_date",
+                    "steps",
+                    "current",
                     "started_at",
                     "rejection_reason",
                     "check_in",
@@ -6619,6 +7868,7 @@
                     "customer",
                     "subscription",
                     "site",
+                    "pop",
                     "items",
                     "evidence",
                     "material_returns",

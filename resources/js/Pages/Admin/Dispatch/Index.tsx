@@ -13,7 +13,13 @@ import { useServerTable, type ServerTableFilters } from '@/hooks/useServerTable'
 import { useToast } from '@/hooks/useToast';
 import { formatDate, formatDateTime } from '@/lib/format';
 import { toPagination } from '@/lib/pagination';
-import { labelOf, PRIORITY, WORK_ITEM_DOMAIN, WORK_ORDER_TYPE } from '@/lib/statuses';
+import {
+    labelOf,
+    PRIORITY,
+    WORK_ITEM_DOMAIN,
+    WORK_ORDER_TRIP,
+    WORK_ORDER_TYPE,
+} from '@/lib/statuses';
 import type {
     DispatchItem,
     DispatchSummary,
@@ -35,6 +41,7 @@ import { SummaryChips, type SummaryChip } from '../MyWork/components/SummaryChip
 import { useMyWorkColumns } from '../MyWork/components/useMyWorkColumns';
 import { formatAge, MY_WORK_STATUS_FILTER } from '../MyWork/components/utils';
 import { AssignDialog, type DispatchReloadResult } from './components/AssignDialog';
+import { isEnRoute } from './components/utils';
 import { FilterBar as DispatchFilterBar } from './components/FilterBar';
 import { MobileDispatchCard } from './components/MobileDispatchCard';
 
@@ -424,7 +431,16 @@ export default function DispatchIndex({
             header: 'Petugas saat ini',
             cell: (row) =>
                 row.assignee ? (
-                    <span className="text-xs font-medium text-foreground">{row.assignee.name}</span>
+                    <div className="space-y-1">
+                        <span className="text-xs font-medium text-foreground">
+                            {row.assignee.name}
+                        </span>
+                        {isEnRoute(row) && (
+                            <div>
+                                <EnumBadge map={WORK_ORDER_TRIP} value="en_route" />
+                            </div>
+                        )}
+                    </div>
                 ) : (
                     <span className="text-xs font-medium text-amber-700 dark:text-amber-400">
                         Belum ditugaskan

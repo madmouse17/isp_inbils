@@ -10,6 +10,7 @@ Related: [DEPLOYMENT.md](./DEPLOYMENT.md), examples under [examples/](./examples
 | HTTP | php-fpm / Apache / `php artisan serve` (local only) | Host-specific |
 | Scheduler | once per minute `php artisan schedule:run` **or** long-running `php artisan schedule:work` | **Single owner only** — never double-run |
 | Queue worker | `php artisan queue:work --sleep=3 --tries=3 --timeout=90` | Restart after every deploy |
+| Platform queue worker | `php artisan queue:work platform --queue=platform --tries=1 --timeout=3600` | Needs a stop timeout above 3600 s (systemd `TimeoutStopSec=3660`, supervisor `stopwaitsecs=3700`); see [platform-queue.md](./platform-queue.md) |
 
 Tune `--timeout` above longest expected job. Billing schedules today are artisan commands on the scheduler, not queue jobs; still supervise workers when queues are introduced.
 

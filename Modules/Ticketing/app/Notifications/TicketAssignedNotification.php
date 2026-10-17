@@ -2,12 +2,13 @@
 
 namespace Modules\Ticketing\Notifications;
 
+use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class TicketAssignedNotification extends Notification implements ShouldQueue
+class TicketAssignedNotification extends Notification implements ShouldQueueAfterCommit
 {
     use Queueable;
 
@@ -20,7 +21,7 @@ class TicketAssignedNotification extends Notification implements ShouldQueue
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', ...FcmChannel::for($notifiable)];
     }
 
     public function toMail(object $notifiable): MailMessage

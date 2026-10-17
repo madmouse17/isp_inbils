@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\Core\ApiTokenService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\Request;
+use Modules\Service\Models\PromoBanner;
+use Modules\Service\Queries\CustomerAudienceQuery;
 use Modules\SPK\Models\WorkOrder;
 use Modules\Ticketing\Models\Ticket;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
@@ -34,12 +36,26 @@ class MediaController extends Controller
         $owner = $media->model;
 
         return match (app(ApiTokenService::class)->appOf($user)) {
-            ApiTokenService::CUSTOMER => $owner instanceof Ticket
-                && $owner->customer_id !== null
-                && (int) $owner->customer_id === (int) EnsureCustomerAccess::customerFor($user)?->id,
+            ApiTokenService::CUSTOMER => $this->customerMayFetch($user, $owner),
             ApiTokenService::TECHNICIAN => ($owner instanceof WorkOrder || $owner instanceof Ticket)
                 && (int) $owner->assigned_to === (int) $user->id,
             default => false,
         };
+    }
+
+    private function customerMayFetch(User $user, mixed $owner): bool
+    {
+        $customer = EnsureCustomerAccess::customerFor($user);
+        if ($customer === null) {
+            return false;
+        }
+
+        if ($owner instanceof PromoBanner) {
+            return app(CustomerAudienceQuery::class)->visibleBanners($customer)->whereKey($owner)->exists();
+        }
+
+        return $owner instanceof Ticket
+            && $owner->customer_id !== null
+            && (int) $owner->customer_id === (int) $customer->id;
     }
 }

@@ -2,7 +2,8 @@
 
 namespace Modules\Service\Providers;
 
-use Illuminate\Console\Scheduling\Schedule;
+use Modules\Service\Console\CleanupPromoBannerImages;
+use Modules\Service\Console\PublishScheduledAnnouncements;
 use Nwidart\Modules\Support\ModuleServiceProvider;
 
 class ServiceServiceProvider extends ModuleServiceProvider
@@ -17,12 +18,11 @@ class ServiceServiceProvider extends ModuleServiceProvider
      */
     protected string $nameLower = 'service';
 
-    /**
-     * Command classes to register.
-     *
-     * @var string[]
-     */
-    // protected array $commands = [];
+    /** @var string[] */
+    protected array $commands = [
+        PublishScheduledAnnouncements::class,
+        CleanupPromoBannerImages::class,
+    ];
 
     /**
      * Provider classes to register.
@@ -33,14 +33,4 @@ class ServiceServiceProvider extends ModuleServiceProvider
         EventServiceProvider::class,
         RouteServiceProvider::class,
     ];
-
-    /**
-     * Define module schedules.
-     *
-     * @param  $schedule
-     */
-    // protected function configureSchedules(Schedule $schedule): void
-    // {
-    //     $schedule->command('inspire')->hourly();
-    // }
 }

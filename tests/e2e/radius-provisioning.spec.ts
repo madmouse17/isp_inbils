@@ -554,8 +554,26 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.getByLabel('Telepon').fill('(021)5550100');
         await page.getByLabel('Email').fill('support@demo.inbils.test');
         await page.getByLabel('Situs web').fill('https://demo.inbils.test');
+        await page.getByLabel('WhatsApp').fill('+6281234567890');
+        await page.getByLabel('Jam layanan').fill('Senin sampai Sabtu, 08.00 sampai 17.00');
+        // A preset fills the hex field; a colour under 4,5:1 against white text warns.
+        await page.getByTitle('Biru #2563EB').click();
+        await expect(page.getByRole('radio', { name: 'Biru #2563EB' })).toBeChecked();
+        await expect(page.getByLabel('Kode warna')).toHaveValue('#2563EB');
+        await expect(page.getByText('Teks putih terbaca jelas.')).toBeVisible();
+        await page.getByLabel('Kode warna').fill('#16A34A');
+        await expect(page.getByRole('radio', { name: 'Hijau #16A34A' })).toBeChecked();
+        await expect(page.getByText('Di bawah 4,5:1, teks putih sulit dibaca.')).toBeVisible();
+        await page.getByLabel('Kode warna').fill('#2563eb');
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page.getByText('Profil perusahaan diperbarui.').first()).toBeVisible();
+        await page.reload();
+        await expect(page.getByLabel('WhatsApp')).toHaveValue('+6281234567890');
+        await expect(page.getByLabel('Jam layanan')).toHaveValue(
+            'Senin sampai Sabtu, 08.00 sampai 17.00',
+        );
+        await expect(page.getByLabel('Kode warna')).toHaveValue('#2563eb');
+        await expect(page.getByRole('radio', { name: 'Biru #2563EB' })).toBeChecked();
 
         await logout(page);
         const response = await page.goto(state.isolirUrl);
@@ -604,8 +622,14 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.getByLabel('Telepon').fill('');
         await page.getByLabel('Email').fill('');
         await page.getByLabel('Situs web').fill('');
+        await page.getByLabel('WhatsApp').fill('');
+        await page.getByLabel('Jam layanan').fill('');
+        await page.getByLabel('Kode warna').fill('');
         await page.getByRole('button', { name: 'Simpan', exact: true }).click();
         await expect(page.getByText('Profil perusahaan diperbarui.').first()).toBeVisible();
+        await page.reload();
+        await expect(page.getByLabel('Kode warna')).toHaveValue('');
+        await expect(page.getByRole('radio', { checked: true })).toHaveCount(0);
     });
 
     test('a manager reads routers, manages accounts and blocks, but cannot manage routers', async ({

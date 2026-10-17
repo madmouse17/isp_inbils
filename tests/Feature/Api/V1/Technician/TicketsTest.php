@@ -105,7 +105,7 @@ class TicketsTest extends TestCase
         $key = (string) Str::uuid();
 
         $first = $this->api('POST', "technician/tickets/{$ticket->id}/start", [
-            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
+            'check_in' => ['lat' => -6.199, 'lng' => 106.8, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
             ->assertJsonPath('data.status', 'on_progress')
@@ -121,13 +121,34 @@ class TicketsTest extends TestCase
         $this->assertSame(111, $audit->properties['distance_m']);
 
         $this->api('POST', "technician/tickets/{$ticket->id}/start", [
-            'check_in' => ['lat' => -6.1743924, 'lng' => 106.8271528, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
+            'check_in' => ['lat' => -6.199, 'lng' => 106.8, 'accuracy_m' => 12.5, 'captured_at' => '2026-10-10T08:30:00+07:00'],
         ], $this->token, ['Idempotency-Key' => $key])
             ->assertOk()
             ->assertHeader('Idempotent-Replayed', 'true')
             ->assertContent($first->content());
 
         $this->assertSame(1, Activity::query()->where('description', 'check_in')->count());
+    }
+
+    public function test_check_in_distance_is_measured_to_the_installation_address_never_the_pop(): void
+    {
+        $ticket = $this->assignedTicket('assigned');
+
+        $this->api('POST', "technician/tickets/{$ticket->id}/start", [
+            'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528, 'accuracy_m' => 5],
+        ], $this->token, ['Idempotency-Key' => (string) Str::uuid()])
+            ->assertOk()
+            ->assertJsonPath('data.check_in.status', 'recorded')
+            ->assertJsonPath('data.check_in.distance_m', fn (int $metres): bool => $metres > 1000);
+
+        $this->subscription->installationAddress->update(['lat' => null, 'lng' => null]);
+        $other = $this->assignedTicket('assigned');
+
+        $this->api('POST', "technician/tickets/{$other->id}/start", [
+            'check_in' => ['lat' => -6.1753924, 'lng' => 106.8271528],
+        ], $this->token, ['Idempotency-Key' => (string) Str::uuid()])
+            ->assertOk()
+            ->assertJsonPath('data.check_in.distance_m', null);
     }
 
     public function test_unavailable_check_in_is_recorded_without_blocking_start(): void

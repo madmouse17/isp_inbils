@@ -36,8 +36,8 @@ class SecretKeyWalkTest extends TestCase
         $walked = 0;
 
         foreach ($this->apiRoutes() as $route) {
-            if ($this->method($route) !== 'GET' || $this->shortName($route) === 'media.show') {
-                continue; // media streams a file, checked by MediaTest
+            if ($this->method($route) !== 'GET' || in_array($this->shortName($route), ['media.show', 'customer.invoices.receipt'], true)) {
+                continue; // media and the receipt stream a file, checked by MediaTest and InvoicesTest
             }
 
             $technician = $this->fenceOf($route) === 'technician';
@@ -45,10 +45,13 @@ class SecretKeyWalkTest extends TestCase
 
             $this->assertClean($response->json(), $route->uri(), $technician);
             $this->assertValuesClean($response->getContent(), $route->uri());
+            if (! $technician) {
+                $this->assertStringNotContainsString(self::SECRET_TECHNICIAN_PHONE, $response->getContent(), $route->uri().' tells a customer the technician\'s phone');
+            }
             $walked++;
         }
 
-        $this->assertSame(21, $walked, 'a GET route was added or removed');
+        $this->assertSame(25, $walked, 'a GET route was added or removed');
     }
 
     public function test_the_payment_call_and_the_ticket_a_customer_reads_leak_nothing_either(): void

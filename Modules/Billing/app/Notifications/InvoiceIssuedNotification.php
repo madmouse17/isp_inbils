@@ -29,4 +29,9 @@ class InvoiceIssuedNotification extends InvoiceWhatsAppNotification
     {
         return 'invoice_issued';
     }
+
+    protected function pushesToApp(): bool
+    {
+        return true;
+    }
 }

@@ -20,9 +20,13 @@ class SubscriptionController extends Controller
 
         $subscriptions = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name,service_package_category_id',
+                'servicePackage:id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
                 'servicePackage.category:id,name',
-                'installationAddress:id,address,city',
+                'servicePackage.bandwidthProfile:id,download_mbps,upload_mbps',
+                'servicePackage.speedProfile:id,download_max_mbps',
+                'servicePackage.slaTier:id,name,response_time_hours,resolution_time_hours',
+                'pppoeAccount:id,subscription_id,service_type,username',
+                'installationAddress:id,address,city,label,lat,lng',
             ])
             ->latest('id')
             ->paginate($request->perPage())
@@ -39,9 +43,13 @@ class SubscriptionController extends Controller
 
         $subscription = $customer->subscriptions()
             ->with([
-                'servicePackage:id,name,service_package_category_id',
+                'servicePackage:id,name,service_package_category_id,bandwidth_profile_id,speed_profile_id,sla_tier_id',
                 'servicePackage.category:id,name',
-                'installationAddress:id,address,city',
+                'servicePackage.bandwidthProfile:id,download_mbps,upload_mbps',
+                'servicePackage.speedProfile:id,download_max_mbps',
+                'servicePackage.slaTier:id,name,response_time_hours,resolution_time_hours',
+                'pppoeAccount:id,subscription_id,service_type,username',
+                'installationAddress:id,address,city,label,lat,lng',
             ])
             ->findOrFail($id);
 

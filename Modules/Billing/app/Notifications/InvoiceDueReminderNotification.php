@@ -44,4 +44,25 @@ class InvoiceDueReminderNotification extends InvoiceWhatsAppNotification
     {
         return 'invoice_reminder';
     }
+
+    protected function pushesToApp(): bool
+    {
+        return true;
+    }
+
+    /**
+     * The bell row and the push tell "due soon" (H-3, H-1) from "overdue" (H+1). The WhatsApp event remains
+     * `invoice_reminder`, because that is the name of the approved Meta template.
+     *
+     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @return array<string, mixed>
+     */
+    protected function bell(array $payload): array
+    {
+        return [
+            ...parent::bell($payload),
+            'type' => $this->stage === 'H+1' ? 'invoice_overdue' : 'invoice_due_soon',
+            'stage' => $this->stage,
+        ];
+    }
 }

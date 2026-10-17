@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Core\CompanyHierarchyService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -103,6 +104,30 @@ class AdminMenuAuthorizationTest extends TestCase
                 ->where('filters.sort', 'name')
                 ->where('filters.direction', 'desc')
                 ->where('filters.per_page', '25'));
+    }
+
+    public function test_the_peran_menu_is_read_only_for_a_tenant_admin(): void
+    {
+        $this->withoutVite();
+        $this->actingAs($this->userWithRole('admin'));
+
+        $this->get(route('admin.roles.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Roles/Index')
+                ->where('can.export', true));
+
+        // The show page is a React file the tenant roles UI ticket adds, hence `false`.
+        $this->get(route('admin.roles.show', Role::findByName('manager')))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Admin/Roles/Show', false)
+                ->where('role.data.name', 'manager'));
+
+        foreach (['create', 'store', 'edit', 'update', 'destroy'] as $name) {
+            $this->assertFalse(Route::has("admin.roles.{$name}"), "admin.roles.{$name} must not exist");
+        }
+        $this->assertTrue(Route::has('admin.roles.export'));
     }
 
     public function test_users_manage_without_roles_manage_cannot_open_permissions_index(): void
@@ -273,6 +298,37 @@ class AdminMenuAuthorizationTest extends TestCase
 
             $this->assertSame($expected, array_values(array_intersect($entries, $this->shownSidebarLabels())), $roleName);
         }
+    }
+
+    public function test_seeded_roles_get_the_announcement_entry_their_permission_gives_them(): void
+    {
+        // announcement.manage is seeded for the admin and the manager only (docs/SECURITY.md section 2.3).
+        foreach ([
+            'admin' => ['Pengumuman & Promo'],
+            'manager' => ['Pengumuman & Promo'],
+            'staff' => [],
+            'technician' => [],
+            'customer' => [],
+        ] as $roleName => $expected) {
+            $this->actingAs($this->userWithRole($roleName));
+
+            $this->assertSame($expected, array_values(array_intersect(['Pengumuman & Promo'], $this->shownSidebarLabels())), $roleName);
+        }
+    }
+
+    public function test_announcement_manage_alone_opens_announcements_and_service_manage_does_not(): void
+    {
+        $this->actingAs($this->userWithPermissions(['announcement.manage', 'dashboard.view']));
+
+        $this->get(route('admin.announcements.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page->component('Admin/Announcements/Index'));
+        $this->get(route('admin.service-packages.index'))->assertForbidden();
+        $this->assertSame(['Dasbor', 'Pengumuman & Promo'], $this->shownSidebarLabels());
+
+        $this->actingAs($this->userWithPermissions(['service.manage', 'ticket.category.manage']))
+            ->get(route('admin.announcements.index'))
+            ->assertForbidden();
     }
 
     public function test_admin_sidebar_offers_everything_but_my_work_and_consolidation_in_a_single_company(): void

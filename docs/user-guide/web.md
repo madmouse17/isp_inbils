@@ -8,7 +8,7 @@ Panduan ini untuk pengguna web Inbils di kantor: admin, manajer, dan staf. Ketig
 - Manajer menyetujui SPK dan permintaan barang, memantau laporan, mengelola pelanggan, layanan, jaringan, dan tagihan, serta boleh membatalkan tagihan dan pembayaran.
 - Staf menjalankan pekerjaan harian: mengubah data pelanggan, membuat SPK, tiket, dan tagihan, mencatat pembayaran, serta memproses stok masuk dan keluar di gudang.
 
-Pembagian izin yang rinci ada di bagian 10.1. Admin dapat membuat peran lain (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas.
+Pembagian izin yang rinci ada di bagian 10.1. Operator platform dapat membuat peran lain (bagian 8.6), jadi daftar menu per orang di perusahaan Anda bisa berbeda dari uraian di atas.
 
 Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau pelanggan dialihkan ke halaman **Gunakan aplikasi Inbils**, yang menyebut aplikasi Android yang harus dipakai: Inbils Teknisi atau Inbils Pelanggan. Halaman itu punya tombol **Buka Play Store** (tampil bila tautan Play Store sudah diatur), **Kelola akun & 2FA**, dan **Keluar**. Pekerjaan teknisi (memulai dan menyerahkan SPK, mengerjakan tiket, mengembalikan material) dan pekerjaan pelanggan (melihat dan membayar tagihan, membuat tiket) dilakukan di aplikasi masing-masing, dengan panduan terpisah: Panduan Aplikasi Teknisi dan Panduan Aplikasi Pelanggan. Di web, mereka hanya membuka halaman masuk, lupa kata sandi, profil (termasuk 2FA), dan halaman hasil pembayaran. Di halaman profil, tautan **Kembali ke halaman aplikasi** membawa mereka kembali. Akun yang juga memegang peran lain, misalnya admin, manajer, atau staf, tidak dialihkan.
 
@@ -17,9 +17,9 @@ Teknisi dan pelanggan tidak memakai web. Akun yang hanya berperan teknisi atau p
 - Nama menu, tombol, tab, dan isian ditulis tebal persis seperti tulisan di layar. Semua layar Inbils berbahasa Indonesia. Singkatan dan nama produk berikut tidak diterjemahkan: SPK, ODN, ODP, OLT, PON, NAS, IP, CIDR, MAC, VLAN, SLA, MRR, KPI, SKU, RADIUS, Midtrans, WhatsApp, 2FA, dan Email.
 - Gambar diambil dari data contoh "Inbils Demo Company" dengan login admin. Data dan tombol di layar Anda bisa berbeda, terutama bila peran Anda bukan admin.
 - Setiap menu dimulai dengan tujuan dan peran yang dapat memakainya, disusul langkah bernomor dan daftar kesalahan umum.
-- Bab 9 menyusun alur kerja yang melewati beberapa menu. Bab 10 memuat tabel peran dan istilah.
+- Bab 9 menyusun alur kerja yang melewati beberapa menu. Bab 10 memuat tabel peran dan istilah. Bab 11 untuk operator platform Inbils dan tidak muncul di web perusahaan.
 
-Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memiliki izinnya. Minta admin menambahkannya di menu Peran (bagian 8.6). Bila Anda membuka halaman yang tidak diizinkan, Inbils menampilkan halaman **Akses ditolak** dengan pesan "Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya." Klik **Ke dasbor** untuk kembali.
+Bila menu yang disebut panduan tidak ada di sidebar Anda, peran Anda belum memiliki izinnya. Minta operator platform menambahkannya ke peran Anda, atau berikan peran lain di menu Pengguna (bagian 8.5 dan 8.6). Bila Anda membuka halaman yang tidak diizinkan, Inbils menampilkan halaman **Akses ditolak** dengan pesan "Anda tidak punya izin untuk membuka halaman ini. Hubungi administrator jika Anda memerlukan aksesnya." Klik **Ke dasbor** untuk kembali.
 
 ## 1.2 Masuk
 
@@ -336,7 +336,8 @@ Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin:
 5. Saat menu baru dibuka, pilihan **Status penugasan** tampak **Belum ditugaskan** (begitu pula chipnya) tetapi belum menyaring apa pun bagi pemegang izin assign dan reassign (admin dan manajer). Daftar memuat item yang belum dan sudah ditugaskan sekaligus. Pilih statusnya sendiri bila ingin menyaring.
 6. Baca tabel antrean.
    - Antrean memuat tiket berstatus **Terbuka** dan **Ditugaskan**, serta SPK berstatus **Draf**, **Menunggu penugasan**, **Ditolak**, dan **Ditugaskan**. Tiket dan SPK yang sudah dikerjakan tidak ada di sini.
-   - Kolom: **Kode** (kode sebagai tautan ke detail bila Anda boleh membukanya, dengan lencana **Tiket** atau **SPK** di bawahnya), **Judul dan kebutuhan** (judul, lalu "Kategori: ..." untuk tiket atau "Jenis: ..." untuk SPK, dan tanda "SLA terlampaui" bila batas SLA lewat), **Pemohon atau pelanggan** (nama dan kode pelanggan; SPK tanpa pelanggan menampilkan pembuatnya), **Prioritas dan umur** (lencana prioritas dan umur item, misalnya "5 jam lalu"), **Batas atau jadwal** ("SLA: ..." untuk tiket, "Jadwal: ..." untuk SPK), **Petugas saat ini** (nama petugas, atau tulisan "Belum ditugaskan"), dan **Tindakan** (tombol **Tugaskan** atau **Ganti petugas**).
+   - Kolom: **Kode** (kode sebagai tautan ke detail bila Anda boleh membukanya, dengan lencana **Tiket** atau **SPK** di bawahnya), **Judul dan kebutuhan** (judul, lalu "Kategori: ..." untuk tiket atau "Jenis: ..." untuk SPK, dan tanda "SLA terlampaui" bila batas SLA lewat), **Pemohon atau pelanggan** (nama dan kode pelanggan; SPK tanpa pelanggan menampilkan pembuatnya), **Prioritas dan umur** (lencana prioritas dan umur item, misalnya "5 jam lalu"), **Batas atau jadwal** ("SLA: ..." untuk tiket, "Jadwal: ..." untuk SPK), **Petugas saat ini** (nama petugas, atau tulisan "Belum ditugaskan"; SPK berstatus **Ditugaskan** yang teknisinya sudah menekan **Saya berangkat** di aplikasi menampilkan lencana **Dalam perjalanan** di bawah nama teknisi), dan **Tindakan** (tombol **Tugaskan** atau **Ganti petugas**).
+   - Lencana **Dalam perjalanan** bukan status dan bukan filter. SPK tetap berstatus **Ditugaskan** dan tetap ada di antrean sampai teknisi menekan **Mulai**. Lencana hilang bila SPK dipindah ke teknisi lain, atau dikembalikan lalu ditugaskan lagi.
    - Judul kolom **Kode**, **Judul dan kebutuhan**, dan **Prioritas dan umur** bisa diurutkan. Urutan awal: terbaru di atas.
    - Tanpa data, tabel menampilkan "Tidak ada antrean penugasan" dan "Semua tiket dan SPK sudah punya petugas.". Bila filter aktif, tabel menampilkan "Tidak ada antrean yang cocok" dengan tombol **Reset filter**.
 7. Bila akun Anda juga memenuhi syarat **Pekerjaan Saya** (bagian 3.6), dua tab muncul di atas chip: **Antrean Penugasan** dan **Pekerjaan Saya**. Tab **Pekerjaan Saya** membuka daftar tugas Anda di halaman yang sama.
@@ -435,7 +436,7 @@ Hasil setiap keputusan:
 
 SPK (Surat Perintah Kerja) adalah perintah kerja lapangan untuk teknisi. Jenisnya **Instalasi** (pemasangan baru), **Perawatan** (perbaikan), **Peningkatan layanan** (naik paket), dan **Pindah lokasi**. Buka menu ini untuk membuat SPK, menugaskan teknisi, memeriksa material dan bukti kerja, lalu menyetujui hasilnya.
 
-Teknisi mengerjakan SPK di aplikasi teknisi: memulai, mencatat material, mengunggah foto, dan mengajukan hasil. Halaman SPK di web punya tombol yang sama, tetapi server hanya menerimanya dari teknisi yang ditugaskan pada SPK itu.
+Teknisi mengerjakan SPK di aplikasi teknisi: berangkat (**Saya berangkat**), memulai, mencatat material, mengunggah foto, dan mengajukan hasil. Halaman SPK di web punya tombol **Mulai** dan **Ajukan review**, tetapi server hanya menerimanya dari teknisi yang ditugaskan pada SPK itu. **Saya berangkat** hanya ada di aplikasi. Web menampilkannya sebagai langkah **Dalam perjalanan** di kartu **Tahap kunjungan** (bagian di bawah) dan sebagai lencana di Penugasan (bagian 3.1).
 
 Peran yang dapat memakai: admin, manajer, staf. Izin `spk.view` membuka menu dan daftar, `spk.create` membuat SPK, `spk.export` mengekspor daftar. Dengan peran bawaan:
 
@@ -469,7 +470,7 @@ SPK dari **Buat SPK** berstatus **Draf** dan bersumber manual. SPK dari pendafta
 |---|---|---|---|
 | **Draf** | SPK baru, belum siap | **Terbitkan**, atau langsung **Tugaskan** | **Terbitkan**: `spk.update`. **Tugaskan**: `spk.assign` |
 | **Menunggu penugasan** | Siap ditugaskan | **Tugaskan** | `spk.assign` |
-| **Ditugaskan** | Teknisi sudah ditunjuk | **Mulai** | Teknisi yang ditugaskan |
+| **Ditugaskan** | Teknisi sudah ditunjuk. Setelah teknisi menekan **Saya berangkat** di aplikasi, status tetap **Ditugaskan** dan kartu **Tahap kunjungan** menunjukkan **Dalam perjalanan** | **Mulai** | Teknisi yang ditugaskan |
 | **Dikerjakan** | Teknisi bekerja di lokasi | **Ajukan review** | Teknisi yang ditugaskan |
 | **Menunggu review** | Hasil menunggu tinjauan | **Setujui** atau **Tolak** | `spk.approve` atau `spk.reject`, bukan pembuat dan bukan teknisi SPK |
 | **Ditolak** | Ditolak, alasan tampil di **Alasan penolakan** | **Tugaskan** ulang untuk kerja ulang | `spk.reassign` |
@@ -507,11 +508,25 @@ SPK dari pendaftaran pelanggan baru berjenis **Instalasi** dan berjudul "Pemasan
 2. Baca halaman dari atas ke bawah:
    - Judul halaman memuat judul SPK, dengan nomor SPK di bawahnya. Tombol **Kembali** kembali ke daftar.
    - Kartu **Rincian** memuat **Status** dan **Jenis** (lencana), **Prioritas** (lencana), **Pelanggan**, **Langganan**, **Lokasi**, **Teknisi**, **Jadwal**, **Dimulai**, **Check-in**, dan **Selesai**. **Deskripsi**, **Hasil**, dan **Alasan penolakan** tampil bila terisi.
-   - Baris **Check-in** menunjukkan jarak dari lokasi pekerjaan bila aplikasi teknisi mencatat lokasi saat memulai, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in". Baris **Port drop** (ODP dan nomor port yang dicadangkan untuk pelanggan, bagian 5.5) tampil pada SPK **Instalasi** yang punya langganan, bagi pemegang `odn.view`.
+   - Baris **Lokasi** menunjukkan POP atau gudang SPK, bukan alamat pelanggan. Baris **Check-in** menunjukkan jarak ke alamat pemasangan pelanggan (ke **Lokasi** bila SPK tanpa langganan) bila aplikasi teknisi mencatat lokasi saat memulai, atau alasan lokasi tidak tersedia. Tanpa catatan, tertulis "Belum ada check-in". Baris **Port drop** (ODP dan nomor port yang dicadangkan untuk pelanggan, bagian 5.5) tampil pada SPK **Instalasi** yang punya langganan, bagi pemegang `odn.view`.
    - Kartu **Tindakan** memuat tombol langkah berikut sesuai status. Pada gambar, SPK berstatus **Menunggu penugasan**, jadi hanya **Tugaskan** dan **Batalkan** yang tampil.
+   - Kartu **Tahap kunjungan** di bawah **Tindakan** menunjukkan empat langkah kunjungan dengan waktunya (bagian **Tahap kunjungan** di bawah).
    - Kartu **Item** (kolom **Barang**, **Aset jaringan**, **Satuan**, **Dicadangkan**, **Terpakai**, **Catatan**), **Bukti**, dan **Riwayat penugasan** (kolom **Teknisi**, **Ditugaskan**, **Dicabut**).
 
 Tombol **Setujui** dan **Tolak** hanya tampil bagi pemegang `spk.approve` dan `spk.reject`. Tombol lain tampil menurut status saja, dan server memeriksa izinnya saat tombol ditekan.
+
+### Tahap kunjungan
+
+Kartu **Tahap kunjungan** di kolom kanan halaman SPK menunjukkan jalannya kunjungan dalam empat langkah, dari atas ke bawah: **Ditugaskan**, **Dalam perjalanan**, **Sedang dikerjakan**, dan **Selesai dipasang**. Teknisi yang menekan **Saya berangkat** di aplikasi mengisi langkah kedua. Kartu ini hanya dibaca, dan tidak punya tombol.
+
+- Langkah yang sudah dilalui memakai ikon centang dan menulis waktunya dalam format tanggal perusahaan. Langkah yang sedang berjalan memakai ikon bertitik dan menulis "Tahap sekarang," diikuti waktunya. Langkah yang belum tercapai memakai lingkaran kosong dan menulis "Belum dicapai". Ikon dan tulisan membawa artinya, bukan warna saja.
+- Langkah yang sudah dilalui tanpa waktu menulis "waktu tidak tercatat". Ini wajar untuk SPK lama, atau bila teknisi langsung menekan **Mulai** tanpa **Saya berangkat**.
+- **Selesai dipasang** tercapai saat teknisi mengirim hasil kerja (status **Menunggu review**) dan tetap tercentang setelah status **Selesai**. Waktunya adalah waktu pengiriman pertama pada kunjungan itu.
+- SPK **Ditolak** menaruh lencana **Perlu perbaikan** di langkah **Sedang dikerjakan**, dan **Selesai dipasang** kembali "Belum dicapai".
+- Bila SPK ditugaskan ulang (kepada teknisi lain, atau setelah ditolak), kartu mulai lagi dari **Ditugaskan** dengan waktu penugasan yang baru. Waktu berangkat dan waktu selesai dipasang dari kunjungan sebelumnya tidak tampil lagi.
+- SPK **Dibatalkan** mengganti keempat langkah dengan tulisan **Dibatalkan**. SPK **Draf** dan **Menunggu penugasan** menampilkan keempat langkah "Belum dicapai".
+
+Pelanggan melihat langkah yang sama di aplikasinya (bagian **Kunjungan teknisi** di panduan aplikasi pelanggan) dan menerima notifikasi "Teknisi dalam perjalanan" saat langkah kedua terisi.
 
 ### Menugaskan teknisi
 
@@ -530,7 +545,7 @@ Untuk mengganti teknisi SPK berstatus **Ditugaskan**, pakai Penugasan (bagian 3.
 
 ### Memulai dan mengajukan SPK
 
-Teknisi melakukan kedua langkah ini di aplikasi teknisi. Di web, langkah yang sama ada di halaman SPK dan di Pekerjaan Saya (bagian 3.6).
+Teknisi melakukan kedua langkah ini di aplikasi teknisi, sesudah **Saya berangkat** yang hanya ada di aplikasi. Di web, **Mulai** dan **Ajukan review** ada di halaman SPK dan di Pekerjaan Saya (bagian 3.6).
 
 1. Buka SPK berstatus **Ditugaskan**.
 2. Klik **Mulai**. Dialog **Mulai SPK** terbuka.
@@ -779,23 +794,24 @@ Setiap 15 menit sistem memeriksa tiket yang lewat **Target penyelesaian** dan me
 
 ### Kategori Tiket
 
-Kategori Tiket menyimpan target cadangan untuk tiket yang tidak bisa memakai tingkat SLA, yaitu tiket tanpa **Langganan** atau dengan paket yang tingkatnya nonaktif. Buka layar ini saat Anda ingin mengubah jam target kategori, mengganti namanya, atau menonaktifkannya.
+Kategori Tiket menyimpan target cadangan untuk tiket yang tidak bisa memakai tingkat SLA, yaitu tiket tanpa **Langganan** atau dengan paket yang tingkatnya nonaktif. Kategori juga menyimpan **Saran untuk pelanggan**, teks yang dibaca pelanggan di aplikasi sebelum ia membuat tiket. Buka layar ini saat Anda ingin mengubah jam target kategori, mengganti namanya, menonaktifkannya, atau menulis saran untuknya.
 
 Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin: `ticket.category.manage`. Tanpa izin ini menu tidak tampil dan alamat `/admin/ticket-categories` ditolak dengan halaman **Akses ditolak**.
 
 1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Kategori Tiket** (di bawah **Tingkat SLA**).
 2. Baca daftar. Subjudulnya menyebut bahwa target ini cadangan untuk tiket tanpa langganan atau tanpa tingkat SLA aktif, dan bahwa tiket urgent memakai setengah dari target (dibulatkan ke atas). Kolomnya **Kode**, **Nama**, **Target respons (jam)**, **Target penyelesaian (jam)**, **Status** (lencana **Aktif** atau **Nonaktif**), dan **Aksi** (hanya bagi pemegang izin). Daftar kosong menulis "Belum ada kategori tiket untuk perusahaan ini."
 
-   ![Dialog Ubah kategori di atas daftar Kategori Tiket, dengan isian Nama, Target respons (jam), Target penyelesaian (jam), saklar Aktif, serta tombol Batal dan Simpan](images/web/ticket-categories-edit.png)
+   ![Dialog Ubah kategori di atas daftar Kategori Tiket, dengan isian Nama, Target respons (jam), Target penyelesaian (jam), saklar Aktif, Saran untuk pelanggan, serta tombol Batal dan Simpan](images/web/ticket-categories-edit.png)
 
 3. Klik **Ubah** pada sebuah baris. Dialog **Ubah kategori** diikuti kode kategori terbuka dengan isian berikut:
    - **Nama**: wajib.
    - **Target respons (jam)**: wajib, bilangan bulat 1 sampai 720, tidak boleh melebihi target penyelesaian.
    - **Target penyelesaian (jam)**: wajib, bilangan bulat 1 sampai 720. Keterangan di bawah isian menulis "Hanya berlaku untuk tiket baru."
    - **Aktif**: saklar. Kategori nonaktif tidak muncul di pilihan **Kategori** pada form tiket.
+   - **Saran untuk pelanggan**: opsional, teks bebas maksimal 500 karakter dengan penghitung di keterangan ("Tampil di aplikasi pelanggan saat memilih kategori ini. Kosongkan jika tidak perlu."). Tulis langkah singkat yang bisa dicoba pelanggan sebelum membuat tiket, misalnya cara memeriksa lampu modem. Baris baru ikut tampil. Mengosongkan isian menghapus saran, dan aplikasi lalu menampilkan tiga langkah umum: cek lampu modem, cabut listrik modem 30 detik, cek kabel di modem.
 4. Klik **Simpan**. Muncul toast "Kategori tiket diperbarui." Klik **Batal** untuk menutup dialog tanpa menyimpan.
 
-Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode kategori tidak bisa diubah. Pesan "Target respons tidak boleh lebih lama dari target penyelesaian." muncul bila target respons lebih besar dari target penyelesaian.
+Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode kategori tidak bisa diubah. Pesan "Target respons tidak boleh lebih lama dari target penyelesaian." muncul bila target respons lebih besar dari target penyelesaian. Pesan "saran untuk pelanggan tidak boleh lebih dari 500 karakter." di bawah **Saran untuk pelanggan** berarti isinya kepanjangan. Kolom daftar tidak menampilkan saran: buka **Ubah** untuk membacanya.
 
 ### Kesalahan umum
 
@@ -806,7 +822,7 @@ Layar ini tidak punya tombol untuk menambah atau menghapus kategori, dan kode ka
 - **Tutup** tidak tampil: tiket belum **Diselesaikan**, Anda tidak memegang `ticket.close`, atau Anda petugas tiket itu. Server juga menolak penutupan oleh petugas tiket itu dengan halaman **Akses ditolak**. Minta pemegang `ticket.close` lain menutupnya.
 - "catatan penyelesaian wajib diisi." atau "catatan penyelesaian tidak boleh lebih dari 1000 karakter." di dialog **Selesaikan tiket**: isi atau ringkas catatannya.
 - **Buat SPK** tidak tampil atau ditolak: tiket harus **Ditugaskan** atau **Dikerjakan**, belum punya catatan penyelesaian, dan belum pernah melahirkan SPK. Server menolak dengan "SPK sudah dibuat dari tiket ini." bila SPK sudah ada. Anda juga butuh `ticket.spawn_spk`.
-- **Tambah komentar** atau unggah lampiran ditolak untuk manajer bawaan (halaman **Akses ditolak**): peran itu tidak memegang `ticket.comment.create` dan `ticket.attachment.upload`. Minta admin menambahkannya di Peran (bagian 8.6).
+- **Tambah komentar** atau unggah lampiran ditolak untuk manajer bawaan (halaman **Akses ditolak**): peran itu tidak memegang `ticket.comment.create` dan `ticket.attachment.upload`. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang sudah memegangnya.
 - Komentar kosong atau lebih dari 2000 karakter menampilkan "isi pesan wajib diisi." atau "isi pesan tidak boleh lebih dari 2000 karakter." di bawah **Komentar**.
 - "judul wajib diisi." di **Judul** atau "kategori wajib diisi." di **Kategori** pada form buat: isi keduanya.
 - Pesan "Langganan bukan milik pelanggan yang dipilih." di **Langganan**, atau "Aset jaringan bukan milik pelanggan yang dipilih." dan "Aset jaringan bukan milik langganan yang dipilih." di **Aset jaringan**: pilihan tidak cocok satu sama lain. Daftar pilihan sudah dipersempit menurut pelanggan dan langganan yang Anda pilih, jadi pesan ini jarang muncul. Pilih langganan dan aset milik pelanggan yang sama.
@@ -1386,6 +1402,124 @@ Sebuah tingkat memengaruhi tiket seperti ini:
 - Target respons ditolak dengan pesan `Target respons tidak boleh lebih lama dari target penyelesaian.`: turunkan target respons atau naikkan target penyelesaian.
 - Penyimpanan ditolak dengan pesan `nama sudah digunakan.`: **Nama** sudah dipakai tingkat lain di perusahaan ini.
 - Tingkat yang masih dipakai paket bisa dihapus tanpa peringatan. Untuk berhenti memakainya, matikan **Aktif** saja.
+
+## 4.6 Pengumuman & Promo
+
+Menu ini mengelola dua jenis isi untuk pelanggan: **pengumuman** (informasi, gangguan, pemeliharaan) dan **banner promo** (gambar dengan tautan). Buka menu ini saat ada gangguan atau jadwal pemeliharaan yang perlu diumumkan, atau saat ISP punya promo untuk pelanggan. Isinya bisa ditujukan ke semua pelanggan atau dipersempit menurut lokasi dan kategori paket.
+
+Peran yang dapat memakai: admin dan manajer pada peran bawaan, staf tidak. Izin: `announcement.manage` (**Kelola pengumuman dan banner promo**). Tanpa izin ini menu **Pengumuman & Promo** tidak tampil di sidebar, dan alamat `/admin/announcements` ditolak dengan halaman **Akses ditolak**. Menunya ada di paling bawah grup **Pelanggan & Layanan**, di bawah **Kategori Tiket**. Semua isi berlaku untuk perusahaan yang sedang aktif (bagian 1.6).
+
+Aplikasi pelanggan menggambar kartu pengumuman di atas kartu layanan (Gangguan dan Pemeliharaan) atau di bawah bagian Sedang berjalan (Info), dan carousel banner di bawahnya. Pratinjau di layar ini meniru tampilan itu.
+
+### Membuka dan membaca daftar
+
+1. Di sidebar, buka grup **Pelanggan & Layanan**, lalu klik **Pengumuman & Promo**.
+2. Pilih tab **Pengumuman** atau **Banner promo**. Angka di dalam kurung adalah jumlah semua isinya di perusahaan ini, apa pun statusnya.
+3. Baca daftar. Kotak **Cari** (isian "Judul") mencari judul, dan filter **Status** berisi **Semua status**, **Draf**, **Terjadwal**, **Tayang**, **Selesai** dan **Nonaktif**. Pindah tab mengosongkan pencarian dan filter. Daftar menampilkan 10 baris per halaman.
+   - Tab **Pengumuman**: kolom **Pengumuman** (judul dan dua baris pertama isi), **Jenis**, **Status**, **Periode**, **Sasaran** dan **Aksi**.
+   - Tab **Banner promo**: kolom **Banner** (gambar kecil, judul, dan tujuan tautan), **Status**, **Periode**, **Sasaran**, **Urutan**, **Ketukan** dan **Aksi**. Daftar diurutkan menurut **Urutan**, lalu yang terbaru.
+   - Kolom **Aksi** hanya tampil bagi pemegang `announcement.manage`.
+
+   ![Layar Pengumuman & Promo dengan tab Pengumuman dan Banner promo, kotak Cari, filter Status, dan tombol Buat Pengumuman](images/web/announcements.png)
+
+Status dihitung server dari waktu terbit, saklar aktif, dan periode tayang:
+
+| Status | Arti | Tampil ke pelanggan |
+| --- | --- | --- |
+| Draf | Disimpan, belum diterbitkan. | Tidak |
+| Terjadwal | Sudah diterbitkan, tetapi **Mulai tayang** belum tiba. | Tidak, sampai jadwal tiba |
+| Tayang | Sudah diterbitkan dan berada di dalam periode. | Ya |
+| Selesai | Sudah diterbitkan dan **Selesai tayang** sudah lewat. Tetap ada sebagai riwayat. | Tidak |
+| Nonaktif | Diterbitkan lalu dinonaktifkan. Tetap ada sebagai riwayat. | Tidak |
+
+Kolom **Sasaran** menulis **Semua pelanggan**, atau **Pelanggan tertentu** diikuti daftar lokasi dan kategori ("Lokasi: A, B dan 2 lainnya"). Sasaran tertentu yang daftarnya sudah kosong menulis "Sasaran kosong, tidak tampil ke siapa pun."
+
+### Membuat pengumuman
+
+1. Di tab **Pengumuman**, klik **Buat Pengumuman**. Dialog **Buat Pengumuman** terbuka dengan formulir di kiri dan **Pratinjau di aplikasi pelanggan** di kanan (di bawahnya pada layar sempit).
+2. Isi formulir:
+   - **Jenis**: **Informasi**, **Gangguan** atau **Pemeliharaan**. Keterangan di bawah isian menjelaskan efeknya. **Gangguan** dan **Pemeliharaan** dirancang tampil paling atas dengan nada peringatan dan mengirim notifikasi ke pelanggan sasaran. **Informasi** hanya tampil.
+   - **Judul**: wajib, maksimal 120 karakter.
+   - **Isi**: wajib, maksimal 2000 karakter. Teks biasa, baris baru ikut tampil.
+   - **Sasaran**, **Mulai tayang** dan **Selesai tayang**: lihat "Sasaran dan jadwal" di bawah.
+3. Klik **Simpan**. Pengumuman tersimpan sebagai **Draf** (toast "Pengumuman disimpan sebagai draf.") dan belum terlihat oleh pelanggan. Periksa pratinjaunya, lalu terbitkan (lihat "Menerbitkan, mengubah, dan menonaktifkan").
+
+![Dialog Buat Pengumuman dengan isian Jenis, Judul, Isi, Sasaran, Mulai tayang dan Selesai tayang di kiri, serta pratinjau ponsel di kanan](images/web/announcements-create.png)
+
+### Membuat banner promo
+
+1. Di tab **Banner promo**, klik **Buat Banner Promo**. Dialog **Buat Banner Promo** terbuka.
+2. Isi formulir:
+   - **Gambar**: wajib untuk banner baru. Seret berkas ke kotak atau klik untuk memilih. Pakai JPG, PNG atau WebP, paling besar 2 MB, dengan rasio lebar banding tinggi 2:1 (disarankan 1200 x 600 piksel). Rasio boleh meleset paling banyak 5%. Layar memeriksa ukuran begitu berkas dipilih dan menolak yang tidak cocok, misalnya "Gambar ini 1000 x 600 piksel. Rasio harus 2:1 dengan selisih paling banyak 5%, misalnya 1200 x 600." Server mengulang pemeriksaan yang sama. Pada banner yang sudah ada, kosongkan **Gambar** untuk mempertahankan gambar lama.
+   - **Judul**: wajib, maksimal 80 karakter. Tampil sebagai keterangan di bawah gambar.
+   - **Teks alternatif**: wajib, maksimal 200 karakter. Dibacakan pembaca layar. Tulis isi gambar, misalnya "Diskon 20% pemasangan baru sampai 31 Oktober".
+   - **Saat banner diketuk**: **Tanpa tautan**, **Halaman di aplikasi** atau **Tautan web**. Untuk **Halaman di aplikasi**, pilih salah satu dari **Tagihan**, **Langganan**, **Buat tiket** atau **Kunjungan**. Untuk **Tautan web**, isi **Alamat tautan** yang diawali `https://` (maksimal 500 karakter). Alamat web dibuka di peramban ponsel.
+   - **Urutan**: angka 0 sampai 65535, isian awal 0. Banner dengan angka kecil tampil lebih dulu. Angka yang sama diurutkan dari yang terbaru.
+   - **Sasaran**, **Mulai tayang** dan **Selesai tayang**: lihat bagian berikut.
+3. Klik **Simpan**. Banner tersimpan sebagai **Draf** (toast "Banner promo disimpan sebagai draf."). Selama gambar diunggah, bilah **Mengunggah gambar** menunjukkan kemajuan. Gambar banner bersifat privat: hanya pelanggan perusahaan yang sama dan yang cocok dengan sasaran yang bisa memuatnya lewat aplikasi.
+
+Aplikasi pelanggan menerima paling banyak 5 banner yang sedang tayang, diurutkan menurut **Urutan** lalu yang terbaru. Carousel dirancang berganti slide tiap 5 detik. Server tidak menolak banner keenam: banner di luar 5 teratas hanya tidak ikut tampil, dan dialog banner menulis peringatan "Dengan urutan ini banner tidak masuk 5 banner pertama, jadi belum tampil di aplikasi." Nonaktifkan banner lama atau beri **Urutan** lebih kecil bila ingin banner baru ikut tampil.
+
+### Sasaran dan jadwal
+
+**Sasaran** menentukan pelanggan yang menerima isi itu:
+
+- **Semua pelanggan**: seluruh pelanggan perusahaan aktif.
+- **Pelanggan tertentu**: muncul pilihan **Lokasi** dan **Kategori paket**. Ketik nama lokasi di **Lokasi** lalu pilih untuk menambahkannya. Lokasi yang dipilih ikut menyertakan semua lokasi di bawahnya, jadi memilih sebuah area mencakup semua POP di dalamnya. Pilih kategori di **Kategori paket**, misalnya **Rumahan** atau **Bisnis** (bagian 4.2). Tombol silang di samping tiap pilihan menghapusnya. Sasaran tertentu wajib punya minimal satu lokasi atau satu kategori. Kalau tidak, server menolak dengan "Pilih minimal satu lokasi atau kategori paket."
+
+Pelanggan cocok bila salah satu langganannya berstatus **Aktif** atau **Ditangguhkan** dan memenuhi semua daftar yang diisi. Dalam satu daftar cukup satu pilihan yang cocok. Contoh: **Lokasi** berisi dua area dan **Kategori paket** berisi **Bisnis**, maka yang cocok adalah pelanggan dengan langganan paket Bisnis yang dilayani POP di salah satu area itu. Bila lokasi atau kategori sasaran kemudian dihapus dari data hingga daftarnya kosong, item itu tidak menjadi tampil ke semua orang. Ia tidak cocok dengan siapa pun.
+
+**Mulai tayang** wajib dan **Selesai tayang** boleh kosong. Keduanya dipilih dengan pemilih tanggal dan jam, menurut zona waktu perusahaan. **Mulai tayang** bernilai awal saat dialog dibuka. Waktu mulai di masa depan membuat item berstatus **Terjadwal** setelah diterbitkan. **Selesai tayang** kosong berarti tayang sampai dinonaktifkan ("Kosongkan agar tayang sampai dinonaktifkan."). Bila diisi, harus sesudah **Mulai tayang**.
+
+### Pratinjau ponsel
+
+Panel **Pratinjau di aplikasi pelanggan** berupa bingkai ponsel yang mengikuti isian formulir saat Anda mengetik, tanpa menyimpan apa pun. Panel punya saklar **Terang** dan **Gelap** sendiri yang awalnya mengikuti tema halaman web.
+
+- Pengumuman: satu kartu dengan ikon, judul, isi, dan periode. **Gangguan** dan **Pemeliharaan** memakai nada peringatan, **Informasi** memakai nada info.
+- Banner: carousel gambar 2:1 dengan keterangan, titik halaman, dan tombol sebelumnya atau berikutnya. Banner yang sedang Anda buat tampil di antara banner yang sudah tayang, dengan urutan yang dipakai aplikasi.
+
+Pratinjau memakai warna dan susunan yang dirancang untuk aplikasi, bukan tangkapan layar aplikasi yang terpasang.
+
+### Menerbitkan, mengubah, dan menonaktifkan
+
+Kolom **Aksi** memuat tombol menurut status baris:
+
+| Status | Tombol |
+| --- | --- |
+| Draf | **Ubah**, **Terbitkan**, **Hapus** |
+| Terjadwal, Tayang | **Ubah**, **Nonaktifkan** |
+| Selesai, Nonaktif | **Ubah** |
+
+1. **Terbitkan**: dialog **Terbitkan pengumuman {judul}?** (atau **Terbitkan banner {judul}?**) menjelaskan efeknya. Klik **Terbitkan**. Toast "Pengumuman diterbitkan." atau "Banner promo diterbitkan." Setelah terbit, item tidak bisa dihapus, hanya dinonaktifkan. Banner tanpa gambar tidak bisa diterbitkan ("Gambar banner wajib tersedia."). Pengumuman yang **Selesai tayang**-nya sudah lewat juga ditolak ("Periode pengumuman sudah berakhir."). Ubah tanggalnya dulu.
+2. **Ubah**: dialog **Ubah Pengumuman** atau **Ubah Banner Promo**. Keterangan di bawah judul dialog menyebut efek simpan menurut status. Draf disimpan sebagai draf. Item yang sudah terbit, baik **Terjadwal** maupun **Tayang**, langsung berlaku begitu disimpan. Item **Selesai** tayang lagi bila **Selesai tayang** diubah ke waktu yang akan datang. Item **Nonaktif** bisa disimpan, tetapi tidak tampil lagi.
+3. **Nonaktifkan**: dialog **Nonaktifkan pengumuman {judul}?** berbunyi "Tidak tampil lagi di aplikasi pelanggan. Riwayatnya tetap tersimpan, tetapi pengumuman ini tidak bisa diaktifkan lagi. Buat pengumuman baru bila perlu." Klik **Nonaktifkan** untuk melanjutkan. Tidak ada tombol untuk mengaktifkan kembali, jadi buat item baru bila perlu.
+4. **Hapus** (hanya draf): dialog **Hapus draf pengumuman {judul}?** berbunyi "Draf dihapus permanen." Klik **Hapus draf**. Item yang pernah diterbitkan tidak bisa dihapus, supaya riwayat dan tautan notifikasi tetap valid. Server menolak dengan "Pengumuman terbit hanya dapat dinonaktifkan." atau "Banner terbit hanya dapat dinonaktifkan."
+
+Pembuatan, perubahan, penerbitan, penonaktifan, dan penghapusan tercatat di Log audit (bagian 7.12) dengan modul `announcement`, hanya berisi nomor item. Gambar banner yang sudah selesai tayang lebih dari 180 hari dihapus otomatis setiap hari. Baris banner dan jumlah ketukannya tetap ada.
+
+### Notifikasi Gangguan dan Pemeliharaan
+
+Pengumuman berjenis **Gangguan** dan **Pemeliharaan** mengirim satu notifikasi ke aplikasi tiap pelanggan sasaran yang punya akun masuk aktif. Notifikasi tampil di lonceng aplikasi dengan judul "Pengumuman baru" dan judul pengumuman sebagai isinya.
+
+- Bila Anda menerbitkan setelah **Mulai tayang** tiba, notifikasi dikirim saat itu juga.
+- Bila **Mulai tayang** masih di depan (status **Terjadwal**), notifikasi dikirim saat jadwal tiba. Penjadwal memeriksanya tiap menit, jadi notifikasi bisa terlambat sekitar satu menit.
+- Tiap pelanggan menerima satu notifikasi per pengumuman. Mengubah pengumuman sesudahnya tidak mengirim notifikasi lagi.
+- **Informasi** dan banner promo tidak pernah mengirim notifikasi. Tidak ada WhatsApp untuk pengumuman.
+- Pengiriman memakai antrean. Antrean dan penjadwal harus berjalan di server. Hubungi pengelola server bila notifikasi tidak muncul.
+
+### Jumlah ketukan banner
+
+Kolom **Ketukan** di tab **Banner promo** menghitung berapa kali pelanggan mengetuk banner. Satu pelanggan dihitung satu kali per banner per hari, berapa pun ketukannya. Aplikasi tidak mencatat berapa kali banner terlihat, jadi angka ini bukan jumlah tayangan.
+
+### Kesalahan umum
+
+- Pesan "Pilih minimal satu lokasi atau kategori paket." di bawah **Sasaran**: Anda memilih **Pelanggan tertentu** tanpa menambahkan lokasi atau kategori. Tambahkan minimal satu, atau ganti ke **Semua pelanggan**.
+- Pesan "Rasio gambar banner harus 2:1 dengan toleransi 5%." atau teks "Gambar ini ... piksel" di bawah **Gambar**: ukuran gambar tidak mendekati 2:1. Potong gambar menjadi 1200 x 600 piksel. Berkas lebih dari 2 MB, atau selain JPG, PNG dan WebP, juga ditolak di kotak yang sama.
+- Pesan "Tujuan tautan wajib diisi." atau "Tautan harus memakai HTTPS.": pilih halaman di aplikasi atau isi alamat yang diawali `https://`. Pesan "Tujuan tautan harus kosong tanpa tautan." berarti **Saat banner diketuk** masih **Tanpa tautan** padahal alamat terisi.
+- Pesan "selesai harus berupa tanggal setelah mulai." di bawah **Selesai tayang**: pilih waktu sesudah **Mulai tayang**, atau kosongkan.
+- Pelanggan tidak melihat isi yang berstatus **Tayang**: periksa **Sasaran** (pelanggan harus punya langganan **Aktif** atau **Ditangguhkan** di lokasi atau kategori itu). Untuk banner, periksa juga urutannya: hanya 5 teratas yang dikirim ke aplikasi.
+- Banner atau pengumuman tidak bisa diaktifkan lagi setelah **Nonaktifkan**. Aturan ini disengaja. Buat item baru.
+- Notifikasi **Gangguan** tidak sampai: pelanggan harus punya akun masuk yang aktif dan cocok dengan sasaran, dan antrean serta penjadwal harus berjalan.
 
 # 5. Jaringan
 
@@ -2212,7 +2346,7 @@ Barang yang sudah dihapus hilang dari daftar dan tidak bisa dipulihkan dari laya
 - Isian **Satuan** tidak bisa diketik: satuan mengikuti kategori. Pilih kategori lain, atau ubah satuan kategorinya (bagian 6.3).
 - Barang tidak ada di pilihan **Barang** pada Stok: saklar **Aktif** barang mati.
 - **Hapus** ditolak padahal barang tampak tidak dipakai: salah satu lokasi masih punya stok lebih dari 0. Cek kartu **Stok per Lokasi** di rincian.
-- Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): pada peran bawaan, izin `inventory.delete` hanya dipegang admin. Minta admin menambahkannya lewat peran (bagian 8.6 dan 8.7).
+- Staf atau manajer memilih **Hapus** dan muncul halaman **Akses ditolak** (galat 403): pada peran bawaan, izin `inventory.delete` hanya dipegang admin. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
 - Tombol **Ekspor** tidak ada: staf tidak memegang `inventory.export`.
 
 ## 6.3 Kategori
@@ -2560,7 +2694,7 @@ Bila permintaan memakai **Rujukan (opsional)** **SPK**, berkasnya terhubung ke S
 
 ### Kesalahan umum
 
-- Tab **Antrean Pengembalian** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin menambahkan izin lihat di bagian 8.6 (Peran).
+- Tab **Antrean Pengembalian** tampil, tetapi daftar menampilkan kotak galat merah dengan tombol **Coba lagi**. Peran Anda memegang izin lapor, terima, atau selesaikan tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta operator platform menambahkan izin lihat ke peran (bagian 8.6) (Peran).
 - Tombol **Terima Pengembalian Fisik** dan **Tolak Fisik Barang** tidak muncul. Status berkas bukan **Menunggu penerimaan gudang**, Anda tidak memegang `inventory.return.receive`, atau Anda sendiri pemilik berkas. Minta pengguna lain menerimanya. Bila halaman sudah lama terbuka, server tetap menolak dengan pesan seperti `Maker-checker: teknisi pemilik barang tidak boleh menerima fisiknya sendiri di gudang.`
 - Tombol **Selesaikan Selisih** tidak muncul. Status berkas bukan **Selisih perlu penyelesaian**, Anda tidak memegang `inventory.return.resolve`, Anda pemilik berkas, atau Anda yang menerima fisiknya. Minta pengguna lain, misalnya manajer. Server menolak dengan `Teknisi tidak berhak menyelesaikan selisih barangnya sendiri.` atau `Penerima fisik gudang tidak boleh menyelesaikan selisih yang ia terima sendiri.`
 - Pesan `Jumlah tidak cocok pada baris <nomor>: diserahkan (...) harus sama dengan ...` muncul di kotak merah dialog bila angka satu barang tidak cocok dengan jumlah **Dikeluarkan**. Ubah angka di dialog sampai totalnya sama dengan **Dikeluarkan**.
@@ -3353,7 +3487,7 @@ Setelah **Simpan**:
 
 ## 8.1 Perusahaan
 
-Menu ini memuat identitas perusahaan yang sedang aktif dan pengaturan operasionalnya. Buka saat logo, kontak, tarif pajak, jatuh tempo tagihan, penangguhan otomatis, wilayah peta bawaan atau notifikasi WhatsApp perlu diubah.
+Menu ini memuat identitas perusahaan yang sedang aktif dan pengaturan operasionalnya. Buka saat logo, kontak (telepon, WhatsApp, jam layanan), warna merek untuk aplikasi, tarif pajak, jatuh tempo tagihan, penangguhan otomatis, wilayah peta bawaan atau notifikasi WhatsApp perlu diubah.
 
 Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak memegang izin ini, jadi item **Perusahaan** tidak tampil di sidebar mereka dan alamat layarnya ditolak. Perubahan berlaku untuk perusahaan yang sedang aktif; untuk berpindah perusahaan, lihat bagian 1.6.
 
@@ -3361,19 +3495,23 @@ Peran yang dapat memakai: admin. Izin: `company.manage`. Manajer dan staf tidak 
 
 1. Di sidebar, buka grup **Administrasi**, lalu klik **Perusahaan**. Layar **Perusahaan** terbuka dengan form profil dan tombol **Pengaturan** di kanan atas. Nama perusahaan tertulis sebagai judul kartu form.
 
-   ![Layar Perusahaan: form profil dengan isian Nama, Kode, Logo, Telepon, Email, Situs web dan Alamat](images/web/company-profile.png)
+   ![Layar Perusahaan: form profil dengan isian Nama, Kode, Logo, Telepon, WhatsApp, Email, Situs web, Alamat, Jam layanan dan Warna merek](images/web/company-profile.png)
 
 2. Isi form:
    - **Nama**: wajib, paling banyak 255 karakter.
-   - **Kode**: wajib, paling banyak 50 karakter, dan belum dipakai perusahaan lain. Contoh di demo: `DEMO`.
+   - **Kode**: hanya terbaca (tidak dapat diubah). Kode ditetapkan operator platform saat perusahaan dibuat dan dipakai untuk mengonfirmasi tindakan berisiko. Contoh di demo: `DEMO`.
    - **Logo**: opsional. Seret berkas ke kotak atau klik **telusuri**. Pakai JPG, PNG atau WebP, paling besar 10 MB. Berkasnya diubah menjadi WebP dan diperkecil bila sisi terpanjangnya lebih dari 512 piksel. Petunjuk di layar juga menyebut SVG, tetapi aturan `image` di server tidak mengizinkan SVG, jadi jangan memakainya. Logo baru menggantikan logo lama; tanpa berkas baru, logo lama tetap.
    - **Telepon**: opsional, paling banyak 50 karakter. Hanya angka 0 sampai 9 dan tanda `(`, `)`, `+`, `-`. Karakter lain terhapus saat Anda mengetik.
+   - **WhatsApp**: opsional, paling banyak 50 karakter, dengan karakter yang sama seperti **Telepon**. Keterangan di bawah isian: "Nomor tujuan tombol WhatsApp di aplikasi pelanggan." Tulis dengan kode negara, misalnya `6281234567890`. Aplikasi mengganti angka 0 di depan dengan 62 saat membuka WhatsApp. Ini nomor kontak ISP untuk pelanggan, bukan pengaturan pesan otomatis di **Pengaturan** (bagian di bawah).
    - **Email**: opsional, alamat e-mail yang valid, paling banyak 255 karakter.
    - **Situs web**: opsional, URL lengkap dengan awalan `https://`, paling banyak 255 karakter.
    - **Alamat**: opsional, paling banyak 1000 karakter.
+   - **Jam layanan**: opsional, teks bebas paling banyak 120 karakter. Contoh di isian: "Senin sampai Sabtu, 08.00 sampai 17.00". Keterangan di bawah isian: "Tampil di aplikasi pelanggan sebagai jam dukungan." Isian ini hanya teks. Ia tidak mengubah **Jam tenang mulai** dan **Jam tenang selesai** pada pengaturan WhatsApp.
+   - **Warna merek**: opsional. Pilih satu dari delapan bulatan warna (**Biru** `#2563EB`, **Hijau tosca** `#0F766E`, **Ungu** `#7C3AED`, **Merah muda** `#DB2777`, **Jingga** `#EA580C`, **Hijau** `#16A34A`, **Biru muda** `#0891B2`, **Abu kebiruan** `#334155`), atau ketik **Kode warna** dengan format `#RRGGBB`. Memilih bulatan mengisi **Kode warna**, dan mengetik kode yang sama dengan salah satu bulatan memilih bulatan itu. Kosongkan **Kode warna** untuk menghapus warna merek. Aplikasi pelanggan dan teknisi memakai warna ini untuk kartu utama, ikon, dan penanda menu. Tanpa warna merek, aplikasi memakai biru Inbils `#2563EB`.
+     - Di samping isian, kotak **Contoh teks putih** menunjukkan warna itu dengan teks putih, disusul tulisan "Kontras N:1" (misalnya "Kontras 5,17:1. Teks putih terbaca jelas."). Rasio di bawah 4,5:1 menampilkan peringatan kuning "Di bawah 4,5:1, teks putih sulit dibaca. Pilih warna lebih gelap." Dari delapan warna siap pakai, **Jingga** (3,56:1), **Hijau** (3,30:1) dan **Biru muda** (3,68:1) memicu peringatan itu. Peringatan hanya saran, simpan tetap bisa dilakukan.
 3. Klik **Simpan**. Selama logo diunggah, bilah **Mengunggah logo** menunjukkan kemajuan. Setelah berhasil, toast "Profil perusahaan diperbarui." muncul, dan nama serta logo di kepala sidebar ikut berubah.
 
-Layar profil tidak punya isian nomor WhatsApp, warna merek maupun jam layanan perusahaan.
+**Profil dan aplikasi.** Aplikasi pelanggan menampilkan **Telepon**, **WhatsApp**, **Email**, **Situs web** dan **Jam layanan** di kartu "Hubungi {nama perusahaan}" pada tab **Akun**, dan di lembar **Hubungi ISP** pada Beranda. Ketukan pada **WhatsApp** membuka wa.me, **Telepon** membuka pemanggil, **Email** membuka aplikasi email, dan **Situs web** membuka peramban. **Jam layanan** tampil sebagai teks. Isian yang kosong tidak tampil. Bila semuanya kosong, lembar **Hubungi ISP** mengarahkan pelanggan ke tab **Bantuan** untuk membuat tiket. Aplikasi teknisi memakai nama dan logo perusahaan di kepala Beranda. **Warna merek** dipakai kedua aplikasi. Aplikasi membaca semua isian ini dari server saat memuat data akun, jadi perubahan baru terlihat setelah aplikasi memuat ulang.
 
 ### Membuka dan mengubah pengaturan
 
@@ -3415,8 +3553,9 @@ Mata uang, zona waktu dan alamat Play Store aplikasi tidak punya isian di kedua 
 ### Kesalahan umum
 
 - Logo ditolak: pesan merah muncul di bawah kotak **Logo**, misalnya "logo harus berupa gambar." bila berkasnya SVG atau bukan gambar, dan "Ukuran logo tidak boleh lebih dari 10240 kilobita." bila lebih dari 10 MB. Toast "Data gagal disimpan. Periksa input." ikut muncul. Pakai JPG, PNG atau WebP, perkecil bila perlu, lalu unggah lagi.
-- **Kode** ditolak dengan "kode sudah digunakan.": kode itu sudah dipakai perusahaan lain. Pilih kode lain.
 - **Situs web** ditolak dengan "situs web harus berupa URL yang valid.": tulis URL lengkap, misalnya dengan awalan `https://`.
+- **WhatsApp** ditolak dengan "Nomor WhatsApp hanya boleh berisi angka dan karakter ( ) + -.", **Warna merek** ditolak dengan "Warna merek harus berupa kode warna heksadesimal seperti #2563EB.", dan **Jam layanan** ditolak bila lebih dari 120 karakter. Tulis ulang isiannya sesuai format di atas, atau kosongkan.
+- Peringatan kontras di bawah **Warna merek** (kuning, berbunyi "Di bawah 4,5:1, teks putih sulit dibaca. Pilih warna lebih gelap.") tidak menghalangi **Simpan**. Pilih warna yang lebih gelap bila ingin teks putih di atasnya terbaca jelas.
 - Kotak angka pada kartu **Tagihan** yang dikosongkan tersimpan sebagai kosong, dan sistem lalu memakai bawaannya (jatuh tempo 14 hari, tarif PPN bawaan sistem). **Batas keterlambatan (hari)**, **Batas pesan per bulan**, **Jam tenang mulai** dan **Jam tenang selesai** tidak boleh kosong: muncul pesan seperti "hari tunggakan penangguhan otomatis wajib diisi." di bawah isian.
 - Server tidak memeriksa rentang **Tarif PPN (%)** dan **Jatuh tempo tagihan (hari)**. Batas 0 sampai 100 dan 1 sampai 365 hanya ada pada isian di layar, jadi periksa angkanya sebelum menyimpan.
 - Pesan WhatsApp tidak terkirim padahal saklar aktif: periksa **Kredensial terkonfigurasi**, kotak centang jenis pesan, jam tenang, **Batas pesan per bulan** dan persetujuan WhatsApp di data pelanggan.
@@ -3616,7 +3755,7 @@ Berkas bernama `vehicles-export-<tanggal>-<jam>.csv` atau `.pdf` dan berisi kolo
 
 - Pesan "nomor polisi sudah digunakan." di bawah **Nomor polisi**: nomor itu sudah dipakai kendaraan lain, termasuk kendaraan yang sudah dihapus. Nomor yang sudah dihapus tetap dianggap terpakai, jadi untuk kendaraan yang berhenti dipakai matikan saklar **Aktif** lewat **Ubah**, jangan hapus.
 - Penyimpanan gagal dengan toast "Data gagal disimpan. Periksa input.": baca pesan merah di bawah isian. **Nomor polisi** menulis "nomor polisi wajib diisi." bila kosong, dan **Jenis**, **Merek**, **Model** menolak teks yang melewati batas panjangnya.
-- Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta admin menambahkannya (bagian 8.6 dan 8.7).
+- Tombol **Buat Kendaraan**, **Ubah** atau **Hapus** tidak tampil, atau server menolaknya: peran Anda belum memegang `vehicle.manage`. Minta operator platform menambahkannya ke peran (bagian 8.6), atau minta admin memberi Anda peran yang memegangnya (bagian 8.7).
 
 ## 8.5 Pengguna
 
@@ -3717,20 +3856,21 @@ Penghapusan ditolak bila pengguna dikreditkan sebagai pembawa pelanggan (bab 4),
 
 ## 8.6 Peran
 
-Menu ini mendaftar peran (kumpulan izin) dan membuat atau mengubah peran buatan sendiri. Buka saat seseorang memerlukan hak akses yang tidak cocok dengan lima peran bawaan.
+Menu ini mendaftar peran (kumpulan izin) dan menampilkan isi tiap peran, hanya untuk dibaca. Buka saat Anda perlu tahu hak akses apa yang dipegang sebuah peran sebelum memberikannya ke pengguna.
 
-Peran yang dapat memakai: admin. Izin: `roles.manage` (daftar dan form) dan `roles.export` (tombol **Ekspor**). Peran bersifat global dan berlaku untuk semua perusahaan. Karena itu membuat, mengubah dan menghapus peran hanya bisa dilakukan saat perusahaan aktif Anda adalah perusahaan induk (Head) atau perusahaan mandiri. Di anak perusahaan tombol **Buat Peran** hilang, sedangkan **Ubah** dan **Hapus** tetap tampil tetapi ditolak (403, "Akses ditolak").
+Peran yang dapat memakai: admin. Izin: `roles.manage` (daftar dan halaman detail) dan `roles.export` (tombol **Ekspor**). Definisi peran bersifat global dan berlaku untuk semua perusahaan, jadi dikelola oleh operator platform Inbils, bukan oleh admin perusahaan. Membuat peran baru, mengubah nama atau izin peran, dan menghapus peran tidak bisa dilakukan dari web perusahaan, di perusahaan induk, mandiri maupun anak perusahaan. Untuk peran baru atau perubahan izin, hubungi operator platform. Memberikan peran yang sudah ada ke pengguna tetap dilakukan di menu **Pengguna** (bagian 8.5).
 
 ### Membuka dan membaca daftar
 
 1. Di sidebar, buka grup **Administrasi**, lalu klik **Peran**.
 2. Baca layar:
+   - Keterangan di atas tabel berbunyi "Definisi peran dikelola oleh operator platform. Tetapkan peran ke pengguna di menu Pengguna."
    - **Cari** (petunjuk "Nama peran") mencari di nama peran.
-   - Kolom: **Nama** (bisa diurutkan; lencana **Bawaan** pada lima peran bawaan), **Hak akses** (jumlah izin), **Pengguna** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif) dan **Aksi**. Baris tidak punya tautan ke halaman detail.
-   - **Aksi** berisi tombol **Ubah**. Menu **Aksi lainnya** dengan **Hapus** hanya ada pada peran buatan sendiri.
-   - Tombol **Ekspor** (**Ekspor CSV** dan **Ekspor PDF**; kolom Nama, Hak akses, Pengguna, Guard) tampil di kanan atas bila Anda memegang `roles.export`, dan **Buat Peran** bila Anda boleh membuat peran.
+   - Kolom: **Nama** (bisa diurutkan; berupa tautan ke halaman detail; lencana **Bawaan** pada lima peran bawaan), **Hak akses** (jumlah izin), **Pengguna** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif) dan **Aksi**.
+   - **Aksi** hanya berisi tombol **Lihat**. Tidak ada **Ubah**, **Hapus** atau **Buat Peran**.
+   - Tombol **Ekspor** (**Ekspor CSV** dan **Ekspor PDF**; kolom Nama, Hak akses, Pengguna, Guard) tampil di kanan atas bila Anda memegang `roles.export`.
 
-   ![Daftar Peran dengan kotak Cari, lima peran bawaan bertanda Bawaan, jumlah hak akses dan pengguna, serta tombol Ekspor dan Buat Peran](images/web/roles.png)
+   ![Daftar Peran dengan keterangan operator platform, kotak Cari, lima peran bawaan bertanda Bawaan, jumlah hak akses dan pengguna, serta tombol Ekspor](images/web/roles.png)
 
 3. Lima peran bawaan berlaku global. Angka izin berikut berasal dari seeder peran (`RolePermissionSeeder`), dengan 166 izin seluruhnya:
 
@@ -3742,62 +3882,39 @@ Peran yang dapat memakai: admin. Izin: `roles.manage` (daftar dan form) dan `rol
    | `technician` | Pekerjaan lapangan, di aplikasi teknisi | 26 |
    | `customer` | Tiket, evaluasi dan portal tagihan, di aplikasi pelanggan | 8 |
 
-   Hanya admin yang dapat mengubah lima peran ini, dan tidak ada yang dapat menghapusnya.
+   Tidak ada peran bawaan yang dapat dihapus atau diganti namanya.
 
-### Membuat peran
+### Membaca detail peran
 
-1. Klik **Buat Peran**.
-2. Isi **Nama** pada kartu **Data peran**: wajib, paling banyak 255 karakter, dan belum dipakai peran lain.
-3. Pilih izin dengan pemilih izin (aturannya di bawah). Peran tanpa izin tercentang tetap boleh disimpan.
-4. Klik **Buat**. Toast "Peran dibuat." muncul dan Anda kembali ke daftar. **Batal** kembali tanpa menyimpan.
+1. Di daftar, klik nama peran atau tombol **Lihat**. Judul halaman berbunyi "Peran" diikuti nama peran, dengan subjudul yang sama dengan keterangan di daftar. **Kembali** membuka daftar.
+2. Kartu **Ringkasan** memuat **Nama**, **Hak akses** (jumlah izin peran) dan **Pengguna di perusahaan ini** (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif), disusul keterangan "Peran berlaku sama di semua perusahaan."
+3. Kartu **Hak akses peran** mengelompokkan izin peran per kategori, dengan nama Indonesia (daftar kodenya ada di bagian 8.7) dan lencana jumlah izin di tiap kategori. Setiap izin tampil sebagai kalimat Indonesia, misalnya `billing.payment.record` sebagai "Catat pembayaran". Arahkan kursor ke kalimat itu untuk melihat kode lengkapnya. Hanya izin yang dipegang peran yang tampil. Peran tanpa izin menampilkan "Peran ini belum memegang hak akses apa pun."
 
-### Memakai pemilih izin
+   ![Detail Peran dengan kartu Ringkasan dan kartu Hak akses peran yang mengelompokkan izin per kategori](images/web/roles-show.png)
 
-Teks petunjuk di atas pemilih berbunyi "Centang kotak kategori untuk memilih atau mengosongkan semua hak akses di kategori itu."
+Isi lima peran bawaan ditimpa kembali ke matriks standar saat pengelola server menjalankan seeder peran pada pembaruan sistem.
 
-- Kolom kiri berisi kategori izin dengan nama Indonesia (daftar kodenya ada di bagian 8.7), urut sesuai sidebar dan dikelompokkan di bawah judul grup sidebar: **Operasional**, **Pelanggan & Layanan**, **Jaringan**, **Inventaris**, **Keuangan & Laporan** dan **Administrasi**. Kategori **Dasbor** (menu sidebar tanpa grup) tampil tanpa judul. Kategori yang tidak punya menu di sidebar (**Portal pelanggan**) masuk di bawah judul **Lainnya**.
-- Kategori adalah awalan kode izin sebelum titik pertama, misalnya `billing` yang tampil sebagai **Tagihan**.
-- Kotak centang di samping nama kategori (nama aksesibelnya "Pilih semua hak akses" diikuti nama kategori) memilih atau mencabut seluruh izin kategori itu. Tanda setengah muncul bila baru sebagian terpilih. Lencana di kanan nama menunjukkan jumlah izin terpilih dan jumlah seluruh izin kategori itu, dua angka dipisah garis miring (terpilih/seluruhnya).
-- Klik nama kategori untuk melihat izinnya di panel kanan. Panel itu memuat nama kategori dan jumlah izinnya ("n hak akses"). Setiap izin adalah kotak centang yang berlabel kalimat Indonesia (`billing.payment.record` tampil sebagai "Catat pembayaran", `inventory.stock.adjust.approve` sebagai "Setujui penyesuaian stok"). Arahkan kursor ke label untuk melihat kode lengkapnya.
-- Kotak **Cari hak akses** (petunjuk "Nama atau label, mis. ekspor") menyaring semua kategori. Pencarian mencocokkan kode dan label Indonesia. Baris status menyebut jumlah izin yang cocok dan jumlah kategorinya ("n hak akses cocok di m kategori."), atau "Tidak ada hak akses yang cocok dengan" kata yang Anda ketik, disusul "Hapus pencarian untuk melihat semua." Selama pencarian aktif, kotak centang kategori hanya memilih izin yang cocok. Tombol Enter di kotak ini tidak mengirim form.
+### Pemisahan tugas pada peran
 
-### Mengubah peran
-
-1. Di daftar, klik **Ubah** pada baris peran. Subjudul halaman berbunyi "Peran" diikuti nama peran, "dipegang n pengguna di perusahaan ini" (jumlah pengguna ber-peran itu di perusahaan yang sedang aktif), lalu "Perubahan berlaku untuk semua pengguna peran ini, di semua perusahaan."
-
-   ![Form Ubah Peran dengan kolom Nama, kotak Cari hak akses, daftar kategori di kiri dan hak akses kategori terpilih di kanan](images/web/roles-edit.png)
-
-2. Ubah **Nama** dan izin, lalu klik **Simpan**. Toast "Peran diperbarui." muncul dan Anda kembali ke daftar. Izin peran menjadi persis himpunan yang tercentang, dan perubahan berlaku bagi semua pengguna ber-peran itu di semua perusahaan.
-
-Jangan mengganti nama lima peran bawaan: aplikasi mengenalinya dari namanya. Perubahan manual pada lima peran itu juga ditimpa kembali ke matriks standar saat pengelola server menjalankan seeder peran pada pembaruan sistem.
-
-### Pemisahan tugas saat menyimpan
-
-Bila yang menyimpan bukan admin, simpan ditolak jika peran memuat salah satu pasangan izin ini. Admin dikecualikan.
+Operator platform menolak menyimpan peran non-admin yang memuat salah satu pasangan izin ini. Admin dikecualikan.
 
 - Pengendali permintaan barang (`inventory.request.approve`, `inventory.request.reject`) bersama pelaksana gudang (`inventory.request.prepare`, `inventory.request.issue`, `inventory.stock.receive`, `inventory.stock.issue`, `inventory.stock.transfer`).
 - Penyetuju penyesuaian stok (`inventory.stock.adjust.approve`) bersama pengaju atau pelaksana (`inventory.stock.adjust.request`, `inventory.stock.receive`, `inventory.stock.issue`, `inventory.stock.transfer`).
 - `inventory.stock.adjust` ("Sesuaikan stok langsung", penyesuaian langsung, jalan darurat) hanya boleh diberikan oleh admin.
 
-Pesan merah muncul di bawah pemilih izin, misalnya "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang): ... tidak boleh digabung dengan ..." (disusul kode izin yang bertabrakan), "Pemisahan tugas (persetujuan penyesuaian stok vs operasi stok): ..." atau "Hanya administrator yang boleh memberikan hak akses darurat inventory.stock.adjust." Pesan memakai kode izin, bukan label. Cari kodenya lewat kotak **Cari hak akses**. Lepas salah satu sisi, atau bagi tugasnya menjadi dua peran untuk dua orang.
-
-### Menghapus peran
-
-1. Klik menu **Aksi lainnya** pada baris peran buatan sendiri, pilih **Hapus**, lalu klik **Hapus** di dialog konfirmasi. Judul dialog berbunyi "Hapus peran" diikuti nama peran dan tanda tanya, dengan keterangan "Peran" diikuti nama peran dalam tanda kutip, "akan dihapus dan dicabut dari semua penggunanya." Toast "Peran dihapus." muncul.
-2. Tidak ada pemeriksaan "peran masih dipakai". Semua pengguna yang memegang peran itu kehilangan peran tersebut seketika. Lihat kolom **Pengguna** lebih dulu, dan ingat angkanya hanya menghitung perusahaan yang sedang aktif.
+Aturan yang sama berlaku saat Anda memberi beberapa peran ke satu pengguna di menu **Pengguna** (bagian 8.5): izin gabungan tidak boleh memuat pasangan di atas.
 
 ### Kesalahan umum
 
-- **Buat Peran** tidak ada, atau **Ubah** dan **Hapus** menghasilkan 403 ("Akses ditolak"): Anda bekerja di anak perusahaan. Pindah ke perusahaan induk lewat pemilih perusahaan (bagian 1.6).
-- **Nama** ditolak dengan "nama sudah digunakan.": nama itu sudah dipakai peran lain.
-- Simpan ditolak dengan pesan "Pemisahan tugas": lepas izin yang bertentangan, seperti dijelaskan di atas.
-- **Ubah** pada lima peran bawaan ditolak: hanya admin yang boleh mengubahnya.
-- Izin peran bawaan kembali ke standar setelah pembaruan sistem: seeder menimpanya. Buat peran buatan sendiri bila perlu izin tambahan yang permanen.
+- Tidak ada tombol **Buat Peran**, **Ubah** atau **Hapus**: memang tidak ada. Definisi peran dikelola operator platform. Minta mereka menambah peran atau mengubah izin.
+- Peran yang dibutuhkan belum ada di daftar: minta operator platform membuatnya, lalu muat ulang halaman.
+- Izin peran bawaan kembali ke standar setelah pembaruan sistem: seeder menimpanya. Minta operator platform membuat peran tersendiri bila perlu izin tambahan yang permanen.
+- Halaman detail menolak dengan **Akses ditolak** (403): Anda tidak memegang `roles.manage`.
 - Tombol **Ekspor** tidak ada: Anda tidak memegang `roles.export`.
 
 ## 8.7 Hak Akses
 
-Menu ini adalah katalog kode izin yang dikenal sistem, hanya untuk dibaca. Buka saat menyusun peran (bagian 8.6) dan perlu memastikan kode izin yang tepat atau kelompoknya.
+Menu ini adalah katalog kode izin yang dikenal sistem, hanya untuk dibaca. Buka saat Anda perlu memastikan kode izin yang tepat atau kelompoknya, misalnya untuk meminta operator platform mengubah sebuah peran (bagian 8.6).
 
 Peran yang dapat memakai: admin. Izin: `roles.manage`, sama dengan menu **Peran**. Layar ini tidak punya tombol tambah, ubah, hapus atau ekspor.
 
@@ -3807,14 +3924,14 @@ Peran yang dapat memakai: admin. Izin: `roles.manage`, sama dengan menu **Peran*
 2. Baca layar (subjudul "Semua hak akses yang bisa diberikan ke peran. Daftar ini hanya untuk dibaca."):
    - **Cari** (petunjuk "Kode hak akses, mis. billing.view") mencari bagian dari kode izin. Pencarian tidak membaca kolom **Fungsi**.
    - **Kode** (bisa diurutkan): kode izin, berpola `<area>.<aksi>` atau `<area>.<objek>.<aksi>`, misalnya `billing.payment.record`.
-   - **Fungsi**: apa yang dibolehkan izin itu dalam kalimat Indonesia, misalnya "Catat pembayaran". Teks ini sama dengan label izin di pemilih izin pada layar **Peran**.
-   - **Kelompok**: lencana berisi nama Indonesia dari awalan kode sebelum titik pertama, misalnya **Tagihan** untuk `billing`. Kelompok ini sama dengan kategori di pemilih izin pada layar **Peran**.
+   - **Fungsi**: apa yang dibolehkan izin itu dalam kalimat Indonesia, misalnya "Catat pembayaran". Teks ini sama dengan label izin di halaman detail peran (bagian 8.6).
+   - **Kelompok**: lencana berisi nama Indonesia dari awalan kode sebelum titik pertama, misalnya **Tagihan** untuk `billing`. Kelompok ini sama dengan kategori di halaman detail peran.
    - Di bawah tabel ada keterangan jumlah baris yang tampil, pemilih "Baris per halaman" (10, 25 atau 50), serta tombol **Sebelumnya** dan **Berikutnya** dengan keterangan "Halaman n dari m". Seeder peran membuat 166 izin.
    - Bila tidak ada baris, layar menampilkan "Belum ada hak akses" (keterangan "Hak akses dibuat bersama pembaruan sistem."), atau "Tidak ada hak akses yang cocok" dengan tombol **Reset filter** saat pencarian aktif.
 
    ![Daftar Hak Akses dengan kotak Cari, kolom Kode, Fungsi dan Kelompok](images/web/permissions.png)
 
-3. Pakai katalog ini sebagai kamus. Cari bagian kode, misalnya `export` untuk izin ekspor atau `approve` untuk izin persetujuan, lalu centang izin yang sama di layar **Peran** (bagian 8.6). Ringkasan izin per peran ada di lampiran 10.1.
+3. Pakai katalog ini sebagai kamus. Cari bagian kode, misalnya `export` untuk izin ekspor atau `approve` untuk izin persetujuan, lalu periksa apakah peran Anda memegangnya di halaman detail peran (bagian 8.6). Ringkasan izin per peran ada di lampiran 10.1.
 
 Nama kelompok di kolom **Kelompok** dan di pemilih izin:
 
@@ -3850,7 +3967,7 @@ Layar ini tidak menunjukkan peran mana yang memegang suatu izin. Untuk itu buka 
 - Item **Hak Akses** tidak tampil di sidebar: akun Anda tidak memegang `roles.manage`.
 - Izin yang dicari tidak ada di daftar: katalog hanya memuat izin yang dibuat sistem. Admin tidak dapat menambah izin dari layar ini.
 - Pencarian dengan kata Indonesia, misalnya "Catat pembayaran", tidak menemukan apa pun: kotak **Cari** di layar ini hanya mencocokkan kode. Cari dengan bagian kode, atau pakai kotak **Cari hak akses** di form peran, yang juga membaca label Indonesia.
-- Izin sudah ada tetapi tidak berefek pada seseorang: izin itu harus tercentang di peran (bagian 8.6) dan peran itu harus diberikan ke penggunanya (bagian 8.5).
+- Izin sudah ada tetapi tidak berefek pada seseorang: izin itu harus dipegang peran orang itu (bagian 8.6) dan peran itu harus diberikan ke penggunanya (bagian 8.5).
 
 ## 8.8 Dokumen
 
@@ -4034,7 +4151,7 @@ Bila permintaan memakai **Rujukan** SPK, berkas pengembaliannya terhubung ke SPK
 - Dialog persetujuan menampilkan "Lokasi gudang sumber wajib ditentukan untuk reservasi.": permintaan itu tersimpan tanpa **Gudang Tujuan**, dan dialog persetujuan di web tidak punya pilihan gudang. Permintaan seperti itu tidak bisa disetujui dari web (bagian 6.1). Batalkan dengan **Batalkan Permintaan**, lalu buat permintaan baru dengan **Gudang Tujuan** terisi.
 - Tombol **Setujui & Reservasi Stok**, **Mulai Penyiapan Barang**, atau **Serah Terima & Kurangi Stok** tidak tampil: cek status permintaan dan izin Anda, dan apakah Anda pemohon atau penyetuju permintaan itu. Pemohon tidak boleh menyetujui atau menyerahkan permintaannya sendiri, dan penyetuju tidak boleh menyiapkan atau menyerahkan barang yang ia setujui.
 - Peran non-admin tidak boleh memegang izin setujui bersama izin siapkan atau serahkan. Di peran bawaan, manajer menyetujui dan staf menyiapkan dan menyerahkan. Bila perusahaan Anda hanya punya satu orang gudang yang juga penyetuju, tambahkan orang kedua. Saat peran seperti itu disimpan, Inbils menolak dengan pesan yang diawali "Pemisahan tugas (persetujuan permintaan barang vs pelaksanaan gudang)".
-- Daftar **Antrean Pengembalian** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta admin menambahkannya (bagian 8.6).
+- Daftar **Antrean Pengembalian** menampilkan kotak galat: peran Anda memegang izin retur tetapi tanpa `inventory.return.view.all` atau `inventory.return.view.own`. Minta operator platform menambahkannya ke peran (bagian 8.6).
 - Pesan yang diawali "Jumlah tidak cocok pada baris" muncul bila angka satu barang tidak berjumlah sama dengan jumlah yang dikeluarkan. Ubah angkanya sampai cocok.
 - Koreksi jumlah stok yang bukan akibat permintaan barang memakai **Ajukan Penyesuaian** di **Stok**, yang butuh persetujuan orang lain (bagian 6.5).
 
@@ -4042,7 +4159,7 @@ Bila permintaan memakai **Rujukan** SPK, berkas pengembaliannya terhubung ke SPK
 
 ## 10.1 Peran dan izin ringkas
 
-Inbils memakai lima peran bawaan: admin, manajer, staf, teknisi, dan pelanggan. Di layar Peran dan Pengguna, nama perannya tampil sebagai `admin`, `manager`, `staff`, `technician`, dan `customer`. Peran bersifat global, jadi isinya sama di setiap perusahaan. Satu peran adalah kumpulan izin, dan izin adalah hak untuk satu tindakan, misalnya `spk.approve`. Admin dapat membuat peran lain di menu Peran (bagian 8.6) dan melihat daftar izin di Hak Akses (bagian 8.7). Karena peran bersifat global, hanya akun yang sedang bekerja di perusahaan induk atau perusahaan mandiri yang dapat membuat, mengubah, atau menghapus peran. Peran bawaan tidak bisa dihapus.
+Inbils memakai lima peran bawaan: admin, manajer, staf, teknisi, dan pelanggan. Di layar Peran dan Pengguna, nama perannya tampil sebagai `admin`, `manager`, `staff`, `technician`, dan `customer`. Peran bersifat global, jadi isinya sama di setiap perusahaan. Satu peran adalah kumpulan izin, dan izin adalah hak untuk satu tindakan, misalnya `spk.approve`. Operator platform membuat, mengubah, dan menghapus peran. Admin perusahaan hanya melihat isi peran di menu Peran (bagian 8.6) dan daftar izin di Hak Akses (bagian 8.7), lalu memberikan peran yang sudah ada ke pengguna di menu Pengguna (bagian 8.5). Peran bawaan tidak bisa dihapus.
 
 Tabel di bagian ini menggambarkan peran bawaan saat ini. Peran khusus yang dibuat di menu Peran dapat berbeda, dan satu pengguna dapat memegang lebih dari satu peran. Bila tabel dan layar Anda tidak cocok, cek peran pengguna itu di menu Pengguna (bagian 8.5).
 
@@ -4068,6 +4185,7 @@ Kolom izin menyebut izin yang membuka menu: satu saja sudah cukup. Menu hanya me
 | Pelanggan & Layanan | Profil Kecepatan | `service.view` atau `service.manage` | ya | ya | ya |
 | Pelanggan & Layanan | Tingkat SLA | `service.view` atau `service.manage` | ya | ya | ya |
 | Pelanggan & Layanan | Kategori Tiket | `ticket.category.manage` | ya | ya | tidak |
+| Pelanggan & Layanan | Pengumuman & Promo | `announcement.manage` | ya | ya | tidak |
 | Jaringan | Lokasi | `location.view` | ya | ya | ya |
 | Jaringan | Aset Jaringan | `network_asset.view` | ya | ya | ya |
 | Jaringan | Router NAS | `network_asset.nas.view` | ya | ya | ya |
@@ -4144,6 +4262,7 @@ Catatan untuk menu bersyarat dan angka:
 | Membuat dan mengubah paket, kategori paket, dan profil layanan | `service.create`, `service.update`, atau `service.manage` | ya | ya | tidak |
 | Menghapus paket, kategori paket, dan profil layanan | `service.delete` atau `service.manage` | ya | ya | tidak |
 | Mengekspor paket dan profil layanan | `service.export` | ya | tidak | tidak |
+| Membuat, menerbitkan, dan menonaktifkan pengumuman dan banner promo | `announcement.manage` | ya | ya | tidak |
 
 ### Kemampuan: Jaringan
 
@@ -4272,6 +4391,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Istilah | Arti |
 | --- | --- |
 | 2FA | Autentikasi dua langkah. Kode 6 digit dari aplikasi autentikator diminta setelah kata sandi (bagian 1.4). |
+| Akses dukungan | Sesi terbatas 30 menit saat operator platform masuk sebagai seorang pengguna untuk menangani keluhan. Mulai dalam mode baca, tercatat di Log Audit perusahaan, dan ditandai banner di atas halaman (bagian 11.5). |
 | Aset jaringan | Perangkat jaringan yang dilacak satu per satu, dengan nomor seri, lokasi, dan status (**Tersedia**, **Terpasang**, **Perawatan**, **Rusak**, atau **Dipensiunkan**) (bagian 5.2). |
 | Blokir internet | Isolasi jaringan manual pada satu langganan, lewat tombol **Blokir internet** di langganan atau **Blokir** di **Tunggakan**. Blokir bukan status, dan pembayaran tidak mencabutnya. **Buka blokir** mencabutnya (bagian 4.1 dan 7.2). |
 | Break-glass | Penyesuaian stok langsung oleh admin tanpa persetujuan. Layar web tidak menyediakan tombolnya (bagian 6.5). |
@@ -4287,6 +4407,7 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | NAS | Router yang meneruskan otentikasi pelanggan ke RADIUS (bagian 5.3). |
 | NPWP | Nomor pokok wajib pajak, diisi di kolom **NPWP** pelanggan (bagian 4.1). |
 | ODN | Register jaringan serat optik: port PON pada OLT, splitter pada ODC dan ODP, dan port drop tiap langganan. OLT, ODC, dan ODP didaftarkan sebagai aset jaringan (bagian 5.5). |
+| Operator platform | Orang di tim Inbils yang memakai panel `/platform`: membuat dan menangguhkan perusahaan, mengelola definisi peran, dan memberi akses dukungan. Bukan pengguna perusahaan (bab 11). |
 | OTC | One-Time Charge, biaya sekali bayar seperti biaya pemasangan. Di paket namanya **Harga pemasangan**, dan di langganan **Biaya pemasangan** (bagian 4.2). |
 | Periode | Rentang tanggal yang dihitung sebuah laporan (bagian 7.3). |
 | Petugas tiket | Petugas yang ditunjuk menangani tiket (bagian 3.4). |
@@ -4303,3 +4424,123 @@ Selain itu, peran non-admin tidak boleh memegang pasangan izin yang berbenturan.
 | Tersedia | Jumlah stok yang bisa dipakai, yaitu **Jumlah** dikurangi **Dicadangkan** (bagian 6.5). |
 | Tunggakan | Menu yang mengelompokkan tagihan belum lunas per pelanggan menurut umur sejak jatuh tempo (bagian 7.2). |
 | VLAN | Nomor jaringan virtual yang dicatat di Alamat IP dan ditautkan ke prefiks (bagian 5.4). |
+
+# 11. Panel operator (/platform)
+
+Bab ini untuk operator platform Inbils, yaitu tim yang menjalankan seluruh instalasi dan melayani banyak perusahaan ISP. Admin, manajer dan staf perusahaan tidak memakai panel ini dan tidak melihatnya di sidebar. Panel dibuka di alamat `/platform` pada instalasi yang sama (atau di alamat khusus bila tim server mengatur `PLATFORM_DOMAIN`).
+
+Akun operator berdiri sendiri. Operator bukan pengguna perusahaan mana pun: tidak punya perusahaan asal, keanggotaan, atau peran perusahaan, dan tidak muncul di menu Pengguna. Untuk melihat layar seorang pengguna, operator memakai akses dukungan (bagian 11.5), bukan akun perusahaan.
+
+## 11.1 Masuk dan 2FA operator
+
+Tim server membuat akun operator dengan perintah `php artisan inbils:platform:admin-create`. Panel tidak punya pendaftaran, lupa kata sandi, atau tombol mematikan 2FA. Buat akun hanya saat calon operator siap langsung mendaftarkan autentikatornya: siapa pun yang memegang kata sandi sebelum pendaftaran selesai dapat mendaftarkan autentikatornya lebih dulu.
+
+![Halaman Masuk ke panel operator dengan isian Email dan Kata sandi](images/web/platform-login.png)
+
+Masuk pertama kali:
+
+1. Buka `/platform`, isi **Email** dan **Kata sandi**, lalu klik **Masuk**.
+2. Di halaman **Autentikasi dua langkah**, klik **Mulai pengaturan**, lalu pindai kode QR dengan aplikasi autentikator. Kode QR hanya tampil sekali. Bila terlewat, klik **Mulai lagi** untuk mendapat yang baru.
+3. Isi **Kode autentikasi** (6 digit), lalu klik **Konfirmasi dan aktifkan**.
+4. Halaman **Kode pemulihan Anda** menampilkan 8 kode pemulihan sekali saja. Salin dengan tombol salin atau klik **Unduh sebagai teks**, lalu simpan di tempat aman. Setiap kode hanya berlaku sekali. **Buat kode pemulihan baru** membuat kumpulan baru dan membatalkan yang lama.
+
+Sebelum pendaftaran selesai, halaman lain di panel tidak dapat dibuka.
+
+Masuk berikutnya: setelah email dan kata sandi, isi **Kode autentikasi**, atau klik **Pakai kode pemulihan** dan masukkan satu kode pemulihan. Setiap sesi browser harus lolos pemeriksaan kodenya sendiri, jadi masuk di browser kedua meminta kode lagi. Sebuah kode hanya diterima sekali: bila Anda masuk dua kali dalam 30 detik yang sama, tunggu kode berikutnya muncul di aplikasi.
+
+Batas dan sesi:
+
+- Lima kegagalan per menit untuk satu email dan alamat IP, atau 20 per jam untuk satu email, menahan login sementara. Akun nonaktif gagal dengan pesan kredensial salah yang sama seperti kata sandi salah.
+- Sesi berakhir setelah 30 menit tanpa aktivitas.
+- Tindakan berisiko (tangguhkan, ajukan hapus, ekspor, mode ubah, perubahan peran) meminta **Kata sandi operator** di dialognya. Kata sandi itu berlaku 5 menit untuk tindakan berikutnya. Halaman **Konfirmasi kata sandi** muncul bila Anda perlu memasukkannya di luar dialog.
+- Operator yang kehilangan autentikator dan kode pemulihan tidak dapat memulihkan diri sendiri. Hubungi tim server untuk membuat akun operator baru.
+
+## 11.2 Dasbor dan daftar perusahaan
+
+Dasbor memantau setiap perusahaan top-level (satu perusahaan induk beserta anak perusahaannya dihitung sebagai satu baris).
+
+- Kartu di atas: **Perusahaan aktif**, **Ditangguhkan**, **Pengajuan hapus**, dan **Job gagal tanpa perusahaan** (job gagal yang tidak dapat dikaitkan ke perusahaan mana pun).
+- Filter: **Cari** (nama atau kode perusahaan) dan **Status** (**Semua status**, **Aktif**, **Ditangguhkan**, **Pengajuan hapus**).
+- Kolom: **Perusahaan**, **Kode**, **Status**, **Anak perusahaan**, **Pengguna**, **Pelanggan**, **Job gagal 7 hari**, **WhatsApp gagal 7 hari**, **Masuk terakhir**, **Penyimpanan**. Angka perusahaan induk sudah mencakup anak perusahaannya. **Penyimpanan** dibaca dari data media yang tercatat, sehingga berkas lama tanpa data itu membuat angkanya lebih rendah dari ukuran sebenarnya.
+- Klik nama perusahaan untuk membuka halamannya (bagian 11.4). Tombol **Perusahaan baru** di kanan atas membuka formulir pembuatan.
+
+## 11.3 Membuat perusahaan
+
+Hanya operator yang membuat perusahaan baru dan anak perusahaan.
+
+1. Klik **Perusahaan baru** (di dasbor atau sidebar).
+2. Isi **Nama perusahaan** dan **Kode perusahaan**. Kode tidak dapat diubah setelah dibuat dan dipakai untuk mengonfirmasi tindakan berisiko. Admin perusahaan juga tidak dapat mengubahnya di menu Perusahaan.
+3. Pilih **Zona waktu** dan **Mata uang**, dan bila perlu unggah **Logo** (JPG, PNG, WebP atau SVG hingga 10 MB).
+4. Isi **Nama admin** dan **Email admin**. Inbils membuat akun admin pertama dengan kata sandi acak dan mengirim email undangan berisi tautan atur kata sandi yang berlaku 60 menit.
+5. Centang **Isi data contoh** bila perusahaan ini untuk uji coba. Data contoh (pelanggan, tagihan, SPK, tiket, inventaris) diisi lewat antrean, tanpa perangkat jaringan dan tanpa pesan WhatsApp. Akun contohnya memakai kata sandi acak yang tidak diberitahukan kepada siapa pun.
+6. Klik **Buat perusahaan**.
+
+Perusahaan langsung aktif dengan peran, penomoran dan pengaturan dasar. Bila admin belum membuka undangannya, kolom **Masuk terakhir** di halaman perusahaan menampilkan **Undangan belum dipakai**. Pengisian data contoh dan ekspor berjalan di worker `platform-queue`. Tanpa worker itu keduanya tetap menunggu di antrean.
+
+## 11.4 Halaman perusahaan
+
+Halaman perusahaan berisi **Profil perusahaan**, **Ringkasan** (angka yang sama dengan dasbor), **Status perusahaan**, **Admin perusahaan**, **Anak perusahaan**, **Pengguna**, **Ekspor**, **Audit terbaru**, serta daftar **Job gagal** dan **WhatsApp gagal** (tombol **Lihat 30 hari terakhir** membuka 30 hari penuh).
+
+### Tangguhkan, aktifkan kembali, ajukan hapus
+
+Tombol di **Status perusahaan** mengikuti status perusahaan:
+
+- **Tangguhkan** (perusahaan aktif). Dialog meminta **Alasan** (5 sampai 200 karakter, tercatat di audit), **Ketik {kode} untuk melanjutkan** dan **Kata sandi operator**. Perusahaan dan anak perusahaan yang aktif kehilangan akses: pengguna tidak dapat masuk dan token aplikasi dicabut. Data tetap tersimpan.
+- **Aktifkan kembali** (perusahaan ditangguhkan). Dialog hanya meminta **Alasan**. Anak perusahaan yang ikut ditangguhkan aktif lagi, dan pengajuan hapus yang masih ada dibatalkan.
+- **Ajukan hapus** (hanya pada perusahaan yang ditangguhkan, nonaktif sampai syaratnya terpenuhi). Syaratnya: sudah ditangguhkan 30 hari dan ada ekspor selesai setelah penangguhan. Bagian **Syarat pengajuan hapus** menyebut syarat yang belum terpenuhi. Dialog meminta kode perusahaan dan kata sandi operator. Tombol ini hanya mencatat pengajuan. Panel web tidak pernah menghapus data. Penghapusan permanen hanya dengan perintah `php artisan inbils:platform:purge-company {kode}` oleh tim server (interaktif, mengetik ulang kode).
+
+### Anak perusahaan
+
+**Tambah anak perusahaan** (nonaktif selama perusahaan ditangguhkan) meminta **Nama**, **Kode** dan admin mana yang menjadi anggotanya. Mata uang dan zona waktu mengikuti perusahaan induk. Anak perusahaan baru memperoleh satu akun sistem internal (`system-seed-...@inbils.internal`) yang ikut tampil di daftar pengguna perusahaan itu.
+
+### Pengguna dan alat dukungan
+
+Tabel **Pengguna** punya filter **Cari** dan **Status**, dan kolom **Pengguna**, **Perusahaan**, **Peran**, **Status**, **2FA**, **Masuk terakhir**, **Aksi**.
+
+- **Masuk sebagai** membuka akses dukungan (bagian 11.5).
+- Menu **Aksi lain** berisi **Atur ulang 2FA** (mematikan 2FA pengguna dan mengakhiri semua sesi serta tokennya; pengguna mendaftar ulang sendiri), **Buka kunci masuk** (menghapus hitungan kode 2FA salah supaya pengguna tidak menunggu 15 menit) dan **Kirim ulang undangan** (hanya untuk admin aktif yang belum pernah masuk; 6 kali per menit untuk setiap pengguna). Pengguna harus berasal dari perusahaan ini, bukan sekadar anggota dari perusahaan lain, karena 2FA berlaku untuk seluruh akun.
+
+## 11.5 Akses dukungan (masuk sebagai pengguna)
+
+Akses dukungan memperlihatkan layar tenant persis seperti pengguna itu melihatnya, untuk menangani keluhan.
+
+Untuk operator:
+
+1. Di tabel **Pengguna**, klik **Masuk sebagai** pada baris pengguna. Tombol hanya tampil untuk pengguna aktif di perusahaan aktif.
+2. Isi **Alasan** dan **Kata sandi operator**, lalu klik **Mulai akses dukungan**. Panel perusahaan terbuka sebagai pengguna itu.
+3. Sesi dimulai dalam mode baca, berlaku paling lama 30 menit dan berakhir pada hitungan itu apa pun yang Anda lakukan. Sesi juga berakhir saat Anda keluar, perusahaan ditangguhkan, atau pengguna dinonaktifkan.
+4. Untuk mengubah data, klik **Mode ubah** di banner, ketik kode perusahaan, lalu konfirmasi. Bila kata sandi operator sudah kedaluwarsa, Inbils membuka halaman **Konfirmasi kata sandi** dan mengembalikan Anda ke halaman tenant yang sama. Klik **Mode ubah** sekali lagi. **Mode baca** di banner kembali ke baca saja.
+5. Klik **Keluar** untuk mengakhiri sesi.
+
+Di tenant, banner tampil di atas semua halaman selama sesi berjalan: "Anda masuk sebagai {pengguna} ({perusahaan}) · superadmin {nama operator} · mode Baca (atau Ubah) · sisa mm:ss". Hitungan mundur hanya penunjuk. Server memeriksa batas 30 menit pada setiap permintaan, dan halaman dimuat ulang saat hitungan habis. Pengguna perusahaan sendiri tidak melihat banner ini, karena sesi mereka terpisah.
+
+Aturan selama akses dukungan:
+
+- Mode baca menolak setiap perubahan. Pesan yang tampil: "Mode baca saja: perubahan tidak diizinkan selama akses dukungan. Aktifkan mode ubah dari banner untuk melanjutkan."
+- Izin tetap mengikuti pengguna yang dimasuki: operator tidak mendapat hak lebih daripada pengguna itu.
+- Tidak tersedia dalam mode apa pun: pengaturan akun pribadi (profil, kata sandi, 2FA) dengan pesan "Pengaturan akun pribadi tidak tersedia selama akses dukungan.", melihat rahasia akun jaringan, menerbitkan token API, dan berpindah ke perusahaan di luar tenant itu.
+- Aktivitas tercatat atas nama operator, dengan satu kode kelompok untuk seluruh sesi. Perusahaan melihat sesi itu di **Log Audit** (bagian 7.12) sebagai modul **Akses dukungan**, dengan teks "Akses dukungan oleh tim Inbils: {aksi}". Email atau id operator tidak ditampilkan.
+
+## 11.6 Peran & hak akses
+
+Definisi peran berlaku untuk pengguna di semua perusahaan, jadi hanya operator yang mengubahnya. Admin perusahaan hanya melihat peran (bagian 8.6) dan memberikannya ke pengguna di menu Pengguna (bagian 8.5).
+
+- Menu **Peran & hak akses** di sidebar panel menampilkan kolom **Nama**, **Hak akses** dan **Pengguna semua perusahaan**, dengan pencarian **Cari**.
+- **Buat peran**, **Ubah** dan **Hapus** (konfirmasi **Hapus peran**) meminta kata sandi operator (**Konfirmasi perubahan peran**). Setiap perubahan tercatat di audit platform.
+- Lima peran bawaan (`admin`, `manager`, `staff`, `technician`, `customer`, bertanda **Bawaan**) tidak dapat dihapus atau diganti namanya. Izinnya boleh diubah, dan halaman ubahnya memberi peringatan. Seeder (`RolePermissionSeeder`) menimpa izin kelima peran itu pada setiap pembaruan sistem, jadi perubahan izin yang permanen sebaiknya dibuat di peran baru.
+- Peran selain `admin` tidak boleh memuat pasangan izin yang berbenturan (pemisahan tugas, bagian 10.1).
+
+## 11.7 Ekspor data perusahaan
+
+1. Di halaman perusahaan, bagian **Ekspor**, klik **Minta ekspor**. Dialog meminta kode perusahaan dan kata sandi operator.
+2. Arsip dibuat di latar belakang. Hanya satu ekspor yang boleh berjalan untuk satu perusahaan.
+3. Buka **Ekspor** di sidebar. Kolom: **Perusahaan**, **Status** (**Antrean**, **Berjalan**, **Siap diunduh**, **Gagal**, **Kedaluwarsa**), **Diminta**, **Ukuran**, **Baris**, **Berlaku sampai**, **Catatan**, **Unduh**. Halaman memuat ulang sendiri selama ada ekspor yang antre atau berjalan.
+4. Klik **Unduh** pada ekspor **Siap diunduh**. Tautannya bertanda tangan, berlaku 24 jam, dan hanya dapat dibuka dalam sesi operator yang aktif.
+
+Arsip ZIP berisi satu CSV per tabel perusahaan, folder berkas media, dan `manifest.json` yang mencatat jumlah baris dan kolom yang sengaja tidak diekspor: kata sandi, TOTP, kode pemulihan, token, rahasia RADIUS, NAS dan PPPoE, serta token pembayaran. Setelah masa berlaku habis, arsip dihapus dan barisnya tetap ada dengan status **Kedaluwarsa** sebagai bukti ekspor untuk syarat pengajuan hapus (bagian 11.4).
+
+## 11.8 Audit platform
+
+**Audit platform** mencatat kegiatan operator dan akses dukungan di semua perusahaan. Filter: **Cari**, **Perusahaan** (termasuk anak perusahaannya), **Operator**, **Kegiatan** dan **Rentang tanggal** (dihitung per hari UTC). Kolom: **Waktu**, **Kegiatan**, **Sumber** (**Platform** atau **Akses dukungan**), **Pelaku**, **Perusahaan**, **Subjek**, **Rincian**. Tombol di kolom **Rincian** membuka dialog dengan properti baris dan kode kelompok sesi akses dukungan. Setelah perusahaan dihapus permanen, barisnya tetap ada dan menampilkan kode serta nama perusahaan yang tersimpan.
+
+Log platform tidak tampil di Log Audit perusahaan. Hanya baris **Akses dukungan** yang tampil di sana (bagian 11.5).

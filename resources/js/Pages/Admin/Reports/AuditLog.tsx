@@ -53,6 +53,7 @@ import {
 import { cn } from '@/lib/utils';
 import { formatDateTime } from '@/lib/format';
 import { AUDIT_EVENT, AUDIT_MODULE, labelOf } from '@/lib/statuses';
+import type { StatusMap } from '@/lib/statuses/types';
 import { useServerTable } from '@/hooks/useServerTable';
 import type { PageProps } from '@/types';
 
@@ -132,10 +133,33 @@ function isPlainObject(val: unknown): val is Record<string, unknown> {
     return val !== null && typeof val === 'object' && !Array.isArray(val);
 }
 
+// The tenant query masks these rows (log `support`, causer "Tim dukungan Inbils"); their raw action key is not for tenants.
+const MODULES = {
+    ...AUDIT_MODULE,
+    support: { label: 'Akses dukungan', tone: 'neutral' },
+} satisfies StatusMap;
+
+const SUPPORT_ENTRY = 'Akses dukungan oleh tim Inbils';
+
+const SUPPORT_ACTION: Readonly<Record<string, string>> = {
+    'impersonation.started': 'masuk sebagai pengguna',
+    'impersonation.mode_changed': 'mengubah mode akses',
+    'impersonation.write': 'mengubah data',
+    'impersonation.ended': 'keluar dari akun pengguna',
+};
+
+function entryText(row: AuditLogRow): string {
+    if (row.log_name !== 'support') return row.description ?? '';
+
+    const action = SUPPORT_ACTION[row.description];
+
+    return action ? `${SUPPORT_ENTRY}: ${action}` : SUPPORT_ENTRY;
+}
+
 function ModuleBadge({ value }: { value: string | null | undefined }) {
     if (!value) return <Badge variant="outline">Umum</Badge>;
 
-    return <EnumBadge map={AUDIT_MODULE} value={value} />;
+    return <EnumBadge map={MODULES} value={value} />;
 }
 
 export default function AuditLog({ data, filters, userOptions, selectedUser, can }: AuditLogProps) {
@@ -207,13 +231,13 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
 
     // Known modules first, then any log_name seen on the page that the map does not list.
     const moduleOptions = useMemo(() => {
-        const known = Object.keys(AUDIT_MODULE);
+        const known = Object.keys(MODULES);
         const seen = safeRows
             .map((r) => r.log_name)
             .filter((name) => name && !known.includes(name));
         return [...known, ...Array.from(new Set(seen)).sort()].map((value) => ({
             value,
-            label: labelOf(AUDIT_MODULE, value),
+            label: labelOf(MODULES, value),
         }));
     }, [safeRows]);
 
@@ -233,7 +257,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
         if (!term) return safeRows;
 
         return safeRows.filter((row) => {
-            const desc = (row.description ?? '').toLowerCase();
+            const desc = entryText(row).toLowerCase();
             const logName = (row.log_name ?? '').toLowerCase();
             const event = (row.event ?? '').toLowerCase();
             const causerName = (row.causer?.name ?? '').toLowerCase();
@@ -461,7 +485,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                 sortKey: 'description',
                 cell: (row) => (
                     <div className="max-w-xs truncate text-xs font-medium text-foreground sm:max-w-md">
-                        {row.description}
+                        {entryText(row)}
                     </div>
                 ),
             },
@@ -810,7 +834,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
 
                                             {/* Description */}
                                             <p className="text-sm font-medium text-foreground">
-                                                {row.description}
+                                                {entryText(row)}
                                             </p>
 
                                             {/* Metadata */}
@@ -958,7 +982,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                 <div className="sm:col-span-2">
                                     <span className="block text-muted-foreground">Deskripsi:</span>
                                     <span className="mt-0.5 block font-medium text-foreground">
-                                        {selectedRow.description}
+                                        {entryText(selectedRow)}
                                     </span>
                                 </div>
                             </div>

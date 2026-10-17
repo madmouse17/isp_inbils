@@ -97,7 +97,7 @@ class InvoicesTest extends TestCase
     {
         $body = (string) $response->getContent();
 
-        foreach (['snap_token', 'order_id', 'last_notification', 'received_by', 'notes', 'reference', 'status_reason', 'transaction_id', 'cancel_reason', 'created_by'] as $key) {
+        foreach (['snap_token', 'order_id', 'last_notification', 'received_by', 'notes', 'status_reason', 'transaction_id', 'cancel_reason', 'created_by'] as $key) {
             $this->assertStringNotContainsString('"'.$key.'":', $body, "{$key} leaked into the response");
         }
 
@@ -147,7 +147,7 @@ class InvoicesTest extends TestCase
         $item = $this->list()->assertOk()->json('data.0');
 
         $this->assertEqualsCanonicalizing(
-            ['id', 'number', 'subscription_id', 'issue_date', 'due_date', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
+            ['id', 'number', 'subscription_id', 'issue_date', 'due_date', 'billing_period', 'status', 'subtotal', 'tax_amount', 'discount_amount', 'total', 'paid_amount', 'sisa'],
             array_keys($item),
         );
         $this->assertNull($item['subscription_id']);
@@ -315,9 +315,86 @@ class InvoicesTest extends TestCase
         foreach ([$this->list(), $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)] as $response) {
             $response->assertOk();
             $this->assertNoInternalFields($response);
-            $this->assertStringNotContainsString($attempt->snap_token, (string) $response->getContent());
             $this->assertStringNotContainsString($attempt->order_id, (string) $response->getContent());
-            $this->assertStringNotContainsString('redirect_url', (string) $response->getContent());
         }
+
+        // The pay link is the one gateway value the detail may carry (payment_attempt.redirect_url); the list never does.
+        $this->assertStringNotContainsString($attempt->snap_token, (string) $this->list()->getContent());
+        $this->assertStringNotContainsString('redirect_url', (string) $this->list()->getContent());
+    }
+
+    public function test_the_detail_carries_the_billing_period_and_a_customer_safe_payment_reference_and_label(): void
+    {
+        $invoice = $this->invoiceOf($this->customer, ['status' => 'partial', 'paid_amount' => 54600, 'billing_period_start' => '2026-09-01', 'billing_period_end' => '2026-09-30']);
+        $this->paymentOn($invoice, ['method' => 'midtrans', 'reference' => '7-42-abcdef123456', 'paid_at' => now()->subDays(2)]);
+        $this->paymentOn($invoice, ['method' => 'transfer', 'reference' => 'BANK-REF-INTERNAL', 'paid_at' => now()->subDay()]);
+        $plain = $this->invoiceOf($this->customer, ['billing_period_start' => null, 'billing_period_end' => null]);
+
+        $api = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $api->assertJsonPath('data.billing_period', ['start' => '2026-09-01', 'end' => '2026-09-30'])
+            ->assertJsonPath('data.payments.0.reference', '7-42-abcdef123456')
+            ->assertJsonPath('data.payments.0.method_label', 'Pembayaran online')
+            ->assertJsonPath('data.payments.1.reference', null)
+            ->assertJsonPath('data.payments.1.method_label', 'Transfer bank');
+        $this->assertStringNotContainsString('BANK-REF', (string) $api->getContent());
+        $this->api('GET', "customer/invoices/{$plain->id}", token: $this->token)->assertOk()->assertJsonPath('data.billing_period', null);
+    }
+
+    public function test_the_detail_shows_the_latest_attempt_of_this_invoice_with_the_pay_link_only_while_it_is_open(): void
+    {
+        $invoice = $this->invoiceOf($this->customer);
+        $none = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $none->assertJsonPath('data.payment_attempt', null);
+
+        PaymentAttempt::factory()->forInvoice($invoice)->status('failed')->create();
+        $open = PaymentAttempt::factory()->forInvoice($invoice)->create();
+
+        $detail = $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk();
+        $detail->assertJsonPath('data.payment_attempt.status', 'pending')
+            ->assertJsonPath('data.payment_attempt.redirect_url', $open->redirect_url)
+            ->assertJsonPath('data.payment_attempt.expires_at', $open->expires_at->toIso8601String());
+        $this->assertSame(['status', 'expires_at', 'redirect_url'], array_keys($detail->json('data.payment_attempt')));
+        $this->assertStringNotContainsString('"snap_token":', (string) $detail->getContent());
+        $this->assertStringNotContainsString($open->order_id, (string) $detail->getContent());
+
+        $open->forceFill(['expires_at' => now()->subMinute()])->save();
+        $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk()
+            ->assertJsonPath('data.payment_attempt.status', 'expire')
+            ->assertJsonPath('data.payment_attempt.redirect_url', null);
+
+        foreach (['paid' => 'settlement', 'expired' => 'expire', 'failed' => 'failed', 'exception' => 'failed'] as $stored => $shown) {
+            PaymentAttempt::factory()->forInvoice($invoice)->status($stored)->create();
+            $this->api('GET', "customer/invoices/{$invoice->id}", token: $this->token)->assertOk()
+                ->assertJsonPath('data.payment_attempt.status', $shown)
+                ->assertJsonPath('data.payment_attempt.redirect_url', null);
+        }
+
+    }
+
+    public function test_the_receipt_is_a_pdf_for_the_owners_paid_invoices_only(): void
+    {
+        $paid = $this->invoiceOf($this->customer, ['status' => 'paid', 'paid_amount' => 154600]);
+        $unpaid = $this->invoiceOf($this->customer, ['status' => 'sent']);
+        [, $neighbour] = $this->customerLogin($this->customerUser->company);
+        $theirs = $this->invoiceOf($neighbour, ['status' => 'paid', 'paid_amount' => 154600]);
+
+        $response = $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+
+        $this->api('GET', "customer/invoices/{$unpaid->id}/receipt", token: $this->token)->assertNotFound();
+        $this->api('GET', "customer/invoices/{$theirs->id}/receipt", token: $this->token)->assertNotFound();
+        $this->api('GET', "customer/invoices/{$paid->id}/receipt")->assertUnauthorized();
+    }
+
+    public function test_the_receipt_is_throttled(): void
+    {
+        $paid = $this->invoiceOf($this->customer, ['status' => 'paid', 'paid_amount' => 154600]);
+
+        foreach (range(1, 6) as $ignored) {
+            $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertOk();
+        }
+
+        $this->api('GET', "customer/invoices/{$paid->id}/receipt", token: $this->token)->assertStatus(429);
     }
 }

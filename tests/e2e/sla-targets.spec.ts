@@ -198,6 +198,36 @@ test.describe('@sla-targets', () => {
         }
     });
 
+    test('a category saves a customer hint of at most 500 characters and clears it again', async ({
+        page,
+    }) => {
+        await loginAs(page, 'admin');
+        await settleAppChunks(page);
+        await page.goto('/admin/ticket-categories');
+        const dialog = page.getByRole('dialog');
+        const hint = dialog.getByLabel('Saran untuk pelanggan');
+        const open = () => page.getByRole('button', { name: 'Ubah kategori Device Issue' }).click();
+
+        await open();
+        const original = await hint.inputValue();
+        try {
+            await hint.fill('x'.repeat(520));
+            await expect(hint).toHaveValue('x'.repeat(500));
+            await expect(dialog.getByText('500/500 karakter.')).toBeVisible();
+            await hint.fill('Mulai ulang modem, lalu tunggu dua menit.');
+            await dialog.getByRole('button', { name: 'Simpan' }).click();
+            await expect(dialog).toBeHidden();
+
+            await open();
+            await expect(hint).toHaveValue('Mulai ulang modem, lalu tunggu dua menit.');
+            await expect(dialog.getByText('41/500 karakter.')).toBeVisible();
+        } finally {
+            await hint.fill(original);
+            await dialog.getByRole('button', { name: 'Simpan' }).click();
+            await expect(dialog).toBeHidden();
+        }
+    });
+
     test('only holders of ticket.category.manage open the category screen', async ({ page }) => {
         // Sidebar groups are collapsed <details> unless they hold the current page.
         const categoryLink = page.locator('aside a[href$="/admin/ticket-categories"]');

@@ -189,6 +189,35 @@ test('@kanban-t_525dca8a seeded demo roles can login and see permitted shell', a
     );
 });
 
+test('tenant roles are read-only: list opens the role, no create, edit or delete', async ({
+    page,
+    expectHttpError,
+}) => {
+    await login(
+        page,
+        demoUsers.find((demoUser) => demoUser.role === 'admin')!,
+    );
+    await page.goto('/admin/roles');
+
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { name: 'Peran' })).toBeVisible();
+    await expect(main.getByText('Definisi peran dikelola oleh operator platform.')).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Buat Peran' })).toHaveCount(0);
+    await expect(main.getByRole('link', { name: 'Ubah' })).toHaveCount(0);
+    await expect(main.getByRole('button', { name: 'Aksi lainnya' })).toHaveCount(0);
+
+    await main.getByRole('link', { name: 'admin', exact: true }).click();
+    await expect(page).toHaveURL(/\/admin\/roles\/\d+$/);
+    await expect(main.getByRole('heading', { name: 'Peran admin' })).toBeVisible();
+    await expect(main.getByRole('heading', { name: 'Hak akses peran' })).toBeVisible();
+    await expect(main.getByRole('link', { name: 'Ubah' })).toHaveCount(0);
+    await main.getByRole('link', { name: 'Kembali' }).click();
+    await expect(page).toHaveURL(/\/admin\/roles$/);
+
+    expectHttpError({ url: '/admin/roles/create', method: 'GET', status: 404 });
+    expect((await page.goto('/admin/roles/create'))?.status()).toBe(404);
+});
+
 test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.goto('/login');

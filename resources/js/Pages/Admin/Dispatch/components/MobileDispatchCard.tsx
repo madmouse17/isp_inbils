@@ -3,10 +3,10 @@ import { AlertTriangle, User } from 'lucide-react';
 import { Button, Card, CardContent, EnumBadge } from '@/Components/ui';
 import { useCompany } from '@/hooks/useCompany';
 import { formatDate, formatDateTime } from '@/lib/format';
-import { PRIORITY, WORK_ITEM_DOMAIN } from '@/lib/statuses';
+import { PRIORITY, WORK_ITEM_DOMAIN, WORK_ORDER_TRIP } from '@/lib/statuses';
 import type { DispatchItem } from '@/types';
 import { formatAge } from '../../MyWork/components/utils';
-import { getItemImpact, getItemWhyNeedAction, getNextStatusInfo } from './utils';
+import { getItemImpact, getItemWhyNeedAction, getNextStatusInfo, isEnRoute } from './utils';
 
 interface MobileDispatchCardProps {
     item: DispatchItem;
@@ -64,8 +64,11 @@ export function MobileDispatchCard({ item, onAssign }: MobileDispatchCardProps) 
                     <div className="flex items-start justify-between gap-2">
                         <span className="shrink-0 text-muted-foreground">Petugas saat ini:</span>
                         {item.assignee ? (
-                            <span className="min-w-0 text-right font-medium wrap-break-word text-foreground">
+                            <span className="flex min-w-0 flex-col items-end gap-1 text-right font-medium wrap-break-word text-foreground">
                                 {item.assignee.name}
+                                {isEnRoute(item) && (
+                                    <EnumBadge map={WORK_ORDER_TRIP} value="en_route" />
+                                )}
                             </span>
                         ) : (
                             <span className="font-medium text-amber-700 dark:text-amber-400">

@@ -99,6 +99,7 @@ const CONVERTED = [
     'Components/composite/UtilisationBar.tsx',
     'Components/composite/CopyButton.tsx',
     'Pages/Admin/Company/*.tsx',
+    'Pages/Admin/Tickets/Categories/*.tsx',
     'Pages/Admin/Organizations/*.tsx',
     'Pages/Admin/Employees/*.tsx',
     'Pages/Admin/Vehicles/*.tsx',
@@ -126,6 +127,11 @@ const CONVERTED = [
     'Components/composite/CustomerContactEditor.tsx',
     'Components/composite/MediaPreview.tsx',
     'Components/composite/LatLngMapPicker.tsx',
+    'Pages/Admin/Announcements/**/*.tsx',
+    'Components/composite/PhonePreview.tsx',
+    'Layouts/Platform*.tsx',
+    'Pages/Platform/**/*.tsx',
+    'Components/composite/platform/*.tsx',
 ];
 
 /** Words that stay as they are, in every sentence (Q4). They are removed from a text before it is judged. */

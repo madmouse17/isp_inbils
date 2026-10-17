@@ -7,15 +7,17 @@ use App\Models\User;
 use App\Services\Core\CustomerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 use Tests\Traits\BuildsCompanyGroup;
 
 /**
- * Roles are global (Q5) and a membership lets one login act in several companies, so two admin
- * surfaces become cross-company the moment a group exists: the role definitions and the user
- * accounts. Both may only be changed by someone who answers for every company the change reaches.
+ * A membership lets one login act in several companies, so two admin surfaces become cross-company the
+ * moment a group exists: the role definitions and the user accounts. Role definitions are global and belong
+ * to the platform panel (ADR-003), so no tenant admin changes them; a user account may only be changed by
+ * someone who answers for every company the change reaches.
  */
 class CompanyAdminAuthorityTest extends TestCase
 {
@@ -31,62 +33,44 @@ class CompanyAdminAuthorityTest extends TestCase
     }
 
     // ---------------------------------------------------------------------------------------------
-    // Role definitions belong to the top-level company
+    // Role definitions belong to the platform: a tenant admin only reads them
     // ---------------------------------------------------------------------------------------------
 
-    public function test_a_subsidiary_admin_cannot_create_change_or_delete_role_definitions(): void
+    public function test_no_tenant_admin_can_create_change_or_delete_role_definitions(): void
     {
         $custom = Role::create(['name' => 'support-lead', 'guard_name' => 'web'])->syncPermissions(['customer.view']);
         $adminRole = Role::findByName('admin');
         $adminPermissions = $adminRole->permissions()->count();
-        $subAdmin = $this->groupUser($this->subA);
 
-        $this->actingAs($subAdmin);
-        $this->get(route('admin.roles.create'))->assertForbidden();
-        $this->get(route('admin.roles.edit', $custom))->assertForbidden();
-        $this->post(route('admin.roles.store'), ['name' => 'rogue', 'permissions' => ['customer.view']])->assertForbidden();
-        $this->put(route('admin.roles.update', $custom), ['name' => 'support-lead', 'permissions' => ['customer.view', 'billing.view', 'billing.export']])->assertForbidden();
-        $this->put(route('admin.roles.update', $adminRole), ['name' => 'admin', 'permissions' => ['dashboard.view']])->assertForbidden();
-        $this->delete(route('admin.roles.destroy', $custom))->assertForbidden();
+        foreach ([$this->head, $this->subA, $this->outsider] as $company) {
+            $admin = $this->groupUser($company);
+
+            foreach (['create', 'store'] as $ability) {
+                $this->assertFalse($admin->can($ability, Role::class), "{$company->code} {$ability}");
+            }
+            foreach (['update', 'edit', 'delete'] as $ability) {
+                $this->assertFalse($admin->can($ability, $custom), "{$company->code} {$ability} custom role");
+                $this->assertFalse($admin->can($ability, $adminRole), "{$company->code} {$ability} admin role");
+            }
+            $this->assertTrue($admin->can('viewAny', Role::class), $company->code);
+            $this->assertTrue($admin->can('view', $custom), $company->code);
+        }
+
+        foreach (['create', 'store', 'edit', 'update', 'destroy'] as $name) {
+            $this->assertFalse(Route::has("admin.roles.{$name}"), "admin.roles.{$name} must not exist");
+        }
+
+        $this->actingAs($this->groupUser($this->head));
+        $this->post('/admin/roles', ['name' => 'rogue', 'permissions' => ['customer.view']])->assertStatus(405);
+        $this->put("/admin/roles/{$custom->id}", ['name' => 'support-lead', 'permissions' => ['customer.view', 'billing.view']])->assertStatus(405);
+        $this->delete("/admin/roles/{$custom->id}")->assertStatus(405);
 
         $this->assertFalse(Role::query()->where('name', 'rogue')->exists());
         $this->assertSame(['customer.view'], $custom->fresh()->permissions->pluck('name')->all());
         $this->assertSame($adminPermissions, $adminRole->fresh()->permissions()->count());
     }
 
-    public function test_a_head_admin_and_a_standalone_company_admin_still_manage_roles(): void
-    {
-        foreach ([$this->head, $this->outsider] as $company) {
-            $admin = $this->groupUser($company);
-
-            $this->actingAs($admin)
-                ->post(route('admin.roles.store'), ['name' => 'role-of-'.$company->code, 'permissions' => ['customer.view']])
-                ->assertRedirect(route('admin.roles.index'));
-            $role = Role::findByName('role-of-'.$company->code);
-
-            $this->put(route('admin.roles.update', $role), ['name' => 'role-of-'.$company->code, 'permissions' => ['customer.view', 'ticket.view']])
-                ->assertRedirect(route('admin.roles.index'));
-            $this->assertEqualsCanonicalizing(['customer.view', 'ticket.view'], $role->fresh()->permissions->pluck('name')->all());
-
-            $this->delete(route('admin.roles.destroy', $role))->assertRedirect();
-            $this->assertFalse(Role::query()->where('name', $role->name)->exists());
-        }
-    }
-
-    public function test_switching_into_a_subsidiary_takes_role_management_away_and_switching_back_returns_it(): void
-    {
-        $user = $this->groupUser($this->head, 'admin', $this->subA);
-
-        $this->actingAs($user)->post(route('admin.company.switch'), ['company_id' => $this->subA->id]);
-        $this->post(route('admin.roles.store'), ['name' => 'while-in-sub', 'permissions' => []])->assertForbidden();
-
-        $this->post(route('admin.company.switch'), ['company_id' => $this->head->id]);
-        $this->post(route('admin.roles.store'), ['name' => 'while-in-head', 'permissions' => []])->assertRedirect(route('admin.roles.index'));
-        $this->assertTrue(Role::query()->where('name', 'while-in-head')->exists());
-        $this->assertFalse(Role::query()->where('name', 'while-in-sub')->exists());
-    }
-
-    public function test_the_role_list_counts_only_the_users_of_the_effective_company_and_hides_the_create_button_from_subsidiaries(): void
+    public function test_the_role_list_counts_only_the_users_of_the_effective_company_and_offers_no_create_ability(): void
     {
         Role::create(['name' => 'support-lead', 'guard_name' => 'web']);
         $this->groupUser($this->head, 'support-lead');
@@ -99,13 +83,13 @@ class CompanyAdminAuthorityTest extends TestCase
         $this->actingAs($headAdmin)->get(route('admin.roles.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('can.create', true)
+                ->where('can', ['export' => true])
                 ->where('roles.data', fn ($roles): bool => $countOf(collect($roles)->all()) === 1));
 
         $this->actingAs($subAdmin)->get(route('admin.roles.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->where('can.create', false)
+                ->where('can', ['export' => true])
                 ->where('roles.data', fn ($roles): bool => $countOf(collect($roles)->all()) === 2));
     }
 

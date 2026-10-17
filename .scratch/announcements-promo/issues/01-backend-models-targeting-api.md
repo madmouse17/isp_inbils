@@ -1,6 +1,6 @@
 # BACKEND: models, targeting, web endpoints, customer API
 
-Status: ready-for-agent
+Status: done
 Role: backend
 Blocked by: package-categories merged; ui-consistency 02/03 merged
 Spec: `../spec.md`
@@ -18,6 +18,16 @@ Placement (decided 2026-10-14): module `Modules/Service`. The audience is define
 
 ## Acceptance criteria
 
-- [ ] Focused PHPUnit green incl. the targeting matrix; Pint; OpenAPI contract test.
+- [x] Focused PHPUnit green incl. the targeting matrix; Pint; OpenAPI contract test.
 
 ## Comments
+
+- Web page contract for ticket 03, published before ticket 02 started:
+  - `GET /admin/announcements?tab=announcements|banners` renders `Admin/Announcements/Index`.
+  - Props: `tab`; paginated `announcements` or `banners`; `counts`; `filters`; `statuses` = `[draft, scheduled, live, ended, inactive]`; `kinds` = `[info, outage, maintenance]`; `audiences` = `[all, targeted]`; `appRoutes` = `[invoices, subscriptions, ticket_create, visits]`; `packageCategories`; optional remote `locationOptions`; `preview` = `{banners, max_banners:5, auto_advance_seconds:5}`; `can.manage`.
+  - Announcement row: `{id,title,body,kind,audience,status,starts_at,ends_at,published_at,location_targets,package_category_targets}`. Banner row adds `{alt_text,image_url,link_kind,link_target,sort_order,tap_count}`.
+  - Store/update announcement payload: `{title,body,kind,audience,starts_at,ends_at?,location_ids[],service_package_category_ids[]}`. Store/update banner payload: `{title,alt_text,image,link_kind,link_target?,audience,starts_at,ends_at?,sort_order,location_ids[],service_package_category_ids[]}`; multipart updates use `_method=PUT`.
+  - Routes: `admin.announcements.{store,update,publish,deactivate,destroy}` and `admin.promo-banners.{store,update,publish,deactivate,destroy}`. Published rows cannot be destroyed.
+  - Customer preview data uses the same allow-list shape as `GET /api/v1/customer/home-feed`: `{data:{announcements:[],banners:[]}}`. Banner `image_url` points to authenticated `api.v1.media.show`.
+- Audience query `EXPLAIN` (`inbils_test`, targeted location + category): `customers` and `service_subscriptions` use company indexes (`type=ref`); package, POP, and target location use primary-key `eq_ref`; both pivots use composite primary keys; category pivot reports `Using index; FirstMatch(c)`. Estimated rows are `1` for every step.
+- 2026-10-16 (Main follow-up): `GET /admin/announcements?tab=…&status=draft|scheduled|live|ended|inactive` filters both lists (unknown value ignored, `filters.status` echoes a valid value only) through `ofStatus`, the SQL twin of `status()` in `HasPublicationStatus`, pinned by `AnnouncementManagementTest::test_status_filter_returns_each_lifecycle_status_on_both_tabs`; the `timezone` prop is gone from the contract (pages read the shared `company.timezone`).

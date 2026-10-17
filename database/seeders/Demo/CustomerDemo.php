@@ -260,8 +260,8 @@ final class CustomerDemo
         [$code, $name, $type, $packageCode, $pop, , $sales, , $habit] = $row;
 
         $package = ServicePackage::query()->where('code', $packageCode)->firstOrFail();
-        $phone = $c->pick(self::PHONE_PREFIXES).sprintf('%08d', $c->int(10000000, 99999999));
-        $email = Str::slug($name, '.').'@pelanggan.demo.inbils.test';
+        $phone = $c->phone($c->pick(self::PHONE_PREFIXES).sprintf('%08d', $c->int(10000000, 99999999)));
+        $email = $c->customerEmail(Str::slug($name, '.'));
         $business = $type === 'C';
         [$person, $position] = $business ? self::CONTACTS[$code] : [$name, 'Pemilik'];
 

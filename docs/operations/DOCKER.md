@@ -1,6 +1,6 @@
 # Docker Operations
 
-The production-build stack (`compose.yaml` + `Dockerfile`) uses FrankenPHP (PHP 8.4), MySQL 8.4, Redis, a Laravel queue worker, and a Laravel scheduler. Laravel storage and MySQL and Redis data use named volumes; `bootstrap/cache` is container-local and is not shared through a named volume. Local development uses Laravel Sail instead (next section).
+The production-build stack (`compose.yaml` + `Dockerfile`) uses FrankenPHP (PHP 8.4), MySQL 8.4, Redis, two Laravel queue workers (`queue` for the default and WhatsApp queues, `platform-queue` for the platform panel's hour-long jobs, see [platform-queue.md](./platform-queue.md)), and a Laravel scheduler. Laravel storage and MySQL and Redis data use named volumes; `bootstrap/cache` is container-local and is not shared through a named volume. Local development uses Laravel Sail instead (next section).
 
 ## Local development (Laravel Sail)
 
@@ -32,6 +32,7 @@ curl --fail http://localhost/ready       # database, cache, and queue checks
 - `composer install` and `npm` run inside the Sail container against the bind-mounted source. The rule below against `composer install` in the active app, queue, or scheduler containers concerns the production containers only.
 - `sail artisan test` follows `phpunit.xml` (host `mysql`, schema `inbils_test`, user `inbils`) and runs on the Sail MySQL, whose init script `docker/mysql/sail/10-create-test-database.sh` creates that schema, user, and grants on first volume initialisation. It never touches the production stack's `inbils_test`, so it cannot race the isolated PHPUnit recipe below.
 - Queue and scheduler are commands, not services: `sail artisan queue:work --queue=default,whatsapp --tries=3` and `sail artisan schedule:work` in their own terminals, or detached with `sail exec -d -u sail laravel.test php artisan queue:work --queue=default,whatsapp --tries=3`.
+- The platform panel's long jobs (sample data, exports) need a second worker in Sail too: `sail artisan queue:work platform --queue=platform --tries=1 --timeout=3600`. See [platform-queue.md](./platform-queue.md).
 - `sail stop` and `sail down` keep both volumes. The production volume rule applies unchanged: no `down -v` or `docker volume rm` without explicit approval to destroy local data.
 - Do not run `php artisan sail:install` or `sail:add`: they edit `compose.yaml`.
 
@@ -239,8 +240,8 @@ Connect remotely with `mysql -h 192.168.1.10 -P 3307 -u inbils -p inbils`.
 Implementation changes must rebuild/recreate affected services and verify health:
 
 ```bash
-docker compose --env-file .env.docker build app queue scheduler
-docker compose --env-file .env.docker up -d --force-recreate app queue scheduler
+docker compose --env-file .env.docker build app queue platform-queue scheduler
+docker compose --env-file .env.docker up -d --force-recreate app queue platform-queue scheduler
 docker compose --env-file .env.docker ps
 curl --fail http://localhost:${APP_PORT:-8080}/ready
 ```
@@ -249,7 +250,7 @@ For an image refresh and full safe update:
 
 ```bash
 docker compose --env-file .env.docker pull mysql redis
-docker compose --env-file .env.docker build --pull app queue scheduler
+docker compose --env-file .env.docker build --pull app queue platform-queue scheduler
 docker compose --env-file .env.docker up -d --force-recreate
 docker compose --env-file .env.docker exec app php artisan migrate --force
 docker compose --env-file .env.docker ps
@@ -268,7 +269,7 @@ Useful diagnostics:
 
 ```bash
 docker compose --env-file .env.docker ps
-docker compose --env-file .env.docker logs --tail=200 app queue scheduler mysql redis
+docker compose --env-file .env.docker logs --tail=200 app queue platform-queue scheduler mysql redis
 docker compose --env-file .env.docker exec app php artisan about
 docker compose --env-file .env.docker exec mysql mysqladmin ping -u inbils -p
 ```

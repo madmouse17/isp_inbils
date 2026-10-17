@@ -1,6 +1,6 @@
 # Platform superadmin panel (SaaS operator): companies, provisioning, impersonation, support
 
-Status: ready-for-agent
+Status: done
 Ledger: `docs/plans/INBILS_OMP_BACKLOG.md` → "ISP roadmap lanes (2026-10-12)" row `platform-superadmin`
 Source: owner request 2026-10-14 (grill-me): "buatkan saya halaman superadmin untuk saya mengelola semua data perusahaan yang menggunakan aplikasi saya, dan biar saya bisa membuat akun perusahaan dengan mudah dan bisa melakukan impersonate maupun yang lainnya, buat biar powerfull untuk kebutuhan saya terhadap komplain nantinya". Owner approved SA1–SA8 as recommended and asked for specs/tickets "seperti biasa" (round-2 items decided by the assistant: R1–R8).
 

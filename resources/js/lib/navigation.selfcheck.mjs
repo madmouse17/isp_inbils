@@ -146,6 +146,7 @@ test('technician sees no Administration group and no service items', () => {
 
 test('manager keeps Approval and Dispatch but no administration (story 4)', () => {
     const manager = [
+        'announcement.manage',
         'dashboard.view',
         'customer.view',
         'location.view',
@@ -170,7 +171,9 @@ test('manager keeps Approval and Dispatch but no administration (story 4)', () =
 
     assert.ok(!titles.includes('Administrasi'));
     assert.ok(
-        ['Persetujuan', 'Penugasan', 'Paket Layanan'].every((label) => labels.includes(label)),
+        ['Persetujuan', 'Penugasan', 'Paket Layanan', 'Pengumuman & Promo'].every((label) =>
+            labels.includes(label),
+        ),
     );
     assert.ok(
         ['Pengguna', 'Peran', 'Hak Akses', 'Karyawan', 'Kendaraan', 'Dokumen'].every(
@@ -211,6 +214,17 @@ test('Kategori Tiket needs ticket.category.manage; service.manage and ticket.vie
     assert.ok(
         !outline(view(['service.manage', 'ticket.view'])).some(([, labels]) =>
             labels.includes('Kategori Tiket'),
+        ),
+    );
+});
+
+test('Pengumuman & Promo needs announcement.manage; service.manage and ticket.category.manage do not open it', () => {
+    assert.deepEqual(outline(view(['announcement.manage'])), [
+        ['Pelanggan & Layanan', ['Pengumuman & Promo']],
+    ]);
+    assert.ok(
+        !outline(view(['service.manage', 'ticket.category.manage', 'customer.view'])).some(
+            ([, labels]) => labels.includes('Pengumuman & Promo'),
         ),
     );
 });
@@ -363,6 +377,8 @@ test('exactly one item is active, the longest matching href (story 10)', () => {
     assert.equal(active('/admin/ipam/prefixes/12'), '/admin/ipam/prefixes');
     assert.equal(active('/admin/odn/assets/3'), '/admin/odn');
     assert.equal(active('/admin/nas-devices/4'), '/admin/nas-devices');
+    assert.equal(active('/admin/announcements'), '/admin/announcements');
+    assert.equal(active('/admin/announcements?tab=banners'), '/admin/announcements');
 });
 
 test('a sibling path that only shares a prefix is not active', () => {

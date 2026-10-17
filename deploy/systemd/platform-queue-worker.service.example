@@ -1,0 +1,18 @@
+[Unit]
+Description=inbils platform queue worker (sample data, tenant exports)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+WorkingDirectory=/var/www/inbils/current
+# One try and an hour: a job here builds six months of sample data or a tenant export. config/queue.php holds the
+# matching retry_after (3660) for the `platform` connection; keep --timeout below it.
+ExecStart=/usr/bin/php artisan queue:work platform --queue=platform --sleep=3 --tries=1 --timeout=3600
+Restart=always
+RestartSec=5
+# systemd kills the worker 90 s after a stop by default, in the middle of a running job. Give it the whole timeout and a minute more.
+TimeoutStopSec=3660
+
+[Install]
+WantedBy=multi-user.target

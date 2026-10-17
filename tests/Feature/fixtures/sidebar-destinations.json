@@ -106,6 +106,13 @@
             "anyOf": ["ticket.category.manage"]
         },
         {
+            "group": "Pelanggan & Layanan",
+            "label": "Pengumuman & Promo",
+            "href": "/admin/announcements",
+            "route": "admin.announcements.index",
+            "anyOf": ["announcement.manage"]
+        },
+        {
             "group": "Jaringan",
             "label": "Lokasi",
             "href": "/admin/locations",

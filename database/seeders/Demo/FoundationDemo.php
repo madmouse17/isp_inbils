@@ -59,6 +59,14 @@ final class FoundationDemo
         'technician' => ['INB-FLD-SLT', '081322000003', '2022-08-22', ['Splicing FTTH', 'Maintenance jaringan'], 'D 8841 ZBA'],
     ];
 
+    /** The logins a trial company gets besides its real admin: key (also the role) => [name, has an employee profile]. */
+    private const TRIAL_LOGINS = [
+        'manager' => ['Demo Manager', true],
+        'staff' => ['Demo Staff', true],
+        'technician' => ['Demo Technician', true],
+        'customer' => ['Demo Customer', false],
+    ];
+
     /** code => [name, applies to, required, expiry days] */
     private const DOCUMENT_TYPES = [
         'KTP' => ['Kartu Tanda Penduduk (KTP)', 'customer', true, null],
@@ -77,7 +85,11 @@ final class FoundationDemo
 
     public static function seed(DemoContext $c): void
     {
-        self::companyProfile($c);
+        // A trial company keeps the profile its admin gave it: the sample address and bank accounts would print on its invoices.
+        if (! $c->trial) {
+            self::companyProfile($c);
+        }
+
         $units = self::organization($c);
         $vehicles = self::vehicles();
         self::people($c, $units, $vehicles);
@@ -147,24 +159,20 @@ final class FoundationDemo
      */
     private static function people(DemoContext $c, array $units, array $vehicles): void
     {
-        foreach (self::EXISTING as $key => [$unit, $phone, $hired, $skills, $plate]) {
-            $user = User::query()->where('email', "{$key}@demo.inbils.test")->firstOrFail();
-            $c->addUser($key, $user);
+        self::logins($c);
 
-            EmployeeProfile::query()->where('user_id', $user->id)->firstOrFail()->update([
+        foreach (self::EXISTING as $key => [$unit, $phone, $hired, $skills, $plate]) {
+            EmployeeProfile::query()->where('user_id', $c->user($key)->id)->firstOrFail()->update([
                 'organization_id' => $units[$unit],
                 'vehicle_id' => $plate === null ? null : $vehicles[$plate],
-                'phone' => $phone,
+                'phone' => $c->phone($phone),
                 'hire_date' => $hired,
                 'skills' => $skills,
             ]);
         }
 
-        $c->addUser('admin', User::query()->where('email', 'admin@demo.inbils.test')->firstOrFail());
-        $c->addUser('customer', User::query()->where('email', 'customer@demo.inbils.test')->firstOrFail());
-
         foreach (self::PEOPLE as $key => [$name, $local, $role, $unit, $number, $phone, $hired, $skills, $plate, $status]) {
-            $user = new User(['name' => $name, 'email' => "{$local}@demo.inbils.test", 'password' => 'password', 'is_active' => $status === 'active']);
+            $user = new User(['name' => $name, 'email' => $c->email($local), 'password' => $c->password(), 'is_active' => $status === 'active']);
             $user->forceFill(['company_id' => $c->companyId(), 'email_verified_at' => $c->start])->save();
             $user->assignRole($role);
             app(CompanyMembershipService::class)->grant($user, $c->company, true);
@@ -174,12 +182,41 @@ final class FoundationDemo
                 'organization_id' => $units[$unit],
                 'vehicle_id' => $plate === null ? null : $vehicles[$plate],
                 'employee_number' => $number,
-                'phone' => $phone,
+                'phone' => $c->phone($phone),
                 'hire_date' => $hired,
                 'status' => $status,
                 'skills' => $skills,
                 'notes' => $status === 'terminated' ? 'Mengundurkan diri, serah terima perangkat selesai.' : null,
             ]);
+
+            $c->addUser($key, $user);
+        }
+    }
+
+    /**
+     * The five logins every company of the story has. The DEMO company already has them from DemoUserSeeder. A trial
+     * company has its real admin (registered by DemoDataSeeder::seedFor); the other four are created here with
+     * addresses of that company and credentials nobody is ever told.
+     */
+    private static function logins(DemoContext $c): void
+    {
+        if (! $c->trial) {
+            foreach (['admin', 'manager', 'staff', 'technician', 'customer'] as $key) {
+                $c->addUser($key, User::query()->where('email', $c->email($key))->firstOrFail());
+            }
+
+            return;
+        }
+
+        foreach (self::TRIAL_LOGINS as $key => [$name, $employee]) {
+            $user = new User(['name' => $name, 'email' => $c->email($key), 'password' => $c->password(), 'is_active' => true]);
+            $user->forceFill(['company_id' => $c->companyId(), 'email_verified_at' => $c->start])->save();
+            $user->assignRole($key);
+            app(CompanyMembershipService::class)->grant($user, $c->company, true);
+
+            if ($employee) {
+                EmployeeProfile::query()->create(['user_id' => $user->id, 'employee_number' => 'DEMO-'.strtoupper($key), 'status' => 'active']);
+            }
 
             $c->addUser($key, $user);
         }

@@ -45,4 +45,31 @@ class SetupWizardServiceTest extends TestCase
         $this->assertTrue($user->hasRole('admin'));
         $this->assertGreaterThanOrEqual(2, DB::table('activity_log')->count());
     }
+
+    public function test_create_for_homes_the_given_admin_and_leaves_the_signed_in_user_alone(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+        Role::query()->create(['name' => 'admin', 'guard_name' => 'web']);
+        $signedIn = User::factory()->create(['company_id' => null]);
+        $admin = User::factory()->create(['company_id' => null]);
+        $this->actingAs($signedIn);
+
+        $company = app(SetupWizardService::class)->createFor($admin, [
+            'name' => 'PT Tenant Baru',
+            'code' => 'TNB',
+            'currency' => 'IDR',
+            'timezone' => 'Asia/Jakarta',
+            'date_format' => 'd M Y',
+            'datetime_format' => 'd M Y H:i',
+            'admin_name' => 'First Admin',
+        ]);
+
+        $this->assertSame($company->id, $admin->refresh()->company_id);
+        $this->assertSame('First Admin', $admin->name);
+        $this->assertTrue($admin->hasRole('admin'));
+        $this->assertNull($signedIn->refresh()->company_id);
+        $this->assertFalse($signedIn->hasRole('admin'));
+        $this->assertSame(1, DB::table('company_user')->where(['user_id' => $admin->id, 'company_id' => $company->id, 'is_default' => 1])->count());
+        $this->assertDatabaseMissing('users', ['email' => "system-seed-{$company->id}@inbils.internal"]);
+    }
 }

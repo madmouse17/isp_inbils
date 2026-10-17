@@ -80,6 +80,8 @@ class DispatchItemResource extends JsonResource
                 'submitted_at' => $wo->created_at?->toISOString(),
                 'age_seconds' => $wo->created_at ? max(0, (int) $wo->created_at->diffInSeconds(now())) : null,
                 'scheduled_date' => $wo->scheduled_date?->toDateString(),
+                // When the assigned technician left for the visit; the page badges "Dalam perjalanan" for an assigned SPK that has it.
+                'en_route_at' => $wo->en_route_at?->toISOString(),
                 'updated_at' => $wo->updated_at?->utc()->format('Y-m-d\TH:i:s.v\Z'),
                 'summary' => [
                     'type' => $wo->type,

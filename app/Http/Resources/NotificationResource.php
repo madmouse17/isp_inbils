@@ -15,8 +15,24 @@ use Modules\Ticketing\Models\Ticket;
  */
 class NotificationResource extends JsonResource
 {
+    /**
+     * Every `type` a notification row can carry: what the apps may switch on (the OpenAPI document lists the same names).
+     *
+     * @var list<string>
+     */
+    public const TYPES = [
+        'invoice_issued', 'invoice_reminder', 'invoice_due_soon', 'invoice_overdue', 'payment_received',
+        'ticket_created', 'ticket_assigned', 'ticket_resolved', 'ticket_sla_breached', 'ticket_first_response_due',
+        'spk_scheduled', 'spk_scheduled_customer', 'spk_approved', 'spk_rejected', 'technician_en_route', 'visit_completed',
+        'billing_schedule_failed',
+        'inventory_request_submitted', 'inventory_request_approved', 'inventory_request_ready', 'inventory_request_rejected',
+        'material_return_declared', 'material_return_exception', 'material_return_rejected',
+        'announcement_published',
+        'unknown',
+    ];
+
     /** @var list<string> */
-    private const LINKABLE_TYPES = ['ticket_assigned', 'ticket_sla_breached'];
+    private const LINKABLE_TYPES = ['ticket_assigned', 'ticket_sla_breached', 'ticket_first_response_due'];
 
     /** @return array<string, mixed> */
     public function toArray(Request $request): array
@@ -29,8 +45,15 @@ class NotificationResource extends JsonResource
 
         return [
             'id' => (string) $this->id,
+            /**
+             * What happened. The apps pick an icon and wording from it and open `subject`; an unrecognised value is shown
+             * with `title` and `message` as they are. `invoice_reminder` is only on rows written before `invoice_due_soon`
+             * and `invoice_overdue` replaced it.
+             *
+             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_resolved'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'unknown'
+             */
             'type' => $type,
-            'title' => $this->title($type, $customerNotification),
+            'title' => $this->title($type, $customerNotification, $data),
             'message' => $this->message($type, $ticketCode, $data, $customerNotification),
             'subject' => $this->subject($data),
             'created_at' => $this->created_at,
@@ -39,18 +62,26 @@ class NotificationResource extends JsonResource
         ];
     }
 
-    private function title(string $type, bool $customerNotification): string
+    /** @param array<string, mixed> $data */
+    private function title(string $type, bool $customerNotification, array $data): string
     {
         return match ($type) {
             'invoice_issued' => 'Tagihan baru',
             'invoice_reminder' => 'Pengingat jatuh tempo',
+            'invoice_due_soon' => 'Tagihan segera jatuh tempo',
+            'invoice_overdue' => 'Tagihan sudah jatuh tempo',
             'payment_received' => 'Pembayaran diterima',
             'ticket_created' => 'Tiket dibuat',
             'ticket_assigned' => $customerNotification ? 'Tiket mulai ditangani' : 'Tiket ditugaskan',
             'ticket_resolved' => 'Tiket selesai',
             'ticket_sla_breached' => 'SLA tiket terlampaui',
+            'ticket_first_response_due' => ($data['state'] ?? null) === 'breached' ? 'Batas respons pertama terlewat' : 'Respons pertama segera jatuh tempo',
             'spk_scheduled' => 'SPK baru ditugaskan',
             'spk_scheduled_customer' => 'Jadwal kunjungan teknisi',
+            'spk_approved' => 'SPK disetujui',
+            'spk_rejected' => 'SPK ditolak',
+            'technician_en_route' => 'Teknisi dalam perjalanan',
+            'visit_completed' => 'Kunjungan teknisi selesai',
             'billing_schedule_failed' => 'Jadwal penagihan gagal',
             'inventory_request_submitted' => 'Permintaan barang diajukan',
             'inventory_request_approved' => 'Permintaan barang disetujui',
@@ -59,6 +90,7 @@ class NotificationResource extends JsonResource
             'material_return_declared' => 'Pengembalian material dideklarasikan',
             'material_return_exception' => 'Pengembalian material bermasalah',
             'material_return_rejected' => 'Pengembalian material ditolak',
+            'announcement_published' => 'Pengumuman baru',
             default => 'Notifikasi baru',
         };
     }
@@ -73,6 +105,10 @@ class NotificationResource extends JsonResource
         return match ($type) {
             'invoice_issued' => 'Tagihan baru sudah terbit. Buka notifikasi ini untuk melihat rinciannya.',
             'invoice_reminder' => 'Tagihan Anda perlu dibayar. Buka notifikasi ini untuk melihat rinciannya.',
+            'invoice_due_soon' => ($data['stage'] ?? null) === 'H-1'
+                ? 'Tagihan Anda jatuh tempo besok. Buka notifikasi ini untuk melihat rinciannya.'
+                : 'Tagihan Anda jatuh tempo dalam 3 hari. Buka notifikasi ini untuk melihat rinciannya.',
+            'invoice_overdue' => 'Tagihan Anda sudah lewat jatuh tempo. Segera lakukan pembayaran.',
             'payment_received' => 'Pembayaran Anda sudah kami terima.',
             'ticket_created' => 'Tiket Anda sudah tercatat dan menunggu penanganan.',
             'ticket_assigned' => $customerNotification
@@ -82,8 +118,20 @@ class NotificationResource extends JsonResource
             'ticket_sla_breached' => $ticketCode
                 ? "Tiket {$ticketCode} melewati batas SLA."
                 : 'Sebuah tiket melewati batas SLA.',
+            'ticket_first_response_due' => ($data['state'] ?? null) === 'breached'
+                ? ($ticketCode ? "Tiket {$ticketCode} melewati batas respons pertama." : 'Sebuah tiket melewati batas respons pertama.')
+                : ($ticketCode ? "Tiket {$ticketCode} perlu direspons dalam 30 menit." : 'Sebuah tiket perlu direspons dalam 30 menit.'),
             'spk_scheduled' => 'SPK baru sudah ditugaskan kepada Anda.',
             'spk_scheduled_customer' => 'Kunjungan teknisi untuk layanan Anda sudah dijadwalkan.',
+            'spk_approved' => is_string($data['work_order_code'] ?? null)
+                ? "SPK {$data['work_order_code']} sudah disetujui."
+                : 'SPK Anda sudah disetujui.',
+            'spk_rejected' => (is_string($data['work_order_code'] ?? null) ? "SPK {$data['work_order_code']} ditolak." : 'SPK Anda ditolak.')
+                .(is_string($data['reason'] ?? null) && $data['reason'] !== '' ? " Alasan: {$data['reason']}" : ' Buka SPK untuk melihat alasannya.'),
+            'visit_completed' => 'Kunjungan teknisi untuk layanan Anda sudah selesai.',
+            'technician_en_route' => is_string($data['technician_first_name'] ?? null)
+                ? "Teknisi {$data['technician_first_name']} sedang menuju lokasi Anda."
+                : 'Teknisi sedang menuju lokasi Anda.',
             'billing_schedule_failed' => 'Operasi penagihan terjadwal gagal. Periksa log aplikasi.',
             'inventory_request_submitted' => $requestCode
                 ? "Permintaan {$requestCode} menunggu tinjauan gudang."
@@ -106,6 +154,9 @@ class NotificationResource extends JsonResource
             'material_return_rejected' => $caseId !== null
                 ? "Serah terima kasus pengembalian #{$caseId} ditolak. Periksa kembali deklarasinya."
                 : 'Serah terima pengembalian material ditolak. Periksa kembali deklarasinya.',
+            'announcement_published' => is_string($data['title'] ?? null)
+                ? (string) $data['title']
+                : 'Ada pengumuman baru untuk layanan Anda.',
             default => 'Notifikasi ini tersedia di kotak masuk Anda.',
         };
     }
@@ -122,6 +173,7 @@ class NotificationResource extends JsonResource
             'invoice_id' => 'invoice',
             'request_id' => 'inventory_request',
             'case_id' => 'material_return',
+            'announcement_id' => 'announcement',
         ] as $key => $type) {
             $id = $data[$key] ?? null;
 

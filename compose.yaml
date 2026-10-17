@@ -18,8 +18,13 @@ x-app: &app
       condition: service_healthy
     redis:
       condition: service_healthy
+  # Push (FCM): the service-account key is mounted read-only from FIREBASE_CREDENTIALS_FILE (a host path in .env.docker).
+  # Unset, it falls back to /dev/null, an empty file, and FIREBASE_CREDENTIALS stays empty, which turns push off.
+  environment:
+    FIREBASE_CREDENTIALS: ${FIREBASE_CREDENTIALS_FILE:+/run/secrets/firebase-service-account.json}
   volumes:
     - app_storage:/app/storage
+    - ${FIREBASE_CREDENTIALS_FILE:-/dev/null}:/run/secrets/firebase-service-account.json:ro
   networks:
     - inbils
 
@@ -40,6 +45,20 @@ services:
     <<: *app
     container_name: inbils-queue
     command: ["php", "artisan", "queue:work", "--queue=default,whatsapp", "--sleep=3", "--tries=3", "--timeout=90", "--no-interaction"]
+    healthcheck:
+      test: ["CMD-SHELL", "grep -aq 'queue:work' /proc/1/cmdline"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Long tenant work of the platform panel (sample data, exports) on its own connection and queue: one try, one hour.
+  platform-queue:
+    <<: *app
+    container_name: inbils-platform-queue
+    command: ["php", "artisan", "queue:work", "platform", "--queue=platform", "--sleep=3", "--tries=1", "--timeout=3600", "--no-interaction"]
+    # Docker stops a container after 10 s by default; a running job needs up to its timeout to finish.
+    stop_grace_period: 3660s
     healthcheck:
       test: ["CMD-SHELL", "grep -aq 'queue:work' /proc/1/cmdline"]
       interval: 15s

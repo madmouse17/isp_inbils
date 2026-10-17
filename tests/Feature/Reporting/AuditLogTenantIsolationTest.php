@@ -4,9 +4,11 @@ namespace Tests\Feature\Reporting;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\PlatformAuditService;
 use Database\Seeders\CompanySeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -274,6 +276,40 @@ class AuditLogTenantIsolationTest extends TestCase
         $this->actingAs($this->adminA);
         $response = $this->get(route('admin.reports.audit-log'));
         $response->assertOk();
+    }
+
+    public function test_tenant_hides_platform_rows_and_masks_platform_causer_on_support_rows(): void
+    {
+        $platformAdmin = PlatformAdmin::factory()->create(['name' => 'Operator Internal']);
+        $audit = app(PlatformAuditService::class);
+        $audit->platform('impersonation.started', ['reason' => 'Komplain INV-1042'], $this->companyA, $platformAdmin);
+        $support = $audit->support('impersonation.started', ['reason' => 'Komplain INV-1042'], $this->adminA, $platformAdmin);
+
+        $this->actingAs($this->adminA);
+        CompanyService::useCompanyForTests((int) $this->companyA->id);
+
+        $results = AuditLogQuery::execute();
+        $this->assertNotContains('platform', array_column($results, 'log_name'));
+        $row = collect($results)->firstWhere('id', $support?->id);
+        $this->assertNotNull($row);
+        $this->assertNull($row['causer_id']);
+        $this->assertSame('Tim dukungan Inbils', $row['causer']['name']);
+        $this->assertNull($row['causer']['email']);
+
+        $request = Request::create('/admin/reports/audit-log', 'GET');
+        $request->setUserResolver(fn () => $this->adminA);
+        $resource = (new AuditLogResource($support))->toArray($request);
+        $this->assertNull($resource['causer_id']);
+        $this->assertSame('Tim dukungan Inbils', $resource['causer']['name']);
+
+        $page = $this->get(route('admin.reports.audit-log'))->assertOk()->inertiaProps('data.data');
+        $this->assertNotContains('platform', array_column($page, 'log_name'));
+        $visibleSupport = collect($page)->firstWhere('id', $support?->id);
+        $this->assertSame('Tim dukungan Inbils', $visibleSupport['causer']['name']);
+
+        $csv = $this->get(route('admin.reports.audit-log.export', ['format' => 'csv']))->assertOk()->streamedContent();
+        $this->assertStringContainsString('Tim dukungan Inbils', $csv);
+        $this->assertStringNotContainsString('Operator Internal', $csv);
     }
 
     public function test_audit_properties_not_sent_without_capability(): void

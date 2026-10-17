@@ -68,8 +68,9 @@ class AdminPermissionRoleTest extends TestCase
                 ->where('filters.per_page', '25'));
     }
 
-    public function test_role_edit_receives_permissions_group_data_and_selected_permissions(): void
+    public function test_role_show_receives_permissions_group_data_and_selected_permissions(): void
     {
+        $this->withoutVite();
         $this->actingAs($this->userWithPermissions('roles.manage'));
 
         Permission::create(['name' => 'billing.view', 'guard_name' => 'web']);
@@ -78,10 +79,11 @@ class AdminPermissionRoleTest extends TestCase
         $role = Role::create(['name' => 'support', 'guard_name' => 'web']);
         $role->givePermissionTo('billing.view');
 
-        $this->get(route('admin.roles.edit', $role))
+        // The page is a React file the tenant roles UI ticket adds, hence `false`.
+        $this->get(route('admin.roles.show', $role))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/Roles/Edit')
+                ->component('Admin/Roles/Show', false)
                 ->where('role.data.permissions.0', 'billing.view')
                 ->where('permissions.data.0.name', 'billing.view')
                 ->where('permissions.data.0.group', 'billing')

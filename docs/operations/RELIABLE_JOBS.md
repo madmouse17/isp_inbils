@@ -10,6 +10,9 @@ Native Laravel mail/database/log only. No SMS/WhatsApp/external provider.
 | `billing:generate` | daily @ 02:00 | withoutOverlapping() |
 | `billing:check-overdue` | daily @ 03:00 | withoutOverlapping() |
 | `tickets:sla` | every 15 minutes | withoutOverlapping() |
+| `announcements:publish-scheduled` | every minute | withoutOverlapping() |
+| `promo-banners:cleanup-images` | daily | withoutOverlapping() |
+| `inbils:platform:exports:prune` | hourly | withoutOverlapping() |
 
 Locks prevent concurrent scheduler runs of the same command.
 
@@ -30,6 +33,17 @@ Locks prevent concurrent scheduler runs of the same command.
 - Job optional `companyId` scopes tenant; null = all companies (scheduled path).
 - Idempotency: `tickets.sla_breached_notified_at` set under `lockForUpdate` after notify; re-run skips already-notified / resolved / closed.
 - Migration: `Modules/Ticketing/database/migrations/2026_07_25_180000_add_sla_breached_notified_at_to_tickets_table.php` (hasColumn-guarded).
+
+## Announcements and promo banners
+
+- Publishing a due outage or maintenance dispatches `SendAnnouncementNotifications` after commit. Scheduled starts use `announcements:publish-scheduled`.
+- The job claims `announcements.notified_at` under a row lock, then sends one database notification per matching customer user in chunks of 500. Promos and information announcements never notify.
+- `promo-banners:cleanup-images` removes private images after a banner has been ended for more than 180 days. The database row remains.
+
+## Tenant exports
+
+- `BuildTenantExportJob` runs on the `platform` queue with one try and a 3600-second timeout.
+- `inbils:platform:exports:prune` deletes archives after their 24-hour window and fails queued/running builds older than two hours.
 
 ## Queue terminal failure
 

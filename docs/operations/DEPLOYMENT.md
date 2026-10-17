@@ -102,6 +102,18 @@ sudo systemctl status inbils-queue-worker
 sudo journalctl -u inbils-queue-worker -n 20 --no-pager
 ```
 
+### Platform queue worker
+
+The platform panel's long jobs (sample data for a new tenant, tenant exports) run on their own `platform` queue with a one-hour timeout. This worker is required once the platform panel is in use; without it those jobs wait in the `jobs` table. Details, Docker and supervisor variants: [platform-queue.md](./platform-queue.md).
+
+```bash
+sudo cp deploy/systemd/platform-queue-worker.service.example /etc/systemd/system/inbils-platform-queue-worker.service
+sudo systemctl edit inbils-platform-queue-worker --full
+sudo systemctl daemon-reload
+sudo systemctl enable --now inbils-platform-queue-worker
+sudo systemctl status inbils-platform-queue-worker
+```
+
 ### Scheduler (single-owner, once per minute)
 
 ```bash
@@ -132,6 +144,7 @@ After every code deploy:
 
 # Verify restarted workers
 sudo systemctl status inbils-queue-worker
+sudo systemctl status inbils-platform-queue-worker
 
 # Verify scheduler timer is still active
 sudo systemctl status inbils-scheduler.timer
@@ -215,6 +228,8 @@ Recommended worker settings for this app:
 - `--sleep=3`
 - `--tries=3`
 - `--timeout=90` or tighter if the job contract allows it
+
+The `platform` worker is the one exception: `queue:work platform --queue=platform --tries=1 --timeout=3600`, with a stop timeout above one hour (see [platform-queue.md](./platform-queue.md)).
 
 ## Validation
 

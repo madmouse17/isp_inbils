@@ -93,7 +93,7 @@ class PaymentsTest extends TestCase
     {
         $body = (string) $response->getContent();
 
-        foreach (['snap_token', 'order_id', 'last_notification', 'received_by', 'notes', 'reference', 'status_reason', 'transaction_id', 'cancel_reason', 'created_by'] as $key) {
+        foreach (['snap_token', 'order_id', 'last_notification', 'received_by', 'notes', 'status_reason', 'transaction_id', 'cancel_reason', 'created_by'] as $key) {
             $this->assertStringNotContainsString('"'.$key.'":', $body, "{$key} leaked into the response");
         }
 
@@ -142,18 +142,32 @@ class PaymentsTest extends TestCase
     public function test_a_payment_is_the_allow_listed_fields_only(): void
     {
         $invoice = $this->invoiceOf($this->customer, ['number' => 'INV-ONE', 'status' => 'partial', 'paid_amount' => 54600]);
-        $payment = $this->paymentOn($invoice, ['method' => 'midtrans', 'paid_at' => Carbon::parse('2026-03-05 10:30:00')]);
+        $payment = $this->paymentOn($invoice, ['method' => 'midtrans', 'reference' => '7-42-abcdef123456', 'paid_at' => Carbon::parse('2026-03-05 10:30:00')]);
 
         $response = $this->history()->assertOk();
         $item = $response->json('data.0');
 
-        $this->assertEqualsCanonicalizing(['id', 'amount', 'method', 'paid_at', 'invoice'], array_keys($item));
+        $this->assertEqualsCanonicalizing(['id', 'amount', 'method', 'method_label', 'reference', 'paid_at', 'invoice'], array_keys($item));
+        $this->assertSame('Pembayaran online', $item['method_label']);
+        $this->assertSame('7-42-abcdef123456', $item['reference']);
         $this->assertEqualsCanonicalizing(['id', 'number'], array_keys($item['invoice']));
         $this->assertSame($payment->id, $item['id']);
         $this->assertSame('54600.00', $item['amount']);
         $this->assertSame('midtrans', $item['method']);
         $this->assertSame(Carbon::parse('2026-03-05 10:30:00')->toIso8601String(), $item['paid_at']);
         $this->assertSame(['id' => $invoice->id, 'number' => 'INV-ONE'], $item['invoice']);
+        $this->assertNoInternalFields($response);
+    }
+
+    public function test_a_manual_payments_staff_reference_never_reaches_the_customer(): void
+    {
+        $invoice = $this->invoiceOf($this->customer, ['status' => 'partial', 'paid_amount' => 54600]);
+        $this->paymentOn($invoice, ['method' => 'cash']);
+
+        $response = $this->history()->assertOk();
+
+        $this->assertNull($response->json('data.0.reference'));
+        $this->assertSame('Tunai', $response->json('data.0.method_label'));
         $this->assertNoInternalFields($response);
     }
 

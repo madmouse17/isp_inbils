@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\Customer\ProfileController;
 use App\Http\Controllers\Api\V1\Customer\SubscriptionController;
 use App\Http\Controllers\Api\V1\DeviceController;
+use App\Http\Controllers\Api\V1\DeviceTokenController;
 use App\Http\Controllers\Api\V1\MeController;
 use App\Http\Controllers\Api\V1\MediaController;
 use App\Http\Controllers\Api\V1\MePasswordController;
@@ -37,6 +38,8 @@ Route::middleware('api.any')->group(function () {
     Route::get('me', MeController::class)->name('me');
     Route::patch('me', MeProfileController::class)->name('me.update');
     Route::post('me/password', MePasswordController::class)->name('me.password');
+    Route::post('me/device-token', [DeviceTokenController::class, 'store'])->name('me.device-token.store');
+    Route::delete('me/device-token', [DeviceTokenController::class, 'destroy'])->name('me.device-token.destroy');
     Route::get('devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::delete('devices/{id}', [DeviceController::class, 'destroy'])->whereNumber('id')->name('devices.destroy');
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');

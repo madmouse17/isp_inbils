@@ -6,6 +6,7 @@ use App\Exceptions\ApiException;
 use App\Http\Middleware\EnsureCustomerAccess;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\DeviceToken;
 use App\Models\User;
 use App\Queries\Admin\MyWorkQuery;
 use Illuminate\Auth\AuthenticationException;
@@ -108,6 +109,9 @@ final class ApiTokenService
             }
 
             $token = $this->mint($user, $this->appOf($user), $current->name, 'refresh');
+            // The installs registered on the old token follow it to the new one: a refresh is not a sign-out, and
+            // deleting the old row below would otherwise take their push registrations with it.
+            DeviceToken::query()->where('personal_access_token_id', $current->getKey())->update(['personal_access_token_id' => $token->accessToken->getKey()]);
             $current->delete();
 
             return $token;

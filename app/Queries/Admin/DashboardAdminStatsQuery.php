@@ -5,6 +5,7 @@ namespace App\Queries\Admin;
 use App\Models\Core\Customer;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\PlatformAuditService;
 use Illuminate\Database\Eloquent\Model;
 use Modules\Billing\Models\Invoice;
 use Modules\Inventory\Models\Product;
@@ -63,6 +64,7 @@ final class DashboardAdminStatsQuery
             'permissionCount' => Permission::query()->count(),
             'recentActivity' => Activity::query()
                 ->where('properties->company_id', $companyId)
+                ->where(fn ($logs) => $logs->whereNull('log_name')->orWhere('log_name', '<>', PlatformAuditService::PLATFORM_LOG))
                 ->latest()
                 ->limit(self::RECENT_ACTIVITY_LIMIT)
                 ->get()

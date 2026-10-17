@@ -8,7 +8,7 @@ import {
     PageHeader,
 } from '@/Components/composite';
 import { ExportMenu } from '@/Components/ui/ExportMenu';
-import { Badge, Button, Card, CardContent, Input } from '@/Components/ui';
+import { Badge, Card, CardContent, Input } from '@/Components/ui';
 import { useServerTable } from '@/hooks/useServerTable';
 import { toPagination } from '@/lib/pagination';
 import type { Paginated } from '@/types';
@@ -28,10 +28,10 @@ interface RolesProps {
         direction?: string;
         per_page?: string | number;
     };
-    can: { create: boolean; export: boolean };
+    can: { export: boolean };
 }
 
-/** The seeded roles (`RolePolicy`): they cannot be deleted. */
+/** The seeded roles: the platform operator cannot rename or delete them. */
 const PROTECTED_ROLES: Record<string, true> = {
     admin: true,
     manager: true,
@@ -58,7 +58,12 @@ export default function Index({ roles, filters, can }: RolesProps) {
                 sortKey: 'name',
                 cell: (role) => (
                     <div className="flex items-center gap-2">
-                        <span className="font-medium">{role.name}</span>
+                        <Link
+                            href={route('admin.roles.show', role.id)}
+                            className="font-medium text-primary hover:underline"
+                        >
+                            {role.name}
+                        </Link>
                         {Object.hasOwn(PROTECTED_ROLES, role.name) ? (
                             <Badge variant="neutral">Bawaan</Badge>
                         ) : null}
@@ -78,28 +83,11 @@ export default function Index({ roles, filters, can }: RolesProps) {
             {
                 key: 'actions',
                 header: 'Aksi',
-                cell: (role) => (
-                    <DataTableActions
-                        editHref={route('admin.roles.edit', role.id)}
-                        deleteHref={
-                            Object.hasOwn(PROTECTED_ROLES, role.name)
-                                ? undefined
-                                : route('admin.roles.destroy', role.id)
-                        }
-                        deleteMessage={`Hapus peran ${role.name}?`}
-                        deleteDescription={`Peran "${role.name}" akan dihapus dan dicabut dari semua penggunanya.`}
-                    />
-                ),
+                cell: (role) => <DataTableActions showHref={route('admin.roles.show', role.id)} />,
             },
         ],
         [],
     );
-
-    const createButton = can.create ? (
-        <Button asChild variant="primary">
-            <Link href={route('admin.roles.create')}>Buat Peran</Link>
-        </Button>
-    ) : undefined;
 
     return (
         <AdminLayout title="Peran">
@@ -108,22 +96,23 @@ export default function Index({ roles, filters, can }: RolesProps) {
                     title="Peran"
                     subtitle="Kumpulan hak akses yang diberikan ke pengguna lewat peran."
                     actions={
-                        <div className="flex flex-wrap gap-2">
-                            {can.export ? (
-                                <ExportMenu
-                                    exportUrl={route('admin.roles.export')}
-                                    params={params}
-                                    formats={['csv', 'pdf']}
-                                    canExport={can.export}
-                                />
-                            ) : null}
-                            {createButton}
-                        </div>
+                        can.export ? (
+                            <ExportMenu
+                                exportUrl={route('admin.roles.export')}
+                                params={params}
+                                formats={['csv', 'pdf']}
+                                canExport={can.export}
+                            />
+                        ) : undefined
                     }
                 />
 
                 <Card>
                     <CardContent className="space-y-4 pt-6">
+                        <p className="text-sm text-muted-foreground">
+                            Definisi peran dikelola oleh operator platform. Tetapkan peran ke
+                            pengguna di menu Pengguna.
+                        </p>
                         <div className="max-w-md">
                             <Input
                                 label="Cari"
@@ -141,8 +130,7 @@ export default function Index({ roles, filters, can }: RolesProps) {
                             onPageChange={(page) => set('page', page)}
                             onPerPageChange={(perPage) => set('per_page', perPage)}
                             emptyTitle="Belum ada peran"
-                            emptyDescription="Peran mengelompokkan hak akses supaya bisa diberikan sekaligus ke pengguna. Buat peran pertama untuk memulai."
-                            emptyAction={createButton}
+                            emptyDescription="Peran mengelompokkan hak akses supaya bisa diberikan sekaligus ke pengguna. Operator platform yang membuat peran."
                             hasFilters={hasFilters}
                             onResetFilters={() => setMany({ search: '' })}
                             itemLabel="peran"

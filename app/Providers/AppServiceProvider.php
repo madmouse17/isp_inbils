@@ -74,12 +74,16 @@ use Modules\NetworkAsset\Models\OdnSplitter;
 use Modules\NetworkAsset\Policies\NetworkAssetPolicy;
 use Modules\NetworkAsset\Policies\OdnPortPolicy;
 use Modules\NetworkAsset\Policies\OdnSplitterPolicy;
+use Modules\Service\Models\Announcement;
 use Modules\Service\Models\BandwidthProfile;
+use Modules\Service\Models\PromoBanner;
 use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\ServicePackageCategory;
 use Modules\Service\Models\SLATier;
 use Modules\Service\Models\SpeedProfile;
+use Modules\Service\Policies\AnnouncementPolicy;
 use Modules\Service\Policies\BandwidthProfilePolicy;
+use Modules\Service\Policies\PromoBannerPolicy;
 use Modules\Service\Policies\ServicePackageCategoryPolicy;
 use Modules\Service\Policies\ServicePackagePolicy;
 use Modules\Service\Policies\SLATierPolicy;
@@ -114,6 +118,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ServiceSubscription::class, SubscriptionPolicy::class);
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
+        Gate::policy(Announcement::class, AnnouncementPolicy::class);
+        Gate::policy(PromoBanner::class, PromoBannerPolicy::class);
         Gate::policy(BandwidthProfile::class, BandwidthProfilePolicy::class);
         Gate::policy(SpeedProfile::class, SpeedProfilePolicy::class);
         Gate::policy(SLATier::class, SLATierPolicy::class);
@@ -276,6 +282,8 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('api-login', fn (Request $request): Limit => Limit::perMinute(20)->by($request->ip()));
         RateLimiter::for('api-forgot-password', fn (Request $request): Limit => Limit::perMinute(6)->by($request->ip()));
         RateLimiter::for('api-pay', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
+        RateLimiter::for('api-receipt', fn (Request $request): Limit => Limit::perMinute(6)->by($perUser($request)));
         RateLimiter::for('api-upload', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
+        RateLimiter::for('api-promo-tap', fn (Request $request): Limit => Limit::perMinute(30)->by($perUser($request)));
     }
 }

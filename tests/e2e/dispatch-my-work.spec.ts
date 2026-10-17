@@ -204,11 +204,28 @@ test.describe('@lifecycle dispatch-my-work', () => {
         await assignFromQueue('E2E Dispatch Ticket', 'Pilih petugas tiket');
         await assignFromQueue('E2E Dispatch SPK', 'Pilih teknisi lapangan');
 
-        // The technician works in the app: the assigned items show up in the app's My Work API.
-        await logout(page);
+        // The technician works in the app, its own API client: the admin page stays signed in, and the
+        // assigned items show up in the app's My Work API.
         const mine = await myWorkTitles(request);
         expect(mine).toContain('E2E Dispatch Ticket');
         expect(mine).toContain('E2E Dispatch SPK');
+
+        // The technician sets off in the app: the queue says so next to the assignee.
+        const api = await apiLogin(request, 'technician');
+        const list = (await (await api.get('technician/my-work?per_page=100')).json()) as {
+            data: { id: number; domain: string; title: string }[];
+        };
+        const spk = list.data.find(
+            (item) => item.domain === 'spk' && item.title === 'E2E Dispatch SPK',
+        );
+        expect(spk, 'the dispatched SPK in My Work').toBeTruthy();
+        expect((await api.post(`technician/work-orders/${spk?.id}/en-route`, {})).status()).toBe(
+            200,
+        );
+
+        await page.goto('/admin/dispatch?status=assigned');
+        const spkRow = page.getByRole('row').filter({ hasText: 'E2E Dispatch SPK' }).first();
+        await expect(spkRow.getByText('Dalam perjalanan')).toBeVisible();
     });
 
     test('keeps ordinary assignment validation retryable', async ({ page, request }) => {

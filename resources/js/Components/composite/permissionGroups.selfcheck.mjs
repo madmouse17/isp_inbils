@@ -34,6 +34,7 @@ assert.deepEqual(Object.keys(groupPermissions(permissions)), ['spk', 'billing'])
 // Sidebar order, then unknown groups alphabetically (literal: update when the sidebar moves).
 const everyGroup = [
     'zebra',
+    'announcement',
     'developer',
     'users',
     'roles',
@@ -68,6 +69,7 @@ assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
     'evaluation',
     'customer',
     'service',
+    'announcement',
     'location',
     'network_asset',
     'ipam',
@@ -91,6 +93,7 @@ assert.deepEqual(Object.keys(groupPermissions(everyGroup)), [
 assert.equal(permissionGroupSection('dashboard'), null);
 assert.equal(permissionGroupSection('ticket'), 'Operasional');
 assert.equal(permissionGroupSection('service'), 'Pelanggan & Layanan');
+assert.equal(permissionGroupSection('announcement'), 'Pelanggan & Layanan');
 assert.equal(permissionGroupSection('network_asset'), 'Jaringan');
 assert.equal(permissionGroupSection('inventory'), 'Inventaris');
 assert.equal(permissionGroupSection('portal'), 'Lainnya');

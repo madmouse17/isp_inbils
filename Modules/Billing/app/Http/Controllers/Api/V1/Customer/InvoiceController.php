@@ -11,6 +11,7 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Modules\Billing\Http\Requests\Api\V1\Customer\ListInvoicesRequest;
 use Modules\Billing\Http\Resources\PortalInvoiceResource;
 use Modules\Billing\Models\Invoice;
+use Modules\Billing\Models\PaymentAttempt;
 use Modules\Billing\Services\MidtransGateway;
 use Modules\Billing\Services\PaymentAttemptService;
 
@@ -38,7 +39,7 @@ class InvoiceController extends Controller
     /**
      * The spread of the resource hides its shape from the generator, so the body is spelled out.
      *
-     * @response array{data: array{id: int, number: string, subscription_id: int|null, issue_date: string, due_date: string, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: int, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: int, amount: string, method: string, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}}}
+     * @response array{data: array{id: int, number: string, subscription_id: int|null, issue_date: string, due_date: string, billing_period: array{start: string, end: string}|null, status: string, subtotal: string, tax_amount: string, discount_amount: string, total: string, paid_amount: string, sisa: string, items: list<array{id: int, description: string, quantity: string, unit_price: string, discount_amount: string, tax_rate: string, line_total: string}>, payments: list<array{id: int, amount: string, method: string, method_label: string, reference: string|null, paid_at: string}>, payment: array{enabled: bool, can_pay: bool, blocked_reason: string|null}, payment_attempt: array{status: 'pending'|'settlement'|'expire'|'failed', expires_at: string, redirect_url: string|null}|null}}
      */
     public function show(Request $request, int $id, MidtransGateway $gateway): JsonResponse
     {
@@ -56,7 +57,35 @@ class InvoiceController extends Controller
                 'can_pay' => $enabled && $blockedReason === null,
                 'blocked_reason' => $enabled ? $blockedReason : null,
             ],
+            'payment_attempt' => $this->latestAttempt($invoice),
         ]]);
+    }
+
+    /**
+     * The customer's latest try to pay online. The pay link rides along only while it can still be used.
+     *
+     * @return array{status: string, expires_at: string, redirect_url: string|null}|null
+     */
+    private function latestAttempt(Invoice $invoice): ?array
+    {
+        $attempt = $invoice->paymentAttempts()->latest('id')->first(['id', 'invoice_id', 'status', 'expires_at', 'redirect_url']);
+
+        if ($attempt === null) {
+            return null;
+        }
+
+        $status = match ($attempt->status) {
+            PaymentAttempt::STATUS_PAID => 'settlement',
+            PaymentAttempt::STATUS_EXPIRED => 'expire',
+            PaymentAttempt::STATUS_PENDING => $attempt->expires_at->isPast() ? 'expire' : 'pending',
+            default => 'failed',
+        };
+
+        return [
+            'status' => $status,
+            'expires_at' => $attempt->expires_at->toIso8601String(),
+            'redirect_url' => $status === 'pending' ? $attempt->redirect_url : null,
+        ];
     }
 
     private function ownInvoice(Request $request, int $id): Invoice

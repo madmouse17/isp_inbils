@@ -8,6 +8,7 @@ use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Str;
 use OutOfBoundsException;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
@@ -15,6 +16,10 @@ use Random\Randomizer;
 /**
  * State of one DemoDataSeeder run: the company, the demo users that act, the ids earlier steps
  * created, a seeded randomizer (same input, same world) and the clock the timeline drives.
+ *
+ * A trial run (DemoDataSeeder::seedFor) fills a customer's own company, not the DEMO one: everything that would
+ * be global or reachable from outside is made safe here (reserved .test addresses that carry the company id,
+ * random undisclosed passwords, no phone number WhatsApp could deliver to). The DEMO company keeps its fixed logins.
  */
 final class DemoContext
 {
@@ -38,12 +43,39 @@ final class DemoContext
     /** @var array<string, array<string, mixed>> */
     private array $registry = [];
 
-    public function __construct(public readonly Company $company)
+    public function __construct(public readonly Company $company, public readonly bool $trial = false)
     {
         $this->now = CarbonImmutable::now()->startOfSecond();
         $this->start = $this->now->subDays(self::HISTORY_DAYS)->startOfDay();
         $this->randomizer = new Randomizer(new Mt19937(20261011));
         $this->timeline = new DemoTimeline($this);
+    }
+
+    /** Login address of a staff member: `users.email` is unique across every company, so a trial's carry the company id. */
+    public function email(string $local): string
+    {
+        return $this->trial ? "{$local}@c{$this->companyId()}.demo.inbils.test" : "{$local}@demo.inbils.test";
+    }
+
+    public function customerEmail(string $local): string
+    {
+        return $this->trial ? "{$local}@pelanggan.c{$this->companyId()}.demo.inbils.test" : "{$local}@pelanggan.demo.inbils.test";
+    }
+
+    /** What a staff member gets as a password: the known demo one, or for a trial one nobody is ever told. */
+    public function password(): string
+    {
+        return $this->trial ? Str::random(32) : 'password';
+    }
+
+    /**
+     * A sample phone number as the company shows it: the mobile number itself in the DEMO company; in a trial a
+     * Bandung landline built from its last digits, because WhatsApp delivers to mobile numbers only and no number of
+     * a sample customer or technician may ever receive a message.
+     */
+    public function phone(string $mobile): string
+    {
+        return $this->trial ? '022'.substr((string) preg_replace('/\D/', '', $mobile), -7) : $mobile;
     }
 
     public function companyId(): int

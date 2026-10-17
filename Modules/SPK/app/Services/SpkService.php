@@ -9,7 +9,9 @@ use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\FieldCheckIn;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -21,7 +23,12 @@ use Modules\SPK\Actions\CompleteSpkAction;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderAssignment;
 use Modules\SPK\Models\WorkOrderItem;
+use Modules\SPK\Notifications\TechnicianEnRouteNotification;
+use Modules\SPK\Notifications\VisitCompletedNotification;
+use Modules\SPK\Notifications\WorkOrderApprovedNotification;
+use Modules\SPK\Notifications\WorkOrderRejectedNotification;
 use Modules\SPK\Notifications\WorkOrderScheduledNotification;
+use Modules\SPK\Support\WorkOrderSite;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 
@@ -135,7 +142,16 @@ class SpkService
             ]);
 
             $previousTechnicianId = $wo->assigned_to;
-            $wo->update(['status' => 'assigned', 'assigned_to' => $technician->id]);
+            $changes = ['status' => 'assigned', 'assigned_to' => $technician->id];
+            // The trip, the start and the finish belong to one technician's one run of the work: a new technician, or the
+            // rework after a rejection, starts all three over, so a reworked visit shows nothing of its earlier run above a
+            // stepper that begins at "Ditugaskan" again. The earlier start stays in the `started` activity.
+            if ($previousTechnicianId !== $technician->id || $wo->status === 'rejected') {
+                $changes['en_route_at'] = null;
+                $changes['started_at'] = null;
+                $changes['submitted_at'] = null;
+            }
+            $wo->update($changes);
 
             AuditService::log('work_order', 'assigned', [
                 'technician_id' => $technician->id,
@@ -168,6 +184,68 @@ class SpkService
         }
     }
 
+    /**
+     * "Berangkat": the assigned technician is on the way. A timestamp inside `assigned`, not a status, and it happens once:
+     * a second call changes nothing and tells the customer nothing. The optional fix is kept as the `en_route` activity,
+     * apart from the check-in of the start.
+     *
+     * @param  array<string, mixed>|null  $checkIn
+     */
+    public static function markEnRoute(WorkOrder $wo, ?array $checkIn = null): WorkOrder
+    {
+        $expectedStatus = $wo->status;
+        self::assertAssignedTechnician($wo, 'spk.start');
+
+        return DB::transaction(function () use ($wo, $expectedStatus, $checkIn) {
+            $wo = self::lockedWorkOrder($wo->id);
+            self::assertCompany($wo);
+            self::assertAssignedTechnician($wo, 'spk.start');
+            self::throwStatusConflictIfChanged($wo, $expectedStatus, 'assigned', 'Konflik: status SPK sudah diubah oleh pengguna lain.');
+            abort_if($wo->status !== 'assigned', 422, 'SPK harus berstatus ditugaskan agar teknisi bisa berangkat.');
+
+            if ($wo->en_route_at !== null) {
+                return $wo;
+            }
+
+            $leftAt = now();
+            $wo->update(['en_route_at' => $leftAt]);
+            $wo->loadMissing(['location', 'subscription.installationAddress', 'subscription.customer', 'assignee']);
+
+            AuditService::log(
+                'work_order',
+                'en_route',
+                $checkIn === null ? [] : FieldCheckIn::properties($checkIn, FieldCheckIn::site(WorkOrderSite::site($wo))),
+                $wo
+            );
+            self::notifyEnRoute($wo, $leftAt);
+
+            return $wo->fresh();
+        });
+    }
+
+    /**
+     * The customer's app hears about the trip when the SPK belongs to one of their subscriptions: that is what the app
+     * lists and opens. Only a customer with a login can read it. One trip, one notification: its id is made of the SPK and
+     * the moment of "Berangkat", so a trip that is recorded again finds its row and adds nothing.
+     */
+    private static function notifyEnRoute(WorkOrder $wo, CarbonInterface $leftAt): void
+    {
+        $customer = $wo->subscription?->customer;
+        $firstName = $wo->technicianFirstName();
+
+        if ($customer === null || $customer->user_id === null || $firstName === null) {
+            return;
+        }
+
+        $notification = new TechnicianEnRouteNotification($wo->company_id, $wo->id, $firstName, $leftAt);
+
+        if (DatabaseNotification::query()->whereKey($notification->id)->exists()) {
+            return;
+        }
+
+        DB::afterCommit(fn () => self::notifySafely($customer, $notification));
+    }
+
     /** @param array<string, mixed>|null $checkIn */
     public static function start(WorkOrder $wo, ?array $checkIn = null): WorkOrder
     {
@@ -189,7 +267,7 @@ class SpkService
                 AuditService::log(
                     'work_order',
                     'check_in',
-                    FieldCheckIn::properties($checkIn, FieldCheckIn::site($wo->location, $wo->subscription?->installationAddress)),
+                    FieldCheckIn::properties($checkIn, FieldCheckIn::site(WorkOrderSite::site($wo))),
                     $wo
                 );
             }
@@ -333,7 +411,7 @@ class SpkService
             self::throwStatusConflictIfChanged($wo, $expectedStatus, 'in_progress', 'Konflik: status SPK sudah diubah oleh pengguna lain.');
             abort_if($wo->status !== 'in_progress', 422, 'SPK harus berstatus dikerjakan untuk bisa diajukan.');
             abort_if($wo->getMedia('evidence')->count() === 0, 422, 'Bukti pekerjaan wajib diunggah sebelum SPK diajukan.');
-            $wo->update(['status' => 'waiting_review']);
+            $wo->update(['status' => 'waiting_review', 'submitted_at' => $wo->submitted_at ?? now()]);
 
             AuditService::log('work_order', 'submitted_for_review', ['code' => $wo->code], $wo);
 
@@ -365,6 +443,7 @@ class SpkService
             CompleteSpkAction::execute($wo);
 
             AuditService::log('work_order', 'approved', ['code' => $wo->code], $wo);
+            self::notifyApproved($wo);
 
             return $wo->fresh();
         });
@@ -394,9 +473,45 @@ class SpkService
             AuditService::log('work_order', 'rejected', [
                 'code' => $wo->code, 'reason' => $reason,
             ], $wo);
+            self::notifyRejected($wo, $reason);
 
             return $wo->fresh();
         });
+    }
+
+    /**
+     * The technician hears the verdict and, when the SPK belongs to one of the customer's subscriptions (what the app
+     * lists), the customer hears the visit is done. Both go out after the approval commits.
+     */
+    private static function notifyApproved(WorkOrder $wo): void
+    {
+        $wo->loadMissing(['assignee', 'subscription.customer']);
+        $technician = $wo->assignee;
+        $customer = $wo->subscription?->customer;
+
+        DB::afterCommit(function () use ($wo, $technician, $customer): void {
+            self::notifySafely($technician, new WorkOrderApprovedNotification($wo->company_id, $wo->id, $wo->code));
+
+            if ($customer?->user_id !== null && in_array($wo->type, ['installation', 'maintenance'], true)) {
+                self::notifySafely($customer, new VisitCompletedNotification($wo->company_id, $wo->id));
+            }
+        });
+    }
+
+    private static function notifyRejected(WorkOrder $wo, string $reason): void
+    {
+        $wo->loadMissing('assignee');
+        $technician = $wo->assignee;
+
+        DB::afterCommit(fn () => self::notifySafely($technician, new WorkOrderRejectedNotification($wo->company_id, $wo->id, $wo->code, $reason)));
+    }
+
+    /** A notification that cannot be queued is reported, never allowed to undo a review that has already committed. */
+    private static function notifySafely(?object $notifiable, object $notification): void
+    {
+        if ($notifiable !== null) {
+            rescue(fn () => Notification::send($notifiable, $notification));
+        }
     }
 
     public static function cancel(WorkOrder $wo, string $reason): WorkOrder

@@ -23,6 +23,8 @@ use Modules\Inventory\Models\Unit;
 use Modules\Inventory\Services\MaterialReturnService;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Modules\Service\Models\Announcement;
+use Modules\Service\Models\PromoBanner;
 use Modules\SPK\Database\Factories\WorkOrderFactory;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\Ticketing\Models\Ticket;
@@ -52,6 +54,9 @@ trait BuildsMatrixWorld
     protected const SECRET_TAX = 'SECRET-tax-id-0005';
 
     protected const SECRET_TWO_FACTOR = 'SECRET-two-factor-0006';
+
+    /** The assigned technician's phone: the technician's own `me` shows it, no customer response may. */
+    protected const SECRET_TECHNICIAN_PHONE = 'SECRET-technician-phone-0007';
 
     protected Company $companyA;
 
@@ -97,6 +102,7 @@ trait BuildsMatrixWorld
             $user->forceFill(['two_factor_secret' => self::SECRET_TWO_FACTOR, 'two_factor_recovery_codes' => [self::SECRET_TWO_FACTOR], 'two_factor_confirmed_at' => now()])->save();
         }
         $this->customer->forceFill(['tax_id' => self::SECRET_TAX, 'notes' => self::SECRET_NOTE])->save();
+        $this->technician->employeeProfile()->update(['phone' => self::SECRET_TECHNICIAN_PHONE]);
 
         $this->customerToken = $this->issueToken($this->customerUser, 'customer', 'Owner phone');
         $this->technicianToken = $this->issueToken($this->technician, 'technician', 'Owner van');
@@ -107,6 +113,7 @@ trait BuildsMatrixWorld
         $this->buildBilling();
         $this->buildTicketing();
         $this->buildFieldWork();
+        $this->buildAnnouncements();
         $this->buildNotifications();
     }
 
@@ -136,6 +143,7 @@ trait BuildsMatrixWorld
             'notes' => self::SECRET_NOTE,
         ]);
         $this->ids['invoice'] = $invoice->id;
+        $this->ids['paid_invoice'] = InvoiceFactory::new()->create(['company_id' => $companyId, 'customer_id' => $this->customer->id, 'status' => 'paid', 'total' => 154600, 'paid_amount' => 154600])->id;
     }
 
     private function buildTicketing(): void
@@ -181,6 +189,12 @@ trait BuildsMatrixWorld
         $this->ids['evidence'] = $workOrder->addMediaFromString('proof')->usingFileName('proof.jpg')
             ->withCustomProperties(['company_id' => $companyId, 'type' => 'photo', 'uploaded_by' => $this->technician->id])
             ->toMediaCollection('evidence')->id;
+
+        // A visit for the customer's subscription: the customer reads it, nobody else may.
+        $this->ids['customer_work_order'] = WorkOrderFactory::new()->create([
+            'company_id' => $companyId, 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'created_by' => $this->technician->id,
+            'customer_id' => $this->customer->id, 'subscription_id' => $this->ids['subscription'],
+        ])->id;
 
         $location = Location::factory()->create(['company_id' => $companyId]);
         $unit = Unit::factory()->create(['company_id' => $companyId, 'symbol' => 'm'.Str::random(4)]);
@@ -263,6 +277,17 @@ trait BuildsMatrixWorld
     /**
      * The uri with every placeholder filled: from the seeded rows when $real, else with ids that match nothing.
      */
+    private function buildAnnouncements(): void
+    {
+        $announcement = Announcement::factory()->published()->targeted()->create(['company_id' => $this->companyA->id]);
+        $banner = PromoBanner::factory()->published()->create(['company_id' => $this->companyA->id, 'audience' => 'targeted']);
+        $categoryId = (int) ServiceSubscription::query()->findOrFail($this->ids['subscription'])->servicePackage()->value('service_package_category_id');
+        $announcement->servicePackageCategories()->sync([$categoryId]);
+        $banner->servicePackageCategories()->sync([$categoryId]);
+        $this->ids['announcement'] = $announcement->id;
+        $this->ids['promo_banner'] = $banner->id;
+    }
+
     protected function urlOf(LaravelRoute $route, bool $real): string
     {
         $values = $real ? $this->realIds($this->shortName($route)) : [];
@@ -277,7 +302,11 @@ trait BuildsMatrixWorld
     {
         return match ($name) {
             'customer.subscriptions.show', 'customer.subscriptions.connection' => [$this->ids['subscription']],
+            'customer.announcements.show' => [$this->ids['announcement']],
+            'customer.work-orders.show' => [$this->ids['customer_work_order']],
+            'customer.promo-banners.tap' => [$this->ids['promo_banner']],
             'customer.invoices.show', 'customer.invoices.pay' => [$this->ids['invoice']],
+            'customer.invoices.receipt' => [$this->ids['paid_invoice']],
             'customer.tickets.show', 'customer.tickets.comments.store', 'customer.tickets.attachments.store' => [$this->ids['customer_ticket']],
             'customer.tickets.attachments.destroy' => [$this->ids['customer_ticket'], $this->ids['customer_attachment']],
             'devices.destroy' => [$this->ids['customer_device']],
@@ -285,7 +314,7 @@ trait BuildsMatrixWorld
             'notifications.read' => [$this->ids['customer_notification']],
             'technician.tickets.show', 'technician.tickets.start', 'technician.tickets.resolve', 'technician.tickets.comments.store', 'technician.tickets.attachments.store' => [$this->ids['technician_ticket']],
             'technician.tickets.attachments.destroy' => [$this->ids['technician_ticket'], $this->ids['technician_attachment']],
-            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.submit', 'technician.work-orders.evidence.store', 'technician.work-orders.items.store' => [$this->ids['work_order']],
+            'technician.work-orders.show', 'technician.work-orders.start', 'technician.work-orders.en-route', 'technician.work-orders.submit', 'technician.work-orders.evidence.store', 'technician.work-orders.items.store' => [$this->ids['work_order']],
             'technician.work-orders.evidence.destroy' => [$this->ids['work_order'], $this->ids['evidence']],
             'technician.work-orders.items.destroy' => [$this->ids['work_order'], $this->ids['work_order_item']],
             'technician.material-returns.show', 'technician.material-returns.declare' => [$this->ids['material_return']],

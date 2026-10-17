@@ -20,6 +20,9 @@ class CustomerPaymentResource extends JsonResource
             'id' => $this->id,
             'amount' => $this->amount,
             'method' => $this->method,
+            'method_label' => $this->methodLabel(),
+            /** The gateway order id for an online payment; null for a manual one, whose staff-typed reference stays internal. */
+            'reference' => $this->customerReference(),
             'paid_at' => $this->paid_at->toIso8601String(),
             'invoice' => [
                 'id' => $invoice->id,

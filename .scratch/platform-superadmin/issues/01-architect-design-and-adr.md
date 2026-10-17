@@ -1,6 +1,6 @@
 # ARCHITECT: design, contracts, ADR and rule amendments
 
-Status: ready-for-agent
+Status: done
 Role: architect
 Blocked by: field-trip-status merged (spec R8)
 Spec: `../spec.md`
@@ -14,3 +14,5 @@ Produce `.scratch/platform-superadmin/design.md` (tracked; the lane runs in a la
 - [ ] Design doc + ADR + amendment texts reviewed by `security-reviewer` (sign-off recorded here) before tickets 02–07 start.
 
 ## Comments
+
+2026-10-15, orchestrator: design written by PlatformArchitect2 and copied to `.scratch/platform-superadmin/design.md` (1035 lines: data model, API/route contracts, UI contract, test plan, risks, work breakdown for tickets 02–07, fenced ADR-003 / AGENTS.md Company Rules / SECURITY.md texts). Trial data decision: separate company-explicit queued `DemoDataSeeder::seedFor` with random undisclosed credentials; never `DemoUserSeeder` fixed accounts, no `NetworkAccessDemo`, no WhatsApp consent. Security sign-off pending (ticket 08 reviewer reads design first).

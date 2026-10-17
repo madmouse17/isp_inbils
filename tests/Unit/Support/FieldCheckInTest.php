@@ -72,6 +72,13 @@ class FieldCheckInTest extends TestCase
         $this->assertNull(FieldCheckIn::site());
     }
 
+    public function test_a_place_may_also_be_a_plain_array_such_as_a_resolved_site(): void
+    {
+        $this->assertSame(['lat' => -6.2, 'lng' => 106.8], FieldCheckIn::site(['label' => 'Rumah', 'address' => null, 'lat' => -6.2, 'lng' => 106.8]));
+        $this->assertNull(FieldCheckIn::site(['label' => 'Rumah', 'address' => 'Jl. Mawar 1', 'lat' => null, 'lng' => null]));
+        $this->assertSame(['lat' => 1.0, 'lng' => 2.0], FieldCheckIn::site(null, ['lat' => null, 'lng' => null], ['lat' => 1.0, 'lng' => 2.0]));
+    }
+
     /** @param  array<string, mixed>  $input */
     #[DataProvider('validInputs')]
     public function test_valid_check_ins_pass_and_only_known_keys_are_kept(array $input): void

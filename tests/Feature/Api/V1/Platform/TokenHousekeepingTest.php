@@ -47,8 +47,11 @@ class TokenHousekeepingTest extends TestCase
     public function test_the_tokens_table_rolls_back_and_forward(): void
     {
         $migration = $this->migration();
+        // device_tokens references personal_access_tokens, so it must go first and come back last.
+        $deviceTokens = require database_path('migrations/2026_10_21_100000_create_device_tokens_table.php');
 
         try {
+            $deviceTokens->down();
             $migration->down();
             $this->assertFalse(Schema::hasTable('personal_access_tokens'));
 
@@ -64,6 +67,9 @@ class TokenHousekeepingTest extends TestCase
         } finally {
             if (! Schema::hasTable('personal_access_tokens')) {
                 $migration->up();
+            }
+            if (! Schema::hasTable('device_tokens')) {
+                $deviceTokens->up();
             }
         }
     }

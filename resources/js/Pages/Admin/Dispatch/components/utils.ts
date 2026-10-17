@@ -29,3 +29,8 @@ export function getNextStatusInfo(item: DispatchItem): string {
     }
     return `Setelah petugas menekan Mulai, status menjadi ${labelOf(WORK_ITEM_STATUS, 'in_progress')}.`;
 }
+
+/** An SPK whose assigned technician has set off and not started yet. */
+export function isEnRoute(item: DispatchItem): boolean {
+    return item.domain === 'spk' && item.status === 'assigned' && item.en_route_at != null;
+}

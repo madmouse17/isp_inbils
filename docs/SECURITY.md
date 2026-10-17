@@ -60,6 +60,7 @@ Accepted residuals (not permission-level splits): the manager keeps `spk.create`
 | `report.technician` | Yes | Yes | - | Yes | - |
 | `ticket.attachment.upload` | Yes | - | Yes | Yes | Yes |
 | `ticket.category.manage` | Yes | Yes | - | - | - |
+| `announcement.manage` | Yes | Yes | - | - | - |
 | `users.two_factor.reset` | Yes | - | - | - | - |
 
 ### 2.4 Stock adjustment workflow and break-glass
@@ -144,12 +145,14 @@ The hooks sit on the `User` model, so every writer is covered. Also: logout dele
 - A user with `must_change_password` set is refused with 403 `password_reset_required` and resets the password on the web through the e-mailed link (`POST auth/forgot-password`, always 202, same body for every address).
 - Second factor: a user with confirmed two-factor gets a server-side challenge (cache, 300 s, at most 5 attempts) from `POST auth/login` and no token until `POST auth/two-factor` verifies a TOTP or recovery code. Limits and limiter keys are shared with the web challenge (3.1). Managing two-factor stays on the web.
 - Throttles: 120 requests per minute per token; 20 sign-ins per minute per IP plus the web's 5 per e-mail and IP; 6 password-reset requests per minute per IP; 6 payment starts and 30 uploads per minute per user.
+- Promo banner taps have an extra limit of 30 requests per minute per customer user. The counter also deduplicates each banner, user, and company-local date.
 
 ### 4.4 Evidence policy (SPK photos and documents)
 Web and API call the same `SpkService::addEvidence` and `removeEvidence`, guarded by `WorkOrderPolicy`:
 - Upload: the SPK is not `completed` or `cancelled`, and the user has `spk.update`, or is the assigned active technician with `spk.evidence.upload` while the SPK is `in_progress`.
 - Remove: the same status rule, and `spk.update`, or the uploader while the SPK is `in_progress`.
 - One file per request, at most 10 MB, `jpg,jpeg,png,pdf,doc,docx` checked by extension and MIME type, caption at most 255 characters, optional `captured_at` between 30 days ago and 5 minutes ahead. Files go to the private disk and download through `GET /api/v1/media/{media}`, which is fenced by the token's app. A technician reads an SPK only when assigned to it.
+- Promo banner images use the same private media route. The customer app receives bytes only when the caller's company and audience match a currently live banner. Other-company, non-targeted, scheduled, expired, and inactive access returns 404.
 - Until 2026-10-11 any technician of the company could add or delete evidence on any SPK in any status; `tests/Feature/SPK/EvidenceAuthorizationTest.php` pins the fix.
 
 ### 4.5 Request integrity
@@ -167,3 +170,127 @@ The technician and customer roles no longer use the web, so the apps carry these
 - **Inventory requests** (`POST technician/inventory-requests`, `POST .../{id}/cancel`): `InventoryRequestService` and `InventoryRequestPolicy` unchanged. A request from the app is submitted at once (no draft step); cancelling is the requester's, while `draft` or `submitted`. `GET technician/warehouses` and `GET technician/products` only feed the pickers: active locations that hold stock, active non-asset products, no prices or quantities.
 - **Own account** (`PATCH me`, `POST me/password`): the name on the login (`users.name`) and the phone of the person behind it (`customers.phone`, `employee_profiles.phone`); the e-mail, the billing name and every other field stay with staff. A new password needs the current one, counted before it is checked against the web's confirm-password budget (5 wrong guesses a minute per user and address, 429 after that), and it revokes every token of the user (4.2).
 - Residual: a customer can now change the phone their WhatsApp notices go to without staff. The consent (`whatsapp_opt_in_at`) stays on the customer record, as it does when staff edit the number.
+
+### 4.8 Announcements and promo banners
+- `GET /api/v1/customer/home-feed` returns allow-listed live announcements and at most five live banners. SQL audience matching uses active or suspended subscriptions, a serving POP subtree, and service package categories. A targeted item with no remaining targets matches nobody.
+- `GET /api/v1/customer/announcements/{announcement}` repeats the company, period, and audience checks. `POST /api/v1/customer/promo-banners/{banner}/tap` requires the normal idempotency key and its own throttle.
+- Management needs `announcement.manage`. Create, update, publish, deactivate, delete, and expired-image cleanup write the `announcement` audit log with ids only. Published rows stay as history; only drafts may be deleted.
+
+### 4.9 Push notifications (FCM)
+- Device token hidup di tabel `device_tokens`, terikat ke satu Sanctum token lewat foreign key `cascadeOnDelete` dan ke satu persona app (`customer` atau `technician`); `app` pada `POST /api/v1/me/device-token` harus sama dengan ability token bearer. `DELETE` hanya menghapus baris milik pengguna yang sedang login. Logout, pencabutan perangkat, ganti kata sandi, nonaktif user, suspend company dan prune token menghapus registrasinya (4.2); rotasi token memindahkannya ke token baru.
+- Token FCM disimpan di kolom `token` (diperlukan untuk mengirim) dengan `token_hash` unik sebagai kunci pencarian; keduanya `hidden` di model dan tidak pernah dikembalikan oleh API. Log hanya memuat id notifikasi, id user, app, jumlah hasil dan 6 karakter terakhir token yang gagal; judul, isi pesan dan token penuh tidak pernah ditulis ke log. Payload push memakai judul dan pesan yang sama dengan lonceng aplikasi.
+- Kredensial service account Firebase Admin SDK berada di luar repo (`FIREBASE_CREDENTIALS` berisi path, bukan isi JSON) dan tidak pernah masuk `.env`, log, screenshot atau laporan. Token yang ditolak FCM (invalid atau unregistered) dihapus setelah pengiriman. Pengaturan dan pemeriksaan: `docs/operations/push-notifications.md`.
+
+## 5. Platform superadmin (`/platform`)
+
+Platform superadmin adalah identity plane terpisah untuk operator Inbils. Ia
+bukan role tenant. Keputusan arsitektur lengkap ada di
+`docs/architecture/decisions/ADR-003-platform-superadmin.md`.
+
+### 5.1 Identity, login and session
+
+- Model/table `PlatformAdmin`/`platform_admins`, provider `platform_admins`,
+  guard session `platform`. Platform admin tidak punya `company_id`, membership,
+  role tenant, Sanctum token atau remember-me.
+- Login: 5 kegagalan per menit per e-mail + IP dan 20 per jam per e-mail.
+  User tidak aktif gagal dengan pesan kredensial salah yang sama. Platform
+  admin dibuat dari console lewat `php artisan inbils:platform:admin-create`.
+- TOTP wajib. Login pertama hanya boleh mencapai enrolment sampai satu kode
+  valid mengaktifkan secret dan menampilkan 8 recovery code sekali. Setelah
+  enrolment, setiap session harus menyelesaikan challenge sendiri; mengaktifkan
+  akun di session lain tidak membuat session lama lolos.
+- Session idle 30 menit. Aktivitas impersonation yang valid menghitung sebagai
+  aktivitas platform, tetapi impersonation tetap mempunyai hard limit 30 menit.
+- Tidak ada forgot-password, disable-2FA atau IP allowlist platform di v1.
+  Operator yang terkunci memakai akses server untuk membuat admin baru atau
+  prosedur tinker terkontrol; IP allowlist tetap di `docs/PARKING_LOT.md`.
+
+### 5.2 Step-up actions
+
+Konfirmasi platform memakai route/middleware terpisah dan session key
+`platform.auth.password_confirmed_at`, bukan timestamp tenant
+`auth.password_confirmed_at`. Kata sandi diperiksa terhadap guard `platform`,
+dibatasi 5 percobaan per menit per admin + IP, dan berlaku 5 menit. Suspend,
+ajukan hapus, ekspor dan masuk mode ubah juga mensyaratkan ketik ulang code
+company yang sama persis. Kata sandi hanya hidup di body request, tidak masuk
+URL, log, activity properties atau Inertia history.
+
+### 5.3 Tenant suspension and deletion
+
+- Suspend berlaku pada tenant root + subsidiary yang aktif, menulis
+  `suspended_at`, `is_active=false` dan reason di audit. Aksi memakai save model
+  satu per satu supaya `Company::updated` tetap mencabut API token dan membuang
+  cache resolution.
+- Enforcement tetap satu jalur: `LoginRequest`, `OpensSession`,
+  `ResolveActiveCompany` + `RequireHasCompany`, `EnsureApiUserIsActive`, dan
+  hook revocation Company. Platform action tidak membuat middleware kedua.
+- Reactivate hanya mengaktifkan row yang mempunyai `suspended_at`, lalu
+  membatalkan `deletion_requested_at`.
+- Ajukan hapus baru boleh setelah 30 hari suspend dan ada ekspor selesai sesudah
+  waktu suspend. Web tidak pernah purge. Purge hanya lewat
+  `php artisan inbils:platform:purge-company {code}`, interaktif, dengan ketik
+  ulang code dan preflight jumlah row/file.
+
+### 5.4 Impersonation
+
+- Web only. Session menyimpan platform admin id, target user id, tenant id,
+  reason 5-200 karakter, waktu mulai, UUID batch dan mode. Target wajib user
+  aktif dalam tenant aktif; PlatformAdmin tidak mungkin menjadi target karena
+  tabel/guard terpisah.
+- Default `read`: hanya GET/HEAD dan company switch yang tidak mengubah data.
+  Mutation Inertia kembali dengan toast; client biasa mendapat 403. Mode `write`
+  perlu kata sandi platform + ketik ulang code company. Start, perubahan mode,
+  setiap write dan end tercatat di log platform dan log tenant.
+- PlatformAdmin adalah causer nyata activity log; User impersonated tetap acting
+  identity untuk policy dan kolom bisnis seperti `created_by`. Semua activity
+  session berbagi `batch_uuid`.
+- Dilarang selama impersonation: profile/security pribadi, kata sandi/e-mail/2FA
+  target, melihat secret/recovery code/token, menerbitkan API token, atau akses
+  tenant suspended. Logout tenant berarti keluar impersonation; remember token
+  target tidak diputar.
+- Hard limit 30 menit diverifikasi server pada setiap request. Banner hanya
+  indikator; countdown client bukan enforcement.
+- Banner tenant memakai prop Inertia bersama `impersonation` (`Inertia::always`,
+  hanya ada selama session dukungan aktif):
+  `{admin_name, user_name, company_name, company_code, mode: 'read'|'write',
+  expires_at, reason, write_url, read_url, stop_url, confirm_url}`. Prop ini
+  tidak membawa e-mail, id internal, token atau kata sandi; `confirm_url` hanya
+  menerima `return_to` ke halaman `/admin` atau `/app-only` tenant.
+
+### 5.5 Platform-owned roles
+
+Spatie permission tetap `teams=false`; semua role menggunakan guard `web`.
+Tenant dapat melihat role dan assign role ke user, tetapi tidak dapat membuat,
+mengubah atau menghapus definisi role. CRUD definisi role hanya di platform,
+dengan step-up kata sandi dan audit. Nama seeded role `admin`, `manager`, `staff`,
+`technician`, `customer` immutable dan tidak boleh dihapus. Seeder deployment
+masih menyinkronkan permission kelima role tersebut.
+
+### 5.6 Tenant export
+
+- Request ekspor perlu kata sandi platform + code company. Job berjalan di queue
+  `platform`, memasuki setiap company lewat `CompanyService::runAs` dan tetap
+  memberi filter `company_id` eksplisit pada query table mentah.
+- ZIP berisi CSV tenant dan media folder. Password/hash, TOTP, recovery code,
+  token, RADIUS/NAS/PPPoE secret dan payment token tidak diekspor; manifest
+  mencatat kolom yang dihilangkan.
+- Arsip disimpan di private disk `platform/exports/`. Download perlu session
+  platform aktif + 2FA + signed URL maksimal 24 jam. Response `private,no-store`.
+  Cleanup menghapus file tetapi mempertahankan record status `expired` sebagai
+  bukti ekspor sebelum deletion request.
+- Audit tenant tidak menampilkan row `log_name=platform`; access support/ekspor
+  yang harus transparan ditulis sebagai `log_name=support` dengan causer aman
+  `Tim dukungan Inbils` tanpa e-mail/id internal.
+
+### 5.7 Accepted residuals
+
+- First-login TOTP adalah trust-on-first-use: kata sandi platform yang bocor
+  sebelum enrolment dapat mendaftarkan authenticator lebih dulu. Buat admin
+  hanya saat operator siap langsung enrol.
+- Table `sessions.user_id` tidak mempunyai guard/type. Platform 2FA tidak
+  menghapus session berdasarkan angka ID; perubahan 2FA User tenant masih dapat
+  mengeluarkan PlatformAdmin dengan ID sama (availability only, fail-closed).
+- Attribution `failed_jobs` per tenant best-effort dari payload `companyId`; row
+  tanpa company id tampil sebagai unattributed.
+- Meter storage memakai metadata media `company_id`; file legacy tanpa metadata
+  dapat membuat angka list lebih rendah. Ekspor/purge tetap memakai folder nyata.

@@ -40,4 +40,9 @@ class PaymentReceivedNotification extends WhatsAppNotification
     {
         return 'payment_received';
     }
+
+    protected function pushesToApp(): bool
+    {
+        return true;
+    }
 }

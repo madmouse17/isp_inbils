@@ -7,7 +7,9 @@ use App\Queries\Admin\DispatchQueueQuery;
 use App\Queries\Admin\MyWorkQuery;
 use App\Services\Core\CompanyMembershipService;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\ActiveImpersonation;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,6 +37,8 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        /** @var ActiveImpersonation|null $impersonation */
+        $impersonation = $request->attributes->get('impersonation');
         $company = $user ? CompanyService::current() : null;
         $memberships = $user?->can('company.switch')
             ? app(CompanyMembershipService::class)->companiesOf($user)
@@ -56,6 +60,8 @@ class HandleInertiaRequests extends Middleware
                     'permissions' => $user->getAllPermissions()->pluck('name'),
                 ] : null,
             ],
+            // The banner must name the page the operator is on after every visit, partial reloads included.
+            'impersonation' => $impersonation === null ? null : Inertia::always(fn () => $impersonation->toProp($request->getRequestUri())),
             // Technician/customer-only logins use the apps; the few web pages they still reach drop the admin chrome.
             'appOnly' => $user !== null && RedirectAppOnlyRoles::isAppOnly($user),
             'company' => $company ? [

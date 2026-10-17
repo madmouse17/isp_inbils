@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use LogicException;
 use Modules\Billing\Services\BillingService;
 
@@ -76,6 +77,24 @@ class Payment extends Model
         static::deleting(function () {
             throw new LogicException('Payment records are immutable and cannot be deleted.');
         });
+    }
+
+    /** Only a gateway order id is safe to show a customer; a staff-typed reference on a manual payment stays internal. */
+    public function customerReference(): ?string
+    {
+        return $this->method === 'midtrans' ? $this->reference : null;
+    }
+
+    public function methodLabel(): string
+    {
+        return match ($this->method) {
+            'midtrans' => 'Pembayaran online',
+            'transfer' => 'Transfer bank',
+            'cash' => 'Tunai',
+            'cheque' => 'Cek',
+            'other' => 'Lainnya',
+            default => Str::headline((string) $this->method),
+        };
     }
 
     /**

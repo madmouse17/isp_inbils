@@ -2,8 +2,10 @@
 
 namespace Modules\Reporting\Queries;
 
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
+use App\Services\Platform\PlatformAuditService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -48,7 +50,9 @@ class AuditLogQuery
 
         abort_if($resolvedCompanyId === null, 403, 'Company context is required.');
 
-        $query = Activity::query()->where('company_id', (int) $resolvedCompanyId);
+        $query = Activity::query()
+            ->where('company_id', (int) $resolvedCompanyId)
+            ->where(fn (Builder $logs) => $logs->whereNull('log_name')->orWhere('log_name', '<>', PlatformAuditService::PLATFORM_LOG));
 
         if ($userId) {
             // A member, as the report's picker lists them: a user homed elsewhere but granted this company acts here too.
@@ -127,6 +131,7 @@ class AuditLogQuery
 
         return $query->with(['causer'])->latest('id')->limit($limit ?? 500)->get()->map(function (Activity $a) use ($canViewProperties) {
             $causer = $a->causer;
+            $platformCauser = $causer instanceof PlatformAdmin;
 
             return [
                 'id' => $a->id,
@@ -134,13 +139,17 @@ class AuditLogQuery
                 'log_name' => $a->log_name,
                 'description' => $a->description,
                 'event' => $a->event,
-                'causer_id' => $a->causer_id,
+                'causer_id' => $platformCauser ? null : $a->causer_id,
                 'causer_type' => $a->causer_type,
-                'causer' => $causer instanceof User ? [
+                'causer' => $platformCauser ? [
+                    'id' => null,
+                    'name' => 'Tim dukungan Inbils',
+                    'email' => null,
+                ] : ($causer instanceof User ? [
                     'id' => $causer->id,
                     'name' => $causer->name,
                     'email' => $causer->email,
-                ] : null,
+                ] : null),
                 'subject_type' => $a->subject_type,
                 'subject_id' => $a->subject_id,
                 'properties' => $canViewProperties ? ($a->properties ? $a->properties->toArray() : []) : [],

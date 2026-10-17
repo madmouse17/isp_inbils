@@ -4,14 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Concerns\HasIndexQuery;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Admin\StoreRoleRequest;
-use App\Http\Requests\Admin\UpdateRoleRequest;
 use App\Http\Resources\PermissionResource;
 use App\Http\Resources\RoleResource;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
@@ -39,65 +36,19 @@ class RoleController extends Controller
             'roles' => RoleResource::collection($roles),
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page']),
             'can' => [
-                'create' => $request->user()?->can('create', Role::class) ?? false,
                 'export' => $request->user()?->can('roles.export') ?? false,
             ],
         ]);
     }
 
-    public function create(): InertiaResponse
+    public function show(Role $role): InertiaResponse
     {
-        Gate::authorize('create', Role::class);
+        Gate::authorize('view', $role);
 
-        return Inertia::render('Admin/Roles/Create', [
-            'permissions' => PermissionResource::collection(Permission::query()->orderBy('name')->get()),
-        ]);
-    }
-
-    public function store(StoreRoleRequest $request): RedirectResponse
-    {
-        Gate::authorize('store', Role::class);
-
-        $data = $request->validated();
-        $permissions = $data['permissions'] ?? [];
-
-        $role = Role::query()->create([
-            'name' => $data['name'],
-            'guard_name' => 'web',
-        ]);
-        $role->syncPermissions($permissions);
-
-        return redirect()->route('admin.roles.index')->with('success', 'Peran dibuat.');
-    }
-
-    public function edit(Role $role): InertiaResponse
-    {
-        Gate::authorize('edit', $role);
-
-        return Inertia::render('Admin/Roles/Edit', [
+        return Inertia::render('Admin/Roles/Show', [
             'role' => new RoleResource($role->load('permissions')->loadCount(['users' => fn (Builder $users) => $users->where('users.company_id', CompanyService::currentId())])),
             'permissions' => PermissionResource::collection(Permission::query()->orderBy('name')->get()),
         ]);
-    }
-
-    public function update(UpdateRoleRequest $request, Role $role): RedirectResponse
-    {
-        Gate::authorize('update', $role);
-
-        $data = $request->validated();
-        $role->update(['name' => $data['name']]);
-        $role->syncPermissions($data['permissions'] ?? []);
-
-        return redirect()->route('admin.roles.index')->with('success', 'Peran diperbarui.');
-    }
-
-    public function destroy(Role $role): RedirectResponse
-    {
-        Gate::authorize('delete', $role);
-
-        $role->delete();
-
-        return back()->with('success', 'Peran dihapus.');
     }
 
     public function export(Request $request): Response|StreamedResponse

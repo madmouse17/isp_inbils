@@ -9,7 +9,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Models\ServicePackage;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
@@ -86,6 +88,12 @@ class ServiceSubscription extends Model
     public function workOrders(): HasMany
     {
         return $this->hasMany(WorkOrder::class, 'subscription_id');
+    }
+
+    /** @return HasOne<NetworkAccount, $this> */
+    public function pppoeAccount(): HasOne
+    {
+        return $this->hasOne(NetworkAccount::class, 'subscription_id')->where('service_type', 'pppoe');
     }
 
     public function getActivitylogOptions(): LogOptions

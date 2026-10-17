@@ -63,6 +63,8 @@ test('the words decided with the owner are the words the maps use', () => {
         ['WORK_ORDER_STATUS', 'waiting_review', 'Menunggu review', 'warning'],
         ['WORK_ORDER_STATUS', 'completed', 'Selesai', 'success'],
         ['WORK_ORDER_STATUS', 'cancelled', 'Dibatalkan', 'neutral'],
+        ['WORK_ORDER_TRIP', 'en_route', 'Dalam perjalanan', 'info'],
+        ['WORK_ORDER_TRIP', 'rework', 'Perlu perbaikan', 'danger'],
         ['TICKET_STATUS', 'open', 'Terbuka', 'info'],
         ['TICKET_STATUS', 'assigned', 'Ditugaskan', 'info'],
         ['TICKET_STATUS', 'on_progress', 'Dikerjakan', 'info'],
@@ -75,6 +77,22 @@ test('the words decided with the owner are the words the maps use', () => {
         ['CUSTOMER_TYPE', 'Individual', 'Perorangan', 'neutral'],
         ['CUSTOMER_TYPE', 'Company', 'Perusahaan', 'neutral'],
         ['PRIORITY', 'urgent', 'Mendesak', 'danger'],
+        ['ANNOUNCEMENT_STATUS', 'draft', 'Draf', 'neutral'],
+        ['ANNOUNCEMENT_STATUS', 'scheduled', 'Terjadwal', 'info'],
+        ['ANNOUNCEMENT_STATUS', 'live', 'Tayang', 'success'],
+        ['ANNOUNCEMENT_STATUS', 'ended', 'Selesai', 'neutral'],
+        ['ANNOUNCEMENT_STATUS', 'inactive', 'Nonaktif', 'neutral'],
+        ['ANNOUNCEMENT_KIND', 'info', 'Informasi', 'info'],
+        ['ANNOUNCEMENT_KIND', 'outage', 'Gangguan', 'warning'],
+        ['ANNOUNCEMENT_KIND', 'maintenance', 'Pemeliharaan', 'warning'],
+        ['PLATFORM_TENANT_STATUS', 'active', 'Aktif', 'success'],
+        ['PLATFORM_TENANT_STATUS', 'suspended', 'Ditangguhkan', 'warning'],
+        ['PLATFORM_TENANT_STATUS', 'deletion_requested', 'Pengajuan hapus', 'danger'],
+        ['TENANT_EXPORT_STATUS', 'queued', 'Antrean', 'neutral'],
+        ['TENANT_EXPORT_STATUS', 'running', 'Berjalan', 'info'],
+        ['TENANT_EXPORT_STATUS', 'ready', 'Siap diunduh', 'success'],
+        ['TENANT_EXPORT_STATUS', 'failed', 'Gagal', 'danger'],
+        ['TENANT_EXPORT_STATUS', 'expired', 'Kedaluwarsa', 'neutral'],
     ];
     for (const [name, value, label, tone] of fixed) {
         assert.deepEqual(statuses[name][value], { label, tone }, `${name}.${value}`);
@@ -262,6 +280,28 @@ test('maps list exactly the values the models and controllers name', () => {
             'STATUSES',
         ).sort(),
     );
+    assert.deepEqual(
+        keysOf(statuses.ANNOUNCEMENT_STATUS),
+        phpConstant('Modules/Service/Models/Announcement.php', 'STATUSES').sort(),
+    );
+    assert.deepEqual(
+        keysOf(statuses.ANNOUNCEMENT_KIND),
+        phpConstant('Modules/Service/Models/Announcement.php', 'KINDS').sort(),
+    );
+    assert.deepEqual(
+        keysOf(statuses.ANNOUNCEMENT_AUDIENCE),
+        phpConstant('Modules/Service/Models/Announcement.php', 'AUDIENCES').sort(),
+    );
+    assert.deepEqual(
+        keysOf(statuses.BANNER_APP_ROUTE),
+        phpConstant('Modules/Service/Models/PromoBanner.php', 'APP_ROUTES').sort(),
+    );
+    // The link kinds have no constant: the form request lists them.
+    const bannerRules = read('Modules/Service/Http/Requests/SavePromoBannerRequest.php');
+    assert.deepEqual(
+        keysOf(statuses.BANNER_LINK_KIND),
+        quoted(/'link_kind' => \['required', Rule::in\(\[([^\]]*)\]\)/.exec(bannerRules)[1]),
+    );
 });
 
 test('maps list exactly the cases and constants of the remaining backend sources', () => {
@@ -281,6 +321,16 @@ test('maps list exactly the cases and constants of the remaining backend sources
         (match) => match[1],
     );
     assert.deepEqual(keysOf(statuses.IP_ADDRESS_STATUS), addressStatuses.sort());
+
+    assert.deepEqual(
+        keysOf(statuses.PLATFORM_TENANT_STATUS),
+        phpConstant('app/Queries/Platform/PlatformTenantListQuery.php', 'STATUSES').sort(),
+    );
+    const tenantExport = read('app/Models/Platform/TenantExport.php');
+    const tenantExportStatuses = [
+        ...tenantExport.matchAll(/public const (?:QUEUED|RUNNING|READY|FAILED|EXPIRED) = '(\w+)'/g),
+    ].map((match) => match[1]);
+    assert.deepEqual(keysOf(statuses.TENANT_EXPORT_STATUS), tenantExportStatuses.sort());
 
     const accounts = read(
         'Modules/NetworkAsset/database/migrations/2026_10_13_210001_create_network_accounts_table.php',

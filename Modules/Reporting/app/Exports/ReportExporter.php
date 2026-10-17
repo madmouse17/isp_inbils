@@ -2,10 +2,12 @@
 
 namespace Modules\Reporting\Exports;
 
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\CompanyService;
 use App\Support\ExportQuery;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Modules\Inventory\Models\StockMovement;
 use Modules\Reporting\Drill\DrillList;
 use Modules\Reporting\Exceptions\ConsolidationRefusedException;
@@ -134,13 +136,13 @@ final class ReportExporter
             'Saldo setelah' => 'balance_after', 'Dari' => 'from', 'Ke' => 'to', 'Referensi' => 'reference', 'Catatan' => 'note',
         ];
         $map = static fn (StockMovement $movement): array => [
-            'Tanggal' => $movement->created_at?->toDateTimeString(),
-            'Barang' => $movement->product?->name,
+            'Tanggal' => Carbon::make($movement->getAttribute('created_at'))?->toDateTimeString(),
+            'Barang' => $movement->product?->getAttribute('name'),
             'Jenis' => $movement->movement_type,
             'Jumlah' => $movement->quantity,
             'Saldo setelah' => $movement->balance_after,
-            'Dari' => $movement->fromLocation?->name,
-            'Ke' => $movement->toLocation?->name,
+            'Dari' => $movement->fromLocation?->getAttribute('name'),
+            'Ke' => $movement->toLocation?->getAttribute('name'),
             'Referensi' => $movement->reference_type === null ? null : class_basename($movement->reference_type).' #'.$movement->reference_id,
             'Catatan' => $movement->note,
         ];
@@ -180,14 +182,15 @@ final class ReportExporter
 
         $map = static function (Activity $activity) use ($withProperties): array {
             $causer = $activity->causer;
+            $platformCauser = $causer instanceof PlatformAdmin;
             $row = [
                 'ID' => $activity->id,
                 'Waktu' => $activity->created_at?->toDateTimeString(),
                 'Modul' => $activity->log_name,
                 'Aksi' => $activity->event,
                 'Deskripsi' => $activity->description,
-                'Pelaku' => $causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna #'.$activity->causer_id : 'Sistem'),
-                'ID pelaku' => $activity->causer_id,
+                'Pelaku' => $platformCauser ? 'Tim dukungan Inbils' : ($causer instanceof User ? $causer->name : ($activity->causer_id ? 'Pengguna #'.$activity->causer_id : 'Sistem')),
+                'ID pelaku' => $platformCauser ? null : $activity->causer_id,
                 'Jenis subjek' => $activity->subject_type,
                 'ID subjek' => $activity->subject_id,
             ];

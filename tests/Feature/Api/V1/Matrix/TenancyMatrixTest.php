@@ -29,7 +29,7 @@ class TenancyMatrixTest extends TestCase
     private function idRoutes(): array
     {
         $routes = array_values(array_filter($this->apiRoutes(), fn (LaravelRoute $route): bool => str_contains($route->uri(), '{')));
-        $this->assertCount(27, $routes, 'a route with an id was added or removed: add its owner row to BuildsMatrixWorld::realIds');
+        $this->assertCount(32, $routes, 'a route with an id was added or removed: add its owner row to BuildsMatrixWorld::realIds');
 
         foreach ($routes as $route) {
             $this->assertNotSame([], $this->realIds($this->shortName($route)), $route->uri().' has no owner fixture');
@@ -116,7 +116,7 @@ class TenancyMatrixTest extends TestCase
     public function test_lists_of_a_peer_and_a_stranger_hold_nothing_of_company_a(): void
     {
         $lists = [
-            'customer' => ['customer/invoices', 'customer/payments', 'customer/subscriptions', 'customer/tickets', 'notifications'],
+            'customer' => ['customer/invoices', 'customer/payments', 'customer/subscriptions', 'customer/tickets', 'customer/work-orders', 'notifications'],
             'technician' => ['technician/my-work', 'technician/inventory-requests', 'technician/material-returns', 'notifications'],
         ];
         $actors = [

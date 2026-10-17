@@ -2,9 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Services\Core\CompanyService;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class UpdateCompanyProfileRequest extends FormRequest
 {
@@ -18,8 +16,7 @@ class UpdateCompanyProfileRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'code' => ['required', 'string', 'max:50', Rule::unique('companies', 'code')->ignore(CompanyService::currentId())],
-            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,svg', 'mimetypes:image/jpeg,image/png,image/webp,image/svg+xml', 'max:10240'],
+            'logo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'mimetypes:image/jpeg,image/png,image/webp', 'max:10240'],
             'address' => ['nullable', 'string', 'max:1000'],
             'phone' => ['nullable', 'string', 'max:50', 'regex:/^[0-9()+-]+$/'],
             'whatsapp' => ['nullable', 'string', 'max:50', 'regex:/^[0-9()+-]+$/'],

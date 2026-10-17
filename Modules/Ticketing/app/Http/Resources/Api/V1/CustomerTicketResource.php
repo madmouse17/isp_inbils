@@ -4,6 +4,7 @@ namespace Modules\Ticketing\Http\Resources\Api\V1;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Str;
 use Modules\Ticketing\Models\Ticket;
 
 /** @mixin Ticket */
@@ -34,6 +35,11 @@ class CustomerTicketResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'resolved_at' => $this->resolved_at,
+            'first_response_at' => $this->first_response_at,
+            'response_deadline' => $this->response_deadline,
+            'sla_deadline' => $this->sla_deadline,
+            /** First name of the staff member handling the ticket; null while unassigned. The rest of the profile stays internal. */
+            'handler_first_name' => $this->assignee === null ? null : Str::of($this->assignee->name)->trim()->before(' ')->toString(),
         ];
     }
 }

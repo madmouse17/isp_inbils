@@ -16,9 +16,12 @@ import {
     TD,
     TH,
     THead,
+    Textarea,
     TR,
 } from '@/Components/ui';
 import { ACTIVE_STATE } from '@/lib/statuses';
+
+const CUSTOMER_HINT_MAX = 500;
 
 interface CategoryRow {
     id: number;
@@ -27,6 +30,7 @@ interface CategoryRow {
     default_sla_hours: number;
     default_response_hours: number;
     is_active: boolean;
+    customer_hint: string | null;
 }
 
 interface Props extends Record<string, unknown> {
@@ -41,6 +45,7 @@ export default function TicketCategoriesIndex({ categories, can }: Props) {
         default_sla_hours: '',
         default_response_hours: '',
         is_active: true,
+        customer_hint: '',
     });
 
     const open = (category: CategoryRow) => {
@@ -50,6 +55,7 @@ export default function TicketCategoriesIndex({ categories, can }: Props) {
             default_sla_hours: String(category.default_sla_hours),
             default_response_hours: String(category.default_response_hours),
             is_active: category.is_active,
+            customer_hint: category.customer_hint ?? '',
         });
         setEditing(category);
     };
@@ -177,6 +183,15 @@ export default function TicketCategoriesIndex({ categories, can }: Props) {
                         label="Aktif"
                         checked={data.is_active}
                         onCheckedChange={(checked) => setData('is_active', checked)}
+                    />
+                    <Textarea
+                        label="Saran untuk pelanggan"
+                        value={data.customer_hint}
+                        onChange={(e) => setData('customer_hint', e.target.value)}
+                        maxLength={CUSTOMER_HINT_MAX}
+                        rows={4}
+                        hint={`Tampil di aplikasi pelanggan saat memilih kategori ini. Kosongkan jika tidak perlu. ${data.customer_hint.length}/${CUSTOMER_HINT_MAX} karakter.`}
+                        error={errors.customer_hint}
                     />
                     <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" onClick={close}>

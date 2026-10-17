@@ -52,7 +52,8 @@ Route::middleware(['auth', 'verified', 'redirect.app.only', 'require.has.company
     Route::resource('users', UserController::class);
     Route::post('users/{user}/two-factor/reset', UserTwoFactorResetController::class)->name('users.two-factor.reset');
     Route::get('roles/export', [RoleController::class, 'export'])->name('roles.export');
-    Route::resource('roles', RoleController::class);
+    // Role definitions are platform-owned (ADR-003): a tenant admin reads them and assigns them through Pengguna.
+    Route::resource('roles', RoleController::class)->only(['index', 'show']);
 
     Route::get('permissions', [PermissionController::class, 'index'])->name('permissions.index');
 

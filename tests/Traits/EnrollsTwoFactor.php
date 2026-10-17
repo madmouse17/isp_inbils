@@ -2,6 +2,7 @@
 
 namespace Tests\Traits;
 
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Core\TwoFactorService;
 use Database\Seeders\RolePermissionSeeder;
@@ -11,8 +12,8 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * Turns two-factor authentication on for a user through the service, the way the Profile page does,
- * and computes authenticator codes from the Carbon clock so a test can freeze or move time.
+ * Turns two-factor authentication on for a user or a platform admin through the service, the way the Profile page
+ * does, and computes authenticator codes from the Carbon clock so a test can freeze or move time.
  */
 trait EnrollsTwoFactor
 {
@@ -22,7 +23,7 @@ trait EnrollsTwoFactor
      *
      * @return array{secret: string, codes: list<string>}
      */
-    protected function enrollTwoFactor(User $user): array
+    protected function enrollTwoFactor(User|PlatformAdmin $user): array
     {
         $service = app(TwoFactorService::class);
         $secret = $service->beginEnrollment($user)['setup_key'];

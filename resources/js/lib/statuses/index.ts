@@ -18,3 +18,5 @@ export * from './ipam';
 export * from './location';
 export * from './whatsapp';
 export * from './audit';
+export * from './announcement';
+export * from './platform';

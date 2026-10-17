@@ -44,6 +44,18 @@ return [
             'after_commit' => false,
         ],
 
+        // Long tenant work of the platform panel (sample data, exports): same `jobs` table, its own queue, and a
+        // retry_after above the worker's one-hour timeout so a running job is never handed to a second worker.
+        // Served by `queue:work platform --queue=platform --tries=1 --timeout=3600` (docs/operations/platform-queue.md).
+        'platform' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'platform',
+            'retry_after' => 3660,
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver' => 'beanstalkd',
             'host' => env('BEANSTALKD_QUEUE_HOST', 'localhost'),

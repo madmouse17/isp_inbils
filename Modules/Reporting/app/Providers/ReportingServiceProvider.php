@@ -2,6 +2,7 @@
 
 namespace Modules\Reporting\Providers;
 
+use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Inertia\Inertia;
 use Modules\Reporting\Services\TechnicianReportAccess;
@@ -41,8 +42,14 @@ class ReportingServiceProvider extends ModuleServiceProvider
         parent::boot();
 
         // Sidebar flag for Technician Performance: same rule as the route's own 403, shared from the
-        // module so Core never imports it. Lazy: only evaluated when a page renders.
-        Inertia::share('canTechnicianReport', fn (): bool => TechnicianReportAccess::allows(request()->user()));
+        // module so Core never imports it. Lazy: only evaluated when a page renders. The prop reaches every
+        // Inertia response, the operator panel's too, where the signed-in user is a platform admin with no
+        // tenant report: only a tenant user is asked.
+        Inertia::share('canTechnicianReport', function (): bool {
+            $user = request()->user();
+
+            return $user instanceof User && TechnicianReportAccess::allows($user);
+        });
     }
 
     /**

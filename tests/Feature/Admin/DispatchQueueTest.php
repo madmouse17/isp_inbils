@@ -15,6 +15,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
@@ -848,6 +849,28 @@ class DispatchQueueTest extends TestCase
                 ->where('items.data.0.id', $spk->id)
                 ->where('items.data.0.actions.assign', true)
             );
+    }
+
+    public function test_a_dispatch_row_of_an_assigned_spk_says_when_the_technician_left(): void
+    {
+        $company = Company::factory()->create(['is_active' => true]);
+        $dispatcher = User::factory()->create([
+            'company_id' => $company->id,
+            'email_verified_at' => now(),
+            'is_active' => true,
+        ]);
+        $dispatcher->givePermissionTo('spk.reassign');
+        $handler = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $handler->assignRole('technician');
+        $waiting = $this->makeUnassignedSpk($company, $dispatcher);
+        $waiting->update(['assigned_to' => $handler->id, 'status' => 'assigned']);
+        $onTheWay = $this->makeUnassignedSpk($company, $dispatcher);
+        $onTheWay->update(['assigned_to' => $handler->id, 'status' => 'assigned', 'en_route_at' => '2026-10-16 01:30:00']);
+
+        $rows = collect($this->actingAs($dispatcher)->get(route('admin.dispatch.index'))->assertOk()->inertiaProps('items.data'))->keyBy('id');
+
+        $this->assertNull($rows[$waiting->id]['en_route_at']);
+        $this->assertSame(Carbon::parse('2026-10-16 01:30:00')->toISOString(), $rows[$onTheWay->id]['en_route_at']);
     }
 
     public function test_reassign_permission_only_lists_assigned_items_and_audits_once(): void

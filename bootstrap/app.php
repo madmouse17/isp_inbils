@@ -5,7 +5,11 @@ use App\Http\Middleware\Api\EnforceIdempotency;
 use App\Http\Middleware\Api\EnsureApiAppAccess;
 use App\Http\Middleware\Api\EnsureApiUserIsActive;
 use App\Http\Middleware\AssignRequestId;
+use App\Http\Middleware\EnforceImpersonation;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\Platform\EnsurePlatformAccountIsActive;
+use App\Http\Middleware\Platform\RequirePlatformPasswordConfirmation;
+use App\Http\Middleware\Platform\RequirePlatformTwoFactor;
 use App\Http\Middleware\RedirectAppOnlyRoles;
 use App\Http\Middleware\RedirectIfNoCompany;
 use App\Http\Middleware\RequireHasCompany;
@@ -42,10 +46,23 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(AssignRequestId::class);
 
         // Password-reset URLs are built from the request host: only APP_URL (and its subdomains) may supply it,
-        // plus loopback for the container healthcheck (compose.yaml curls http://localhost:8080/ready).
-        $middleware->trustHosts(at: ['^localhost$', '^127\.0\.0\.1$']);
+        // plus loopback for the container healthcheck (compose.yaml curls http://localhost:8080/ready) and, when the
+        // owner dedicates one, the platform host (read lazily, at request time, from config/platform.php).
+        $middleware->trustHosts(at: fn (): array => array_filter([
+            '^localhost$',
+            '^127\.0\.0\.1$',
+            is_string($platformHost = config('platform.domain')) && $platformHost !== '' ? '^'.preg_quote($platformHost).'$' : null,
+        ]));
+
+        // Where the auth middleware sends a guest and a signed-in visitor of a guest page: the platform panel has
+        // its own login and landing page; everything else keeps the tenant ones.
+        $middleware->redirectTo(
+            guests: fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.login') : route('login'),
+            users: fn (Request $request): string => $request->routeIs('platform.*') ? route('platform.dashboard') : route('dashboard'),
+        );
 
         $middleware->web(append: [
+            EnforceImpersonation::class,
             ResolveActiveCompany::class,
             RedirectIfNoCompany::class,
             HandleInertiaRequests::class,
@@ -63,6 +80,12 @@ return Application::configure(basePath: dirname(__DIR__))
             $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: $guard);
         }
 
+        // The platform guards run in this order, ahead of route model binding, so a stranger's company id is never
+        // looked up for an admin who is refused (the routes name them after auth:platform).
+        foreach ([EnsurePlatformAccountIsActive::class, RequirePlatformTwoFactor::class, RequirePlatformPasswordConfirmation::class] as $guard) {
+            $middleware->prependToPriorityList(before: SubstituteBindings::class, prepend: $guard);
+        }
+
         $middleware->alias([
             'redirect.app.only' => RedirectAppOnlyRoles::class,
             'require.no.company' => RequireNoCompany::class,
@@ -71,6 +94,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.active' => EnsureApiUserIsActive::class,
             'api.app' => EnsureApiAppAccess::class,
             'api.idempotent' => EnforceIdempotency::class,
+            'platform.account' => EnsurePlatformAccountIsActive::class,
+            'platform.2fa' => RequirePlatformTwoFactor::class,
+            'platform.password.confirm' => RequirePlatformPasswordConfirmation::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

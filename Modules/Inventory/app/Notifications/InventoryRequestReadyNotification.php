@@ -2,6 +2,7 @@
 
 namespace Modules\Inventory\Notifications;
 
+use App\Notifications\Channels\FcmChannel;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -22,7 +23,7 @@ class InventoryRequestReadyNotification extends Notification implements ShouldQu
     /** @return list<string> */
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', ...FcmChannel::for($notifiable)];
     }
 
     public function toMail(object $notifiable): MailMessage

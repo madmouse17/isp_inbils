@@ -118,8 +118,8 @@ class ValidationRuleMessagesTest extends TestCase
         $expected = SodConflicts::violations($conflict);
         $this->assertCount(1, $expected);
 
-        $this->assertSame($expected, $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict($staff)));
-        $this->assertSame([], $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict($this->admin)));
+        $this->assertSame($expected, $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict()));
+        $this->assertSame([], $this->errors(['permissions' => $conflict], 'permissions', new NoSodConflict(exempt: true)));
 
         foreach ($conflict as $permission) {
             Permission::findOrCreate($permission, 'web');

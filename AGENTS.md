@@ -65,66 +65,72 @@ Dokumen acuan (baca semua sebelum mulai tugas):
 | OpenCode (developer) | Eksekusi task dari TASKS.md, tulis kode + test, update CHANGELOG | Mengubah arsitektur, tambah library tanpa approval, langsung commit ke main |
 | QA-ISP (profile Hermes) | Review hasil coding, cari bug, cek requirement + arsitektur + security + duplication | Coding, memperbaiki source code |
 
-## Company Rules (MANDATORY — multi-tenant ready)
+## Company Rules (MANDATORY — SaaS multi-tenant)
 
-Source of truth: ringkasan di bawah + `docs/architecture/database.md`
-(company_id, Setup Wizard). Ringkasan:
+Source of truth: ringkasan di bawah + `docs/architecture/database.md` +
+`docs/architecture/decisions/ADR-003-platform-superadmin.md`. Ringkasan:
 
 - Company identity dinamis via DB (`companies` table). TIDAK hardcode
   nama/logo/currency/timezone di kode atau `.env`.
-- Company pertama dibuat Setup Wizard (one-shot). Multi-company AKTIF
-  (keputusan owner 2026-10-10, `.scratch/head-company/spec.md`):
-  hierarki satu level `companies.parent_company_id` (Head → Subsidiary,
-  Head = company tanpa parent yang punya subsidiary), membership user di
-  `company_user`, subsidiary dibuat HANYA lewat artisan
-  `inbils:company:create-subsidiary`.
-- Company efektif = `active_company_id` di session (divalidasi terhadap
-  `company_user` + company aktif di SETIAP pembacaan) atau home company
-  (`users.company_id`). DILARANG membaca `users.company_id` sebagai tenant:
-  pakai `CompanyService::currentId()` / `CompanyService::idFor($user)`.
+- Satu tenant = satu company top-level (tanpa `parent_company_id`) beserta
+  anak perusahaannya. Company pertama tetap dibuat lewat Setup Wizard
+  one-shot. Tenant baru dan subsidiary boleh dibuat HANYA oleh platform
+  admin; CLI `inbils:company:create-subsidiary` tetap tersedia untuk operasi.
+- Platform admin adalah identitas terpisah di `platform_admins`, guard
+  `platform`, route `/platform`. Platform admin TIDAK pernah menjadi User,
+  TIDAK punya `company_id`/membership/role tenant, dan TIDAK boleh dipakai
+  sebagai pengecualian policy tenant.
+- Company efektif user tenant = `active_company_id` di session (divalidasi
+  terhadap `company_user` + company aktif di SETIAP pembacaan) atau home
+  company (`users.company_id`). DILARANG membaca `users.company_id` sebagai
+  tenant: pakai `CompanyService::currentId()` / `CompanyService::idFor($user)`.
 - Setiap model master/transaksi WAJIB pakai trait `BelongsToCompany`
   (auto-scope query ke `CompanyService::currentId()` + auto-set company_id
   on create). Scope FAIL-CLOSED: tanpa company context query tenant kosong
-  dan create → 403. Code tanpa user (artisan, queue job, seeder) WAJIB
+  dan create -> 403. Code tanpa user (artisan, queue job, seeder) WAJIB
   `CompanyService::runAs($companyId, fn)`. Exception: User, Role,
-  Permission, ActivityLog, Company.
+  Permission, ActivityLog, Company, PlatformAdmin, TenantExport.
 - Setiap migration tabel master/transaksi WAJIB tambah `company_id`
-  bigint unsigned FK → `companies.id` NOT NULL + unique index per-company
+  bigint unsigned FK -> `companies.id` NOT NULL + unique index per-company
   (mis. `(company_id, sku)` bukan `sku` global).
 - Company identity (nama, logo, currency, timezone, settings) baca via
   `CompanyService::current()` / `CompanyService::setting($key)`. Jangan
   hardcode, jangan baca `.env` untuk company-specific.
-- TIDAK boleh query cross-company tanpa `Model::withoutCompany()` /
-  `forCompany($id)` / `CompanyService::runAs()` eksplisit (hanya artisan,
-  queue job, seeder). Head melihat subsidiary HANYA lewat laporan
-  konsolidasi read-only (`report.consolidated.view`, Head + subsidiary
-  aktif, semua currency harus sama); menulis di subsidiary = switch
-  (`company.switch`) ke company yang di-membership-kan. Role/permission
-  tetap global (spatie teams=false).
-- Role definition (buat/ubah/hapus role + permission) bersifat global, jadi
-  HANYA boleh dari company top-level (Head atau company tunggal), tidak dari
-  subsidiary (`RolePolicy`); jumlah user per role dihitung per company efektif.
-  Administrasi user (lihat/ubah/hapus, termasuk email, password, role, status)
-  menuntut aktor member SETIAP company milik target
-  (`CompanyMembershipService::administers`): satu login berlaku di semua
-  company membernya. Head = company tanpa parent dengan >= 1 subsidiary AKTIF.
-- Setup Wizard flow wajib: fresh install → `php artisan inbils:setup`
-  (bootstrap user) → login → wizard → company created. Route `/setup`
-  one-shot (RequireNoCompany middleware abort 403 if company exists).
-- Breeze register route DISABLED (user creation via bootstrap command
-  + admin User CRUD post-wizard).
-- Dua-layer config: `companies.settings` json (company-specific, diisi
-  wizard) + `settings` table (system-global defaults, seeded saat install).
-  Resolution: `CompanyService::setting(key)` → fallback
-  `SettingService::get('default_'.key)` → hardcoded default.
-- **Initialization rule (MANDATORY):** TIDAK seed company data saat
-  install. Seeder hanya berisi: (1) system roles, (2) permission template,
-  (3) system setting defaults. Company dibuat SATU kali via Setup Wizard.
-  Bootstrap user via `php artisan inbils:setup` (interactive, BUKAN
-  seeder). Breeze register route DISABLED. Lihat `docs/architecture/database.md`.
-- System-global infra config (APP_NAME env, mail driver, queue connection)
-  tetap `.env`/config. System setting table = business defaults/fallback
-  (app.name fallback, default_currency, default_timezone, dll).
+- Query row tenant lintas company HANYA boleh di layer platform, artisan,
+  queue job atau seeder, dengan tenant disebut eksplisit lewat
+  `Model::forCompany($id)` / `CompanyService::runAs($id, fn)`. Query metrik
+  list platform boleh memakai `withoutCompany()->whereIn('company_id',
+  $explicitIds)` dan aggregate `GROUP BY company_id`; DILARANG query tanpa
+  set tenant eksplisit. Controller tenant biasa tidak mendapat pengecualian.
+- Head melihat subsidiary HANYA lewat laporan konsolidasi read-only
+  (`report.consolidated.view`, Head + subsidiary aktif, semua currency harus
+  sama); menulis di subsidiary = switch (`company.switch`) ke company yang
+  di-membership-kan. Platform admin memakai route platform, bukan switch.
+- Role/permission tetap global (`spatie teams=false`). Definisi role
+  (buat/ubah/hapus + permission) HANYA dari platform panel. User tenant boleh
+  melihat role dan assign role yang ada lewat Pengguna, tetapi `RolePolicy`
+  menolak seluruh write definisi role.
+- Administrasi user tenant (lihat/ubah/hapus, termasuk email, kata sandi,
+  role, status) tetap menuntut aktor member SETIAP company milik target
+  (`CompanyMembershipService::administers`). Platform support memakai tool
+  platform atau impersonation ter-audit, bukan bypass policy.
+- Impersonation web menyimpan platform admin sebagai aktor nyata, maksimal
+  30 menit, default read-only, dan setiap write mode ubah tercatat di audit
+  platform + tenant. DILARANG mengubah akun/2FA/kata sandi/email user yang
+  sedang diimpersonate atau menerbitkan API token dari impersonation.
+- Setup Wizard flow fresh install tetap: `php artisan inbils:setup` -> login
+  -> wizard -> company pertama. Route `/setup` one-shot
+  (`RequireNoCompany` abort 403 bila company sudah ada). Tenant berikutnya
+  dibuat lewat platform; Breeze register route tetap DISABLED.
+- Dua-layer config: `companies.settings` json (company-specific) + `settings`
+  table (system-global defaults). Resolution: `CompanyService::setting(key)`
+  -> `SettingService::get('default_'.key)` -> hardcoded default.
+- **Initialization rule (MANDATORY):** install hanya seed system roles,
+  permission template dan system setting defaults. Data company dibuat lewat
+  Setup Wizard/platform provisioning. Demo tenant data hanya lewat job
+  platform yang explicit company-scoped; tidak pernah saat production install.
+- System-global infra config (APP_NAME, mail, queue, `PLATFORM_DOMAIN`) tetap
+  `.env`/config. Secret tidak pernah disimpan di source/log/export.
 
 ## Modular Architecture Rules (MANDATORY — nwidart/laravel-modules)
 

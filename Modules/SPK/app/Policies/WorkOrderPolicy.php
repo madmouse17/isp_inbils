@@ -81,6 +81,12 @@ class WorkOrderPolicy
             && $this->isAssignedTechnician($user, $wo, 'spk.start');
     }
 
+    /** "Berangkat" is part of starting the visit: the same technician, the same status, the same permission. */
+    public function enRoute(User $user, WorkOrder $wo): bool
+    {
+        return $this->start($user, $wo);
+    }
+
     public function submit(User $user, WorkOrder $wo): bool
     {
         return $this->sameCompany($user, $wo)

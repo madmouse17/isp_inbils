@@ -2,15 +2,16 @@
 
 namespace App\Policies;
 
-use App\Models\Core\Company;
 use App\Models\User;
-use App\Services\Core\CompanyService;
 use Spatie\Permission\Models\Role;
 
+/**
+ * Role definitions are global (spatie teams=false): one change reaches the users of every company. So they are
+ * written only from the platform panel (ADR-003). A tenant user with roles.manage may read a role and assign it to
+ * users; every write ability is denied to every tenant user, whatever company they act in.
+ */
 class RolePolicy
 {
-    private const PROTECTED_ROLES = ['admin', 'manager', 'staff', 'technician', 'customer'];
-
     public function viewAny(User $user): bool
     {
         return $user->can('roles.manage');
@@ -23,49 +24,26 @@ class RolePolicy
 
     public function create(User $user): bool
     {
-        return $user->can('roles.manage') && $this->ownsRoleDefinitions($user);
+        return false;
     }
 
     public function store(User $user): bool
     {
-        return $this->create($user);
+        return false;
     }
 
     public function update(User $user, Role $role): bool
     {
-        if (! $this->ownsRoleDefinitions($user)) {
-            return false;
-        }
-
-        if (in_array($role->name, self::PROTECTED_ROLES, true)) {
-            return $user->hasRole('admin');
-        }
-
-        return $user->can('roles.manage');
+        return false;
     }
 
     public function edit(User $user, Role $role): bool
     {
-        return $this->update($user, $role);
+        return false;
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can('roles.manage')
-            && $this->ownsRoleDefinitions($user)
-            && ! in_array($role->name, self::PROTECTED_ROLES, true);
-    }
-
-    /**
-     * Roles are global (teams=false): one change reaches the users of every company. So only an actor
-     * acting in a top-level company (a Head or a standalone company) may change them, never one
-     * acting in a subsidiary.
-     */
-    private function ownsRoleDefinitions(User $user): bool
-    {
-        $companyId = CompanyService::idFor($user);
-
-        return $companyId !== null
-            && Company::query()->whereKey($companyId)->whereNull('parent_company_id')->exists();
+        return false;
     }
 }

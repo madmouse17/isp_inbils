@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
 use App\Models\User;
+use App\Notifications\Channels\FcmChannel;
 use App\Notifications\Channels\WhatsAppChannel;
 use App\Services\Core\CompanyService;
 use App\Services\Core\SettingService;
@@ -47,9 +48,18 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
     /** @return list<class-string|string> */
     public function via(object $notifiable): array
     {
-        return $this->canUseDatabaseChannel($notifiable)
-            ? [WhatsAppChannel::class, 'database']
-            : [WhatsAppChannel::class];
+        if (! $this->canUseDatabaseChannel($notifiable)) {
+            return [WhatsAppChannel::class];
+        }
+
+        // The push is the phone's twin of the bell row: only for an app user, and only for the events that opt in.
+        return [WhatsAppChannel::class, 'database', ...($this->pushesToApp() ? FcmChannel::for($notifiable) : [])];
+    }
+
+    /** Whether this event also goes to the phone (FcmChannel). The events of the customer and technician apps say yes. */
+    protected function pushesToApp(): bool
+    {
+        return false;
     }
 
     /** @return array<class-string, string> */
@@ -71,9 +81,10 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
         return $channel === WhatsAppChannel::class ? [new RateLimited('whatsapp-send')] : [];
     }
 
+    /** The bell row and the push exist only when there is something to say; the other channels decide for themselves. */
     public function shouldSend(object $notifiable, string $channel): bool
     {
-        return $channel !== 'database' || $this->payloadFor($notifiable) !== null;
+        return ! in_array($channel, ['database', FcmChannel::class], true) || $this->payloadFor($notifiable) !== null;
     }
 
     /** @return array<string, mixed> */
@@ -81,10 +92,17 @@ abstract class WhatsAppNotification extends Notification implements ShouldQueueA
     {
         $payload = $this->payloadFor($notifiable);
 
-        if ($payload === null) {
-            return ['type' => $this->event()];
-        }
+        return $payload === null ? ['type' => $this->event()] : $this->bell($payload);
+    }
 
+    /**
+     * What the bell row holds: the event and the id of its subject, nothing else.
+     *
+     * @param  array{event: string, template: string, language: string, parameters: list<string>, subject_type: ?string, subject_id: ?int, dedupe_key: string, batch: bool}  $payload
+     * @return array<string, mixed>
+     */
+    protected function bell(array $payload): array
+    {
         $subjectType = $payload['subject_type'];
         $subjectId = $payload['subject_id'];
 

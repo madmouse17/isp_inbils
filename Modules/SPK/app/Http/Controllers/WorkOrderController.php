@@ -37,6 +37,7 @@ use Modules\SPK\Http\Resources\WorkOrderResource;
 use Modules\SPK\Models\WorkOrder;
 use Modules\SPK\Models\WorkOrderItem;
 use Modules\SPK\Services\SpkService;
+use Modules\SPK\Support\TripSteps;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -186,6 +187,9 @@ class WorkOrderController extends Controller
             ],
             // Only what the page words itself: the technician's own coordinates stay out of the props.
             'checkIn' => $checkIn === null ? null : Arr::only($checkIn, ['status', 'distance_m', 'accuracy_m', 'reason']),
+            // The four steps the apps show, and the one the visit is at.
+            'steps' => TripSteps::of($wo),
+            'currentStep' => TripSteps::current($wo),
             // The drop reserved for the customer (read-only), so the technician connects the right ODP port.
             'dropPort' => $wo->type === 'installation' && $wo->subscription !== null && Gate::allows('odn.view')
                 ? OdnService::dropPortFor($wo->subscription)

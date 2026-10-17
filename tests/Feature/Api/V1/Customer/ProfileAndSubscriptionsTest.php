@@ -7,8 +7,13 @@ use App\Models\Core\CustomerAddress;
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\Service\Database\Factories\ServicePackageFactory;
+use Modules\Service\Models\BandwidthProfile;
+use Modules\Service\Models\ServicePackage;
 use Modules\Service\Models\ServicePackageCategory;
+use Modules\Service\Models\SLATier;
+use Modules\Service\Models\SpeedProfile;
 use Tests\TestCase;
 use Tests\Traits\InteractsWithMobileApi;
 
@@ -19,6 +24,7 @@ class ProfileAndSubscriptionsTest extends TestCase
 
     /** @var list<string> */
     private const FORBIDDEN_KEYS = [
+        'static_ip', 'assigned_ip', 'ip_address', 'blocked_at', 'terminated_reason', 'otc_installation_fee',
         'tax_id', 'notes', 'area_coverage_id', 'ont_asset_id', 'serving_pop_id',
         'whatsapp', 'whatsapp_opt_in_at', 'whatsapp_opt_out_at', 'network_account',
         'network_accounts', 'username', 'password',
@@ -67,12 +73,13 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->json('data.0');
 
         $this->assertSame([
-            'id', 'code', 'status', 'suspension_reason', 'package', 'mrc_amount', 'installation_address', 'activation_date',
-            'billing_day', 'next_invoice_date', 'contract_months', 'expiration_date',
+            'id', 'code', 'status', 'suspension_reason', 'suspended_at', 'package', 'sla_tier', 'pppoe_username', 'mrc_amount', 'installation_address',
+            'activation_date', 'billing_day', 'next_invoice_date', 'contract_months', 'expiration_date',
         ], array_keys($list));
-        $this->assertSame(['id', 'name', 'category'], array_keys($list['package']));
+        $this->assertSame(['id', 'name', 'category', 'download_mbps', 'upload_mbps', 'speed_label'], array_keys($list['package']));
+        $this->assertSame(['download_mbps' => 20, 'upload_mbps' => 10, 'speed_label' => 'Hingga 50 Mbps'], array_intersect_key($list['package'], array_flip(['download_mbps', 'upload_mbps', 'speed_label'])));
         $this->assertSame(['id' => ServicePackageCategory::ensureDefaults((int) $customer->company_id)['BISNIS'], 'name' => 'Bisnis'], $list['package']['category']);
-        $this->assertSame(['address', 'city'], array_keys($list['installation_address']));
+        $this->assertSame(['address', 'city', 'label', 'lat', 'lng'], array_keys($list['installation_address']));
         $this->assertNoForbiddenKeys($list);
 
         $this->api('GET', 'customer/subscriptions/'.$subscription->id, token: $this->issueToken($user, 'customer'))
@@ -80,6 +87,50 @@ class ProfileAndSubscriptionsTest extends TestCase
             ->assertJsonPath('data.id', $subscription->id);
         $this->api('GET', 'customer/subscriptions/'.$foreign->id, token: $this->issueToken($user, 'customer'))
             ->assertNotFound();
+    }
+
+    public function test_subscription_carries_sla_tier_pppoe_username_address_coordinates_and_suspended_at(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $token = $this->issueToken($user, 'customer');
+        $subscription = $this->subscriptionFor($customer, ['status' => 'suspended', 'suspension_source' => 'manual', 'suspended_at' => '2026-10-01 08:00:00']);
+        $package = ServicePackage::withoutCompany()->findOrFail($subscription->service_package_id);
+        SLATier::withoutCompany()->whereKey($package->sla_tier_id)->update(['name' => 'Gold SLA', 'response_time_hours' => 4, 'resolution_time_hours' => 24]);
+        NetworkAccount::factory()->create(['company_id' => $customer->company_id, 'subscription_id' => $subscription->id, 'username' => 'budi-01@isp', 'password' => 'topsecret-pppoe']);
+        CustomerAddress::withoutCompany()->whereKey($subscription->installation_address_id)->update(['label' => 'Rumah Utama', 'lat' => -6.2000000, 'lng' => 106.8166667]);
+
+        $body = $this->api('GET', 'customer/subscriptions/'.$subscription->id, token: $token)->assertOk();
+
+        $body->assertJsonPath('data.sla_tier', ['name' => 'Gold SLA', 'response_time_hours' => 4, 'resolution_time_hours' => 24])
+            ->assertJsonPath('data.pppoe_username', 'budi-01@isp')
+            ->assertJsonPath('data.installation_address.label', 'Rumah Utama')
+            ->assertJsonPath('data.installation_address.lat', '-6.2000000')
+            ->assertJsonPath('data.installation_address.lng', '106.8166667')
+            ->assertJsonPath('data.suspended_at', '2026-10-01T08:00:00+00:00');
+        $this->assertStringNotContainsString('topsecret-pppoe', $body->getContent());
+        $this->assertNoForbiddenKeys($body->json('data'));
+    }
+
+    public function test_new_subscription_fields_are_null_without_an_account_or_suspension_and_load_in_one_query_each(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $token = $this->issueToken($user, 'customer');
+        $hotspotSubscription = $this->subscriptionFor($customer);
+        foreach (range(1, 2) as $ignored) {
+            $this->subscriptionFor($customer);
+        }
+        NetworkAccount::factory()->hotspot()->create(['company_id' => $customer->company_id, 'subscription_id' => $hotspotSubscription->id, 'username' => 'hotspot-user@x']);
+
+        DB::enableQueryLog();
+        $rows = $this->api('GET', 'customer/subscriptions?per_page=50', token: $token)->assertOk()->json('data');
+        $log = DB::getQueryLog();
+        DB::disableQueryLog();
+
+        $this->assertSame([null, null, null], array_column($rows, 'pppoe_username'), 'a hotspot login is not a PPPoE username');
+        $this->assertSame([null, null, null], array_column($rows, 'suspended_at'));
+        foreach (['network_accounts', 'sla_tiers'] as $table) {
+            $this->assertCount(1, array_filter($log, fn (array $q): bool => str_contains($q['query'], '`'.$table.'`')), "one eager load of {$table}");
+        }
     }
 
     public function test_suspension_reason_names_how_a_suspended_subscription_was_put_on_hold_and_is_null_otherwise(): void
@@ -120,6 +171,24 @@ class ProfileAndSubscriptionsTest extends TestCase
         $this->assertSame(['Bisnis'], array_values(array_unique($response->json('data.*.package.category.name'))));
     }
 
+    public function test_package_speed_fields_are_null_without_profiles_and_label_falls_back_to_bandwidth(): void
+    {
+        [$user, $customer] = $this->customerLogin();
+        $token = $this->issueToken($user, 'customer');
+        $bare = $this->subscriptionFor($customer);
+        $this->dropProfiles($bare, bandwidth: true, speed: true);
+        $bandwidthOnly = $this->subscriptionFor($customer);
+        $this->dropProfiles($bandwidthOnly, speed: true);
+
+        $this->api('GET', 'customer/subscriptions/'.$bare->id, token: $token)->assertOk()
+            ->assertJsonPath('data.package.download_mbps', null)
+            ->assertJsonPath('data.package.upload_mbps', null)
+            ->assertJsonPath('data.package.speed_label', null);
+        $this->api('GET', 'customer/subscriptions/'.$bandwidthOnly->id, token: $token)->assertOk()
+            ->assertJsonPath('data.package.download_mbps', 20)
+            ->assertJsonPath('data.package.speed_label', 'Hingga 20 Mbps');
+    }
+
     public function test_customer_routes_reject_technician_tokens(): void
     {
         $technician = $this->technicianLogin();
@@ -127,6 +196,13 @@ class ProfileAndSubscriptionsTest extends TestCase
         $this->api('GET', 'customer/profile', token: $this->issueToken($technician, 'technician'))
             ->assertForbidden()
             ->assertJsonPath('code', 'forbidden');
+    }
+
+    private function dropProfiles(ServiceSubscription $subscription, bool $bandwidth = false, bool $speed = false): void
+    {
+        $package = ServicePackage::withoutCompany()->findOrFail($subscription->service_package_id);
+        $bandwidth && BandwidthProfile::withoutCompany()->whereKey($package->bandwidth_profile_id)->delete();
+        $speed && SpeedProfile::withoutCompany()->whereKey($package->speed_profile_id)->delete();
     }
 
     /** @param array<string, mixed> $overrides */
@@ -141,6 +217,8 @@ class ProfileAndSubscriptionsTest extends TestCase
         ]);
         $package = ServicePackageFactory::new()->create([
             'company_id' => $customer->company_id,
+            'bandwidth_profile_id' => BandwidthProfile::factory()->create(['company_id' => $customer->company_id, 'name' => uniqid('BW '), 'download_mbps' => 20, 'upload_mbps' => 10])->id,
+            'speed_profile_id' => SpeedProfile::factory()->create(['company_id' => $customer->company_id, 'name' => uniqid('SP '), 'download_max_mbps' => 50, 'upload_max_mbps' => 25])->id,
             'name' => 'Fiber 20 Mbps',
             'service_package_category_id' => ServicePackageCategory::ensureDefaults((int) $customer->company_id)['BISNIS'],
         ]);

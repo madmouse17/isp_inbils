@@ -60,6 +60,7 @@ class RolePermissionSeeder extends Seeder
             'service.delete',
             'service.export',
             'service.manage',
+            'announcement.manage',
 
             'organization.view',
             'organization.manage',
@@ -231,6 +232,7 @@ class RolePermissionSeeder extends Seeder
             'customer.sales.assign', 'customer.sales.correct',
 
             'service.view', 'service.create', 'service.update', 'service.manage',
+            'announcement.manage',
             'dashboard.view',
 
             'network_asset.view', 'network_asset.create', 'network_asset.update',

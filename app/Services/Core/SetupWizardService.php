@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use App\Events\CompanyCreated;
 use App\Models\Core\Company;
+use App\Models\User;
 use Database\Seeders\CompanySeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -11,10 +12,22 @@ use Illuminate\Support\Facades\DB;
 
 class SetupWizardService
 {
+    /** The Setup Wizard: the signed-in user becomes the first admin of the company they create. */
     public function create(array $data): Company
     {
-        return DB::transaction(function () use ($data): Company {
-            $user = Auth::user();
+        return $this->createFor(Auth::user(), $data);
+    }
+
+    /**
+     * Creates a company with its first admin, in the order the wizard always had: the company without automatic events,
+     * its logo, the admin role, the admin homed and made a default member, the audit rows, then the defaults seeder and
+     * CompanyCreated. The admin exists and is homed before seeding, so the seeder acts as them and never falls back to
+     * a system-seed user. Shared by the wizard ($admin = the signed-in user) and platform provisioning (a new user).
+     */
+    public function createFor(User $admin, array $data): Company
+    {
+        return DB::transaction(function () use ($admin, $data): Company {
+            $user = $admin;
             $logo = $data['logo'] ?? null;
             unset($data['logo']);
 

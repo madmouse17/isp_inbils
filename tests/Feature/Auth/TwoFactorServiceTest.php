@@ -299,9 +299,10 @@ class TwoFactorServiceTest extends TestCase
         }
         foreach ($rows as $row) {
             $this->assertSame($user->id, $row->subject_id);
-            $this->assertEmpty(array_diff(array_keys($row->properties->all()), ['user_id', 'actor_id', 'method', 'remaining', 'company_id']));
+            $this->assertEmpty(array_diff(array_keys($row->properties->all()), ['user_id', 'actor_id', 'actor_type', 'method', 'remaining', 'company_id']));
         }
         $this->assertSame($actor->id, $rows->firstWhere('description', 'two_factor.admin_reset')->properties['actor_id']);
+        $this->assertSame('user', $rows->firstWhere('description', 'two_factor.admin_reset')->properties['actor_type']);
     }
 
     public function test_the_two_factor_columns_never_reach_the_user_activity_log(): void

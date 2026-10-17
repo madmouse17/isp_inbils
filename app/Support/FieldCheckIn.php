@@ -56,8 +56,13 @@ final class FieldCheckIn
         ];
     }
 
-    /** @return array{lat: mixed, lng: mixed}|null */
-    public static function site(?object ...$places): ?array
+    /**
+     * The coordinates of the first place that has both, whether the place is a model or an array such as a resolved site.
+     *
+     * @param  array<string, mixed>|object|null  ...$places
+     * @return array{lat: mixed, lng: mixed}|null
+     */
+    public static function site(array|object|null ...$places): ?array
     {
         foreach ($places as $place) {
             if ($place === null) {

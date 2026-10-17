@@ -36,7 +36,7 @@ class TicketController extends Controller
                 $started->loadMissing(['location', 'subscription.installationAddress']);
                 AuditService::log('ticket', 'check_in', FieldCheckIn::properties(
                     $validated['check_in'],
-                    FieldCheckIn::site($started->location, $started->subscription?->installationAddress),
+                    FieldCheckIn::site($started->subscription?->installationAddress ?? $started->location),
                 ), $started);
             }
 

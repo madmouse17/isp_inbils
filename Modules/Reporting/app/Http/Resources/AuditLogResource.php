@@ -2,6 +2,7 @@
 
 namespace Modules\Reporting\Http\Resources;
 
+use App\Models\PlatformAdmin;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -22,6 +23,7 @@ class AuditLogResource extends JsonResource
         $properties = ($canViewProperties && $props) ? $props->toArray() : [];
 
         $causer = $this->resource->causer;
+        $platformCauser = $causer instanceof PlatformAdmin;
 
         return [
             'id' => $this->resource->id,
@@ -29,13 +31,17 @@ class AuditLogResource extends JsonResource
             'log_name' => $this->resource->log_name,
             'description' => $this->resource->description,
             'event' => $this->resource->event,
-            'causer_id' => $this->resource->causer_id,
+            'causer_id' => $platformCauser ? null : $this->resource->causer_id,
             'causer_type' => $this->resource->causer_type,
-            'causer' => $causer instanceof User ? [
+            'causer' => $platformCauser ? [
+                'id' => null,
+                'name' => 'Tim dukungan Inbils',
+                'email' => null,
+            ] : ($causer instanceof User ? [
                 'id' => $causer->id,
                 'name' => $causer->name,
                 'email' => $causer->email,
-            ] : null,
+            ] : null),
             'subject_type' => $this->resource->subject_type,
             'subject_id' => $this->resource->subject_id,
             'properties' => $properties,
