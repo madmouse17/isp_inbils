@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Modules\Service\Models\ServicePackageCategory;
+use Modules\Service\Services\ServicePackageVersionBackfill;
 
 class CompanySeeder extends Seeder
 {
@@ -252,6 +253,9 @@ class CompanySeeder extends Seeder
                 'updated_at' => now(),
             ]);
         }
+
+        // The raw inserts skip the model hook that records a package's first version.
+        ServicePackageVersionBackfill::versions();
     }
 
     private function seedInventoryCategories(Company $company): void

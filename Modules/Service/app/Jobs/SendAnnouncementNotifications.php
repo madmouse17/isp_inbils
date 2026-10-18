@@ -26,6 +26,9 @@ class SendAnnouncementNotifications implements ShouldBeUnique, ShouldQueue
 
     public int $timeout = 120;
 
+    /** Safety net for a lock whose job never reached a worker: a later dispatch for the announcement is accepted again. */
+    public int $uniqueFor = 600;
+
     public function __construct(public readonly int $announcementId) {}
 
     public function uniqueId(): string

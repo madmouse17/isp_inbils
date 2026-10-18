@@ -3,7 +3,7 @@
 namespace Modules\Billing\Console;
 
 use App\Models\Core\Company;
-use App\Models\User;
+use App\Models\Core\Customer;
 use App\Services\Core\CompanyService;
 use Carbon\CarbonImmutable;
 use Illuminate\Console\Command;
@@ -23,9 +23,9 @@ class SendInvoiceWhatsAppReminders extends Command
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
-        $failedCompanyId = null;
+        $failedCompanyIds = [];
 
-        // One company's failure (a broken timezone, say) must not keep the others from being reminded.
+        // One company's failure (a broken timezone, say) must not keep the others from being reminded: it is reported, and only its own admins are told, at the end.
         foreach ($this->resolveCompanyIds() as $companyId) {
             try {
                 $counts = CompanyService::runAs($companyId, fn (): array => $this->remind($companyId, $dryRun));
@@ -34,20 +34,13 @@ class SendInvoiceWhatsAppReminders extends Command
             } catch (Throwable $e) {
                 report($e);
                 $this->error('WhatsApp reminders failed for company '.$companyId.': '.$e->getMessage());
-                $failedCompanyId ??= $companyId;
+                $failedCompanyIds[] = $companyId;
             }
         }
 
-        if ($failedCompanyId === null) {
-            return self::SUCCESS;
-        }
+        BillingScheduleFailedNotification::alertAdmins('billing:whatsapp-reminders', $failedCompanyIds);
 
-        Notification::send(
-            User::where('is_active', true)->role('admin')->get(),
-            new BillingScheduleFailedNotification(command: 'billing:whatsapp-reminders', companyId: $failedCompanyId),
-        );
-
-        return self::FAILURE;
+        return $failedCompanyIds === [] ? self::SUCCESS : self::FAILURE;
     }
 
     /**
@@ -71,7 +64,7 @@ class SendInvoiceWhatsAppReminders extends Command
                 ->with('customer')
                 ->chunkById(200, function ($invoices) use ($companyId, $dryRun, $stage, &$counts): void {
                     foreach ($invoices as $invoice) {
-                        if ($invoice->customer === null) {
+                        if ($invoice->customer === null || $this->bellRung($invoice->customer, $invoice, $stage)) {
                             continue;
                         }
 
@@ -85,6 +78,23 @@ class SendInvoiceWhatsAppReminders extends Command
         }
 
         return $counts;
+    }
+
+    /**
+     * Whether this invoice-stage bell already rang. The bell row is the push's durable twin, so it prevents both from
+     * being sent again. WhatsApp keeps its channel-level dedupe key for customers without an app account, who have no bell.
+     *
+     * shortcut: a re-run before the queue worker wrote the first bell row still rings twice, the row being the only record;
+     * give the notification a dedupe key of its own if queue lag ever makes that real.
+     */
+    private function bellRung(Customer $customer, Invoice $invoice, string $stage): bool
+    {
+        return $customer->notifications()
+            ->reorder()
+            ->where('type', InvoiceDueReminderNotification::class)
+            ->where('data->invoice_id', $invoice->public_id)
+            ->where('data->stage', $stage)
+            ->exists();
     }
 
     /** @return list<int> */

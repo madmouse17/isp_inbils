@@ -25,6 +25,7 @@ class CustomerStatusBackfillMigrationTest extends TestCase
         $migration = require database_path('migrations/'.self::MIGRATION);
         $company = Company::factory()->create();
         $package = ServicePackageFactory::new()->create(['company_id' => $company->id]);
+        $versionId = DB::table('service_package_versions')->where('service_package_id', $package->id)->value('id');
         $customerIds = $subscriptionIds = [];
 
         try {
@@ -55,7 +56,7 @@ class CustomerStatusBackfillMigrationTest extends TestCase
                     [$subStatus, $deleted] = array_pad(explode(':', $spec), 2, null);
                     $subscriptionIds[] = DB::table('service_subscriptions')->insertGetId([
                         'public_id' => PublicId::new(),
-                        'company_id' => $company->id, 'customer_id' => $customerId, 'service_package_id' => $package->id,
+                        'company_id' => $company->id, 'customer_id' => $customerId, 'service_package_id' => $package->id, 'service_package_version_id' => $versionId,
                         'installation_address_id' => $address->id,
                         'code' => 'BFS-'.++$n, 'status' => $subStatus, 'billing_day' => 1, 'mrc_amount' => 1, 'otc_installation_fee' => 0,
                         'deleted_at' => $deleted ? now() : null, 'created_at' => now(), 'updated_at' => now(),

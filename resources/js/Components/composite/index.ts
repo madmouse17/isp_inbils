@@ -1,7 +1,10 @@
 export { DataTable } from './DataTable';
 export type { DataTableColumn, PaginatorShape, SortDirection } from './DataTable';
 export { DataTableActions } from './DataTableActions';
-export type { DataTableActionsProps } from './DataTableActions';
+export type { DataTableActionsProps, LifecycleActionsProp } from './DataTableActions';
+export { StatusFilter } from './StatusFilter';
+export type { StatusFilterProps } from './StatusFilter';
+export { ConflictBanner } from './ConflictBanner';
 export { DynamicBadge } from './DynamicBadge';
 export type { DynamicBadgeProps } from './DynamicBadge';
 export { FormField } from './FormField';

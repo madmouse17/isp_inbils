@@ -2,10 +2,13 @@
 
 namespace Modules\Billing\Notifications;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Notification as NotificationSender;
 
 class BillingScheduleFailedNotification extends Notification implements ShouldQueue
 {
@@ -16,6 +19,28 @@ class BillingScheduleFailedNotification extends Notification implements ShouldQu
         public readonly ?int $companyId = null,
         public readonly ?string $jobId = null,
     ) {}
+
+    /**
+     * The active admins of one company: what went wrong for a tenant is told to that tenant's admins and nobody else.
+     *
+     * @return Collection<int, User>
+     */
+    public static function recipients(int $companyId): Collection
+    {
+        return User::query()->where('company_id', $companyId)->where('is_active', true)->role('admin')->get();
+    }
+
+    /**
+     * One alert per failed company, each to its own admins, for a scheduled command that went on after a failure.
+     *
+     * @param  list<int>  $companyIds
+     */
+    public static function alertAdmins(string $command, array $companyIds): void
+    {
+        foreach ($companyIds as $companyId) {
+            NotificationSender::send(self::recipients($companyId), new self(command: $command, companyId: $companyId));
+        }
+    }
 
     /** @return list<string> */
     public function via(object $notifiable): array

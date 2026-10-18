@@ -14,17 +14,21 @@ use Modules\Billing\Services\MidtransGateway;
 use Modules\Billing\Services\PaymentAttemptService;
 
 /**
- * The backstop for lost or late webhooks: ask Midtrans about attempts still pending after a grace
- * period and feed the answer through the same path the webhook uses.
+ * The backstop for lost or late webhooks: ask Midtrans about attempts still pending after a grace period, and about pages
+ * Inbils closed until a day after they expire (money can still reach one), and feed the answer through the same path the
+ * webhook uses.
  */
 class ReconcileMidtransPayments extends Command
 {
     /** Minutes a pending attempt is left to its webhook before Midtrans is asked about it. */
     private const GRACE_MINUTES = 10;
 
+    /** Days after its expiry a page Inbils closed is still asked about: a transaction opened on it just before can be paid later. */
+    private const CLOSED_PAGE_DAYS = 1;
+
     protected $signature = 'midtrans:reconcile {--company= : Explicit company id for artisan runs} {--dry-run : Report what would change without writing}';
 
-    protected $description = 'Settle or expire pending Midtrans payment attempts whose notification never arrived';
+    protected $description = 'Settle or expire pending Midtrans payment attempts whose notification never arrived, and flag money that reached a page Inbils closed';
 
     public function __construct(
         private readonly MidtransGateway $gateway,
@@ -42,11 +46,11 @@ class ReconcileMidtransPayments extends Command
         }
 
         $dryRun = (bool) $this->option('dry-run');
-        $totals = ['checked' => 0, 'settled' => 0, 'expired' => 0, 'exceptions' => 0, 'failed' => 0, 'still pending' => 0, 'errors' => 0];
+        $totals = ['checked' => 0, 'settled' => 0, 'expired' => 0, 'exceptions' => 0, 'failed' => 0, 'still pending' => 0, 'closed' => 0, 'errors' => 0];
 
         foreach ($this->resolveCompanyIds() as $companyId) {
             CompanyService::runAs($companyId, function () use ($dryRun, &$totals): void {
-                $this->pendingAttempts()->chunkById(100, function ($attempts) use ($dryRun, &$totals): void {
+                $this->attemptsToAsk()->chunkById(100, function ($attempts) use ($dryRun, &$totals): void {
                     foreach ($attempts as $attempt) {
                         $totals['checked']++;
                         $totals[$this->reconcile($attempt, $dryRun)]++;
@@ -62,17 +66,21 @@ class ReconcileMidtransPayments extends Command
     }
 
     /** @return Builder<PaymentAttempt> */
-    private function pendingAttempts(): Builder
+    private function attemptsToAsk(): Builder
     {
         return PaymentAttempt::query()
-            ->where('status', PaymentAttempt::STATUS_PENDING)
+            ->where(fn ($query) => $query
+                ->where('status', PaymentAttempt::STATUS_PENDING)
+                ->orWhere(fn ($closed) => $closed
+                    ->where('status', PaymentAttempt::STATUS_CANCELLED_LOCALLY)
+                    ->where('expires_at', '>', now()->subDays(self::CLOSED_PAGE_DAYS))))
             ->where(fn ($query) => $query
                 ->where('created_at', '<=', now()->subMinutes(self::GRACE_MINUTES))
                 ->orWhere('expires_at', '<=', now()));
     }
 
     /**
-     * @return 'settled'|'expired'|'exceptions'|'failed'|'still pending'|'errors'
+     * @return 'settled'|'expired'|'exceptions'|'failed'|'still pending'|'closed'|'errors'
      */
     private function reconcile(PaymentAttempt $attempt, bool $dryRun): string
     {
@@ -80,7 +88,12 @@ class ReconcileMidtransPayments extends Command
             $status = $this->gateway->transactionStatus($attempt->order_id);
 
             if ($status === null) {
-                // Midtrans knows nothing of it: the customer never chose a payment method. Only an expired page is closed.
+                // Midtrans knows nothing of it: the customer never chose a payment method.
+                if ($attempt->status === PaymentAttempt::STATUS_CANCELLED_LOCALLY) {
+                    return 'closed'; // a page Inbils closed stays as it is: it is never expired
+                }
+
+                // Only an expired page is closed.
                 if (! $attempt->expires_at->isPast()) {
                     return 'still pending';
                 }
@@ -98,11 +111,12 @@ class ReconcileMidtransPayments extends Command
                 $outcome = PaymentAttemptService::outcomeOf($status);
                 $this->line('would apply '.$outcome.' to '.$attempt->order_id);
 
-                return match ($outcome) {
-                    PaymentAttemptService::PAID => 'settled',
-                    PaymentAttemptService::EXPIRED => 'expired',
-                    PaymentAttemptService::FAILED => 'failed',
-                    PaymentAttemptService::REVERSED => 'exceptions',
+                return match (true) {
+                    $outcome === PaymentAttemptService::PAID => 'settled',
+                    $outcome === PaymentAttemptService::REVERSED => 'exceptions',
+                    $attempt->status === PaymentAttempt::STATUS_CANCELLED_LOCALLY => 'closed',
+                    $outcome === PaymentAttemptService::EXPIRED => 'expired',
+                    $outcome === PaymentAttemptService::FAILED => 'failed',
                     default => 'still pending',
                 };
             }
@@ -112,10 +126,11 @@ class ReconcileMidtransPayments extends Command
                 PaymentAttempt::STATUS_EXPIRED => 'expired',
                 PaymentAttempt::STATUS_EXCEPTION => 'exceptions',
                 PaymentAttempt::STATUS_FAILED => 'failed',
+                PaymentAttempt::STATUS_CANCELLED_LOCALLY => 'closed',
                 default => 'still pending',
             };
         } catch (MidtransGatewayException|InvalidArgumentException $e) {
-            // One unreachable or unverifiable attempt must not stop the others; it stays pending for the next run.
+            // One unreachable or unverifiable attempt must not stop the others; it stays as it is for the next run.
             Log::warning('midtrans.reconcile_failed', ['order_id' => $attempt->order_id, 'reason' => $e->getMessage()]);
 
             return 'errors';

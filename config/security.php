@@ -26,6 +26,24 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Duplicate web submit guard
+    |--------------------------------------------------------------------------
+    |
+    | PreventDuplicateWebSubmit refuses an identical write to an admin route by the same user in the same company
+    | within 10 seconds (a double click, a retried tab) with the shared 409.
+    |
+    | The guard is off in `testing`, where one test often repeats a request on purpose; the tests of the guard, and the
+    | replay tests that rely on it, switch it on with config(['security.duplicate_submit.enabled' => true]). It stays on
+    | in `e2e`, where the browser tests check it.
+    |
+    */
+
+    'duplicate_submit' => [
+        'enabled' => (bool) env('SECURITY_DUPLICATE_SUBMIT_ENABLED', env('APP_ENV') !== 'testing'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Trusted proxies
     |--------------------------------------------------------------------------
     |

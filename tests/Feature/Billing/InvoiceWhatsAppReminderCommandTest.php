@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Company;
 use App\Models\Core\Customer;
+use App\Models\Core\DeviceToken;
 use App\Models\User;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -19,10 +20,12 @@ use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Notifications\InvoiceDueReminderNotification;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
+use Tests\Traits\FakesFirebaseMessaging;
 use Tests\Traits\InteractsWithWhatsApp;
 
 class InvoiceWhatsAppReminderCommandTest extends TestCase
 {
+    use FakesFirebaseMessaging;
     use InteractsWithWhatsApp;
     use RefreshDatabase;
 
@@ -272,12 +275,14 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
         $this->assertCount(0, $this->whatsAppRows());
     }
 
-    public function test_a_failing_company_does_not_stop_the_others_and_the_admins_are_told(): void
+    public function test_a_failing_company_does_not_stop_the_others_and_only_its_own_admins_are_told(): void
     {
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
         $admin = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
         $admin->assignRole('admin');
-        Company::factory()->create(['timezone' => 'Mars/Phobos', 'settings' => ['whatsapp_enabled' => true]]);
+        $broken = Company::factory()->create(['timezone' => 'Mars/Phobos', 'settings' => ['whatsapp_enabled' => true]]);
+        $brokenAdmin = User::factory()->create(['company_id' => $broken->id, 'is_active' => true]);
+        $brokenAdmin->assignRole('admin');
         $late = Company::factory()->create(['name' => 'CV Terakhir', 'settings' => ['whatsapp_enabled' => true]]);
         $lateCustomer = $this->consentedCustomer($late, '0813-9999-0001');
         $this->invoiceDue('2026-10-15');
@@ -288,8 +293,69 @@ class InvoiceWhatsAppReminderCommandTest extends TestCase
 
         Notification::assertSentTo($this->customer, InvoiceDueReminderNotification::class);
         Notification::assertSentTo($lateCustomer, InvoiceDueReminderNotification::class);
-        Notification::assertSentToTimes($admin, BillingScheduleFailedNotification::class, 1);
-        Notification::assertSentTo($admin, BillingScheduleFailedNotification::class, fn (BillingScheduleFailedNotification $n): bool => $n->command === 'billing:whatsapp-reminders');
+        Notification::assertSentToTimes($brokenAdmin, BillingScheduleFailedNotification::class, 1);
+        Notification::assertSentTo($brokenAdmin, BillingScheduleFailedNotification::class, fn (BillingScheduleFailedNotification $n): bool => $n->command === 'billing:whatsapp-reminders' && $n->companyId === $broken->id);
+        Notification::assertNotSentTo($admin, BillingScheduleFailedNotification::class);
+    }
+
+    /** A customer who signs in to the customer app: the bell row and the push of a reminder go to this login. */
+    private function appCustomer(): Customer
+    {
+        Role::firstOrCreate(['name' => 'customer', 'guard_name' => 'web']);
+        $user = User::factory()->create(['company_id' => $this->company->id, 'is_active' => true]);
+        $user->assignRole('customer');
+        DeviceToken::factory()->forApp('customer')->create(['user_id' => $user->id, 'token' => 'customer-phone-0123456789']);
+        $customer = $this->consentedCustomer($this->company, '0813-7777-0001');
+        $customer->forceFill(['user_id' => $user->id])->save();
+
+        return $customer;
+    }
+
+    public function test_a_manual_rerun_the_same_day_does_not_ring_the_bell_or_push_twice(): void
+    {
+        $this->fakeFirebase();
+        $customer = $this->appCustomer();
+        $this->invoiceDue('2026-10-17', customer: $customer);
+
+        $this->remind();
+        $this->remind();
+        $this->remind(['--company' => $this->company->id]);
+
+        $this->assertSame(['invoice_due_soon'], $customer->notifications()->get()->pluck('data.type')->all(), 'one bell row');
+        $this->assertCount(1, $this->multicasts, 'one push');
+        $this->assertCount(1, $this->graphRequests(), 'and one WhatsApp message, which keeps its own dedupe key');
+    }
+
+    public function test_every_stage_of_one_invoice_rings_the_bell_once(): void
+    {
+        $this->fakeFirebase();
+        $customer = $this->appCustomer();
+        $this->invoiceDue('2026-10-15', customer: $customer);
+        $this->remind(); // H-1 on 14 October
+
+        $this->travelTo('2026-10-15 01:00:00'); // the due day itself is no stage
+        $this->remind();
+        $this->travelTo('2026-10-16 01:00:00'); // H+1 on 16 October
+        $this->remind();
+        $this->remind();
+
+        $this->assertEqualsCanonicalizing(['invoice_due_soon', 'invoice_overdue'], $customer->notifications()->get()->pluck('data.type')->all());
+        $this->assertCount(2, $this->multicasts);
+    }
+
+    public function test_a_rescheduled_due_date_does_not_ring_the_same_stage_twice(): void
+    {
+        $this->fakeFirebase();
+        $customer = $this->appCustomer();
+        $invoice = $this->invoiceDue('2026-10-17', customer: $customer);
+        $this->remind(); // H-3 on 14 October
+
+        $invoice->forceFill(['due_date' => '2026-10-23'])->save();
+        $this->travelTo('2026-10-20 01:00:00'); // 08:00 on 20 October: the same stage for the new due date
+        $this->remind();
+
+        $this->assertSame(['invoice_due_soon'], $customer->notifications()->get()->pluck('data.type')->all());
+        $this->assertCount(1, $this->multicasts);
     }
 
     public function test_the_command_is_scheduled_daily_at_0100_utc_and_old_messages_are_pruned_daily(): void

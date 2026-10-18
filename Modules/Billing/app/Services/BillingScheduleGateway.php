@@ -9,7 +9,7 @@ namespace Modules\Billing\Services;
 class BillingScheduleGateway
 {
     /**
-     * @return array{created:int, skipped:int, rows:list<array<string, mixed>>}
+     * @return array{created: int, skipped: int, failed: int, rows: list<array<string, mixed>>} `failed` counts the subscriptions that were reported and left out
      */
     public function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
@@ -23,6 +23,8 @@ class BillingScheduleGateway
 
     /**
      * @return list<array{id: int, code: string}>
+     *
+     * @throws \RuntimeException when a subscription could not be suspended; the others were
      */
     public function suspendOverdue(int $companyId, bool $dryRun = false): array
     {

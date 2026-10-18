@@ -296,3 +296,14 @@ export type InvoiceStatus = keyof typeof INVOICE_STATUS;
 export type SpkStatus = keyof typeof WORK_ORDER_STATUS;
 export type NetworkAssetStatus = keyof typeof NETWORK_ASSET_STATUS;
 export type ServicePackageStatus = 'active' | 'inactive';
+
+/** One count of records that keep a master from a permanent delete: `{ label: 'paket', count: 3 }`. */
+export type ReferenceCount = { label: string; count: number };
+
+/** Lifecycle fields a Resource adds to a master or a soft-deletable record (`HasLifecycle`). */
+export type LifecycleFields = {
+    is_active?: boolean;
+    deleted_at?: string | null;
+    /** Null or absent when the page did not load the counts. */
+    references?: ReferenceCount[] | null;
+};

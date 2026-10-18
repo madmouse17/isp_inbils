@@ -4,6 +4,7 @@ namespace Tests\Feature\Billing;
 
 use App\Models\Core\Customer;
 use App\Models\User;
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
@@ -89,14 +90,15 @@ class InvoiceRequestValidationTest extends TestCase
     public function test_update_rejects_a_due_date_that_is_not_y_m_d_and_accepts_iso(): void
     {
         $invoice = $this->draft();
+        $version = OptimisticLock::version($invoice->fresh());
 
         $this->actingAs($this->user)
-            ->putJson(route('admin.invoices.update', $invoice), ['due_date' => '31/07/2026'])
+            ->putJson(route('admin.invoices.update', $invoice), ['due_date' => '31/07/2026', OptimisticLock::FIELD => $version])
             ->assertUnprocessable()
             ->assertJsonPath('errors.due_date.0', 'Format jatuh tempo harus tahun-bulan-tanggal (YYYY-MM-DD).');
 
         $this->actingAs($this->user)
-            ->put(route('admin.invoices.update', $invoice), ['due_date' => '2026-07-31'])
+            ->put(route('admin.invoices.update', $invoice), ['due_date' => '2026-07-31', OptimisticLock::FIELD => $version])
             ->assertRedirect(route('admin.invoices.index'))
             ->assertSessionHas('success', 'Tagihan diperbarui.');
     }
@@ -197,8 +199,9 @@ class InvoiceRequestValidationTest extends TestCase
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Hanya tagihan draf yang bisa dikirim.');
 
+        $sent = $this->draft('sent');
         $this->actingAs($this->user)
-            ->putJson(route('admin.invoices.update', $this->draft('sent')), [])
+            ->putJson(route('admin.invoices.update', $sent), [OptimisticLock::FIELD => OptimisticLock::version($sent->fresh())])
             ->assertUnprocessable()
             ->assertJsonPath('message', 'Hanya tagihan draf yang bisa diubah.');
 

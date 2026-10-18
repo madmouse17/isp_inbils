@@ -25,7 +25,7 @@ class NotificationResource extends JsonResource
         'invoice_issued', 'invoice_reminder', 'invoice_due_soon', 'invoice_overdue', 'payment_received',
         'ticket_created', 'ticket_assigned', 'ticket_resolved', 'ticket_sla_breached', 'ticket_first_response_due',
         'spk_scheduled', 'spk_scheduled_customer', 'spk_approved', 'spk_rejected', 'technician_en_route', 'visit_completed',
-        'billing_schedule_failed',
+        'billing_schedule_failed', 'payment_attempt_exception',
         'inventory_request_submitted', 'inventory_request_approved', 'inventory_request_ready', 'inventory_request_rejected',
         'material_return_declared', 'material_return_exception', 'material_return_rejected',
         'announcement_published',
@@ -51,7 +51,7 @@ class NotificationResource extends JsonResource
              * with `title` and `message` as they are. `invoice_reminder` is only on rows written before `invoice_due_soon`
              * and `invoice_overdue` replaced it.
              *
-             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_resolved'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'unknown'
+             * @var 'invoice_issued'|'invoice_reminder'|'invoice_due_soon'|'invoice_overdue'|'payment_received'|'ticket_created'|'ticket_assigned'|'ticket_resolved'|'ticket_sla_breached'|'ticket_first_response_due'|'spk_scheduled'|'spk_scheduled_customer'|'spk_approved'|'spk_rejected'|'technician_en_route'|'visit_completed'|'billing_schedule_failed'|'payment_attempt_exception'|'inventory_request_submitted'|'inventory_request_approved'|'inventory_request_ready'|'inventory_request_rejected'|'material_return_declared'|'material_return_exception'|'material_return_rejected'|'announcement_published'|'unknown'
              */
             'type' => $type,
             'title' => $this->title($type, $customerNotification, $data),
@@ -84,6 +84,7 @@ class NotificationResource extends JsonResource
             'technician_en_route' => 'Teknisi dalam perjalanan',
             'visit_completed' => 'Kunjungan teknisi selesai',
             'billing_schedule_failed' => 'Jadwal penagihan gagal',
+            'payment_attempt_exception' => 'Pembayaran online perlu dicek',
             'inventory_request_submitted' => 'Permintaan barang diajukan',
             'inventory_request_approved' => 'Permintaan barang disetujui',
             'inventory_request_ready' => 'Permintaan barang siap diambil',
@@ -132,6 +133,9 @@ class NotificationResource extends JsonResource
                 ? "Teknisi {$data['technician_first_name']} sedang menuju lokasi Anda."
                 : 'Teknisi sedang menuju lokasi Anda.',
             'billing_schedule_failed' => 'Operasi penagihan terjadwal gagal. Periksa log aplikasi.',
+            'payment_attempt_exception' => is_string($data['order_id'] ?? null) && is_string($data['invoice_number'] ?? null) && is_numeric($data['amount'] ?? null)
+                ? "Pembayaran {$data['order_id']} sebesar Rp ".number_format((float) $data['amount'], 0, ',', '.')." untuk tagihan {$data['invoice_number']} tidak bisa dibukukan otomatis. Periksa di menu Tunggakan."
+                : 'Sebuah pembayaran online tidak bisa dibukukan otomatis. Periksa di menu Tunggakan.',
             'inventory_request_submitted' => $requestCode
                 ? "Permintaan {$requestCode} menunggu tinjauan gudang."
                 : 'Sebuah permintaan barang menunggu tinjauan gudang.',

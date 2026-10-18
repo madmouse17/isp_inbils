@@ -2,25 +2,30 @@
 
 namespace Modules\Billing\Services;
 
+use App\Models\User;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
 use App\Support\Money;
 use App\Support\RecordNotFound;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 use Modules\Billing\Exceptions\MidtransGatewayException;
+use Modules\Billing\Jobs\CancelMidtransTransactionJob;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
+use Modules\Billing\Notifications\PaymentAttemptExceptionNotification;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * Online payment attempts: create-or-reuse for the customer, and the one settlement path shared by
- * the Midtrans webhook and the reconciliation command.
+ * Online payment attempts: create-or-reuse for the customer, the one settlement path shared by the Midtrans
+ * webhook and the reconciliation command, and the closing of pages an invoice change left unpayable (closeOpenFor).
  *
  * Lock order is always invoice row first, attempt row second, so a Pay click and a notification
  * for the same invoice can never deadlock.
@@ -42,6 +47,9 @@ class PaymentAttemptService
     public const REVERSED = 'reversed';
 
     public const IGNORED = 'ignored';
+
+    /** Why Inbils closed a page itself; billing staff read it in the invoice's online payments panel. */
+    private const CLOSED_REASON = 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.';
 
     public function __construct(private readonly MidtransGateway $gateway) {}
 
@@ -90,6 +98,28 @@ class PaymentAttemptService
     }
 
     /**
+     * Close the open payment pages of an invoice that was just paid or cancelled, or whose balance shrank: none of them
+     * can be paid as shown any more. Midtrans is asked to cancel each transaction from the queue, after the commit, so a
+     * customer who still has a page open finds nothing to pay. The page of `$exceptOrderId` is the one being settled and
+     * stays as it is.
+     *
+     * Call it inside the transaction that holds the invoice lock, after the change: invoice first, pages second.
+     */
+    public function closeOpenFor(Invoice $invoice, ?string $exceptOrderId = null): void
+    {
+        PaymentAttempt::query()
+            ->where('invoice_id', $invoice->id)
+            ->where('status', PaymentAttempt::STATUS_PENDING)
+            ->when($exceptOrderId !== null, fn (Builder $query) => $query->where('order_id', '!=', $exceptOrderId))
+            ->lockForUpdate()
+            ->get()
+            ->each(function (PaymentAttempt $attempt): void {
+                $this->record($attempt, PaymentAttempt::STATUS_CANCELLED_LOCALLY, self::CLOSED_REASON, null);
+                $this->queueCancel($attempt);
+            });
+    }
+
+    /**
      * Apply a Midtrans status of the attempt: a notification already re-fetched from the Status API, or
      * the Status API answer itself. Idempotent: once a payment is linked, replays change nothing.
      *
@@ -110,6 +140,10 @@ class PaymentAttemptService
                 return $this->afterSettlement($attempt, $payload);
             }
 
+            if ($attempt->status === PaymentAttempt::STATUS_CANCELLED_LOCALLY && in_array($outcome, [self::FAILED, self::EXPIRED, self::PENDING, self::CHALLENGE], true)) {
+                return $this->noteOnClosedPage($attempt, $outcome, $payload);
+            }
+
             return match ($outcome) {
                 self::PAID => $this->settle($attempt, $invoice, $payload),
                 self::FAILED => $this->record($attempt, PaymentAttempt::STATUS_FAILED, ($payload['fraud_status'] ?? null) === 'deny' ? 'fraud_status deny' : $this->statusOf($payload), $payload),
@@ -118,7 +152,7 @@ class PaymentAttemptService
                 self::PENDING, self::CHALLENGE => $this->record($attempt, $attempt->status === PaymentAttempt::STATUS_EXCEPTION ? $attempt->status : PaymentAttempt::STATUS_PENDING, $attempt->status_reason, $payload),
                 default => $attempt,
             };
-        });
+        }, 3);
     }
 
     /** The attempt's page has expired and Midtrans has no transaction for it. */
@@ -131,7 +165,36 @@ class PaymentAttemptService
             return $attempt->status === PaymentAttempt::STATUS_PENDING
                 ? $this->record($attempt, PaymentAttempt::STATUS_EXPIRED, 'Payment page expired without a Midtrans transaction.', null)
                 : $attempt;
-        });
+        }, 3);
+    }
+
+    /**
+     * The exceptions of the current company that a person still has to settle. Money captured and never booked stays open
+     * until a payment carrying the order id as its reference exists or Midtrans took all of it back; a payment that was
+     * booked and then returned stays open until that payment is reversed.
+     *
+     * @return Builder<PaymentAttempt>
+     */
+    public static function openExceptions(): Builder
+    {
+        return PaymentAttempt::query()
+            ->where('status', PaymentAttempt::STATUS_EXCEPTION)
+            ->where(fn (Builder $open) => $open
+                ->where(fn (Builder $unbooked) => $unbooked
+                    ->whereNull('payment_id')
+                    ->whereNotExists(Payment::withoutCompany()->select(DB::raw('1'))
+                        ->whereColumn('payments.company_id', 'payment_attempts.company_id')
+                        ->whereColumn('payments.active_reference', 'payment_attempts.order_id')
+                        ->toBase())
+                    ->where(fn (Builder $seen) => $seen
+                        ->whereNull('last_notification->transaction_status')
+                        ->orWhereNotIn('last_notification->transaction_status', ['refund', 'chargeback'])))
+                ->orWhere(fn (Builder $returned) => $returned
+                    ->whereNotNull('payment_id')
+                    ->whereExists(Payment::withoutCompany()->select(DB::raw('1'))
+                        ->whereColumn('payments.id', 'payment_attempts.payment_id')
+                        ->whereNull('payments.cancelled_at')
+                        ->toBase())));
     }
 
     /**
@@ -227,6 +290,24 @@ class PaymentAttemptService
     }
 
     /**
+     * Midtrans keeps talking about a page Inbils closed: its own cancel, an expiry, a customer who still picked a payment
+     * method. The page stays closed and what Midtrans said is kept. A pending transaction is cancelled again, because the
+     * cancel that closed the page ran before there was one.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function noteOnClosedPage(PaymentAttempt $attempt, string $outcome, array $payload): PaymentAttempt
+    {
+        $attempt = $this->record($attempt, PaymentAttempt::STATUS_CANCELLED_LOCALLY, $attempt->status_reason, $payload);
+
+        if ($outcome === self::PENDING) {
+            $this->queueCancel($attempt);
+        }
+
+        return $attempt;
+    }
+
+    /**
      * @param  array<string, mixed>|null  $payload
      * @param  array<string, mixed>  $extra
      */
@@ -250,16 +331,36 @@ class PaymentAttemptService
         if ($changed) {
             $this->audit($attempt, match (true) {
                 $status === PaymentAttempt::STATUS_PAID => 'settled',
-                $status === PaymentAttempt::STATUS_PENDING && $payload !== null => 'notified',
+                $payload !== null && in_array($status, [PaymentAttempt::STATUS_PENDING, PaymentAttempt::STATUS_CANCELLED_LOCALLY], true) => 'notified',
                 default => $status,
             }, $payload, $reason);
         }
 
         if ($status === PaymentAttempt::STATUS_EXCEPTION && $changed) {
             Log::warning('midtrans.attempt_exception', ['order_id' => $attempt->order_id, 'reason' => $reason]);
+            $this->alertBillingStaff($attempt);
         }
 
         return $attempt;
+    }
+
+    private function queueCancel(PaymentAttempt $attempt): void
+    {
+        CancelMidtransTransactionJob::dispatch((int) $attempt->company_id, $attempt->id)->afterCommit();
+    }
+
+    /** Money that cannot be booked on its own needs a person: the staff who record payments hear of it once the change has committed. */
+    private function alertBillingStaff(PaymentAttempt $attempt): void
+    {
+        DB::afterCommit(function () use ($attempt): void {
+            $staff = User::query()
+                ->where('company_id', $attempt->company_id)
+                ->where('is_active', true)
+                ->permission('billing.payment.record')
+                ->get();
+
+            Notification::send($staff, new PaymentAttemptExceptionNotification((int) $attempt->company_id, $attempt->id));
+        });
     }
 
     /**

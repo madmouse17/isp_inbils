@@ -3,12 +3,11 @@
 namespace Modules\Billing\Console;
 
 use App\Models\Core\Company;
-use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Notification;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
+use Throwable;
 
 class GenerateRecurringInvoices extends Command
 {
@@ -25,10 +24,11 @@ class GenerateRecurringInvoices extends Command
     {
         $period = $this->option('period') ?: now()->subMonthNoOverflow()->format('Y-m');
         $dryRun = (bool) $this->option('dry-run');
-        $companyIds = $this->resolveCompanyIds();
+        $failedCompanyIds = [];
 
-        try {
-            foreach ($companyIds as $companyId) {
+        // One company's failure must not keep the others from being billed: it is reported, and only its own admins are told, at the end.
+        foreach ($this->resolveCompanyIds() as $companyId) {
+            try {
                 $result = CompanyService::runAs($companyId, fn () => $this->gateway->generateForPeriod($period, $dryRun, $companyId));
 
                 $this->table(
@@ -44,20 +44,21 @@ class GenerateRecurringInvoices extends Command
                     ], $result['rows']),
                 );
 
-                $this->info(($dryRun ? '[DRY RUN] ' : '')."Company {$companyId} — Period {$period} — created: {$result['created']}, skipped: {$result['skipped']}");
+                $this->info(($dryRun ? '[DRY RUN] ' : '')."Company {$companyId} — Period {$period} — created: {$result['created']}, skipped: {$result['skipped']}".($result['failed'] > 0 ? ", failed: {$result['failed']}" : ''));
+
+                if ($result['failed'] > 0) {
+                    $failedCompanyIds[] = $companyId;
+                }
+            } catch (Throwable $e) {
+                report($e);
+                $this->error("Billing generate failed for company {$companyId}: ".$e->getMessage());
+                $failedCompanyIds[] = $companyId;
             }
-
-            return self::SUCCESS;
-        } catch (\Throwable $e) {
-            $this->error('Billing generate failed: '.$e->getMessage());
-
-            Notification::send(
-                User::where('is_active', true)->role('admin')->get(),
-                new BillingScheduleFailedNotification(command: 'billing:generate'),
-            );
-
-            return self::FAILURE;
         }
+
+        BillingScheduleFailedNotification::alertAdmins('billing:generate', $failedCompanyIds);
+
+        return $failedCompanyIds === [] ? self::SUCCESS : self::FAILURE;
     }
 
     /** @return list<int> */

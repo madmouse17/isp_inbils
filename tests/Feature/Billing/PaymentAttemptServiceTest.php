@@ -139,7 +139,7 @@ class PaymentAttemptServiceTest extends TestCase
         $this->assertSame('sent', $invoice->fresh()->status, 'the invoice is still open for payment');
     }
 
-    public function test_a_balance_that_changed_gets_a_new_attempt_and_leaves_the_old_one_untouched(): void
+    public function test_a_balance_that_changed_gets_a_new_attempt_and_closes_the_old_one(): void
     {
         $invoice = $this->invoice();
         $first = $this->service->openFor($invoice, self::FINISH_URL);
@@ -149,8 +149,10 @@ class PaymentAttemptServiceTest extends TestCase
 
         $this->assertNotSame($first->id, $second->id);
         $this->assertSame('100000.00', $second->amount);
-        $this->assertSame('pending', $first->fresh()->status);
-        $this->assertSame('154600.00', $first->fresh()->amount);
+        $this->assertSame('pending', $second->status);
+        $this->assertSame('cancelled_locally', $first->fresh()->status);
+        $this->assertSame('154600.00', $first->fresh()->amount, 'what the closed page stood for never changes');
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST' && $request->url() === 'https://api.sandbox.midtrans.com/v2/'.$first->order_id.'/cancel');
     }
 
     /** @return array<string, array{array<string, mixed>, string}> */

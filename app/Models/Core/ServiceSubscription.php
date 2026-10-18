@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Models\NetworkAsset;
 use Modules\Service\Models\ServicePackage;
+use Modules\Service\Models\ServicePackageVersion;
 use Modules\SPK\Models\WorkOrder;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -30,6 +31,7 @@ class ServiceSubscription extends Model
     protected $fillable = [
         'customer_id',
         'service_package_id',
+        'service_package_version_id',
         'installation_address_id',
         'code',
         'status',
@@ -60,16 +62,34 @@ class ServiceSubscription extends Model
         'blocked_at' => 'datetime',
     ];
 
+    protected static function booted(): void
+    {
+        // Sold under the latest version of its package (spec .scratch/master-lifecycle D3). withoutCompany(): seeders and
+        // jobs create subscriptions without a tenant context, and the package id was checked against the company already.
+        static::creating(function (self $subscription): void {
+            $subscription->service_package_version_id ??= ServicePackageVersion::withoutCompany()
+                ->where('service_package_id', $subscription->service_package_id)
+                ->orderByDesc('version')
+                ->value('id');
+        });
+    }
+
     /** @return BelongsTo<Customer, $this> */
     public function customer(): BelongsTo
     {
-        return $this->belongsTo(Customer::class);
+        return $this->belongsTo(Customer::class)->withTrashed();
     }
 
     /** @return BelongsTo<ServicePackage, $this> */
     public function servicePackage(): BelongsTo
     {
-        return $this->belongsTo(ServicePackage::class);
+        return $this->belongsTo(ServicePackage::class)->withTrashed();
+    }
+
+    /** @return BelongsTo<ServicePackageVersion, $this> */
+    public function packageVersion(): BelongsTo
+    {
+        return $this->belongsTo(ServicePackageVersion::class, 'service_package_version_id');
     }
 
     /** @return BelongsTo<User, $this> */
@@ -80,18 +100,18 @@ class ServiceSubscription extends Model
 
     public function installationAddress(): BelongsTo
     {
-        return $this->belongsTo(CustomerAddress::class, 'installation_address_id');
+        return $this->belongsTo(CustomerAddress::class, 'installation_address_id')->withTrashed();
     }
 
     public function servingPop(): BelongsTo
     {
-        return $this->belongsTo(Location::class, 'serving_pop_id');
+        return $this->belongsTo(Location::class, 'serving_pop_id')->withTrashed();
     }
 
     /** @return BelongsTo<NetworkAsset, $this> */
     public function ontAsset(): BelongsTo
     {
-        return $this->belongsTo(NetworkAsset::class, 'ont_asset_id');
+        return $this->belongsTo(NetworkAsset::class, 'ont_asset_id')->withTrashed();
     }
 
     public function workOrders(): HasMany

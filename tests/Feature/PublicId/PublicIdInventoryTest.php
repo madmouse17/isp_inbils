@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Modules\Service\Models\ServicePackageVersion;
 use Tests\TestCase;
 
 /**
@@ -18,7 +19,9 @@ use Tests\TestCase;
  * - permissions: addressed by name everywhere (the role editor posts names), so no id leaves the server for them;
  * - notifications: the primary key already is a UUID; failed_jobs: Laravel's own `uuid` column serves;
  * - pivots and the company_user membership table: no surrogate id; settings: keyed by name;
- * - sessions, jobs, cache, migrations and the region tables: framework or reference data.
+ * - sessions, jobs, cache, migrations and the region tables: framework or reference data;
+ * - service_package_versions: append-only rows reached through their package or subscription. The payload carries the
+ *   version number, which names the version inside its package, so no id leaves the server for them.
  */
 class PublicIdInventoryTest extends TestCase
 {
@@ -47,6 +50,9 @@ class PublicIdInventoryTest extends TestCase
 
     /** Package tables: no model of ours to put the trait on, so AppServiceProvider fills the column on create. */
     private const PACKAGE_TABLES = ['roles', 'media', 'activity_log', 'personal_access_tokens'];
+
+    /** Tenant models that carry no `public_id`, and why: see the class comment. */
+    private const WITHOUT_PUBLIC_ID = [ServicePackageVersion::class];
 
     /** @return list<string> */
     private function listed(): array
@@ -83,7 +89,8 @@ class PublicIdInventoryTest extends TestCase
         $without = array_values(array_filter(
             $this->models(),
             fn (string $model): bool => in_array(BelongsToCompany::class, class_uses_recursive($model), true)
-                && ! in_array(HasPublicId::class, class_uses_recursive($model), true),
+                && ! in_array(HasPublicId::class, class_uses_recursive($model), true)
+                && ! in_array($model, self::WITHOUT_PUBLIC_ID, true),
         ));
 
         $this->assertSame([], $without, 'a BelongsToCompany model must use HasPublicId, and its table must join the inventory');

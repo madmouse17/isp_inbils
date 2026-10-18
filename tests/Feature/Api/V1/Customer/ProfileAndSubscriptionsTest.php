@@ -174,22 +174,22 @@ class ProfileAndSubscriptionsTest extends TestCase
         $this->assertSame(['Bisnis'], array_values(array_unique($response->json('data.*.package.category.name'))));
     }
 
-    public function test_package_speed_fields_are_null_without_profiles_and_label_falls_back_to_bandwidth(): void
+    public function test_package_speed_fields_keep_the_values_of_soft_deleted_profiles(): void
     {
         [$user, $customer] = $this->customerLogin();
         $token = $this->issueToken($user, 'customer');
-        $bare = $this->subscriptionFor($customer);
-        $this->dropProfiles($bare, bandwidth: true, speed: true);
-        $bandwidthOnly = $this->subscriptionFor($customer);
-        $this->dropProfiles($bandwidthOnly, speed: true);
+        $bothDeleted = $this->subscriptionFor($customer);
+        $this->dropProfiles($bothDeleted, bandwidth: true, speed: true);
+        $speedDeleted = $this->subscriptionFor($customer);
+        $this->dropProfiles($speedDeleted, speed: true);
 
-        $this->api('GET', 'customer/subscriptions/'.$bare->public_id, token: $token)->assertOk()
-            ->assertJsonPath('data.package.download_mbps', null)
-            ->assertJsonPath('data.package.upload_mbps', null)
-            ->assertJsonPath('data.package.speed_label', null);
-        $this->api('GET', 'customer/subscriptions/'.$bandwidthOnly->public_id, token: $token)->assertOk()
-            ->assertJsonPath('data.package.download_mbps', 20)
-            ->assertJsonPath('data.package.speed_label', 'Hingga 20 Mbps');
+        // A deleted profile is history, not a hole (master-lifecycle D6): the subscription keeps the speed it was sold with.
+        foreach ([$bothDeleted, $speedDeleted] as $subscription) {
+            $this->api('GET', 'customer/subscriptions/'.$subscription->public_id, token: $token)->assertOk()
+                ->assertJsonPath('data.package.download_mbps', 20)
+                ->assertJsonPath('data.package.upload_mbps', 10)
+                ->assertJsonPath('data.package.speed_label', 'Hingga 50 Mbps');
+        }
     }
 
     public function test_customer_routes_reject_technician_tokens(): void

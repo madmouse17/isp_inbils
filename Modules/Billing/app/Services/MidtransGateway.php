@@ -12,7 +12,7 @@ use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\PaymentAttempt;
 
 /**
- * The only code that talks to Midtrans (Snap token + Status API) or reads its server key.
+ * The only code that talks to Midtrans (Snap token, Status API, cancel) or reads its server key.
  * The key is never logged, returned or put in an exception message.
  */
 class MidtransGateway
@@ -128,6 +128,34 @@ class MidtransGateway
         }
 
         return $body;
+    }
+
+    /**
+     * Have Midtrans cancel the transaction of a page Inbils closed, so a customer who still has the page open cannot pay
+     * it. A transaction that is not there (the customer never picked a payment method) or is already settled, expired or
+     * cancelled answers 404 or 412, in the status line or in the body: there is nothing left to cancel, so it is no error.
+     *
+     * @throws MidtransGatewayException
+     */
+    public function cancelTransaction(PaymentAttempt $attempt): void
+    {
+        try {
+            $response = $this->client()->post($this->url('api', '/v2/'.rawurlencode($attempt->order_id).'/cancel'));
+        } catch (HttpClientException $e) {
+            throw new MidtransGatewayException('Midtrans cancel request failed: '.class_basename($e), previous: $e);
+        }
+
+        // Midtrans often answers HTTP 200 and keeps its verdict in the body.
+        $code = $response->json('status_code');
+        $code = is_scalar($code) ? (string) $code : null;
+
+        if ($response->status() === 404 || in_array($code, ['404', '412'], true)) {
+            return;
+        }
+
+        if (! $response->successful() || ($code !== null && ! str_starts_with($code, '2'))) {
+            throw new MidtransGatewayException('Midtrans cancel failed (HTTP '.$response->status().($code === null ? '' : ', code '.$code).').');
+        }
     }
 
     /**

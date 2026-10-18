@@ -2,6 +2,8 @@
 
 namespace Tests\Traits;
 
+use Closure;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -13,7 +15,8 @@ use Tests\TestCase;
  *
  * Every worker boots the application, signals "ready", waits for the common "go" file and then runs the
  * scenario code inside CompanyService::runAs($payload['company_id']). A scenario returns a JSON-able value;
- * a ValidationException becomes {"ok": false, "status": 422, "errors": ...}.
+ * a ValidationException becomes {"ok": false, "status": 422, "errors": ...} and an HTTP exception (abort(),
+ * ConflictHttpException) becomes {"ok": false, "status": <code>, "message": "<text>"}. Any other exception fails the race.
  */
 trait RunsConcurrentWorkers
 {
@@ -26,7 +29,7 @@ trait RunsConcurrentWorkers
     /**
      * @param  list<array<string, mixed>>  $payloads  one worker each; every payload needs company_id
      * @param  string  $scenario  PHP statements with $args in scope; the value they `return` is the result
-     * @return list<array{ok: bool, status?: int, result?: mixed, errors?: array<string, mixed>}>
+     * @return list<array{ok: bool, status?: int, result?: mixed, errors?: array<string, mixed>, message?: string}>
      */
     protected function race(array $payloads, string $scenario): array
     {
@@ -74,6 +77,45 @@ trait RunsConcurrentWorkers
             }
 
             @unlink($go);
+        }
+    }
+
+    /**
+     * True when $operation, run on the default connection, has to wait for the row lock a second connection holds on
+     * $table#$id (that connection runs SELECT … FOR UPDATE; the default one gets innodb_lock_wait_timeout 1, so a waiting
+     * operation fails with 1205). Other exceptions propagate. The fixture must be committed first (commitFixture()).
+     */
+    protected function waitsForRowLock(string $table, int $id, Closure $operation): bool
+    {
+        config(['database.connections.mysql_peer' => config('database.connections.'.DB::getDefaultConnection())]);
+        $peer = DB::connection('mysql_peer');
+        $timeoutBefore = (int) DB::scalar('SELECT @@SESSION.innodb_lock_wait_timeout');
+
+        try {
+            $peer->beginTransaction();
+            $this->assertNotNull($peer->table($table)->where('id', $id)->lockForUpdate()->first(), "{$table}#{$id} is not visible to a second connection: commitFixture() first.");
+
+            DB::statement('SET SESSION innodb_lock_wait_timeout = 1');
+
+            try {
+                $operation();
+
+                return false;
+            } catch (QueryException $e) {
+                if ((int) ($e->errorInfo[1] ?? 0) !== 1205) {
+                    throw $e;
+                }
+
+                return true;
+            }
+        } finally {
+            DB::statement('SET SESSION innodb_lock_wait_timeout = '.$timeoutBefore);
+
+            if ($peer->transactionLevel() > 0) {
+                $peer->rollBack();
+            }
+
+            DB::purge('mysql_peer');
         }
     }
 
@@ -137,6 +179,8 @@ trait RunsConcurrentWorkers
             fwrite(STDOUT, json_encode(['ok' => true, 'result' => \$result]));
         } catch (Illuminate\\Validation\\ValidationException \$e) {
             fwrite(STDOUT, json_encode(['ok' => false, 'status' => 422, 'errors' => \$e->errors()]));
+        } catch (Symfony\\Component\\HttpKernel\\Exception\\HttpExceptionInterface \$e) {
+            fwrite(STDOUT, json_encode(['ok' => false, 'status' => \$e->getStatusCode(), 'message' => \$e->getMessage()]));
         } catch (Throwable \$e) {
             fwrite(STDERR, get_class(\$e).': '.\$e->getMessage());
             exit(1);
@@ -171,7 +215,7 @@ trait RunsConcurrentWorkers
 
     /**
      * @param  array{process: resource, pipes: array<int, resource>, payload: string, script: string, ready: string}  $worker
-     * @return array{ok: bool, status?: int, result?: mixed, errors?: array<string, mixed>}
+     * @return array{ok: bool, status?: int, result?: mixed, errors?: array<string, mixed>, message?: string}
      */
     private function finishRaceWorker(array $worker): array
     {

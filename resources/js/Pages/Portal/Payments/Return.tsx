@@ -46,6 +46,12 @@ const outcomes: Record<
         Icon: AlertTriangle,
         tone: 'text-(--status-warning)',
     },
+    cancelled_locally: {
+        title: 'Pembayaran tidak diteruskan',
+        body: 'Tagihan ini sudah dibayar atau dibatalkan sebelum pembayaran online selesai. Bila saldo Anda terpotong, hubungi kami.',
+        Icon: XCircle,
+        tone: 'text-destructive-text',
+    },
 };
 
 export default function Return({ attempt }: ReturnProps) {

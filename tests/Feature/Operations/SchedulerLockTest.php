@@ -39,6 +39,50 @@ class SchedulerLockTest extends TestCase
         );
     }
 
+    public function test_every_overlap_lock_expires_before_it_can_skip_a_run(): void
+    {
+        $expected = [
+            'tickets:sla' => 10,
+            'midtrans:reconcile' => 10,
+            'network:sync' => 10,
+            'announcements:publish-scheduled' => 10,
+            'inbils:platform:exports:prune' => 50,
+            'billing:generate' => 120,
+            'billing:check-overdue' => 120,
+            'billing:suspend-overdue' => 120,
+            'billing:whatsapp-reminders' => 120,
+            'promo-banners:cleanup-images' => 120,
+        ];
+
+        $events = collect($this->app->make(Schedule::class)->events());
+        $locked = [];
+
+        foreach ($events->filter(fn (Event $e): bool => $e->withoutOverlapping) as $event) {
+            $name = collect(array_keys($expected))->first(fn (string $command): bool => str_contains((string) $event->command, " {$command}"));
+            $this->assertNotNull($name, "Unexpected overlap lock on: {$event->command}");
+            $locked[$name] = $event->expiresAt;
+        }
+
+        ksort($expected);
+        ksort($locked);
+        $this->assertSame($expected, $locked, 'Overlap lock TTL (minutes) per scheduled command');
+    }
+
+    public function test_the_scheduler_container_clears_stale_locks_on_boot(): void
+    {
+        $entrypoint = (string) file_get_contents(base_path('docker/app/entrypoint.sh'));
+
+        $this->assertMatchesRegularExpression(
+            '/\[ "\$\{3:-\}" = "schedule:work" \]; then\s+php artisan schedule:clear-cache\s+fi/',
+            $entrypoint,
+        );
+        $this->assertLessThan(
+            strpos($entrypoint, 'exec "$@"'),
+            strpos($entrypoint, 'schedule:clear-cache'),
+            'schedule:clear-cache must run before the scheduler starts',
+        );
+    }
+
     private function eventHasWithoutOverlapping(Event $event): bool
     {
         // withoutOverlapping sets mutex name / expiresAt on the event.

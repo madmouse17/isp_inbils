@@ -199,15 +199,22 @@ class ServicePackageCategoryMigrationTest extends TestCase
     }
 
     /**
-     * Later migrations reference `service_package_categories` (announcement and banner targeting pivots), so the
-     * category migration can only be reversed once those are gone, and they come back after it.
+     * Later migrations reference `service_package_categories` (announcement and banner targeting pivots, the package
+     * versions), so the category migration can only be reversed once those are gone, and they come back after it. The
+     * subscription's version column points at the versions table: it goes first and comes back last.
      */
     private function dependents(string $direction): void
     {
         $files = [
             'announcements' => 'Modules/Service/database/migrations/2026_10_15_200000_create_announcements_table.php',
             'promo_banners' => 'Modules/Service/database/migrations/2026_10_15_200100_create_promo_banners_table.php',
+            'service_package_versions' => 'Modules/Service/database/migrations/2026_10_23_100000_create_service_package_versions_table.php',
         ];
+        $subscriptionVersion = require base_path('database/migrations/2026_10_23_100100_add_service_package_version_id_to_service_subscriptions_table.php');
+
+        if ($direction === 'down') {
+            $subscriptionVersion->down();
+        }
 
         foreach ($direction === 'down' ? array_reverse($files, true) : $files as $table => $file) {
             $dependent = require base_path($file);
@@ -216,6 +223,10 @@ class ServicePackageCategoryMigrationTest extends TestCase
             } elseif ($direction === 'up' && ! Schema::hasTable($table)) {
                 $dependent->up();
             }
+        }
+
+        if ($direction === 'up') {
+            $subscriptionVersion->up();
         }
     }
 }

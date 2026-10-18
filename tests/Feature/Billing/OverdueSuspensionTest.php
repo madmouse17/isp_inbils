@@ -5,6 +5,7 @@ namespace Tests\Feature\Billing;
 use App\Models\Core\Company;
 use App\Models\User;
 use App\Services\Core\SubscriptionService;
+use App\Support\OptimisticLock;
 use Illuminate\Console\Scheduling\Event;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Console\Kernel as ConsoleKernel;
@@ -12,11 +13,13 @@ use Illuminate\Foundation\Console\Kernel as FoundationKernel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
+use Modules\Billing\Services\OverdueSuspensionService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
@@ -278,7 +281,24 @@ class OverdueSuspensionTest extends TestCase
 
         $this->artisan('billing:suspend-overdue')->assertFailed();
 
-        Notification::assertSentTo($this->admin, BillingScheduleFailedNotification::class, fn ($n) => $n->command === 'billing:suspend-overdue');
+        Notification::assertSentTo($this->admin, BillingScheduleFailedNotification::class, fn ($n) => $n->command === 'billing:suspend-overdue' && $n->companyId === $this->company->id);
+    }
+
+    public function test_the_isolir_locks_the_customer_before_its_subscription(): void
+    {
+        $subscription = $this->subscriptionIn($this->company);
+        $this->invoiceFor($subscription, 30);
+
+        DB::enableQueryLog();
+        OverdueSuspensionService::suspendOverdue($this->company->id);
+        $locks = collect(DB::getQueryLog())->pluck('query')->filter(fn (string $sql): bool => str_contains($sql, 'for update'))->values();
+
+        $customerLock = $locks->search(fn (string $sql): bool => str_contains($sql, 'from `customers`'));
+        $subscriptionLock = $locks->search(fn (string $sql): bool => str_contains($sql, 'from `service_subscriptions`'));
+        $this->assertNotFalse($customerLock, 'the customer row is locked');
+        $this->assertNotFalse($subscriptionLock, 'and so is the subscription row');
+        $this->assertLessThan($subscriptionLock, $customerLock, 'lane lock order: the customer first, then its subscription');
+        $this->assertSame('suspended', $this->freshSubscription($subscription)->status);
     }
 
     public function test_the_command_is_scheduled_daily_at_eight_without_overlapping(): void
@@ -424,7 +444,7 @@ class OverdueSuspensionTest extends TestCase
             'auto_suspend_enabled' => true,
             'auto_suspend_overdue_days' => 14,
             'auto_reactivate_on_payment' => false,
-        ]])->assertRedirect();
+        ], OptimisticLock::FIELD => $this->settingsVersion()])->assertRedirect();
 
         $settings = $this->company->fresh()->settings;
         $this->assertTrue($settings['auto_suspend_enabled']);
@@ -432,15 +452,21 @@ class OverdueSuspensionTest extends TestCase
         $this->assertFalse($settings['auto_reactivate_on_payment']);
 
         foreach ([0, 61, 'abc', null] as $days) {
-            $this->putJson(route('admin.company.settings.update'), ['settings' => ['auto_suspend_overdue_days' => $days]])
+            $this->putJson(route('admin.company.settings.update'), ['settings' => ['auto_suspend_overdue_days' => $days], OptimisticLock::FIELD => $this->settingsVersion()])
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors('settings.auto_suspend_overdue_days');
         }
         foreach (['auto_suspend_enabled', 'auto_reactivate_on_payment'] as $key) {
-            $this->putJson(route('admin.company.settings.update'), ['settings' => [$key => 'maybe']])
+            $this->putJson(route('admin.company.settings.update'), ['settings' => [$key => 'maybe'], OptimisticLock::FIELD => $this->settingsVersion()])
                 ->assertUnprocessable()
                 ->assertJsonValidationErrors('settings.'.$key);
         }
         $this->assertSame(14, $this->company->fresh()->settings['auto_suspend_overdue_days']);
+    }
+
+    /** The version the settings form was rendered from. */
+    private function settingsVersion(): string
+    {
+        return OptimisticLock::version($this->company->fresh());
     }
 }

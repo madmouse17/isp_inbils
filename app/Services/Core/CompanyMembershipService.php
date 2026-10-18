@@ -4,6 +4,7 @@ namespace App\Services\Core;
 
 use App\Models\Core\Company;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -40,15 +41,20 @@ class CompanyMembershipService
             $membership = DB::table('company_user')->where('company_id', $company->id)->where('user_id', $user->id);
 
             if (! $membership->exists()) {
-                DB::table('company_user')->insert([
-                    'company_id' => $company->id,
-                    'user_id' => $user->id,
-                    'is_default' => $default,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+                try {
+                    DB::table('company_user')->insert([
+                        'company_id' => $company->id,
+                        'user_id' => $user->id,
+                        'is_default' => $default,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
 
-                return true;
+                    return true;
+                } catch (UniqueConstraintViolationException $e) {
+                    // A parallel grant won the race: the membership exists, so carry on as for an existing one.
+                    throw_unless($membership->exists(), $e);
+                }
             }
 
             return $default && $membership->where('is_default', false)->update(['is_default' => true, 'updated_at' => now()]) > 0;

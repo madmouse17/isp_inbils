@@ -21,7 +21,7 @@ use Modules\Billing\Database\Factories\PaymentAttemptFactory;
  * @property int $invoice_id
  * @property string $order_id
  * @property string $amount
- * @property string $status pending|paid|failed|expired|exception
+ * @property string $status pending|paid|failed|expired|exception|cancelled_locally
  * @property string|null $status_reason
  * @property string|null $snap_token
  * @property string|null $redirect_url
@@ -51,6 +51,9 @@ class PaymentAttempt extends Model
     public const STATUS_EXPIRED = 'expired';
 
     public const STATUS_EXCEPTION = 'exception';
+
+    /** Inbils closed the page: the invoice was paid or cancelled, or its balance shrank, while the Snap page was open. */
+    public const STATUS_CANCELLED_LOCALLY = 'cancelled_locally';
 
     /** Columns that decide what money an attempt stands for; they never change after creation. */
     private const IMMUTABLE = ['company_id', 'invoice_id', 'order_id', 'amount'];

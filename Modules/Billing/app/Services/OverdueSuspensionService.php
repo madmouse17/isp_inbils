@@ -3,12 +3,15 @@
 namespace Modules\Billing\Services;
 
 use App\Models\Core\Company;
+use App\Models\Core\Customer;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Models\Invoice;
+use RuntimeException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 /**
  * Automatic isolir and reconnection. Callers run it inside CompanyService::runAs() for the company.
@@ -23,9 +26,13 @@ class OverdueSuspensionService
 
     /**
      * Suspend every active subscription with an invoice past grace, with source "overdue". A dry run only
-     * reports them. Each subscription is its own transaction, so one conflict never blocks the others.
+     * reports them. Each subscription is its own transaction, so one conflict never blocks the others, and neither does
+     * a failure: it is reported, and when the loop is done one RuntimeException names the subscriptions left out, so the
+     * command can fail the company without losing the rest.
      *
      * @return list<array{id: int, code: string}> the subscriptions suspended (or that would be)
+     *
+     * @throws RuntimeException when a subscription could not be suspended
      */
     public static function suspendOverdue(int $companyId, bool $dryRun = false): array
     {
@@ -37,21 +44,31 @@ class OverdueSuspensionService
 
         $reason = "Automatic isolir: an invoice is more than {$settings['grace_days']} days past due.";
         $suspended = [];
+        $failed = [];
 
         $subscriptions = ServiceSubscription::withoutCompany()
             ->where('company_id', $companyId)
             ->where('status', 'active')
             ->whereIn('id', self::unpaidPastGrace($companyId, $settings['grace_days'])->select('subscription_id'))
             ->orderBy('id')
-            ->get(['id', 'code']);
+            ->get(['id', 'code', 'customer_id']);
 
         foreach ($subscriptions as $subscription) {
-            if (! $dryRun && ! self::suspendIfStillOverdue($companyId, $subscription, $reason, $settings['grace_days'])) {
+            try {
+                if (! $dryRun && ! self::suspendIfStillOverdue($companyId, $subscription, $reason, $settings['grace_days'])) {
+                    continue;
+                }
+            } catch (Throwable $e) {
+                report($e);
+                $failed[] = $subscription->code;
+
                 continue;
             }
 
             $suspended[] = ['id' => $subscription->id, 'code' => $subscription->code];
         }
+
+        throw_if($failed !== [], RuntimeException::class, 'Automatic isolir failed for: '.implode(', ', $failed).'.');
 
         return $suspended;
     }
@@ -112,12 +129,15 @@ class OverdueSuspensionService
      * The list above was read a while ago: a payment, a cancellation or a manual change may have landed since,
      * and a payment's own reconnect already ran against a still-active subscription. Under the subscription's
      * lock the invoices are read again with a locking read, which waits for a payment that is still in flight and
-     * then sees what it committed.
+     * then sees what it committed. The customer is locked before its subscription, the order every writer of the two
+     * follows (suspend() rolls the customer up and takes that row itself).
      */
     private static function suspendIfStillOverdue(int $companyId, ServiceSubscription $subscription, string $reason, int $graceDays): bool
     {
         try {
             return DB::transaction(function () use ($companyId, $subscription, $reason, $graceDays): bool {
+                Customer::withoutCompany()->where('company_id', $companyId)->whereKey($subscription->customer_id)->lockForUpdate()->value('id');
+
                 $stillActive = ServiceSubscription::withoutCompany()
                     ->where('company_id', $companyId)
                     ->whereKey($subscription->id)

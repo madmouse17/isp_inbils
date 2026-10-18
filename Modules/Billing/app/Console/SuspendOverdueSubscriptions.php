@@ -3,12 +3,11 @@
 namespace Modules\Billing\Console;
 
 use App\Models\Core\Company;
-use App\Models\User;
 use App\Services\Core\CompanyService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Notification;
 use Modules\Billing\Notifications\BillingScheduleFailedNotification;
 use Modules\Billing\Services\BillingScheduleGateway;
+use Throwable;
 
 class SuspendOverdueSubscriptions extends Command
 {
@@ -24,9 +23,11 @@ class SuspendOverdueSubscriptions extends Command
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $failedCompanyIds = [];
 
-        try {
-            foreach ($this->resolveCompanyIds() as $companyId) {
+        // One company's failure must not keep the others from being isolated: it is reported, and only its own admins are told, at the end.
+        foreach ($this->resolveCompanyIds() as $companyId) {
+            try {
                 $suspended = CompanyService::runAs($companyId, fn () => $this->gateway->suspendOverdue($companyId, $dryRun));
 
                 foreach ($suspended as $subscription) {
@@ -34,19 +35,16 @@ class SuspendOverdueSubscriptions extends Command
                 }
 
                 $this->info(($dryRun ? "[DRY RUN] Company {$companyId} — would suspend: " : "Company {$companyId} — suspended: ").count($suspended));
+            } catch (Throwable $e) {
+                report($e);
+                $this->error("Overdue suspension failed for company {$companyId}: ".$e->getMessage());
+                $failedCompanyIds[] = $companyId;
             }
-
-            return self::SUCCESS;
-        } catch (\Throwable $e) {
-            $this->error('Overdue suspension failed: '.$e->getMessage());
-
-            Notification::send(
-                User::where('is_active', true)->role('admin')->get(),
-                new BillingScheduleFailedNotification(command: 'billing:suspend-overdue'),
-            );
-
-            return self::FAILURE;
         }
+
+        BillingScheduleFailedNotification::alertAdmins('billing:suspend-overdue', $failedCompanyIds);
+
+        return $failedCompanyIds === [] ? self::SUCCESS : self::FAILURE;
     }
 
     /** @return list<int> */

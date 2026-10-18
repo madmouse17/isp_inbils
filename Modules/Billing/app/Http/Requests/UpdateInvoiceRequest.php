@@ -2,6 +2,7 @@
 
 namespace Modules\Billing\Http\Requests;
 
+use App\Support\OptimisticLock;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateInvoiceRequest extends FormRequest
@@ -18,6 +19,7 @@ class UpdateInvoiceRequest extends FormRequest
             'due_date' => ['nullable', 'date_format:Y-m-d'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string'],
+            OptimisticLock::FIELD => OptimisticLock::rules(),
         ];
     }
 

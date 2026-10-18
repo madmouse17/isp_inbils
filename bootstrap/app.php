@@ -11,6 +11,7 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\Platform\EnsurePlatformAccountIsActive;
 use App\Http\Middleware\Platform\RequirePlatformPasswordConfirmation;
 use App\Http\Middleware\Platform\RequirePlatformTwoFactor;
+use App\Http\Middleware\PreventDuplicateWebSubmit;
 use App\Http\Middleware\RedirectAppOnlyRoles;
 use App\Http\Middleware\RedirectIfNoCompany;
 use App\Http\Middleware\RequireHasCompany;
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ResolveActiveCompany::class,
             RedirectIfNoCompany::class,
             HandleInertiaRequests::class,
+            PreventDuplicateWebSubmit::class,
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
@@ -132,7 +134,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (HttpExceptionInterface $e, $request) {
             if ($e->getStatusCode() === 409) {
                 if ($request->header('X-Inertia')) {
-                    return back()->withErrors([
+                    // 303, so an Inertia PUT/PATCH/DELETE follows the redirect with a GET: a conflict thrown before HandleInertiaRequests
+                    // (ResolveActiveCompany) never reaches that middleware's own 302-to-303 step.
+                    return back(in_array($request->method(), ['PUT', 'PATCH', 'DELETE'], true) ? 303 : 302)->withErrors([
                         'conflict' => $e->getMessage() ?: 'Item telah diubah atau ditugaskan oleh pengguna lain.',
                     ])->with('error', $e->getMessage());
                 }

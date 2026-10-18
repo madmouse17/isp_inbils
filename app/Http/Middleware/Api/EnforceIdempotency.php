@@ -45,7 +45,7 @@ final class EnforceIdempotency
         $request->attributes->set(self::KEY_ATTRIBUTE, $key);
 
         $cacheKey = self::cacheKey($request->user()->getKey(), $key);
-        $fingerprint = $this->fingerprint($request);
+        $fingerprint = self::fingerprint($request);
 
         // add() is atomic: of two requests racing on one key, exactly one gets to run.
         if (! Cache::add($cacheKey, ['state' => 'in_flight', 'fingerprint' => $fingerprint], self::IN_FLIGHT_SECONDS)) {
@@ -106,9 +106,10 @@ final class EnforceIdempotency
 
     /**
      * Method, path, query and body. A multipart body is hashed by its fields and the SHA-256 of each file, never
-     * by its raw bytes: the boundary changes on every attempt, the photo does not.
+     * by its raw bytes: the boundary changes on every attempt, the photo does not. Public because the web
+     * double-submit guard (PreventDuplicateWebSubmit) recognises an identical request the same way.
      */
-    private function fingerprint(Request $request): string
+    public static function fingerprint(Request $request): string
     {
         $multipart = $request->allFiles() !== [] || str_contains(strtolower((string) $request->header('Content-Type')), 'multipart/');
 
@@ -117,7 +118,8 @@ final class EnforceIdempotency
                 $request->post(),
                 array_map(fn (mixed $file): string => $file instanceof UploadedFile && $file->isValid() ? (string) hash_file('sha256', $file->getRealPath()) : '', Arr::flatten($request->allFiles())),
             ])
-            : $request->getContent();
+            // A request built from an array (the test client) has no raw body: its fields stand in, so two different forms never match.
+            : ($request->getContent() ?: json_encode($request->post()));
 
         return hash('sha256', implode("\n", [$request->method(), $request->getPathInfo(), (string) $request->getQueryString(), hash('sha256', $body)]));
     }

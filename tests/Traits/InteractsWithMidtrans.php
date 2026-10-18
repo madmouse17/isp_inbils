@@ -21,6 +21,9 @@ trait InteractsWithMidtrans
     /** @var (Closure(Request): mixed)|null answers the Status API; null = "no such transaction" */
     protected ?Closure $midtransStatusReply = null;
 
+    /** @var (Closure(Request): mixed)|null answers POST /v2/{order_id}/cancel; null = Midtrans cancelled the transaction */
+    protected ?Closure $midtransCancelReply = null;
+
     protected function enableMidtrans(): void
     {
         config([
@@ -38,8 +41,9 @@ trait InteractsWithMidtrans
     }
 
     /**
-     * Fake both Midtrans endpoints once per test and refuse any other outbound call. `Http::fake()` keeps the
-     * first stub that matches, so tests change an answer through the reply properties, never by faking again.
+     * Fake the three Midtrans endpoints once per test and refuse any other outbound call. `Http::fake()` keeps the
+     * first stub that matches (the cancel call before the Status API, which also matches it), so tests change an
+     * answer through the reply properties, never by faking again.
      */
     protected function fakeMidtrans(): void
     {
@@ -50,6 +54,7 @@ trait InteractsWithMidtrans
 
                 return Http::response(['token' => 'tok-'.$orderId, 'redirect_url' => 'https://app.sandbox.midtrans.com/snap/v4/redirection/tok-'.$orderId], 201);
             })($request),
+            'api.sandbox.midtrans.com/v2/*/cancel' => fn (Request $request) => ($this->midtransCancelReply ?? fn () => Http::response(['status_code' => '200', 'status_message' => 'Success, transaction is canceled', 'transaction_status' => 'cancel']))($request),
             'api.sandbox.midtrans.com/v2/*' => fn (Request $request) => ($this->midtransStatusReply ?? fn () => Http::response(['status_code' => '404', 'status_message' => 'The requested resource is not found'], 404))($request),
         ]);
     }
@@ -58,6 +63,12 @@ trait InteractsWithMidtrans
     protected function midtransStatusReturns(array $payload, int $httpStatus = 200): void
     {
         $this->midtransStatusReply = fn () => Http::response($payload, $httpStatus);
+    }
+
+    /** @param  array<string, mixed>  $payload */
+    protected function midtransCancelReturns(array $payload, int $httpStatus = 200): void
+    {
+        $this->midtransCancelReply = fn () => Http::response($payload, $httpStatus);
     }
 
     /**

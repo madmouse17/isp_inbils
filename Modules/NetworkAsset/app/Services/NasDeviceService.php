@@ -3,6 +3,7 @@
 namespace Modules\NetworkAsset\Services;
 
 use App\Services\Core\AuditService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAsset;
@@ -27,12 +28,18 @@ class NasDeviceService
 
             abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'Aset router ini sudah terdaftar sebagai router NAS.');
 
-            $nas = NasDevice::query()->create([
-                'network_asset_id' => $asset->id,
-                'nasname' => $data['nasname'] ?? $asset->getAttribute('management_ip'),
-                'coa_port' => $data['coa_port'] ?? 1700,
-                'radius_secret' => $data['radius_secret'],
-            ]);
+            try {
+                $nas = NasDevice::query()->create([
+                    'network_asset_id' => $asset->id,
+                    'nasname' => $data['nasname'] ?? $asset->getAttribute('management_ip'),
+                    'coa_port' => $data['coa_port'] ?? 1700,
+                    'radius_secret' => $data['radius_secret'],
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // A parallel create passed the same pre-check: answer as the pre-check or the request rule would.
+                abort_if(NasDevice::query()->where('network_asset_id', $asset->id)->exists(), 422, 'Aset router ini sudah terdaftar sebagai router NAS.');
+                abort(422, 'Alamat ini tidak tersedia.');
+            }
 
             AuditService::log('nas_device', 'created', ['network_asset_id' => $asset->id, 'asset_code' => $asset->code, 'nasname' => $nas->nasname], $nas);
 

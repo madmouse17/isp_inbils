@@ -15,11 +15,15 @@ export const PAYMENT_STATE = {
     cancelled: { label: 'Dibatalkan', tone: 'neutral' },
 } satisfies StatusMap;
 
-/** A customer's attempt to pay through Midtrans. `exception` is a refund, a chargeback or a payment billing refused. */
+/**
+ * A customer's attempt to pay through Midtrans. `exception` is a refund, a chargeback or a payment billing refused.
+ * `cancelled_locally` is a page Inbils closed because the invoice was paid or cancelled while it was open.
+ */
 export const PAYMENT_ATTEMPT_STATUS = {
     pending: { label: 'Menunggu', tone: 'warning' },
     paid: { label: 'Lunas', tone: 'success' },
     failed: { label: 'Gagal', tone: 'danger' },
     expired: { label: 'Kedaluwarsa', tone: 'neutral' },
     exception: { label: 'Perlu dicek', tone: 'danger' },
+    cancelled_locally: { label: 'Ditutup', tone: 'neutral' },
 } satisfies StatusMap;

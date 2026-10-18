@@ -10,8 +10,10 @@ use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Services\Core\SettingService;
 use App\Support\Money;
+use App\Support\OptimisticLock;
 use App\Support\RecordNotFound;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Modules\Billing\Events\InvoiceIssued;
@@ -21,6 +23,7 @@ use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
 use Modules\Inventory\Models\Product;
 use Symfony\Component\HttpKernel\Exception\HttpException;
+use Throwable;
 
 class BillingService
 {
@@ -39,8 +42,14 @@ class BillingService
     }
 
     /**
-     * Generate postpaid recurring invoices for a period ('YYYY-MM').
+     * Generate postpaid recurring invoices for a billing period ('YYYY-MM').
      * Idempotent; safe to re-run. $dryRun computes rows without writing.
+     *
+     * A recurring invoice of the period in any status counts as issued, a cancelled one too: the schedule never issues a
+     * period again behind a person's back (a disputed period is billed by hand as a one-time invoice). One subscription
+     * that fails is reported and counted in `failed`; the rest of the company is still billed.
+     *
+     * @return array{created: int, skipped: int, failed: int, rows: list<array<string, mixed>>}
      */
     public static function generateForPeriod(string $period, bool $dryRun = false, ?int $companyId = null): array
     {
@@ -63,106 +72,125 @@ class BillingService
         $rows = [];
         $created = 0;
         $skipped = 0;
+        $failed = 0;
 
         foreach ($subscriptions as $sub) {
-            $exists = Invoice::withoutCompany()
-                ->where('subscription_id', $sub->id)
-                ->where('type', 'recurring')
-                ->where('status', '!=', 'cancelled')
-                ->whereDate('billing_period_start', $periodStart)
-                ->exists();
+            try {
+                if (self::recurringIssued($sub->id, $periodStart)) {
+                    $skipped++;
 
-            if ($exists) {
-                $skipped++;
-
-                continue;
-            }
-
-            [$activeDays, $daysInPeriod, $amount] = self::prorationFor($sub, $periodStart, $periodEnd);
-
-            if (Money::compare($amount, '0') <= 0) {
-                $skipped++;
-
-                continue;
-            }
-
-            $taxRate = self::taxRateFor($sub->company_id);
-            $tax = Money::round(Money::div(Money::mul($amount, $taxRate), '100'));
-
-            $rows[] = [
-                'subscription_id' => $sub->public_id,
-                'subscription_code' => $sub->code,
-                'customer' => $sub->customer?->name ?? '-',
-                'package' => $sub->servicePackage?->name ?? '-',
-                'active_days' => $activeDays,
-                'days_in_period' => $daysInPeriod,
-                'amount' => Money::round($amount),
-                'tax' => Money::round($tax),
-                'total' => Money::round(Money::add($amount, $tax)),
-            ];
-
-            if ($dryRun) {
-                continue;
-            }
-
-            DB::transaction(function () use ($sub, $periodStart, $periodEnd, $activeDays, $daysInPeriod, $amount, $taxRate) {
-                $subscription = ServiceSubscription::withoutCompany()->lockForUpdate()->findOrFail($sub->id);
-                self::assertCompanyId($subscription->company_id);
-
-                $exists = Invoice::withoutCompany()
-                    ->where('subscription_id', $subscription->id)
-                    ->where('type', 'recurring')
-                    ->where('status', '!=', 'cancelled')
-                    ->whereDate('billing_period_start', $periodStart)
-                    ->lockForUpdate()
-                    ->exists();
-                if ($exists) {
-                    return;
+                    continue;
                 }
 
-                $invoice = Invoice::create([
-                    'company_id' => $subscription->company_id,
-                    'number' => NumberSequenceService::generate('invoice', $subscription->company_id),
-                    'type' => 'recurring',
-                    'source' => 'subscription',
-                    'customer_id' => $subscription->customer_id,
-                    'subscription_id' => $subscription->id,
-                    'issue_date' => now()->toDateString(),
-                    'due_date' => now()->addDays(self::dueDaysFor($subscription->company_id))->toDateString(),
-                    'billing_period_start' => $periodStart->toDateString(),
-                    'billing_period_end' => $periodEnd->toDateString(),
-                    'status' => 'sent',
-                    'sent_at' => now(),
-                    'created_by' => null, // ponytail: batch job, no human actor
-                ]);
+                [$activeDays, $daysInPeriod, $amount] = self::prorationFor($sub, $periodStart, $periodEnd);
 
-                $label = 'MRC '.($subscription->servicePackage?->name ?? 'Subscription')
-                    .' '.$periodStart->toDateString().' s/d '.$periodEnd->toDateString();
-                if ($activeDays < $daysInPeriod) {
-                    $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
+                if (Money::compare($amount, '0') <= 0) {
+                    $skipped++;
+
+                    continue;
                 }
 
-                InvoiceItem::create([
-                    'company_id' => $subscription->company_id,
-                    'invoice_id' => $invoice->id,
-                    'description' => $label,
-                    'quantity' => 1,
-                    'unit_price' => $amount,
-                    'tax_rate' => $taxRate,
-                    'line_total' => $amount,
-                ]);
+                $taxRate = self::taxRateFor($sub->company_id);
+                $tax = Money::round(Money::div(Money::mul($amount, $taxRate), '100'));
 
-                self::recalculate($invoice);
+                $row = [
+                    'subscription_id' => $sub->public_id,
+                    'subscription_code' => $sub->code,
+                    'customer' => $sub->customer?->name ?? '-',
+                    'package' => $sub->servicePackage?->name ?? '-',
+                    'active_days' => $activeDays,
+                    'days_in_period' => $daysInPeriod,
+                    'amount' => Money::round($amount),
+                    'tax' => Money::round($tax),
+                    'total' => Money::round(Money::add($amount, $tax)),
+                ];
 
-                AuditService::log('invoice', 'recurring_generated', ['number' => $invoice->number], $invoice);
+                if ($dryRun) {
+                    $rows[] = $row;
 
-                InvoiceIssued::dispatch($invoice->company_id, $invoice->id);
-            });
+                    continue;
+                }
 
-            $created++;
+                if (self::issueRecurring($sub, $periodStart, $periodEnd, $activeDays, $daysInPeriod, $amount, $taxRate)) {
+                    $rows[] = $row;
+                    $created++;
+                } else {
+                    $skipped++;
+                }
+            } catch (UniqueConstraintViolationException) {
+                // Another run was first: the unique key on invoices.active_recurring_period refused this one.
+                $skipped++;
+            } catch (Throwable $e) {
+                report($e);
+                $failed++;
+            }
         }
 
-        return ['created' => $created, 'skipped' => $skipped, 'rows' => $rows];
+        return ['created' => $created, 'skipped' => $skipped, 'failed' => $failed, 'rows' => $rows];
+    }
+
+    /** Any recurring invoice of the period, whatever its status; $lock waits for a run that is issuing it right now. */
+    private static function recurringIssued(int $subscriptionId, CarbonImmutable $periodStart, bool $lock = false): bool
+    {
+        return Invoice::withoutCompany()
+            ->where('subscription_id', $subscriptionId)
+            ->where('type', 'recurring')
+            ->whereDate('billing_period_start', $periodStart)
+            ->when($lock, fn ($query) => $query->lockForUpdate())
+            ->exists();
+    }
+
+    /** @return bool whether this call issued the invoice: false when another run issued the period between the check and the lock */
+    private static function issueRecurring(ServiceSubscription $sub, CarbonImmutable $periodStart, CarbonImmutable $periodEnd, int $activeDays, int $daysInPeriod, string $amount, float $taxRate): bool
+    {
+        return DB::transaction(function () use ($sub, $periodStart, $periodEnd, $activeDays, $daysInPeriod, $amount, $taxRate): bool {
+            $subscription = ServiceSubscription::withoutCompany()->lockForUpdate()->findOrFail($sub->id);
+            self::assertCompanyId($subscription->company_id);
+
+            if (self::recurringIssued($subscription->id, $periodStart, lock: true)) {
+                return false;
+            }
+
+            $invoice = Invoice::create([
+                'company_id' => $subscription->company_id,
+                'number' => NumberSequenceService::generate('invoice', $subscription->company_id),
+                'type' => 'recurring',
+                'source' => 'subscription',
+                'customer_id' => $subscription->customer_id,
+                'subscription_id' => $subscription->id,
+                'issue_date' => now()->toDateString(),
+                'due_date' => now()->addDays(self::dueDaysFor($subscription->company_id))->toDateString(),
+                'billing_period_start' => $periodStart->toDateString(),
+                'billing_period_end' => $periodEnd->toDateString(),
+                'status' => 'sent',
+                'sent_at' => now(),
+                'created_by' => null, // ponytail: batch job, no human actor
+            ]);
+
+            $label = 'MRC '.($subscription->servicePackage?->name ?? 'Subscription')
+                .' '.$periodStart->toDateString().' s/d '.$periodEnd->toDateString();
+            if ($activeDays < $daysInPeriod) {
+                $label .= " (prorata {$activeDays}/{$daysInPeriod} hari)";
+            }
+
+            InvoiceItem::create([
+                'company_id' => $subscription->company_id,
+                'invoice_id' => $invoice->id,
+                'description' => $label,
+                'quantity' => 1,
+                'unit_price' => $amount,
+                'tax_rate' => $taxRate,
+                'line_total' => $amount,
+            ]);
+
+            self::recalculate($invoice);
+
+            AuditService::log('invoice', 'recurring_generated', ['number' => $invoice->number], $invoice);
+
+            InvoiceIssued::dispatch($invoice->company_id, $invoice->id);
+
+            return true;
+        }, 3);
     }
 
     /** @return array{0:int,1:int,string} [activeDays, daysInPeriod, amount] */
@@ -204,7 +232,7 @@ class BillingService
             InvoiceIssued::dispatch($invoice->company_id, $invoice->id);
 
             return $invoice->fresh();
-        });
+        }, 3);
     }
 
     public static function recordPayment(Invoice $invoice, string|int|float $amount, string $method, ?string $reference = null, ?string $notes = null): Payment
@@ -246,6 +274,8 @@ class BillingService
                 $invoice->update(['status' => 'partial', 'paid_amount' => Money::round($newPaid)]);
             }
 
+            self::closeOpenPages($invoice, $method === 'midtrans' ? $reference : null);
+
             AuditService::log('invoice', 'payment_recorded', [
                 'number' => $invoice->number, 'amount' => $amount, 'method' => $method,
             ], $invoice);
@@ -253,7 +283,7 @@ class BillingService
             PaymentRecorded::dispatch($invoice->company_id, $invoice->id, $payment->id);
 
             return $payment;
-        });
+        }, 3);
     }
 
     public static function cancel(Invoice $invoice, string $reason): Invoice
@@ -272,10 +302,12 @@ class BillingService
                 'cancelled_by' => Auth::id(),
             ]);
 
+            self::closeOpenPages($invoice);
+
             AuditService::log('invoice', 'cancelled', ['number' => $invoice->number, 'reason' => $reason], $invoice);
 
             return $invoice->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -317,7 +349,7 @@ class BillingService
             ], $invoice);
 
             return $payment->fresh();
-        });
+        }, 3);
     }
 
     /**
@@ -352,7 +384,7 @@ class BillingService
             ]);
 
             self::recalculate($invoice);
-        });
+        }, 3);
     }
 
     /**
@@ -378,7 +410,41 @@ class BillingService
 
             $item->delete();
             self::recalculate($invoice);
-        });
+        }, 3);
+    }
+
+    /**
+     * Save the editable fields of a draft. The draft is read again under its lock: one that was sent since the form was
+     * rendered is refused with that reason and nothing is written, and so is a save made from a copy somebody else has
+     * saved over. The totals are recalculated in the same transaction.
+     *
+     * @param  array<string, mixed>  $data  the validated fields, without the version
+     *
+     * @throws HttpException 422 if the invoice is no longer a draft, 409 if it changed since the version the form carries
+     */
+    public static function update(Invoice $invoice, array $data, string $expectedUpdatedAt): void
+    {
+        DB::transaction(function () use ($invoice, $data, $expectedUpdatedAt) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
+            abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diubah.');
+            OptimisticLock::assert($invoice, $expectedUpdatedAt);
+
+            $invoice->update($data);
+            self::recalculate($invoice);
+        }, 3);
+    }
+
+    /** Delete a draft. The status is read again under the lock: an invoice that was sent since the request bound it stays. */
+    public static function destroyDraft(Invoice $invoice): void
+    {
+        DB::transaction(function () use ($invoice) {
+            $invoice = Invoice::withoutCompany()->whereKey($invoice->id)->lockForUpdate()->firstOrFail();
+            self::assertCompanyId($invoice->company_id);
+            abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dihapus.');
+
+            $invoice->delete();
+        }, 3);
     }
 
     public static function createFromSpk(int $workOrderId): Invoice
@@ -408,7 +474,7 @@ class BillingService
                 'tax_amount' => Money::round($taxAmount),
                 'total' => Money::round($total),
             ]);
-        });
+        }, 3);
     }
 
     public static function checkOverdue(?int $companyId = null): void
@@ -481,6 +547,12 @@ class BillingService
             })
             ->values()
             ->all();
+    }
+
+    /** The invoice changed what can be paid: its open Snap pages are closed inside the caller's transaction, under the invoice's company. */
+    private static function closeOpenPages(Invoice $invoice, ?string $exceptOrderId = null): void
+    {
+        CompanyService::runAs($invoice->company_id, fn () => app(PaymentAttemptService::class)->closeOpenFor($invoice, $exceptOrderId));
     }
 
     private static function assertCompanyId(int $companyId): void

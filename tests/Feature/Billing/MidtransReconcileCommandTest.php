@@ -143,6 +143,44 @@ class MidtransReconcileCommandTest extends TestCase
         $this->assertSame('pending', PaymentAttempt::withoutCompany()->findOrFail($attempt->id)->status);
     }
 
+    public function test_a_closed_page_midtrans_has_cancelled_stays_closed_and_is_counted_as_closed(): void
+    {
+        $closed = $this->attemptFor(attempt: ['status' => 'cancelled_locally']);
+        $this->midtransStatusReturns($this->midtransPayload($closed, ['transaction_status' => 'cancel', 'status_code' => '200']));
+
+        $this->artisan('midtrans:reconcile')
+            ->expectsTable(['Checked', 'Settled', 'Expired', 'Exceptions', 'Failed', 'Still pending', 'Closed', 'Errors'], [[1, 0, 0, 0, 0, 0, 1, 0]])
+            ->assertExitCode(0);
+
+        $this->assertSame('cancelled_locally', PaymentAttempt::withoutCompany()->findOrFail($closed->id)->status);
+        $this->assertSame(1, $this->statusCalls());
+        $this->assertCount(0, Payment::withoutCompany()->get());
+    }
+
+    public function test_a_closed_page_midtrans_does_not_know_is_never_expired_by_the_reconciliation(): void
+    {
+        $closed = $this->attemptFor(attempt: ['status' => 'cancelled_locally', 'created_at' => now()->subHours(25), 'expires_at' => now()->subHour()]);
+
+        $this->artisan('midtrans:reconcile')->assertExitCode(0);
+
+        $this->assertSame('cancelled_locally', PaymentAttempt::withoutCompany()->findOrFail($closed->id)->status);
+        $this->assertSame(1, $this->statusCalls());
+        $this->assertSame(0, Activity::query()->where('log_name', 'payment_attempt')->where('description', 'expired')->count());
+    }
+
+    public function test_a_dry_run_leaves_a_closed_page_alone(): void
+    {
+        $closed = $this->attemptFor(attempt: ['status' => 'cancelled_locally']);
+        $this->midtransStatusReturns($this->midtransPayload($closed));
+        $activityBefore = Activity::query()->count();
+
+        $this->artisan('midtrans:reconcile', ['--dry-run' => true])->expectsOutputToContain('[DRY RUN]')->assertExitCode(0);
+
+        $this->assertSame('cancelled_locally', PaymentAttempt::withoutCompany()->findOrFail($closed->id)->status);
+        $this->assertCount(0, Payment::withoutCompany()->get());
+        $this->assertSame($activityBefore, Activity::query()->count());
+    }
+
     public function test_a_dry_run_reports_without_changing_anything(): void
     {
         $settles = $this->attemptFor();

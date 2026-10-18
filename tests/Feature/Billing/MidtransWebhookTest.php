@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\Request;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use InvalidArgumentException;
@@ -18,6 +19,7 @@ use Modules\Billing\Database\Factories\PaymentAttemptFactory;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\Payment;
 use Modules\Billing\Models\PaymentAttempt;
+use Modules\Billing\Notifications\PaymentAttemptExceptionNotification;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Services\PaymentAttemptService;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -102,6 +104,12 @@ class MidtransWebhookTest extends TestCase
         return Activity::query()->where('log_name', 'payment_attempt')->where('description', $event)->count();
     }
 
+    /** The alerts billing staff were sent for an attempt that needs a person. */
+    private function alerts(): int
+    {
+        return DatabaseNotification::query()->where('type', PaymentAttemptExceptionNotification::class)->count();
+    }
+
     public function test_a_valid_settlement_books_exactly_one_payment_and_closes_the_invoice(): void
     {
         $attempt = $this->attemptFor();
@@ -131,6 +139,7 @@ class MidtransWebhookTest extends TestCase
 
         $this->assertSame(1, $this->auditCount('settled'));
         $this->assertSame(1, Activity::query()->where('log_name', 'invoice')->where('description', 'payment_recorded')->count());
+        $this->assertSame(0, $this->alerts(), 'a settlement that booked needs nobody');
     }
 
     public function test_an_attempt_that_predates_the_inb_order_id_format_still_settles_through_its_old_id(): void
@@ -365,6 +374,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertNull($quarantined->payment_id);
         $this->assertSame('sent', $this->freshInvoice($attempt)->status);
         $this->assertSame(1, $this->auditCount('exception'));
+        $this->assertSame(1, $this->alerts());
     }
 
     /** @return array<string, array{string, string, string}> */
@@ -391,6 +401,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertSame($reason, $quarantined->status_reason);
         $this->assertSame($status, $this->freshInvoice($attempt)->status);
         $this->assertSame(1, $this->auditCount('exception'));
+        $this->assertSame(1, $this->alerts());
     }
 
     public function test_a_balance_that_shrank_after_the_attempt_was_created_becomes_an_exception(): void
@@ -407,6 +418,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertSame('exception', $quarantined->status);
         $this->assertSame('Jumlah pembayaran melebihi sisa tagihan.', $quarantined->status_reason);
         $this->assertSame('30000.00', $this->freshInvoice($attempt)->paid_amount);
+        $this->assertSame(1, $this->alerts());
     }
 
     public function test_a_payment_that_already_uses_the_order_id_as_reference_is_quarantined(): void
@@ -427,6 +439,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertCount(1, $this->payments());
         $this->assertSame('Referensi pembayaran sudah ada.', $this->freshAttempt($attempt)->status_reason);
         $this->assertSame('exception', $this->freshAttempt($attempt)->status);
+        $this->assertSame(1, $this->alerts());
     }
 
     public function test_a_card_challenged_by_fraud_detection_books_nothing_and_stays_pending(): void
@@ -528,6 +541,7 @@ class MidtransWebhookTest extends TestCase
         $this->assertNotNull($flagged->payment_id);
         $this->assertStringContainsString($transactionStatus, $flagged->status_reason);
         $this->assertSame(1, $this->auditCount('exception'));
+        $this->assertSame(1, $this->alerts());
     }
 
     public function test_a_refund_for_an_attempt_that_was_never_settled_here_is_an_exception(): void
@@ -550,6 +564,65 @@ class MidtransWebhookTest extends TestCase
 
         $this->assertSame('paid', $this->freshAttempt($attempt)->status);
         $this->assertCount(1, $this->payments());
+    }
+
+    /** @return array<string, array{string, string}> */
+    public static function noticesThatOnlyEndTheTransaction(): array
+    {
+        return [
+            'Midtrans confirms the cancel' => ['cancel', '200'],
+            'the transaction expired' => ['expire', '407'],
+            'denied' => ['deny', '202'],
+            'failed' => ['failure', '202'],
+        ];
+    }
+
+    #[DataProvider('noticesThatOnlyEndTheTransaction')]
+    public function test_a_notice_that_only_ends_the_transaction_leaves_a_page_inbils_closed_as_it_was(string $transactionStatus, string $code): void
+    {
+        $reason = 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.';
+        $attempt = $this->attemptFor(attempt: ['status' => 'cancelled_locally', 'status_reason' => $reason]);
+
+        $this->notify($attempt, ['transaction_status' => $transactionStatus, 'status_code' => $code])->assertOk();
+
+        $closed = $this->freshAttempt($attempt);
+        $this->assertSame('cancelled_locally', $closed->status);
+        $this->assertSame($reason, $closed->status_reason);
+        $this->assertSame($transactionStatus, $closed->last_notification['transaction_status'], 'what Midtrans said is kept');
+        $this->assertCount(0, $this->payments());
+        $this->assertSame(0, $this->alerts());
+        $this->assertSame(1, $this->auditCount('notified'));
+    }
+
+    public function test_a_settlement_for_a_page_inbils_closed_is_booked_when_the_invoice_can_still_take_it(): void
+    {
+        $attempt = $this->attemptFor(attempt: ['status' => 'cancelled_locally', 'status_reason' => 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.']);
+
+        $this->notify($attempt)->assertOk();
+
+        $this->assertCount(1, $this->payments());
+        $settled = $this->freshAttempt($attempt);
+        $this->assertSame('paid', $settled->status);
+        $this->assertNull($settled->status_reason);
+        $this->assertSame('paid', $this->freshInvoice($attempt)->status);
+        $this->assertSame(0, $this->alerts());
+    }
+
+    public function test_money_for_a_page_inbils_closed_that_the_invoice_can_no_longer_take_is_an_exception_and_alerts_billing_staff(): void
+    {
+        $attempt = $this->attemptFor(attempt: ['status' => 'cancelled_locally', 'status_reason' => 'Tagihan dibayar atau dibatalkan saat halaman pembayaran masih terbuka.']);
+        $this->actingAs($this->admin);
+        BillingService::recordPayment($this->freshInvoice($attempt), 100000, 'cash');
+        $this->app['auth']->forgetGuards();
+
+        $this->notify($attempt)->assertOk();
+
+        $this->assertCount(1, $this->payments());
+        $exception = $this->freshAttempt($attempt);
+        $this->assertSame('exception', $exception->status);
+        $this->assertSame('Tagihan tidak menerima pembayaran pada statusnya saat ini.', $exception->status_reason);
+        $this->assertSame(1, $this->alerts());
+        $this->assertSame(1, $this->admin->notifications()->where('type', PaymentAttemptExceptionNotification::class)->count());
     }
 
     public function test_a_notification_only_ever_credits_the_company_that_owns_the_attempt(): void

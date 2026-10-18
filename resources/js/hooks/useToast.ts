@@ -14,7 +14,8 @@ export function useToast() {
     }, [flash, toast]);
 
     useEffect(() => {
-        if (Object.keys(errors).length > 0) {
+        // A conflict is already announced by the flash.error toast (and ConflictBanner), so it alone must not add a generic one.
+        if (Object.keys(errors).some((key) => key !== 'conflict')) {
             toast({ title: 'Data gagal disimpan. Periksa input.', variant: 'danger' });
         }
     }, [errors, toast]);

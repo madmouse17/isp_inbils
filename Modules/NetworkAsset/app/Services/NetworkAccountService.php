@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Services;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
 use App\Services\Core\CompanyService;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -53,12 +54,18 @@ class NetworkAccountService
 
             abort_if(NetworkAccount::query()->where('subscription_id', $subscription->id)->exists(), 422, 'Langganan ini sudah punya akun jaringan.');
 
-            $account = NetworkAccount::query()->create([
-                'subscription_id' => $subscription->id,
-                'service_type' => $data['service_type'],
-                'username' => $username,
-                'password' => $generated ?? $typed,
-            ]);
+            try {
+                $account = NetworkAccount::query()->create([
+                    'subscription_id' => $subscription->id,
+                    'service_type' => $data['service_type'],
+                    'username' => $username,
+                    'password' => $generated ?? $typed,
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                // A parallel create passed the same pre-check: answer as the pre-check would.
+                abort_if(NetworkAccount::query()->where('subscription_id', $subscription->id)->exists(), 422, 'Langganan ini sudah punya akun jaringan.');
+                abort(422, 'Nama pengguna ini tidak tersedia.');
+            }
 
             AuditService::log('network_account', 'created', [
                 'username' => $account->username,

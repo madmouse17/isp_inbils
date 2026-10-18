@@ -10,6 +10,7 @@ use App\Models\Core\ServiceSubscription;
 use App\Services\Core\CompanyService;
 use App\Services\Core\NumberSequenceService;
 use App\Support\ExportQuery;
+use App\Support\OptimisticLock;
 use App\Support\PublicId;
 use App\Support\RecordNotFound;
 use App\Support\SearchOptions;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response as InertiaResponse;
@@ -35,9 +37,11 @@ use Modules\Billing\Http\Resources\ReceivableResource;
 use Modules\Billing\Models\Invoice;
 use Modules\Billing\Models\InvoiceItem;
 use Modules\Billing\Models\Payment;
+use Modules\Billing\Models\PaymentAttempt;
 use Modules\Billing\Queries\ReceivablesQuery;
 use Modules\Billing\Services\BillingService;
 use Modules\Billing\Services\MidtransGateway;
+use Modules\Billing\Services\PaymentAttemptService;
 use Modules\Billing\Support\Terbilang;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -154,8 +158,9 @@ class InvoiceController extends Controller
         Gate::authorize('billing.create');
 
         $result = BillingService::generateForPeriod($request->input('period'));
+        $failed = $result['failed'] > 0 ? ", {$result['failed']} gagal" : '';
 
-        return back()->with('success', "Tagihan {$request->input('period')}: {$result['created']} dibuat, {$result['skipped']} dilewati.");
+        return back()->with('success', "Tagihan {$request->input('period')}: {$result['created']} dibuat, {$result['skipped']} dilewati{$failed}.");
     }
 
     public function store(StoreInvoiceRequest $request): RedirectResponse
@@ -163,7 +168,6 @@ class InvoiceController extends Controller
         Gate::authorize('store', Invoice::class);
 
         $data = $request->validated();
-        $data['number'] = NumberSequenceService::generate('invoice', CompanyService::currentId());
         $data['type'] = 'one_time';
         $data['source'] = 'manual';
         $data['status'] = 'draft';
@@ -171,7 +175,8 @@ class InvoiceController extends Controller
         $data['due_date'] = $data['due_date'] ?? now()->addDays(BillingService::dueDaysFor(CompanyService::currentId()))->toDateString();
         $data['created_by'] = $request->user()->id;
 
-        Invoice::create($data);
+        // The number is taken inside the transaction that inserts the invoice: an insert that fails gives it back, so numbers have no gaps.
+        DB::transaction(fn () => Invoice::create($data + ['number' => NumberSequenceService::generate('invoice', CompanyService::currentId())]));
 
         return redirect()->route('admin.invoices.index')
             ->with('success', 'Tagihan dibuat.');
@@ -261,11 +266,39 @@ class InvoiceController extends Controller
             'rows' => ReceivableResource::collection($result['rows']),
             'totals' => $result['totals'],
             'filters' => $result['filters'],
+            'paymentExceptions' => $this->paymentExceptions(),
             'can' => [
                 'suspend' => $request->user()?->can('customer.subscription.suspend') ?? false,
                 'block' => $request->user()?->can('customer.subscription.block') ?? false,
             ],
         ]);
+    }
+
+    /**
+     * The online payments that only a person can settle: money Midtrans took and Inbils could not book, or booked money it
+     * took back. The Tunggakan page counts them and lists the newest ten.
+     *
+     * @return array{count: int, items: list<array<string, mixed>>}
+     */
+    private function paymentExceptions(): array
+    {
+        return [
+            'count' => PaymentAttemptService::openExceptions()->count(),
+            'items' => PaymentAttemptService::openExceptions()
+                ->with('invoice:id,public_id,number')
+                ->latest('created_at')
+                ->limit(10)
+                ->get()
+                ->map(fn (PaymentAttempt $attempt): array => [
+                    'invoice_id' => $attempt->invoice?->public_id,
+                    'invoice_number' => $attempt->invoice?->number,
+                    'order_id' => $attempt->order_id,
+                    'amount' => $attempt->amount,
+                    'reason' => $attempt->status_reason,
+                    'updated_at' => $attempt->updated_at->toIso8601String(),
+                ])
+                ->all(),
+        ];
     }
 
     public function edit(Invoice $invoice): InertiaResponse
@@ -285,10 +318,8 @@ class InvoiceController extends Controller
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('update', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa diubah.');
 
-        $invoice->update($request->validated());
-        BillingService::recalculate($invoice);
+        BillingService::update($invoice, $request->safe()->except(OptimisticLock::FIELD), $request->validated(OptimisticLock::FIELD));
 
         return redirect()->route('admin.invoices.index')->with('success', 'Tagihan diperbarui.');
     }
@@ -297,9 +328,8 @@ class InvoiceController extends Controller
     {
         $this->ensureSameCompany($invoice);
         Gate::authorize('delete', $invoice);
-        abort_if($invoice->status !== 'draft', 422, 'Hanya tagihan draf yang bisa dihapus.');
 
-        $invoice->delete();
+        BillingService::destroyDraft($invoice);
 
         return back()->with('success', 'Tagihan dihapus.');
     }

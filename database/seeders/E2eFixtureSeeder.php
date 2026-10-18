@@ -991,12 +991,16 @@ class E2eFixtureSeeder extends Seeder
             ['U1', 'U1', 'terminated', '2025-02-17', '2025-02-26 10:00:00', 90000, null],
         ];
 
+        // Raw rows skip the model hook that picks the version, and the column is NOT NULL.
+        $packageVersionId = DB::table('service_package_versions')->where('service_package_id', $packageId)->orderByDesc('version')->value('id');
+
         foreach ($subscriptions as [$suffix, $customerKey, $status, $activation, $terminatedAt, $mrc, $deletedAt]) {
             DB::table('service_subscriptions')->updateOrInsert(
                 ['company_id' => $company->id, 'code' => 'E2E-KPI-SUB-'.$suffix],
                 PublicId::onInsert([
                     'customer_id' => $customerIds[$customerKey],
                     'service_package_id' => $packageId,
+                    'service_package_version_id' => $packageVersionId,
                     'installation_address_id' => $addressId,
                     'status' => $status,
                     'activation_date' => $activation,

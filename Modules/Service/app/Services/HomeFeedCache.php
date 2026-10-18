@@ -3,6 +3,7 @@
 namespace Modules\Service\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class HomeFeedCache
@@ -16,6 +17,6 @@ class HomeFeedCache
 
     public static function flush(int $companyId): void
     {
-        Cache::forever("announcements:{$companyId}:version", (string) Str::uuid());
+        DB::afterCommit(fn () => Cache::forever("announcements:{$companyId}:version", (string) Str::uuid()));
     }
 }

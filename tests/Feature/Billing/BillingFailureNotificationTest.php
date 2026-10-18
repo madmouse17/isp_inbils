@@ -41,9 +41,9 @@ class BillingFailureNotificationTest extends TestCase
 
         $this->artisan('billing:generate', ['--period' => '2026-06'])->assertFailed();
 
-        Notification::assertSentTo($admin, BillingScheduleFailedNotification::class, function ($n) {
+        Notification::assertSentTo($admin, BillingScheduleFailedNotification::class, function ($n) use ($company) {
             return $n->command === 'billing:generate'
-                && $n->companyId === null
+                && $n->companyId === $company->id
                 && $n->jobId === null;
         });
         Notification::assertNotSentTo($inactive, BillingScheduleFailedNotification::class);
@@ -66,9 +66,23 @@ class BillingFailureNotificationTest extends TestCase
 
         $this->artisan('billing:check-overdue')->assertFailed();
 
-        Notification::assertSentTo($admin, BillingScheduleFailedNotification::class, function ($n) {
-            return $n->command === 'billing:check-overdue';
+        Notification::assertSentTo($admin, BillingScheduleFailedNotification::class, function ($n) use ($company) {
+            return $n->command === 'billing:check-overdue' && $n->companyId === $company->id;
         });
+    }
+
+    public function test_recipients_are_the_active_admins_of_that_one_company(): void
+    {
+        $company = Company::factory()->create();
+        $admin = User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $admin->assignRole('admin');
+        $inactive = User::factory()->create(['company_id' => $company->id, 'is_active' => false]);
+        $inactive->assignRole('admin');
+        User::factory()->create(['company_id' => $company->id, 'is_active' => true]);
+        $stranger = User::factory()->create(['company_id' => Company::factory()->create()->id, 'is_active' => true]);
+        $stranger->assignRole('admin');
+
+        $this->assertSame([$admin->id], BillingScheduleFailedNotification::recipients($company->id)->pluck('id')->all());
     }
 
     public function test_the_mail_is_indonesian_and_carries_the_command(): void

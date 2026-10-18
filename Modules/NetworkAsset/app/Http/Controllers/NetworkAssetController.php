@@ -174,12 +174,14 @@ class NetworkAssetController extends Controller
         Gate::authorize('store', NetworkAsset::class);
 
         $data = $request->validated();
-        $data['code'] = NetworkAssetService::generateCode();
         $data['status'] = $data['status'] ?? 'available';
 
         // shortcut: ip_address and management_ip stay a display copy of the IPAM rows (Q6a); drop the columns
         // and read asset IPs from IPAM once a second consumer needs them.
-        DB::transaction(fn () => IpAssignmentService::syncAssetAddresses(NetworkAsset::create($data)));
+        DB::transaction(function () use ($data): void {
+            $data['code'] = NetworkAssetService::generateCode();
+            IpAssignmentService::syncAssetAddresses(NetworkAsset::create($data));
+        });
 
         return redirect()->route('admin.network-assets.index')->with('success', 'Aset jaringan dibuat.');
     }

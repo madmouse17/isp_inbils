@@ -1,7 +1,17 @@
 import { useState } from 'react';
 import { Link, router } from '@inertiajs/react';
+import { AlertTriangle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Button, Card, CardContent, Modal, Textarea } from '@/Components/ui';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+    Button,
+    Card,
+    CardContent,
+    Modal,
+    Textarea,
+} from '@/Components/ui';
 import { DataTable, PageHeader, type DataTableColumn } from '@/Components/composite';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
 import { useCompany } from '@/hooks/useCompany';
@@ -35,16 +45,27 @@ interface Filters {
     per_page: number;
 }
 
+interface PaymentException {
+    invoice_id: string;
+    invoice_number: string;
+    order_id: string;
+    amount: string;
+    reason: string | null;
+    updated_at: string;
+}
+
 export default function Receivables({
     rows,
     totals,
     filters,
+    paymentExceptions,
     can,
 }: {
     rows: PaginationLike<Row>;
     totals: Omit<Row, 'customer_id' | 'customer' | 'subscriptions'>;
     filters: Filters;
     can: { suspend: boolean; block: boolean };
+    paymentExceptions: { count: number; items: PaymentException[] };
 }) {
     const company = useCompany();
     const [suspending, setSuspending] = useState<SubRef | null>(null);
@@ -197,6 +218,39 @@ export default function Receivables({
                     title="Tunggakan"
                     subtitle="Pantau umur piutang pelanggan dan tindakan isolir."
                 />
+                {paymentExceptions.count > 0 && (
+                    <Alert variant="danger">
+                        <AlertTriangle aria-hidden="true" className="size-4" />
+                        <AlertTitle>
+                            {paymentExceptions.count} pembayaran online perlu dicek
+                        </AlertTitle>
+                        <AlertDescription>
+                            <ul className="space-y-2 mt-2">
+                                {paymentExceptions.items.map((item) => (
+                                    <li key={item.order_id} className="space-y-0.5">
+                                        <Link
+                                            href={route('admin.invoices.show', item.invoice_id)}
+                                            className="font-medium underline"
+                                        >
+                                            {item.invoice_number}
+                                        </Link>
+                                        {' · '}
+                                        <span className="tabular-nums">
+                                            {formatRupiah(item.amount, company)}
+                                        </span>
+                                        {' · '}
+                                        <span>{item.order_id}</span>
+                                        {item.reason && <p>{item.reason}</p>}
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="mt-3">
+                                Catat pembayarannya dengan referensi order ID tersebut, atau refund
+                                di Midtrans.
+                            </p>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <section
                     aria-label="Total piutang perusahaan"
                     className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"

@@ -30,7 +30,7 @@ class ApplyNetworkAccountJob implements ShouldBeUniqueUntilProcessing, ShouldQue
 {
     use Dispatchable, InteractsWithQueue, Queueable;
 
-    /** Below the worker timeout (90 s) and retry_after (90 s). */
+    /** Below the worker timeout (90 s) and retry_after (180 s). */
     public int $timeout = 60;
 
     public int $tries = 5;
