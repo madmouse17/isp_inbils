@@ -110,7 +110,7 @@ class NetworkAccountHttpTest extends TestCase
             ->where('subscription.code', $this->subscription->code)
             ->where('subscription.status', 'active')
             ->where('subscription.blocked_at', null)
-            ->where('subscription.customer', ['id' => $this->subscription->customer->public_id, 'name' => $this->subscription->customer->name])
+            ->where('subscription.customer', ['id' => $this->subscription->customer->public_id, 'name' => $this->subscription->customer->name, 'code' => $this->subscription->customer->code])
             ->where('subscription.speed_profile.radius_profile_name', 'home-20m')
             ->where('subscription.serving_pop', ['id' => $this->pop->public_id, 'name' => 'POP Dago'])
             ->missing('nasOptions')

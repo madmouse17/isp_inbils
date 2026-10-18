@@ -1,6 +1,6 @@
 import type { FormEvent, ReactNode } from 'react';
 import { useState } from 'react';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import {
@@ -15,6 +15,8 @@ import {
     Modal,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
+import { ConfirmActionDialog } from '@/Components/composite/platform/ConfirmActionDialog';
 import { BlockedBadge, SubscriptionBlockModal } from '@/Components/composite/NetworkAccessBadges';
 import { formatDate, formatDateTime, formatMoney } from '@/lib/format';
 import { SUBSCRIPTION_STATUS } from '@/lib/statuses';
@@ -53,22 +55,32 @@ export default function Show({
 }: ShowProps) {
     const s = subscription.data;
     const can = usePermission();
-    const [actionModal, setActionModal] = useState<'suspend' | 'terminate' | null>(null);
+    const [actionModal, setActionModal] = useState<'suspend' | null>(null);
+    const [pending, setPending] = useState<'activate' | 'reactivate' | 'terminate' | null>(null);
+    const [sending, setSending] = useState(false);
+    const [refusal, setRefusal] = useState<Record<string, string>>({});
     const [blockOpen, setBlockOpen] = useState(false);
-    const { data, setData, post, processing } = useForm({ reason: '', release_ont: false });
+    const { data, setData, post, processing } = useForm({ reason: '' });
 
     const doAction = (e: FormEvent) => {
         e.preventDefault();
-        if (actionModal === 'suspend') {
-            post(route('admin.subscriptions.suspend', s.id), {
-                onSuccess: () => setActionModal(null),
-            });
-        } else if (actionModal === 'terminate') {
-            post(route('admin.subscriptions.terminate', s.id), {
-                onSuccess: () => setActionModal(null),
-            });
-        }
+        post(route('admin.subscriptions.suspend', s.id), {
+            onSuccess: () => setActionModal(null),
+        });
     };
+
+    const closeConfirm = () => {
+        setPending(null);
+        setRefusal({});
+    };
+
+    const send = (action: 'activate' | 'reactivate' | 'terminate', payload: { reason?: string }) =>
+        router.post(route(`admin.subscriptions.${action}`, s.id), payload, {
+            onStart: () => setSending(true),
+            onSuccess: closeConfirm,
+            onError: setRefusal,
+            onFinish: () => setSending(false),
+        });
 
     return (
         <AdminLayout title={`Langganan ${s.code}`}>
@@ -202,12 +214,7 @@ export default function Show({
                     <CardContent>
                         <div className="flex flex-wrap gap-2">
                             {s.status === 'pending' && (
-                                <Button
-                                    type="button"
-                                    onClick={() =>
-                                        post(route('admin.subscriptions.activate', s.id))
-                                    }
-                                >
+                                <Button type="button" onClick={() => setPending('activate')}>
                                     Aktifkan
                                 </Button>
                             )}
@@ -221,12 +228,7 @@ export default function Show({
                                 </Button>
                             )}
                             {s.status === 'suspended' && (
-                                <Button
-                                    type="button"
-                                    onClick={() =>
-                                        post(route('admin.subscriptions.reactivate', s.id))
-                                    }
-                                >
+                                <Button type="button" onClick={() => setPending('reactivate')}>
                                     Aktifkan kembali
                                 </Button>
                             )}
@@ -234,7 +236,7 @@ export default function Show({
                                 <Button
                                     type="button"
                                     variant="danger"
-                                    onClick={() => setActionModal('terminate')}
+                                    onClick={() => setPending('terminate')}
                                 >
                                     Hentikan
                                 </Button>
@@ -278,12 +280,46 @@ export default function Show({
                     onClose={() => setBlockOpen(false)}
                 />
 
+                <ConfirmDialog
+                    open={pending === 'activate'}
+                    title={`Aktifkan langganan ${s.code}?`}
+                    description="Layanan pelanggan diaktifkan dan penagihan dimulai."
+                    confirmLabel="Aktifkan"
+                    processing={sending}
+                    error={Object.values(refusal)[0]}
+                    onConfirm={() => send('activate', {})}
+                    onClose={closeConfirm}
+                />
+                <ConfirmDialog
+                    open={pending === 'reactivate'}
+                    title={`Aktifkan kembali langganan ${s.code}?`}
+                    description="Layanan yang ditangguhkan dipulihkan kembali."
+                    confirmLabel="Aktifkan kembali"
+                    processing={sending}
+                    error={Object.values(refusal)[0]}
+                    onConfirm={() => send('reactivate', {})}
+                    onClose={closeConfirm}
+                />
+                {pending === 'terminate' ? (
+                    <ConfirmActionDialog
+                        title={`Hentikan langganan ${s.code}?`}
+                        description="Layanan dihentikan permanen dan port drop dibebaskan. Langganan tidak bisa dipulihkan."
+                        confirmLabel="Hentikan langganan"
+                        tone="danger"
+                        requirePassword={false}
+                        reason
+                        companyCode={s.code ?? ''}
+                        processing={sending}
+                        errors={refusal}
+                        onClose={closeConfirm}
+                        onConfirmed={({ reason }) => send('terminate', { reason })}
+                    />
+                ) : null}
+
                 <Modal
                     open={actionModal !== null}
                     onClose={() => setActionModal(null)}
-                    title={
-                        actionModal === 'suspend' ? 'Tangguhkan Langganan' : 'Hentikan Langganan'
-                    }
+                    title="Tangguhkan Langganan"
                 >
                     <form onSubmit={doAction} className="space-y-4">
                         <Input
@@ -301,7 +337,7 @@ export default function Show({
                                 Batal
                             </Button>
                             <Button type="submit" variant="danger" loading={processing}>
-                                {actionModal === 'suspend' ? 'Tangguhkan' : 'Hentikan'}
+                                Tangguhkan
                             </Button>
                         </div>
                     </form>

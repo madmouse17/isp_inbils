@@ -26,8 +26,10 @@ import {
     NativeSelect,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { CopyButton } from '@/Components/composite/CopyButton';
 import { desiredStateExplanation } from '@/Components/composite/NetworkAccessBadges';
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
 import { formatDateTime } from '@/lib/format';
 import {
     NETWORK_DESIRED_STATE,
@@ -63,6 +65,9 @@ interface ShowProps extends Record<string, unknown> {
 }
 
 const serviceTypeOptions = optionsOf(NETWORK_SERVICE_TYPE);
+
+/** The username rule of the field hint: 3 to 40 lower-case letters, digits, dots, hyphens or underscores. */
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,40}$/;
 
 /** Reads the one-time secret out of the flash data of a visit; the shape is fixed by NetworkAccountController. */
 function secretFrom(flash: Record<string, unknown>): string | null {
@@ -104,11 +109,14 @@ function UsernameField({
     value,
     realm,
     error,
+    suggestion,
     onChange,
 }: {
     value: string;
     realm: string;
     error?: string;
+    /** Offered while the field is empty. */
+    suggestion?: string | null;
     onChange: (value: string) => void;
 }) {
     const describedBy = error ? 'account-username-error' : 'account-username-hint';
@@ -143,6 +151,9 @@ function UsernameField({
                     3 sampai 40 huruf kecil, angka, titik, tanda hubung, atau garis bawah.
                 </p>
             )}
+            {suggestion && value === '' && (
+                <SuggestionChip value={suggestion} onUse={() => onChange(suggestion)} />
+            )}
         </div>
     );
 }
@@ -150,10 +161,12 @@ function UsernameField({
 function CreateAccountCard({
     subscriptionId,
     realm,
+    customerCode,
     onSecret,
 }: {
     subscriptionId: string;
     realm: string | null;
+    customerCode: string | null;
     onSecret: (secret: string) => void;
 }) {
     const { data, setData, post, processing, errors } = useForm({
@@ -161,6 +174,9 @@ function CreateAccountCard({
         username: '',
         password: '',
     });
+    // The customer code, lower-cased, when that already is a valid username.
+    const lowered = customerCode?.toLowerCase() ?? '';
+    const suggestion = USERNAME_PATTERN.test(lowered) ? lowered : null;
 
     if (realm === null) {
         return (
@@ -213,6 +229,7 @@ function CreateAccountCard({
                     <UsernameField
                         value={data.username}
                         realm={realm}
+                        suggestion={suggestion}
                         error={errors.username}
                         onChange={(value) => setData('username', value)}
                     />
@@ -336,6 +353,7 @@ export default function Show({
     const [revealing, setRevealing] = useState(false);
     const [confirmingReveal, setConfirmingReveal] = useState(false);
     const [resyncing, setResyncing] = useState(false);
+    const [confirmingResync, setConfirmingResync] = useState(false);
 
     const reveal = () => {
         setRevealing(true);
@@ -358,7 +376,13 @@ export default function Show({
         router.post(
             route('admin.subscriptions.network-account.resync', subscription.id),
             {},
-            { preserveScroll: true, onFinish: () => setResyncing(false) },
+            {
+                preserveScroll: true,
+                onFinish: () => {
+                    setResyncing(false);
+                    setConfirmingResync(false);
+                },
+            },
         );
     };
 
@@ -388,7 +412,7 @@ export default function Show({
                                     variant="outline"
                                     size="sm"
                                     loading={resyncing}
-                                    onClick={resync}
+                                    onClick={() => setConfirmingResync(true)}
                                 >
                                     Sinkron ulang
                                 </Button>
@@ -427,7 +451,7 @@ export default function Show({
                                 <CopyButton value={secret} label="Salin kata sandi" />
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => setSecret(null)}
                                 >
@@ -618,6 +642,7 @@ export default function Show({
                     <CreateAccountCard
                         subscriptionId={subscription.id}
                         realm={realm}
+                        customerCode={subscription.customer?.code ?? null}
                         onSecret={setSecret}
                     />
                 )}
@@ -657,6 +682,16 @@ export default function Show({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <ConfirmDialog
+                open={confirmingResync}
+                title={`Sinkron ulang akun ${account?.username ?? subscription.code}?`}
+                description="Akun ditulis ulang ke FreeRADIUS dan sesi yang sedang terbuka diputus. Pelanggan tersambung lagi otomatis, tetapi koneksinya terputus sebentar."
+                confirmLabel="Sinkron ulang"
+                processing={resyncing}
+                onConfirm={resync}
+                onClose={() => setConfirmingResync(false)}
+            />
         </AdminLayout>
     );
 }

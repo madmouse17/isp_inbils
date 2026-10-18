@@ -111,6 +111,34 @@ class PaymentAttemptServiceTest extends TestCase
         $this->assertSame(2, $this->snapCalls());
     }
 
+    /** @return array<string, array{string, string, string}> */
+    public static function closingNotifications(): array
+    {
+        return [
+            'VA expired at Midtrans' => ['expire', '407', 'expired'],
+            'card denied' => ['deny', '202', 'failed'],
+            'cancelled from the dashboard' => ['cancel', '200', 'failed'],
+        ];
+    }
+
+    #[DataProvider('closingNotifications')]
+    public function test_after_midtrans_closes_an_attempt_paying_again_opens_a_fresh_page(string $transactionStatus, string $code, string $closedAs): void
+    {
+        $invoice = $this->invoice();
+        $first = $this->service->openFor($invoice, self::FINISH_URL);
+
+        $this->service->applyNotification($first, $this->midtransPayload($first, ['transaction_status' => $transactionStatus, 'status_code' => $code]));
+        $second = $this->service->openFor($invoice, self::FINISH_URL);
+
+        $this->assertSame($closedAs, $first->fresh()->status);
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertNotSame($first->order_id, $second->order_id);
+        $this->assertSame('pending', $second->status);
+        $this->assertSame($invoice->sisa, $second->amount);
+        $this->assertSame(2, $this->snapCalls());
+        $this->assertSame('sent', $invoice->fresh()->status, 'the invoice is still open for payment');
+    }
+
     public function test_a_balance_that_changed_gets_a_new_attempt_and_leaves_the_old_one_untouched(): void
     {
         $invoice = $this->invoice();

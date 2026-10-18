@@ -91,7 +91,7 @@ export function MobileMyWorkCard({ item, onActionConfirm, onResolve }: MobileMyW
                     {item.actions.view && item.detail_url ? (
                         <Link
                             href={item.detail_url}
-                            className="inline-flex min-h-11 items-center text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                            className="inline-flex min-h-11 items-center text-sm font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             Lihat detail
                         </Link>

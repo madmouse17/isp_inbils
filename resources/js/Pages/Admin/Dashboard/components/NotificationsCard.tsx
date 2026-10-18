@@ -41,7 +41,7 @@ export function NotificationsCard({ items }: NotificationsCardProps) {
             )}
             <Link
                 href={route('admin.notifications.index')}
-                className="flex min-h-11 items-center justify-center rounded-b-lg border-t border-border px-4 text-sm font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden focus-visible:ring-inset"
+                className="flex min-h-11 items-center justify-center rounded-b-lg border-t border-border px-4 text-sm font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-hidden focus-visible:ring-inset"
             >
                 Lihat semua notifikasi
             </Link>

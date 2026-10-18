@@ -44,7 +44,7 @@ export default function AppOnly({ role, appName, playStoreUrl }: AppOnlyProps) {
                     </Button>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         className="min-h-11"
                         onClick={() => router.post(route('logout'))}
                     >

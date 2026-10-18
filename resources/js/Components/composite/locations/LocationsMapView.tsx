@@ -417,11 +417,7 @@ export function LocationsMapView({
                 actionsDiv.append(
                     popupButton(
                         'Hapus',
-                        buttonVariants({
-                            variant: 'outline',
-                            size: 'sm',
-                            className: 'text-destructive-text',
-                        }),
+                        buttonVariants({ variant: 'destructive-outline', size: 'sm' }),
                         () => onMarkerDeleteRef.current?.(m),
                     ),
                 );
@@ -488,7 +484,7 @@ export function LocationsMapView({
             );
         });
         actionsDiv.append(
-            popupButton('Batal', buttonVariants({ variant: 'ghost', size: 'sm' }), () =>
+            popupButton('Batal', buttonVariants({ variant: 'outline', size: 'sm' }), () =>
                 setDraftPin(null),
             ),
         );

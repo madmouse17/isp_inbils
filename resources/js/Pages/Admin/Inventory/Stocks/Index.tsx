@@ -343,7 +343,7 @@ export default function StockIndex({
                             <Button
                                 type="button"
                                 size="sm"
-                                variant="outline"
+                                variant="destructive-outline"
                                 onClick={() => openDecision(row, 'reject')}
                                 aria-haspopup="dialog"
                             >

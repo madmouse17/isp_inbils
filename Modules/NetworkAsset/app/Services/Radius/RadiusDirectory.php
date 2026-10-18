@@ -23,18 +23,28 @@ class RadiusDirectory
 
     private const MAX_SESSIONS = 100;
 
-    /** One transaction: the user's check row (Cleartext-Password :=) and group (priority 1) replace every earlier row of that username. */
-    public function putUser(string $username, string $secret, string $group): void
+    /**
+     * One transaction: the user's check row (Cleartext-Password :=), group (priority 1) and, for a static address, its
+     * Framed-IP-Address reply (op :=) replace every earlier row of that username.
+     */
+    public function putUser(string $username, string $secret, string $group, ?string $framedIp = null): void
     {
         if ($username === '' || mb_strlen($username) > 64 || $secret === '' || mb_strlen($secret) > 253 || $group === '' || mb_strlen($group) > 64) {
             throw RadiusException::rejected('The RADIUS user does not fit the RADIUS schema.');
         }
+        if ($framedIp !== null && ! filter_var($framedIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw RadiusException::rejected('The static address must be an IPv4 address.');
+        }
 
-        $this->run(function (Connection $db) use ($username, $secret, $group): void {
-            $db->transaction(function () use ($db, $username, $secret, $group): void {
+        $this->run(function (Connection $db) use ($username, $secret, $group, $framedIp): void {
+            $db->transaction(function () use ($db, $username, $secret, $group, $framedIp): void {
                 $this->deleteUserRows($db, $username);
                 $db->table('radcheck')->insert(['username' => $username, 'attribute' => 'Cleartext-Password', 'op' => ':=', 'value' => $secret]);
                 $db->table('radusergroup')->insert(['username' => $username, 'groupname' => $group, 'priority' => 1]);
+
+                if ($framedIp !== null) {
+                    $db->table('radreply')->insert(['username' => $username, 'attribute' => 'Framed-IP-Address', 'op' => ':=', 'value' => $framedIp]);
+                }
             });
         });
     }
@@ -55,6 +65,16 @@ class RadiusDirectory
                 && $groups === [$group]
                 && hash_equals($secretHash, hash_hmac('sha256', (string) $secret, (string) config('app.key')));
         });
+    }
+
+    /** The static address RADIUS hands this user (lowest row id when several exist); null while the user takes one from the NAS pool. */
+    public function framedIpOf(string $username): ?string
+    {
+        return $this->run(fn (Connection $db): ?string => $db->table('radreply')
+            ->where('username', $username)
+            ->where('attribute', 'Framed-IP-Address')
+            ->orderBy('id')
+            ->value('value'));
     }
 
     /**

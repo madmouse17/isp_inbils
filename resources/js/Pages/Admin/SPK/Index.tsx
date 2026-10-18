@@ -63,7 +63,7 @@ export default function SpkIndex({ workOrders, filters }: Props) {
                 cell: (row) => (
                     <Link
                         href={route('admin.spk.show', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                         aria-label={`Buka SPK ${row.code}`}
                     >
                         {row.code}

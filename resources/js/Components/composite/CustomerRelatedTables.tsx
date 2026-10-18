@@ -75,7 +75,7 @@ interface CustomerRelatedTablesProps {
     historyAccess?: CustomerHistoryAccess;
 }
 
-const DETAIL_LINK = 'font-medium text-primary hover:underline';
+const DETAIL_LINK = 'font-medium text-primary-text hover:underline';
 
 function EmptyRow({ colSpan, children }: { colSpan: number; children: ReactNode }) {
     return (

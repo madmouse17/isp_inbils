@@ -62,7 +62,7 @@ export function FileUpload({
                                 href={previewUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="block px-3 py-2 text-sm font-medium text-primary hover:underline"
+                                className="block px-3 py-2 text-sm font-medium text-primary-text hover:underline"
                             >
                                 {previewName}
                             </a>

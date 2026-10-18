@@ -7,8 +7,10 @@ use App\Support\PublicId;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
+use Modules\Ipam\Models\IpAddress;
 use Modules\Ipam\Models\IpPrefix;
 use Modules\Ipam\Models\Vlan;
+use Modules\Ipam\Services\IpAssignmentService;
 use Modules\Ipam\Support\IpNotation;
 
 /**
@@ -65,22 +67,37 @@ final class IpPrefixUtilisationQuery
     /**
      * Static pools a subscription can draw from: company-wide ones and those tied to its serving POP.
      * free is the number of usable addresses left (IPv4); null for IPv6, where addresses are typed.
+     * suggested_address is what an automatic assignment would take now (IPv4 only), gateway the pool's
+     * lowest address reserved with a note starting "gateway".
      *
-     * @return list<array{id: string, cidr: string, family: int, free: string|null}>
+     * @return list<array{id: string, cidr: string, family: int, prefix_length: int, free: string|null, suggested_address: string|null, gateway: string|null}>
      */
     public static function staticPools(?int $servingPopId): array
     {
-        return self::base()
+        $pools = self::base()
             ->where('usage', 'customer_static')
             ->where(fn (Builder $query) => $query->whereNull('location_id')->when($servingPopId !== null, fn (Builder $q) => $q->orWhere('location_id', $servingPopId)))
             ->orderBy('family')
             ->orderBy('range_from')
-            ->get()
+            ->get();
+
+        $gateways = $pools->isEmpty() ? collect() : IpAddress::query()
+            ->where('status', IpAddress::STATUS_RESERVED)
+            ->where('note', 'like', 'gateway%')
+            ->orderBy('address_cmp')
+            ->get(['address', 'address_cmp', 'family']);
+
+        return $pools
             ->map(fn (IpPrefix $pool): array => [
                 'id' => $pool->public_id,
                 'cidr' => $pool->cidr,
                 'family' => $pool->family,
+                'prefix_length' => $pool->prefix_length,
                 'free' => self::format($pool, 0, [])['free'],
+                'suggested_address' => IpAssignmentService::peekLowestFree($pool),
+                'gateway' => $gateways->first(fn (IpAddress $row): bool => $row->family === $pool->family
+                    && $row->address_cmp >= $pool->range_from
+                    && $row->address_cmp <= $pool->range_to)?->address,
             ])
             ->all();
     }

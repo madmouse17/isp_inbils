@@ -8,11 +8,17 @@ use App\Models\User;
 use App\Services\Core\SubscriptionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Modules\Ipam\Events\IpAssignmentChanged;
+use Modules\Ipam\Models\IpPrefix;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
+use Modules\NetworkAsset\Services\NetworkAccountProvisioner;
 use Modules\Service\Models\SpeedProfile;
 use RuntimeException;
 use Spatie\Activitylog\Models\Activity;
@@ -100,6 +106,21 @@ class ProvisioningFlowTest extends TestCase
     private function replies(string $group): array
     {
         return collect($this->radiusRows('radgroupreply', ['groupname' => $group]))->pluck('value', 'attribute')->all();
+    }
+
+    /** The subscription gets `$address` from a /24 customer_static pool of the company (created on first use). */
+    private function giveStaticAddress(string $address): void
+    {
+        $pool = IpPrefix::query()->where('usage', 'customer_static')->first()
+            ?? IpPrefixService::create(['cidr' => '10.70.0.0/24', 'usage' => 'customer_static']);
+
+        IpAssignmentService::assignToSubscription($this->subscription, $pool, $address);
+    }
+
+    /** @return list<string> the Framed-IP-Address values RADIUS holds for the user */
+    private function framedIps(string $username = 'alice'): array
+    {
+        return array_column($this->radiusRows('radreply', ['username' => $username.'@'.$this->realm, 'attribute' => 'Framed-IP-Address']), 'value');
     }
 
     public function test_an_active_subscription_gets_its_user_in_the_speed_group_with_the_package_rate(): void
@@ -363,6 +384,177 @@ class ProvisioningFlowTest extends TestCase
         $this->assertCount(1, $this->radiusRows('radcheck'));
         $this->assertSame("{$this->realm}/home-20m", $this->group());
         $this->assertSame(1, $this->auditCount('drift_corrected'));
+    }
+
+    public function test_a_static_address_is_written_as_the_framed_ip_reply_of_the_user_beside_the_group_replies(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+
+        $this->applyAccount($this->account);
+
+        $rows = $this->radiusRows('radreply', ['username' => "alice@{$this->realm}"]);
+        $this->assertCount(1, $rows);
+        $this->assertSame(['Framed-IP-Address', ':=', '10.70.0.9'], [$rows[0]['attribute'], $rows[0]['op'], $rows[0]['value']]);
+        $this->assertSame(['Mikrotik-Group' => 'home-20m', 'Mikrotik-Rate-Limit' => '10M/20M', 'Acct-Interim-Interval' => '300'], $this->replies("{$this->realm}/home-20m"));
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $audit = Activity::query()->where('log_name', 'network_account')->where('description', 'provisioned')->firstOrFail();
+        $this->assertSame('10.70.0.9', $audit->properties['framed_ip']);
+    }
+
+    public function test_a_subscription_without_a_static_address_gets_no_user_reply(): void
+    {
+        $this->applyAccount($this->account);
+
+        $this->assertSame([], $this->radiusRows('radreply'));
+    }
+
+    public function test_assigning_an_address_to_an_online_subscriber_cuts_the_session_so_it_redials_with_the_address(): void
+    {
+        $this->provisioned();
+
+        $this->giveStaticAddress('10.70.0.9');
+        $this->applyAccount($this->account);
+
+        $this->assertSame(['10.70.0.9'], $this->framedIps());
+        $sent = $this->disconnectsSent();
+        $this->assertCount(1, $sent);
+        $this->assertSame("alice@{$this->realm}", $sent[0]['attributes']['User-Name']);
+        $this->assertSame("{$this->realm}/home-20m", $this->group(), 'the group did not change: only the address did');
+    }
+
+    public function test_releasing_the_address_drops_the_framed_ip_keeps_the_other_replies_and_cuts_the_session(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+
+        IpAssignmentService::releaseForSubscription($this->subscription);
+        $this->applyAccount($this->account);
+
+        $this->assertSame([], $this->radiusRows('radreply'));
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertSame(['Mikrotik-Group' => 'home-20m', 'Mikrotik-Rate-Limit' => '10M/20M', 'Acct-Interim-Interval' => '300'], $this->replies("{$this->realm}/home-20m"));
+        $this->assertCount(1, $this->disconnectsSent());
+        $audit = Activity::query()->where('log_name', 'network_account')->where('description', 'provisioned')->latest('id')->firstOrFail();
+        $this->assertSame(['10.70.0.9', null], [$audit->properties['previous_framed_ip'], $audit->properties['framed_ip']]);
+    }
+
+    public function test_changing_the_address_replaces_the_row_and_cuts_the_session(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+        Event::fake([IpAssignmentChanged::class]);
+
+        IpAssignmentService::releaseForSubscription($this->subscription);
+        $this->giveStaticAddress('10.70.0.10');
+        $this->applyAccount($this->account);
+
+        $this->assertSame(['10.70.0.10'], $this->framedIps());
+        $this->assertCount(1, $this->disconnectsSent());
+    }
+
+    public function test_the_isolir_state_keeps_the_static_address_and_so_does_the_return_to_the_speed_group(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+
+        SubscriptionService::suspend($this->subscription, 'unpaid', 'overdue');
+
+        $this->assertSame("{$this->realm}/isolir", $this->group());
+        $this->assertSame(['10.70.0.9'], $this->framedIps());
+
+        SubscriptionService::reactivate($this->subscription->fresh());
+
+        $this->assertSame("{$this->realm}/home-20m", $this->group());
+        $this->assertSame(['10.70.0.9'], $this->framedIps());
+    }
+
+    public function test_an_unchanged_static_address_makes_a_second_run_write_cut_and_audit_nothing(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+        $rows = $this->radiusRows('radreply');
+
+        $this->travel(1)->minute();
+        $this->applyAccount($this->account);
+
+        $this->assertSame($rows, $this->radiusRows('radreply'), 'same rows, same ids: nothing was rewritten');
+        $this->assertSame([], $this->disconnectsSent());
+        $this->assertSame(1, $this->auditCount('provisioned'));
+        $this->assertSame(0, $this->auditCount('drift_corrected'));
+    }
+
+    public function test_a_framed_ip_row_deleted_from_radius_is_drift_and_is_written_back(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+        $this->radiusConnection()->table('radreply')->delete();
+
+        $this->assertTrue(app(NetworkAccountProvisioner::class)->hasDrifted($this->account->fresh()));
+
+        $this->applyAccount($this->account);
+
+        $this->assertSame(['10.70.0.9'], $this->framedIps());
+        $this->assertFalse(app(NetworkAccountProvisioner::class)->hasDrifted($this->account->fresh()));
+    }
+
+    public function test_a_framed_ip_row_nobody_assigned_is_drift_and_is_removed(): void
+    {
+        $this->provisioned();
+        $this->radiusConnection()->table('radreply')->insert(['username' => "alice@{$this->realm}", 'attribute' => 'Framed-IP-Address', 'op' => '=', 'value' => '203.0.113.5']);
+
+        $this->assertTrue(app(NetworkAccountProvisioner::class)->hasDrifted($this->account->fresh()));
+
+        $this->applyAccount($this->account);
+
+        $this->assertSame([], $this->framedIps());
+        $this->assertFalse(app(NetworkAccountProvisioner::class)->hasDrifted($this->account->fresh()));
+    }
+
+    public function test_assigning_an_address_reaches_radius_through_the_queue_without_any_manual_resync(): void
+    {
+        $this->provisioned();
+
+        $this->giveStaticAddress('10.70.0.9');
+
+        $this->assertSame(['10.70.0.9'], $this->framedIps());
+        $this->assertCount(1, $this->disconnectsSent());
+    }
+
+    public function test_assigning_an_address_queues_one_apply_job_for_the_account(): void
+    {
+        Queue::fake();
+
+        $this->giveStaticAddress('10.70.0.9');
+
+        Queue::assertPushed(ApplyNetworkAccountJob::class, 1);
+        Queue::assertPushed(ApplyNetworkAccountJob::class, fn (ApplyNetworkAccountJob $job): bool => $job->accountId === $this->account->id && $job->companyId === $this->company->id);
+    }
+
+    public function test_releasing_the_address_queues_one_apply_job_and_that_job_drops_the_framed_ip_row(): void
+    {
+        $this->giveStaticAddress('10.70.0.9');
+        $this->provisioned();
+        Queue::fake();
+
+        IpAssignmentService::releaseForSubscription($this->subscription);
+
+        Queue::assertPushed(ApplyNetworkAccountJob::class, 1);
+        $this->assertSame(['10.70.0.9'], $this->framedIps(), 'RADIUS changes only when the queued job runs');
+
+        Queue::pushed(ApplyNetworkAccountJob::class)->first()->handle(app(NetworkAccountProvisioner::class));
+
+        $this->assertSame([], $this->radiusRows('radreply'));
+    }
+
+    public function test_an_address_of_a_subscription_without_a_network_account_queues_nothing(): void
+    {
+        $plain = $this->subscriptionIn($this->company, 'active', null, $this->packageWithRadiusProfile($this->company, 'home-50m', 50, 25));
+        $pool = IpPrefixService::create(['cidr' => '10.70.1.0/24', 'usage' => 'customer_static']);
+        Queue::fake();
+
+        IpAssignmentService::assignToSubscription($plain, $pool, '10.70.1.5');
+
+        Queue::assertNotPushed(ApplyNetworkAccountJob::class);
     }
 
     public function test_the_installation_switch_off_writes_nothing_sends_nothing_and_leaves_the_account_pending_with_the_reason(): void

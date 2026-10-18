@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -13,20 +14,44 @@ import {
 } from '@/Components/ui';
 import { PageHeader, RemoteSearchSelect } from '@/Components/composite';
 import type { RemoteOption } from '@/Components/composite';
+import { addDays, todayDay } from '@/lib/suggest';
 
 interface CreateProps extends Record<string, unknown> {
+    /** Days from the issue date to the due date, from the company setting. */
+    due_days: number;
     customerOptions?: RemoteOption[];
     subscriptionOptions?: RemoteOption[];
 }
 
-export default function Create({ customerOptions, subscriptionOptions }: CreateProps) {
+export default function Create({
+    due_days: dueDays,
+    customerOptions,
+    subscriptionOptions,
+}: CreateProps) {
     const { data, setData, post, processing, errors } = useForm({
         customer_id: '',
         subscription_id: '',
         issue_date: '',
-        due_date: '',
+        // The company's payment term after the issue date; it follows the issue date until the person sets it.
+        due_date: addDays(todayDay(), dueDays) ?? '',
         notes: '',
     });
+    const [dueTouched, setDueTouched] = useState(false);
+
+    const pickIssueDate = (value: string) => {
+        setData((previous) => ({
+            ...previous,
+            issue_date: value,
+            due_date: dueTouched
+                ? previous.due_date
+                : (addDays(value || todayDay(), dueDays) ?? previous.due_date),
+        }));
+    };
+
+    const pickDueDate = (value: string) => {
+        setDueTouched(true);
+        setData('due_date', value);
+    };
 
     const pickCustomer = (value: string) => {
         setData((previous) => ({ ...previous, customer_id: value, subscription_id: '' }));
@@ -97,15 +122,15 @@ export default function Create({ customerOptions, subscriptionOptions }: CreateP
                                 label="Tanggal terbit"
                                 hint="Kosongkan untuk memakai hari ini."
                                 value={data.issue_date}
-                                onChange={(value) => setData('issue_date', value)}
+                                onChange={pickIssueDate}
                                 error={errors.issue_date}
                             />
                             <DatePicker
                                 id="due_date"
                                 label="Jatuh tempo"
-                                hint="Kosongkan untuk memakai 14 hari setelah tanggal terbit."
+                                hint={`Otomatis ${dueDays} hari setelah tanggal terbit. Ubah jika perlu.`}
                                 value={data.due_date}
-                                onChange={(value) => setData('due_date', value)}
+                                onChange={pickDueDate}
                                 error={errors.due_date}
                             />
                             <Textarea

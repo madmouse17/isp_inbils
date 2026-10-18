@@ -85,7 +85,7 @@ export function SubscriptionIpPanel({
                         Belum ada pool statis untuk POP langganan ini. Daftarkan di{' '}
                         <Link
                             href={route('admin.ipam.prefixes.index')}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             Alamat IP
                         </Link>

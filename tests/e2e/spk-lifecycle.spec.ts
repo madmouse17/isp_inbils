@@ -204,7 +204,7 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
 
     await page.getByRole('button', { name: 'Mulai' }).click();
     await page
-        .getByRole('dialog', { name: 'Mulai SPK' })
+        .getByRole('dialog', { name: /Mulai pengerjaan SPK/ })
         .getByRole('button', { name: 'Mulai' })
         .click();
     await expectSpkState(page, 'in_progress');
@@ -220,7 +220,7 @@ async function createWaitingReviewSpk(page: Page, title: string, runId: string, 
 
     await page.getByRole('button', { name: 'Ajukan review' }).click();
     await page
-        .getByRole('dialog', { name: 'Ajukan SPK untuk review' })
+        .getByRole('dialog', { name: /Ajukan SPK .* untuk review/ })
         .getByRole('button', { name: 'Ajukan' })
         .click();
     await expectSpkState(page, 'waiting_review');

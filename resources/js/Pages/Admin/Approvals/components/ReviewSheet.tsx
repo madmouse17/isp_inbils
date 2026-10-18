@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlertCircle, Check, ShieldAlert, X } from 'lucide-react';
 import { Link, router } from '@inertiajs/react';
 import { Alert, AlertDescription, AlertTitle, Button, EnumBadge, Textarea } from '@/Components/ui';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import {
     Sheet,
     SheetClose,
@@ -45,6 +46,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
     const [rejectReasonError, setRejectReasonError] = useState<string | null>(null);
     const [approveNote, setApproveNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [confirmingApprove, setConfirmingApprove] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isStale, setIsStale] = useState(false);
     const [isReloading, setIsReloading] = useState(false);
@@ -102,7 +104,10 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
         router.post(route(routeName, item.id), payload, {
             preserveScroll: true,
             onStart: () => setSubmitting(true),
-            onFinish: () => setSubmitting(false),
+            onFinish: () => {
+                setSubmitting(false);
+                setConfirmingApprove(false);
+            },
             onSuccess: () => {
                 onClose();
             },
@@ -424,7 +429,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                         type="button"
                                         variant="primary"
                                         size="sm"
-                                        onClick={handleApprove}
+                                        onClick={() => setConfirmingApprove(true)}
                                         loading={submitting}
                                         disabled={submitting || isStale || isReloading}
                                         leftIcon={<Check className="h-4 w-4" />}
@@ -435,7 +440,7 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                                 <SheetClose asChild>
                                     <Button
                                         type="button"
-                                        variant="ghost"
+                                        variant="outline"
                                         size="sm"
                                         disabled={submitting || isReloading}
                                     >
@@ -447,6 +452,20 @@ function ReviewSheetInner({ item, onClose, onRefreshQueue }: ReviewSheetInnerPro
                     </div>
                 </div>
             </SheetFooter>
+
+            <ConfirmDialog
+                open={confirmingApprove}
+                title={`Setujui pengajuan ${item.code}?`}
+                description={
+                    isInventory
+                        ? 'Permintaan barang disetujui dan masuk antrean gudang.'
+                        : 'Pekerjaan dan penggunaan material SPK disahkan permanen.'
+                }
+                confirmLabel="Setujui"
+                processing={submitting}
+                onConfirm={handleApprove}
+                onClose={() => setConfirmingApprove(false)}
+            />
         </div>
     );
 }

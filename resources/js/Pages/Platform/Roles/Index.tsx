@@ -73,7 +73,7 @@ export default function Index({ roles, filters, protectedRoles }: IndexProps) {
                     <div className="flex flex-wrap items-center gap-2">
                         <Link
                             href={route('platform.roles.edit', role.id)}
-                            className="font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                            className="font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {role.name}
                         </Link>
@@ -100,15 +100,14 @@ export default function Index({ roles, filters, protectedRoles }: IndexProps) {
                 header: 'Aksi',
                 cell: (role) => (
                     <div className="flex items-center gap-1">
-                        <Button asChild variant="ghost" size="sm">
+                        <Button asChild variant="outline" size="sm">
                             <Link href={route('platform.roles.edit', role.id)}>Ubah</Link>
                         </Button>
                         {!protectedRoles.includes(role.name) ? (
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="destructive-outline"
                                 size="sm"
-                                className="text-destructive-text"
                                 leftIcon={<Trash2 className="size-4" aria-hidden="true" />}
                                 onClick={() => setDeleting({ role })}
                             >

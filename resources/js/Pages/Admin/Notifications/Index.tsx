@@ -123,7 +123,7 @@ export default function NotificationIndex({ notifications }: NotificationIndexPr
                                             {!notification.read_at && (
                                                 <Button
                                                     type="button"
-                                                    variant="ghost"
+                                                    variant="outline"
                                                     size="sm"
                                                     onClick={() =>
                                                         router.patch(

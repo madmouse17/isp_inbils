@@ -153,7 +153,7 @@ export function Tab({ value, children, disabled, className }: TabProps) {
             className={cn(
                 'px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed disabled:opacity-40',
                 active
-                    ? 'border-b-2 border-primary text-primary'
+                    ? 'border-b-2 border-primary-text text-primary-text'
                     : 'text-muted-foreground hover:text-foreground',
                 className,
             )}

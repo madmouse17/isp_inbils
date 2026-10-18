@@ -54,7 +54,7 @@ export default function SpeedProfilesIndex({ speedProfiles, filters, can }: Prop
                 cell: (row) => (
                     <Link
                         href={route('admin.speed-profiles.edit', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.name}
                     </Link>

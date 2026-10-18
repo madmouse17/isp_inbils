@@ -180,6 +180,9 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                 deleteHref={can.delete ? route('admin.customers.destroy', customer.id) : undefined}
                 deleteMessage={`Hapus ${customer.name}?`}
                 deleteDescription="Pelanggan yang masih punya langganan belum berhenti tidak bisa dihapus."
+                deleteConfirmCode={
+                    (customer.subscriptions_count ?? 0) > 0 ? customer.code : undefined
+                }
             />
         ),
         [can.delete, can.update],
@@ -204,7 +207,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                 cell: (customer) => (
                     <Link
                         href={route('admin.customers.show', customer.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {customer.name}
                     </Link>
@@ -326,7 +329,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                             {sheetFilterCount > 0 ? `Filter (${sheetFilterCount})` : 'Filter'}
                         </Button>
                         {hasFilters ? (
-                            <Button type="button" variant="ghost" onClick={resetFilters}>
+                            <Button type="button" variant="outline" onClick={resetFilters}>
                                 Reset filter
                             </Button>
                         ) : null}
@@ -398,7 +401,7 @@ export default function Index({ customers, filters, acquirerOptions, can }: Inde
                                                         'admin.customers.show',
                                                         customer.id,
                                                     )}
-                                                    className="font-medium break-words text-primary hover:underline"
+                                                    className="font-medium break-words text-primary-text hover:underline"
                                                 >
                                                     {customer.name}
                                                 </Link>

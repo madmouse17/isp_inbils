@@ -48,7 +48,7 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                     row.prefixes_count > 0 ? (
                         <Link
                             href={route('admin.ipam.prefixes.index', { vlan_id: row.id })}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             {row.prefixes_count}
                         </Link>
@@ -75,7 +75,7 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                         <Button
                             type="button"
                             size="sm"
-                            variant="ghost"
+                            variant="outline"
                             aria-label={`Ubah VLAN ${row.vid}`}
                             onClick={() => setDialog(row)}
                         >
@@ -84,8 +84,7 @@ export default function Index({ vlans, locations, can }: IndexProps) {
                         <Button
                             type="button"
                             size="sm"
-                            variant="ghost"
-                            className="text-destructive-text"
+                            variant="destructive-outline"
                             aria-label={`Hapus VLAN ${row.vid}`}
                             onClick={() =>
                                 setConfirm({

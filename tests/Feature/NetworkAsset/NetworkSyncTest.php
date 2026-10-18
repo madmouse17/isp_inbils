@@ -10,6 +10,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Schema;
+use Modules\Ipam\Services\IpAssignmentService;
+use Modules\Ipam\Services\IpPrefixService;
 use Modules\NetworkAsset\Jobs\ApplyNetworkAccountJob;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
@@ -191,6 +193,22 @@ class NetworkSyncTest extends TestCase
         $this->sync();
 
         Queue::assertNotPushed(ApplyNetworkAccountJob::class);
+    }
+
+    public function test_an_account_whose_static_address_is_missing_from_radius_is_queued_again(): void
+    {
+        $this->actingAs($this->admin);
+        $pool = IpPrefixService::create(['cidr' => '10.70.0.0/24', 'usage' => 'customer_static']);
+        IpAssignmentService::assignToSubscription($this->subscription, $pool, '10.70.0.9');
+        $this->applyAccount($this->account);
+        Queue::fake();
+
+        $this->sync();
+        Queue::assertNotPushed(ApplyNetworkAccountJob::class);
+
+        $this->radiusConnection()->table('radreply')->delete();
+        $this->sync();
+        Queue::assertPushed(ApplyNetworkAccountJob::class, 1);
     }
 
     public function test_an_account_that_owes_a_disconnect_is_queued_again(): void

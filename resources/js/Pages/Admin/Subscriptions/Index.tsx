@@ -30,7 +30,7 @@ interface SubIndexProps {
     };
     /** Active packages by category, ordered for this customer's type. */
     packageGroups: PackageGroup[];
-    addresses: { data: { id: string; label: string; address: string }[] };
+    addresses: { data: { id: string; label: string; address: string; is_primary: boolean }[] };
     filters: {
         search?: string;
         service_package_id?: string;
@@ -63,9 +63,11 @@ export default function Index({
             })),
         [addresses.data],
     );
+    const primaryAddressId = addresses.data.find((address) => address.is_primary)?.id;
     const { data, setData, post, processing, errors, reset } = useForm({
         service_package_id: '',
-        installation_address_id: '',
+        // The customer's primary address, still changeable in the form.
+        installation_address_id: primaryAddressId === undefined ? '' : String(primaryAddressId),
         billing_day: '1',
         mrc_amount: '',
         otc_installation_fee: '0',
@@ -101,7 +103,7 @@ export default function Index({
                 cell: (row) => (
                     <Link
                         href={route('admin.subscriptions.show', row.id)}
-                        className="font-mono text-sm font-medium whitespace-nowrap text-primary hover:underline"
+                        className="font-mono text-sm font-medium whitespace-nowrap text-primary-text hover:underline"
                     >
                         {row.code}
                     </Link>
@@ -218,7 +220,7 @@ export default function Index({
                         {hasFilters ? (
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="outline"
                                 onClick={() =>
                                     setMany({ search: '', service_package_id: '', status: '' })
                                 }

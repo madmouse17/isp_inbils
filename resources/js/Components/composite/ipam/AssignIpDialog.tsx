@@ -1,6 +1,7 @@
 import type { FormEvent } from 'react';
 import { useMemo } from 'react';
 import { useForm } from '@inertiajs/react';
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
 import {
     Alert,
     AlertDescription,
@@ -69,22 +70,40 @@ export function AssignIpDialog({ onClose, subscription, pools }: AssignIpDialogP
                     error={errors.ip_prefix_id}
                     required
                 />
-                <Input
-                    id="assign-ip-address"
-                    label="Alamat"
-                    value={data.address}
-                    onChange={(event) => setData('address', event.target.value)}
-                    error={errors.address}
-                    hint={
-                        pool?.family === 6
-                            ? 'Alamat IPv6 diketik manual.'
-                            : 'Kosongkan untuk mengambil alamat kosong terendah di pool.'
-                    }
-                    placeholder={pool?.family === 6 ? '2001:db8::1' : 'Alamat kosong terendah'}
-                    autoComplete="off"
-                    spellCheck={false}
-                    required={pool?.family === 6}
-                />
+                <div className="space-y-2">
+                    <Input
+                        id="assign-ip-address"
+                        label="Alamat"
+                        value={data.address}
+                        onChange={(event) => setData('address', event.target.value)}
+                        error={errors.address}
+                        hint={
+                            pool?.family === 6
+                                ? 'Alamat IPv6 diketik manual.'
+                                : 'Kosongkan untuk mengambil alamat kosong terendah di pool.'
+                        }
+                        placeholder={pool?.family === 6 ? '2001:db8::1' : 'Alamat kosong terendah'}
+                        autoComplete="off"
+                        spellCheck={false}
+                        required={pool?.family === 6}
+                    />
+                    {pool && (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                            {pool.suggested_address && data.address === '' && (
+                                <SuggestionChip
+                                    value={pool.suggested_address}
+                                    onUse={() => setData('address', pool.suggested_address ?? '')}
+                                />
+                            )}
+                            <span>Panjang prefiks /{pool.prefix_length}</span>
+                            {pool.gateway && (
+                                <span>
+                                    Gateway <span className="font-mono">{pool.gateway}</span>
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </div>
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="secondary" onClick={onClose}>
                         Batal

@@ -1,9 +1,11 @@
+import { AuthBackdrop } from '@/Components/composite/AuthBackdrop';
 import { Alert, AlertDescription } from '@/Components/ui/Alert';
 import { Button } from '@/Components/ui/Button';
 import { Card, CardContent } from '@/Components/ui/Card';
 import { Checkbox } from '@/Components/ui/Checkbox';
 import { Input } from '@/Components/ui/Input';
 import { Label } from '@/Components/ui/Label';
+import { BrandLockup, BrandMark } from '@/Components/ui/BrandMark';
 import { Wordmark } from '@/Components/ui/Wordmark';
 import { Head, Link, useForm } from '@inertiajs/react';
 import type { FormEventHandler } from 'react';
@@ -30,7 +32,8 @@ export default function Login({
     };
 
     return (
-        <main className="min-h-screen bg-background text-foreground">
+        <main className="relative isolate min-h-screen bg-muted/30 text-foreground lg:bg-background dark:bg-background">
+            <AuthBackdrop />
             <Head title="Masuk" />
 
             <div className="grid min-h-screen lg:grid-cols-[1.05fr_0.95fr]">
@@ -38,8 +41,9 @@ export default function Login({
                     <div className="flex h-full flex-col justify-between p-12">
                         <Link
                             href="/"
-                            className="w-fit rounded-md text-2xl focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-hidden"
+                            className="flex w-fit items-center gap-3 rounded-md text-2xl focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-hidden"
                         >
+                            <BrandMark className="size-10 text-brand-400" />
                             <Wordmark className="text-white" />
                         </Link>
 
@@ -50,15 +54,15 @@ export default function Login({
                     </div>
                 </section>
 
-                <section className="flex items-center justify-center bg-muted/30 px-4 py-10 sm:px-6 lg:bg-background">
-                    <Card className="w-full max-w-md">
+                <section className="flex items-center justify-center px-4 py-10 sm:px-6">
+                    <Card className="auth-rise w-full max-w-md">
                         <CardContent className="p-6 sm:p-8">
-                            <div className="mb-8 lg:hidden">
+                            <div className="mb-8 flex justify-center lg:hidden">
                                 <Link
                                     href="/"
-                                    className="rounded-md text-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                                    className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                 >
-                                    <Wordmark />
+                                    <BrandLockup />
                                 </Link>
                             </div>
 
@@ -113,7 +117,7 @@ export default function Login({
                                     {canResetPassword && (
                                         <Link
                                             href={route('password.request')}
-                                            className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
+                                            className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-primary-text underline-offset-4 hover:underline focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden sm:min-h-0"
                                         >
                                             Lupa kata sandi?
                                         </Link>

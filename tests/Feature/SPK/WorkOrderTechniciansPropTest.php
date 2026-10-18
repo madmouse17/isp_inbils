@@ -62,7 +62,7 @@ class WorkOrderTechniciansPropTest extends TestCase
         $response = $this->actingAs($this->admin)->get(route('admin.spk.show', $workOrder))->assertOk();
 
         $this->assertSame(
-            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
+            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789', 'open_today' => 0]],
             $response->inertiaProps('technicians'),
         );
 
@@ -71,6 +71,24 @@ class WorkOrderTechniciansPropTest extends TestCase
         foreach ([$this->technician->email, 'Catatan pribadi SDM', 'fusion'] as $private) {
             $this->assertStringNotContainsString($private, $page);
         }
+    }
+
+    public function test_open_today_counts_only_todays_assigned_and_in_progress_spk_of_that_technician_in_the_company(): void
+    {
+        foreach (['assigned', 'in_progress'] as $status) {
+            $this->workOrder($status, $this->technician->id)->update(['scheduled_date' => today()]);
+        }
+        // Not counted: another day, a finished status, another technician, another company.
+        $this->workOrder('assigned', $this->technician->id)->update(['scheduled_date' => today()->subDay()]);
+        $this->workOrder('completed', $this->technician->id)->update(['scheduled_date' => today()]);
+        $this->workOrder('assigned', $this->admin->id)->update(['scheduled_date' => today()]);
+        $foreign = Company::factory()->create(['is_active' => true]);
+        WorkOrderFactory::new()->create(['company_id' => $foreign->id, 'type' => 'maintenance', 'status' => 'assigned', 'assigned_to' => $this->technician->id, 'scheduled_date' => today()]);
+
+        $target = $this->workOrder('generated', null);
+        $technicians = $this->actingAs($this->admin)->get(route('admin.spk.show', $target))->assertOk()->inertiaProps('technicians');
+
+        $this->assertSame(2, $technicians[0]['open_today']);
     }
 
     public function test_someone_who_cannot_assign_the_spk_gets_no_technicians(): void
@@ -103,7 +121,7 @@ class WorkOrderTechniciansPropTest extends TestCase
 
         // The edit page has no screen yet, so its props are read as the Inertia JSON a partial reload gets.
         $this->assertSame(
-            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789']],
+            [['id' => $this->technician->public_id, 'name' => 'Teknisi Satu', 'employee_number' => 'EMP-0007', 'organization' => 'Tim Lapangan', 'phone' => '08123456789', 'open_today' => 0]],
             $this->actingAs($this->admin)
                 ->get(route('admin.spk.edit', $workOrder), $this->partialReload('Admin/SPK/Edit', 'technicians'))
                 ->assertOk()

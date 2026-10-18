@@ -1,13 +1,9 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { controlSquare } from './controlSize';
+import { buttonVariantClasses } from './Button';
 
-const variants = {
-    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-    ghost: 'hover:bg-accent hover:text-accent-foreground',
-    danger: 'bg-red-600 text-white hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90',
-} as const;
+const variants = buttonVariantClasses;
 
 const sizes = {
     sm: 'h-11 w-11 sm:h-8 sm:w-8 sm:pointer-coarse:h-11 sm:pointer-coarse:w-11',

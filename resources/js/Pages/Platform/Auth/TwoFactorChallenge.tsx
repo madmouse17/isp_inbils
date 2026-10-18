@@ -60,7 +60,7 @@ export default function TwoFactorChallenge() {
                 <button
                     type="button"
                     onClick={toggleMethod}
-                    className="inline-flex min-h-11 items-center rounded-md font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden"
+                    className="inline-flex min-h-11 items-center rounded-md font-medium text-primary-text underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden"
                 >
                     {usingRecoveryCode ? 'Pakai kode autentikasi' : 'Pakai kode pemulihan'}
                 </button>

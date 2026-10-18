@@ -28,15 +28,16 @@ export function Switch({ checked, onCheckedChange, label, disabled }: SwitchProp
                         onCheckedChange(!checked);
                     }
                 }}
+                // Off: the track carries a 3:1 control border and a darker thumb, so the state never rests on the fill alone.
                 className={cn(
-                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed',
-                    checked ? 'bg-primary' : 'bg-muted',
+                    'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 transition-colors focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden disabled:cursor-not-allowed',
+                    checked ? 'border-transparent bg-primary' : 'border-input bg-muted',
                 )}
             >
                 <span
                     className={cn(
-                        'pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-xs transition-transform',
-                        checked ? 'translate-x-5' : 'translate-x-0',
+                        'pointer-events-none inline-block h-5 w-5 rounded-full shadow-xs transition-transform',
+                        checked ? 'translate-x-5 bg-white' : 'translate-x-0 bg-muted-foreground',
                     )}
                 />
             </button>

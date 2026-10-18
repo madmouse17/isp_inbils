@@ -248,6 +248,16 @@ This is the single source of truth for the design system.
   `border-destructive-text` (`--destructive-text`: red-700 light, red-400
   dark); `--destructive` stays the fill. `--input` borders reach 3:1. Chart
   and meter status colours use `--status-*`. Never `text-destructive` for text.
+- Role colour on controls: `--primary` is the fill (brand-600 in both themes)
+  and always carries a white label (`--primary-foreground`); `--destructive`
+  likewise. Primary-hued text, links and borders use `text-primary-text` /
+  `border-primary-text` (`--primary-text`: brand-700 light, brand-400 dark);
+  never `text-primary` for text. Button variants: `primary` (the one main
+  action), `outline` / `secondary` (every other action: brand border and
+  text), `destructive-outline` (a delete-like secondary action),
+  `destructive` (confirmations only), `ghost` (icon-only toolbar buttons).
+  No page-level `className` colour overrides on a Button. Text reaches 4.5:1,
+  borders and icons 3:1, in light and dark.
 - Touch targets: controls are 44px high below `sm` and on coarse pointers
   (`ui/controlSize.ts`). Text is never smaller than 12px; labels are sentence
   case, not uppercase tracked.

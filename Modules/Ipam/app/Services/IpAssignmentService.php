@@ -28,6 +28,9 @@ class IpAssignmentService
     /** Lowest-free scanning stays bounded: an IPv4 pool wider than this must be given a typed address. */
     private const AUTO_MIN_PREFIX_LENGTH = 16;
 
+    /** The suggestion shown on every subscription page scans the whole pool, so it is limited to pools of up to 1024 addresses. */
+    private const PEEK_MIN_PREFIX_LENGTH = 22;
+
     private const AUTO_ATTEMPTS = 3;
 
     /** @var list<string> asset columns mirrored into the register (Q6a: the columns stay a display copy) */
@@ -297,6 +300,48 @@ class IpAssignmentService
             throw ValidationException::withMessages(['address' => "{$pool->cidr} lebih besar dari /".self::AUTO_MIN_PREFIX_LENGTH.'. Ketik alamatnya.']);
         }
 
+        [$low, $high, $nested, $taken] = self::autoWindow($pool);
+
+        for ($attempt = 1; $attempt <= self::AUTO_ATTEMPTS; $attempt++) {
+            $candidate = self::firstFree($low, $high, $taken, $nested);
+
+            if ($candidate === null) {
+                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} tidak punya alamat kosong."]);
+            }
+
+            $parsed = IpNotation::address(IpNotation::ipv4FromInt($candidate)) ?? throw new LogicException('Allocated an unparseable IPv4 address.');
+
+            try {
+                return self::insertRow($parsed, $pool->id, IpAddress::STATUS_ASSIGNED, ['subscription_id' => $subscription->id]);
+            } catch (UniqueConstraintViolationException) {
+                // A writer outside the pool lock (an asset, a reservation) took it first: move on to the next one.
+                $taken[$candidate] = true;
+            }
+        }
+
+        throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} sedang sibuk. Coba lagi."]);
+    }
+
+    /**
+     * The address an automatic assignment would take now (IPv4 pools of /22 or smaller), without writing anything.
+     * Null when the pool is IPv6, bigger than /22 (the scan reads every held address of the pool) or full.
+     * A hint: a concurrent writer can still take it.
+     */
+    public static function peekLowestFree(IpPrefix $pool): ?string
+    {
+        if ($pool->family !== 4 || $pool->prefix_length < self::PEEK_MIN_PREFIX_LENGTH) {
+            return null;
+        }
+
+        [$low, $high, $nested, $taken] = self::autoWindow($pool);
+        $candidate = self::firstFree($low, $high, $taken, $nested);
+
+        return $candidate === null ? null : IpNotation::ipv4FromInt($candidate);
+    }
+
+    /** @return array{0: int, 1: int, 2: list<array{0: int, 1: int}>, 3: array<int, true>} */
+    private static function autoWindow(IpPrefix $pool): array
+    {
         $low = IpNotation::ipv4ToInt($pool->range_from);
         $high = IpNotation::ipv4ToInt($pool->range_to);
 
@@ -317,32 +362,22 @@ class IpAssignmentService
             ->mapWithKeys(fn (string $comparable): array => [IpNotation::ipv4ToInt($comparable) => true])
             ->all();
 
-        for ($attempt = 1; $attempt <= self::AUTO_ATTEMPTS; $attempt++) {
-            $candidate = null;
+        return [$low, $high, $nested, $taken];
+    }
 
-            for ($number = $low; $number <= $high; $number++) {
-                if (! isset($taken[$number]) && ! self::insideAny($number, $nested)) {
-                    $candidate = $number;
-
-                    break;
-                }
-            }
-
-            if ($candidate === null) {
-                throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} tidak punya alamat kosong."]);
-            }
-
-            $parsed = IpNotation::address(IpNotation::ipv4FromInt($candidate)) ?? throw new LogicException('Allocated an unparseable IPv4 address.');
-
-            try {
-                return self::insertRow($parsed, $pool->id, IpAddress::STATUS_ASSIGNED, ['subscription_id' => $subscription->id]);
-            } catch (UniqueConstraintViolationException) {
-                // A writer outside the pool lock (an asset, a reservation) took it first: move on to the next one.
-                $taken[$candidate] = true;
+    /**
+     * @param  array<int, true>  $taken
+     * @param  list<array{0: int, 1: int}>  $nested
+     */
+    private static function firstFree(int $low, int $high, array $taken, array $nested): ?int
+    {
+        for ($number = $low; $number <= $high; $number++) {
+            if (! isset($taken[$number]) && ! self::insideAny($number, $nested)) {
+                return $number;
             }
         }
 
-        throw ValidationException::withMessages(['ip_prefix_id' => "{$pool->cidr} sedang sibuk. Coba lagi."]);
+        return null;
     }
 
     private static function claimForAsset(NetworkAsset $asset, ParsedAddress $parsed, string $field): void

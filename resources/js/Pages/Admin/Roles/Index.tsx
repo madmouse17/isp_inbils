@@ -60,7 +60,7 @@ export default function Index({ roles, filters, can }: RolesProps) {
                     <div className="flex items-center gap-2">
                         <Link
                             href={route('admin.roles.show', role.id)}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             {role.name}
                         </Link>

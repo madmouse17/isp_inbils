@@ -44,7 +44,7 @@ class NetworkAccountController extends Controller
 
         $this->unsealSecretFlash($request);
 
-        $subscription->load(['customer:id,public_id,name', 'servicePackage.speedProfile', 'servingPop:id,public_id,name']);
+        $subscription->load(['customer:id,public_id,name,code', 'servicePackage.speedProfile', 'servingPop:id,public_id,name']);
         $account = NetworkAccount::query()->where('subscription_id', $subscription->id)->first();
         $speedProfile = $subscription->servicePackage?->speedProfile;
         [$session, $usage] = $account === null ? [null, null] : $this->liveState($radius, $account);
@@ -55,7 +55,7 @@ class NetworkAccountController extends Controller
                 'code' => $subscription->code,
                 'status' => $subscription->status,
                 'blocked_at' => $subscription->blocked_at?->toIso8601String(),
-                'customer' => $subscription->customer === null ? null : ['id' => $subscription->customer->public_id, 'name' => $subscription->customer->name],
+                'customer' => $subscription->customer === null ? null : ['id' => $subscription->customer->public_id, 'name' => $subscription->customer->name, 'code' => $subscription->customer->code],
                 'speed_profile' => $speedProfile === null ? null : ['name' => $speedProfile->getAttribute('name'), 'radius_profile_name' => $speedProfile->getAttribute('radius_profile_name')],
                 'serving_pop' => $subscription->servingPop === null ? null : ['id' => $subscription->servingPop->public_id, 'name' => $subscription->servingPop->getAttribute('name')],
             ],

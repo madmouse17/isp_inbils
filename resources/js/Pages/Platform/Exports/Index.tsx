@@ -59,7 +59,7 @@ export default function Index({ exports, filters }: ExportsIndexProps) {
                     <div>
                         <Link
                             href={route('platform.companies.show', row.tenant.id)}
-                            className="font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                            className="font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.tenant.name}
                         </Link>
@@ -172,7 +172,7 @@ export default function Index({ exports, filters }: ExportsIndexProps) {
                                 </Badge>
                                 <Button
                                     type="button"
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
                                     onClick={() => set('company_id', '')}
                                 >

@@ -50,8 +50,8 @@ export function SplitterCard({ splitter, inputPortOptions, can }: SplitterCardPr
                 {can.manage && (
                     <Button
                         type="button"
-                        variant="outline"
-                        className="self-start text-destructive-text"
+                        variant="destructive-outline"
+                        className="self-start"
                         size="sm"
                         aria-label={`Hapus splitter ${ratio}`}
                         onClick={() =>
@@ -139,7 +139,7 @@ export function SplitterCard({ splitter, inputPortOptions, can }: SplitterCardPr
                                                     'admin.subscriptions.show',
                                                     port.subscription.id,
                                                 )}
-                                                className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                                                className="inline-flex items-center gap-1 font-medium text-primary-text hover:underline"
                                             >
                                                 <User
                                                     className="size-3.5 shrink-0"

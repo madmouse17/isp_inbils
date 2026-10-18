@@ -23,6 +23,7 @@ import {
     useToast,
 } from '@/Components/ui';
 import { MediaPreview, PageHeader } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
 import { formatDateTime } from '@/lib/format';
 import { PRIORITY, TICKET_SOURCE, TICKET_STATUS } from '@/lib/statuses';
@@ -82,13 +83,15 @@ interface ShowProps extends Record<string, unknown> {
 
 type ActionModal = 'assign' | 'resolve' | 'close' | 'spawnSpk' | 'comment';
 
-const ACTION_TITLE: Record<ActionModal, string> = {
-    assign: 'Tugaskan tiket',
-    resolve: 'Selesaikan tiket',
-    close: 'Tutup tiket',
-    spawnSpk: 'Buat SPK dari tiket',
-    comment: 'Tambah komentar',
+const ACTION_TITLE: Record<ActionModal, (code: string) => string> = {
+    assign: () => 'Tugaskan tiket',
+    resolve: () => 'Selesaikan tiket',
+    close: (code) => `Tutup tiket ${code}?`,
+    spawnSpk: () => 'Buat SPK dari tiket',
+    comment: () => 'Tambah komentar',
 };
+
+const CLOSE_DESCRIPTION = 'Tiket yang selesai ditutup permanen. Pastikan kendala sudah tuntas.';
 
 const ACTION_CONFIRM: Record<ActionModal, string> = {
     assign: 'Tugaskan',
@@ -116,6 +119,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
             : `Target kategori ${t.deadline_source.name}`;
     const { toast } = useToast();
     const [actionModal, setActionModal] = useState<ActionModal | null>(null);
+    const [confirmingStart, setConfirmingStart] = useState(false);
     const [attachmentFile, setAttachmentFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadPercentage, setUploadPercentage] = useState(0);
@@ -159,11 +163,17 @@ export default function Show({ ticket, handlers }: ShowProps) {
 
     const reloadTicket = () => router.reload({ only: ['ticket'], onSuccess: () => clearErrors() });
 
+    const [starting, setStarting] = useState(false);
     const startTicket = () =>
         router.post(
             route('admin.tickets.start', t.id),
             {},
             {
+                onStart: () => setStarting(true),
+                onFinish: () => {
+                    setStarting(false);
+                    setConfirmingStart(false);
+                },
                 onError: (startErrors) =>
                     toast({
                         title: 'Tiket gagal dimulai.',
@@ -327,7 +337,7 @@ export default function Show({ ticket, handlers }: ShowProps) {
                                 </Button>
                             )}
                             {t.can?.start && (
-                                <Button type="button" onClick={startTicket}>
+                                <Button type="button" onClick={() => setConfirmingStart(true)}>
                                     Mulai
                                 </Button>
                             )}
@@ -446,12 +456,25 @@ export default function Show({ ticket, handlers }: ShowProps) {
                     </CardContent>
                 </Card>
 
+                <ConfirmDialog
+                    open={confirmingStart}
+                    title={`Mulai penanganan tiket ${t.code}?`}
+                    description="Status tiket berubah menjadi sedang diproses."
+                    confirmLabel="Mulai"
+                    processing={starting}
+                    onConfirm={startTicket}
+                    onClose={() => setConfirmingStart(false)}
+                />
+
                 <Modal
                     open={actionModal !== null}
                     onClose={closeModal}
-                    title={actionModal ? ACTION_TITLE[actionModal] : ''}
+                    title={actionModal ? ACTION_TITLE[actionModal](t.code) : ''}
                 >
                     <form onSubmit={doAction} className="space-y-4">
+                        {actionModal === 'close' ? (
+                            <p className="text-sm text-muted-foreground">{CLOSE_DESCRIPTION}</p>
+                        ) : null}
                         {staleError && (
                             <Alert variant="destructive">
                                 <AlertTitle>Tiket sudah berubah</AlertTitle>

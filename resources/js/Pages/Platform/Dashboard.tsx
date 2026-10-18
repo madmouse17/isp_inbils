@@ -57,7 +57,7 @@ export default function Dashboard({ tenants, filters, summary }: DashboardProps)
                 cell: (tenant) => (
                     <Link
                         href={route('platform.companies.show', tenant.id)}
-                        className="font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                        className="font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                     >
                         {tenant.name}
                     </Link>

@@ -49,7 +49,7 @@ test('docs screenshots', async ({ page }) => {
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(userFor('admin').email);
-    await page.getByLabel('Kata sandi').fill(demoPassword);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(demoPassword);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('main').getByRole('heading', { name: 'Dasbor' })).toBeVisible({
         timeout: 15_000,

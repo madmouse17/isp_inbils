@@ -221,6 +221,7 @@
 
     --color-primary: hsl(var(--primary));
     --color-primary-foreground: hsl(var(--primary-foreground));
+    --color-primary-text: hsl(var(--primary-text));
 
     --color-secondary: hsl(var(--secondary));
     --color-secondary-foreground: hsl(var(--secondary-foreground));
@@ -250,8 +251,11 @@
         --card-foreground: 222.2 84% 4.9%;
         --popover: 0 0% 100%;
         --popover-foreground: 222.2 84% 4.9%;
+        /* brand-600 fill: pure white text reaches 5.17:1 on it. */
         --primary: 221.2 83.2% 53.3%;
-        --primary-foreground: 210 40% 98%;
+        --primary-foreground: 0 0% 100%;
+        /* brand-700 text: reaches 6.70:1 on white and 6.12:1 on muted/card surfaces. */
+        --primary-text: 224.3 76.3% 48%;
         --secondary: 210 40% 96.1%;
         --secondary-foreground: 222.2 47.4% 11.2%;
         --muted: 210 40% 96.1%;
@@ -259,9 +263,9 @@
         --muted-foreground: 215.4 16.3% 43%;
         --accent: 210 40% 96.1%;
         --accent-foreground: 222.2 47.4% 11.2%;
-        /* red-600: the foreground below reaches 4.62:1 on it (the former 60.2% lightness gave 3.6:1). */
+        /* red-600 fill: pure white foreground reaches 4.83:1 on it. */
         --destructive: 0 72.2% 50.6%;
-        --destructive-foreground: 210 40% 98%;
+        --destructive-foreground: 0 0% 100%;
         /* Text and invalid-field outlines in the destructive hue; --destructive stays the fill. 6.5:1 on white. */
         --destructive-text: 0 73.7% 41.8%;
         --border: 214.3 31.8% 91.4%;
@@ -285,16 +289,20 @@
         --card-foreground: 210 40% 98%;
         --popover: 222.2 84% 4.9%;
         --popover-foreground: 210 40% 98%;
-        --primary: 217.2 91.2% 59.8%;
-        --primary-foreground: 222.2 47.4% 11.2%;
+        /* brand-600 fill in dark: white text reaches 5.17:1 on it, boundary contrast vs card is 3.87:1. */
+        --primary: 221.2 83.2% 53.3%;
+        --primary-foreground: 0 0% 100%;
+        /* brand-400 text: reaches 7.87:1 on dark card and 5.75:1 on muted surface. */
+        --primary-text: 213.1 93.9% 67.8%;
         --secondary: 217.2 32.6% 17.5%;
         --secondary-foreground: 210 40% 98%;
         --muted: 217.2 32.6% 17.5%;
         --muted-foreground: 215 20.2% 65.1%;
         --accent: 217.2 32.6% 17.5%;
         --accent-foreground: 210 40% 98%;
-        --destructive: 0 62.8% 30.6%;
-        --destructive-foreground: 210 40% 98%;
+        /* red-700 fill in dark: white text reaches 6.47:1 on it, boundary contrast vs card is 3.09:1. */
+        --destructive: 0 73.7% 41.8%;
+        --destructive-foreground: 0 0% 100%;
         --destructive-text: 0 90.6% 70.8%;
         --border: 217.2 32.6% 17.5%;
         --input: 215.4 16.3% 46.9%;
@@ -387,7 +395,7 @@
 
     /* Tailwind v3 purged component rules whose class is not in a template, so only these FilePond overrides ever applied. The rest of the FilePond look is vendor CSS on purpose. */
     .filepond--label-action {
-        @apply text-primary underline decoration-primary/50 underline-offset-4;
+        @apply text-primary-text underline decoration-primary-text/50 underline-offset-4;
     }
 
     .dark .filepond--root .filepond--panel-root {
@@ -396,10 +404,6 @@
 
     .dark .filepond--root .filepond--drop-label {
         @apply text-muted-foreground;
-    }
-
-    .dark .filepond--root .filepond--label-action {
-        @apply text-brand-400 decoration-brand-400/40;
     }
 }
 
@@ -501,5 +505,71 @@
     .dark .rdp-button_previous:focus-visible,
     .dark .rdp-button_next:focus-visible {
         outline-color: var(--color-brand-400);
+    }
+}
+
+/*
+ * Login backdrop (Components/composite/AuthBackdrop.tsx). Blobs are radial gradients, not blur filters,
+ * so they cost nothing to paint. The drift moves transform only and stops for reduced motion and touch.
+ */
+@layer components {
+    .auth-blob {
+        background: radial-gradient(
+            closest-side,
+            color-mix(in srgb, var(--blob) 22%, transparent),
+            transparent
+        );
+    }
+
+    .dark .auth-blob {
+        background: radial-gradient(
+            closest-side,
+            color-mix(in srgb, var(--blob) 16%, transparent),
+            transparent
+        );
+    }
+
+    .auth-drift {
+        animation: auth-drift 32s ease-in-out infinite alternate;
+    }
+
+    .auth-fade {
+        animation: auth-fade 1.2s ease-out both;
+    }
+
+    .auth-rise {
+        animation: auth-rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    }
+
+    @media (prefers-reduced-motion: reduce), (hover: none) {
+        .auth-drift {
+            animation: none;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .auth-fade,
+        .auth-rise {
+            animation: none;
+        }
+    }
+}
+
+@keyframes auth-fade {
+    from {
+        opacity: 0;
+    }
+}
+
+@keyframes auth-rise {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 0.75rem, 0);
+    }
+}
+
+@keyframes auth-drift {
+    to {
+        transform: translate3d(var(--dx, 3rem), var(--dy, 2rem), 0) scale(1.08);
     }
 }

@@ -275,15 +275,18 @@ export function DataTable<T>({
                                             >
                                                 <span>{header}</span>
                                                 {isActive && activeDirection === 'asc' ? (
-                                                    <ArrowUp className="h-3.5 w-3.5" aria-hidden />
+                                                    <ArrowUp
+                                                        className="h-3.5 w-3.5 text-foreground"
+                                                        aria-hidden
+                                                    />
                                                 ) : isActive && activeDirection === 'desc' ? (
                                                     <ArrowDown
-                                                        className="h-3.5 w-3.5"
+                                                        className="h-3.5 w-3.5 text-foreground"
                                                         aria-hidden
                                                     />
                                                 ) : (
                                                     <ArrowUpDown
-                                                        className="h-3.5 w-3.5 opacity-50"
+                                                        className="h-3.5 w-3.5"
                                                         aria-hidden
                                                     />
                                                 )}

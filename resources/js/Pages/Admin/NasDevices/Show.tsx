@@ -56,7 +56,7 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                                 'admin.subscriptions.network-account.show',
                                 row.subscription.id,
                             )}
-                            className="font-mono text-sm text-primary hover:underline"
+                            className="font-mono text-sm text-primary-text hover:underline"
                         >
                             {row.username}
                         </Link>
@@ -109,9 +109,8 @@ export default function Show({ nasDevice, sessions, isolirUrl, radiusEnabled, ca
                             {can.update ? (
                                 <Button
                                     type="button"
-                                    variant="outline"
+                                    variant="destructive-outline"
                                     size="sm"
-                                    className="text-destructive-text"
                                     onClick={() => setRemoving(true)}
                                 >
                                     Hapus router

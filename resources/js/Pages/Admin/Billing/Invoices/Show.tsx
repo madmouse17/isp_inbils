@@ -23,6 +23,7 @@ import {
     TR,
 } from '@/Components/ui';
 import { PageHeader } from '@/Components/composite';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
 import { usePermission } from '@/hooks/usePermission';
 import { formatDate, formatDateTime, formatRupiah } from '@/lib/format';
@@ -55,6 +56,8 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
     const [itemModal, setItemModal] = useState(false);
     const [cancelModal, setCancelModal] = useState(false);
     const [reverseTarget, setReverseTarget] = useState<string | null>(null);
+    const [sendOpen, setSendOpen] = useState(false);
+    const [sending, setSending] = useState(false);
     const { data, setData, post, processing, reset, errors } = useForm({
         amount: '',
         method: 'cash',
@@ -238,9 +241,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                     <Button
                                         type="button"
                                         variant="primary"
-                                        onClick={() =>
-                                            router.post(route('admin.invoices.send', inv.id))
-                                        }
+                                        onClick={() => setSendOpen(true)}
                                     >
                                         Kirim tagihan
                                     </Button>
@@ -266,7 +267,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                 {canCancel && (
                                     <Button
                                         type="button"
-                                        variant="outline"
+                                        variant="destructive-outline"
                                         onClick={() => setCancelModal(true)}
                                     >
                                         Batalkan tagihan
@@ -276,6 +277,26 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                         </CardContent>
                     </Card>
                 )}
+
+                <ConfirmDialog
+                    open={sendOpen}
+                    title={`Kirim tagihan ${inv.number}?`}
+                    description="Tagihan diterbitkan ke pelanggan. Item tidak bisa ditambah lagi."
+                    confirmLabel="Kirim tagihan"
+                    processing={sending}
+                    onConfirm={() =>
+                        router.post(
+                            route('admin.invoices.send', inv.id),
+                            {},
+                            {
+                                onStart: () => setSending(true),
+                                onSuccess: () => setSendOpen(false),
+                                onFinish: () => setSending(false),
+                            },
+                        )
+                    }
+                    onClose={() => setSendOpen(false)}
+                />
 
                 <Card>
                     <CardHeader>
@@ -374,7 +395,7 @@ export default function Show({ invoice, onlinePayments }: ShowProps) {
                                                     can('billing.payment.reverse') && (
                                                         <Button
                                                             type="button"
-                                                            variant="outline"
+                                                            variant="destructive-outline"
                                                             size="sm"
                                                             onClick={() => setReverseTarget(p.id)}
                                                         >

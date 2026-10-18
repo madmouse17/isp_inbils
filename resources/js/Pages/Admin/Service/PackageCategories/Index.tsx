@@ -91,7 +91,7 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                             href={route('admin.service-packages.index', {
                                 service_package_category_id: row.id,
                             })}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             {row.packages_count}
                         </Link>
@@ -121,7 +121,7 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                         {can.delete ? (
                             <Button
                                 type="button"
-                                variant="ghost"
+                                variant="destructive-outline"
                                 size="sm"
                                 aria-label={`Hapus kategori ${row.name}`}
                                 onClick={() =>
@@ -180,7 +180,7 @@ export default function Index({ packageCategories, filters, can }: IndexProps) {
                         wrapperClassName="sm:w-40"
                     />
                     {hasFilters ? (
-                        <Button type="button" variant="ghost" onClick={resetFilters}>
+                        <Button type="button" variant="outline" onClick={resetFilters}>
                             Reset filter
                         </Button>
                     ) : null}

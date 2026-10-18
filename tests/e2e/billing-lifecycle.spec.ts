@@ -69,6 +69,10 @@ test.describe('@lifecycle billing', () => {
         );
 
         await page.getByRole('button', { name: 'Kirim tagihan' }).click();
+        await page
+            .getByRole('alertdialog', { name: /Kirim tagihan/ })
+            .getByRole('button', { name: 'Kirim tagihan' })
+            .click();
         await expectDetail(page, 'Status', 'Belum dibayar');
 
         await page.getByRole('button', { name: 'Catat pembayaran' }).click();

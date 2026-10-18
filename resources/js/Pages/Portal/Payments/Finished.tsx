@@ -8,7 +8,7 @@ export default function Finished() {
             <Head title="Pembayaran sedang diproses" />
             <main lang="id" className="space-y-5 text-center">
                 <div
-                    className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary"
+                    className="mx-auto flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary-text"
                     aria-hidden="true"
                 >
                     <Clock className="size-7" />

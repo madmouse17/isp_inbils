@@ -57,7 +57,7 @@ export function DropPortPanel({ subscription, dropPort, canAssign, options }: Dr
                             Port {dropPort.number} di{' '}
                             <Link
                                 href={route('admin.odn.assets.show', dropPort.odp_asset_id)}
-                                className="font-medium text-primary hover:underline"
+                                className="font-medium text-primary-text hover:underline"
                             >
                                 {dropPort.odp_code}
                             </Link>{' '}

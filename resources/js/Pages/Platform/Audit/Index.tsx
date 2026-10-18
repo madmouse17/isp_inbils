@@ -122,7 +122,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                             {company.id ? (
                                 <Link
                                     href={route('platform.companies.show', company.id)}
-                                    className="font-medium text-primary hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                                    className="font-medium text-primary-text hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                                 >
                                     {company.name ?? company.code}
                                 </Link>
@@ -152,7 +152,7 @@ export default function Index({ activity, filters, tenants, admins }: AuditIndex
                 cell: (row) => (
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         aria-label={`Lihat rincian ${labelOf(PLATFORM_AUDIT_ACTION, row.description)}`}
                         onClick={() => setSelected(row)}

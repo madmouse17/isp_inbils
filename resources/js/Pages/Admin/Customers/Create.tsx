@@ -39,6 +39,8 @@ import { LOCATION_TYPE, WORK_ORDER_STATUS, labelOf } from '@/lib/statuses';
 import { useMapDefault } from '@/hooks/useMapDefault';
 import { DropPortSelect } from '@/Components/composite/odn/DropPortSelect';
 import type { DropPortOption } from '@/types/ipam-odn';
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
+import { lowestFreeDropPort, nearestLocation, toGeoPoint } from '@/lib/suggest';
 
 interface AddressInput {
     label: string;
@@ -79,6 +81,8 @@ interface LocationOption {
     code: string;
     name: string;
     type: string;
+    lat: number | string | null;
+    lng: number | string | null;
 }
 
 interface CustomerForm {
@@ -438,6 +442,19 @@ export default function Create({
     const installationLabel = data.addresses.find(
         (address) => address.is_installation_point,
     )?.label;
+
+    // Nearest POP to the address where the line will be installed; no coordinates, no suggestion.
+    const installationPoint = data.addresses.find((address) => address.is_installation_point);
+    const installationGeo = toGeoPoint(installationPoint?.lat, installationPoint?.lng);
+    const nearestPop = installationGeo
+        ? nearestLocation(
+              locations.filter((location) => location.type === 'pop'),
+              installationGeo,
+          )
+        : null;
+    // Free ports are listed after an ODP code is typed; the suggestion is the lowest one of that ODP.
+    const freePort =
+        data.subscription.serving_pop_id === '' ? null : lowestFreeDropPort(dropPortOptions);
 
     return (
         <AdminLayout title="Buat Pelanggan">
@@ -854,34 +871,63 @@ export default function Create({
                                             error={formErrors['subscription.service_package_id']}
                                             required
                                         />
-                                        <SearchSelect
-                                            id="subscription-serving-pop"
-                                            label="POP pelayan"
-                                            value={data.subscription.serving_pop_id}
-                                            onChange={selectServingPop}
-                                            options={popOptions}
-                                            placeholder="Pilih POP atau lokasi"
-                                            error={formErrors['subscription.serving_pop_id']}
-                                            required
-                                        />
-                                        {can.assignDrop && (
-                                            <DropPortSelect
-                                                id="subscription-drop-port"
-                                                value={data.subscription.odn_port_id}
-                                                onChange={(value) =>
-                                                    setData('subscription', {
-                                                        ...data.subscription,
-                                                        odn_port_id: value,
-                                                    })
-                                                }
-                                                options={dropPortOptions}
-                                                unavailable={
-                                                    data.subscription.serving_pop_id === ''
-                                                        ? 'Pilih POP layanan untuk melihat port kosongnya.'
-                                                        : undefined
-                                                }
-                                                error={formErrors['subscription.odn_port_id']}
+                                        <div className="space-y-2">
+                                            <SearchSelect
+                                                id="subscription-serving-pop"
+                                                label="POP pelayan"
+                                                value={data.subscription.serving_pop_id}
+                                                onChange={selectServingPop}
+                                                options={popOptions}
+                                                placeholder="Pilih POP atau lokasi"
+                                                error={formErrors['subscription.serving_pop_id']}
+                                                required
                                             />
+                                            {nearestPop &&
+                                                data.subscription.serving_pop_id === '' && (
+                                                    <SuggestionChip
+                                                        label="Gunakan POP terdekat"
+                                                        value={`${nearestPop.location.name} (${nearestPop.km.toLocaleString('id-ID', { maximumFractionDigits: 1, minimumFractionDigits: 1 })} km)`}
+                                                        onUse={() =>
+                                                            selectServingPop(
+                                                                String(nearestPop.location.id),
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                        </div>
+                                        {can.assignDrop && (
+                                            <div className="space-y-2">
+                                                <DropPortSelect
+                                                    id="subscription-drop-port"
+                                                    value={data.subscription.odn_port_id}
+                                                    onChange={(value) =>
+                                                        setData('subscription', {
+                                                            ...data.subscription,
+                                                            odn_port_id: value,
+                                                        })
+                                                    }
+                                                    options={dropPortOptions}
+                                                    unavailable={
+                                                        data.subscription.serving_pop_id === ''
+                                                            ? 'Pilih POP layanan untuk melihat port kosongnya.'
+                                                            : undefined
+                                                    }
+                                                    error={formErrors['subscription.odn_port_id']}
+                                                />
+                                                {freePort &&
+                                                    data.subscription.odn_port_id === '' && (
+                                                        <SuggestionChip
+                                                            label="Gunakan port kosong terendah"
+                                                            value={freePort.label}
+                                                            onUse={() =>
+                                                                setData('subscription', {
+                                                                    ...data.subscription,
+                                                                    odn_port_id: freePort.value,
+                                                                })
+                                                            }
+                                                        />
+                                                    )}
+                                            </div>
                                         )}
                                         <div className="grid gap-4 md:grid-cols-2">
                                             <Input

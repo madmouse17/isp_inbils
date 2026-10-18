@@ -47,7 +47,7 @@ export default function Index({ nasDevices, filters, can }: IndexProps) {
                     <div className="space-y-0.5">
                         <Link
                             href={route('admin.nas-devices.show', row.id)}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             {row.network_asset?.code ?? `Router #${row.id}`}
                         </Link>

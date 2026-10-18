@@ -4,16 +4,29 @@ import { cn } from '@/lib/utils';
 import { controlHeight, controlSquare } from './controlSize';
 import { Spinner } from './Spinner';
 
-/** Filled variants are for one primary action and for destructive confirmations; everything else is outline or ghost. */
-const buttonVariantClasses = {
-    default: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
-    secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+/*
+ * Filled variants (`default`/`primary`, `destructive`/`danger`) are for one primary action and for destructive
+ * confirmations: white text on the fill. Every other action is `outline` (brand border and text) or `secondary`
+ * (the same with a tint); a delete-like secondary action is `destructive-outline`. `ghost` is for icon-only
+ * toolbar buttons. Text reaches 4.5:1 and borders 3:1 against the page, the muted surfaces and both themes.
+ * Dark hover lightens the destructive fill and blends the primary fill into the page: either way the fill keeps
+ * 3:1 against the page and the label 4.5:1 on the fill.
+ */
+export const buttonVariantClasses = {
+    default: 'bg-primary text-primary-foreground hover:bg-brand-700 dark:hover:bg-primary/90',
+    primary: 'bg-primary text-primary-foreground hover:bg-brand-700 dark:hover:bg-primary/90',
+    secondary:
+        'border border-primary-text/70 bg-primary/10 text-primary-text hover:bg-primary/20 dark:bg-primary/15 dark:hover:bg-primary/25',
     ghost: 'hover:bg-accent hover:text-accent-foreground',
-    danger: 'bg-red-600 text-white hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90',
+    danger: 'bg-destructive text-destructive-foreground hover:bg-red-700 dark:hover:bg-red-600',
     destructive:
-        'bg-red-600 text-white hover:bg-red-700 dark:bg-destructive dark:text-destructive-foreground dark:hover:bg-destructive/90',
-    outline: 'border border-input bg-background hover:bg-accent hover:text-accent-foreground',
+        'bg-destructive text-destructive-foreground hover:bg-red-700 dark:hover:bg-red-600',
+    outline:
+        'border border-primary-text bg-transparent text-primary-text hover:bg-primary/10 dark:hover:bg-primary/15',
+    'destructive-outline':
+        'border border-destructive-text bg-transparent text-destructive-text hover:bg-destructive/10 dark:hover:bg-destructive/15',
+    'danger-outline':
+        'border border-destructive-text bg-transparent text-destructive-text hover:bg-destructive/10 dark:hover:bg-destructive/15',
 } as const;
 
 const sizes = {

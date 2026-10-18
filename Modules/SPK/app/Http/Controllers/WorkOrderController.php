@@ -397,8 +397,9 @@ class WorkOrderController extends Controller
     /**
      * The people the assign dialog offers, and only to someone who may assign this SPK. A dispatcher needs the user to
      * assign, the name, the employee number, the unit and the phone to choose: no email, role, HR note or vehicle goes out.
+     * open_today is the load of the day: assigned and in-progress SPK scheduled today, counted in one grouped query.
      *
-     * @return list<array{id: string, name: string, employee_number: string, organization: string|null, phone: string|null}>
+     * @return list<array{id: string, name: string, employee_number: string, organization: string|null, phone: string|null, open_today: int}>
      */
     private function assignableTechnicians(WorkOrder $wo): array
     {
@@ -406,7 +407,7 @@ class WorkOrderController extends Controller
             return [];
         }
 
-        return EmployeeProfile::query()
+        $profiles = EmployeeProfile::query()
             ->with(['user:id,public_id,name', 'organization:id,name'])
             ->where('company_id', CompanyService::currentId())
             ->where('status', 'active')
@@ -419,13 +420,24 @@ class WorkOrderController extends Controller
                     });
             })
             ->orderBy('employee_number')
-            ->get()
+            ->get();
+
+        $openToday = WorkOrder::query()
+            ->whereIn('assigned_to', $profiles->pluck('user.id'))
+            ->whereIn('status', ['assigned', 'in_progress'])
+            ->whereDate('scheduled_date', today())
+            ->groupBy('assigned_to')
+            ->selectRaw('assigned_to, count(*) as open_count')
+            ->pluck('open_count', 'assigned_to');
+
+        return $profiles
             ->map(fn (EmployeeProfile $profile): array => [
                 'id' => $profile->user->public_id,
                 'name' => $profile->user->getAttribute('name'),
                 'employee_number' => $profile->employee_number,
                 'organization' => $profile->organization?->name,
                 'phone' => $profile->phone,
+                'open_today' => (int) ($openToday[$profile->user->id] ?? 0),
             ])
             ->all();
     }

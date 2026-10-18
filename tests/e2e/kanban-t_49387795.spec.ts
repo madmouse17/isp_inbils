@@ -111,6 +111,10 @@ test.describe('@kanban-t_49387795 UI journeys', () => {
         await expectDetail(page, 'Total', /Rp\s*120\.000/);
 
         await page.getByRole('button', { name: 'Kirim tagihan' }).click();
+        await page
+            .getByRole('alertdialog', { name: /Kirim tagihan/ })
+            .getByRole('button', { name: 'Kirim tagihan' })
+            .click();
         await expectDetail(page, 'Status', 'Belum dibayar');
         await expect(page.getByRole('button', { name: 'Catat pembayaran' })).toBeVisible();
 

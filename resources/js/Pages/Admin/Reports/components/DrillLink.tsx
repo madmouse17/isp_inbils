@@ -26,7 +26,7 @@ export function DrillLink({ href, label, group }: DrillLinkProps) {
         <Link
             href={target}
             aria-label={`Lihat data di balik ${label}`}
-            className="mt-2 inline-block rounded-sm text-sm font-medium text-primary underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
+            className="mt-2 inline-block rounded-sm text-sm font-medium text-primary-text underline underline-offset-2 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-hidden"
         >
             Lihat data
         </Link>

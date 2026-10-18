@@ -131,6 +131,8 @@ class InvoiceController extends Controller
                     'description' => $subscription->customer_name,
                 ],
             ),
+            // Same default the store applies when due_date is empty.
+            'due_days' => BillingService::dueDaysFor((int) CompanyService::currentId()),
         ]);
     }
 
@@ -166,7 +168,7 @@ class InvoiceController extends Controller
         $data['source'] = 'manual';
         $data['status'] = 'draft';
         $data['issue_date'] = $data['issue_date'] ?? now()->toDateString();
-        $data['due_date'] = $data['due_date'] ?? now()->addDays(14)->toDateString();
+        $data['due_date'] = $data['due_date'] ?? now()->addDays(BillingService::dueDaysFor(CompanyService::currentId()))->toDateString();
         $data['created_by'] = $request->user()->id;
 
         Invoice::create($data);

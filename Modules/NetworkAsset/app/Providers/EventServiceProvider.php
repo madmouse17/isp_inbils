@@ -4,6 +4,8 @@ namespace Modules\NetworkAsset\Providers;
 
 use App\Models\Core\ServiceSubscription;
 use Illuminate\Foundation\Support\Providers\EventServiceProvider as ServiceProvider;
+use Modules\Ipam\Events\IpAssignmentChanged;
+use Modules\NetworkAsset\Listeners\QueueAccountOnIpAssignmentChange;
 use Modules\NetworkAsset\Observers\ServiceSubscriptionNetworkObserver;
 use Modules\NetworkAsset\Observers\SpeedProfileRadiusObserver;
 use Modules\Service\Models\SpeedProfile;
@@ -15,7 +17,9 @@ class EventServiceProvider extends ServiceProvider
      *
      * @var array<string, array<int, string>>
      */
-    protected $listen = [];
+    protected $listen = [
+        IpAssignmentChanged::class => [QueueAccountOnIpAssignmentChange::class],
+    ];
 
     /**
      * Core never calls the network: the module observes the shared subscription model and the speed profile.

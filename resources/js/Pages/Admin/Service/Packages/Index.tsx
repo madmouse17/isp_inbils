@@ -94,7 +94,7 @@ export default function PackagesIndex({
                 cell: (row) => (
                     <Link
                         href={route('admin.service-packages.show', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.name}
                     </Link>
@@ -228,7 +228,7 @@ export default function PackagesIndex({
                         className="sm:w-52"
                     />
                     {hasFilters ? (
-                        <Button type="button" variant="ghost" onClick={() => setMany(NO_FILTERS)}>
+                        <Button type="button" variant="outline" onClick={() => setMany(NO_FILTERS)}>
                             Reset filter
                         </Button>
                     ) : null}

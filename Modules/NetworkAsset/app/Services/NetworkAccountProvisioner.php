@@ -5,6 +5,7 @@ namespace Modules\NetworkAsset\Services;
 use App\Models\Core\ServiceSubscription;
 use App\Services\Core\AuditService;
 use Illuminate\Support\Str;
+use Modules\Ipam\Services\IpAssignmentService;
 use Modules\NetworkAsset\Models\NasDevice;
 use Modules\NetworkAsset\Models\NetworkAccount;
 use Modules\NetworkAsset\Services\Radius\DisconnectPendingException;
@@ -25,9 +26,13 @@ use Modules\Service\Models\SpeedProfile;
  * the Disconnects included, succeeded. A run that failed half way finds the old record again and finishes the job:
  * an isolated or removed subscriber never keeps a running session.
  *
- * A Disconnect is owed when the group changed, the user was removed or renamed, or staff pressed Resync (which sets
- * `pending_disconnect_at` and forces a rewrite). The flag is written before RADIUS is touched and cleared with the
+ * A Disconnect is owed when the group changed, the static address RADIUS hands out differs from the one IPAM holds
+ * (a session only gets its address when it starts), the user was removed or renamed, or staff pressed Resync (which
+ * sets `pending_disconnect_at` and forces a rewrite). The flag is written before RADIUS is touched and cleared with the
  * record advance. A secret change alone owes none: the running session keeps working.
+ *
+ * The static address of the subscription (IPAM) is the user's `Framed-IP-Address` reply, kept in every state: an
+ * isolated subscriber keeps its address. RADIUS itself is read for what it holds, so the record needs no column for it.
  */
 class NetworkAccountProvisioner
 {
@@ -89,16 +94,19 @@ class NetworkAccountProvisioner
         $group = $present ? $this->groupFor($account, $state) : null;
         $username = $account->username;
         $secretHash = $this->secretHash($account);
+        $framedIp = $present ? IpAssignmentService::staticAddressFor($account->subscription) : null;
+        $heldIp = $present ? $this->radius->framedIpOf($username) : null;
+        $moved = $heldIp !== $framedIp;
 
         $recordedGroup = $account->provisioned_group;
         $recordedName = $recordedGroup === null ? null : $account->provisioned_username;
         $forced = $account->pending_disconnect_at !== null;
 
-        $owed = $this->owedUsernames($present, $username, $recordedName, $group !== $recordedGroup, $forced);
+        $owed = $this->owedUsernames($present, $username, $recordedName, $group !== $recordedGroup || $moved, $forced);
         $drifted = false;
 
         $needsWrite = $present
-            && ($recordedName !== $username || $group !== $recordedGroup || $account->provisioned_password_hash !== $secretHash || $forced
+            && ($recordedName !== $username || $group !== $recordedGroup || $moved || $account->provisioned_password_hash !== $secretHash || $forced
                 || ($drifted = ! $this->radius->hasUser($username, (string) $group, $secretHash)));
 
         if ($owed !== [] && ! $forced) {
@@ -112,13 +120,13 @@ class NetworkAccountProvisioner
 
         if ($needsWrite) {
             $this->radius->putGroup((string) $group, $this->repliesFor($account, $state));
-            $this->radius->putUser($username, $account->password, (string) $group);
+            $this->radius->putUser($username, $account->password, (string) $group, $framedIp);
         }
 
         $unsent = $this->disconnect($account, $owed);
 
         $after = ['provisioned_username' => $present ? $username : null, 'provisioned_group' => $group];
-        $changed = $after !== ['provisioned_username' => $recordedName, 'provisioned_group' => $recordedGroup];
+        $changed = $moved || $after !== ['provisioned_username' => $recordedName, 'provisioned_group' => $recordedGroup];
 
         $account->forceFill($after + [
             'provisioned_password_hash' => $present ? $secretHash : null,
@@ -129,10 +137,10 @@ class NetworkAccountProvisioner
             'last_attempt_at' => now(),
         ])->save();
 
-        $details = ['username' => $username, 'service_type' => $account->service_type, 'state' => $state, 'group' => $group];
+        $details = ['username' => $username, 'service_type' => $account->service_type, 'state' => $state, 'group' => $group, 'framed_ip' => $framedIp];
 
         if ($changed) {
-            AuditService::log('network_account', 'provisioned', $details + ['previous_group' => $recordedGroup], $account);
+            AuditService::log('network_account', 'provisioned', $details + ['previous_group' => $recordedGroup, 'previous_framed_ip' => $heldIp], $account);
         } elseif ($drifted) {
             AuditService::log('network_account', 'drift_corrected', $details, $account);
         }
@@ -164,6 +172,7 @@ class NetworkAccountProvisioner
 
         return $account->provisioned_group !== $group
             || $account->provisioned_username !== $account->username
+            || $this->radius->framedIpOf($account->username) !== IpAssignmentService::staticAddressFor($account->subscription)
             || ! $this->radius->hasUser($account->username, $group, $this->secretHash($account));
     }
 
@@ -214,7 +223,7 @@ class NetworkAccountProvisioner
      *
      * @return list<string>
      */
-    private function owedUsernames(bool $present, string $username, ?string $recordedName, bool $groupChanged, bool $forced): array
+    private function owedUsernames(bool $present, string $username, ?string $recordedName, bool $grantChanged, bool $forced): array
     {
         $owed = [];
 
@@ -222,7 +231,7 @@ class NetworkAccountProvisioner
             $owed[] = $recordedName;
         }
 
-        if ($present && ($groupChanged || $forced)) {
+        if ($present && ($grantChanged || $forced)) {
             $owed[] = $username;
         }
 

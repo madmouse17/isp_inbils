@@ -35,7 +35,9 @@ import {
     WorkOrderTimeline,
 } from '@/Components/composite';
 import type { RemoteOption, WorkOrderStep, WorkOrderStepKey } from '@/Components/composite';
+import { SuggestionChip } from '@/Components/composite/SuggestionChip';
 import { formatDate, formatDateTime } from '@/lib/format';
+import { lowestLoad } from '@/lib/suggest';
 import { PRIORITY, WORK_ORDER_STATUS, WORK_ORDER_TYPE } from '@/lib/statuses';
 import type { DropPort } from '@/types/ipam-odn';
 import { checkInText, type CheckInRecord } from '../Tickets/components/checkIn';
@@ -99,6 +101,8 @@ interface TechRow {
     employee_number: string;
     organization?: string | null;
     phone?: string | null;
+    /** Open SPK scheduled today (assigned or in progress). */
+    open_today: number;
 }
 
 interface ShowProps extends Record<string, unknown> {
@@ -125,15 +129,24 @@ interface ShowProps extends Record<string, unknown> {
 type ActionModal =
     'generate' | 'assign' | 'start' | 'submit' | 'approve' | 'reject' | 'cancel' | 'addItem';
 
-const ACTION_TITLE: Record<ActionModal, string> = {
-    generate: 'Terbitkan SPK',
-    assign: 'Tugaskan SPK',
-    start: 'Mulai SPK',
-    submit: 'Ajukan SPK untuk review',
-    approve: 'Setujui SPK',
-    reject: 'Tolak SPK',
-    cancel: 'Batalkan SPK',
-    addItem: 'Tambah item',
+const ACTION_TITLE: Record<ActionModal, (code: string) => string> = {
+    generate: (code) => `Terbitkan SPK ${code}?`,
+    assign: (code) => `Tugaskan SPK ${code}`,
+    start: (code) => `Mulai pengerjaan SPK ${code}?`,
+    submit: (code) => `Ajukan SPK ${code} untuk review?`,
+    approve: (code) => `Setujui SPK ${code}?`,
+    reject: (code) => `Tolak SPK ${code}?`,
+    cancel: (code) => `Batalkan SPK ${code}?`,
+    addItem: () => 'Tambah item',
+};
+
+const ACTION_DESCRIPTION: Partial<Record<ActionModal, string>> = {
+    generate: 'SPK akan diterbitkan dan siap ditugaskan ke teknisi.',
+    start: 'Waktu pengerjaan akan dicatat di audit log.',
+    submit: 'Status berubah menjadi menunggu review.',
+    approve: 'Pekerjaan dan penggunaan material disahkan permanen.',
+    reject: 'SPK ditolak dan alasan Anda dicatat di riwayat.',
+    cancel: 'SPK dibatalkan dan tidak bisa dilanjutkan lagi.',
 };
 
 const ACTION_CONFIRM: Record<ActionModal, string> = {
@@ -194,6 +207,8 @@ export default function Show({
         quantity_used: '',
         note: '',
     });
+    // Offered as a hint only: the person assigning decides.
+    const lightest = lowestLoad(technicians);
     const technicianOptions = technicians.map((technician) => ({
         value: String(technician.id),
         label: technician.name,
@@ -351,7 +366,7 @@ export default function Show({
                                                 'admin.odn.assets.show',
                                                 dropPort.odp_asset_id,
                                             )}
-                                            className="text-primary hover:underline"
+                                            className="text-primary-text hover:underline"
                                         >
                                             {dropPort.odp_code}
                                         </Link>{' '}
@@ -456,7 +471,7 @@ export default function Show({
                                     {canChange && (
                                         <Button
                                             type="button"
-                                            variant="outline"
+                                            variant="destructive-outline"
                                             onClick={() => setActionModal('cancel')}
                                         >
                                             Batalkan
@@ -668,9 +683,14 @@ export default function Show({
                 <Modal
                     open={actionModal !== null}
                     onClose={closeModal}
-                    title={actionModal ? ACTION_TITLE[actionModal] : ''}
+                    title={actionModal ? ACTION_TITLE[actionModal](w.code) : ''}
                 >
                     <form onSubmit={doAction} className="space-y-4">
+                        {actionModal && ACTION_DESCRIPTION[actionModal] ? (
+                            <p className="text-sm text-muted-foreground">
+                                {ACTION_DESCRIPTION[actionModal]}
+                            </p>
+                        ) : null}
                         {staleError && (
                             <Alert variant="destructive">
                                 <AlertTitle>SPK sudah berubah</AlertTitle>
@@ -688,16 +708,24 @@ export default function Show({
                             </Alert>
                         )}
                         {actionModal === 'assign' && (
-                            <SearchSelect
-                                label="Teknisi"
-                                value={data.technician_id}
-                                onChange={(value) => setData('technician_id', value)}
-                                options={technicianOptions}
-                                placeholder="Cari karyawan teknisi"
-                                emptyText="Tidak ada karyawan teknisi yang cocok."
-                                error={errors.technician_id}
-                                required
-                            />
+                            <div className="space-y-2">
+                                <SearchSelect
+                                    label="Teknisi"
+                                    value={data.technician_id}
+                                    onChange={(value) => setData('technician_id', value)}
+                                    options={technicianOptions}
+                                    placeholder="Cari karyawan teknisi"
+                                    emptyText="Tidak ada karyawan teknisi yang cocok."
+                                    error={errors.technician_id}
+                                    required
+                                />
+                                {lightest && data.technician_id === '' && (
+                                    <SuggestionChip
+                                        value={`${lightest.name} (beban terendah: ${lightest.open_today} SPK hari ini)`}
+                                        onUse={() => setData('technician_id', String(lightest.id))}
+                                    />
+                                )}
+                            </div>
                         )}
                         {(actionModal === 'reject' || actionModal === 'cancel') && (
                             <Input
@@ -768,7 +796,15 @@ export default function Show({
                             <Button type="button" variant="secondary" onClick={closeModal}>
                                 Batal
                             </Button>
-                            <Button type="submit" loading={processing}>
+                            <Button
+                                type="submit"
+                                variant={
+                                    actionModal === 'reject' || actionModal === 'cancel'
+                                        ? 'danger'
+                                        : 'default'
+                                }
+                                loading={processing}
+                            >
                                 {actionModal ? ACTION_CONFIRM[actionModal] : 'Simpan'}
                             </Button>
                         </div>

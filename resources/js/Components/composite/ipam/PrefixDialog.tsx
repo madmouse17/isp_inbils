@@ -1,5 +1,5 @@
 import type { FormEvent } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useForm } from '@inertiajs/react';
 import {
     Button,
@@ -11,6 +11,7 @@ import {
 } from '@/Components/ui';
 import { usageHints } from '@/lib/ipam';
 import { IP_PREFIX_USAGE, optionsOf } from '@/lib/statuses';
+import { parentPrefixOf } from '@/lib/suggest';
 import type { IpUsage, PopOption, PrefixRow, VlanOption } from '@/types/ipam-odn';
 
 interface PrefixDialogProps {
@@ -19,12 +20,14 @@ interface PrefixDialogProps {
     prefix?: PrefixRow;
     locations: PopOption[];
     vlans: VlanOption[];
+    /** Every prefix of the company, to find the parent of a new CIDR and offer its VLAN. Omit when the list is incomplete. */
+    prefixes?: PrefixRow[];
 }
 
 const usageOptions = [{ value: '', label: 'Pilih peruntukan...' }, ...optionsOf(IP_PREFIX_USAGE)];
 
 /** Mount it only while open: each opening then starts from the prefix (or an empty form) with no stale errors. */
-export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialogProps) {
+export function PrefixDialog({ onClose, prefix, locations, vlans, prefixes }: PrefixDialogProps) {
     const form = useForm({
         cidr: prefix?.cidr ?? '',
         usage: prefix?.usage ?? ('' as const),
@@ -33,6 +36,30 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
         description: prefix?.description ?? '',
     });
     const { data, setData, errors, processing } = form;
+    // The parent's VLAN fills the field until the person chooses one; an edit keeps what the prefix has.
+    const [vlanPicked, setVlanPicked] = useState(prefix !== undefined);
+    const [inheritedFrom, setInheritedFrom] = useState<string | null>(null);
+
+    const changeCidr = (cidr: string) => {
+        if (vlanPicked || !prefixes) {
+            setData('cidr', cidr);
+            return;
+        }
+
+        const parent = parentPrefixOf(cidr, prefixes);
+        setData((previous) => ({
+            ...previous,
+            cidr,
+            vlan_id: parent?.vlan ? String(parent.vlan.id) : '',
+        }));
+        setInheritedFrom(parent?.vlan ? parent.cidr : null);
+    };
+
+    const pickVlan = (value: string) => {
+        setVlanPicked(true);
+        setInheritedFrom(null);
+        setData('vlan_id', value);
+    };
 
     const popOptions = useMemo<SearchSelectOption[]>(
         () =>
@@ -67,7 +94,7 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                     id="prefix-cidr"
                     label="CIDR"
                     value={data.cidr}
-                    onChange={(event) => setData('cidr', event.target.value)}
+                    onChange={(event) => changeCidr(event.target.value)}
                     error={errors.cidr}
                     placeholder="10.20.0.0/22 atau 2001:db8::/48"
                     hint={
@@ -104,7 +131,8 @@ export function PrefixDialog({ onClose, prefix, locations, vlans }: PrefixDialog
                     id="prefix-vlan"
                     label="VLAN"
                     value={data.vlan_id}
-                    onChange={(value) => setData('vlan_id', value)}
+                    onChange={pickVlan}
+                    hint={inheritedFrom ? `Mengikuti prefiks induk ${inheritedFrom}.` : undefined}
                     options={vlanOptions}
                     placeholder="Tanpa VLAN"
                     emptyText="Tidak ada VLAN yang cocok."

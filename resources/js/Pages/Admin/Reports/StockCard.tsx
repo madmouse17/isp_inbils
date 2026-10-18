@@ -123,7 +123,7 @@ export default function StockCard({
                 row.reference?.url ? (
                     <Link
                         href={row.reference.url}
-                        className="text-primary underline-offset-2 hover:underline"
+                        className="text-primary-text underline-offset-2 hover:underline"
                     >
                         {row.reference.label}
                     </Link>

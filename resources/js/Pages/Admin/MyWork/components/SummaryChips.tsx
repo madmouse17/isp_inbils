@@ -58,7 +58,7 @@ export function SummaryChips({ label, chips }: SummaryChipsProps) {
                             chipClass,
                             chip.active
                                 ? 'border-primary bg-primary text-primary-foreground'
-                                : 'border-input bg-background text-foreground hover:bg-accent',
+                                : 'border-primary-text bg-transparent text-primary-text hover:bg-primary/10',
                         )}
                     >
                         {content}

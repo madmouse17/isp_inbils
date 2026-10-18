@@ -68,7 +68,7 @@ export default function NetworkAssetsIndex({ assets, filters }: Props) {
                 cell: (row) => (
                     <Link
                         href={route('admin.network-assets.show', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.code}
                     </Link>

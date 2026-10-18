@@ -12,6 +12,9 @@
  *    375 and 1280 px in both themes. The last test reactivates the subscription for the specs that follow.
  *
  * 2. Lab (opt-in, `E2E_RADIUS_LAB=1`): the real wire against ~/labs/freeradius (FreeRADIUS + nas-sim).
+ *    Flow: register the router as the lab NAS -> account lands in the speed group -> Block (Disconnect, the CPE redials
+ *    into isolir) -> Unblock -> a static IP from IPAM becomes the session's Framed-IP-Address and a release hands the
+ *    NAS pool back (the IPAM event queues the apply job, which also cuts the session that holds the old address).
  *    Preconditions:
  *      - lab up: `docker compose ps` in ~/labs/freeradius shows radlab-freeradius, radlab-db, radlab-nas-sim healthy;
  *      - light reset from the lab README (and no leftover `e2e-lab@demo` rows in the lab database);
@@ -312,7 +315,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         ).toBeVisible();
 
         await page.locator('#account-username').fill('e2e-linked');
-        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
+        await expect(page.getByLabel(/^Kata sandi( \*)?$/)).toHaveValue('');
         await page.getByRole('button', { name: 'Buat akun jaringan' }).click();
 
         const panel = secretPanel(page);
@@ -350,7 +353,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await page.reload();
         await expect(secretPanel(page)).toHaveCount(0);
         await expect(page.getByText(state.accountSecret)).toHaveCount(0);
-        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
+        await expect(page.getByLabel(/^Kata sandi( \*)?$/)).toHaveValue('');
     });
 
     test('reveal asks for confirmation, shows the secret again once, and the edit form never carries it', async ({
@@ -359,7 +362,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
 
-        const reveal = page.getByRole('button', { name: 'Tampilkan kata sandi' });
+        const reveal = page.getByRole('button').filter({ hasText: 'Tampilkan kata sandi' });
         await reachByKeyboard(page, reveal);
 
         await reveal.click();
@@ -381,7 +384,7 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
 
         // The edit form starts with the stored local part and a blank secret.
         await expect(page.locator('#account-username')).toHaveValue('e2e-linked');
-        await expect(page.getByLabel('Kata sandi', { exact: true })).toHaveValue('');
+        await expect(page.getByLabel(/^Kata sandi( \*)?$/)).toHaveValue('');
         await expect(
             page.getByText('Kosongkan untuk mempertahankan kata sandi saat ini.'),
         ).toBeVisible();
@@ -394,6 +397,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await expect(secretPanel(page)).toHaveCount(0);
 
         await page.getByRole('button', { name: 'Sinkron ulang' }).click();
+        await page
+            .getByRole('alertdialog', { name: /Sinkron ulang akun/ })
+            .getByRole('button', { name: 'Sinkron ulang' })
+            .click();
         await expect(page.getByText('Sinkron ulang dijadwalkan.')).toBeVisible();
     });
 
@@ -655,7 +662,9 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
 
         // Managers hold the account permissions: they can reveal.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
-        await expect(page.getByRole('button', { name: 'Tampilkan kata sandi' })).toBeVisible();
+        await expect(
+            page.getByRole('button').filter({ hasText: 'Tampilkan kata sandi' }),
+        ).toBeVisible();
 
         // And they hold customer.subscription.block.
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
@@ -799,6 +808,10 @@ test.describe('@lifecycle radius provisioning (switch off)', () => {
         await loginAs(page, 'admin');
         await page.goto(`/admin/subscriptions/${state.subscriptionId}`);
         await page.getByRole('button', { name: 'Aktifkan kembali' }).click();
+        await page
+            .getByRole('alertdialog', { name: /Aktifkan kembali langganan/ })
+            .getByRole('button', { name: 'Aktifkan kembali' })
+            .click();
         await expect(page.getByRole('button', { name: 'Tangguhkan', exact: true })).toBeVisible();
         await page.goto(`/admin/subscriptions/${state.subscriptionId}/network-account`);
         await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
@@ -820,6 +833,7 @@ type SimSession = {
     username: string;
     state: string;
     group: string;
+    framed_ip: string;
     attributes: Record<string, string[]>;
 };
 
@@ -923,7 +937,7 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         lab.speedGroup = speed.match(/grup RADIUS (\S+)/)![1];
 
         await page.locator('#account-username').fill(LAB_USERNAME);
-        await page.getByLabel('Kata sandi', { exact: true }).fill(labSecret('LAB_USER_SECRET'));
+        await page.getByLabel(/^Kata sandi( \*)?$/).fill(labSecret('LAB_USER_SECRET'));
         await page.getByRole('button', { name: 'Buat akun jaringan' }).click();
 
         await expect(detail(page, 'Nama pengguna').first()).toHaveText(`${LAB_USERNAME}@${REALM}`);
@@ -1043,5 +1057,57 @@ test.describe('@lifecycle radius provisioning (FreeRADIUS lab)', () => {
         await expect(detail(page, 'Status yang diharapkan')).toContainText('Aktif');
         await expect(detail(page, 'Status yang diharapkan')).not.toContainText('Diisolir karena');
         await expect(detail(page, 'Grup RADIUS')).toContainText(`${REALM}/${lab.speedGroup}`);
+    });
+
+    test('a static IP from IPAM is the Framed-IP-Address of the session and a release hands the NAS pool back', async ({
+        page,
+    }) => {
+        const user = `${LAB_USERNAME}@${REALM}`;
+        await loginAs(page, 'admin');
+
+        // Lowest free address of the seeded static pool (the only one, so the dialog preselects it); QUEUE_CONNECTION=sync
+        // runs the apply job inside the request.
+        await page.goto(`/admin/subscriptions/${lab.subscriptionId}`);
+        await page.getByRole('button', { name: 'Berikan IP statis' }).click();
+        const dialog = page.getByRole('dialog', { name: `Berikan IP statis ke ${SUBSCRIPTION}` });
+        await expect(dialog.getByRole('combobox', { name: 'Pool' })).toHaveValue('10.99.0.0/24');
+        await dialog.getByRole('button', { name: 'Berikan alamat' }).click();
+        await expect(dialog).toBeHidden();
+
+        const held = (await inertiaProps(page, `/admin/subscriptions/${lab.subscriptionId}`)).props
+            ?.ipAddresses as Array<{ address: string }>;
+        expect(held).toHaveLength(1);
+        const staticIp = held[0].address;
+        expect(staticIp).toMatch(/^10\.99\.0\.\d+$/);
+
+        // The CPE dials in: the reply carries the IPAM address next to the speed profile.
+        const connected = JSON.parse(sim('connect', user)) as SimSession;
+        expect(connected.framed_ip).toBe(staticIp);
+        expect(connected.attributes['Framed-IP-Address']).toEqual([staticIp]);
+        expect(connected.attributes['Mikrotik-Group']).toEqual([lab.speedGroup]);
+
+        await page.goto(`/admin/subscriptions/${lab.subscriptionId}/network-account`);
+        await expect(detail(page, 'Online')).toHaveText('Online');
+        await expect(detail(page, 'Alamat')).toHaveText(staticIp);
+
+        // Release: the open session is cut and the next login gets an address of the NAS pool.
+        const cutsBefore = labEvents().length;
+        await page.goto(`/admin/subscriptions/${lab.subscriptionId}`);
+        await page.getByRole('button', { name: `Lepas ${staticIp}` }).click();
+        await page.getByRole('alertdialog').getByRole('button', { name: 'Lepas alamat' }).click();
+        await expect(page.getByRole('alertdialog')).toBeHidden();
+        await expect(page.getByText('Dinamis (diberikan router)')).toBeVisible();
+
+        await expect.poll(() => labEvents().length).toBe(cutsBefore + 1);
+        await expect
+            .poll(() => simJson<SimSession[]>('list', '--state', 'active', '--user', user))
+            .toHaveLength(0);
+
+        const redialled = JSON.parse(sim('connect', user)) as SimSession;
+        expect(redialled.framed_ip).not.toBe(staticIp);
+        expect(redialled.framed_ip).toMatch(/^10\.99\.1\.\d+$/);
+        expect(redialled.attributes['Framed-IP-Address']).toBeUndefined();
+        expect(redialled.attributes['Mikrotik-Group']).toEqual([lab.speedGroup]);
+        sim('disconnect', redialled.id);
     });
 });

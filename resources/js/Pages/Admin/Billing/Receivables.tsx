@@ -98,7 +98,7 @@ export default function Receivables({
             cell: (row) => (
                 <>
                     <Link
-                        className="text-primary hover:underline"
+                        className="text-primary-text hover:underline"
                         href={route('admin.invoices.index', { customer_id: row.customer_id })}
                     >
                         {row.customer}

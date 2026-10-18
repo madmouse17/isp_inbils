@@ -56,7 +56,7 @@ export default function Edit({
                 <main className="space-y-6">
                     <Link
                         href={route('app-only')}
-                        className="text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                        className="text-sm font-medium text-primary-text underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                     >
                         Kembali ke halaman aplikasi
                     </Link>

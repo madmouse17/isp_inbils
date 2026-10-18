@@ -76,7 +76,7 @@ export function DatePicker({
                     />
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         className="w-full"
                         onClick={() => {

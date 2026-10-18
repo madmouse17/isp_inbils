@@ -16,6 +16,7 @@ import {
     Input,
 } from '@/Components/ui';
 import { useForm } from '@inertiajs/react';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { TWO_FACTOR_STATE } from '@/lib/statuses';
 import { Copy, Download } from 'lucide-react';
 import type { FormEventHandler } from 'react';
@@ -60,6 +61,7 @@ export default function TwoFactorAuthenticationForm({
     const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
     const [copied, setCopied] = useState(false);
     const [confirmingDisable, setConfirmingDisable] = useState(false);
+    const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
     const enable = useForm({});
     const regenerate = useForm({});
@@ -293,12 +295,7 @@ export default function TwoFactorAuthenticationForm({
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() =>
-                                regenerate.post(route('two-factor.recovery-codes'), {
-                                    preserveScroll: true,
-                                    onFlash: takeFlash,
-                                })
-                            }
+                            onClick={() => setConfirmingRegenerate(true)}
                             loading={regenerate.processing}
                         >
                             Buat kode pemulihan baru
@@ -344,6 +341,22 @@ export default function TwoFactorAuthenticationForm({
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <ConfirmDialog
+                open={confirmingRegenerate}
+                title="Buat kode pemulihan baru?"
+                description="Kode pemulihan lama langsung hangus dan tidak bisa dipakai lagi."
+                confirmLabel="Buat kode baru"
+                processing={regenerate.processing}
+                onConfirm={() =>
+                    regenerate.post(route('two-factor.recovery-codes'), {
+                        preserveScroll: true,
+                        onFlash: takeFlash,
+                        onFinish: () => setConfirmingRegenerate(false),
+                    })
+                }
+                onClose={() => setConfirmingRegenerate(false)}
+            />
         </section>
     );
 }

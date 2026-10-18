@@ -11,6 +11,10 @@ import test from 'node:test';
 import { chromium } from '@playwright/test';
 import esbuild from 'esbuild';
 
+// Setujui now asks for one confirmation; this answers it.
+const confirmApprove = (page) =>
+    page.getByRole('alertdialog').getByRole('button', { name: 'Setujui', exact: true }).click();
+
 const reviewSheetPath = new URL('./ReviewSheet.tsx', import.meta.url);
 const indexPath = new URL('../Index.tsx', import.meta.url);
 const mobileCardPath = new URL('./MobileItemCard.tsx', import.meta.url);
@@ -188,6 +192,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
 
         // Trigger submission error -> conflict stale state
         await approveBtn.click();
+        await confirmApprove(page);
 
         // Error alert and CTA button appear
         const errorAlert = page.locator('[role="alert"]').first();
@@ -266,6 +271,7 @@ test('ReviewSheet behavioral browser lifecycle in Chromium: CTA click, in-flight
 
         await approveBtn.waitFor();
         await approveBtn.click();
+        await confirmApprove(page);
         await reloadBtn.waitFor();
 
         await reloadBtn.click();
@@ -341,6 +347,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
             loader: 'tsx',
         },
         bundle: true,
+        jsx: 'automatic',
         format: 'iife',
         write: false,
         define: { 'process.env.NODE_ENV': '"test"' },
@@ -559,6 +566,7 @@ test('Index.tsx reloadQueue callback integration and terminal settlement: finish
 
         // Trigger conflict error
         await approveBtn.click();
+        await confirmApprove(page);
         const reloadBtn = page.locator('button:has-text("Muat ulang antrean")');
         await reloadBtn.waitFor();
 
@@ -721,6 +729,7 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
 
         const approveBtn = page.locator('button:has-text("Setujui")');
         await approveBtn.click();
+        await confirmApprove(page);
 
         const calls = await page.evaluate(() => window.__postCalls);
         assert.equal(calls.length, 1, 'One router.post triggered');
@@ -758,7 +767,10 @@ test('ReviewSheet Inventory Request domain behavior: titles, endpoints, notes, r
 
         const finalCalls = await page.evaluate(() => window.__postCalls);
         assert.equal(finalCalls.length, 1, 'Reject post triggered');
-        assert.equal(finalCalls[0].url, '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa5/reject');
+        assert.equal(
+            finalCalls[0].url,
+            '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa5/reject',
+        );
         assert.deepEqual(finalCalls[0].data, {
             rejection_reason: 'Stok di gudang tidak mencukupi untuk batch pekerjaan ini.',
         });
@@ -963,7 +975,9 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         );
 
         // 1. Select Inventory Request (composite_id = inventory_request:01arz3ndektsv4rrffq69g5fa7)
-        const selectInvBtn = page.locator('#btn-select-inventory_request-01arz3ndektsv4rrffq69g5fa7');
+        const selectInvBtn = page.locator(
+            '#btn-select-inventory_request-01arz3ndektsv4rrffq69g5fa7',
+        );
         await selectInvBtn.click();
 
         // Verify sheet title and code for Inventory Request
@@ -979,7 +993,10 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
             true,
             'Lihat detail button visible when actions.view=true',
         );
-        assert.equal(await detailLink.getAttribute('href'), '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7');
+        assert.equal(
+            await detailLink.getAttribute('href'),
+            '/admin/inventory/requests/01arz3ndektsv4rrffq69g5fa7',
+        );
 
         // 2. Trigger queue reload while review sheet is open for Inventory Request {id: '01arz3ndektsv4rrffq69g5fa7'}
         // In the returned payload, SPK {id: '01arz3ndektsv4rrffq69g5fa7'} is at index 0, Inventory Request {id: '01arz3ndektsv4rrffq69g5fa7'} is at index 1!
@@ -1016,6 +1033,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         // 3. Confirm that approving the item triggers inventory approve route, NEVER spk approve
         const approveBtn = page.locator('button:has-text("Setujui")');
         await approveBtn.click();
+        await confirmApprove(page);
 
         const postCalls = await page.evaluate(() => window.__postCalls);
         assert.equal(postCalls.length, 1, 'One approve POST executed');
@@ -1043,6 +1061,7 @@ test('ReviewSheet behavioral browser in Chromium: cross-domain ID collision isol
         // Approve SPK {id: '01arz3ndektsv4rrffq69g5fa7'}
         const spkApproveBtn = page.locator('button:has-text("Setujui")');
         await spkApproveBtn.click();
+        await confirmApprove(page);
 
         const postCallsAfterSpk = await page.evaluate(() => window.__postCalls);
         assert.equal(postCallsAfterSpk.length, 2, 'Second approve POST executed');

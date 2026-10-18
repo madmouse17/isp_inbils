@@ -1,4 +1,5 @@
 import type { FormEvent } from 'react';
+import { useState } from 'react';
 import { Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -18,7 +19,7 @@ import type { RemoteOption } from '@/Components/composite';
 import { optionsOf, PRIORITY, TICKET_SOURCE } from '@/lib/statuses';
 
 interface CreateProps extends Record<string, unknown> {
-    categories: { data: { id: string; name: string }[] };
+    categories: { data: { id: string; name: string; default_priority?: string }[] };
     locations: { data: { id: string; name: string; code: string }[] };
     canChooseLocation: boolean;
     /** Sent only after a search: `customer_search`, `subscription_search` and `networkAsset_search` ask for them. */
@@ -46,6 +47,21 @@ export default function Create({
         network_asset_id: '',
         location_id: '',
     });
+    // The category's default priority fills the field until the person picks one.
+    const [priorityPicked, setPriorityPicked] = useState(false);
+    const selectedCategory = categories.data.find((c) => String(c.id) === data.category_id);
+
+    const pickCategory = (value: string) => {
+        const category = categories.data.find((c) => String(c.id) === value);
+        const priority = category?.default_priority;
+
+        setData((previous) => ({
+            ...previous,
+            category_id: value,
+            priority:
+                !priorityPicked && priority && priority in PRIORITY ? priority : previous.priority,
+        }));
+    };
 
     // The server offers only the subscriptions and assets of what is picked, so a mismatch is never offered.
     const narrowOptions = (customerId: string, subscriptionId: string, only: string[]) =>
@@ -116,7 +132,7 @@ export default function Create({
                             <SearchSelect
                                 label="Kategori"
                                 value={data.category_id}
-                                onChange={(value) => setData('category_id', value)}
+                                onChange={pickCategory}
                                 options={categories.data.map((c) => ({
                                     value: String(c.id),
                                     label: c.name,
@@ -128,9 +144,17 @@ export default function Create({
                             <NativeSelect
                                 label="Prioritas"
                                 value={data.priority}
-                                onChange={(e) => setData('priority', e.target.value)}
+                                onChange={(e) => {
+                                    setPriorityPicked(true);
+                                    setData('priority', e.target.value);
+                                }}
                                 options={optionsOf(PRIORITY)}
                                 error={errors.priority}
+                                hint={
+                                    !priorityPicked && selectedCategory
+                                        ? `Bawaan kategori ${selectedCategory.name}.`
+                                        : undefined
+                                }
                             />
                             <RemoteSearchSelect
                                 field="customer"

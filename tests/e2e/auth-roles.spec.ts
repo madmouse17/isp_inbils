@@ -137,10 +137,30 @@ test('@kanban-t_525dca8a login link navigates and invalid credentials show error
     await expect(page.getByRole('heading', { name: 'Masuk' })).toBeVisible();
 
     await page.getByLabel('Email').fill('nobody@example.test');
-    await page.getByLabel('Kata sandi').fill('wrong-password');
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill('wrong-password');
     await page.getByRole('button', { name: 'Masuk' }).click();
 
     await expect(page.getByText('Email atau kata sandi salah.')).toBeVisible();
+});
+
+test('password inputs reveal and hide the typed value without submitting', async ({ page }) => {
+    await page.goto('/login');
+
+    const field = page.getByLabel(/^Kata sandi( \*)?$/);
+    await field.fill('rahasia-123');
+    await expect(field).toHaveAttribute('type', 'password');
+
+    const reveal = page.getByRole('button', { name: 'Tampilkan kata sandi' });
+    await expect(reveal).toHaveAttribute('aria-pressed', 'false');
+    await reveal.click();
+
+    await expect(field).toHaveAttribute('type', 'text');
+    await expect(field).toHaveValue('rahasia-123');
+    await expect(field).toHaveAttribute('autocomplete', 'current-password');
+    await expect(page).toHaveURL(/\/login$/);
+
+    await page.getByRole('button', { name: 'Sembunyikan kata sandi' }).click();
+    await expect(field).toHaveAttribute('type', 'password');
 });
 
 test('@kanban-t_525dca8a register endpoint stays unavailable', async ({ page }) => {
@@ -242,7 +262,7 @@ test('@kanban-t_525dca8a dark toggle applies and survives reload', async ({ page
 async function login(page: Page, demoUser: DemoUser) {
     await page.goto('/login');
     await page.getByLabel('Email').fill(demoUser.email);
-    await page.getByLabel('Kata sandi').fill(demoPassword!);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(demoPassword!);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(isAppOnly(demoUser.role) ? /\/app-only$/ : /\/admin\/dashboard$/);
 }

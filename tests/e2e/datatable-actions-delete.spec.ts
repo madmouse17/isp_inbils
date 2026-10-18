@@ -46,7 +46,7 @@ async function createDisposableUser(page: import('@playwright/test').Page) {
     });
     await page.getByLabel('Nama').fill(name);
     await page.getByLabel('Email').fill(`qa-delete-${Date.now()}@example.test`);
-    await page.getByLabel('Kata sandi').fill('Password123!');
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill('Password123!');
     await page.getByRole('button', { name: 'Buat', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
     await expect(page.getByRole('main').getByRole('heading', { name: 'Pengguna' })).toBeVisible();
@@ -197,4 +197,31 @@ test('@datatable-actions-delete error: dialog stays open and re-enables on failu
             }
         }
     }
+});
+
+// A customer with subscriptions makes the user type its code; the test never submits the delete.
+test('@datatable-actions-delete customer with subscriptions stays undeletable until its code is typed', async ({
+    page,
+}) => {
+    await loginAs(page, 'admin');
+    // E2eFixtureSeeder gives this customer the subscription E2E-LINKED-SUB.
+    await page.goto('/admin/customers?search=E2E%20Linked%20Customer');
+    await expect(page.getByRole('main').getByRole('heading', { name: 'Pelanggan' })).toBeVisible({
+        timeout: 15_000,
+    });
+
+    const row = page.getByRole('row').filter({ hasText: 'E2E Linked Customer' }).first();
+    await row.getByRole('button', { name: 'Aksi lainnya' }).click();
+    await page.getByRole('menuitem', { name: 'Hapus' }).click();
+    const dialog = page.getByRole('alertdialog');
+    const prompt = await dialog.getByText(/^Ketik \S+ untuk menghapus/).innerText();
+    const code = /^Ketik (\S+) untuk/.exec(prompt)![1];
+
+    const confirm = dialog.getByRole('button', { name: 'Hapus', exact: true });
+    await expect(confirm).toBeDisabled();
+    await dialog.getByLabel(/^Ketik .* untuk menghapus/).fill(code);
+    await expect(confirm).toBeEnabled();
+
+    await dialog.getByRole('button', { name: 'Batal' }).click();
+    await expect(dialog).not.toBeVisible();
 });

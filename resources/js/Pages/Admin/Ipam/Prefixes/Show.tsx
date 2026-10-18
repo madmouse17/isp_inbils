@@ -67,7 +67,7 @@ export default function Show({
             value: prefix.parent ? (
                 <Link
                     href={route('admin.ipam.prefixes.show', prefix.parent.id)}
-                    className="font-mono font-medium text-primary hover:underline"
+                    className="font-mono font-medium text-primary-text hover:underline"
                 >
                     {prefix.parent.cidr}
                 </Link>
@@ -105,7 +105,7 @@ export default function Show({
                 cell: (row) => (
                     <Link
                         href={route('admin.ipam.prefixes.show', row.id)}
-                        className="font-mono font-medium text-primary hover:underline"
+                        className="font-mono font-medium text-primary-text hover:underline"
                     >
                         {row.cidr}
                     </Link>
@@ -151,7 +151,7 @@ export default function Show({
                     row.holder ? (
                         <Link
                             href={row.holder.href}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                         >
                             {row.holder.label}
                         </Link>
@@ -247,8 +247,7 @@ export default function Show({
                                     </Button>
                                     <Button
                                         type="button"
-                                        variant="outline"
-                                        className="text-destructive-text"
+                                        variant="destructive-outline"
                                         onClick={() =>
                                             setConfirm({
                                                 title: `Hapus ${prefix.cidr}?`,

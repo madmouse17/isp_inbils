@@ -86,7 +86,12 @@ export interface StaticPool {
     id: string;
     cidr: string;
     family: IpFamily;
+    prefix_length: number;
     free: string | null;
+    /** The lowest free address the server takes for a blank field; null for IPv6 or a full or very large pool. */
+    suggested_address: string | null;
+    /** The reserved gateway address of the pool, when one is recorded. */
+    gateway: string | null;
 }
 
 export type OdnAssetType = 'olt' | 'odc' | 'odp';

@@ -1,7 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { LogOut } from 'lucide-react';
+import { AuthBackdrop } from '@/Components/composite/AuthBackdrop';
 import { OperatorBand } from '@/Components/composite/platform/OperatorBand';
 import { Button, Wordmark } from '@/Components/ui';
+import { BrandMark } from '@/Components/ui/BrandMark';
 import { cn } from '@/lib/utils';
 import type { PlatformSharedProps } from '@/types/platform';
 
@@ -21,13 +23,17 @@ export default function PlatformAuthLayout({
     return (
         <>
             <Head title={title} />
-            <main className="flex min-h-screen flex-col bg-muted/30 text-foreground dark:bg-background">
+            <main className="relative isolate flex min-h-screen flex-col bg-muted/30 text-foreground dark:bg-background">
+                <AuthBackdrop />
                 <OperatorBand />
                 <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6">
                     <div className={cn('w-full', wide ? 'max-w-3xl' : 'max-w-md')}>
                         <div className="mb-5 flex items-center justify-between gap-4">
                             <div>
-                                <Wordmark className="text-2xl" />
+                                <span className="flex items-center gap-2.5">
+                                    <BrandMark className="size-8 text-brand-600 dark:text-brand-400" />
+                                    <Wordmark className="text-2xl" />
+                                </span>
                                 <p className="mt-1 text-sm text-muted-foreground">
                                     Akun operator Inbils
                                 </p>
@@ -44,14 +50,14 @@ export default function PlatformAuthLayout({
                                 </Button>
                             ) : null}
                         </div>
-                        <div className="rounded-lg border bg-card p-6 text-card-foreground sm:p-8">
+                        <div className="auth-rise rounded-lg border bg-card p-6 text-card-foreground sm:p-8">
                             {children}
                         </div>
                         {admin?.two_factor_enabled ? (
                             <div className="mt-4 text-center">
                                 <Link
                                     href={route('platform.dashboard')}
-                                    className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden"
+                                    className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-primary-text underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-hidden"
                                 >
                                     Kembali ke dasbor
                                 </Link>

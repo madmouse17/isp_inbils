@@ -120,7 +120,7 @@ export async function loginAs(page: Page, role: DemoRole = 'admin') {
 
     await page.goto('/login');
     await page.getByLabel('Email').fill(user.email);
-    await page.getByLabel('Kata sandi').fill(demoPassword);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(demoPassword);
     await page.getByRole('button', { name: 'Masuk' }).click();
 
     // Technician and customer accounts are app-only on the web: they land on /app-only.

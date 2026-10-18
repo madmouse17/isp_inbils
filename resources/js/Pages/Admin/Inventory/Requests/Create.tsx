@@ -302,7 +302,7 @@ export default function InventoryRequestsCreate({
                                             label={`Hapus barang ${idx + 1}`}
                                             onClick={() => removeItem(idx)}
                                             disabled={data.items.length <= 1}
-                                            className="text-destructive-text hover:bg-destructive/10"
+                                            variant="destructive-outline"
                                         >
                                             <Trash2 className="h-4 w-4" />
                                         </IconButton>

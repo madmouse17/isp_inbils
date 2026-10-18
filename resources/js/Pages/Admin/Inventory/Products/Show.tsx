@@ -205,7 +205,7 @@ export default function Show({ product }: ShowProps) {
                         <div className="mt-3 flex justify-end">
                             <Link
                                 href={route('admin.stock-movements.index', { product_id: p.id })}
-                                className="text-sm font-medium text-primary hover:underline"
+                                className="text-sm font-medium text-primary-text hover:underline"
                             >
                                 Lihat semua mutasi
                             </Link>

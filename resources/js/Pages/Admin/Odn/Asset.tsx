@@ -66,8 +66,7 @@ export default function Asset({ asset, ponPorts, splitters, inputPortOptions, ca
                         <Button
                             type="button"
                             size="sm"
-                            variant="ghost"
-                            className="text-destructive-text"
+                            variant="destructive-outline"
                             aria-label={`Hapus PON ${row.number}`}
                             onClick={() =>
                                 setConfirm({

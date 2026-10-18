@@ -244,8 +244,8 @@ Lihat `docs/API.md` Section 4 (NetworkAsset + Location group). Ringkas:
 Keputusan owner 2026-10-15 (`.scratch/freeradius/spec.md`, "rekomendasi tiap keputusan"): Inbils **tidak lagi
 memprovisioning router lewat RouterOS API**. Router MikroTik mengautentikasi subscriber ke FreeRADIUS 3.2; Inbils
 mengelola isi database RADIUS (user, grup kecepatan, klien NAS) dan mengirim Disconnect-Request (RFC 5176) agar
-perubahan grup berlaku seketika. Ini lab pilot: tanpa NAS bersama antar company, tanpa burst, tanpa IP static
-lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; riwayatnya ada di `CHANGELOG.md`.
+perubahan grup berlaku seketika. Ini lab pilot: tanpa NAS bersama antar company, tanpa burst. IP static dari IPAM
+ditulis sebagai `Framed-IP-Address` (lihat Model). Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; riwayatnya ada di `CHANGELOG.md`.
 
 ### Model
 
@@ -271,17 +271,24 @@ lewat RADIUS. Pendahulunya (`.scratch/mikrotik-radius`, RouterOS API) dihapus; r
   (login baru memakai kecepatan baru; sesi berjalan memakai yang lama sampai putus atau Resync). Paket tanpa
   `radius_profile_name` tidak bisa punya account. **Grup isolir** `<realm>/isolir`: `Mikrotik-Group := isolir`,
   `Mikrotik-Address-List := isolir`, `Acct-Interim-Interval := 300`.
+- **IP static** (`Framed-IP-Address`): bila subscription punya alamat IPv4 dari IPAM (`IpAssignmentService::staticAddressFor`),
+  `radreply` user itu berisi `Framed-IP-Address := <alamat>` di samping balasan grup; tanpa alamat (dynamic) tidak ada
+  baris `radreply` dan NAS memberi alamat dari pool-nya. Alamat tetap dipakai di grup isolir. Alamat baru dipakai saat
+  sesi dimulai, jadi alamat yang dipasang, diganti atau dilepas membuat Disconnect terutang (CPE redial dengan alamat
+  baru); selisihnya dibaca langsung dari `radreply` (`RadiusDirectory::framedIpOf`), tanpa kolom di Inbils. Baris
+  `Framed-IP-Address` yang hilang atau tak dikenal di RADIUS dianggap drift. Assign atau release di IPAM mengantre
+  `ApplyNetworkAccountJob` lewat listener `IpAssignmentChanged` (setelah commit). IPv6 tidak ditulis.
 - **Desired state** (dihitung saat job jalan): `pending|active` tidak diblokir → user ada, grup kecepatan;
   `suspended` atau status apa pun selain terminated dengan `blocked_at` → user ada, grup isolir; `terminated` atau
   dihapus → user dihapus. Suspend dan blokir adalah dua hal berbeda; halaman account menampilkan
   `isolatedBecause` (`suspended`, `blocked` atau keduanya).
 - **Disconnect**: dikirim ke NAS tempat sesi terbuka (`radacct.nasipaddress` dicocokkan dengan `nasname` NAS company
-  itu) bila grup berubah, user dihapus atau di-rename, atau staf menekan Resync; perubahan secret saja tidak memutus
+  itu) bila grup atau alamat static berubah, user dihapus atau di-rename, atau staf menekan Resync; perubahan secret saja tidak memutus
   sesi. ACK atau NAK `Session-Context-Not-Found` (503) dianggap selesai; timeout atau NAK lain → retry (`pending`);
   sesi di alamat yang bukan NAS company → dicatat di `last_error`, tidak dikirim, tidak diulang.
 - **Pemicu**: observer `ServiceSubscription` (`status`, `service_package_id`, `blocked_at`, delete; setelah commit),
-  simpan atau Resync account, perubahan `SpeedProfile`, dan `network:sync {--company=}` tiap 15 menit (account
-  `pending`, utang Disconnect, `failed` lebih dari sejam, drift via `hasUser`, dan baris NAS yang belum tertulis).
+  simpan atau Resync account, perubahan `SpeedProfile`, assign atau release alamat IPAM, dan `network:sync {--company=}` tiap 15 menit (account
+  `pending`, utang Disconnect, `failed` lebih dari sejam, drift via `hasUser` dan `framedIpOf`, dan baris NAS yang belum tertulis).
   Job `ApplyNetworkAccountJob`: unik per account sampai diproses, `tries` 5, backoff 30/120/300/900 detik, `timeout`
   60. Galat database RADIUS dan timeout Disconnect → retry dan account `pending`; input yang tidak bisa disimpan
   (tanpa nama profil, realm tak valid) → `failed` seketika. Aksi bisnis tidak pernah menunggu RADIUS.
@@ -411,7 +418,8 @@ Jalur fiber/IP untuk otomasi RADIUS dibaca dari sini lewat satu service, bukan d
 - **Kontrak provisioning** (dibaca lane MikroTik/RADIUS): `Modules\Ipam\Services\IpAssignmentService::staticAddressFor(ServiceSubscription): ?string`
   (IPv4 bertitik atau `null` bila dynamic; tidak butuh konteks company) dan event
   `Modules\Ipam\Events\IpAssignmentChanged(int $companyId, int $subscriptionId)` (`ShouldDispatchAfterCommit`) pada
-  tiap assign/release alamat milik subscription. Tidak ada listener di lane ini.
+  tiap assign/release alamat milik subscription. Listener `Modules\NetworkAsset\Listeners\QueueAccountOnIpAssignmentChange`
+  mengantre apply account jaringan subscription itu (lihat IP static di bagian NAS router).
 - **Terminate** (Q10a): `SubscriptionService::terminate` selalu melepas alamat static dan port drop subscription di
   transaksi yang sama (diaudit); suspend dan reactivate tidak mengubahnya.
 - **Route** (`auth, verified, require.has.company`): `GET/POST /admin/ipam/prefixes`, `GET/PUT/DELETE

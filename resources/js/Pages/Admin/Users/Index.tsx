@@ -83,7 +83,7 @@ export default function Index({ users, filters, can }: UsersProps) {
                 cell: (user) => (
                     <Link
                         href={route('admin.users.show', user.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {user.name}
                     </Link>

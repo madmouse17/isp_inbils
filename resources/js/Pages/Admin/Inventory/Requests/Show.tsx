@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import axios, { isAxiosError } from 'axios';
 import {
     ArrowLeft,
     CheckCircle2,
@@ -17,7 +18,7 @@ import AdminLayout from '@/Layouts/AdminLayout';
 import { PageHeader } from '@/Components/composite/PageHeader';
 import { EmptyCell } from '@/Components/ui/EmptyCell';
 import { EnumBadge } from '@/Components/ui/EnumBadge';
-import { Button } from '@/Components/ui/Button';
+import { Button, buttonVariants } from '@/Components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/Card';
 import { Table, TBody, TD, TH, THead, TR } from '@/Components/ui/Table';
 import { Input } from '@/Components/ui/Input';
@@ -288,31 +289,18 @@ export default function InventoryRequestsShow({ request }: Props) {
         setActionLoading(true);
         setActionError(null);
 
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Accept: 'application/json',
-                'X-CSRF-TOKEN':
-                    (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)
-                        ?.content || '',
-            },
-            body: JSON.stringify(payload),
-        })
-            .then(async (res) => {
-                if (!res.ok) {
-                    const err = (await res.json().catch(() => ({}))) as { message?: string };
-                    throw new Error(err.message || 'Gagal memproses pengembalian material.');
-                }
-                return res.json() as Promise<unknown>;
-            })
+        // axios sends the XSRF-TOKEN cookie as X-XSRF-TOKEN; the layout renders no csrf-token meta tag to read.
+        axios
+            .post(url, payload, { headers: { Accept: 'application/json' } })
             .then(() => {
                 setDialogOpen(null);
                 fetchReturnCase();
                 router.reload({ only: ['request'] });
             })
             .catch((err: unknown) => {
-                const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem.';
+                const message = isAxiosError<{ message?: string }>(err)
+                    ? (err.response?.data?.message ?? 'Gagal memproses pengembalian material.')
+                    : 'Terjadi kesalahan sistem.';
                 setActionError(message);
             })
             .finally(() => {
@@ -485,13 +473,13 @@ export default function InventoryRequestsShow({ request }: Props) {
                             {r.can?.cancel && (
                                 <Button
                                     size="sm"
-                                    variant="outline"
+                                    variant="destructive-outline"
                                     onClick={() => {
                                         setActionError(null);
                                         setDialogOpen('cancel');
                                     }}
                                     disabled={actionLoading}
-                                    className="gap-1.5 text-destructive-text hover:bg-destructive/10"
+                                    className="gap-1.5"
                                 >
                                     <XCircle className="h-4 w-4" />
                                     Batalkan Permintaan
@@ -531,7 +519,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                 <Card>
                     <CardHeader className="pb-3">
                         <CardTitle className="flex items-center gap-2 text-base">
-                            <Clock className="h-4 w-4 text-primary" />
+                            <Clock className="h-4 w-4 text-primary-text" />
                             Alur & Jejak Status Permintaan
                         </CardTitle>
                     </CardHeader>
@@ -577,7 +565,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                         <Card>
                             <CardHeader className="pb-3">
                                 <CardTitle className="flex items-center gap-2 text-base">
-                                    <Package className="h-4 w-4 text-primary" />
+                                    <Package className="h-4 w-4 text-primary-text" />
                                     Daftar Barang yang Diminta
                                 </CardTitle>
                             </CardHeader>
@@ -624,7 +612,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                     </TD>
                                                     <TD className="text-right">
                                                         {item.quantity_issued > 0 ? (
-                                                            <span className="font-semibold text-success">
+                                                            <span className="font-semibold text-emerald-700 dark:text-emerald-400">
                                                                 {formatNumber(item.quantity_issued)}{' '}
                                                                 {unit}
                                                             </span>
@@ -706,10 +694,10 @@ export default function InventoryRequestsShow({ request }: Props) {
                                             </div>
                                             <Button
                                                 type="button"
-                                                variant="outline"
+                                                variant="destructive-outline"
                                                 size="sm"
                                                 onClick={fetchReturnCase}
-                                                className="h-7 border-destructive/30 text-xs text-destructive-text hover:bg-destructive/20"
+                                                className="h-7 text-xs"
                                             >
                                                 <RotateCcw className="mr-1 h-3 w-3" />
                                                 Coba lagi
@@ -733,7 +721,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                         )}
 
                                     {returnCase?.status === 'exception_open' && (
-                                        <div className="text-warning-800 dark:text-warning-200 rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs">
+                                        <div className="rounded-lg border border-warning/50 bg-warning/10 p-3 text-xs text-amber-800 dark:text-amber-300">
                                             <div className="mb-1 flex items-center gap-1.5 font-medium">
                                                 <ShieldAlert className="size-3.5 shrink-0" />
                                                 <span>Selisih material perlu diselesaikan</span>
@@ -747,7 +735,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     )}
 
                                     {returnCase?.status === 'resolved' && (
-                                        <div className="text-success-800 dark:text-success-200 rounded-lg border border-success/50 bg-success/10 p-3 text-xs">
+                                        <div className="rounded-lg border border-success/50 bg-success/10 p-3 text-xs text-emerald-800 dark:text-emerald-300">
                                             <div className="mb-1 flex items-center gap-1.5 font-medium">
                                                 <CheckCircle2 className="size-3.5 shrink-0" />
                                                 <span>Selisih material sudah diselesaikan</span>
@@ -820,7 +808,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                                                     )}{' '}
                                                                     {unit}
                                                                 </TD>
-                                                                <TD className="text-right text-xs font-semibold text-success">
+                                                                <TD className="text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">
                                                                     {formatNumber(
                                                                         line.accepted_good_return_qty,
                                                                     )}{' '}
@@ -1165,7 +1153,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     });
                                 }}
                                 disabled={actionLoading || rejectReason.trim().length < 3}
-                                className="bg-destructive hover:bg-destructive/90"
+                                className={buttonVariants({ variant: 'destructive' })}
                             >
                                 {actionLoading ? 'Menolak...' : 'Tolak Permintaan'}
                             </AlertDialogAction>
@@ -1331,7 +1319,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     });
                                 }}
                                 disabled={actionLoading}
-                                className="bg-destructive hover:bg-destructive/90"
+                                className={buttonVariants({ variant: 'destructive' })}
                             >
                                 {actionLoading ? 'Membatalkan...' : 'Batalkan Permintaan'}
                             </AlertDialogAction>
@@ -1617,7 +1605,7 @@ export default function InventoryRequestsShow({ request }: Props) {
                                     );
                                 }}
                                 disabled={actionLoading || returnRejectReason.trim().length < 3}
-                                className="bg-destructive hover:bg-destructive/90"
+                                className={buttonVariants({ variant: 'destructive' })}
                             >
                                 {actionLoading ? 'Menolak...' : 'Tolak Penyerahan'}
                             </AlertDialogAction>

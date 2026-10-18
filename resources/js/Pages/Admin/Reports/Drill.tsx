@@ -157,7 +157,7 @@ export default function Drill({
             return index === 0 && row.url ? (
                 <Link
                     href={row.url}
-                    className="font-medium text-primary underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
+                    className="font-medium text-primary-text underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-hidden"
                 >
                     {text}
                 </Link>

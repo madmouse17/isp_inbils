@@ -46,7 +46,7 @@ async function nextOperatorCode(secret: string): Promise<string> {
 export async function loginAsPlatformOperator(page: Page) {
     await page.goto('/platform/login');
     await page.getByLabel('Email').fill(platformFixture.operatorEmail!);
-    await page.getByLabel('Kata sandi').fill(platformFixture.password!);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.password!);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(/\/platform\/two-factor-challenge$/);
     await page.getByLabel('Kode autentikasi').fill(await nextOperatorCode(platformFixture.secret!));

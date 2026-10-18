@@ -62,7 +62,7 @@ export default function TicketsIndex({ tickets, filters }: Props) {
                 cell: (row) => (
                     <Link
                         href={route('admin.tickets.show', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.code}
                     </Link>

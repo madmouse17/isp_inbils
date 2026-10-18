@@ -139,7 +139,7 @@ async function createStaffUser(page: Page, email: string) {
     ).toBeVisible({ timeout: 15_000 });
     await page.getByLabel('Nama').fill('QA Two-Factor');
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Kata sandi').fill(userPassword);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(userPassword);
     await page.getByRole('checkbox', { name: 'staff', exact: true }).check();
     await page.getByRole('button', { name: 'Buat', exact: true }).click();
     await expect(page).toHaveURL(/\/admin\/users\/?$/);
@@ -147,7 +147,7 @@ async function createStaffUser(page: Page, email: string) {
 
 async function submitPassword(page: Page, email: string) {
     await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Kata sandi').fill(userPassword);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(userPassword);
     await page.getByRole('button', { name: 'Masuk' }).click();
 }
 
@@ -176,7 +176,7 @@ async function expectDashboard(page: Page) {
 /** Password confirmation comes first, as for every change to the second factor. */
 async function confirmPassword(page: Page) {
     await expect(page).toHaveURL(/\/confirm-password$/);
-    await page.getByLabel('Kata sandi').fill(userPassword);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(userPassword);
     await page.getByRole('button', { name: 'Konfirmasi' }).click();
     await expect(page).toHaveURL(/\/profile$/);
 }

@@ -56,7 +56,7 @@ export default function SlaTiersIndex({ slaTiers, filters, can }: Props) {
                 cell: (row) => (
                     <Link
                         href={route('admin.sla-tiers.edit', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.name}
                     </Link>

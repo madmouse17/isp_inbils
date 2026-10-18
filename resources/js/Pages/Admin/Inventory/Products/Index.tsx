@@ -85,7 +85,7 @@ export default function Index({ products, categories, filters, can }: IndexProps
             cell: (p) => (
                 <Link
                     href={route('admin.products.show', p.id)}
-                    className="font-medium text-primary hover:underline"
+                    className="font-medium text-primary-text hover:underline"
                 >
                     {p.name}
                 </Link>

@@ -14,6 +14,7 @@ import {
     THead,
     TR,
 } from '@/Components/ui';
+import { ConfirmDialog } from '@/Components/composite/ConfirmDialog';
 import { useCompany } from '@/hooks/useCompany';
 import { formatRupiah } from '@/lib/format';
 
@@ -44,6 +45,8 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
     const [rows, setRows] = useState<PreviewRow[] | null>(null);
     const [skipped, setSkipped] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [confirming, setConfirming] = useState(false);
+    const [creating, setCreating] = useState(false);
 
     const preview = async () => {
         setLoading(true);
@@ -60,7 +63,18 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
     };
 
     const confirm = () => {
-        router.post(route('admin.invoices.generate'), { period }, { onSuccess: onClose });
+        router.post(
+            route('admin.invoices.generate'),
+            { period },
+            {
+                onStart: () => setCreating(true),
+                onSuccess: () => {
+                    setConfirming(false);
+                    onClose();
+                },
+                onFinish: () => setCreating(false),
+            },
+        );
     };
 
     return (
@@ -135,12 +149,21 @@ export default function GenerateDialog({ open, onClose }: { open: boolean; onClo
                         Lihat pratinjau
                     </Button>
                     {rows !== null && rows.length > 0 && (
-                        <Button type="button" variant="primary" onClick={confirm}>
+                        <Button type="button" variant="primary" onClick={() => setConfirming(true)}>
                             Buat {rows.length} tagihan
                         </Button>
                     )}
                 </div>
             </div>
+            <ConfirmDialog
+                open={confirming}
+                title={`Terbitkan ${rows?.length ?? 0} tagihan periode ${period}?`}
+                description="Tagihan massal dibuat dan tercatat di buku piutang pelanggan."
+                confirmLabel="Terbitkan tagihan"
+                processing={creating}
+                onConfirm={confirm}
+                onClose={() => setConfirming(false)}
+            />
         </Modal>
     );
 }

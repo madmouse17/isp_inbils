@@ -139,8 +139,7 @@ export default function Show({ asset, locationOptions }: ShowProps) {
     const stepButton = (action: LifecycleAction, primary = false, destructive = false) => (
         <Button
             type="button"
-            variant={primary ? 'primary' : 'outline'}
-            className={destructive ? 'text-destructive-text' : undefined}
+            variant={primary ? 'primary' : destructive ? 'destructive-outline' : 'outline'}
             onClick={() => setActionModal(action)}
         >
             {LIFECYCLE[action].title}

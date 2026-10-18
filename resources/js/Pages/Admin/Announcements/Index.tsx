@@ -286,7 +286,7 @@ export default function Index({
                 wrapperClassName="sm:w-44"
             />
             {hasFilters ? (
-                <Button type="button" variant="ghost" onClick={resetFilters}>
+                <Button type="button" variant="outline" onClick={resetFilters}>
                     Reset filter
                 </Button>
             ) : null}
@@ -500,7 +500,7 @@ function RowActions({
         <div className="flex items-center gap-1">
             <Button
                 type="button"
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 aria-label={`Ubah ${noun} ${title}`}
                 onClick={onEdit}
@@ -511,7 +511,7 @@ function RowActions({
                 <>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="outline"
                         size="sm"
                         aria-label={`Terbitkan ${noun} ${title}`}
                         onClick={onPublish}
@@ -520,7 +520,7 @@ function RowActions({
                     </Button>
                     <Button
                         type="button"
-                        variant="ghost"
+                        variant="destructive-outline"
                         size="sm"
                         aria-label={`Hapus draf ${noun} ${title}`}
                         onClick={onDelete}
@@ -532,7 +532,7 @@ function RowActions({
             {status === 'scheduled' || status === 'live' ? (
                 <Button
                     type="button"
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     aria-label={`Nonaktifkan ${noun} ${title}`}
                     onClick={onDeactivate}

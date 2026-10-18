@@ -55,7 +55,7 @@ export default function BandwidthProfilesIndex({ bandwidthProfiles, filters, can
                 cell: (row) => (
                     <Link
                         href={route('admin.bandwidth-profiles.edit', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.name}
                     </Link>

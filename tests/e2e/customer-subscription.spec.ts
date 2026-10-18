@@ -139,7 +139,7 @@ test('@kanban-t_744bf022 admin creates customer, installation address, and pendi
 async function loginAsAdmin(page: Page) {
     await page.goto('/login');
     await page.getByLabel('Email').fill(adminEmail!);
-    await page.getByLabel('Kata sandi').fill(demoPassword!);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(demoPassword!);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(/\/admin\/dashboard$/);
 }

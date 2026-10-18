@@ -32,7 +32,7 @@ export function useMyWorkColumns({
                     {row.actions.view && row.detail_url ? (
                         <Link
                             href={row.detail_url}
-                            className="font-semibold text-primary hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
+                            className="font-semibold text-primary-text hover:underline focus-visible:ring-1 focus-visible:ring-ring focus-visible:outline-hidden"
                         >
                             {row.code}
                         </Link>

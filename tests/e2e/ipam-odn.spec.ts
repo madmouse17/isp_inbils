@@ -388,12 +388,19 @@ test('@ipam-odn manager adds PON ports and a splitter, onboards onto the ODP, th
     await test.step('activate then terminate: the drop port is free again', async () => {
         await page.goto(subscriptionUrl);
         await page.getByRole('button', { name: 'Aktifkan', exact: true }).click();
+        await page
+            .getByRole('alertdialog', { name: /Aktifkan langganan/ })
+            .getByRole('button', { name: 'Aktifkan', exact: true })
+            .click();
         await expect(page.getByRole('button', { name: 'Tangguhkan' })).toBeVisible();
 
         await page.getByRole('button', { name: 'Hentikan', exact: true }).click();
-        const dialog = page.getByRole('dialog', { name: 'Hentikan Langganan' });
+        const dialog = page.getByRole('alertdialog', { name: /Hentikan langganan/ });
         await dialog.getByLabel('Alasan').fill('E2E ODN lifecycle');
-        await dialog.getByRole('button', { name: 'Hentikan' }).click();
+        const prompt = await dialog.getByText(/^Ketik \S+ untuk melanjutkan/).innerText();
+        const subscriptionCode = /^Ketik (\S+) untuk/.exec(prompt)![1];
+        await dialog.getByLabel(/^Ketik .* untuk melanjutkan/).fill(subscriptionCode);
+        await dialog.getByRole('button', { name: 'Hentikan langganan' }).click();
         await expect(dialog).toBeHidden();
 
         await expect(page.getByText('Belum ada port drop tercatat.')).toBeVisible();

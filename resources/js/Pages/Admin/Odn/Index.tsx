@@ -75,7 +75,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                 cell: (row) => (
                     <Link
                         href={route('admin.odn.assets.show', row.asset_id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.code}
                     </Link>
@@ -146,7 +146,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                 cell: (row) => (
                     <Link
                         href={route('admin.odn.assets.show', row.olt_asset_id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.olt_code}
                     </Link>
@@ -176,7 +176,7 @@ export default function Index({ odps, ponPorts, unmapped, filters, pops }: Index
                 cell: (row) => (
                     <Link
                         href={route('admin.subscriptions.show', row.subscription_id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.code}
                     </Link>

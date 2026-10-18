@@ -659,7 +659,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                             </CardTitle>
                             {processing && (
                                 <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Clock className="h-3 w-3 animate-spin text-primary" />
+                                    <Clock className="h-3 w-3 animate-spin text-primary-text" />
                                     <span>Memperbarui data...</span>
                                 </span>
                             )}
@@ -1004,7 +1004,7 @@ export default function AuditLog({ data, filters, userOptions, selectedUser, can
                                     >
                                         {copiedJson ? (
                                             <>
-                                                <Check className="h-3 w-3 text-primary" />
+                                                <Check className="h-3 w-3 text-primary-text" />
                                                 <span>Tersalin</span>
                                             </>
                                         ) : (

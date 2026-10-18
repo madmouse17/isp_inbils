@@ -74,6 +74,36 @@ class RadiusDirectoryTest extends TestCase
         $this->assertSame(['acme/home-20m'], array_column($this->radiusRows('radusergroup', ['username' => 'ani@acme']), 'groupname'));
     }
 
+    public function test_put_user_writes_a_static_address_as_the_framed_ip_reply_of_that_user(): void
+    {
+        $this->radius->putUser('budi@acme', self::FAKE_SECRET, 'acme/home-20m', '10.70.0.9');
+
+        $rows = $this->radiusRows('radreply');
+        $this->assertCount(1, $rows);
+        $this->assertSame(['budi@acme', 'Framed-IP-Address', ':=', '10.70.0.9'], [$rows[0]['username'], $rows[0]['attribute'], $rows[0]['op'], $rows[0]['value']]);
+    }
+
+    public function test_put_user_refuses_a_static_address_that_is_not_ipv4_and_writes_nothing(): void
+    {
+        foreach (['2001:db8::1', '10.70.0.999', 'not-an-ip', ''] as $address) {
+            $this->assertSame(RadiusException::REJECTED, $this->kind(fn () => $this->radius->putUser('budi@acme', self::FAKE_SECRET, 'g', $address)), $address);
+        }
+
+        $this->assertSame([], $this->radiusRows('radcheck'));
+        $this->assertSame([], $this->radiusRows('radreply'));
+    }
+
+    public function test_framed_ip_of_reads_the_address_of_that_user_only(): void
+    {
+        $this->assertNull($this->radius->framedIpOf('budi@acme'));
+
+        $this->radius->putUser('budi@acme', self::FAKE_SECRET, 'acme/home-20m', '10.70.0.9');
+        $this->radius->putUser('ani@acme', 'ani-fake-pass', 'acme/home-20m');
+
+        $this->assertSame('10.70.0.9', $this->radius->framedIpOf('budi@acme'));
+        $this->assertNull($this->radius->framedIpOf('ani@acme'));
+    }
+
     public function test_put_user_is_one_transaction(): void
     {
         $this->radiusConnection()->statement('drop table radusergroup');

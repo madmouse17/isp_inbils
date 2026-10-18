@@ -295,7 +295,7 @@ export default function InventoryRequestsIndex({
                     <div className="flex flex-col">
                         <Link
                             href={route('admin.inventory.requests.show', row.id)}
-                            className="font-medium text-primary hover:underline"
+                            className="font-medium text-primary-text hover:underline"
                             aria-label={`Buka Permintaan ${row.code}`}
                         >
                             {row.code}
@@ -521,7 +521,7 @@ export default function InventoryRequestsIndex({
                                 />
                             </div>
                             {hasRequestFilters && (
-                                <Button variant="ghost" size="sm" onClick={resetRequestFilters}>
+                                <Button variant="outline" size="sm" onClick={resetRequestFilters}>
                                     Reset filter
                                 </Button>
                             )}
@@ -792,7 +792,7 @@ export default function InventoryRequestsIndex({
                                                 >
                                                     <CardContent className="space-y-3 p-4">
                                                         <div className="flex flex-wrap items-center justify-between gap-2">
-                                                            <span className="font-semibold text-primary">
+                                                            <span className="font-semibold text-primary-text">
                                                                 {c.inventory_request?.code ||
                                                                     `Pengembalian #${c.id}`}
                                                             </span>
@@ -876,7 +876,7 @@ export default function InventoryRequestsIndex({
                                                             </div>
                                                         )}
                                                         {c.resolution_note && (
-                                                            <div className="text-success-800 dark:text-success-200 rounded bg-success/10 p-2 text-xs">
+                                                            <div className="rounded bg-success/10 p-2 text-xs text-emerald-800 dark:text-emerald-300">
                                                                 <strong>
                                                                     Catatan Penyelesaian:
                                                                 </strong>{' '}
@@ -1054,7 +1054,7 @@ function RequestsTableView({
                                                         'admin.inventory.requests.show',
                                                         row.id,
                                                     )}
-                                                    className="text-base font-semibold text-primary hover:underline"
+                                                    className="text-base font-semibold text-primary-text hover:underline"
                                                 >
                                                     {row.code}
                                                 </Link>
@@ -1114,7 +1114,7 @@ function RequestsTableView({
                                         )}
 
                                         <div className="flex items-center justify-between border-t border-border pt-2">
-                                            <span className="text-xs font-medium text-primary">
+                                            <span className="text-xs font-medium text-primary-text">
                                                 {getNextActionText(row)}
                                             </span>
                                             <Button size="sm" variant="outline" asChild>

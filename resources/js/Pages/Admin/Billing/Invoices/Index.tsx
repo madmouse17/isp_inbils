@@ -85,7 +85,7 @@ export default function InvoicesIndex({
                 cell: (row) => (
                     <Link
                         href={route('admin.invoices.show', row.id)}
-                        className="font-medium text-primary hover:underline"
+                        className="font-medium text-primary-text hover:underline"
                     >
                         {row.number}
                     </Link>

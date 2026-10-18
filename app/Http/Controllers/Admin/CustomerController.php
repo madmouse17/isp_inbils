@@ -91,7 +91,12 @@ class CustomerController extends Controller
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->orderBy('name')
-                ->get(['public_id as id', 'code', 'name', 'type']),
+                ->get(['public_id as id', 'code', 'name', 'type', 'lat', 'lng'])
+                ->map(fn (object $location): object => (object) [
+                    ...(array) $location,
+                    'lat' => $location->lat === null ? null : (float) $location->lat,
+                    'lng' => $location->lng === null ? null : (float) $location->lng,
+                ]),
             'regions' => fn () => IndonesiaRegionService::options(
                 $request->input('region_provinces', []),
                 $request->input('region_cities', []),

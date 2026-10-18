@@ -181,7 +181,8 @@ export function DateRangePicker({
                             aria-describedby={message ? errorId : undefined}
                             className={cn(
                                 hasContent && !disabled ? 'pr-18' : 'pr-10',
-                                message && 'border-destructive focus-visible:ring-destructive',
+                                message &&
+                                    'border-destructive-text focus-visible:ring-destructive-text',
                             )}
                         />
                         <div className="absolute inset-y-0 right-0.5 flex items-center gap-0.5">

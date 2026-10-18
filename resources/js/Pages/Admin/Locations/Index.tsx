@@ -313,7 +313,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     {can.update && (
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => startEdit(row)}
                         >
@@ -323,7 +323,7 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     {can.move && (
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                                 setMoveTarget(row);
@@ -336,9 +336,8 @@ export default function Index({ locations, tree, markers, filters, can }: Locati
                     {can.delete && (
                         <Button
                             type="button"
-                            variant="ghost"
+                            variant="destructive-outline"
                             size="sm"
-                            className="text-destructive-text"
                             onClick={() => setDeleteTarget(row)}
                             disabled={parentIds.has(row.id)}
                             title={

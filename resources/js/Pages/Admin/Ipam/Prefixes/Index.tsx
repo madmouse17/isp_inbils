@@ -77,7 +77,7 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                         )}
                         <Link
                             href={route('admin.ipam.prefixes.show', row.id)}
-                            className="font-mono font-medium text-primary hover:underline"
+                            className="font-mono font-medium text-primary-text hover:underline"
                         >
                             {row.cidr}
                         </Link>
@@ -238,6 +238,8 @@ export default function Index({ prefixes, filters, locations, vlans, can }: Inde
                         onClose={() => setCreating(false)}
                         locations={locations}
                         vlans={vlans}
+                        // A filtered list can miss the real parent, so only the full list may suggest a VLAN.
+                        prefixes={filtered ? undefined : prefixes}
                     />
                 )}
             </div>

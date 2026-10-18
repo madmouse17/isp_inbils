@@ -121,7 +121,7 @@ export interface NetworkAccountSubscription {
     code: string;
     status: string;
     blocked_at: string | null;
-    customer: { id: string; name: string } | null;
+    customer: { id: string; name: string; code: string } | null;
     speed_profile: { name: string; radius_profile_name: string | null } | null;
     serving_pop: { id: string; name: string } | null;
 }

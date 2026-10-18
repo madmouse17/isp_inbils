@@ -12,7 +12,7 @@ test('@platform first login enrols mandatory two-factor authentication', async (
     test.setTimeout(90_000);
     await page.goto('/platform/login');
     await page.getByLabel('Email').fill(platformFixture.enrolEmail!);
-    await page.getByLabel('Kata sandi').fill(platformFixture.password!);
+    await page.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.password!);
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page).toHaveURL(/\/platform\/two-factor\/setup$/);
 
@@ -78,7 +78,7 @@ test('@platform suspend blocks tenant login and reactivate restores it', async (
     const tenantPage = await tenantContext.newPage();
     await tenantPage.goto('/login');
     await tenantPage.getByLabel('Email').fill(platformFixture.tenantAdminEmail!);
-    await tenantPage.getByLabel('Kata sandi').fill(platformFixture.tenantAdminPassword!);
+    await tenantPage.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.tenantAdminPassword!);
     await tenantPage.getByRole('button', { name: 'Masuk' }).click();
     await expect(
         tenantPage.getByText('Akun perusahaan Anda sedang ditangguhkan. Hubungi dukungan.'),
@@ -92,7 +92,7 @@ test('@platform suspend blocks tenant login and reactivate restores it', async (
 
     await tenantPage.reload();
     await tenantPage.getByLabel('Email').fill(platformFixture.tenantAdminEmail!);
-    await tenantPage.getByLabel('Kata sandi').fill(platformFixture.tenantAdminPassword!);
+    await tenantPage.getByLabel(/^Kata sandi( \*)?$/).fill(platformFixture.tenantAdminPassword!);
     await tenantPage.getByRole('button', { name: 'Masuk' }).click();
     await expect(tenantPage).toHaveURL(/\/admin\/dashboard$/);
     await tenantContext.close();
