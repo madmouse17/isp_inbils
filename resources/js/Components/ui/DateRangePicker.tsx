@@ -78,6 +78,8 @@ export function DateRangePicker({
     const [typedError, setTypedError] = useState<'format' | 'order' | null>(null);
     const [open, setOpen] = useState(false);
     const [draft, setDraft] = useState<CalendarRange | undefined>();
+    // A start was picked since the calendar opened. Until then the shown range (or an open start) is only context.
+    const [picking, setPicking] = useState(false);
     const twoMonths = useSyncExternalStore(
         subscribeTwoMonths,
         () => window.matchMedia(TWO_MONTHS_QUERY).matches,
@@ -120,10 +122,16 @@ export function DateRangePicker({
             if (from && to) setDraft(from <= to ? { from, to } : { from: to, to: from });
             else setDraft(from ? { from, to: undefined } : undefined);
         }
+        setPicking(false);
         setOpen(next);
     };
 
-    const pickDay = (range: CalendarRange) => {
+    const pickDay = (range: CalendarRange, day: Date) => {
+        if (!picking) {
+            setPicking(true);
+            setDraft({ from: day, to: undefined });
+            return;
+        }
         setDraft(range);
         if (range.from && range.to) {
             commit({ from: localDateToIso(range.from), to: localDateToIso(range.to) });
@@ -148,7 +156,7 @@ export function DateRangePicker({
               ? `Format tanggal tidak valid. Contoh: ${formatRange(presetRange('last7', today), dateFnsFormat)}.`
               : error;
     const hasContent = text.trim() !== '' || Boolean(value.from) || Boolean(value.to);
-    const waitingForEnd = draft?.from !== undefined && draft.to === undefined;
+    const waitingForEnd = picking && draft?.from !== undefined && draft.to === undefined;
 
     return (
         <div className={cn('space-y-1.5 w-full', className)}>

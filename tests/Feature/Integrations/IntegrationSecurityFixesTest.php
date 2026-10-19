@@ -131,6 +131,17 @@ class IntegrationSecurityFixesTest extends TestCase
         $this->assertNull($this->hostRow('10.9.8.10')->hostRefusal(), 'the neighbour is a LAN host');
     }
 
+    public function test_a_public_mail_provider_the_platform_also_uses_is_open_to_a_company(): void
+    {
+        $this->production();
+        config(['mail.mailers.smtp.host' => '8.8.4.4']);
+
+        $this->assertNull($this->hostRow('8.8.4.4')->hostRefusal(), 'a shared public provider is no service of the platform');
+
+        config(['mail.mailers.smtp.host' => 'mail.platform.test']);
+        $this->assertSame(sprintf(self::REFUSED, 'mail.platform.test'), $this->hostRow('mail.platform.test')->hostRefusal(), 'a mail host that resolves to nothing public stays the platform\'s');
+    }
+
     public function test_the_platforms_own_hosts_are_a_laboratory_in_the_local_environments(): void
     {
         $address = $this->databaseAddress();

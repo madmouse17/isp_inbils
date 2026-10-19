@@ -7,7 +7,7 @@ Provider-neutral local baseline for inbils ISP ops. No Sentry/Bugsnag/OTel depen
 One id follows a request from the browser or the app to the log line, the queued job, the vendor call and the audit row.
 
 - Middleware: `App\Http\Middleware\AssignRequestId`, prepended to the global stack in `bootstrap/app.php`, so even the answer of the host check or of maintenance mode (503) carries an id.
-- It accepts a safe incoming `X-Request-Id` or `X-Correlation-Id` (printable ASCII, at most 128 characters) and otherwise generates a UUID. A client-supplied id is trusted as sent: a caller can pick the id its own requests carry, so never use it for authorization.
+- It accepts an incoming `X-Request-Id` or `X-Correlation-Id` of 1 to 128 characters from `[A-Za-z0-9._:-]` and otherwise generates a UUID. A client-supplied id is trusted as sent: a caller can pick the id its own requests carry, so never use it for authorization.
 - It puts the id in `Context::add('request_id', …)` and in `$request->attributes`, and echoes `X-Request-Id` on every response.
 - The Context reaches:
   - every log record, as `extra.request_id` (it used to be `context.request_id`: a log query or a dashboard that reads the old key must read the new one);

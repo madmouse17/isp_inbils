@@ -255,8 +255,7 @@ final class CompanyIntegration extends Model
      * The refusal is one sentence for every cause, so that it does not tell a company which address is the platform's.
      *
      * shortcut: the connection resolves the name again, so a rebinding between this lookup and the connect is not caught
-     * (pin the resolved address into the connection if that ever matters), and a company that uses the platform's own
-     * mail provider (the same SMTP host) is refused (allow that host per provider if it ever has to be).
+     * (pin the resolved address into the connection if that ever matters).
      *
      * @return string|null the Indonesian reason the host is refused; null when it may be used, and when the row names no
      *                     host (the provider's own check says what is missing)
@@ -325,7 +324,7 @@ final class CompanyIntegration extends Model
     }
 
     /**
-     * Does the host stand for one of the platform's own services (database, Redis, mail)?
+     * Does the host stand for one of the platform's own services (database, Redis, a mail server inside its network)?
      *
      * @param  list<string>  $addresses  what $host resolves to
      */
@@ -336,19 +335,50 @@ final class CompanyIntegration extends Model
         }
 
         $theirs = array_map(self::canonical(...), $addresses);
-        $own = Arr::flatten([config('database.connections.mysql.host'), config('database.redis.default.host'), config('mail.mailers.smtp.host')]);
+        $own = [config('database.connections.mysql.host'), config('database.redis.default.host')];
+        $mail = config('mail.mailers.smtp.host');
 
-        foreach ($own as $name) {
+        // A public provider (smtp.gmail.com, Mailgun) is shared by design: only a mail server inside the network is the platform's.
+        if (is_string($mail) && $mail !== '' && ! self::isPublic(self::platformAddressesOf($mail))) {
+            $own[] = $mail;
+        }
+
+        foreach (Arr::flatten($own) as $name) {
             if (! is_string($name) || $name === '') {
                 continue;
             }
 
-            if (strcasecmp($host, $name) === 0 || array_intersect($theirs, array_map(self::canonical(...), self::addressesOf($name))) !== []) {
+            if (strcasecmp($host, $name) === 0 || array_intersect($theirs, array_map(self::canonical(...), self::platformAddressesOf($name))) !== []) {
                 return true;
             }
         }
 
         return false;
+    }
+
+    /**
+     * The addresses of one of the platform's own hosts, looked up once per process: every send would otherwise pay
+     * three extra lookups.
+     *
+     * @return list<string>
+     */
+    private static function platformAddressesOf(string $name): array
+    {
+        static $resolved = [];
+
+        return $resolved[$name] ??= self::addressesOf($name);
+    }
+
+    /** @param  list<string>  $addresses  a name that resolves to nothing is not public */
+    private static function isPublic(array $addresses): bool
+    {
+        foreach ($addresses as $address) {
+            if (Factory::parseAddressString($address, self::ADDRESS_FORMS)?->getRangeType() !== Type::T_PUBLIC) {
+                return false;
+            }
+        }
+
+        return $addresses !== [];
     }
 
     /** One spelling per address: an IPv4-mapped IPv6 address (or a 6to4 one) is the IPv4 address it wraps. */

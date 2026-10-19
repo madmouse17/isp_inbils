@@ -1,6 +1,6 @@
 # QA: fresh deploy, fixtures and personas for the audit
 
-Status: in-progress
+Status: done
 Role: qa
 Blocked by: every other lane merged
 Spec: `../spec.md`
@@ -11,7 +11,7 @@ On the dev stack (Sail, DB `inbils`, never `inbils_test`; no resets): create the
 
 ## Acceptance criteria
 
-- [ ] Stack + apps reachable; personas can log in; folder exists.
+- [x] Stack + apps reachable; personas can log in; folder exists. (Customer and warehouse logins were proven in flows 4 to 6.)
 
 ## Comments
 

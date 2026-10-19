@@ -213,7 +213,9 @@ class SecurityTrailTest extends TestCase
         $user = $this->createCompanyUser();
         foreach (range(1, 25) as $attempt) {
             $this->post('/login', ['email' => $user->email, 'password' => 'password'])->assertSessionHasNoErrors();
+            $this->assertAuthenticatedAs($user);
             $this->post(route('logout'));
+            $this->assertGuest();
         }
 
         foreach (range(1, 20) as $attempt) {

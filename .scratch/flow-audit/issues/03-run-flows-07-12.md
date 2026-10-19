@@ -1,6 +1,6 @@
 # QA: run flows 7–12 end to end and record findings
 
-Status: in-progress
+Status: done
 Role: qa
 Blocked by: 01
 Spec: `../spec.md`
@@ -11,7 +11,7 @@ Execute flows 7–12 per the spec rules; same output.
 
 ## Acceptance criteria
 
-- [ ] Same as 02 for flows 7–12.
+- [x] Same as 02 for flows 7–12. (Flow 10 subsidiary creation, reduce motion, dark mode on the remaining screens and offline push not run: recorded in report section 6.)
 
 ## Comments
 

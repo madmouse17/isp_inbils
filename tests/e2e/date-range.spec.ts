@@ -63,8 +63,6 @@ test.describe('@smoke date range picker (Log audit)', () => {
     test('two clicks on the calendar pick a range', async ({ page }) => {
         const field = await openAuditLog(page);
 
-        // The page opens on its default start (7 days back); clear it so the first click starts a new range.
-        await page.getByRole('button', { name: 'Hapus rentang tanggal' }).click();
         await page.getByRole('button', { name: 'Buka kalender' }).click();
         const calendar = page.getByRole('dialog', { name: 'Pilih rentang tanggal' });
         await expect(calendar).toBeVisible();

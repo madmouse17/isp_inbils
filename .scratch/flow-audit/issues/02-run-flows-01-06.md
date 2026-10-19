@@ -1,6 +1,6 @@
 # QA: run flows 1–6 end to end and record findings
 
-Status: in-progress
+Status: done
 Role: qa
 Blocked by: 01
 Spec: `../spec.md`
@@ -11,7 +11,7 @@ Execute flows 1–6 per the spec rules; screenshots at every judgement point; fi
 
 ## Acceptance criteria
 
-- [ ] Each flow has a run log with outcome + findings in `docs/plans/FLOW_AUDIT_<date>.md`.
+- [x] Each flow has a run log with outcome + findings in `docs/plans/FLOW_AUDIT_<date>.md`. (Flows 1 to 6 all run; what was not exercised is listed in report section 6.)
 
 ## Comments
 
