@@ -357,8 +357,8 @@ final class CompanyIntegration extends Model
     }
 
     /**
-     * The addresses of one of the platform's own hosts, looked up once per process: every send would otherwise pay
-     * three extra lookups.
+     * The addresses of one of the platform's own hosts, kept a minute: every send would otherwise pay three extra
+     * lookups, and a recreated container (new address) must not stay unrecognised for the life of a worker.
      *
      * @return list<string>
      */
@@ -366,7 +366,11 @@ final class CompanyIntegration extends Model
     {
         static $resolved = [];
 
-        return $resolved[$name] ??= self::addressesOf($name);
+        if (! isset($resolved[$name]) || time() - $resolved[$name][0] >= 60) {
+            $resolved[$name] = [time(), self::addressesOf($name)];
+        }
+
+        return $resolved[$name][1];
     }
 
     /** @param  list<string>  $addresses  a name that resolves to nothing is not public */
